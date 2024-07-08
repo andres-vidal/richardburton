@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@floating-ui/react": "^0.26.9",
-    "@typescript-eslint/eslint-plugin": "^7.1.1",
+    "@typescript-eslint/eslint-plugin": "^7.15.0",
     "@typescript-eslint/parser": "^7.1.1",
     "axios": "^1.6.8",
     "axios-case-converter": "^1.1.1",
