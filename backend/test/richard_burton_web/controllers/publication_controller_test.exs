@@ -4,11 +4,12 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   """
   alias RichardBurton.FlatPublication
   use RichardBurtonWeb.ConnCase
-  import Routes, only: [publication_path: 2]
+  import Routes, only: [publication_path: 2, publication_path: 3]
 
   alias RichardBurton.Country
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
+  alias RichardBurton.Repo
 
   @publication_attrs %{
     "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -34,6 +35,15 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                |> Plug.Conn.get_resp_header("x-total-count")
     end
   end
+
+  defp create_publications(%{} = data) do
+    {status, res} = create_publications([data])
+
+    {status, hd(res)}
+  end
+
+  defp create_publications(entries),
+    do: entries |> Publication.Codec.nest() |> Publication.insert_all()
 
   describe "POST /publications/bulk" do
     test "returns 201 and the created publications when all the publications are valid", meta do
@@ -513,8 +523,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       {:ok, _p} =
         @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
+        |> create_publications()
 
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
@@ -539,8 +548,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       {:ok, [_p1, _p2]} =
         [@publication_attrs, Map.put(@publication_attrs, "title", "bla")]
-        |> Publication.Codec.nest()
-        |> Publication.insert_all()
+        |> create_publications()
 
       search = "Honey"
 
@@ -568,8 +576,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       {:ok, [_p1, _p2]} =
         [@publication_attrs, Map.put(@publication_attrs, "title", "bla")]
-        |> Publication.Codec.nest()
-        |> Publication.insert_all()
+        |> create_publications()
 
       search = "Honey"
       attributes = [:title, :original_title, :authors]
@@ -600,8 +607,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       {:ok, _p} =
         @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
+        |> create_publications()
 
       attributes = [:title, :original_title, :authors]
       select = Enum.map_join(attributes, "&", &"select[]=#{&1}")
@@ -621,6 +627,46 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert response_content_type(conn, :csv)
       assert expected_content_disposition == content_disposition
       assert expected_data == response(conn, 200)
+    end
+  end
+
+  describe "update" do
+    def setup_update(%{conn: conn}) do
+      {:ok, publication} = @publication_attrs |> create_publications()
+      path = conn |> publication_path(:update, publication.id)
+
+      %{publication: publication, path: path}
+    end
+
+    # TODO:
+    #
+    # - tests de errores de validación
+    # - fallback controller para 404
+    #
+    setup [:mock_admin_logged_in, :setup_update]
+
+    test "returns 200 and updates the publication", %{
+      conn: conn,
+      path: path,
+      publication: publication
+    } do
+      update_attrs = %{
+        title: Faker.Lorem.sentence(),
+        year: (:rand.uniform() * 120 + 1900) |> trunc()
+      }
+
+      resp = conn |> put(path, update_attrs)
+
+      publication = publication |> Repo.reload()
+
+      assert resp.status == 200
+      assert publication |> Map.take(Map.keys(update_attrs)) == update_attrs
+    end
+
+    test "return 400 on validation errors", %{conn: conn, path: path} do
+      resp = conn |> put(path, %{title: ""})
+
+      assert resp.status == 400
     end
   end
 end

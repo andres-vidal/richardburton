@@ -67,4 +67,12 @@ defmodule RichardBurtonWeb.ConnCase do
   def expect_mailer_send(n \\ 1) do
     expect(RichardBurton.MailerMock, :send, n, fn _ -> {:ok, "Whatever"} end)
   end
+
+  def mock_admin_logged_in(_context) do
+    RichardBurton.AuthMock
+    |> expect(:verify, fn _ -> {:ok, "admin-token"} end)
+    |> expect(:authorize, fn _, :admin -> :ok end)
+
+    %{}
+  end
 end

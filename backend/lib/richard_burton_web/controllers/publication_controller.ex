@@ -76,6 +76,18 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_status(status) |> json(Publication.Codec.flatten(response_body))
   end
 
+  def update(conn, %{"id" => id} = params) do
+    publication = Publication.get!(id) |> Publication.preload()
+    result = publication |> Publication.update(params)
+
+    with {:ok, record} <- result do
+      conn |> json(record)
+    else
+      {:error, changeset} ->
+        conn |> put_status(:bad_request) |> json(%{errors: changeset.errors})
+    end
+  end
+
   def validate(conn, %{"csv" => %Plug.Upload{path: path}}) do
     case Publication.Codec.from_csv(path) do
       {:ok, publications} ->

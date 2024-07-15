@@ -8,7 +8,6 @@ defmodule RichardBurton.Publication do
   require Ecto.Query
 
   alias RichardBurton.Country
-  alias RichardBurton.Publication
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
@@ -36,7 +35,7 @@ defmodule RichardBurton.Publication do
   def changeset(publication, attrs \\ %{})
 
   @doc false
-  def changeset(publication, attrs = %Publication{}) do
+  def changeset(publication, attrs = %__MODULE__{}) do
     changeset(publication, Map.from_struct(attrs))
   end
 
@@ -62,8 +61,13 @@ defmodule RichardBurton.Publication do
     |> link_fingerprints()
   end
 
+  def get!(id) do
+    __MODULE__
+    |> Repo.get!(id)
+  end
+
   def all do
-    Publication
+    __MODULE__
     |> Repo.all()
     |> preload
   end
@@ -77,7 +81,7 @@ defmodule RichardBurton.Publication do
   end
 
   def insert(attrs) do
-    %Publication{}
+    %__MODULE__{}
     |> changeset(attrs)
     |> link_assocs()
     |> Repo.insert()
@@ -90,8 +94,14 @@ defmodule RichardBurton.Publication do
     end
   end
 
+  def update(publication, attrs) do
+    publication
+    |> changeset(attrs)
+    |> Repo.update()
+  end
+
   def validate(attrs) do
-    Validation.validate(changeset(%Publication{}, attrs), &link_assocs/1)
+    Validation.validate(changeset(%__MODULE__{}, attrs), &link_assocs/1)
   end
 
   defp link_fingerprints(changeset) do
