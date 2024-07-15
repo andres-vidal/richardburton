@@ -638,11 +638,6 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       %{publication: publication, path: path}
     end
 
-    # TODO:
-    #
-    # - tests de errores de validación
-    # - fallback controller para 404
-    #
     setup [:mock_admin_logged_in, :setup_update]
 
     test "returns 200 and updates the publication", %{
@@ -667,6 +662,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       resp = conn |> put(path, %{title: ""})
 
       assert resp.status == 400
+      assert resp.resp_body |> Jason.decode!() |> get_in(["errors", "title"]) |> is_bitstring()
     end
   end
 end

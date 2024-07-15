@@ -78,13 +78,9 @@ defmodule RichardBurtonWeb.PublicationController do
 
   def update(conn, %{"id" => id} = params) do
     publication = Publication.get!(id) |> Publication.preload()
-    result = publication |> Publication.update(params)
 
-    with {:ok, record} <- result do
+    with {:ok, record} <- publication |> Publication.update(params) do
       conn |> json(record)
-    else
-      {:error, changeset} ->
-        conn |> put_status(:bad_request) |> json(%{errors: changeset.errors})
     end
   end
 

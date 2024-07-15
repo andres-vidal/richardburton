@@ -21,6 +21,8 @@ defmodule RichardBurtonWeb do
     quote do
       use Phoenix.Controller, namespace: RichardBurtonWeb
 
+      action_fallback RichardBurtonWeb.FallbackController
+
       import Plug.Conn
       alias RichardBurtonWeb.Router.Helpers, as: Routes
     end
