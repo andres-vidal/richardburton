@@ -30,7 +30,5 @@ const User: UserModule = {
   },
 };
 
-const useIsAuthenticated = () => {};
-
 export { User };
 export type { UserRole };

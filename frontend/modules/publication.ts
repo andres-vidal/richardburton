@@ -565,7 +565,6 @@ const Publication: PublicationModule = {
     useOverrideValue(id) {
       return useRecoilValue(PUBLICATION_OVERRIDES(id));
     },
-
     useIsValid(id) {
       return useRecoilValue(IS_PUBLICATION_VALID(id));
     },

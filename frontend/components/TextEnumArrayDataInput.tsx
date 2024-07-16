@@ -24,8 +24,6 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
       [value, toEnum],
     );
 
-    console.log({ value, items });
-
     function handleChange(value: Enum[]) {
       onChange?.(value.map(({ id }) => id).join(","));
     }
