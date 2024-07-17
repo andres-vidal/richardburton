@@ -62,10 +62,14 @@ export default forwardRef<HTMLDivElement, Props>(function TextInput(
           id={labelId}
           className={c(
             "absolute transition-all pointer-events-none",
-            "peer-placeholder-shown:text-gray-600 peer-placeholder-shown:text-sm text-xs peer-focus:text-xs text-indigo-600 peer-focus:text-indigo-600",
-            "peer-placeholder-shown:left-2 left-0 peer-focus:left-0 ",
-            "peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 -translate-y-full peer-focus:-translate-y-full top-0 peer-focus:top-0",
+            "text-xs peer-focus:text-xs text-indigo-600 peer-focus:text-indigo-600",
+            "left-0 peer-focus:left-0  -translate-y-full peer-focus:-translate-y-full top-0 peer-focus:top-0",
             "peer-error:text-red-600 peer-error:-translate-y-full peer-error:top-0 peer-error:left-0 peer-error:text-xs",
+            {
+              "peer-placeholder-shown:text-gray-600 peer-placeholder-shown:text-sm \
+               peer-placeholder-shown:left-2 peer-placeholder-shown:-translate-y-1/2 \
+               peer-placeholder-shown:top-1/2": !left,
+            },
           )}
         >
           {label} {error && <span id={errorId}>({error})</span>}
@@ -75,3 +79,5 @@ export default forwardRef<HTMLDivElement, Props>(function TextInput(
     </div>
   );
 });
+
+export type { Props as TextInputProps };

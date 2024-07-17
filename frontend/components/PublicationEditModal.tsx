@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { useRouter } from "next/router";
 import { Publication, PublicationId } from "modules/publication";
 import { Article } from "./Article";
 import { Modal, useURLQueryModal } from "./Modal";
 import Button from "./Button";
-import DataInput from "./DataInput";
+import PublicationInput from "./PublicationInput";
 
 const PUBLICATION_EDIT_MODAL_KEY = "edit";
 const usePublicationEditModal = () =>
@@ -19,22 +20,29 @@ interface PublicationEditFormProps {
 
 const PublicationEditForm = ({
   publicationId,
-  publication,
+  publication: originalPublication,
   onClose,
 }: PublicationEditFormProps) => {
+  const [publication, setPublication] = useState(originalPublication);
+
+  const handleChange = (key: string) => (value: string) => {
+    setPublication({ ...originalPublication, [key]: value });
+  };
+
   return (
-    <form className="p-2 flex flex-col gap-1">
-      {Publication.ATTRIBUTES.map((attrName) => (
-        <div key={attrName}>
-          <DataInput
-            rowId={publicationId}
-            colId={attrName}
-            value={publication[attrName]}
-            error=""
-          />
-        </div>
+    <form className="p-2 flex flex-col space-y-6">
+      {Publication.ATTRIBUTES.map((attribute) => (
+        <PublicationInput
+          label={Publication.ATTRIBUTE_LABELS[attribute]}
+          publicationId={publicationId}
+          attribute={attribute}
+          value={publication[attribute]}
+          onChange={handleChange(attribute)}
+          error=""
+          autoValidated
+        />
       ))}
-      <div className="p-2 flex flex-row justify-between">
+      <div className="mt-6 flex flex-row justify-between">
         <Button
           variant="secondary"
           width="fixed"

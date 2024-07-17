@@ -1,9 +1,9 @@
 import { parseInt, toString } from "lodash";
 import { FC, forwardRef } from "react";
-import { DataInputProps } from "./DataInput";
+import { PublicationInputProps } from "./PublicationInput";
 import NumberInput from "./NumberInput";
 
-export default forwardRef<HTMLInputElement, DataInputProps>(
+export default forwardRef<HTMLInputElement, PublicationInputProps>(
   function TextNumberDataInput({ value, onChange, ...props }, ref) {
     function handleChange(value: number) {
       onChange?.(toString(value));
@@ -18,4 +18,4 @@ export default forwardRef<HTMLInputElement, DataInputProps>(
       />
     );
   },
-) as FC<DataInputProps>;
+) as FC<PublicationInputProps>;

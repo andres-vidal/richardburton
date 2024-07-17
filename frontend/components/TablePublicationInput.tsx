@@ -2,10 +2,8 @@ import {
   Publication,
   PublicationId,
   PublicationKey,
-  PublicationKeyType,
 } from "modules/publication";
 import {
-  FC,
   FocusEvent,
   HTMLProps,
   Ref,
@@ -13,20 +11,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import TextArrayDataInput from "./TextArrayDataInput";
-import TextDataInput from "./TextDataInput";
-import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
-import TextEnumDataInput from "./TextEnumDataInput";
-import TextNumberDataInput from "./TextNumberDataInput";
-import Tooltip from "./Tooltip";
-
-const COMPONENTS_PER_TYPE: Record<PublicationKeyType, FC<Props>> = {
-  text: TextDataInput,
-  enum: TextEnumDataInput,
-  enumArray: TextEnumArrayDataInput,
-  number: TextNumberDataInput,
-  array: TextArrayDataInput,
-};
+import PublicationInput from "./PublicationInput";
 
 type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
   ref: Ref<HTMLElement>;
@@ -38,22 +23,19 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
   autoValidated?: boolean;
 };
 
-const DataInput = forwardRef<HTMLElement, Props>(
-  function DataInput(props, ref) {
+const TablePublicationInput = forwardRef<HTMLElement, Props>(
+  function (props, ref) {
     const {
       rowId,
       colId,
       value: data,
       error,
-      autoValidated,
       onBlur,
+      autoValidated,
       onChange,
     } = props;
 
-    const type = Publication.ATTRIBUTE_TYPES[props.colId];
-    const Component = COMPONENTS_PER_TYPE[type];
-    const placeholder = Publication.ATTRIBUTE_LABELS[colId];
-
+    const type = Publication.ATTRIBUTE_TYPES[colId];
     const validate = Publication.REMOTE.useValidate();
     const override = Publication.STORE.ATTRIBUTES.useOverride();
     const [value, setValue] = useState(data);
@@ -67,10 +49,10 @@ const DataInput = forwardRef<HTMLElement, Props>(
     function handleChange(value: string) {
       setValue(value);
       override(rowId, colId, value);
+      onChange?.(value);
       if (type == "array" || type == "enum") {
         doValidate();
       }
-      onChange?.(value);
     }
 
     function handleBlur(event: FocusEvent<HTMLInputElement>) {
@@ -85,21 +67,20 @@ const DataInput = forwardRef<HTMLElement, Props>(
     }, [data, rowId, colId, value, setValue]);
 
     return (
-      <Tooltip error message={props.error}>
-        <Component
-          {...props}
-          {...Publication.define(colId)}
-          ref={ref}
-          value={value}
-          onBlur={handleBlur}
-          onChange={handleChange}
-          placeholder={placeholder}
-          error={error}
-        />
-      </Tooltip>
+      <PublicationInput
+        {...props}
+        {...Publication.define(colId)}
+        ref={ref}
+        value={value}
+        attribute={colId}
+        publicationId={rowId}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        error={error}
+        autoValidated={autoValidated}
+      />
     );
   },
 );
 
-export type { Props as DataInputProps };
-export default DataInput;
+export default TablePublicationInput;
