@@ -57,7 +57,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "Richard Burton, Isabel Burton",
           "original_authors" => "J. M. Pereira da Silva",
-          "original_title" => "Manuel de Moraes: crônica do século XVII"
+          "original_title" => "Manuel de Moraes: crônica do século XVII",
+          "id" => nil
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -66,7 +67,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "Isabel Burton",
           "original_authors" => "José de Alencar",
-          "original_title" => "Iracema"
+          "original_title" => "Iracema",
+          "id" => nil
         }
       ]
 
@@ -128,7 +130,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "Richard Burton, Isabel Burton",
           "original_authors" => "J. M. Pereira da Silva",
-          "original_title" => "Manuel de Moraes: crônica do século XVII"
+          "original_title" => "Manuel de Moraes: crônica do século XVII",
+          "id" => nil
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -137,7 +140,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "Isabel Burton",
           "original_authors" => "José de Alencar",
-          "original_title" => "Iracema"
+          "original_title" => "Iracema",
+          "id" => nil
         },
         %{
           "authors" => "Isabel Burton, Richard Burton",
@@ -146,7 +150,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "original_title" => "Iracema",
           "publishers" => "Bickers & Son",
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-          "year" => 1886
+          "year" => 1886,
+          "id" => nil
         }
       ]
 
@@ -203,7 +208,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son, Noonday Press",
           "authors" => "Richard Burton, Isabel Burton",
           "original_authors" => "J. M. Pereira da Silva",
-          "original_title" => "Manuel de Moraes: crônica do século XVII"
+          "original_title" => "Manuel de Moraes: crônica do século XVII",
+          "id" => nil
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -212,7 +218,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son, Noonday Press",
           "authors" => "Isabel Burton",
           "original_authors" => "José de Alencar",
-          "original_title" => "Iracema"
+          "original_title" => "Iracema",
+          "id" => nil
         },
         %{
           "authors" => "Isabel Burton, Richard Burton",
@@ -221,7 +228,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "original_title" => "Iracema",
           "publishers" => "Bickers & Son, Noonday Press, Ronald Massey",
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-          "year" => 1886
+          "year" => 1886,
+          "id" => nil
         }
       ]
 
