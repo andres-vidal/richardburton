@@ -24,7 +24,7 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
 };
 
 const TablePublicationInput = forwardRef<HTMLElement, Props>(
-  function (props, ref) {
+  function TablePublicationInput(props, ref) {
     const {
       rowId,
       colId,
@@ -73,7 +73,6 @@ const TablePublicationInput = forwardRef<HTMLElement, Props>(
         ref={ref}
         value={value}
         attribute={colId}
-        publicationId={rowId}
         onChange={handleChange}
         onBlur={handleBlur}
         error={error}

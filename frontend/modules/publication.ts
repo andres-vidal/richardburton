@@ -24,6 +24,7 @@ import { COUNTRIES, Country } from "./country";
 import { Publisher } from "./publisher";
 
 type Publication = {
+  id: number | undefined;
   title: string;
   countries: string;
   year: string;
@@ -34,7 +35,7 @@ type Publication = {
 };
 
 type ValidationResult = { publication: Publication; errors: PublicationError };
-type PublicationKey = keyof Publication;
+type PublicationKey = 'title' | 'countries' | 'year' | 'publishers' | 'authors' | 'originalTitle' | 'originalAuthors';
 type PublicationError = null | string | Record<PublicationKey, string>;
 type PublicationEntry = ValidationResult & { id: number };
 type PublicationId = number;
@@ -291,6 +292,7 @@ interface PublicationModule {
     useError(id: PublicationId): PublicationError;
     useErrorDescription(id: PublicationId): string;
     useSetAll(): (entries: PublicationEntry[]) => void;
+    useSetPublication(): (id: PublicationId, pub: Publication) => void;
     useSetDeleted(): (ids: PublicationId[], isDeleted?: boolean) => void;
     useResetAll(): Resetter;
     useResetDeleted(): Resetter;
@@ -325,6 +327,7 @@ interface PublicationModule {
     };
 
     with: (params: Pick<CallbackInterface, "set">) => {
+      setPublication(id: PublicationId, publication: Publication): void;
       setPublications(entries: PublicationEntry[]): void;
       setErrors(entries: PublicationEntry[]): void;
       setFocusedRowId(id: PublicationId | undefined): void;
@@ -504,6 +507,13 @@ const Publication: PublicationModule = {
         [],
       );
     },
+    useSetPublication() {
+      return useRecoilCallback(
+        ({ set }) =>
+          (id: PublicationId, publication: Publication) =>
+            set(PUBLICATIONS(id), publication),
+      );
+    },
     useSetDeleted() {
       return useRecoilCallback(
         ({ set }) =>
@@ -631,6 +641,9 @@ const Publication: PublicationModule = {
     }),
 
     with: ({ set }) => ({
+      setPublication(id, publication) {
+        set(PUBLICATIONS(id), publication);
+      },
       setPublications(entries) {
         const ids = entries.map(({ id }) => id);
         set(PUBLICATION_IDS, ids);
@@ -902,6 +915,7 @@ const Publication: PublicationModule = {
 
   empty() {
     return {
+      id: undefined,
       authors: "",
       countries: "",
       originalAuthors: "",

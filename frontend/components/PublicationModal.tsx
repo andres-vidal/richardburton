@@ -15,7 +15,7 @@ const usePublicationModal = () => useURLQueryModal(PUBLICATION_MODAL_KEY);
 const Param = z.string().regex(/^\d+$/).transform(Number).optional();
 type Param = z.infer<typeof Param>;
 const { useIsAuthenticated } = User;
-const { usePublicationEditId, usePublication } = Publication.STORE;
+const { usePublication } = Publication.STORE;
 
 const Searchable: FC<{ label: string; value?: string }> = ({
   value,

@@ -1,6 +1,5 @@
 import {
   Publication,
-  PublicationId,
   PublicationKey,
   PublicationKeyType,
 } from "modules/publication";
@@ -22,7 +21,6 @@ const COMPONENTS_PER_TYPE: Record<PublicationKeyType, FC<Props>> = {
 
 type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
   ref: Ref<HTMLElement>;
-  publicationId: PublicationId;
   attribute: PublicationKey;
   value: string;
   error: string;
@@ -31,7 +29,7 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
 };
 
 const PublicationInput = forwardRef<HTMLElement, Props>(
-  function DataInput(props, ref) {
+  function PublicationInput(props, ref) {
     const { attribute, value, error, onBlur, onChange } = props;
 
     const type = Publication.ATTRIBUTE_TYPES[attribute];

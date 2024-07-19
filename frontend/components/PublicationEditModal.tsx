@@ -1,44 +1,79 @@
-import { useState } from "react";
+/**
+ * TODO:
+ * - autocomplete no funciona en PublicationInput y si funciona
+ *   en TablePublicationInput. Puede ser que se muestre atras del modal.
+ */
+import { useState, FormEvent } from "react";
 import { useRouter } from "next/router";
-import { Publication, PublicationId } from "modules/publication";
+import { http } from "app";
+import { isAxiosError } from "axios";
+import { Publication } from "modules/publication";
 import { Article } from "./Article";
 import { Modal, useURLQueryModal } from "./Modal";
 import Button from "./Button";
 import PublicationInput from "./PublicationInput";
+import { useNotify } from "./Notifications";
 
 const PUBLICATION_EDIT_MODAL_KEY = "edit";
+
 const usePublicationEditModal = () =>
   useURLQueryModal(PUBLICATION_EDIT_MODAL_KEY);
 
-const { usePublication } = Publication.STORE;
+const { usePublication, useSetPublication } = Publication.STORE;
 
 interface PublicationEditFormProps {
-  publicationId: PublicationId;
+  rowId: number;
   publication: Publication;
   onClose: () => void;
 }
 
 const PublicationEditForm = ({
-  publicationId,
+  rowId,
   publication: originalPublication,
   onClose,
 }: PublicationEditFormProps) => {
   const [publication, setPublication] = useState(originalPublication);
+  const [errors, setErrors] = useState({} as Record<keyof Publication, string>);
+  const [loading, setLoading] = useState(false);
+
+  const setStorePublication = useSetPublication();
+  const notify = useNotify();
 
   const handleChange = (key: string) => (value: string) => {
     setPublication({ ...originalPublication, [key]: value });
   };
 
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    try {
+      setLoading(true);
+      const res = await http.put(`/publications/${publication.id}`, publication);
+
+      if (res.status == 200) {
+        setStorePublication(rowId, publication);
+        onClose();
+      }
+    } catch(err) {
+      if (isAxiosError(err) && err.response && err.response.status === 400) {
+        setErrors(err.response.data.errors);
+      } else {
+        notify({ message: "Publication edition failed", level: "error" });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <form className="p-2 flex flex-col space-y-6">
+    <form className="p-2 flex flex-col space-y-6" onSubmit={handleSubmit}>
       {Publication.ATTRIBUTES.map((attribute) => (
         <PublicationInput
+          key={attribute}
           label={Publication.ATTRIBUTE_LABELS[attribute]}
-          publicationId={publicationId}
           attribute={attribute}
           value={publication[attribute]}
           onChange={handleChange(attribute)}
-          error=""
+          error={errors[attribute]}
           autoValidated
         />
       ))}
@@ -49,7 +84,7 @@ const PublicationEditForm = ({
           onClick={onClose}
           label="Cancel"
         />
-        <Button variant="primary" width="fixed" type="submit" label="Submit" />
+        <Button variant="primary" width="fixed" type="submit" label="Submit" loading={loading} />
       </div>
     </form>
   );
@@ -75,7 +110,7 @@ const PublicationEditModal = () => {
         content={
           publication ? (
             <PublicationEditForm
-              publicationId={publicationId as number}
+              rowId={publicationId as number}
               publication={publication as Publication}
               onClose={handleClose}
             />
