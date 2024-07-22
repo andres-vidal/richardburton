@@ -109,39 +109,43 @@ export default function Multicombobox<ItemType extends string | Item>({
   }
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   return (
-    <MenuProvider<ItemType>
-      options={options}
-      isOpen={isOpen}
-      activeIndex={activeIndex}
-      setIsOpen={setIsOpen}
-      setActiveIndex={setActiveIndex}
-      onSelect={handleOptionSelect}
-    >
-      <TextInput
-        {...props}
-        ref={forwardedRef}
-        inputRef={inputRef}
-        value={inputValue}
-        error={error}
-        placeholder={value.length === 0 ? placeholder : "Add another"}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        aria-autocomplete="list"
-        data-multiselect-input="true"
-        left={
-          <>
-            {value.map((item, index) => (
-              <Pill
-                key={`${item}-${index}`}
-                label={isString(item) ? item : item.label}
-                onRemove={() => unselect(index)}
-              />
-            ))}
-          </>
-        }
-      />
-    </MenuProvider>
+    <div ref={parentRef}>
+      <MenuProvider<ItemType>
+        options={options}
+        isOpen={isOpen}
+        activeIndex={activeIndex}
+        setIsOpen={setIsOpen}
+        setActiveIndex={setActiveIndex}
+        onSelect={handleOptionSelect}
+        rootRef={parentRef}
+      >
+        <TextInput
+          {...props}
+          ref={forwardedRef}
+          inputRef={inputRef}
+          value={inputValue}
+          error={error}
+          placeholder={value.length === 0 ? placeholder : "Add another"}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          aria-autocomplete="list"
+          data-multiselect-input="true"
+          left={
+            <>
+              {value.map((item, index) => (
+                <Pill
+                  key={`${item}-${index}`}
+                  label={isString(item) ? item : item.label}
+                  onRemove={() => unselect(index)}
+                />
+              ))}
+            </>
+          }
+        />
+      </MenuProvider>
+    </div>
   );
 }

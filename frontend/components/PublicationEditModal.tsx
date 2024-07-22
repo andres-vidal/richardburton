@@ -1,7 +1,9 @@
 /**
- * TODO:
- * - autocomplete no funciona en PublicationInput y si funciona
- *   en TablePublicationInput. Puede ser que se muestre atras del modal.
+ * TODO: Problemas en los multiselect:
+ * - Clickear en la cruz de las Pills de los multiselect
+ *   a veces submitea el modal de editar.
+ * - Clickear en la cruz de las Pills se borran opciones
+ *   en varios multiselects (a veces).
  */
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/router";
@@ -47,13 +49,16 @@ const PublicationEditForm = ({
     event.preventDefault();
     try {
       setLoading(true);
-      const res = await http.put(`/publications/${publication.id}`, publication);
+      const res = await http.put(
+        `/publications/${publication.id}`,
+        publication,
+      );
 
       if (res.status == 200) {
         setStorePublication(rowId, publication);
         onClose();
       }
-    } catch(err) {
+    } catch (err) {
       if (isAxiosError(err) && err.response && err.response.status === 400) {
         setErrors(err.response.data.errors);
       } else {
@@ -84,7 +89,13 @@ const PublicationEditForm = ({
           onClick={onClose}
           label="Cancel"
         />
-        <Button variant="primary" width="fixed" type="submit" label="Submit" loading={loading} />
+        <Button
+          variant="primary"
+          width="fixed"
+          type="submit"
+          label="Submit"
+          loading={loading}
+        />
       </div>
     </form>
   );

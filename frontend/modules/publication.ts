@@ -35,7 +35,14 @@ type Publication = {
 };
 
 type ValidationResult = { publication: Publication; errors: PublicationError };
-type PublicationKey = 'title' | 'countries' | 'year' | 'publishers' | 'authors' | 'originalTitle' | 'originalAuthors';
+type PublicationKey =
+  | "title"
+  | "countries"
+  | "year"
+  | "publishers"
+  | "authors"
+  | "originalTitle"
+  | "originalAuthors";
 type PublicationError = null | string | Record<PublicationKey, string>;
 type PublicationEntry = ValidationResult & { id: number };
 type PublicationId = number;
