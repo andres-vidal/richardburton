@@ -79,8 +79,8 @@ defmodule RichardBurtonWeb.PublicationController do
   def update(conn, %{"id" => id} = params) do
     publication = Publication.get!(id) |> Publication.preload()
 
-    with {:ok, record} <- publication |> Publication.update(params |> Publication.Codec.nest()) do
-      conn |> json(record)
+    with {:ok, _record} <- publication |> Publication.update(params |> Publication.Codec.nest()) do
+      conn |> json(FlatPublication.get!(id))
     end
   end
 

@@ -50,6 +50,10 @@ defmodule RichardBurton.FlatPublication do
     |> TranslatedBook.link_fingerprint()
   end
 
+  def get!(id) do
+    __MODULE__ |> Repo.get!(id)
+  end
+
   def all() do
     Repo.all(FlatPublication)
   end

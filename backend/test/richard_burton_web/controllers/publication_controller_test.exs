@@ -685,6 +685,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       resp = conn |> put(path, %{countries: "asdasd"})
 
       assert resp.status == 400
+
       refute resp.resp_body
              |> Jason.decode!()
              |> get_in(["errors", "countries"])
@@ -695,6 +696,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       resp = conn |> put(path, %{title: ""})
 
       assert resp.status == 400
+
       assert resp.resp_body
              |> Jason.decode!()
              |> get_in(["errors", "title"])
