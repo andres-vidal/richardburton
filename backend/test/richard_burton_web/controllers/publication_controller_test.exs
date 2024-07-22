@@ -646,7 +646,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       %{publication: publication, path: path}
     end
 
-    setup [:mock_admin_logged_in, :setup_update]
+    setup [:stub_admin_logged_in, :setup_update]
 
     test "returns 200 and updates the publication", %{
       conn: conn,
@@ -666,11 +666,39 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert publication |> Map.take(Map.keys(update_attrs)) == update_attrs
     end
 
+    test "handles nested attributes updates", %{conn: conn, path: path, publication: publication} do
+      data = %{countries: "GB, UY"}
+      resp = conn |> put(path, data)
+
+      assert resp.status == 200
+
+      assert publication
+             |> Repo.reload()
+             |> Publication.preload()
+             |> Map.get(:countries)
+             |> Enum.map(&Map.get(&1, :code))
+             |> Enum.sort()
+             |> Enum.join(", ") == data.countries
+    end
+
+    test "handle nested attribute errors", %{conn: conn, path: path} do
+      resp = conn |> put(path, %{countries: "asdasd"})
+
+      assert resp.status == 400
+      refute resp.resp_body
+             |> Jason.decode!()
+             |> get_in(["errors", "countries"])
+             |> is_nil()
+    end
+
     test "return 400 on validation errors", %{conn: conn, path: path} do
       resp = conn |> put(path, %{title: ""})
 
       assert resp.status == 400
-      assert resp.resp_body |> Jason.decode!() |> get_in(["errors", "title"]) |> is_bitstring()
+      assert resp.resp_body
+             |> Jason.decode!()
+             |> get_in(["errors", "title"])
+             |> is_bitstring()
     end
   end
 end
