@@ -1,10 +1,3 @@
-/**
- * TODO: Problemas en los multiselect:
- * - Clickear en la cruz de las Pills de los multiselect
- *   a veces submitea el modal de editar.
- * - Clickear en la cruz de las Pills se borran opciones
- *   en varios multiselects (a veces).
- */
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/router";
 import { http } from "app";
@@ -42,7 +35,7 @@ const PublicationEditForm = ({
   const notify = useNotify();
 
   const handleChange = (key: string) => (value: string) => {
-    setPublication({ ...originalPublication, [key]: value });
+    setPublication({ ...publication, [key]: value });
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -115,7 +108,7 @@ const PublicationEditModal = () => {
   const handleClose = () => close();
 
   return (
-    <Modal isOpen={isOpen} onClose={close}>
+    <Modal isOpen={isOpen} onClose={handleClose}>
       <Article
         heading={<>Edit Publication</>}
         content={

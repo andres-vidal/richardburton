@@ -92,14 +92,12 @@ const ContactForm: FC = () => {
           disabled={loading}
         />
         <Button type="submit" label="Send" loading={loading} />
-        {
-          // <ReCAPTCHA
-          //   ref={recaptchaRef}
-          //   size="invisible"
-          //   sitekey={GOOGLE_RECAPTCHA_SITEKEY}
-          //   hidden
-          // />
-        }
+        <ReCAPTCHA
+          ref={recaptchaRef}
+          size="invisible"
+          sitekey={GOOGLE_RECAPTCHA_SITEKEY}
+          hidden
+        />
       </footer>
     </form>
   );
