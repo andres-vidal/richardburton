@@ -702,5 +702,16 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
              |> get_in(["errors", "title"])
              |> is_bitstring()
     end
+
+    test "allow to remove nested models", %{
+      conn: conn,
+      path: path
+    } do
+      countries = "AR"
+      resp = conn |> put(path, %{countries: countries})
+
+      assert resp.status == 200
+      assert resp.resp_body |> Jason.decode!() |> Map.get("countries") == countries
+    end
   end
 end

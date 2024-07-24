@@ -6,6 +6,10 @@ defmodule RichardBurton.Publisher do
   import Ecto.Changeset
   import Ecto.Query
 
+  use RichardBurton.LinkedSchema,
+    assoc: :publishers,
+    conflict_target: :name
+
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
   alias RichardBurton.Publication
@@ -61,18 +65,6 @@ defmodule RichardBurton.Publisher do
   def all do
     Repo.all(Publisher)
   end
-
-  def link(changeset = %{valid?: true}) do
-    publishers =
-      changeset
-      |> get_change(:publishers)
-      |> Enum.map(&apply_changes/1)
-      |> Enum.map(&maybe_insert!/1)
-
-    put_assoc(changeset, :publishers, publishers)
-  end
-
-  def link(changeset = %{valid?: false}), do: changeset
 
   def link_fingerprint(changeset = %Ecto.Changeset{valid?: true}) do
     publishers_fingerprint =

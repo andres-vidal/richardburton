@@ -5,6 +5,10 @@ defmodule RichardBurton.Country do
   use Ecto.Schema
   import Ecto.Changeset
 
+  use RichardBurton.LinkedSchema,
+    assoc: :countries,
+    conflict_target: :code
+
   alias RichardBurton.Country
   alias RichardBurton.Repo
   alias RichardBurton.Publication
@@ -97,18 +101,6 @@ defmodule RichardBurton.Country do
   def all do
     Repo.all(Country)
   end
-
-  def link(changeset = %{valid?: true}) do
-    countries =
-      changeset
-      |> get_change(:countries)
-      |> Enum.map(&apply_changes/1)
-      |> Enum.map(&maybe_insert!/1)
-
-    put_assoc(changeset, :countries, countries)
-  end
-
-  def link(changeset = %{valid?: false}), do: changeset
 
   def link_fingerprint(changeset = %Ecto.Changeset{valid?: true}) do
     countries_fingerprint =

@@ -73,6 +73,6 @@ defmodule RichardBurtonWeb.ConnCase do
     |> stub(:verify, fn _ -> {:ok, "admin-token"} end)
     |> stub(:authorize, fn _, :admin -> :ok end)
 
-    %{}
+    :ok
   end
 end
