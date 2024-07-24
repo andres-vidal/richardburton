@@ -684,10 +684,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "handle nested attribute errors", %{conn: conn, path: path} do
       resp = conn |> put(path, %{countries: "asdasd"})
 
-      assert resp.status == 400
-
-      refute resp.resp_body
-             |> Jason.decode!()
+      refute resp
+             |> json_response(400)
              |> get_in(["errors", "countries"])
              |> is_nil()
     end
@@ -695,10 +693,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "return 400 on validation errors", %{conn: conn, path: path} do
       resp = conn |> put(path, %{title: ""})
 
-      assert resp.status == 400
-
-      assert resp.resp_body
-             |> Jason.decode!()
+      assert resp
+             |> json_response(400)
              |> get_in(["errors", "title"])
              |> is_bitstring()
     end
@@ -710,8 +706,13 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       countries = "AR"
       resp = conn |> put(path, %{countries: countries})
 
-      assert resp.status == 200
-      assert resp.resp_body |> Jason.decode!() |> Map.get("countries") == countries
+      assert resp |> json_response(200) |> Map.get("countries") == countries
+    end
+
+    test "return string errors to nested models", %{conn: conn, path: path} do
+      resp = conn |> put(path, %{countries: ""})
+
+      assert resp |> json_response(400) |> get_in(["errors", "countries"]) |> is_bitstring()
     end
   end
 end
