@@ -10,6 +10,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
+  alias RichardBurton.Factory
 
   @publication_attrs %{
     "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -653,10 +654,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       path: path,
       publication: publication
     } do
-      update_attrs = %{
-        title: Faker.Lorem.sentence(),
-        year: (:rand.uniform() * 120 + 1900) |> trunc()
-      }
+      update_attrs = Factory.build(:flat_publication) |> Map.take([:title, :year])
 
       resp = conn |> put(path, update_attrs)
 
@@ -672,13 +670,16 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert resp.status == 200
 
-      assert publication
-             |> Repo.reload()
-             |> Publication.preload()
-             |> Map.get(:countries)
-             |> Enum.map(&Map.get(&1, :code))
-             |> Enum.sort()
-             |> Enum.join(", ") == data.countries
+      publication_country_codes =
+        publication
+        |> Repo.reload()
+        |> Publication.preload()
+        |> Map.get(:countries)
+        |> Enum.map(&Map.get(&1, :code))
+        |> Enum.sort()
+        |> Enum.join(", ")
+
+      assert publication_country_codes == data.countries
     end
 
     test "handle nested attribute errors", %{conn: conn, path: path} do
@@ -699,7 +700,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
              |> is_bitstring()
     end
 
-    test "allow to remove nested models", %{
+    test "allow to remove nested countries", %{
       conn: conn,
       path: path
     } do
@@ -709,8 +710,15 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert resp |> json_response(200) |> Map.get("countries") == countries
     end
 
-    test "return string errors to nested models", %{conn: conn, path: path} do
+    test "return string errors for blank nested models", %{conn: conn, path: path} do
       resp = conn |> put(path, %{countries: ""})
+
+      assert resp |> json_response(400) |> get_in(["errors", "countries"]) |> is_bitstring()
+    end
+
+    test "return string errors for invalid nested models", %{conn: conn, path: path} do
+      # FIXME: return nested errores flatten, as it if was a flat publication validation
+      resp = conn |> put(path, %{countries: "GB, asdasdasd"})
 
       assert resp |> json_response(400) |> get_in(["errors", "countries"]) |> is_bitstring()
     end

@@ -3,6 +3,7 @@ defmodule RichardBurtonWeb.PublicationController do
 
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
+  alias RichardBurton.Validation
 
   def index(conn, %{"search" => query}) do
     {:ok, results, keywords} = Publication.Index.search(query)
@@ -81,6 +82,16 @@ defmodule RichardBurtonWeb.PublicationController do
 
     with {:ok, _record} <- publication |> Publication.update(params |> Publication.Codec.nest()) do
       conn |> json(FlatPublication.get!(id))
+    else
+      {:error, changeset} ->
+        conn
+        |> put_status(400)
+        |> json(%{
+          errors:
+            changeset
+            |> Validation.get_errors()
+            |> Validation.Errors.flatten_publication_errors()
+        })
     end
   end
 

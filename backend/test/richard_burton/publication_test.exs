@@ -249,4 +249,60 @@ defmodule RichardBurton.PublicationTest do
       assert [] == Publication.all()
     end
   end
+
+  describe "update/2" do
+    alias RichardBurton.Factory
+
+    setup do
+      publication = Factory.build(:flat_publication) |> Factory.create()
+
+      %{publication: publication}
+    end
+
+    test "updates a publication successfully", %{publication: publication} do
+      attrs = Factory.build_attrs(:flat_publication) |> Map.take([:title, :year])
+
+      assert {:ok, _} = Publication.update(publication, attrs)
+
+      changes = publication |> Repo.reload() |> Map.take(Map.keys(attrs))
+
+      assert changes == attrs
+    end
+
+    test "returns error on validation error", %{publication: publication} do
+      attrs = %{title: ""}
+
+      assert {:error, _} = Publication.update(publication, attrs)
+    end
+
+    test "updates related models fingerprints", %{publication: publication} do
+      attrs =
+        %{
+          countries: "UY, ES, AR",
+          publishers: Faker.Person.name(),
+          original_authors: Faker.Person.name(),
+          authors: Faker.Person.name(),
+          original_title: publication.title
+        }
+        |> Publication.Codec.nest()
+
+      fingerprint_attrs = [
+        :countries_fingerprint,
+        :publishers_fingerprint,
+        :translated_book_fingerprint
+      ]
+
+      old_fingerprints = publication |> Map.take(fingerprint_attrs)
+
+      assert {:ok, _} = Publication.update(publication, attrs)
+
+      new_fingerprints = publication |> Repo.reload() |> Map.take(fingerprint_attrs)
+
+      all_fingerprint_differ =
+        fingerprint_attrs
+        |> Enum.all?(fn key -> old_fingerprints[key] != new_fingerprints[key] end)
+
+      assert all_fingerprint_differ
+    end
+  end
 end
