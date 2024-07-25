@@ -40,6 +40,8 @@ defmodule RichardBurtonWeb.Router do
     get("/authors", AuthorController, :index)
     get("/publishers", PublisherController, :index)
 
+    resources "/publications", PublicationController, only: [:update]
+
     scope "/publications" do
       post("/bulk", PublicationController, :create_all)
       post("/validate", PublicationController, :validate)

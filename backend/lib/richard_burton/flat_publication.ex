@@ -22,8 +22,9 @@ defmodule RichardBurton.FlatPublication do
     :original_title,
     :original_authors
   ]
+  @serializable_attributes [:id] ++ @external_attributes
 
-  @derive {Jason.Encoder, only: @external_attributes}
+  @derive {Jason.Encoder, only: @serializable_attributes}
   schema "flat_publications" do
     field(:title, :string)
     field(:year, :integer)
@@ -47,6 +48,10 @@ defmodule RichardBurton.FlatPublication do
     |> Country.link_fingerprint()
     |> Publisher.link_fingerprint()
     |> TranslatedBook.link_fingerprint()
+  end
+
+  def get!(id) do
+    __MODULE__ |> Repo.get!(id)
   end
 
   def all() do

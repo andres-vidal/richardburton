@@ -89,6 +89,8 @@ defmodule RichardBurton.Publication.Codec do
     Enum.map(flat_publication_like_maps, &nest/1)
   end
 
+  defp nest_entry({key, ""}), do: {key, ""}
+
   defp nest_entry({"authors", value}),
     do: {"authors", Author.nest(value)}
 

@@ -8,7 +8,6 @@ defmodule RichardBurton.Publication do
   require Ecto.Query
 
   alias RichardBurton.Country
-  alias RichardBurton.Publication
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
@@ -24,10 +23,14 @@ defmodule RichardBurton.Publication do
     field(:countries_fingerprint, :string)
     field(:publishers_fingerprint, :string)
 
-    belongs_to(:translated_book, TranslatedBook)
+    belongs_to(:translated_book, TranslatedBook, on_replace: :nilify)
 
-    many_to_many(:countries, Country, join_through: "publication_countries")
-    many_to_many(:publishers, Publisher, join_through: "publication_publishers")
+    many_to_many(:countries, Country, join_through: "publication_countries", on_replace: :delete)
+
+    many_to_many(:publishers, Publisher,
+      join_through: "publication_publishers",
+      on_replace: :delete
+    )
 
     timestamps()
   end
@@ -36,7 +39,7 @@ defmodule RichardBurton.Publication do
   def changeset(publication, attrs \\ %{})
 
   @doc false
-  def changeset(publication, attrs = %Publication{}) do
+  def changeset(publication, attrs = %__MODULE__{}) do
     changeset(publication, Map.from_struct(attrs))
   end
 
@@ -62,8 +65,13 @@ defmodule RichardBurton.Publication do
     |> link_fingerprints()
   end
 
+  def get!(id) do
+    __MODULE__
+    |> Repo.get!(id)
+  end
+
   def all do
-    Publication
+    __MODULE__
     |> Repo.all()
     |> preload
   end
@@ -77,7 +85,7 @@ defmodule RichardBurton.Publication do
   end
 
   def insert(attrs) do
-    %Publication{}
+    %__MODULE__{}
     |> changeset(attrs)
     |> link_assocs()
     |> Repo.insert()
@@ -90,8 +98,21 @@ defmodule RichardBurton.Publication do
     end
   end
 
+  def update(publication, attrs) do
+    Repo.transaction(fn ->
+      publication
+      |> changeset(attrs)
+      |> link_assocs()
+      |> Repo.update()
+      |> case do
+        {:ok, record} -> record
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
   def validate(attrs) do
-    Validation.validate(changeset(%Publication{}, attrs), &link_assocs/1)
+    Validation.validate(changeset(%__MODULE__{}, attrs), &link_assocs/1)
   end
 
   defp link_fingerprints(changeset) do
@@ -103,15 +124,25 @@ defmodule RichardBurton.Publication do
 
   defp link_assocs(changeset) do
     changeset
-    |> Country.link()
-    |> TranslatedBook.link()
-    |> Publisher.link()
+    |> maybe_link_assoc(:countries)
+    |> maybe_link_assoc(:translated_book)
+    |> maybe_link_assoc(:publishers)
   end
 
   def insert_all(attrs_list) do
     Repo.transaction(fn ->
       Enum.map(attrs_list, &insert_or_rollback/1)
     end)
+  end
+
+  defp maybe_link_assoc(changeset, assoc_key) do
+    {:assoc, %{related: related}} = __MODULE__.__changeset__() |> Map.get(assoc_key)
+
+    if Ecto.Changeset.changed?(changeset, assoc_key) do
+      changeset |> related.link()
+    else
+      changeset
+    end
   end
 
   defp insert_or_rollback(attrs) do

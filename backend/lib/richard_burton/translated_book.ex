@@ -5,6 +5,10 @@ defmodule RichardBurton.TranslatedBook do
   use Ecto.Schema
   import Ecto.Changeset
 
+  use RichardBurton.LinkedSchema,
+    assoc: :translated_book,
+    conflict_target: [:authors_fingerprint, :original_book]
+
   alias RichardBurton.Author
   alias RichardBurton.FlatPublication
   alias RichardBurton.OriginalBook
@@ -69,18 +73,6 @@ defmodule RichardBurton.TranslatedBook do
   def preload(data) do
     Repo.preload(data, [:authors, original_book: [:authors]])
   end
-
-  def link(changeset = %{valid?: true}) do
-    translated_book =
-      changeset
-      |> get_change(:translated_book)
-      |> apply_changes()
-      |> TranslatedBook.maybe_insert!()
-
-    put_assoc(changeset, :translated_book, translated_book)
-  end
-
-  def link(changeset = %{valid?: false}), do: changeset
 
   def fingerprint(%TranslatedBook{
         original_book_fingerprint: original_book_fingerprint,

@@ -4,11 +4,13 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   """
   alias RichardBurton.FlatPublication
   use RichardBurtonWeb.ConnCase
-  import Routes, only: [publication_path: 2]
+  import Routes, only: [publication_path: 2, publication_path: 3]
 
   alias RichardBurton.Country
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
+  alias RichardBurton.Repo
+  alias RichardBurton.Factory
 
   @publication_attrs %{
     "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -35,6 +37,15 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
   end
 
+  defp create_publications(%{} = data) do
+    {status, res} = create_publications([data])
+
+    {status, hd(res)}
+  end
+
+  defp create_publications(entries),
+    do: entries |> Publication.Codec.nest() |> Publication.insert_all()
+
   describe "POST /publications/bulk" do
     test "returns 201 and the created publications when all the publications are valid", meta do
       expect_auth_authorize_admin()
@@ -47,7 +58,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "Richard Burton, Isabel Burton",
           "original_authors" => "J. M. Pereira da Silva",
-          "original_title" => "Manuel de Moraes: crônica do século XVII"
+          "original_title" => "Manuel de Moraes: crônica do século XVII",
+          "id" => nil
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -56,7 +68,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "Isabel Burton",
           "original_authors" => "José de Alencar",
-          "original_title" => "Iracema"
+          "original_title" => "Iracema",
+          "id" => nil
         }
       ]
 
@@ -118,7 +131,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "Richard Burton, Isabel Burton",
           "original_authors" => "J. M. Pereira da Silva",
-          "original_title" => "Manuel de Moraes: crônica do século XVII"
+          "original_title" => "Manuel de Moraes: crônica do século XVII",
+          "id" => nil
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -127,7 +141,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "Isabel Burton",
           "original_authors" => "José de Alencar",
-          "original_title" => "Iracema"
+          "original_title" => "Iracema",
+          "id" => nil
         },
         %{
           "authors" => "Isabel Burton, Richard Burton",
@@ -136,7 +151,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "original_title" => "Iracema",
           "publishers" => "Bickers & Son",
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-          "year" => 1886
+          "year" => 1886,
+          "id" => nil
         }
       ]
 
@@ -193,7 +209,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son, Noonday Press",
           "authors" => "Richard Burton, Isabel Burton",
           "original_authors" => "J. M. Pereira da Silva",
-          "original_title" => "Manuel de Moraes: crônica do século XVII"
+          "original_title" => "Manuel de Moraes: crônica do século XVII",
+          "id" => nil
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -202,7 +219,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son, Noonday Press",
           "authors" => "Isabel Burton",
           "original_authors" => "José de Alencar",
-          "original_title" => "Iracema"
+          "original_title" => "Iracema",
+          "id" => nil
         },
         %{
           "authors" => "Isabel Burton, Richard Burton",
@@ -211,7 +229,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "original_title" => "Iracema",
           "publishers" => "Bickers & Son, Noonday Press, Ronald Massey",
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-          "year" => 1886
+          "year" => 1886,
+          "id" => nil
         }
       ]
 
@@ -513,8 +532,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       {:ok, _p} =
         @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
+        |> create_publications()
 
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
@@ -539,8 +557,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       {:ok, [_p1, _p2]} =
         [@publication_attrs, Map.put(@publication_attrs, "title", "bla")]
-        |> Publication.Codec.nest()
-        |> Publication.insert_all()
+        |> create_publications()
 
       search = "Honey"
 
@@ -568,8 +585,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       {:ok, [_p1, _p2]} =
         [@publication_attrs, Map.put(@publication_attrs, "title", "bla")]
-        |> Publication.Codec.nest()
-        |> Publication.insert_all()
+        |> create_publications()
 
       search = "Honey"
       attributes = [:title, :original_title, :authors]
@@ -600,8 +616,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       {:ok, _p} =
         @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
+        |> create_publications()
 
       attributes = [:title, :original_title, :authors]
       select = Enum.map_join(attributes, "&", &"select[]=#{&1}")
@@ -621,6 +636,91 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert response_content_type(conn, :csv)
       assert expected_content_disposition == content_disposition
       assert expected_data == response(conn, 200)
+    end
+  end
+
+  describe "update" do
+    def setup_update(%{conn: conn}) do
+      {:ok, publication} = @publication_attrs |> create_publications()
+      path = conn |> publication_path(:update, publication.id)
+
+      %{publication: publication, path: path}
+    end
+
+    setup [:stub_admin_logged_in, :setup_update]
+
+    test "returns 200 and updates the publication", %{
+      conn: conn,
+      path: path,
+      publication: publication
+    } do
+      update_attrs = Factory.build(:flat_publication) |> Map.take([:title, :year])
+
+      resp = conn |> put(path, update_attrs)
+
+      publication = publication |> Repo.reload()
+
+      assert resp.status == 200
+      assert publication |> Map.take(Map.keys(update_attrs)) == update_attrs
+    end
+
+    test "handles nested attributes updates", %{conn: conn, path: path, publication: publication} do
+      data = %{countries: "GB, UY"}
+      resp = conn |> put(path, data)
+
+      assert resp.status == 200
+
+      publication_country_codes =
+        publication
+        |> Repo.reload()
+        |> Publication.preload()
+        |> Map.get(:countries)
+        |> Enum.map(&Map.get(&1, :code))
+        |> Enum.sort()
+        |> Enum.join(", ")
+
+      assert publication_country_codes == data.countries
+    end
+
+    test "handle nested attribute errors", %{conn: conn, path: path} do
+      resp = conn |> put(path, %{countries: "asdasd"})
+
+      refute resp
+             |> json_response(400)
+             |> get_in(["errors", "countries"])
+             |> is_nil()
+    end
+
+    test "return 400 on validation errors", %{conn: conn, path: path} do
+      resp = conn |> put(path, %{title: ""})
+
+      assert resp
+             |> json_response(400)
+             |> get_in(["errors", "title"])
+             |> is_bitstring()
+    end
+
+    test "allow to remove nested countries", %{
+      conn: conn,
+      path: path
+    } do
+      countries = "AR"
+      resp = conn |> put(path, %{countries: countries})
+
+      assert resp |> json_response(200) |> Map.get("countries") == countries
+    end
+
+    test "return string errors for blank nested models", %{conn: conn, path: path} do
+      resp = conn |> put(path, %{countries: ""})
+
+      assert resp |> json_response(400) |> get_in(["errors", "countries"]) |> is_bitstring()
+    end
+
+    test "return string errors for invalid nested models", %{conn: conn, path: path} do
+      # FIXME: return nested errores flatten, as it if was a flat publication validation
+      resp = conn |> put(path, %{countries: "GB, asdasdasd"})
+
+      assert resp |> json_response(400) |> get_in(["errors", "countries"]) |> is_bitstring()
     end
   end
 end
