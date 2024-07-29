@@ -31,7 +31,7 @@ type Props<OptionType extends Option | string> = {
   setIsOpen: (value: boolean) => void;
   setActiveIndex: (value: number | null) => void;
   onSelect: (option: OptionType) => void;
-  rootRef: RefObject<HTMLElement> | null;
+  rootRef?: RefObject<HTMLElement> | null;
 };
 
 const MenuProvider = <OptionType extends Option | string>({
