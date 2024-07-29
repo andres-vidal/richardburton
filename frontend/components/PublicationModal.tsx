@@ -79,16 +79,25 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
   }
 
   return (
-    <p>
-      <Searchable label={p.title} /> is a translation of{" "}
-      <Searchable label={p.originalTitle} />, by{" "}
-      <SearchableList items={getSearchableItems(p, "originalAuthors")} />. It
-      was written by <SearchableList items={getSearchableItems(p, "authors")} />{" "}
-      and published in{" "}
-      <SearchableList items={getSearchableItems(p, "countries")} />
-      in {p.year} by{" "}
-      <SearchableList items={getSearchableItems(p, "publishers")} />.
-    </p>
+    <div>
+      <p>
+        <Searchable label={p.title} /> is a translation of{" "}
+        <Searchable label={p.originalTitle} />, by{" "}
+        <SearchableList items={getSearchableItems(p, "originalAuthors")} />. It
+        was written by{" "}
+        <SearchableList items={getSearchableItems(p, "authors")} /> and
+        published in{" "}
+        <SearchableList items={getSearchableItems(p, "countries")} />
+        in {p.year} by{" "}
+        <SearchableList items={getSearchableItems(p, "publishers")} />.
+      </p>
+      {p.source && (
+        <p>
+          <strong>Sources:&nbsp;</strong>
+          {p.source}
+        </p>
+      )}
+    </div>
   );
 };
 

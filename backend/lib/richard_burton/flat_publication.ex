@@ -14,13 +14,14 @@ defmodule RichardBurton.FlatPublication do
   alias RichardBurton.Country
 
   @external_attributes [
-    :title,
-    :year,
-    :countries,
-    :publishers,
     :authors,
+    :countries,
+    :original_authors,
     :original_title,
-    :original_authors
+    :publishers,
+    :source,
+    :title,
+    :year
   ]
 
   @derive {Jason.Encoder, only: @external_attributes}
@@ -32,6 +33,7 @@ defmodule RichardBurton.FlatPublication do
     field(:publishers, :string)
     field(:original_title, :string)
     field(:original_authors, :string)
+    field(:source, :string)
 
     field(:countries_fingerprint, :string)
     field(:translated_book_fingerprint, :string)

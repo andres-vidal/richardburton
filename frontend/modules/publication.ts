@@ -32,10 +32,11 @@ type Publication = {
   authors: string;
   originalTitle: string;
   originalAuthors: string;
+  source: string | null;
 };
 
 type ValidationResult = { publication: Publication; errors: PublicationError };
-type PublicationKey = keyof Omit<Publication, "id">;
+type PublicationKey = keyof Omit<Publication, "id" | "source">;
 type PublicationError = null | string | Record<PublicationKey, string>;
 type PublicationEntry = ValidationResult & { id: number };
 type PublicationId = number;

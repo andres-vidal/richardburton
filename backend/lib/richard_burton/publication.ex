@@ -23,6 +23,7 @@ defmodule RichardBurton.Publication do
     field(:translated_book_fingerprint, :string)
     field(:countries_fingerprint, :string)
     field(:publishers_fingerprint, :string)
+    field(:source, :string)
 
     belongs_to(:translated_book, TranslatedBook)
 
@@ -43,7 +44,7 @@ defmodule RichardBurton.Publication do
   @doc false
   def changeset(publication, attrs) do
     publication
-    |> cast(attrs, [:title, :year])
+    |> cast(attrs, [:title, :year, :source])
     |> cast_assoc(:translated_book, required: true)
     |> cast_assoc(:countries, required: true)
     |> cast_assoc(:publishers, required: true)
