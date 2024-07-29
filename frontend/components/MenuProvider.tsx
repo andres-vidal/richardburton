@@ -13,6 +13,7 @@ import {
   cloneElement,
   MutableRefObject,
   ReactElement,
+  RefObject,
   useMemo,
   useRef,
 } from "react";
@@ -30,6 +31,7 @@ type Props<OptionType extends Option | string> = {
   setIsOpen: (value: boolean) => void;
   setActiveIndex: (value: number | null) => void;
   onSelect: (option: OptionType) => void;
+  rootRef?: RefObject<HTMLElement> | null;
 };
 
 const MenuProvider = <OptionType extends Option | string>({
@@ -40,6 +42,7 @@ const MenuProvider = <OptionType extends Option | string>({
   setIsOpen,
   setActiveIndex,
   onSelect,
+  rootRef,
 }: Props<OptionType>) => {
   const listRef = useRef<(HTMLLIElement | null)[]>([]);
 
@@ -90,8 +93,8 @@ const MenuProvider = <OptionType extends Option | string>({
           ...children.props,
         }),
       )}
-      <FloatingPortal>
-        {isOpen && (
+      {isOpen && (
+        <FloatingPortal root={rootRef}>
           <FloatingFocusManager
             context={context}
             initialFocus={-1}
@@ -124,8 +127,8 @@ const MenuProvider = <OptionType extends Option | string>({
               ))}
             </Menu>
           </FloatingFocusManager>
-        )}
-      </FloatingPortal>
+        </FloatingPortal>
+      )}
     </>
   );
 };

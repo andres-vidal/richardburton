@@ -1,13 +1,13 @@
 import { Publication } from "modules/publication";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useMemo } from "react";
-import { DataInputProps } from "./DataInput";
+import { PublicationInputProps } from "./PublicationInput";
 import Multicombobox from "./Multicombobox";
 
-export default forwardRef<HTMLDivElement, DataInputProps>(
+export default forwardRef<HTMLDivElement, PublicationInputProps>(
   function TextArrayDataInput(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    { colId, value, onChange, ...props },
+    { attribute, value, onChange, ...props },
     ref,
   ) {
     const items = useMemo(
@@ -22,10 +22,10 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const getOptions = useCallback(
       pDebounce(
-        (search: string) => Publication.autocomplete(search, colId),
+        (search: string) => Publication.autocomplete(search, attribute),
         350,
       ),
-      [colId],
+      [attribute],
     );
 
     return (
@@ -38,4 +38,4 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
       />
     );
   },
-) as FC<DataInputProps>;
+) as FC<PublicationInputProps>;

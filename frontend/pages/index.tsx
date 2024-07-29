@@ -4,15 +4,15 @@ import { ContactModal } from "components/ContactModal";
 import { Counter } from "components/Counter";
 import Layout from "components/Layout";
 import { LearnMoreModal } from "components/LearnMoreModal";
-import { useURLQueryModal } from "components/Modal";
 import PublicationDownload from "components/PublicationDownload";
 import PublicationHiddenAttributes from "components/PublicationHiddenAttributes";
 import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
 import {
-  PUBLICATION_MODAL_KEY,
   PublicationModal,
+  usePublicationModal,
 } from "components/PublicationModal";
+import { PublicationEditModal } from "components/PublicationEditModal";
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
@@ -42,7 +42,7 @@ const Home: NextPage = () => {
     }
   }, [reset, index, search, isReady]);
 
-  const modal = useURLQueryModal(PUBLICATION_MODAL_KEY);
+  const modal = usePublicationModal();
 
   function handleRowClick(id: number) {
     return () => modal.open(`${id}`);
@@ -59,6 +59,7 @@ const Home: NextPage = () => {
             <PublicationIndexList onItemClick={handleRowClick} />
           </div>
           <PublicationModal />
+          <PublicationEditModal />
         </>
       }
       leftAside={<PublicationHiddenAttributes />}

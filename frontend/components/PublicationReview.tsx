@@ -26,7 +26,7 @@ import {
   useIsSelectionEmpty,
   useSelectionEvent,
 } from "react-selection-manager";
-import DataInput from "./DataInput";
+import TablePublicationInput from "./TablePublicationInput";
 import Tooltip from "./Tooltip";
 
 const ExtendedColumn: typeof Column = (props) => {
@@ -81,7 +81,7 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
 
 const ExtendedContent: typeof Content = ({ rowId, colId, value, error }) => {
   return (
-    <DataInput
+    <TablePublicationInput
       rowId={rowId}
       colId={colId}
       value={value}
@@ -149,7 +149,7 @@ const SubmittableData: typeof Content = ({ rowId, colId, value, error }) => {
   );
 
   return (
-    <DataInput
+    <TablePublicationInput
       rowId={rowId}
       colId={colId}
       value={value}

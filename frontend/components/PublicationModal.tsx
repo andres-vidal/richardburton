@@ -1,21 +1,27 @@
 import { Publication, PublicationKey } from "modules/publication";
+import { User } from "modules/users";
 import Link from "next/link";
 import { FC } from "react";
 import { z } from "zod";
 import { Article } from "./Article";
 import { Modal, useURLQueryModal } from "./Modal";
+import { usePublicationEditModal } from "./PublicationEditModal";
 import Tooltip from "./Tooltip";
+import Button from "./Button";
 
 const PUBLICATION_MODAL_KEY = "publication";
+const usePublicationModal = () => useURLQueryModal(PUBLICATION_MODAL_KEY);
 
 const Param = z.string().regex(/^\d+$/).transform(Number).optional();
 type Param = z.infer<typeof Param>;
+const { useIsAuthenticated } = User;
+const { usePublication } = Publication.STORE;
 
 const Searchable: FC<{ label: string; value?: string }> = ({
   value,
   label,
 }) => {
-  const { close } = useURLQueryModal(PUBLICATION_MODAL_KEY);
+  const { close } = usePublicationModal();
   return (
     <Link
       href={`/?search=${value || label}`}
@@ -87,22 +93,38 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
 };
 
 const PublicationModal: FC = () => {
-  const { value, ...modal } = useURLQueryModal(PUBLICATION_MODAL_KEY);
+  const { value, ...modal } = usePublicationModal();
+  const editModal = usePublicationEditModal();
 
   const publicationId = Param.parse(value);
 
-  const publication = Publication.STORE.usePublication(publicationId);
+  const publication = usePublication(publicationId);
+
+  const isAuthenticated = useIsAuthenticated();
+
+  const handleEdit = () => {
+    editModal.open();
+  };
 
   return (
     <Modal isOpen={modal.isOpen} onClose={modal.close}>
       {publication && (
         <Article
           heading={<PublicationHeading publication={publication} />}
-          content={<PublicationDescription publication={publication} />}
+          content={
+            <>
+              <PublicationDescription publication={publication} />
+              {isAuthenticated && (
+                <div className="flex flex-row justify-center m-4">
+                  <Button onClick={handleEdit} label="Edit" width="fixed" />
+                </div>
+              )}
+            </>
+          }
         />
       )}
     </Modal>
   );
 };
 
-export { PUBLICATION_MODAL_KEY, PublicationModal };
+export { PUBLICATION_MODAL_KEY, PublicationModal, usePublicationModal };

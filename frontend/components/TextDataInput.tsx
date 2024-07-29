@@ -1,9 +1,9 @@
 import { FC, forwardRef } from "react";
-import { DataInputProps } from "./DataInput";
+import { PublicationInputProps } from "./PublicationInput";
 import TextInput from "./TextInput";
 
-export default forwardRef<HTMLInputElement, DataInputProps>(
+export default forwardRef<HTMLInputElement, PublicationInputProps>(
   function TextDataInput(props, ref) {
     return <TextInput {...props} ref={ref} />;
   },
-) as FC<DataInputProps>;
+) as FC<PublicationInputProps>;
