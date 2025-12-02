@@ -43,7 +43,7 @@
     "@svgr/webpack": "^8.1.0",
     "@testing-library/react": "^14.2.1",
     "@types/is-hotkey": "^0.1.10",
-    "@types/lodash": "^4.14.202",
+    "@types/lodash": "^4.17.21",
     "@types/node": "20.11.25",
     "@types/object-hash": "^3.0.6",
     "@types/qs": "^6.9.12",
