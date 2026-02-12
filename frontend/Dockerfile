@@ -1,19 +1,15 @@
 # Install dependencies only when needed
-FROM node:21-alpine AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+FROM oven/bun:1-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN \
-  if [ -f package-lock.json ]; then npm ci; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+# Install dependencies based on the lockfile
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 
 # Rebuild the source code only when needed
-FROM node:21-alpine AS builder
+FROM oven/bun:1-alpine AS builder
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_GOOGLE_RECAPTCHA_SITEKEY
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
@@ -28,10 +24,10 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-RUN npm run build
+RUN bun run build
 
 # Production image, copy all the files and run next
-FROM node:21-alpine AS prod
+FROM node:22-alpine AS prod
 WORKDIR /app
 
 ENV NODE_ENV production
@@ -53,11 +49,11 @@ USER nextjs
 CMD node server.js
 
 # Development image
-FROM node:21-alpine as dev
+FROM oven/bun:1-alpine as dev
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
+COPY package.json bun.lock ./
+RUN bun install
 EXPOSE 3000
 
-CMD npm run dev
+CMD bun run dev
