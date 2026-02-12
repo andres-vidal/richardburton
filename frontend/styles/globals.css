@@ -1,14 +1,38 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@theme {
+  --color-gray-active: #F8FAFB;
+  --font-montserrat: "Montserrat", sans-serif;
+}
+
+@custom-variant selected (&[data-selected="true"]);
+@custom-variant focused (&[data-focused="true"]);
+@custom-variant error (&[data-error="true"]);
+@custom-variant error-within (&:has([data-error="true"]));
+@custom-variant peer-error (.peer[data-error="true"] ~ &);
+@custom-variant loading (&[data-loading="true"]);
 
 @font-face {
   font-family: "Montserrat";
-  src: url("./fonts/Montserrat-VariableFont_wght.ttf") format("ttf");
-}
-
-#__next {
-  @apply h-screen text-gray-700;
+  src: url("./fonts/Montserrat-VariableFont_wght.ttf") format("truetype");
 }
 
 body {
@@ -20,13 +44,27 @@ body {
 }
 
 .absolute-center-x {
-  @apply transform -translate-x-1/2 left-1/2;
+  transform: translateX(-50%);
+  left: 50%;
 }
 
-.absolute-center-y {
-  @apply transform -translate-y-1/2 top-1/2;
+/* Scrollbar styling (replaces tailwind-scrollbar plugin) */
+.scrollbar-thin {
+  scrollbar-width: thin;
 }
 
-.absolute-center {
-  @apply absolute-center-x absolute-center-y;
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-thumb-indigo-600 {
+  scrollbar-color: var(--color-indigo-600) transparent;
+}
+
+.scrollbar-thumb-gray-300 {
+  scrollbar-color: var(--color-gray-300) transparent;
 }

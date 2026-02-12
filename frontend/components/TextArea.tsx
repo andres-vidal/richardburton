@@ -37,7 +37,7 @@ export default forwardRef<HTMLDivElement, Props>(function TextArea(
       ref={ref}
       className={c(
         "relative group",
-        "w-full gap-1 inline-flex items-center rounded h-full scrollbar scrollbar-none",
+        "w-full gap-1 inline-flex items-center rounded h-full scrollbar-none",
         "error-within:shadow-sm focus-within:error-within:bg-red-400/80, error-within:bg-red-300/40",
         label
           ? "mt-2 px-2 py-2 bg-gray-active shadow-sm focus-within:bg-indigo-500/10"
@@ -49,7 +49,7 @@ export default forwardRef<HTMLDivElement, Props>(function TextArea(
         {...props}
         ref={inputRef}
         value={value}
-        className="w-full px-1 bg-transparent outline-none min-h-40 peer shrink grow placeholder:text-xs error:focus:text-white error:placeholder-white"
+        className="w-full px-1 bg-transparent outline-none min-h-40 peer shrink grow placeholder:text-xs error:focus:text-white error:placeholder:text-white"
         onChange={handleChange}
         data-error={Boolean(error)}
         placeholder={label ? "" : props.placeholder}
