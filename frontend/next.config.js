@@ -1,7 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
+
+  turbopack: {
+    rules: {
+      "*.svg": {
+        loaders: ["@svgr/webpack"],
+        as: "*.js",
+      },
+    },
+  },
 
   webpack(config) {
     config.module.rules.push({
@@ -23,6 +31,7 @@ const nextConfig = {
     ],
   },
   output: "standalone",
+  serverExternalPackages: ["jose", "pg"],
 };
 
 module.exports = nextConfig;

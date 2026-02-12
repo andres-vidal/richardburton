@@ -82,7 +82,7 @@ function useTooltip(options: TooltipOptions = {}) {
 }
 
 type Props = {
-  children: ReactElement;
+  children: ReactElement<Record<string, unknown>>;
   content: ReactElement;
 } & TooltipOptions;
 
@@ -109,9 +109,9 @@ const TooltipProvider: FC<Props> = ({
         state.getReferenceProps({
           ref,
           ...children.props,
-          "data-state": state.open ? "open" : "closed",
+          ...({ "data-state": state.open ? "open" : "closed" } as Record<string, unknown>),
           onBlur(event) {
-            children.props.onBlur?.(event);
+            (children.props as { onBlur?: (e: React.FocusEvent) => void }).onBlur?.(event);
             state.setOpen(false);
           },
         }),

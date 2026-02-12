@@ -3,7 +3,7 @@ import { RefObject, useEffect, useState } from "react";
 // Sourced from https://usehooks.com/useOnScreen/
 
 export default function useVisible<T extends HTMLElement>(
-  ref: RefObject<T>,
+  ref: RefObject<T | null>,
   rootMargin: string = "0px",
 ): boolean {
   // State and setter for storing whether element is visible

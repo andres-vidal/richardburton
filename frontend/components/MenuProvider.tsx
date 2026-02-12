@@ -23,7 +23,7 @@ import MenuItem from "./MenuItem";
 type Option = { id: string; label: string };
 
 type Props<OptionType extends Option | string> = {
-  children: ReactElement;
+  children: ReactElement<Record<string, unknown>>;
   options: OptionType[];
   isOpen: boolean;
   activeIndex: number | null;
@@ -110,7 +110,7 @@ const MenuProvider = <OptionType extends Option | string>({
               {options.map((option, index) => (
                 <MenuItem
                   key={isString(option) ? option : option.id}
-                  ref={(node) => (listRef.current[index] = node)}
+                  ref={(node) => { listRef.current[index] = node; }}
                   selected={activeIndex === index}
                   {...getItemProps({
                     onClick: () => {
