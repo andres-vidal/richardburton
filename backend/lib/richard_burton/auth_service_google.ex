@@ -8,23 +8,20 @@ defmodule RichardBurton.Auth.Google do
 
   @impl true
   @spec init() :: {Map.t(), List.t()}
-  def init(), do: {get_config(), get_keys()}
+  def init(), do: {%{}, []}
 
   @impl true
   @spec verify(token :: String.t()) :: {:ok, String.t()} | :error
   def verify(token) do
-    case Application.get_env(:richard_burton, :auth_config) do
-      {%{"issuer" => issuer}, keys} ->
-        do_verify(
-          token,
-          issuer: issuer,
-          audience: get_audience(),
-          keys: keys
-        )
+    %{"issuer" => issuer} = get_config()
+    keys = get_keys()
 
-      _ ->
-        throw("Auth configuration is not properly set")
-    end
+    do_verify(
+      token,
+      issuer: issuer,
+      audience: get_audience(),
+      keys: keys
+    )
   end
 
   @impl true

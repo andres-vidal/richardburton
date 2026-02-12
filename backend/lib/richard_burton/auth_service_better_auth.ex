@@ -12,25 +12,18 @@ defmodule RichardBurton.Auth.BetterAuth do
   @impl true
   @spec init() :: {Map.t(), List.t()}
   def init() do
-    {%{}, get_keys()}
+    {%{}, []}
   end
 
   @impl true
   @spec verify(token :: String.t()) :: {:ok, String.t()} | :error
   def verify(token) do
-    case Application.get_env(:richard_burton, :auth_config) do
-      {_config, keys} when is_list(keys) and keys != [] ->
+    case get_keys() do
+      keys when is_list(keys) and keys != [] ->
         do_verify(token, keys)
 
       _ ->
-        # Try to fetch keys on-the-fly if not cached
-        case get_keys() do
-          keys when is_list(keys) and keys != [] ->
-            do_verify(token, keys)
-
-          _ ->
-            :error
-        end
+        :error
     end
   end
 

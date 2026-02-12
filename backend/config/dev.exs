@@ -1,7 +1,8 @@
 import Config
 
 config :richard_burton,
-  phx_consumer_url: "http://localhost:3000"
+  phx_consumer_url: "http://localhost:3000",
+  better_auth_jwks_url: "http://localhost:3000/api/auth/jwks"
 
 import_config "dev.local.exs"
 
