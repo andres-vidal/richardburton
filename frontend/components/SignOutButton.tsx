@@ -1,5 +1,5 @@
 import ExitIcon from "assets/exit.svg";
-import { signOut } from "next-auth/react";
+import { authClient } from "lib/auth-client";
 import { FC } from "react";
 import Button from "./Button";
 
@@ -9,7 +9,10 @@ const SignOutButton: FC = () => {
       label="Sign out"
       variant="outline"
       alignment="left"
-      onClick={() => signOut({ callbackUrl: "/" })}
+      onClick={async () => {
+        await authClient.signOut();
+        window.location.href = "/";
+      }}
       Icon={ExitIcon}
       width="fixed"
     />

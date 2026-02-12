@@ -25,6 +25,7 @@ defmodule RichardBurton.Application do
     # Set missing runtime config from Application env
     [
       "PHX_CONSUMER_URL",
+      "BETTER_AUTH_JWKS_URL",
       "GOOGLE_CLIENT_ID",
       "GOOGLE_OPENID_CONFIG_URL",
       "GOOGLE_OAUTH2_CERTS_URL",

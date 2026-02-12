@@ -35,6 +35,10 @@ defmodule RichardBurton.User do
     Repo.get_by(User, subject_id: subject_id)
   end
 
+  def get_by_email(email) do
+    Repo.get_by(User, email: email)
+  end
+
   def insert(attrs) do
     case %User{} |> changeset(attrs) |> Repo.insert() do
       {:ok, user} -> {:ok, user}

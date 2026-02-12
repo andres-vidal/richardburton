@@ -1,5 +1,5 @@
 import GoogleIcon from "assets/google.svg";
-import { signIn } from "next-auth/react";
+import { authClient } from "lib/auth-client";
 import { FC } from "react";
 import Button from "./Button";
 
@@ -9,7 +9,9 @@ const SignInButton: FC = () => {
       label="Sign in"
       variant="outline"
       alignment="left"
-      onClick={() => signIn("google")}
+      onClick={() =>
+        authClient.signIn.social({ provider: "google", callbackURL: "/" })
+      }
       Icon={GoogleIcon}
       width="fixed"
     />

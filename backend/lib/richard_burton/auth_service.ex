@@ -16,5 +16,5 @@ defmodule RichardBurton.Auth do
   @spec authorize(subject_id :: String.t(), role :: Atom.t()) :: :ok | :error
   def authorize(subject_id, role), do: impl().authorize(subject_id, role)
 
-  defp impl, do: Application.get_env(:richard_burton, :auth_service, RichardBurton.Auth.Google)
+  defp impl, do: Application.get_env(:richard_burton, :auth_service, RichardBurton.Auth.BetterAuth)
 end
