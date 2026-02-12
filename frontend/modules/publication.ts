@@ -3,25 +3,15 @@ import { AxiosInstance } from "axios";
 import { _NOTIFICATIONS, _notify } from "components/Notifications";
 import { isString, range } from "lodash";
 import hash from "object-hash";
-import {
-  CallbackInterface,
-  MutableSnapshot,
-  Resetter,
-  SetterOrUpdater,
-  Snapshot,
-  atom,
-  atomFamily,
-  constSelector,
-  selector,
-  selectorFamily,
-  useRecoilCallback,
-  useRecoilState,
-  useRecoilValue,
-} from "recoil";
+import { atom, useAtomValue, useAtom } from "jotai";
+import { atomFamily } from "jotai-family";
+import { useStore } from "jotai";
+import { useCallback } from "react";
 import useDebounce from "utils/useDebounce";
 import { Author } from "./author";
 import { COUNTRIES, Country } from "./country";
 import { Publisher } from "./publisher";
+import store from "store";
 
 type Publication = {
   title: string;
@@ -39,146 +29,35 @@ type PublicationError = null | string | Record<PublicationKey, string>;
 type PublicationEntry = ValidationResult & { id: number };
 type PublicationId = number;
 
-const TOTAL_INDEX_COUNT = atom<number | null>({
-  key: "total-index-count",
-  default: null,
-});
+// ── Atoms ──────────────────────────────────────────────────────────────
 
-const PUBLICATION_IDS = atom<PublicationId[] | undefined>({
-  key: "publication-ids",
-  default: undefined,
-});
+const TOTAL_INDEX_COUNT = atom<number | null>(null);
 
-const PUBLICATIONS = atomFamily<Publication, PublicationId>({
-  key: "publications",
-  default: undefined,
-});
+const PUBLICATION_IDS = atom<PublicationId[] | undefined>(undefined);
 
-const PUBLICATION_ERRORS = atomFamily<PublicationError, PublicationId>({
-  key: "publication-error",
-  default: null,
-});
+const PUBLICATIONS = atomFamily((id: PublicationId) =>
+  atom<Publication>(undefined as unknown as Publication),
+);
 
-const PUBLICATION_OVERRIDES = atomFamily<Partial<Publication>, PublicationId>({
-  key: "publication-overrides",
-  default: undefined,
-});
+const PUBLICATION_ERRORS = atomFamily((id: PublicationId) =>
+  atom<PublicationError>(null),
+);
 
-const OVERRIDDEN_PUBLICATION_IDS = selector<PublicationId[] | undefined>({
-  key: "overridden-publications-ids",
-  get({ get }) {
-    return get(VISIBLE_PUBLICATION_IDS)?.filter((id) =>
-      get(PUBLICATION_OVERRIDES(id)),
-    );
-  },
-});
+const PUBLICATION_OVERRIDES = atomFamily((id: PublicationId) =>
+  atom<Partial<Publication>>(undefined as unknown as Partial<Publication>),
+);
 
-const OVERRIDDEN_PUBLICATION_COUNT = selector<number>({
-  key: "overriden-publication-count",
-  get({ get }) {
-    return get(OVERRIDDEN_PUBLICATION_IDS)?.length || 0;
-  },
-});
+const IS_PUBLICATION_DELETED = atomFamily((id: PublicationId) =>
+  atom<boolean>(false),
+);
 
-const PUBLICATION_ERROR_DESCRIPTION = selectorFamily<string, PublicationId>({
-  key: "publication-error-description",
-  get(id) {
-    return function ({ get }) {
-      return Publication.describeError(get(PUBLICATION_ERRORS(id)));
-    };
-  },
-});
+const IS_VALIDATING = atom<boolean>(false);
 
-const IS_PUBLICATION_DELETED = atomFamily<boolean, PublicationId>({
-  key: "is-publication-deleted",
-  default: false,
-});
+const KEYWORDS = atom<string[] | undefined>(undefined);
 
-const DELETED_PUBLICATIONS_IDS = selector<PublicationId[] | undefined>({
-  key: "deleted-publications-ids",
-  get({ get }) {
-    return get(PUBLICATION_IDS)?.filter((id) =>
-      get(IS_PUBLICATION_DELETED(id)),
-    );
-  },
-});
-
-const DELETED_PUBLICATION_COUNT = selector<number>({
-  key: "deleted-publication-count",
-  get({ get }) {
-    return get(DELETED_PUBLICATIONS_IDS)?.length || 0;
-  },
-});
-
-const VISIBLE_PUBLICATION_IDS = selector<PublicationId[] | undefined>({
-  key: "visible-publications-ids",
-  get({ get }) {
-    return get(PUBLICATION_IDS)?.filter(
-      (id) => !get(IS_PUBLICATION_DELETED(id)),
-    );
-  },
-});
-
-const VISIBLE_PUBLICATIONS = selectorFamily<Publication, PublicationId>({
-  key: "visible-publications",
-  get(id) {
-    return function ({ get }) {
-      return {
-        ...get(PUBLICATIONS(id)),
-        ...(get(PUBLICATION_OVERRIDES(id)) || {}),
-      };
-    };
-  },
-});
-
-const VISIBLE_PUBLICATION_COUNT = selector<number>({
-  key: "publication-count",
-  get({ get }) {
-    return get(VISIBLE_PUBLICATION_IDS)?.length || 0;
-  },
-});
-
-const IS_PUBLICATION_VALID = selectorFamily<boolean, PublicationId>({
-  key: "is-publication-valid",
-  get(id) {
-    return function ({ get }) {
-      return !get(PUBLICATION_ERRORS(id));
-    };
-  },
-});
-
-const VALID_PUBLICATIONS_IDS = selector<PublicationId[] | undefined>({
-  key: "valid-publication-ids",
-  get({ get }) {
-    return get(PUBLICATION_IDS)
-      ?.filter((id) => !get(IS_PUBLICATION_DELETED(id)))
-      .filter((id) => get(IS_PUBLICATION_VALID(id)));
-  },
-});
-
-const VALID_PUBLICATION_COUNT = selector<number>({
-  key: "valid-publication-count",
-  get({ get }) {
-    return get(VALID_PUBLICATIONS_IDS)?.length || 0;
-  },
-});
-
-const LAST_VALIDATED_VALUE = atomFamily<string, PublicationId>({
-  key: "last-validated-value",
-  default: undefined,
-});
-
-const IS_VALIDATING = atom<boolean>({
-  key: "is-validating",
-  default: false,
-});
-
-const TOTAL_PUBLICATION_COUNT = selector<number>({
-  key: "total-publication-count",
-  get({ get }) {
-    return get(PUBLICATION_IDS)?.length || 0;
-  },
-});
+const LAST_VALIDATED_VALUE = atomFamily((id: PublicationId) =>
+  atom<string>(undefined as unknown as string),
+);
 
 const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
   title: true,
@@ -190,80 +69,116 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
   originalAuthors: true,
 };
 
-const IS_ATTRIBUTE_VISIBLE = atomFamily<boolean, PublicationKey>({
-  key: "is-attributes-visible",
-  default: (key) => DEFAULT_ATTRIBUTE_VISIBILITY[key],
+const IS_ATTRIBUTE_VISIBLE = atomFamily((key: PublicationKey) =>
+  atom<boolean>(DEFAULT_ATTRIBUTE_VISIBILITY[key]),
+);
+
+const ARE_ROW_IDS_VISIBLE = atom<boolean>(false);
+
+const FOCUSED_ROW_ID = atom<number | undefined>(undefined);
+
+// ── Derived atoms (read-only) ──────────────────────────────────────────
+
+const VISIBLE_PUBLICATION_IDS = atom((get) => {
+  return get(PUBLICATION_IDS)?.filter(
+    (id) => !get(IS_PUBLICATION_DELETED(id)),
+  );
 });
 
-const VISIBLE_ATTRIBUTES = selector<PublicationKey[]>({
-  key: "visible-attributes",
-  get({ get }) {
-    return Publication.ATTRIBUTES.filter((key) =>
-      get(IS_ATTRIBUTE_VISIBLE(key)),
-    );
-  },
+const DELETED_PUBLICATIONS_IDS = atom((get) => {
+  return get(PUBLICATION_IDS)?.filter((id) =>
+    get(IS_PUBLICATION_DELETED(id)),
+  );
 });
 
-const HIDDEN_ATTRIBUTES = selector<PublicationKey[]>({
-  key: "hidden-attributes",
-  get({ get }) {
-    return Publication.ATTRIBUTES.filter(
-      (key) => !get(IS_ATTRIBUTE_VISIBLE(key)),
-    );
-  },
+const VISIBLE_PUBLICATIONS = atomFamily((id: PublicationId) =>
+  atom((get) => ({
+    ...get(PUBLICATIONS(id)),
+    ...(get(PUBLICATION_OVERRIDES(id)) || {}),
+  })),
+);
+
+const OVERRIDDEN_PUBLICATION_IDS = atom((get) => {
+  return get(VISIBLE_PUBLICATION_IDS)?.filter((id) =>
+    get(PUBLICATION_OVERRIDES(id)),
+  );
 });
 
-const KEYWORDS = atom<string[] | undefined>({
-  key: "keywords",
-  default: undefined,
+const OVERRIDDEN_PUBLICATION_COUNT = atom((get) => {
+  return get(OVERRIDDEN_PUBLICATION_IDS)?.length || 0;
+});
+
+const VISIBLE_PUBLICATION_COUNT = atom((get) => {
+  return get(VISIBLE_PUBLICATION_IDS)?.length || 0;
+});
+
+const IS_PUBLICATION_VALID = atomFamily((id: PublicationId) =>
+  atom((get) => !get(PUBLICATION_ERRORS(id))),
+);
+
+const VALID_PUBLICATIONS_IDS = atom((get) => {
+  return get(PUBLICATION_IDS)
+    ?.filter((id) => !get(IS_PUBLICATION_DELETED(id)))
+    .filter((id) => get(IS_PUBLICATION_VALID(id)));
+});
+
+const VALID_PUBLICATION_COUNT = atom((get) => {
+  return get(VALID_PUBLICATIONS_IDS)?.length || 0;
+});
+
+const DELETED_PUBLICATION_COUNT = atom((get) => {
+  return get(DELETED_PUBLICATIONS_IDS)?.length || 0;
+});
+
+const TOTAL_PUBLICATION_COUNT = atom((get) => {
+  return get(PUBLICATION_IDS)?.length || 0;
+});
+
+const VISIBLE_ATTRIBUTES = atom((get) => {
+  return Publication.ATTRIBUTES.filter((key) =>
+    get(IS_ATTRIBUTE_VISIBLE(key)),
+  );
+});
+
+const HIDDEN_ATTRIBUTES = atom((get) => {
+  return Publication.ATTRIBUTES.filter(
+    (key) => !get(IS_ATTRIBUTE_VISIBLE(key)),
+  );
 });
 
 type CompositeAttributeId = `${PublicationId}.${PublicationKey}`;
 
-const PUBLICATION_ATTRIBUTE = selectorFamily<string, CompositeAttributeId>({
-  key: "publication-attribute",
-  get(compositeId) {
-    return function ({ get }) {
-      const [id, key] = compositeId.split(".") as [string, PublicationKey];
-      return get(VISIBLE_PUBLICATIONS(parseInt(id)))[key];
-    };
-  },
-});
+const PUBLICATION_ATTRIBUTE = atomFamily((compositeId: CompositeAttributeId) =>
+  atom((get) => {
+    const [id, key] = compositeId.split(".") as [string, PublicationKey];
+    return get(VISIBLE_PUBLICATIONS(parseInt(id)))[key];
+  }),
+);
 
-const PUBLICATION_ATTRIBUTE_ERROR_DESCRIPTION = selectorFamily<
-  string,
-  CompositeAttributeId
->({
-  key: "publication-attribute-error-description",
-  get(compositeId) {
-    return function ({ get }) {
+const PUBLICATION_ERROR_DESCRIPTION = atomFamily((id: PublicationId) =>
+  atom((get) => {
+    return Publication.describeError(get(PUBLICATION_ERRORS(id)));
+  }),
+);
+
+const PUBLICATION_ATTRIBUTE_ERROR_DESCRIPTION = atomFamily(
+  (compositeId: CompositeAttributeId) =>
+    atom((get) => {
       const [id, key] = compositeId.split(".") as [string, PublicationKey];
       return Publication.describeError(
         get(PUBLICATION_ERRORS(parseInt(id))),
         key,
       );
-    };
-  },
-});
+    }),
+);
 
-const ARE_ROW_IDS_VISIBLE = atom<boolean>({
-  key: "are-row-ids-visible",
-  default: false,
-});
+const PUBLICATION = atomFamily((id: PublicationId) =>
+  atom((get) => get(PUBLICATIONS(id)) || null),
+);
 
-const FOCUSED_ROW_ID = atom<number | undefined>({
-  key: "focused-row-id",
-  default: undefined,
-});
+const NULL_PUBLICATION_ATOM = atom<Publication | null>(null);
 
-const PUBLICATION = selectorFamily<Publication, PublicationId>({
-  key: "publication",
-  get(id) {
-    return function ({ get }) {
-      return get(PUBLICATIONS(id)) || null;
-    };
-  },
-});
+// ── Error messages ─────────────────────────────────────────────────────
 
 const ERROR_MESSAGES: Record<string, string> = {
   conflict: "A publication with this data already exists",
@@ -274,7 +189,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   alpha2: "This field should be a valid ISO 3166-1 alpha 2 country code",
 };
 
+// ── Types ──────────────────────────────────────────────────────────────
+
 type PublicationKeyType = "array" | "text" | "enum" | "enumArray" | "number";
+type Resetter = () => void;
+type SetterOrUpdater<T> = React.Dispatch<React.SetStateAction<T>>;
+
+// ── Module interface & implementation ──────────────────────────────────
 
 interface PublicationModule {
   ATTRIBUTES: PublicationKey[];
@@ -284,7 +205,7 @@ interface PublicationModule {
   NEW_ROW_ID: PublicationId;
 
   STORE: {
-    initialize(snapshot: MutableSnapshot): void;
+    initialize(): void;
 
     useVisibleIds(): PublicationId[] | undefined;
     useValue(id: PublicationId): Publication;
@@ -315,7 +236,7 @@ interface PublicationModule {
     useIndexCount(): number | null;
     usePublication(id: PublicationId | undefined): Publication | null;
 
-    from: (snapshot: Snapshot) => {
+    from: (s: typeof store) => {
       getVisibleIds(): PublicationId[] | undefined;
       getAllVisible(): Publication[] | undefined;
       getValue(id: PublicationId): Publication;
@@ -324,7 +245,7 @@ interface PublicationModule {
       isValid(id: PublicationId): boolean;
     };
 
-    with: (params: Pick<CallbackInterface, "set">) => {
+    with: (s: typeof store) => {
       setPublications(entries: PublicationEntry[]): void;
       setErrors(entries: PublicationEntry[]): void;
       setFocusedRowId(id: PublicationId | undefined): void;
@@ -355,7 +276,7 @@ interface PublicationModule {
     request: typeof request;
     useRequest<T = void, P = void>(
       factory: (
-        params: Pick<CallbackInterface, "set" | "reset" | "snapshot">,
+        params: { store: typeof store },
         http: AxiosInstance,
       ) => (args: P) => Promise<T>,
     ): (args: P) => Promise<T>;
@@ -420,296 +341,285 @@ const Publication: PublicationModule = {
 
   NEW_ROW_ID: -1,
   STORE: {
-    initialize(snapshot) {
-      snapshot.set(PUBLICATIONS(Publication.NEW_ROW_ID), Publication.empty());
+    initialize() {
+      store.set(PUBLICATIONS(Publication.NEW_ROW_ID), Publication.empty());
     },
 
     useVisibleIds() {
-      return useRecoilValue(VISIBLE_PUBLICATION_IDS);
+      return useAtomValue(VISIBLE_PUBLICATION_IDS);
     },
     useValue(id) {
-      return useRecoilValue(VISIBLE_PUBLICATIONS(id));
+      return useAtomValue(VISIBLE_PUBLICATIONS(id));
     },
     useError(id) {
-      return useRecoilValue(PUBLICATION_ERRORS(id));
+      return useAtomValue(PUBLICATION_ERRORS(id));
     },
 
     useAddNew() {
-      return useRecoilCallback(({ set, reset, snapshot }) => () => {
-        const ids = snapshot.getLoadable(PUBLICATION_IDS).valueOrThrow();
+      const s = useStore();
+      return useCallback(() => {
+        const ids = s.get(PUBLICATION_IDS);
 
         if (!ids) throw "Can not add new publications: entries not loaded.";
 
         const id = ids.length;
-        const p = snapshot
-          .getLoadable(VISIBLE_PUBLICATIONS(Publication.NEW_ROW_ID))
-          .valueOrThrow();
+        const p = s.get(VISIBLE_PUBLICATIONS(Publication.NEW_ROW_ID));
 
-        set(PUBLICATION_IDS, [...ids, id]);
-        set(PUBLICATIONS(id), p);
+        s.set(PUBLICATION_IDS, [...ids, id]);
+        s.set(PUBLICATIONS(id), p);
 
-        reset(PUBLICATION_OVERRIDES(Publication.NEW_ROW_ID));
+        s.set(
+          PUBLICATION_OVERRIDES(Publication.NEW_ROW_ID),
+          undefined as unknown as Partial<Publication>,
+        );
         return id;
-      });
+      }, [s]);
     },
 
     useDuplicate() {
-      return useRecoilCallback(({ set, snapshot }) => (duplicateIds) => {
-        const ids = snapshot.getLoadable(PUBLICATION_IDS).valueOrThrow();
+      const s = useStore();
+      return useCallback(
+        (duplicateIds: Set<number>) => {
+          const ids = s.get(PUBLICATION_IDS);
 
-        if (!ids) throw "Can not duplicate publications: entries not loaded.";
+          if (!ids)
+            throw "Can not duplicate publications: entries not loaded.";
 
-        const newIds = range(
-          ids.length + 1,
-          ids.length + 1 + duplicateIds.size,
-        );
+          const newIds = range(
+            ids.length + 1,
+            ids.length + 1 + duplicateIds.size,
+          );
 
-        let duplicationCount = 0;
-        const orderedIds = ids.reduce<number[]>((acc, current) => {
-          if (duplicateIds.has(current)) {
-            const newId = newIds[duplicationCount++];
+          let duplicationCount = 0;
+          const orderedIds = ids.reduce<number[]>((acc, current) => {
+            if (duplicateIds.has(current)) {
+              const newId = newIds[duplicationCount++];
+              s.set(PUBLICATIONS(newId), s.get(PUBLICATIONS(current)));
+              return [...acc, current, newId];
+            }
+            return [...acc, current];
+          }, []);
 
-            set(
-              PUBLICATIONS(newId),
-              snapshot.getLoadable(PUBLICATIONS(current)).valueOrThrow(),
-            );
-
-            return [...acc, current, newId];
-          }
-
-          return [...acc, current];
-        }, []);
-
-        set(PUBLICATION_IDS, orderedIds);
-
-        return newIds;
-      });
+          s.set(PUBLICATION_IDS, orderedIds);
+          return newIds;
+        },
+        [s],
+      );
     },
 
     useErrorDescription(id) {
-      return useRecoilValue(PUBLICATION_ERROR_DESCRIPTION(id));
+      return useAtomValue(PUBLICATION_ERROR_DESCRIPTION(id));
     },
     useSetAll() {
-      return useRecoilCallback(
-        ({ set }) =>
-          (entries) => {
-            const ids = entries.map(({ id }) => id);
-            set(PUBLICATION_IDS, ids);
+      const s = useStore();
+      return useCallback(
+        (entries: PublicationEntry[]) => {
+          const ids = entries.map(({ id }) => id);
+          s.set(PUBLICATION_IDS, ids);
 
-            entries.forEach(({ id, publication, errors }) => {
-              set(PUBLICATIONS(id), publication);
-              set(PUBLICATION_ERRORS(id), errors);
-            });
-          },
-        [],
+          entries.forEach(({ id, publication, errors }) => {
+            s.set(PUBLICATIONS(id), publication);
+            s.set(PUBLICATION_ERRORS(id), errors);
+          });
+        },
+        [s],
       );
     },
     useSetDeleted() {
-      return useRecoilCallback(
-        ({ set }) =>
-          (ids, isDeleted = true) => {
-            ids.forEach((id) => set(IS_PUBLICATION_DELETED(id), isDeleted));
-          },
-        [],
+      const s = useStore();
+      return useCallback(
+        (ids: PublicationId[], isDeleted = true) => {
+          ids.forEach((id) => s.set(IS_PUBLICATION_DELETED(id), isDeleted));
+        },
+        [s],
       );
     },
     useResetAll() {
-      return useRecoilCallback(
-        ({ reset, snapshot }) =>
-          () => {
-            const ids = snapshot.getLoadable(PUBLICATION_IDS).valueOrThrow();
-            ids?.forEach((id) => {
-              reset(PUBLICATIONS(id));
-              reset(PUBLICATION_OVERRIDES(id));
-              reset(PUBLICATION_ERRORS(id));
-              reset(IS_PUBLICATION_DELETED(id));
-            });
-            reset(PUBLICATION_IDS);
-            reset(FOCUSED_ROW_ID);
-          },
-        [],
-      );
+      const s = useStore();
+      return useCallback(() => {
+        const ids = s.get(PUBLICATION_IDS);
+        ids?.forEach((id) => {
+          s.set(PUBLICATIONS(id), undefined as unknown as Publication);
+          s.set(
+            PUBLICATION_OVERRIDES(id),
+            undefined as unknown as Partial<Publication>,
+          );
+          s.set(PUBLICATION_ERRORS(id), null);
+          s.set(IS_PUBLICATION_DELETED(id), false);
+        });
+        s.set(PUBLICATION_IDS, undefined);
+        s.set(FOCUSED_ROW_ID, undefined);
+      }, [s]);
     },
     useResetDeleted() {
-      return useRecoilCallback(
-        ({ reset, snapshot }) =>
-          () => {
-            snapshot
-              .getLoadable(DELETED_PUBLICATIONS_IDS)
-              .valueOrThrow()
-              ?.forEach((id) => {
-                reset(IS_PUBLICATION_DELETED(id));
-              });
-          },
-        [],
-      );
+      const s = useStore();
+      return useCallback(() => {
+        const deleted = s.get(DELETED_PUBLICATIONS_IDS);
+        deleted?.forEach((id) => {
+          s.set(IS_PUBLICATION_DELETED(id), false);
+        });
+      }, [s]);
     },
 
     useResetOverridden() {
-      return useRecoilCallback(
-        ({ reset, snapshot }) =>
-          () => {
-            snapshot
-              .getLoadable(PUBLICATION_IDS)
-              .valueOrThrow()
-              ?.forEach((id) => {
-                reset(PUBLICATION_OVERRIDES(id));
-              });
-          },
-        [],
-      );
+      const s = useStore();
+      return useCallback(() => {
+        const ids = s.get(PUBLICATION_IDS);
+        ids?.forEach((id) => {
+          s.set(
+            PUBLICATION_OVERRIDES(id),
+            undefined as unknown as Partial<Publication>,
+          );
+        });
+      }, [s]);
     },
     useOverriddenIds() {
-      return useRecoilValue(OVERRIDDEN_PUBLICATION_IDS);
+      return useAtomValue(OVERRIDDEN_PUBLICATION_IDS);
     },
     useOverrideValue(id) {
-      return useRecoilValue(PUBLICATION_OVERRIDES(id));
+      return useAtomValue(PUBLICATION_OVERRIDES(id));
     },
 
     useIsValid(id) {
-      return useRecoilValue(IS_PUBLICATION_VALID(id));
+      return useAtomValue(IS_PUBLICATION_VALID(id));
     },
 
     useVisibleCount() {
-      return useRecoilValue(VISIBLE_PUBLICATION_COUNT);
+      return useAtomValue(VISIBLE_PUBLICATION_COUNT);
     },
     useDeletedCount() {
-      return useRecoilValue(DELETED_PUBLICATION_COUNT);
+      return useAtomValue(DELETED_PUBLICATION_COUNT);
     },
     useValidCount() {
-      return useRecoilValue(VALID_PUBLICATION_COUNT);
+      return useAtomValue(VALID_PUBLICATION_COUNT);
     },
     useOverriddenCount() {
-      return useRecoilValue(OVERRIDDEN_PUBLICATION_COUNT);
+      return useAtomValue(OVERRIDDEN_PUBLICATION_COUNT);
     },
     useTotalCount() {
-      return useRecoilValue(TOTAL_PUBLICATION_COUNT);
+      return useAtomValue(TOTAL_PUBLICATION_COUNT);
     },
 
     useIsValidating() {
-      return useRecoilValue(IS_VALIDATING);
+      return useAtomValue(IS_VALIDATING);
     },
 
     useKeywords() {
-      return useRecoilValue(KEYWORDS);
+      return useAtomValue(KEYWORDS);
     },
 
     useIsFocused(id) {
-      return id === useRecoilValue(FOCUSED_ROW_ID);
+      return id === useAtomValue(FOCUSED_ROW_ID);
     },
 
     useIndexCount() {
-      return useRecoilValue(TOTAL_INDEX_COUNT);
+      return useAtomValue(TOTAL_INDEX_COUNT);
     },
 
     usePublication(id) {
-      return useRecoilValue(
-        id !== undefined ? PUBLICATION(id) : constSelector(null),
+      return useAtomValue(
+        id !== undefined ? PUBLICATION(id) : NULL_PUBLICATION_ATOM,
       );
     },
 
-    from: (snapshot) => ({
+    from: (s) => ({
       getVisibleIds() {
-        return snapshot.getLoadable(VISIBLE_PUBLICATION_IDS).valueOrThrow();
+        return s.get(VISIBLE_PUBLICATION_IDS);
       },
       getValue(id) {
-        return snapshot.getLoadable(VISIBLE_PUBLICATIONS(id)).valueOrThrow();
+        return s.get(VISIBLE_PUBLICATIONS(id));
       },
       getAllVisible() {
-        const { getVisibleIds, getValue } = Publication.STORE.from(snapshot);
-        return getVisibleIds()?.map(getValue);
+        const ids = s.get(VISIBLE_PUBLICATION_IDS);
+        return ids?.map((id) => s.get(VISIBLE_PUBLICATIONS(id)));
       },
       getFocusedRowId() {
-        return snapshot.getLoadable(FOCUSED_ROW_ID).valueOrThrow();
+        return s.get(FOCUSED_ROW_ID);
       },
       isDeleted(id) {
-        return snapshot.getLoadable(IS_PUBLICATION_DELETED(id)).valueOrThrow();
+        return s.get(IS_PUBLICATION_DELETED(id));
       },
-
       isValid(id) {
-        return snapshot.getLoadable(IS_PUBLICATION_VALID(id)).valueOrThrow();
+        return s.get(IS_PUBLICATION_VALID(id));
       },
     }),
 
-    with: ({ set }) => ({
+    with: (s) => ({
       setPublications(entries) {
         const ids = entries.map(({ id }) => id);
-        set(PUBLICATION_IDS, ids);
+        s.set(PUBLICATION_IDS, ids);
         entries.forEach(({ id, publication }) => {
-          set(PUBLICATIONS(id), publication);
+          s.set(PUBLICATIONS(id), publication);
         });
       },
       setErrors(entries) {
         entries.forEach(({ id, errors }) => {
-          set(PUBLICATION_ERRORS(id), errors);
+          s.set(PUBLICATION_ERRORS(id), errors);
         });
       },
-
       setFocusedRowId(id) {
-        set(FOCUSED_ROW_ID, id);
+        s.set(FOCUSED_ROW_ID, id);
       },
     }),
 
     ATTRIBUTES: {
       useVisible() {
-        return useRecoilValue(VISIBLE_ATTRIBUTES);
+        return useAtomValue(VISIBLE_ATTRIBUTES);
       },
       useHidden() {
-        return useRecoilValue(HIDDEN_ATTRIBUTES);
+        return useAtomValue(HIDDEN_ATTRIBUTES);
       },
 
       useIsVisible(key) {
-        return useRecoilValue(IS_ATTRIBUTE_VISIBLE(key));
+        return useAtomValue(IS_ATTRIBUTE_VISIBLE(key));
       },
       useSetVisible() {
-        return useRecoilCallback(
-          ({ set }) =>
-            (keys, isVisible = true) => {
-              keys.map((key) => set(IS_ATTRIBUTE_VISIBLE(key), isVisible));
-            },
-          [],
+        const s = useStore();
+        return useCallback(
+          (keys: PublicationKey[], isVisible = true) => {
+            keys.map((key) => s.set(IS_ATTRIBUTE_VISIBLE(key), isVisible));
+          },
+          [s],
         );
       },
       useResetAll() {
-        return useRecoilCallback(
-          ({ reset }) =>
-            () => {
-              Publication.ATTRIBUTES.forEach((key) => {
-                reset(IS_ATTRIBUTE_VISIBLE(key));
-              });
-            },
-          [],
-        );
+        const s = useStore();
+        return useCallback(() => {
+          Publication.ATTRIBUTES.forEach((key) => {
+            s.set(IS_ATTRIBUTE_VISIBLE(key), DEFAULT_ATTRIBUTE_VISIBILITY[key]);
+          });
+        }, [s]);
       },
       useValue<K extends PublicationKey>(id: PublicationId, key: K) {
         const compositeId: CompositeAttributeId = `${id}.${key}`;
 
-        return useRecoilValue(
+        return useAtomValue(
           PUBLICATION_ATTRIBUTE(compositeId),
         ) as Publication[K];
       },
       useOverride() {
-        return useRecoilCallback(
-          ({ set }) =>
-            (id, attribute, value) => {
-              set(PUBLICATION_OVERRIDES(id), (current) => ({
-                ...current,
-                [attribute]: value,
-              }));
-            },
-          [],
+        const s = useStore();
+        return useCallback(
+          (id: PublicationId, attribute: PublicationKey, value: string) => {
+            const current = s.get(PUBLICATION_OVERRIDES(id));
+            s.set(PUBLICATION_OVERRIDES(id), {
+              ...current,
+              [attribute]: value,
+            });
+          },
+          [s],
         );
       },
 
       useErrorDescription(id, key) {
         const compositeId: CompositeAttributeId = `${id}.${key}`;
-        return useRecoilValue(
+        return useAtomValue(
           PUBLICATION_ATTRIBUTE_ERROR_DESCRIPTION(compositeId),
         );
       },
 
       useAreRowIdsVisible() {
-        return useRecoilState(ARE_ROW_IDS_VISIBLE);
+        return useAtom(ARE_ROW_IDS_VISIBLE);
       },
     },
   },
@@ -725,29 +635,32 @@ const Publication: PublicationModule = {
 
     useRequest(factory) {
       const { request } = Publication.REMOTE;
-      return useRecoilCallback(
-        ({ set, reset, snapshot }) =>
-          async (args) => {
-            try {
-              return await request((http) =>
-                factory({ set, reset, snapshot }, http)(args),
-              );
-            } catch (error) {
-              set(
-                _NOTIFICATIONS,
-                _notify({ message: error as string, level: "warning" }),
-              );
-              throw error;
-            }
-          },
-        [],
+      const s = useStore();
+      return useCallback(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async (args: any) => {
+          try {
+            return await request((http) =>
+              factory({ store: s }, http)(args),
+            );
+          } catch (error) {
+            s.set(
+              _NOTIFICATIONS,
+              _notify({ message: error as string, level: "warning" })(
+                s.get(_NOTIFICATIONS),
+              ),
+            );
+            throw error;
+          }
+        },
+        [s],
       );
     },
 
     useIndex() {
       return useDebounce(
         Publication.REMOTE.useRequest(
-          ({ set }, http) =>
+          ({ store: s }, http) =>
             async ({ search = undefined }) => {
               const url = search
                 ? `publications?search=${search}`
@@ -755,18 +668,18 @@ const Publication: PublicationModule = {
 
               type Result = { entries: Publication[]; keywords?: string[] };
 
-              set(PUBLICATION_IDS, undefined);
+              s.set(PUBLICATION_IDS, undefined);
 
               const { data, headers } = await http.get<Result>(url);
               const { entries, keywords } = data;
 
               if (headers.xTotalCount) {
-                set(TOTAL_INDEX_COUNT, parseInt(headers.xTotalCount));
+                s.set(TOTAL_INDEX_COUNT, parseInt(headers.xTotalCount));
               }
-              set(KEYWORDS, keywords);
-              set(PUBLICATION_IDS, range(entries.length));
+              s.set(KEYWORDS, keywords);
+              s.set(PUBLICATION_IDS, range(entries.length));
               entries.forEach((publication, index) =>
-                set(PUBLICATIONS(index), publication),
+                s.set(PUBLICATIONS(index), publication),
               );
             },
         ),
@@ -776,12 +689,12 @@ const Publication: PublicationModule = {
 
     useBulk() {
       return Publication.REMOTE.useRequest(
-        ({ reset, snapshot }, http) =>
+        ({ store: s }, http) =>
           async function () {
             const publications =
-              Publication.STORE.from(snapshot).getAllVisible();
+              Publication.STORE.from(s).getAllVisible();
 
-            reset(PUBLICATION_IDS);
+            s.set(PUBLICATION_IDS, undefined);
 
             const { data } = await http.post<Publication[]>(
               "publications/bulk",
@@ -793,29 +706,25 @@ const Publication: PublicationModule = {
     },
     useValidate() {
       return Publication.REMOTE.useRequest(
-        ({ set, snapshot }, http) =>
+        ({ store: s }, http) =>
           async (ids: PublicationId[]) => {
-            set(IS_VALIDATING, true);
+            s.set(IS_VALIDATING, true);
             const publications = ids
               .map((id) => ({
                 id,
-                publication: snapshot
-                  .getLoadable(VISIBLE_PUBLICATIONS(id))
-                  .valueOrThrow(),
+                publication: s.get(VISIBLE_PUBLICATIONS(id)),
               }))
               .map(({ id, publication }) => ({
                 id,
                 publication,
                 hash: hash(publication),
               }))
-              .filter(({ id, hash }) => {
-                const lastValidatedValue = snapshot
-                  .getLoadable(LAST_VALIDATED_VALUE(id))
-                  .valueOrThrow();
-                return hash !== lastValidatedValue;
+              .filter(({ id, hash: h }) => {
+                const lastValidatedValue = s.get(LAST_VALIDATED_VALUE(id));
+                return h !== lastValidatedValue;
               })
-              .map(({ id, publication, hash }) => {
-                set(LAST_VALIDATED_VALUE(id), hash);
+              .map(({ id, publication, hash: h }) => {
+                s.set(LAST_VALIDATED_VALUE(id), h);
                 return publication;
               });
 
@@ -825,11 +734,11 @@ const Publication: PublicationModule = {
                 publications,
               );
 
-              Publication.STORE.with({ set }).setErrors(
+              Publication.STORE.with(s).setErrors(
                 data.map((entry, index) => ({ ...entry, id: ids[index] })),
               );
             }
-            set(IS_VALIDATING, false);
+            s.set(IS_VALIDATING, false);
           },
       );
     },

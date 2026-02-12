@@ -1,14 +1,9 @@
 import { FloatingPortal } from "@floating-ui/react";
 import classNames from "classnames";
 import { AnimatePresence, motion } from "framer-motion";
-import { useRouter } from "next/router";
-import { FC, useEffect } from "react";
-import {
-  atom,
-  useRecoilCallback,
-  useRecoilState,
-  useResetRecoilState,
-} from "recoil";
+import { atom, useAtom, useSetAtom, useStore } from "jotai";
+import { usePathname } from "next/navigation";
+import { FC, useCallback, useEffect } from "react";
 import { v4 as uuid } from "uuid";
 
 type NotificationLevel = "error" | "warning" | "info" | "success";
@@ -19,10 +14,7 @@ type Notification = {
   level: NotificationLevel;
 };
 
-const NOTIFICATIONS = atom<Notification[]>({
-  key: "notifications",
-  default: [],
-});
+const NOTIFICATIONS = atom<Notification[]>([]);
 
 const NOTIFICATION_TIMEOUT_MS = 4000;
 const MAX_SNACKBARS = 5;
@@ -34,9 +26,9 @@ const NOTIFICATION_ICONS: Record<NotificationLevel, string> = {
 };
 
 const Notifications: FC = () => {
-  const [notifications, setNotifications] = useRecoilState(NOTIFICATIONS);
-  const resetNotifications = useResetRecoilState(NOTIFICATIONS);
-  const router = useRouter();
+  const [notifications, setNotifications] = useAtom(NOTIFICATIONS);
+  const resetNotifications = useSetAtom(NOTIFICATIONS);
+  const pathname = usePathname();
 
   useEffect(() => {
     if (notifications.length > 0) {
@@ -48,7 +40,10 @@ const Notifications: FC = () => {
     }
   }, [notifications, setNotifications]);
 
-  useEffect(() => resetNotifications, [router.pathname, resetNotifications]);
+  useEffect(
+    () => () => resetNotifications([]),
+    [pathname, resetNotifications],
+  );
 
   const shownNotificationsCount =
     notifications.length === MAX_SNACKBARS
@@ -115,12 +110,12 @@ const _notify = ({ message, level }: Omit<Notification, "id">) => {
 };
 
 function useNotify(): Notifier {
-  return useRecoilCallback(
-    ({ set }) =>
-      ({ message, level }) => {
-        set(NOTIFICATIONS, _notify({ message, level }));
-      },
-    [],
+  const s = useStore();
+  return useCallback(
+    ({ message, level }) => {
+      s.set(NOTIFICATIONS, _notify({ message, level })(s.get(NOTIFICATIONS)));
+    },
+    [s],
   );
 }
 

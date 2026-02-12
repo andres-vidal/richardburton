@@ -14,7 +14,7 @@ const PublicationUpload: FC = () => {
   const [key, setKey] = useState(1);
 
   const handleChange = useRequest(
-    ({ set }, http) =>
+    ({ store: s }, http) =>
       async (event: ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
           const [file] = event.target.files;
@@ -28,8 +28,8 @@ const PublicationUpload: FC = () => {
               payload,
             );
             const entries = data.map((p, index) => ({ ...p, id: index }));
-            Publication.STORE.with({ set }).setPublications(entries);
-            Publication.STORE.with({ set }).setErrors(entries);
+            Publication.STORE.with(s).setPublications(entries);
+            Publication.STORE.with(s).setErrors(entries);
           } catch (error: unknown) {
             event.target.files = null;
             setKey((key) => -key);
