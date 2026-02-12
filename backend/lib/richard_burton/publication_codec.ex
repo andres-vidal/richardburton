@@ -72,7 +72,7 @@ defmodule RichardBurton.Publication.Codec do
       flat_publication
       |> Map.from_struct()
       |> Map.delete(:__meta__)
-      |> nest
+      |> nest()
 
     %Publication{}
     |> Publication.changeset(attrs)
@@ -81,7 +81,7 @@ defmodule RichardBurton.Publication.Codec do
 
   def nest(flat_publication_like_map) when is_map(flat_publication_like_map) do
     flat_publication_like_map
-    |> Map.new(&(&1 |> Util.stringify_keys() |> nest_entry |> rename_key))
+    |> Map.new(&(&1 |> Util.stringify_keys() |> nest_entry() |> rename_key()))
     |> Codec.nest()
   end
 
@@ -111,9 +111,9 @@ defmodule RichardBurton.Publication.Codec do
   def flatten(publication = %Publication{}) do
     attrs =
       publication
-      |> map_from_struct
+      |> map_from_struct()
       |> Map.delete(:__meta__)
-      |> flatten
+      |> flatten()
 
     %FlatPublication{}
     |> FlatPublication.changeset(attrs)
@@ -134,7 +134,7 @@ defmodule RichardBurton.Publication.Codec do
   end
 
   def flatten(publication_like_map) when is_map(publication_like_map) do
-    publication_like_map |> Codec.flatten() |> Map.new(&(&1 |> rename_key |> flatten_entry))
+    publication_like_map |> Codec.flatten() |> Map.new(&(&1 |> rename_key() |> flatten_entry()))
   end
 
   defp flatten_entry({"authors", value}), do: {"authors", Author.flatten(value)}

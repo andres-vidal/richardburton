@@ -74,7 +74,7 @@ defmodule RichardBurton.Author do
     authors_fingerprint =
       changeset
       |> get_field(:authors)
-      |> fingerprint
+      |> fingerprint()
 
     put_change(changeset, :authors_fingerprint, authors_fingerprint)
   end

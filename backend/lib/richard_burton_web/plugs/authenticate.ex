@@ -24,6 +24,6 @@ defmodule RichardBurtonWeb.Plugs.Authenticate do
   end
 
   defp halt_unauthorized(conn) do
-    conn |> send_resp(:unauthorized, "Unauthorized") |> halt
+    conn |> send_resp(:unauthorized, "Unauthorized") |> halt()
   end
 end

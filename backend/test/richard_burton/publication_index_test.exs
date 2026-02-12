@@ -231,7 +231,7 @@ defmodule RichardBurton.Publication.IndexTest do
 
   defp assert_search_results(publications, expect: expected_values, fields: expected_fields)
        when is_list(publications) and is_list(expected_values) do
-    unless Keyword.keyword?(expected_values) do
+    if !Keyword.keyword?(expected_values) do
       throw(
         "Expected values must be defined as a keyword with attribute as key and expected values as value"
       )
@@ -239,7 +239,7 @@ defmodule RichardBurton.Publication.IndexTest do
 
     refute Enum.empty?(publications), "Expected publications not to be empty."
 
-    unless Enum.empty?(expected_fields) do
+    if !Enum.empty?(expected_fields) do
       Enum.each(publications, &assert_publication_fields(&1, expected_fields))
     end
 

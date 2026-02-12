@@ -78,7 +78,7 @@ defmodule RichardBurton.Publisher do
     publishers_fingerprint =
       changeset
       |> get_field(:publishers)
-      |> fingerprint
+      |> fingerprint()
 
     put_change(changeset, :publishers_fingerprint, publishers_fingerprint)
   end

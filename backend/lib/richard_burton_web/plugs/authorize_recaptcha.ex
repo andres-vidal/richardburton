@@ -28,6 +28,6 @@ defmodule RichardBurtonWeb.Plugs.AuthorizeRecaptcha do
   defp verify(_conn), do: :error
 
   defp halt_unauthorized(conn) do
-    conn |> send_resp(:unauthorized, "Unauthorized, recaptcha token is invalid") |> halt
+    conn |> send_resp(:unauthorized, "Unauthorized, recaptcha token is invalid") |> halt()
   end
 end

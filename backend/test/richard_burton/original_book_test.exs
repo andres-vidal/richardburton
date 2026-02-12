@@ -41,7 +41,7 @@ defmodule RichardBurton.OriginalBookTest do
   defp linked(changeset, preload: preload) do
     changeset
     |> get_change(:original_book)
-    |> apply_changes
+    |> apply_changes()
     |> maybe_preload(preload)
   end
 

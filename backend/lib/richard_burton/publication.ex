@@ -65,7 +65,7 @@ defmodule RichardBurton.Publication do
   def all do
     Publication
     |> Repo.all()
-    |> preload
+    |> preload()
   end
 
   def preload(data) do

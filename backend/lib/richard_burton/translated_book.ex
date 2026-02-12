@@ -63,7 +63,7 @@ defmodule RichardBurton.TranslatedBook do
   def all() do
     TranslatedBook
     |> Repo.all()
-    |> preload
+    |> preload()
   end
 
   def preload(data) do
@@ -119,7 +119,7 @@ defmodule RichardBurton.TranslatedBook do
     translated_book_fingerprint =
       changeset
       |> get_field(:translated_book)
-      |> fingerprint
+      |> fingerprint()
 
     put_change(changeset, :translated_book_fingerprint, translated_book_fingerprint)
   end

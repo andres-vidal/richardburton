@@ -114,7 +114,7 @@ defmodule RichardBurton.Country do
     countries_fingerprint =
       changeset
       |> get_field(:countries)
-      |> fingerprint
+      |> fingerprint()
 
     put_change(changeset, :countries_fingerprint, countries_fingerprint)
   end

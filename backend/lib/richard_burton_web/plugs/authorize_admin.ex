@@ -21,6 +21,6 @@ defmodule RichardBurtonWeb.Plugs.AuthorizeAdmin do
   end
 
   defp halt_unauthorized(conn) do
-    conn |> send_resp(:unauthorized, "Unauthorized, not enough privileges") |> halt
+    conn |> send_resp(:unauthorized, "Unauthorized, not enough privileges") |> halt()
   end
 end

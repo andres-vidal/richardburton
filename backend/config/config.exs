@@ -19,8 +19,7 @@ config :richard_burton, RichardBurton.Repo,
 config :richard_burton, RichardBurtonWeb.Endpoint,
   url: [host: "localhost"],
   render_errors: [
-    view: RichardBurtonWeb.ErrorView,
-    accepts: ~w(json),
+    formats: [json: RichardBurtonWeb.ErrorJSON],
     layout: false
   ],
   pubsub_server: RichardBurton.PubSub,

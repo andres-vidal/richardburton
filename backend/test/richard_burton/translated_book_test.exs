@@ -47,7 +47,7 @@ defmodule RichardBurton.TranslatedBookTest do
   defp linked(changeset, preload: preload) do
     changeset
     |> get_change(:translated_book)
-    |> apply_changes
+    |> apply_changes()
     |> maybe_preload(preload)
   end
 

@@ -28,8 +28,8 @@ defmodule RichardBurton.Validation do
   def get_errors(changeset) do
     changeset
     |> Ecto.Changeset.traverse_errors(&get_description/1)
-    |> coalesce_errors
-    |> simplify_errors
+    |> coalesce_errors()
+    |> simplify_errors()
   end
 
   defp get_description({_msg, opts}), do: opts |> Map.new() |> get_description()

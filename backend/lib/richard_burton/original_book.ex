@@ -55,7 +55,7 @@ defmodule RichardBurton.OriginalBook do
   end
 
   def all() do
-    OriginalBook |> Repo.all() |> preload
+    OriginalBook |> Repo.all() |> preload()
   end
 
   def preload(data) do
@@ -84,7 +84,7 @@ defmodule RichardBurton.OriginalBook do
     original_book_fingerprint =
       changeset
       |> get_field(:original_book)
-      |> fingerprint
+      |> fingerprint()
 
     put_change(changeset, :original_book_fingerprint, original_book_fingerprint)
   end
