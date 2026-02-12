@@ -1,13 +1,6 @@
 import axios, { AxiosInstance } from "axios";
-import Notifications from "components/Notifications";
-import ClearSelection from "listeners/ClearSelection";
+import { authClient } from "lib/auth-client";
 import HTTP from "modules/http";
-import { Publication } from "modules/publication";
-import { getSession, SessionProvider } from "next-auth/react";
-import type { AppProps } from "next/app";
-import { FC } from "react";
-import { RecoilRoot } from "recoil";
-import "styles/globals.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const GOOGLE_RECAPTCHA_SITEKEY =
@@ -16,10 +9,14 @@ const GOOGLE_RECAPTCHA_SITEKEY =
 const http = HTTP.client({ baseURL: API_URL });
 
 http.interceptors.request.use(async (config) => {
-  const session = await getSession();
+  try {
+    const { data, error } = await authClient.token();
 
-  if (session && session.idToken && config.headers) {
-    config.headers.Authorization = `Bearer ${session.idToken}`;
+    if (!error && data?.token && config.headers) {
+      config.headers.Authorization = `Bearer ${data.token}`;
+    }
+  } catch {
+    // Not authenticated — proceed without token
   }
 
   return config;
@@ -53,8 +50,6 @@ async function request<T = void>(
         }
       } else if (error.request) {
         // The request was made but no response was received
-        // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
-        // http.ClientRequest in node.js
         throw error.message;
       } else {
         // Something happened in setting up the request that triggered an Error
@@ -76,17 +71,4 @@ enum Key {
   ESCAPE = "Escape",
 }
 
-const App: FC<AppProps> = ({ Component, pageProps }) => {
-  return (
-    <SessionProvider>
-      <RecoilRoot initializeState={Publication.STORE.initialize}>
-        <Notifications />
-        <ClearSelection />
-        <Component {...pageProps} />
-      </RecoilRoot>
-    </SessionProvider>
-  );
-};
-
-export default App;
 export { API_URL, GOOGLE_RECAPTCHA_SITEKEY, http, Key, request };

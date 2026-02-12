@@ -1,6 +1,7 @@
+"use client";
+
 import PublicationReview from "components/PublicationReview";
 import { Publication } from "modules/publication";
-import { NextPage } from "next";
 
 import Layout from "components/Layout";
 import PublicationCounter from "components/PublicationCounter";
@@ -17,7 +18,7 @@ import StrikeHeading from "components/StrikeHeading";
 import { useEffect } from "react";
 import { useIsSelectionEmpty } from "react-selection-manager";
 
-const NewPublications: NextPage = () => {
+export default function NewPublications() {
   const setAll = Publication.STORE.useSetAll();
   const setVisible = Publication.STORE.ATTRIBUTES.useSetVisible();
   const resetAll = Publication.STORE.useResetAll();
@@ -56,6 +57,4 @@ const NewPublications: NextPage = () => {
       }
     />
   );
-};
-
-export default NewPublications;
+}

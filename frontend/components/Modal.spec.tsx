@@ -1,9 +1,51 @@
 import { act, fireEvent, render, renderHook } from "@testing-library/react";
 import { Key } from "app";
-import router from "next-router-mock";
+import { useSyncExternalStore } from "react";
 import { Modal, useModal, useURLQueryModal } from "./Modal";
 
-vi.mock("next/router", async () => vi.importActual("next-router-mock"));
+// Stateful mock for next/navigation that keeps searchParams in sync with router.replace
+let currentSearchParams = new URLSearchParams();
+let listeners: Set<() => void> = new Set();
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function getSnapshot() {
+  return currentSearchParams;
+}
+
+function setSearchParams(params: URLSearchParams) {
+  currentSearchParams = params;
+  listeners.forEach((fn) => fn());
+}
+
+vi.mock("next/navigation", async () => {
+  const react = await import("react");
+  return {
+    useRouter: () => ({
+      replace: (url: string) => {
+        const search = url.startsWith("?") ? url.slice(1) : "";
+        setSearchParams(new URLSearchParams(search));
+      },
+      push: vi.fn(),
+      back: vi.fn(),
+      forward: vi.fn(),
+      refresh: vi.fn(),
+      prefetch: vi.fn(),
+    }),
+    useSearchParams: () => {
+      return react.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    },
+    usePathname: () => "/",
+  };
+});
+
+beforeEach(() => {
+  currentSearchParams = new URLSearchParams();
+  listeners = new Set();
+});
 
 describe("Modal", () => {
   it("renders a modal", () => {
@@ -123,7 +165,7 @@ describe("useURLQueryModal", () => {
   });
 
   test("the isOpen boolean is initially true when the query param is set", () => {
-    router.replace({ query: { modal: "true" } });
+    currentSearchParams = new URLSearchParams("modal=true");
 
     const { result } = renderHook(() => useURLQueryModal("modal"));
 
@@ -193,13 +235,13 @@ describe("useURLQueryModal", () => {
     expect(result.current.isOpen).toBe(false);
   });
 
-  test("the close function sets the value to undefined", () => {
+  test("the close function sets the value to null", () => {
     const { result } = renderHook(() => useURLQueryModal("modal"));
 
     act(() => result.current.open("value"));
     act(() => result.current.close());
 
-    expect(result.current.value).toBeUndefined();
+    expect(result.current.value).toBeNull();
   });
 
   test("the close function is idempotent relative to the value", () => {
@@ -209,6 +251,6 @@ describe("useURLQueryModal", () => {
     act(() => result.current.close());
     act(() => result.current.close());
 
-    expect(result.current.value).toBeUndefined();
+    expect(result.current.value).toBeNull();
   });
 });

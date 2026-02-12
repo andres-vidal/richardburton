@@ -2,7 +2,7 @@ import { request } from "app";
 import DownloadIcon from "assets/download.svg";
 import { snakeCase } from "lodash";
 import { Publication } from "modules/publication";
-import { useRouter } from "next/router";
+import { useSearchParams } from "next/navigation";
 import qs from "qs";
 import { FC, useRef } from "react";
 import Button from "./Button";
@@ -13,11 +13,11 @@ const PublicationDownload: FC = () => {
   const areAllAttributesVisible =
     visibleAttributes.length === Publication.ATTRIBUTES.length;
 
-  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const anchor = useRef<HTMLAnchorElement>(null);
 
-  const { search } = router.query;
+  const search = searchParams.get("search");
 
   const select = areAllAttributesVisible
     ? undefined

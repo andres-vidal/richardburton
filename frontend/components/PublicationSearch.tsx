@@ -1,31 +1,30 @@
 import { isString } from "lodash";
 import { Publication } from "modules/publication";
 import Link from "next/link";
-import { useRouter } from "next/router";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChangeEventHandler, FC, useEffect, useState } from "react";
 
 const PublicationSearch: FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const keywords = Publication.STORE.useKeywords();
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (router.isReady) {
-      const { search: searchUrlParam = "" } = router.query;
-      setSearch((search) => {
-        return isString(searchUrlParam) ? searchUrlParam : search;
-      });
-    }
-  }, [router]);
+    const searchUrlParam = searchParams.get("search") || "";
+    setSearch((search) => {
+      return isString(searchUrlParam) ? searchUrlParam : search;
+    });
+  }, [searchParams]);
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
     setSearch(e.target.value);
 
-    router.replace(
-      { query: e.target.value ? { search: e.target.value } : {} },
-      undefined,
-      { shallow: true },
-    );
+    const params = new URLSearchParams();
+    if (e.target.value) {
+      params.set("search", e.target.value);
+    }
+    router.replace(`?${params.toString()}`);
   };
 
   return (

@@ -1,9 +1,10 @@
+"use client";
+
 import GoogleIcon from "assets/google.svg";
 import Button from "components/Button";
 import Layout from "components/Layout";
-import { NextPage } from "next";
-import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/router";
+import { authClient } from "lib/auth-client";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 type ErrorCode = "AccessDenied" | "Verification" | "Default" | "Configuration";
@@ -36,13 +37,16 @@ const ERROR_DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
   },
 };
 
-const SignIn: NextPage = () => {
+export default function AuthErrorContent() {
   const router = useRouter();
-  const { error } = router.query;
-  const description = ERROR_DESCRIPTIONS[error as ErrorCode];
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+  const description =
+    ERROR_DESCRIPTIONS[(error as ErrorCode) || "Default"] ??
+    ERROR_DESCRIPTIONS.Default;
 
-  const session = useSession();
-  const isAuthenticated = session.status === "authenticated";
+  const session = authClient.useSession();
+  const isAuthenticated = !!session.data;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -67,7 +71,12 @@ const SignIn: NextPage = () => {
               <Button
                 label="Try again"
                 variant="outline"
-                onClick={() => signIn("google", { callbackUrl: "/" })}
+                onClick={() =>
+                  authClient.signIn.social({
+                    provider: "google",
+                    callbackURL: "/",
+                  })
+                }
                 Icon={GoogleIcon}
               />
             </section>
@@ -76,6 +85,4 @@ const SignIn: NextPage = () => {
       }
     />
   );
-};
-
-export default SignIn;
+}

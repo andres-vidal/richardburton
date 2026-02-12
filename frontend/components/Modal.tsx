@@ -8,7 +8,7 @@ import CloseIcon from "assets/close.svg";
 import Logo from "assets/logo.svg";
 import clsx from "classnames";
 import { AnimatePresence, motion } from "framer-motion";
-import { useRouter } from "next/router";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   FC,
   MouseEvent,
@@ -35,24 +35,29 @@ function useModal(): ModalInterface {
 }
 
 interface URLModalInterface extends ModalInterface {
-  value?: string | string[];
+  value?: string | null;
 }
 
 function useURLQueryModal(param: string): URLModalInterface {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const { [param]: value, ...rest } = router.query;
+  const value = searchParams.get(param);
 
   const open = useCallback(
     (value: string = "true") => {
-      router.replace({ query: { ...rest, [param]: value } });
+      const params = new URLSearchParams(searchParams.toString());
+      params.set(param, value);
+      router.replace(`?${params.toString()}`);
     },
-    [router, param, rest],
+    [router, param, searchParams],
   );
 
   const close = useCallback(() => {
-    router.replace({ query: rest });
-  }, [router, rest]);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete(param);
+    router.replace(`?${params.toString()}`);
+  }, [router, param, searchParams]);
 
   return { isOpen: Boolean(value), value, open, close };
 }
