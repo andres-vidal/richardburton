@@ -40,7 +40,11 @@ defmodule RichardBurtonWeb.ConnCase do
   setup :verify_on_exit!
 
   defp build_conn do
-    Phoenix.ConnTest.build_conn() |> Plug.Conn.put_req_header("authorization", "Bearer token")
+    # Admin routes authenticate via the rb-session cookie (real Auth.Session);
+    # the bearer header is for the login routes (mocked Auth.verify).
+    Phoenix.ConnTest.build_conn()
+    |> Plug.Test.put_req_cookie("rb-session", RichardBurton.Auth.Session.sign("12345"))
+    |> Plug.Conn.put_req_header("authorization", "Bearer token")
   end
 
   def uploaded_file_fixture(path) do
@@ -56,7 +60,8 @@ defmodule RichardBurtonWeb.ConnCase do
   end
 
   def expect_auth_authorize_admin(n \\ 1) do
-    expect_auth_verify(n)
+    # Admin routes authenticate via the rb-session cookie (Auth.Session, not the
+    # mock); only the role check goes through Auth.authorize.
     expect(RichardBurton.AuthMock, :authorize, n, fn _, :admin -> :ok end)
   end
 

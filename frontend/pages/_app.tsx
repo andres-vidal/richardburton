@@ -3,7 +3,7 @@ import Notifications from "components/Notifications";
 import ClearSelection from "listeners/ClearSelection";
 import HTTP from "modules/http";
 import { Publication } from "modules/publication";
-import { getSession, SessionProvider } from "next-auth/react";
+import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
 import { FC } from "react";
 import { RecoilRoot } from "recoil";
@@ -14,16 +14,6 @@ const GOOGLE_RECAPTCHA_SITEKEY =
   process.env.NEXT_PUBLIC_GOOGLE_RECAPTCHA_SITEKEY!;
 
 const http = HTTP.client({ baseURL: API_URL });
-
-http.interceptors.request.use(async (config) => {
-  const session = await getSession();
-
-  if (session && session.idToken && config.headers) {
-    config.headers.Authorization = `Bearer ${session.idToken}`;
-  }
-
-  return config;
-});
 
 async function request<T = void>(
   cb: (http: AxiosInstance) => Promise<T> | T,

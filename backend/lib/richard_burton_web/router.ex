@@ -9,12 +9,12 @@ defmodule RichardBurtonWeb.Router do
     plug(:accepts, ["csv"])
   end
 
-  pipeline :authenticate do
-    plug(RichardBurtonWeb.Plugs.Authenticate)
+  pipeline :authenticate_bearer do
+    plug(RichardBurtonWeb.Plugs.Authenticate.Bearer)
   end
 
   pipeline :authorize_admin do
-    plug(RichardBurtonWeb.Plugs.Authenticate)
+    plug(RichardBurtonWeb.Plugs.Authenticate.Cookie)
     plug(RichardBurtonWeb.Plugs.AuthorizeAdmin)
   end
 
@@ -47,8 +47,9 @@ defmodule RichardBurtonWeb.Router do
   end
 
   scope "/api", RichardBurtonWeb do
-    pipe_through(:authenticate)
+    pipe_through(:authenticate_bearer)
     post("/users", UserController, :create)
+    post("/sessions", SessionController, :create)
   end
 
   scope "/api/files", RichardBurtonWeb do

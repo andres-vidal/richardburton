@@ -50,6 +50,7 @@ defmodule RichardBurtonWeb.Endpoint do
 
   plug(CORSPlug,
     origin: &RichardBurton.Application.origin/0,
+    credentials: Application.compile_env(:richard_burton, :phx_cors_credentials, false),
     expose: ["content-disposition", "x-total-count"]
   )
 
