@@ -1,34 +1,36 @@
 defmodule RichardBurton.Auth.Google do
   @moduledoc """
-  Google idp implementation for RichardBurton.Auth behaviour
+  Google identity-provider implementation of the `RichardBurton.Auth` behaviour.
+
+  ID tokens are verified against Google's JWKS signing keys, which are cached
+  and refreshed by `RichardBurton.Auth.KeyStore` (using the
+  `RichardBurton.Auth.JWKS.Google` provider) so that key rotation does not
+  require a restart. The issuer, audience and expiry are all validated (see
+  `RichardBurton.Auth.Claims`).
   """
   @behaviour RichardBurton.Auth
 
+  alias RichardBurton.Auth.Claims
+  alias RichardBurton.Auth.KeyStore
   alias RichardBurton.User
-
-  @impl true
-  @spec init() :: {Map.t(), List.t()}
-  def init(), do: {get_config(), get_keys()}
 
   @impl true
   @spec verify(token :: String.t()) :: {:ok, String.t()} | :error
   def verify(token) do
-    case Application.get_env(:richard_burton, :auth_config) do
-      {%{"issuer" => issuer}, keys} ->
-        do_verify(
-          token,
-          issuer: issuer,
-          audience: get_audience(),
-          keys: keys
-        )
-
-      _ ->
-        throw("Auth configuration is not properly set")
+    with {:ok, %{"kid" => kid}} <- Joken.peek_header(token),
+         {:ok, key} <- KeyStore.fetch_key(kid),
+         {:ok, claims} <- verify_signature(token, key) do
+      Claims.validate(claims, KeyStore.issuer(), audience())
+    else
+      _ -> :error
     end
+  rescue
+    # A malformed token (bad header, unusable key, etc.) is just an auth failure.
+    _ -> :error
   end
 
   @impl true
-  @spec authorize(subject_id :: String.t(), role :: Atom.t()) :: :ok | :error
+  @spec authorize(subject_id :: String.t(), role :: atom()) :: :ok | :error
   def authorize(subject_id, role) do
     case User.get(subject_id) do
       %{role: ^role} -> :ok
@@ -36,51 +38,16 @@ defmodule RichardBurton.Auth.Google do
     end
   end
 
-  defp get_audience do
-    case System.get_env("GOOGLE_CLIENT_ID") do
-      nil -> throw("GOOGLE_CLIENT_ID environment variable is not set")
-      audience -> audience
-    end
-  end
+  # The signing algorithm is taken from the trusted JWKS key (not the token
+  # header), which avoids algorithm-confusion attacks.
+  defp verify_signature(token, key) do
+    signer = Joken.Signer.create(key["alg"], key)
 
-  defp do_verify(token, issuer: issuer, audience: audience, keys: keys) do
-    case Joken.verify(token, get_signer(token, keys)) do
-      {:ok, %{"iss" => ^issuer, "aud" => ^audience, "sub" => subject_id}} -> {:ok, subject_id}
+    case Joken.verify(token, signer) do
+      {:ok, claims} -> {:ok, claims}
       _ -> :error
     end
   end
 
-  defp get_signer(token, keys) do
-    {:ok, %{"kid" => kid}} = Joken.peek_header(token)
-    %{"alg" => alg} = key = Enum.find(keys, fn k -> k["kid"] == kid end)
-    Joken.Signer.create(alg, key)
-  end
-
-  defp get_config do
-    case System.get_env("GOOGLE_OPENID_CONFIG_URL") do
-      nil ->
-        throw("GOOGLE_OPENID_CONFIG_URL environment variable is not set")
-
-      url ->
-        url
-        |> HTTPoison.get!()
-        |> Map.get(:body)
-        |> Jason.decode!()
-        |> Map.take(["issuer"])
-    end
-  end
-
-  defp get_keys do
-    case System.get_env("GOOGLE_OAUTH2_CERTS_URL") do
-      nil ->
-        throw("GOOGLE_OAUTH2_CERTS_URL environment variable is not set")
-
-      url ->
-        url
-        |> HTTPoison.get!()
-        |> Map.get(:body)
-        |> Jason.decode!()
-        |> Map.get("keys")
-    end
-  end
+  defp audience, do: System.get_env("GOOGLE_CLIENT_ID")
 end

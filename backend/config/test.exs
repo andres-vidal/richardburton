@@ -4,7 +4,10 @@ config :richard_burton,
   phx_consumer_url: "http://localhost:3000",
   google_client_id: nil,
   google_openid_config_url: nil,
-  google_oauth2_certs_url: nil
+  google_oauth2_certs_url: nil,
+  # The key store runs in all environments; under test it uses a no-op JWKS
+  # provider so it makes no network calls (auth itself is mocked via Mox).
+  jwks_provider: RichardBurton.Auth.JWKS.Stub
 
 # Configure your database
 #

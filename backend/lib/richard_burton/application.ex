@@ -5,8 +5,6 @@ defmodule RichardBurton.Application do
 
   use Application
 
-  @environment Mix.env()
-
   @impl true
   def start(_type, _args) do
     children = [
@@ -17,9 +15,10 @@ defmodule RichardBurton.Application do
       # Start the PubSub system
       {Phoenix.PubSub, name: RichardBurton.PubSub},
       # Start the Endpoint (http/https)
-      RichardBurtonWeb.Endpoint
-      # Start a worker by calling: RichardBurton.Worker.start_link(arg)
-      # {RichardBurton.Worker, arg}
+      RichardBurtonWeb.Endpoint,
+      # Start the JWKS key store. Its provider is configured via :jwks_provider
+      # (Google in dev/prod; a stub under test, so no network calls are made).
+      RichardBurton.Auth.KeyStore
     ]
 
     # Set missing runtime config from Application env
@@ -44,11 +43,6 @@ defmodule RichardBurton.Application do
     |> Enum.reject(fn {_, key} -> is_nil(Application.get_env(:richard_burton, key)) end)
     |> Enum.map(fn {k1, k2} -> {k1, Application.get_env(:richard_burton, k2)} end)
     |> System.put_env()
-
-    if @environment !== :test do
-      # Initialize configuration for auth service
-      Application.put_env(:richard_burton, :auth_config, RichardBurton.Auth.init())
-    end
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
