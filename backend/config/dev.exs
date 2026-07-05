@@ -1,7 +1,12 @@
 import Config
 
 config :richard_burton,
-  phx_consumer_url: "http://localhost:3000"
+  phx_consumer_url: "http://localhost:3000",
+  # Local dev is plain HTTP, so the session cookie can't require TLS (Secure).
+  phx_session_tls: false,
+  # Dev frontend (:3000) and backend (:4000) are cross-origin, so the browser
+  # needs CORS credentials to send the rb-session cookie.
+  phx_cors_credentials: true
 
 import_config "dev.local.exs"
 

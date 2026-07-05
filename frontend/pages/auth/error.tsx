@@ -38,8 +38,11 @@ const ERROR_DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
 
 const SignIn: NextPage = () => {
   const router = useRouter();
-  const { error } = router.query;
-  const description = ERROR_DESCRIPTIONS[error as ErrorCode];
+  const code =
+    typeof router.query.error === "string" ? router.query.error : null;
+  const description = code
+    ? ERROR_DESCRIPTIONS[code as ErrorCode] ?? ERROR_DESCRIPTIONS.Default
+    : null;
 
   const session = useSession();
   const isAuthenticated = session.status === "authenticated";
@@ -67,7 +70,9 @@ const SignIn: NextPage = () => {
               <Button
                 label="Try again"
                 variant="outline"
-                onClick={() => signIn("google", { callbackUrl: "/" })}
+                onClick={() =>
+                  signIn("google", { callbackUrl: "/api/session" })
+                }
                 Icon={GoogleIcon}
               />
             </section>

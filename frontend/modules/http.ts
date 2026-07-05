@@ -10,7 +10,10 @@ interface HttpModule {
 
 const HTTP: HttpModule = {
   client(options) {
-    return axiosCaseConverter(axios.create(options));
+    // withCredentials so the browser sends/receives the backend's rb-session cookie.
+    return axiosCaseConverter(
+      axios.create({ withCredentials: true, ...options }),
+    );
   },
 };
 

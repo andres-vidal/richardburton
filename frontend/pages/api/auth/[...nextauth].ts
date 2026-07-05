@@ -1,9 +1,15 @@
+import axios from "axios";
 import NextAuth, { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import axios from "axios";
 
-import { User } from "modules/users";
 import HTTP from "modules/http";
+import { User } from "modules/users";
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    idToken: string | undefined;
+  }
+}
 
 const clientId = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -45,11 +51,6 @@ const authOptions: AuthOptions = {
         token.idToken = account.id_token;
       }
       return token;
-    },
-
-    async session({ session, token }) {
-      session.idToken = token.idToken;
-      return session;
     },
   },
 };
