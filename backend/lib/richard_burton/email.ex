@@ -20,7 +20,7 @@ defmodule RichardBurton.Email do
 
   def changeset(email, params) do
     email
-    |> cast(params, [:name, :institution, :address, :subject, :message, :to])
+    |> cast(params, [:name, :institution, :address, :subject, :message])
     |> validate_required([:name, :address, :subject, :message])
     |> validate_email(:address)
   end
