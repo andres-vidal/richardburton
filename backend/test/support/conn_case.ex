@@ -40,10 +40,12 @@ defmodule RichardBurtonWeb.ConnCase do
   setup :verify_on_exit!
 
   defp build_conn do
-    # Admin routes authenticate via the rb-session cookie (real Auth.Session);
+    # Admin routes authenticate via the rb-session cookie (a real DB-backed Auth.Session);
     # the bearer header is for the login routes (mocked Auth.verify).
+    {:ok, token} = RichardBurton.Auth.Session.create("12345")
+
     Phoenix.ConnTest.build_conn()
-    |> Plug.Test.put_req_cookie("rb-session", RichardBurton.Auth.Session.sign("12345"))
+    |> Plug.Test.put_req_cookie("rb-session", token)
     |> Plug.Conn.put_req_header("authorization", "Bearer token")
   end
 

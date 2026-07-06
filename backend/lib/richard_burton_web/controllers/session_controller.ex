@@ -35,6 +35,13 @@ defmodule RichardBurtonWeb.SessionController do
   clearing one's own cookie is harmless.
   """
   def delete(conn, _params) do
+    conn = fetch_cookies(conn)
+
+    case conn.cookies["rb-session"] do
+      nil -> :ok
+      token -> Session.revoke(token)
+    end
+
     conn
     |> delete_resp_cookie("rb-session",
       same_site: "Lax",
@@ -44,7 +51,9 @@ defmodule RichardBurtonWeb.SessionController do
   end
 
   defp put_session_cookie(conn, subject_id) do
-    put_resp_cookie(conn, "rb-session", Session.sign(subject_id),
+    {:ok, token} = Session.create(subject_id)
+
+    put_resp_cookie(conn, "rb-session", token,
       http_only: true,
       same_site: "Lax",
       secure: Application.get_env(:richard_burton, :phx_session_tls, true),
