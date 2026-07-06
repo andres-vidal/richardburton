@@ -1,0 +1,9 @@
+/*
+ * The app pins <body> to h-screen + overflow-hidden for its fixed app shell
+ * (see styles/globals.css). In Storybook we render components in isolation, so
+ * let the Docs page and the story canvas grow and scroll naturally.
+ */
+body {
+  height: auto;
+  overflow: visible;
+}
