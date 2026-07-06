@@ -5,6 +5,7 @@ defmodule RichardBurtonWeb.SessionControllerTest do
   import Routes, only: [session_path: 2]
 
   alias RichardBurton.Auth.Session
+  alias RichardBurton.Repo
   alias RichardBurton.User
 
   @email "user@example.com"
@@ -35,11 +36,14 @@ defmodule RichardBurtonWeb.SessionControllerTest do
   end
 
   describe "DELETE /sessions" do
-    test "expires the rb-session cookie and returns 204", %{conn: conn} do
+    test "revokes the session, expires the rb-session cookie, returns 204", %{conn: conn} do
+      assert Repo.aggregate(Session, :count) == 1
+
       conn = delete(conn, session_path(conn, :delete))
 
       assert response(conn, 204)
       assert %{max_age: 0, universal_time: {{1970, 1, 1}, _}} = conn.resp_cookies["rb-session"]
+      assert Repo.aggregate(Session, :count) == 0
     end
   end
 end

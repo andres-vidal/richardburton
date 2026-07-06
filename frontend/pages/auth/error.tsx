@@ -1,7 +1,6 @@
 import GoogleIcon from "assets/google.svg";
 import Button from "components/Button";
 import Layout from "components/Layout";
-import { authClient } from "modules/authClient";
 import { GetServerSideProps, NextPage } from "next";
 
 type ErrorCode = "AccessDenied" | "Verification" | "Default" | "Configuration";
@@ -71,12 +70,7 @@ const SignIn: NextPage<{ code: string | null }> = ({ code }) => {
               <Button
                 label="Try again"
                 variant="outline"
-                onClick={() =>
-                  authClient.signIn.social({
-                    provider: "google",
-                    callbackURL: "/api/auth/bridge",
-                  })
-                }
+                onClick={() => window.location.assign("/api/auth/google")}
                 Icon={GoogleIcon}
               />
             </section>

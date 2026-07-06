@@ -32,9 +32,7 @@ const SignIn: NextPage<{ next: string }> = ({ next }) => (
             Sign in with your Google account to access the platform.
           </p>
           <div className="flex justify-center">
-            <SignInButton
-              callbackURL={`/api/auth/bridge?next=${encodeURIComponent(next)}`}
-            />
+            <SignInButton next={next} />
           </div>
         </section>
       </div>

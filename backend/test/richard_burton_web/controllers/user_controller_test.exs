@@ -5,6 +5,8 @@ defmodule RichardBurtonWeb.UserControllerTest do
   use RichardBurtonWeb.ConnCase
   import Routes, only: [user_path: 2]
 
+  alias RichardBurton.User
+
   @valid_attrs %{"email" => "example@gmail.com"}
   @successful_return %{"email" => "example@gmail.com", "role" => "reader"}
 
@@ -40,6 +42,22 @@ defmodule RichardBurtonWeb.UserControllerTest do
         })
 
       assert @successful_return == json_response(conn, 409)
+    end
+  end
+
+  describe "GET /users/me" do
+    test "returns the current user for a valid rb-session", %{conn: conn} do
+      {:ok, _} = User.insert(%{"subject_id" => "12345", "email" => "me@example.com"})
+
+      conn = get(conn, user_path(conn, :me))
+
+      assert %{"email" => "me@example.com", "role" => "reader"} = json_response(conn, 200)
+    end
+
+    test "returns null without a session", %{conn: conn} do
+      conn = get(Phoenix.ConnTest.build_conn(), user_path(conn, :me))
+
+      assert is_nil(json_response(conn, 200))
     end
   end
 end
