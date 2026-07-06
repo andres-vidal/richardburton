@@ -1,4 +1,4 @@
-import { useSession } from "next-auth/react";
+import { useSession } from "modules/authClient";
 
 type UserRole = "admin" | "reader" | "contributor";
 type User = { email: string; role: UserRole };
@@ -25,12 +25,9 @@ const User: UserModule = {
   },
 
   useIsAuthenticated() {
-    const session = useSession();
-    return session.status === "authenticated";
+    return useSession().data != null;
   },
 };
-
-const useIsAuthenticated = () => {};
 
 export { User };
 export type { UserRole };

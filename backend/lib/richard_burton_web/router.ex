@@ -25,6 +25,7 @@ defmodule RichardBurtonWeb.Router do
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)
     get("/publications", PublicationController, :index)
+    delete("/sessions", SessionController, :delete)
   end
 
   scope "/api", RichardBurtonWeb do

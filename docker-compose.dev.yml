@@ -12,9 +12,9 @@ services:
       # Server
       PORT: 3000
       NEXT_INTERNAL_API_URL: http://host.docker.internal:4000/api
-      # Next Auth
-      NEXTAUTH_URL: http://localhost:3000
-      NEXTAUTH_SECRET: BL0fViv5sZ4XAjrNLqyQvf1ctwHPafwzRHtnPYAQlAU
+      # Better Auth
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: BL0fViv5sZ4XAjrNLqyQvf1ctwHPafwzRHtnPYAQlAU
     volumes:
       - ./frontend:/app
     ports:

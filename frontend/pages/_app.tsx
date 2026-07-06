@@ -3,7 +3,6 @@ import Notifications from "components/Notifications";
 import ClearSelection from "listeners/ClearSelection";
 import HTTP from "modules/http";
 import { Publication } from "modules/publication";
-import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
 import { FC } from "react";
 import { RecoilRoot } from "recoil";
@@ -68,13 +67,11 @@ enum Key {
 
 const App: FC<AppProps> = ({ Component, pageProps }) => {
   return (
-    <SessionProvider>
-      <RecoilRoot initializeState={Publication.STORE.initialize}>
-        <Notifications />
-        <ClearSelection />
-        <Component {...pageProps} />
-      </RecoilRoot>
-    </SessionProvider>
+    <RecoilRoot initializeState={Publication.STORE.initialize}>
+      <Notifications />
+      <ClearSelection />
+      <Component {...pageProps} />
+    </RecoilRoot>
   );
 };
 
