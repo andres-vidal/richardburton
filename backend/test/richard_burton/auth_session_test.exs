@@ -57,7 +57,11 @@ defmodule RichardBurton.Auth.SessionTest do
   test "verify rejects a session past its absolute cap even if recently active" do
     {:ok, token} = Session.create("subject-123")
     # Created before the absolute cap, but with a fresh idle deadline.
-    old = DateTime.utc_now() |> DateTime.add(-(Session.max_age() + 60), :second) |> DateTime.truncate(:second)
+    old =
+      DateTime.utc_now()
+      |> DateTime.add(-(Session.max_age() + 60), :second)
+      |> DateTime.truncate(:second)
+
     future = DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second)
     Repo.update_all(Session, set: [inserted_at: old, expires_at: future])
 
