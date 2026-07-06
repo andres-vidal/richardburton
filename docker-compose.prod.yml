@@ -10,9 +10,8 @@ services:
       # Server
       PORT: $NEXT_PORT
       NEXT_INTERNAL_API_URL: $NEXT_INTERNAL_API_URL
-      # Better Auth
-      BETTER_AUTH_SECRET: $BETTER_AUTH_SECRET
-      BETTER_AUTH_URL: $BETTER_AUTH_URL
+      # OAuth (Arctic)
+      APP_URL: $APP_URL
       # Google Identity Provider
       GOOGLE_CLIENT_ID: $GOOGLE_CLIENT_ID
       GOOGLE_CLIENT_SECRET: $GOOGLE_CLIENT_SECRET

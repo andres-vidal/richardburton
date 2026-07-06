@@ -1,15 +1,14 @@
 import GoogleIcon from "assets/google.svg";
-import { authClient } from "modules/authClient";
 import { FC } from "react";
 import Button from "./Button";
 
 type Props = {
-  callbackURL?: string;
+  next?: string;
 };
 
-const SignInButton: FC<Props> = ({ callbackURL = "/api/auth/bridge" }) => {
+const SignInButton: FC<Props> = ({ next = "/" }) => {
   const handleClick = () => {
-    authClient.signIn.social({ provider: "google", callbackURL });
+    window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`);
   };
 
   return (
