@@ -33,7 +33,7 @@ const SignIn: NextPage<{ next: string }> = ({ next }) => (
           </p>
           <div className="flex justify-center">
             <SignInButton
-              callbackUrl={`/api/session?next=${encodeURIComponent(next)}`}
+              callbackURL={`/api/auth/bridge?next=${encodeURIComponent(next)}`}
             />
           </div>
         </section>

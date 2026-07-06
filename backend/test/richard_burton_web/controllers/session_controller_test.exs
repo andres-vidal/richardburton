@@ -33,4 +33,13 @@ defmodule RichardBurtonWeb.SessionControllerTest do
       assert Session.verify(conn.resp_cookies["rb-session"].value) == {:ok, @subject_id}
     end
   end
+
+  describe "DELETE /sessions" do
+    test "expires the rb-session cookie and returns 204", %{conn: conn} do
+      conn = delete(conn, session_path(conn, :delete))
+
+      assert response(conn, 204)
+      assert %{max_age: 0, universal_time: {{1970, 1, 1}, _}} = conn.resp_cookies["rb-session"]
+    end
+  end
 end

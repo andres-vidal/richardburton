@@ -29,6 +29,20 @@ defmodule RichardBurtonWeb.SessionController do
     conn |> put_status(:unauthorized) |> json("Unauthorized")
   end
 
+  @doc """
+  Clears the `rb-session` cookie so the browser is signed out. The cookie is
+  http-only, so only a server response can expire it; no auth is required since
+  clearing one's own cookie is harmless.
+  """
+  def delete(conn, _params) do
+    conn
+    |> delete_resp_cookie("rb-session",
+      same_site: "Lax",
+      secure: Application.get_env(:richard_burton, :phx_session_tls, true)
+    )
+    |> send_resp(:no_content, "")
+  end
+
   defp put_session_cookie(conn, subject_id) do
     put_resp_cookie(conn, "rb-session", Session.sign(subject_id),
       http_only: true,

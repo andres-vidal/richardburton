@@ -1,10 +1,8 @@
 import GoogleIcon from "assets/google.svg";
 import Button from "components/Button";
 import Layout from "components/Layout";
-import { NextPage } from "next";
-import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/router";
-import { useEffect } from "react";
+import { authClient } from "modules/authClient";
+import { GetServerSideProps, NextPage } from "next";
 
 type ErrorCode = "AccessDenied" | "Verification" | "Default" | "Configuration";
 type ErrorDescription = { title: string; message: string; suggestion?: string };
@@ -36,32 +34,35 @@ const ERROR_DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
   },
 };
 
-const SignIn: NextPage = () => {
-  const router = useRouter();
-  const code =
-    typeof router.query.error === "string" ? router.query.error : null;
+export const getServerSideProps: GetServerSideProps<{
+  code: string | null;
+}> = async ({ req, query }) => {
+  // An authenticated user has no reason to be on the error page — redirect home
+  // server-side (no flash, no client effect). Check the rb-session cookie's
+  // presence rather than importing the server auth instance, which would run its
+  // boot-time invariants during `next build`, where the secrets aren't set.
+  if (req.cookies["rb-session"]) {
+    return { redirect: { destination: "/", permanent: false } };
+  }
+
+  const code = typeof query.error === "string" ? query.error : null;
+  return { props: { code } };
+};
+
+const SignIn: NextPage<{ code: string | null }> = ({ code }) => {
   const description = code
     ? ERROR_DESCRIPTIONS[code as ErrorCode] ?? ERROR_DESCRIPTIONS.Default
     : null;
-
-  const session = useSession();
-  const isAuthenticated = session.status === "authenticated";
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/");
-    }
-  }, [router, isAuthenticated]);
 
   return (
     <Layout
       title="Error"
       content={
         description ? (
-          <div className="flex items-center justify-center w-full py-32">
-            <section className="flex flex-col justify-between text-center rounded shadow p-7 w-96 aspect-square">
+          <div className="flex justify-center items-center py-32 w-full">
+            <section className="flex flex-col justify-between p-7 w-96 text-center rounded shadow aspect-square">
               <h1 className="text-2xl">{description.title}</h1>
-              <div className="space-y-4 ">
+              <div className="space-y-4">
                 <p className="text-lg">{description.message}</p>
                 {description.suggestion && (
                   <p className="text-sm">{description.suggestion}</p>
@@ -71,7 +72,10 @@ const SignIn: NextPage = () => {
                 label="Try again"
                 variant="outline"
                 onClick={() =>
-                  signIn("google", { callbackUrl: "/api/session" })
+                  authClient.signIn.social({
+                    provider: "google",
+                    callbackURL: "/api/auth/bridge",
+                  })
                 }
                 Icon={GoogleIcon}
               />
