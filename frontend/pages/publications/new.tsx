@@ -1,5 +1,10 @@
 import PublicationReview from "components/PublicationReview";
-import { Publication } from "modules/publication";
+import {
+  Publication,
+  resetAll,
+  setAll,
+  setAttributesVisible,
+} from "modules/publication";
 import { NextPage } from "next";
 
 import Layout from "components/Layout";
@@ -18,14 +23,11 @@ import { useEffect } from "react";
 import { useIsSelectionEmpty } from "react-selection-manager";
 
 const NewPublications: NextPage = () => {
-  const setAll = Publication.STORE.useSetAll();
-  const setVisible = Publication.STORE.ATTRIBUTES.useSetVisible();
-  const resetAll = Publication.STORE.useResetAll();
   const isSelectionEmpty = useIsSelectionEmpty();
 
-  useEffect(() => setAll([]), [setAll]);
-  useEffect(() => setVisible(Publication.ATTRIBUTES), [setVisible, setAll]);
-  useEffect(() => resetAll, [resetAll]);
+  useEffect(() => setAll([]), []);
+  useEffect(() => setAttributesVisible(Publication.ATTRIBUTES), []);
+  useEffect(() => resetAll, []);
 
   return (
     <Layout

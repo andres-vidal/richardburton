@@ -1,0 +1,55 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as IndexTableStories from "./PublicationIndexTable.stories";
+
+<Meta of={IndexTableStories} />
+
+# Publication index table
+
+The **desktop** presentation of the publication index — one column per
+publication attribute, one row per publication. It is read-only on its own; the
+editable [review](?path=/docs/publications-review--docs) is built by extending
+it (see _Extension points_ below).
+
+## Data source
+
+Like the [index list](?path=/docs/publications-index-list--docs), the table is
+**state-driven** and takes no publication props — it reads the visible ids from
+the store (`useVisiblePublicationIds`) and each cell resolves its own value.
+Cell values are run through `Publication.describeValue`, so stored codes render
+as labels (e.g. a country code becomes the country name). Stories seed the store
+with the shared fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed();
+```
+
+<Canvas of={IndexTableStories.Default} />
+
+## Column visibility & virtualization
+
+- **Toggleable columns** — headers of toggleable attributes carry a hide button;
+  visibility is driven by the store (`useIsAttributeVisible` /
+  `setAttributesVisible`) and animated with Framer Motion.
+- **Row virtualization** — each row only renders its cells once scrolled into
+  view (`useVisible`, an `IntersectionObserver`), keeping long result sets cheap.
+  This is why story assertions count `role="row"` rather than reading cell text —
+  off-screen cells aren't mounted yet.
+
+## States
+
+- **Populated** — the sample above.
+- **Empty** — ids loaded but none match; renders `EmptySearchResults`
+  ([Empty](?path=/story/publications-index-table--empty) story).
+- **Loading** — ids not loaded; renders a `ListSkeleton`
+  ([Loading](?path=/story/publications-index-table--loading) story).
+
+## Extension points
+
+The table accepts injectable pieces — `ExtendedRow`, `ExtendedColumn`,
+`ExtendedColumnHeader`, `ExtendedContent`, `ExtendedSignalColumn`, and an
+`ExtraRow` — each defaulting to the read-only implementation. Overriding them is
+how [`PublicationReview`](?path=/docs/publications-review--docs) turns this same
+table into an editable, validated grid without duplicating its structure.

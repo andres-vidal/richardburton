@@ -1,10 +1,10 @@
-import { Publication } from "modules/publication";
+import { usePublication, useVisiblePublicationIds } from "modules/publication";
 import { FC, MouseEvent } from "react";
 import { EmptySearchResults } from "./EmptySearchResults";
 import { ListSkeleton } from "./ListSkeleton";
 
 const PublicationItem: FC<{ id: number }> = ({ id }) => {
-  const publication = Publication.STORE.usePublication(id);
+  const publication = usePublication(id);
 
   return (
     publication && (
@@ -42,7 +42,7 @@ interface Props {
 }
 
 const PublicationIndexList: FC<Props> = ({ onItemClick }) => {
-  const ids = Publication.STORE.useVisibleIds();
+  const ids = useVisiblePublicationIds();
 
   return ids && ids.length > 0 ? (
     <ol className="space-y-4">

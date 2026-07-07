@@ -1,5 +1,5 @@
 import TrashIcon from "assets/trash.svg";
-import { Publication } from "modules/publication";
+import { setDeleted } from "modules/publication";
 import { FC } from "react";
 import {
   getSelection,
@@ -9,7 +9,6 @@ import {
 import Button from "./Button";
 
 const PublicationDelete: FC = () => {
-  const setDeleted = Publication.STORE.useSetDeleted();
   const selectionSize = useSelectionSize();
   const clearSelection = useClearSelection();
 

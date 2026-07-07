@@ -9,4 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: npm ci
+      # Storybook stories run as tests in a headless browser (@storybook/addon-vitest),
+      # so the Playwright Chromium binary must be present.
+      - run: npx playwright install chromium --with-deps
       - run: npm run test

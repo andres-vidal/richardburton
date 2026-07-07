@@ -1,5 +1,5 @@
 import CopyIcon from "assets/copy.svg";
-import { Publication } from "modules/publication";
+import { duplicate, validate } from "modules/publication";
 import { FC } from "react";
 import {
   getSelection,
@@ -9,8 +9,6 @@ import {
 import Button from "./Button";
 
 const PublicationDuplicate: FC = () => {
-  const duplicate = Publication.STORE.useDuplicate();
-  const validate = Publication.REMOTE.useValidate();
   const selectionSize = useSelectionSize();
   const clearSelection = useClearSelection();
 

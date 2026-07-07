@@ -1,0 +1,63 @@
+import { Canvas, Controls, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ButtonStories from "./Button.stories";
+
+<Meta of={ButtonStories} />
+
+# Button
+
+The app's standard button. A single component covers every call-to-action —
+primary actions, lower-emphasis outline/secondary actions, destructive actions,
+icon-only buttons, and in-flight loading states — so buttons stay visually
+consistent everywhere.
+
+## Usage
+
+Only `label` is required. It is always the button's accessible name — rendered
+visibly, or, with `labelSrOnly`, for screen readers only.
+
+```tsx
+import Button from "components/Button";
+
+<Button label="Save" variant="primary" onClick={handleSave} />;
+```
+
+<Canvas of={ButtonStories.Playground} />
+
+<Controls of={ButtonStories.Playground} />
+
+## Variants
+
+`variant` sets the visual emphasis: `primary` for the main action on a surface,
+`outline` / `secondary` for secondary actions, and `danger` for destructive ones.
+
+<Canvas of={ButtonStories.Variants} />
+
+## Width & alignment
+
+`width` sets the footprint — `full` stretches to its container, `fixed` is a set
+width, `fit` hugs the content. `alignment` positions the content inside the
+button, and only shows once the button is wider than its content.
+
+<Canvas of={ButtonStories.Widths} />
+
+<Canvas of={ButtonStories.Alignment} />
+
+## Icons
+
+Pass an `Icon` (a component or node) to render it before the label. For an
+icon-only button, keep a descriptive `label` for accessibility and hide it
+visually with `labelSrOnly`.
+
+<Canvas of={ButtonStories.WithIcon} />
+
+<Canvas of={ButtonStories.IconOnly} />
+
+## States
+
+`loading` disables the button and blocks clicks while an action is in flight. It
+shows a spinner and keeps the button's color (a darker shade) so it reads as
+"busy" — distinct from a plain `disabled` button, which greys out to read as
+"unavailable".
+
+<Canvas of={ButtonStories.States} />

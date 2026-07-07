@@ -1,15 +1,19 @@
 import { request } from "app";
 import DownloadIcon from "assets/download.svg";
 import { snakeCase } from "lodash";
-import { Publication } from "modules/publication";
+import {
+  Publication,
+  useVisibleAttributes,
+  useVisiblePublicationCount,
+} from "modules/publication";
 import { useRouter } from "next/router";
 import qs from "qs";
 import { FC, useRef } from "react";
 import Button from "./Button";
 
 const PublicationDownload: FC = () => {
-  const visibleCount = Publication.STORE.useVisibleCount();
-  const visibleAttributes = Publication.STORE.ATTRIBUTES.useVisible();
+  const visibleCount = useVisiblePublicationCount();
+  const visibleAttributes = useVisibleAttributes();
   const areAllAttributesVisible =
     visibleAttributes.length === Publication.ATTRIBUTES.length;
 

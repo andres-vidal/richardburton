@@ -2,10 +2,10 @@ import axios, { AxiosInstance } from "axios";
 import Notifications from "components/Notifications";
 import ClearSelection from "listeners/ClearSelection";
 import HTTP from "modules/http";
-import { Publication } from "modules/publication";
+import { store } from "modules/store";
 import type { AppProps } from "next/app";
 import { FC } from "react";
-import { RecoilRoot } from "recoil";
+import { Provider } from "jotai";
 import "styles/globals.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -67,11 +67,11 @@ enum Key {
 
 const App: FC<AppProps> = ({ Component, pageProps }) => {
   return (
-    <RecoilRoot initializeState={Publication.STORE.initialize}>
+    <Provider store={store}>
       <Notifications />
       <ClearSelection />
       <Component {...pageProps} />
-    </RecoilRoot>
+    </Provider>
   );
 };
 

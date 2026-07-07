@@ -3,6 +3,8 @@ import {
   PublicationId,
   PublicationKey,
   PublicationKeyType,
+  overrideField,
+  validate,
 } from "modules/publication";
 import {
   FC,
@@ -54,8 +56,6 @@ const DataInput = forwardRef<HTMLElement, Props>(
     const Component = COMPONENTS_PER_TYPE[type];
     const placeholder = Publication.ATTRIBUTE_LABELS[colId];
 
-    const validate = Publication.REMOTE.useValidate();
-    const override = Publication.STORE.ATTRIBUTES.useOverride();
     const [value, setValue] = useState(data);
 
     function doValidate() {
@@ -66,7 +66,7 @@ const DataInput = forwardRef<HTMLElement, Props>(
 
     function handleChange(value: string) {
       setValue(value);
-      override(rowId, colId, value);
+      overrideField(rowId, colId, value);
       if (type == "array" || type == "enum") {
         doValidate();
       }

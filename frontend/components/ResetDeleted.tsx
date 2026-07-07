@@ -1,12 +1,11 @@
 import RestoreTrashIcon from "assets/restore-trash.svg";
-import { Publication } from "modules/publication";
+import { resetDeleted, useDeletedPublicationCount } from "modules/publication";
 import { FC } from "react";
 import { useClearSelection } from "react-selection-manager";
 import Button from "./Button";
 
 const ResetDeleted: FC = () => {
-  const deletedCount = Publication.STORE.useDeletedCount();
-  const resetDeleted = Publication.STORE.useResetDeleted();
+  const deletedCount = useDeletedPublicationCount();
   const clearSelection = useClearSelection();
 
   const reset = () => {

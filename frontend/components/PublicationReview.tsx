@@ -12,7 +12,16 @@ import {
   SignalColumn,
 } from "components/PublicationIndexTable";
 import { isElement } from "lodash";
-import { Publication } from "modules/publication";
+import {
+  DRAFT_ID,
+  addNew,
+  useAreRowIdsVisible,
+  useIsPublicationFocused,
+  useIsPublicationValid,
+  usePublicationErrorDescription,
+  useVisiblePublicationIds,
+  validate,
+} from "modules/publication";
 import {
   FC,
   KeyboardEventHandler,
@@ -30,12 +39,11 @@ import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
 
 const ExtendedColumn: typeof Column = (props) => {
-  const { useIsValid, useIsFocused } = Publication.STORE;
   const { rowId } = props;
 
   const isSelected = useIsSelected(rowId);
-  const isValid = useIsValid(rowId);
-  const isFocused = useIsFocused(rowId);
+  const isValid = useIsPublicationValid(rowId);
+  const isFocused = useIsPublicationFocused(rowId);
 
   return (
     <Column
@@ -53,12 +61,11 @@ const ExtendedColumnHeader: typeof ColumnHeader = (props) => {
 };
 
 const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
-  const { useIsValid, useIsFocused } = Publication.STORE;
-  const isValid = useIsValid(rowId);
-  const isFocused = useIsFocused(rowId);
+  const isValid = useIsPublicationValid(rowId);
+  const isFocused = useIsPublicationFocused(rowId);
 
   const isSelected = useIsSelected(rowId);
-  const [isIdVisible] = Publication.STORE.ATTRIBUTES.useAreRowIdsVisible();
+  const [isIdVisible] = useAreRowIdsVisible();
 
   return (
     <SignalColumn
@@ -93,10 +100,9 @@ const ExtendedContent: typeof Content = ({ rowId, colId, value, error }) => {
 
 const ExtendedRow: FC<RowProps> = (props) => {
   const { rowId } = props;
-  const { useErrorDescription, useIsFocused } = Publication.STORE;
 
-  const error = useErrorDescription(rowId);
-  const focused = useIsFocused(rowId);
+  const error = usePublicationErrorDescription(rowId);
+  const focused = useIsPublicationFocused(rowId);
 
   const ref = useRef<HTMLTableRowElement>(null);
 
@@ -121,13 +127,10 @@ const ExtendedRow: FC<RowProps> = (props) => {
 };
 
 const useSubmit = () => {
-  const register = Publication.STORE.useAddNew();
-  const validate = Publication.REMOTE.useValidate();
-
   return useCallback(() => {
-    const id = register();
+    const id = addNew();
     validate([id]);
-  }, [register, validate]);
+  }, []);
 };
 
 const SubmittableData: typeof Content = ({ rowId, colId, value, error }) => {
@@ -176,7 +179,7 @@ const NewPublicationSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
 const NewPublicationRow: FC = () => {
   return (
     <Row
-      rowId={Publication.NEW_ROW_ID}
+      rowId={DRAFT_ID}
       Column={Column}
       Content={SubmittableData}
       SignalColumn={NewPublicationSignalColumn}
@@ -185,7 +188,7 @@ const NewPublicationRow: FC = () => {
 };
 
 const PublicationReview: FC = () => {
-  const ids = Publication.STORE.useVisibleIds();
+  const ids = useVisiblePublicationIds();
   const onSelect = useSelectionEvent();
   const isSelectionEmpty = useIsSelectionEmpty();
 

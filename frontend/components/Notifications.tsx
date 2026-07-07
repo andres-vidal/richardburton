@@ -1,14 +1,10 @@
 import { FloatingPortal } from "@floating-ui/react";
 import classNames from "classnames";
 import { AnimatePresence, motion } from "framer-motion";
+import { atom, useAtom } from "jotai";
+import { store } from "modules/store";
 import { useRouter } from "next/router";
 import { FC, useEffect } from "react";
-import {
-  atom,
-  useRecoilCallback,
-  useRecoilState,
-  useResetRecoilState,
-} from "recoil";
 import { v4 as uuid } from "uuid";
 
 type NotificationLevel = "error" | "warning" | "info" | "success";
@@ -19,10 +15,7 @@ type Notification = {
   level: NotificationLevel;
 };
 
-const NOTIFICATIONS = atom<Notification[]>({
-  key: "notifications",
-  default: [],
-});
+const notificationsAtom = atom<Notification[]>([]);
 
 const NOTIFICATION_TIMEOUT_MS = 4000;
 const MAX_SNACKBARS = 5;
@@ -33,9 +26,25 @@ const NOTIFICATION_ICONS: Record<NotificationLevel, string> = {
   success: "🙌",
 };
 
+type Notifier = (notification: Omit<Notification, "id">) => void;
+
+/**
+ * Push a notification imperatively. Safe to call outside React (e.g. from the
+ * publication remote layer) since it writes straight to the app store.
+ */
+const notify: Notifier = ({ message, level }) => {
+  store.set(notificationsAtom, (current) => [
+    ...current,
+    { id: uuid(), message, level },
+  ]);
+};
+
+function useNotify(): Notifier {
+  return notify;
+}
+
 const Notifications: FC = () => {
-  const [notifications, setNotifications] = useRecoilState(NOTIFICATIONS);
-  const resetNotifications = useResetRecoilState(NOTIFICATIONS);
+  const [notifications, setNotifications] = useAtom(notificationsAtom);
   const router = useRouter();
 
   useEffect(() => {
@@ -48,7 +57,11 @@ const Notifications: FC = () => {
     }
   }, [notifications, setNotifications]);
 
-  useEffect(() => resetNotifications, [router.pathname, resetNotifications]);
+  // Clear notifications when navigating to another route.
+  useEffect(
+    () => () => setNotifications([]),
+    [router.pathname, setNotifications],
+  );
 
   const shownNotificationsCount =
     notifications.length === MAX_SNACKBARS
@@ -106,23 +119,5 @@ const Notifications: FC = () => {
   );
 };
 
-type Notifier = (notification: Omit<Notification, "id">) => void;
-
-const _notify = ({ message, level }: Omit<Notification, "id">) => {
-  return (current: Notification[]): Notification[] => {
-    return [...current, { id: uuid(), message, level }];
-  };
-};
-
-function useNotify(): Notifier {
-  return useRecoilCallback(
-    ({ set }) =>
-      ({ message, level }) => {
-        set(NOTIFICATIONS, _notify({ message, level }));
-      },
-    [],
-  );
-}
-
 export default Notifications;
-export { NOTIFICATIONS as _NOTIFICATIONS, _notify, useNotify };
+export { notify, useNotify };
