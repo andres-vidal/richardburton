@@ -1,7 +1,6 @@
 import isHotkey from "is-hotkey";
 import { useEffect } from "react";
 
-isHotkey;
 function useHotkey(
   hotkey: string | string[],
   handle: (event: KeyboardEvent) => void,

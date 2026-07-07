@@ -15,7 +15,6 @@ const eslintConfig = [
     },
   },
   {
-    // Honor the `_`-prefix convention for intentionally-unused args/vars.
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "error",
@@ -25,6 +24,7 @@ const eslintConfig = [
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+      "react-hooks/exhaustive-deps": "error",
     },
   },
   {

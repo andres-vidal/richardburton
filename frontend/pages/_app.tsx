@@ -1,12 +1,15 @@
 import axios, { AxiosInstance } from "axios";
 import Notifications from "components/Notifications";
+import { Provider } from "jotai";
 import ClearSelection from "listeners/ClearSelection";
 import HTTP from "modules/http";
 import { store } from "modules/store";
 import type { AppProps } from "next/app";
+import Head from "next/head";
 import { FC } from "react";
-import { Provider } from "jotai";
 import "styles/globals.css";
+
+const APP_NAME = "Richard & Isabel Burton Platform";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const GOOGLE_RECAPTCHA_SITEKEY =
@@ -68,6 +71,9 @@ enum Key {
 const App: FC<AppProps> = ({ Component, pageProps }) => {
   return (
     <Provider store={store}>
+      <Head>
+        <title>{APP_NAME}</title>
+      </Head>
       <Notifications />
       <ClearSelection />
       <Component {...pageProps} />

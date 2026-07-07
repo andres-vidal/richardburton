@@ -14,9 +14,7 @@ export default function useVisible<T extends HTMLElement>(
         // Update our state when observer callback fires
         setIntersecting(entry.isIntersecting);
       },
-      {
-        rootMargin,
-      },
+      { rootMargin },
     );
     if (ref.current) {
       const el = ref.current;
@@ -26,6 +24,6 @@ export default function useVisible<T extends HTMLElement>(
         observer.unobserve(el);
       };
     }
-  }, []); // Empty array ensures that effect is only run on mount and unmount
+  }, [ref, rootMargin]);
   return isIntersecting;
 }

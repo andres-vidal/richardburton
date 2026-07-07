@@ -13,7 +13,6 @@ const Document: FC<DocumentProps> = () => {
   return (
     <Html className="h-screen">
       <Head>
-        <title>{APP_NAME}</title>
         <link rel="shortcut icon" href="/favicon.ico" />
         <meta name="description" content={DESCRIPTION} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
