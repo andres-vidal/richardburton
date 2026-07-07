@@ -1,5 +1,6 @@
 import { atom } from "jotai";
-import { RESET, atomFamily, atomWithReset } from "jotai/utils";
+import { atomFamily } from "jotai-family";
+import { RESET, atomWithReset } from "jotai/utils";
 import { store } from "modules/store";
 import {
   ATTRIBUTES,
