@@ -71,7 +71,9 @@ async function index({ search }: { search?: string } = {}): Promise<void> {
 async function bulk(): Promise<Publication[]> {
   return run(async (http) => {
     const ids = store.get(visibleIdsAtom);
-    const publications = ids?.map((id) => store.get(visiblePublicationFamily(id)));
+    const publications = ids?.map((id) =>
+      store.get(visiblePublicationFamily(id)),
+    );
 
     store.set(publicationIdsAtom, RESET);
 
@@ -89,7 +91,10 @@ async function validate(ids: PublicationId[]): Promise<void> {
     store.set(isValidatingAtom, true);
     try {
       const pending = ids
-        .map((id) => ({ id, publication: store.get(visiblePublicationFamily(id)) }))
+        .map((id) => ({
+          id,
+          publication: store.get(visiblePublicationFamily(id)),
+        }))
         .map((entry) => ({ ...entry, hash: hash(entry.publication) }))
         .filter(({ id, hash: h }) => h !== store.get(lastValidatedFamily(id)))
         .map(({ id, publication, hash: h }) => {

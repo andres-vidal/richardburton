@@ -88,7 +88,9 @@ export const Reactivity: Story = {
     ]);
 
     await waitFor(() =>
-      expect(canvas.getByTestId("ids")).toHaveTextContent(`ids: ${id1}, ${id2}`),
+      expect(canvas.getByTestId("ids")).toHaveTextContent(
+        `ids: ${id1}, ${id2}`,
+      ),
     );
     // Only the error-free row counts as valid.
     expect(canvas.getByTestId("valid-count")).toHaveTextContent("valid: 1");

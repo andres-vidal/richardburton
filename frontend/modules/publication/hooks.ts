@@ -129,7 +129,10 @@ function useIsAttributeVisible(key: PublicationKey) {
   return useAtomValue(attributeVisibleFamily(key));
 }
 
-function useAreRowIdsVisible(): [boolean, (update: SetStateAction<boolean>) => void] {
+function useAreRowIdsVisible(): [
+  boolean,
+  (update: SetStateAction<boolean>) => void,
+] {
   return useAtom(areRowIdsVisibleAtom);
 }
 

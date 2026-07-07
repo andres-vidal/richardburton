@@ -28,7 +28,9 @@ function createId(): PublicationId {
 // --- Base atoms -------------------------------------------------------------
 
 const totalIndexCountAtom = atom<number | null>(null);
-const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(undefined);
+const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
+  undefined,
+);
 const isValidatingAtom = atom(false);
 const keywordsAtom = atom<string[] | undefined>(undefined);
 const areRowIdsVisibleAtom = atom(false);
@@ -121,7 +123,8 @@ const errorDescriptionFamily = atomFamily((id: PublicationId) =>
 );
 
 type FieldKey = { id: PublicationId; key: PublicationKey };
-const sameField = (a: FieldKey, b: FieldKey) => a.id === b.id && a.key === b.key;
+const sameField = (a: FieldKey, b: FieldKey) =>
+  a.id === b.id && a.key === b.key;
 
 /** A single cell's value — its own subscription, so editing one cell is cheap. */
 const fieldValueFamily = atomFamily(
@@ -209,7 +212,10 @@ function duplicate(duplicateIds: Set<PublicationId>): PublicationId[] {
     if (duplicateIds.has(current)) {
       const newId = createId();
       newIds.push(newId);
-      store.set(publicationFamily(newId), store.get(publicationFamily(current)));
+      store.set(
+        publicationFamily(newId),
+        store.get(publicationFamily(current)),
+      );
       return [...acc, current, newId];
     }
     return [...acc, current];

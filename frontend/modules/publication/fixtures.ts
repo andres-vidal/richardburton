@@ -1,9 +1,4 @@
-import {
-  Publication,
-  PublicationError,
-  PublicationKey,
-  empty,
-} from "./model";
+import { Publication, PublicationError, PublicationKey, empty } from "./model";
 import { createId, resetAll, resetAttributes, setAll } from "./store";
 
 type SeedEntry = Partial<Publication> & { errors?: PublicationError };

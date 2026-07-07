@@ -107,7 +107,10 @@ function describeValue(value: string, attribute: PublicationKey): string {
   return value;
 }
 
-function describeError(error: PublicationError, scope?: PublicationKey): string {
+function describeError(
+  error: PublicationError,
+  scope?: PublicationKey,
+): string {
   if (!error) {
     return "";
   } else if (!scope) {
@@ -132,7 +135,10 @@ function define(attribute: PublicationKey): Record<string, unknown> {
   return {};
 }
 
-function autocomplete(value: string, attribute: "countries"): Promise<Country[]>;
+function autocomplete(
+  value: string,
+  attribute: "countries",
+): Promise<Country[]>;
 function autocomplete(
   value: string,
   attribute: "originalAuthors",

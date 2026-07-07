@@ -51,7 +51,10 @@ describe("index", () => {
   test("loads entries, keywords and the total count", async () => {
     http.get.mockResolvedValue({
       data: {
-        entries: [pub({ title: "Dom Casmurro" }), pub({ title: "The Hour of the Star" })],
+        entries: [
+          pub({ title: "Dom Casmurro" }),
+          pub({ title: "The Hour of the Star" }),
+        ],
         keywords: ["machado"],
       },
       headers: { xTotalCount: "42" },
@@ -116,7 +119,10 @@ describe("validate", () => {
 
     // Pretend B was already validated, so it is filtered out of this run and
     // only A and C are sent.
-    store.set(lastValidatedFamily(b), hash(store.get(visiblePublicationFamily(b))));
+    store.set(
+      lastValidatedFamily(b),
+      hash(store.get(visiblePublicationFamily(b))),
+    );
 
     http.post.mockResolvedValue({
       data: [
@@ -141,7 +147,10 @@ describe("validate", () => {
   test("skips the request when nothing changed", async () => {
     const a = createId();
     setAll([{ id: a, publication: pub({ title: "A" }), errors: null }]);
-    store.set(lastValidatedFamily(a), hash(store.get(visiblePublicationFamily(a))));
+    store.set(
+      lastValidatedFamily(a),
+      hash(store.get(visiblePublicationFamily(a))),
+    );
 
     await validate([a]);
 

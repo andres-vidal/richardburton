@@ -1,4 +1,8 @@
-import { Publication, PublicationKey, usePublication } from "modules/publication";
+import {
+  Publication,
+  PublicationKey,
+  usePublication,
+} from "modules/publication";
 import Link from "next/link";
 import { FC } from "react";
 import { z } from "zod";

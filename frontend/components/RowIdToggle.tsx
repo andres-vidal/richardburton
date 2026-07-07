@@ -1,6 +1,9 @@
 import { FC } from "react";
 import Tooltip from "./Tooltip";
-import { useAreRowIdsVisible, useVisiblePublicationCount } from "modules/publication";
+import {
+  useAreRowIdsVisible,
+  useVisiblePublicationCount,
+} from "modules/publication";
 import NumberedListIcon from "assets/numbered-list.svg";
 import Toggle from "./Toggle";
 
