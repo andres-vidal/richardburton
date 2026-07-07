@@ -12,7 +12,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "baseUrl": ".",
     "paths": {
@@ -21,7 +21,6 @@
     "downlevelIteration": true,
     "types": ["vitest/globals"]
   },
-
   "include": [
     "next-env.d.ts",
     "**/*.ts",

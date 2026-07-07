@@ -14,10 +14,11 @@ import {
 } from "@floating-ui/react";
 import classNames from "classnames";
 import {
-  FC,
-  MutableRefObject,
-  ReactElement,
   cloneElement,
+  FC,
+  FocusEvent,
+  ReactElement,
+  Ref,
   useMemo,
   useState,
 } from "react";
@@ -94,12 +95,14 @@ const TooltipProvider: FC<Props> = ({
 }) => {
   const state = useTooltip(options);
 
-  const childrenRef = (
-    children as unknown as { ref: MutableRefObject<unknown> }
-  ).ref;
+  // React 19 exposes a child's ref as a regular prop (children.props.ref).
+  const childProps = children.props as Record<string, unknown> & {
+    ref?: Ref<unknown>;
+    onBlur?: (event: FocusEvent<Element>) => void;
+  };
   const ref = useMemo(
-    () => mergeRefs([state.refs.setReference, childrenRef]),
-    [state.refs.setReference, childrenRef],
+    () => mergeRefs([state.refs.setReference, childProps.ref]),
+    [state.refs.setReference, childProps.ref],
   );
 
   return (
@@ -107,11 +110,11 @@ const TooltipProvider: FC<Props> = ({
       {cloneElement(
         children,
         state.getReferenceProps({
-          ref,
-          ...children.props,
-          "data-state": state.open ? "open" : "closed",
-          onBlur(event) {
-            children.props.onBlur?.(event);
+          ...childProps,
+          ...{ "data-state": state.open ? "open" : "closed" },
+          ref: ref as Ref<Element>,
+          onBlur(event: FocusEvent<Element>) {
+            childProps.onBlur?.(event);
             state.setOpen(false);
           },
         }),

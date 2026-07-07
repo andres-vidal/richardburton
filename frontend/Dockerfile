@@ -1,5 +1,5 @@
 # Install dependencies only when needed
-FROM node:21-alpine AS deps
+FROM node:22-alpine AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
@@ -13,7 +13,7 @@ RUN \
 
 
 # Rebuild the source code only when needed
-FROM node:21-alpine AS builder
+FROM node:22-alpine AS builder
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_GOOGLE_RECAPTCHA_SITEKEY
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
@@ -31,7 +31,7 @@ COPY . .
 RUN npm run build
 
 # Production image, copy all the files and run next
-FROM node:21-alpine AS prod
+FROM node:22-alpine AS prod
 WORKDIR /app
 
 ENV NODE_ENV production
@@ -53,7 +53,7 @@ USER nextjs
 CMD node server.js
 
 # Development image
-FROM node:21-alpine as dev
+FROM node:22-alpine as dev
 
 WORKDIR /app
 COPY package*.json ./
