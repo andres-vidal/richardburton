@@ -1,16 +1,19 @@
 import RestorePageIcon from "assets/restore-page.svg";
-import { Publication } from "modules/publication";
+import {
+  resetOverridden,
+  useOverriddenPublicationCount,
+  useOverriddenPublicationIds,
+  validate,
+} from "modules/publication";
 import { FC } from "react";
 import { useClearSelection } from "react-selection-manager";
 import Button from "./Button";
 
 const ResetOverridden: FC = () => {
-  const overriddenCount = Publication.STORE.useOverriddenCount();
-  const resetOverridden = Publication.STORE.useResetOverridden();
+  const overriddenCount = useOverriddenPublicationCount();
   const clearSelection = useClearSelection();
 
-  const overriddenIds = Publication.STORE.useOverriddenIds();
-  const validate = Publication.REMOTE.useValidate();
+  const overriddenIds = useOverriddenPublicationIds();
 
   const reset = () => {
     if (!overriddenIds)

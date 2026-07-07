@@ -1,12 +1,16 @@
-import { Publication } from "modules/publication";
+import {
+  bulk,
+  setAll,
+  useIsValidating,
+  useValidPublicationCount,
+  useVisiblePublicationCount,
+} from "modules/publication";
 import { FC, useCallback } from "react";
 import Button from "./Button";
 import { useNotify } from "./Notifications";
 import Tooltip from "./Tooltip";
 
 const PublicationSubmit: FC = () => {
-  const bulk = Publication.REMOTE.useBulk();
-  const setAll = Publication.STORE.useSetAll();
   const notify = useNotify();
 
   const handleSubmit = useCallback(() => {
@@ -19,13 +23,13 @@ const PublicationSubmit: FC = () => {
         level: "success",
       });
     });
-  }, [bulk, notify, setAll]);
+  }, [notify]);
 
-  const publicationCount = Publication.STORE.useVisibleCount();
-  const validPublicationCount = Publication.STORE.useValidCount();
+  const publicationCount = useVisiblePublicationCount();
+  const validPublicationCount = useValidPublicationCount();
   const invalidPublicationCount = publicationCount - validPublicationCount;
 
-  const isValidating = Publication.STORE.useIsValidating();
+  const isValidating = useIsValidating();
 
   const isSubmitDisabled =
     isValidating || publicationCount === 0 || invalidPublicationCount > 0;

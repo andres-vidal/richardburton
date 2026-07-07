@@ -1,12 +1,12 @@
 import { isString } from "lodash";
-import { Publication } from "modules/publication";
+import { useKeywords } from "modules/publication";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { ChangeEventHandler, FC, useEffect, useState } from "react";
 
 const PublicationSearch: FC = () => {
   const router = useRouter();
-  const keywords = Publication.STORE.useKeywords();
+  const keywords = useKeywords();
   const [search, setSearch] = useState("");
 
   useEffect(() => {

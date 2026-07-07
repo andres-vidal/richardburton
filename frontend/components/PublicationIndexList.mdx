@@ -1,0 +1,42 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as IndexListStories from "./PublicationIndexList.stories";
+
+<Meta of={IndexListStories} />
+
+# Publication index list
+
+The **mobile** presentation of the publication index — a stacked list of cards,
+one per publication, showing the translation (title and translators) alongside
+the original work it renders and its publisher, year, and countries. It is the
+read-only counterpart to the [index table](?path=/docs/publications-index-table--docs),
+which takes over on wider screens.
+
+## Data source
+
+The list is **state-driven**: it takes no publication props. It reads the
+visible ids from the publication store (`useVisiblePublicationIds`) and each
+card resolves its own row (`usePublication`), so the list re-renders as the
+store changes. In stories the store is seeded through the shared fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications before the story renders
+```
+
+The only prop is `onItemClick(id)` — a curried click handler, invoked per row so
+a parent can route to (or select) the tapped publication.
+
+<Canvas of={IndexListStories.Default} />
+
+## States
+
+The list resolves to one of three states from the store alone:
+
+- **Populated** — the sample above: an `<ol>` of cards for every visible id.
+- **Empty** — ids loaded but none match; renders `EmptySearchResults`. See the
+  [Empty](?path=/story/publications-index-list--empty) story.
+- **Loading** — ids not loaded yet (`undefined`); renders a `ListSkeleton`
+  placeholder. See the [Loading](?path=/story/publications-index-list--loading)
+  story.

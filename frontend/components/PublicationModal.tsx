@@ -1,4 +1,4 @@
-import { Publication, PublicationKey } from "modules/publication";
+import { Publication, PublicationKey, usePublication } from "modules/publication";
 import Link from "next/link";
 import { FC } from "react";
 import { z } from "zod";
@@ -91,7 +91,7 @@ const PublicationModal: FC = () => {
 
   const publicationId = Param.parse(value);
 
-  const publication = Publication.STORE.usePublication(publicationId);
+  const publication = usePublication(publicationId);
 
   return (
     <Modal isOpen={modal.isOpen} onClose={modal.close}>

@@ -10,12 +10,11 @@ import { defineConfig } from "vitest/config";
 const dir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), react(), magicalSvg({ target: "react" })],
   test: {
     projects: [
       {
         // Plain unit/hook/component tests in jsdom.
-        extends: true,
+        plugins: [tsconfigPaths(), react(), magicalSvg({ target: "react" })],
         test: {
           name: "unit",
           environment: "jsdom",
@@ -24,8 +23,10 @@ export default defineConfig({
         },
       },
       {
-        // Every story runs as a test in a real (headless) browser.
-        extends: true,
+        // Every story runs as a test in a real (headless) browser. Storybook's
+        // own Vite config (framework + viteFinal) resolves paths and SVGs for
+        // these, so we deliberately don't add those plugins again here — doing
+        // so double-loads magical-svg and breaks its raw-SVG import.
         plugins: [storybookTest({ configDir: join(dir, ".storybook") })],
         test: {
           name: "storybook",

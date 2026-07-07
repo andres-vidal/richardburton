@@ -1,0 +1,49 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ReviewStories from "./PublicationReview.stories";
+
+<Meta of={ReviewStories} />
+
+# Publication review
+
+The **editable** publication index — the grid contributors use to enter and
+correct publications before submitting them. It is not a separate table: it
+reuses [`PublicationIndexTable`](?path=/docs/publications-index-table--docs) and
+swaps in editable pieces through that table's extension points.
+
+## How it extends the table
+
+Each injected piece overrides one part of the read-only table:
+
+- **`ExtendedContent`** — replaces each read-only cell with a `DataInput` that
+  writes edits back to the store and re-validates.
+- **`ExtendedSignalColumn`** — a per-row validity signal: an error icon when
+  invalid, plus the optional row id.
+- **`ExtendedRow`** — wraps the row in an error `Tooltip` and scrolls it into
+  view when focused.
+- **`ExtraRow`** — the always-present **new-publication** row at the bottom.
+
+Because it shares the table's structure, everything from the read-only view —
+column visibility, row virtualization, selection — still applies.
+
+## Editing & validation
+
+Cells are seeded from the store and edits flow back through it, so the grid is
+driven entirely by the publication state layer. The **new-publication row**
+commits on `Enter` (or the `+` button): it calls `addNew()` to promote the draft
+to a real row and `validate()` to check it server-side.
+
+<Canvas of={ReviewStories.Default} />
+
+## Errors
+
+Validation errors render at two levels, both from the store:
+
+- **Row-level** (a string error) — surfaced as the row's error `Tooltip` and the
+  error icon in the signal column.
+- **Field-level** (a per-attribute map) — the specific cell's `DataInput` is
+  marked invalid (`aria-invalid`, red highlight).
+
+The [With Invalid Row](?path=/story/publications-review--with-invalid-row) story
+seeds a row with `{ title: "required", year: "integer" }` field errors, so the
+Title and Year cells render flagged while the rest of the row stays valid.

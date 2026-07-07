@@ -17,7 +17,11 @@ import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
 import { isString } from "lodash";
-import { Publication } from "modules/publication";
+import {
+  resetAll,
+  usePublicationIndex,
+  usePublicationIndexCount,
+} from "modules/publication";
 import { User } from "modules/users";
 import { NextPage } from "next";
 import Link from "next/link";
@@ -25,22 +29,21 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 
 const Home: NextPage = () => {
-  const index = Publication.REMOTE.useIndex();
-  const reset = Publication.STORE.useResetAll();
+  const index = usePublicationIndex();
   const isAuthenticated = User.useIsAuthenticated();
-  const count = Publication.STORE.useIndexCount() || 0;
+  const count = usePublicationIndexCount() || 0;
 
   const router = useRouter();
   const { search } = router.query;
   const { isReady } = router;
 
-  useEffect(() => reset(), [reset]);
+  useEffect(() => resetAll(), []);
 
   useEffect(() => {
     if (isReady) {
       index({ search: isString(search) ? search : undefined });
     }
-  }, [reset, index, search, isReady]);
+  }, [index, search, isReady]);
 
   const modal = useURLQueryModal(PUBLICATION_MODAL_KEY);
 

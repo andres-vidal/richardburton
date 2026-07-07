@@ -1,13 +1,16 @@
 import VisibilityOnIcon from "assets/visibility-on.svg";
 import c from "classnames";
 import { AnimatePresence, motion } from "framer-motion";
-import { Publication } from "modules/publication";
+import {
+  Publication,
+  setAttributesVisible,
+  useHiddenAttributes,
+} from "modules/publication";
 import { FC } from "react";
 import Tooltip from "./Tooltip";
 
 const PublicationHiddenAttributes: FC = () => {
-  const hiddenAttributes = Publication.STORE.ATTRIBUTES.useHidden();
-  const setVisible = Publication.STORE.ATTRIBUTES.useSetVisible();
+  const hiddenAttributes = useHiddenAttributes();
 
   return (
     <ol className="flex h-full shadow">
@@ -28,7 +31,7 @@ const PublicationHiddenAttributes: FC = () => {
               <Tooltip message={label} info>
                 <button
                   className="flex items-start justify-center w-full h-full p-1 group"
-                  onClick={() => setVisible([key])}
+                  onClick={() => setAttributesVisible([key])}
                   aria-label={label}
                 >
                   <VisibilityOnIcon

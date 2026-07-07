@@ -5,6 +5,11 @@ import {
   Publication,
   PublicationId,
   PublicationKey,
+  setAttributesVisible,
+  useIsAttributeVisible,
+  usePublicationField,
+  usePublicationFieldError,
+  useVisiblePublicationIds,
 } from "modules/publication";
 import {
   FC,
@@ -31,8 +36,7 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
   colId,
   toggleable,
 }) => {
-  const isVisible = Publication.STORE.ATTRIBUTES.useIsVisible(colId);
-  const setVisible = Publication.STORE.ATTRIBUTES.useSetVisible();
+  const isVisible = useIsAttributeVisible(colId);
 
   const TableHeader = toggleable ? motion.th : "th";
   const TableHeaderContent = toggleable ? motion.div : "div";
@@ -65,7 +69,7 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
                   width="fit"
                   variant="outline"
                   Icon={VisibilityOffIcon}
-                  onClick={() => setVisible([colId], false)}
+                  onClick={() => setAttributesVisible([colId], false)}
                 />
               </Tooltip>
             )}
@@ -118,11 +122,9 @@ const Column: FC<{
   selectable = false,
   toggleable,
 }) => {
-  const { useIsVisible, useValue, useErrorDescription } =
-    Publication.STORE.ATTRIBUTES;
-  const isVisible = useIsVisible(colId);
-  const value = useValue(rowId, colId);
-  const error = useErrorDescription(rowId, colId);
+  const isVisible = useIsAttributeVisible(colId);
+  const value = usePublicationField(rowId, colId);
+  const error = usePublicationFieldError(rowId, colId);
 
   const TableData = toggleable ? motion.td : "td";
 
@@ -262,7 +264,7 @@ const PublicationIndexTable: FC<Props> = ({
   onRowClick,
   selectable = true,
 }) => {
-  const ids = Publication.STORE.useVisibleIds();
+  const ids = useVisiblePublicationIds();
 
   return ids && (ids.length > 0 || ExtraRow) ? (
     <table
