@@ -1,0 +1,39 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as UploadStories from "./PublicationUpload.stories";
+
+<Meta of={UploadStories} />
+
+# Publication upload
+
+The entry point for loading publications from a CSV. It renders an outlined
+"Upload .csv" button that opens a hidden file input; picking a file streams it
+to the backend to be parsed and staged into the workspace for review.
+
+## Data source
+
+The button is **state-driven**: it takes no props. It reads the total
+publication count from the store (`useTotalPublicationCount`) only to decide
+whether to warn — when data is already loaded, the tooltip reads "Current data
+will be replaced!", since a new upload replaces the current set. Selecting a
+file builds a `FormData` and calls `upload()`; on failure the input is reset so
+the same file can be re-picked. In stories the store is seeded through the
+shared fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed([]); // start from an empty store
+```
+
+<Canvas of={UploadStories.Default} />
+
+## States
+
+- **Empty** — the default (`seed([])`): the button is enabled with no warning
+  tooltip, since there is nothing to replace.
+- **With existing data** — when the store already holds publications, the
+  button stays enabled but its tooltip warns that the current data will be
+  replaced. See the
+  [With existing data](?path=/story/publications-upload--with-existing-data)
+  story.

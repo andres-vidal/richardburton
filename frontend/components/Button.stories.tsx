@@ -30,7 +30,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** Interactive default — tweak any prop in Controls. Also verifies a click fires `onClick`. */
-export const Playground: Story = {
+export const Default: Story = {
   args: { width: "fit" },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);

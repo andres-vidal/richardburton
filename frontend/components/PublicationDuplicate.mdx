@@ -1,0 +1,37 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DuplicateStories from "./PublicationDuplicate.stories";
+
+<Meta of={DuplicateStories} />
+
+# Publication duplicate
+
+A secondary button in the review toolbar that copies the currently selected rows.
+Its label tracks the selection size ("Duplicate 2"), and on click it clones those
+ids in the store (`duplicate`), validates the new rows (`validate`), and clears
+the selection.
+
+## Data source
+
+The button bridges two pieces of state. The selection comes from
+`react-selection-manager` (`useSelectionSize` for the label, `getSelection` for
+the ids on click), while the copy itself is a **state-driven** write to the
+publication store via `duplicate` — the new rows appear in the visible set
+everywhere and are validated immediately. In stories the publication store is
+seeded through the shared fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications before the story renders
+```
+
+<Canvas of={DuplicateStories.Default} />
+
+## States
+
+- **Nothing selected** — the sample above: the button still renders and reads
+  "Duplicate 0". Clicking it is a safe no-op (it bails out when the selection is
+  empty).
+- **Rows selected** — the label counts up ("Duplicate 2"); clicking clones those
+  rows, validates them, and clears the selection.

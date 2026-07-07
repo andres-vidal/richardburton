@@ -122,6 +122,9 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
         aria-autocomplete="list"
         right={
           <button
+            type="button"
+            aria-label={isOpen ? "Hide options" : "Show options"}
+            tabIndex={-1}
             className={c(
               "flex items-center justify-center h-5 aspect-square transition-transform rounded-full",
               "outline-none focus:bg-indigo-500 focus:text-white",

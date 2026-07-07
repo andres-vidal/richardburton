@@ -1,0 +1,37 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ErrorCounterStories from "./PublicationErrorCounter.stories";
+
+<Meta of={ErrorCounterStories} />
+
+# Publication error counter
+
+The validation summary for the review toolbar: it tells the user how many of the
+loaded publications still have errors. When there are invalid rows it renders a
+red count button; clicking it jumps focus to the next invalid row
+(`focusNextInvalid`) so the user can work through the problems one at a time.
+
+## Data source
+
+The counter is **state-driven**: it takes no props. It derives the invalid count
+from two store hooks — `useVisiblePublicationCount` and
+`useValidPublicationCount` — so it recomputes on its own as rows are edited,
+validated, added, or removed. In stories the store is seeded through the shared
+fixtures, with `fieldErrors` attaching validation errors to specific rows:
+
+```tsx
+import { fieldErrors, seed } from "modules/publication/fixtures";
+
+seed([{ title: "", errors: fieldErrors({ title: "required" }) }]);
+```
+
+<Canvas of={ErrorCounterStories.Default} />
+
+## States
+
+- **Has errors** — the sample above: a red danger button showing the invalid
+  count ("1"), tooltipped "1 publication with errors". Clicking it focuses the
+  next invalid row.
+- **All valid** — no errors among the loaded rows: instead of a red "0" it shows
+  a reassuring green check with the status "All publications are valid".
+- **Empty** — nothing loaded (count is 0): the counter renders nothing at all.

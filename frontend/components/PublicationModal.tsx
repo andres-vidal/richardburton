@@ -98,7 +98,11 @@ const PublicationModal: FC = () => {
   const publication = usePublication(publicationId);
 
   return (
-    <Modal isOpen={modal.isOpen} onClose={modal.close}>
+    <Modal
+      isOpen={modal.isOpen}
+      onClose={modal.close}
+      label="Publication details"
+    >
       {publication && (
         <Article
           heading={<PublicationHeading publication={publication} />}

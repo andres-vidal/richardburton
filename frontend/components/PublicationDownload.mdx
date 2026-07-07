@@ -1,0 +1,36 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DownloadStories from "./PublicationDownload.stories";
+
+<Meta of={DownloadStories} />
+
+# Publication download
+
+The button that exports the current publication view as a CSV. It mirrors the
+active search and column selection, so what you download matches what you see in
+the index.
+
+## Data source
+
+The button is **state-driven**: it takes no props. It reads the visible count
+(`useVisiblePublicationCount`) to decide whether it is enabled, and the visible
+attributes (`useVisibleAttributes`) to build the export's `select` — omitted
+when every column is shown, otherwise the snake-cased visible columns. It also
+pulls the current `search` from the router query so the export respects the
+active filter. Clicking issues a GET for the file blob and triggers a hidden
+anchor to save it. In stories the store is seeded through the shared fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications before the story renders
+```
+
+<Canvas of={DownloadStories.Default} />
+
+## States
+
+- **Enabled** — the default: there are visible publications, so the button is
+  clickable and a click would download them.
+- **Empty** — nothing to export (`seed([])`), so the button is disabled. See
+  the [Empty](?path=/story/publications-download--empty) story.

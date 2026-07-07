@@ -167,6 +167,8 @@ const NewPublicationSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
   return (
     <SignalColumn rowId={rowId}>
       <button
+        type="button"
+        aria-label="Add publication"
         className="flex text-indigo-600 rounded-full w-fit h-fit hover:text-indigo-700"
         onClick={submit}
       >
@@ -187,7 +189,7 @@ const NewPublicationRow: FC = () => {
   );
 };
 
-const PublicationReview: FC = () => {
+const PublicationWorkspace: FC = () => {
   const ids = useVisiblePublicationIds();
   const onSelect = useSelectionEvent();
   const isSelectionEmpty = useIsSelectionEmpty();
@@ -215,4 +217,4 @@ const PublicationReview: FC = () => {
   );
 };
 
-export default PublicationReview;
+export default PublicationWorkspace;

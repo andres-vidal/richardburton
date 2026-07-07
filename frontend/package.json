@@ -44,6 +44,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "^10.4.6",
     "@storybook/addon-docs": "^10.4.6",
     "@storybook/addon-vitest": "^10.4.6",
     "@storybook/nextjs-vite": "^10.4.6",

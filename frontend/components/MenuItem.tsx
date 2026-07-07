@@ -1,32 +1,32 @@
-import {
-  DetailedHTMLProps,
-  forwardRef,
-  LiHTMLAttributes,
-  MouseEventHandler,
-} from "react";
 import c from "classnames";
+import { DetailedHTMLProps, forwardRef, LiHTMLAttributes } from "react";
 
 type Props = Omit<
   DetailedHTMLProps<LiHTMLAttributes<HTMLLIElement>, HTMLLIElement>,
-  "className" | "onClick"
+  "className"
 > & {
   selected: boolean;
-  onClick?: MouseEventHandler<HTMLButtonElement>;
 };
 
 export default forwardRef<HTMLLIElement, Props>(function MenuItem(
-  { selected, children, onClick, ...props },
+  { selected, children, ...props },
   ref,
 ) {
+  // A listbox option: keyboard navigation is virtual (the input keeps focus and
+  // tracks the active index), so the item itself is not focusable — it carries
+  // `role="option"` + `aria-selected` and handles pointer clicks via `...props`.
   return (
     <li
       {...props}
-      className={c("focus:bg-indigo-100", { "bg-indigo-100": selected })}
+      role="option"
+      aria-selected={selected}
+      className={c(
+        "px-2.5 py-1 text-left rounded cursor-pointer hover:bg-indigo-100",
+        { "bg-indigo-100": selected },
+      )}
       ref={ref}
     >
-      <button className="px-2.5 py-1 w-full text-left" onClick={onClick}>
-        {children}
-      </button>
+      {children}
     </li>
   );
 });

@@ -1,0 +1,24 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DataInputStories from "./DataInput.stories";
+
+<Meta of={DataInputStories} />
+
+# Data input
+
+The editable table cell used across the publication workspace. It is a
+**dispatcher**: given a cell's `rowId` and `colId`, it looks up the column's
+attribute type (`text`, `number`, `array`, `enum`, or `enumArray`) and renders
+the matching concrete editor — one of the `Text*DataInput` variants below.
+
+## Data flow
+
+`DataInput` keeps the live edit in local state but treats the incoming `value`
+as the source of truth: an effect re-syncs when the store's value changes. On
+every edit it calls `overrideField(rowId, colId, value)` to write the change
+back into the publication store, then re-emits through `onChange`. For `array`
+and `enum` columns it also revalidates the row; the other types validate on
+blur. Any `error` prop is surfaced through a `Tooltip` and marks the cell
+invalid.
+
+<Canvas of={DataInputStories.Default} />

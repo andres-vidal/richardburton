@@ -1,10 +1,10 @@
 import { Canvas, Meta } from "@storybook/addon-docs/blocks";
 
-import * as ReviewStories from "./PublicationReview.stories";
+import * as WorkspaceStories from "./PublicationWorkspace.stories";
 
-<Meta of={ReviewStories} />
+<Meta of={WorkspaceStories} />
 
-# Publication review
+# Publication workspace
 
 The **editable** publication index — the grid contributors use to enter and
 correct publications before submitting them. It is not a separate table: it
@@ -33,7 +33,7 @@ driven entirely by the publication state layer. The **new-publication row**
 commits on `Enter` (or the `+` button): it calls `addNew()` to promote the draft
 to a real row and `validate()` to check it server-side.
 
-<Canvas of={ReviewStories.Default} />
+<Canvas of={WorkspaceStories.Default} />
 
 ## Errors
 
@@ -44,6 +44,6 @@ Validation errors render at two levels, both from the store:
 - **Field-level** (a per-attribute map) — the specific cell's `DataInput` is
   marked invalid (`aria-invalid`, red highlight).
 
-The [With Invalid Row](?path=/story/publications-review--with-invalid-row) story
+The [With Invalid Row](?path=/story/publications-workspace--with-invalid-row) story
 seeds a row with `{ title: "required", year: "integer" }` field errors, so the
 Title and Year cells render flagged while the rest of the row stays valid.

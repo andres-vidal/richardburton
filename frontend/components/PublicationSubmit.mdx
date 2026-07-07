@@ -1,0 +1,40 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as SubmitStories from "./PublicationSubmit.stories";
+
+<Meta of={SubmitStories} />
+
+# Publication submit
+
+The button that saves the staged publications to the repository. It is the
+commit step of the upload workflow — after a CSV is uploaded and validated,
+Submit persists the valid rows and clears the workspace.
+
+## Data source
+
+The button is **state-driven**: it takes no props and reads everything it needs
+from the publication store. It compares the visible count
+(`useVisiblePublicationCount`) against the valid count
+(`useValidPublicationCount`) and watches the validation flag
+(`useIsValidating`) to decide whether it is enabled. Clicking calls `bulk()` to
+POST the rows, then `setAll([])` to reset the store and fires a success
+notification. In stories the store is seeded through the shared fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications before the story renders
+```
+
+<Canvas of={SubmitStories.Default} />
+
+## States
+
+- **Enabled** — the default: every visible publication is valid, so the button
+  is clickable and a click would persist them.
+- **Empty** — nothing staged (`seed([])`), so the button is disabled. See the
+  [Empty](?path=/story/publications-submit--empty) story.
+- **Invalid row** — at least one row has field errors, so submission is blocked
+  and the button stays disabled. See the
+  [With invalid row](?path=/story/publications-submit--with-invalid-row) story.
+- **Validating** — while validation is in flight the button is disabled.

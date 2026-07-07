@@ -73,9 +73,11 @@ const Header: FC<{ onClose: Props["onClose"] }> = ({ onClose }) => (
 interface Props extends PropsWithChildren {
   isOpen: boolean;
   onClose: () => void;
+  /** Accessible name for the dialog (announced by screen readers). */
+  label?: string;
 }
 
-const Modal: FC<Props> = ({ children, isOpen, onClose }) => {
+const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
   function handleOverlayMouseDown(event: MouseEvent) {
     if (event.target === event.currentTarget) {
       onClose();
@@ -95,8 +97,6 @@ const Modal: FC<Props> = ({ children, isOpen, onClose }) => {
           <FloatingFocusManager context={context} initialFocus={refs.floating}>
             <motion.div
               ref={refs.setFloating}
-              aria-modal="true"
-              aria-label="Close modal"
               className="fixed inset-0 z-50 bg-indigo-900/30"
               onMouseDown={handleOverlayMouseDown}
               initial={{ opacity: 0 }}
@@ -107,8 +107,10 @@ const Modal: FC<Props> = ({ children, isOpen, onClose }) => {
               <motion.dialog
                 open
                 role="dialog"
+                aria-modal="true"
+                aria-label={label}
                 className={clsx(
-                  "mb-5 sm:rounded-lg bg-white shadow-lg scrollbar-thin scrollbar-thumb-indigo-600",
+                  "mb-5 sm:rounded-lg bg-white text-gray-900 shadow-lg scrollbar-thin scrollbar-thumb-indigo-600",
                   "overflow-y-auto overflow-x-clip",
                   "absolute left-1/2 absolute-center-x",
                   "w-full sm:w-11/12 lg:w-2/3 xl:w-1/2",

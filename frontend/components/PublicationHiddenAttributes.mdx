@@ -1,0 +1,40 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as HiddenAttributesStories from "./PublicationHiddenAttributes.stories";
+
+<Meta of={HiddenAttributesStories} />
+
+# Publication hidden attributes
+
+A panel of full-height vertical chips, one for each publication column the user
+has hidden from the index table. Each chip is labelled with the attribute
+("Show Year") and clicking it restores that column. In the app, columns are
+hidden from the table's own headers and land here; the chips animate in and out
+as attributes come and go.
+
+## Data source
+
+The panel is **state-driven**: it takes no props. It reads the list of hidden
+attributes from the store via `useHiddenAttributes` and restores a column by
+writing `setAttributesVisible([key])`, so the chips stay in sync with the table's
+visible columns. In stories the store is seeded through the shared fixtures, and
+because the table isn't present, a small `HideControls` affordance stands in for
+the column headers so columns can be hidden (sent to the panel) and restored:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+import { setAttributesVisible } from "modules/publication";
+
+seed();
+setAttributesVisible(["year"], false); // hide a column so a chip appears
+```
+
+<Canvas of={HiddenAttributesStories.Default} />
+
+## States
+
+- **Some hidden** — the sample above: one chip per hidden column (starts with
+  Year). Use the buttons above to hide more, or click a chip to bring a column
+  back.
+- **Nothing hidden** — every column visible: the panel is empty, with no restore
+  chips.

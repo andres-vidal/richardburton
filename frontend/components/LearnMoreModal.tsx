@@ -152,7 +152,7 @@ const LearnMoreModal: FC = () => {
   const { isOpen, close } = useURLQueryModal(LEARN_MORE_MODAL_KEY);
 
   return (
-    <Modal isOpen={isOpen} onClose={close}>
+    <Modal isOpen={isOpen} onClose={close} label="About the platform">
       <Article
         heading={<LearnMoreHeading />}
         content={<AboutRichardBurtonPlatform />}

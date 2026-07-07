@@ -11,20 +11,23 @@ describe("Modal", () => {
     expect(document.querySelector("[aria-modal=true]")).toBeTruthy();
   });
 
-  it("renders a modal with a close label", () => {
-    render(<Modal isOpen={true} onClose={vi.fn()} />);
+  it("names the dialog with its label", () => {
+    render(<Modal isOpen={true} onClose={vi.fn()} label="Test dialog" />);
 
-    const close = document.querySelector("[aria-label='Close modal']");
-    const modal = document.querySelector("[aria-modal=true]");
+    const modal = document.querySelector("[aria-modal=true]")!;
 
-    expect(close).toBe(modal);
+    expect(modal.getAttribute("aria-label")).toBe("Test dialog");
   });
 
-  it("closes when the modal is moused down", () => {
+  it("closes when the backdrop is moused down", () => {
     const onClose = vi.fn();
     render(<Modal isOpen={true} onClose={onClose} />);
 
-    fireEvent.mouseDown(document.querySelector("[aria-modal=true]")!);
+    // The backdrop is the dialog's parent; mousing it down (outside the dialog)
+    // closes the modal.
+    const backdrop =
+      document.querySelector("[aria-modal=true]")!.parentElement!;
+    fireEvent.mouseDown(backdrop);
 
     expect(onClose).toHaveBeenCalled();
   });

@@ -26,7 +26,7 @@ const Tooltip: FC<Props> = ({
       className={classNames(
         "flex items-center py-1.5 px-2 text-sm space-x-2 m-2 rounded shadow-sm",
         {
-          "text-white bg-red-500": error,
+          "text-white bg-red-600": error,
           "bg-white ": warning || info,
         },
       )}

@@ -1,0 +1,21 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as TextNumberDataInputStories from "./TextNumberDataInput.stories";
+
+<Meta of={TextNumberDataInputStories} />
+
+# Text number data input
+
+The numeric cell editor, used for the `year` column. It is the concrete editor
+that [Data input](?path=/docs/publications-data-input--docs) dispatches to for
+`number` columns, wrapping `NumberInput`.
+
+## Data flow
+
+The stored `value` is a string, so the component parses it to a number for
+`NumberInput` and re-stringifies each edit before re-emitting it through
+`onChange` — keeping the store's string-only contract intact. Props are passed
+straight in, so no store seeding is needed, and an `error` marks the input
+invalid.
+
+<Canvas of={TextNumberDataInputStories.Default} />

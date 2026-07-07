@@ -76,11 +76,11 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
             !loading,
           "text-white bg-indigo-600 hover:bg-indigo-700 loading:bg-indigo-700":
             isPrimary,
-          "text-white bg-yellow-500 hover:bg-yellow-600 loading:bg-yellow-600":
+          "text-gray-900 bg-yellow-500 hover:bg-yellow-600 loading:bg-yellow-600":
             isSecondary,
           "text-gray-700 bg-gray-100 hover:bg-gray-active loading:bg-gray-active":
             isOutline,
-          "text-white bg-red-500 hover:bg-red-600 loading:bg-red-600": isDanger,
+          "text-white bg-red-600 hover:bg-red-700 loading:bg-red-700": isDanger,
           "justify-center": isTextCentered,
           "w-full": isFullWidth,
           "w-36": isFixedWidth,

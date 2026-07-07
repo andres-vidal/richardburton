@@ -15,10 +15,13 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "value" | "onChange"> & {
 const IncrementButton: FC<{
   onClick: () => void;
   icon: ReactNode;
+  label: string;
   error?: string;
-}> = ({ icon, onClick, error }) => {
+}> = ({ icon, onClick, label, error }) => {
   return (
     <button
+      type="button"
+      aria-label={label}
       className={c(
         "flex items-center justify-center h-2 rounded-full",
         "hover:bg-indigo-500 hover:text-white",
@@ -80,11 +83,13 @@ export default forwardRef<HTMLDivElement, Props>(function NumberInput(
           <IncrementButton
             onClick={() => increment(value, 1)}
             icon={<ChevronUpIcon className="w-3 aspect-square" />}
+            label="Increase"
             error={error}
           />
           <IncrementButton
             onClick={() => increment(value, -1)}
             icon={<ChevronDownIcon className="w-3 aspect-square" />}
+            label="Decrease"
             error={error}
           />
         </div>
