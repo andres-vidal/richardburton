@@ -1,12 +1,19 @@
+const path = require("path");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
 
-  // Lint the whole source tree, not just next's defaults (pages/components) —
-  // `modules` (the state layer) and `utils` were previously unchecked in CI.
-  eslint: {
-    dirs: ["pages", "components", "modules", "utils"],
+  // Import SVGs as React components. Turbopack (Next 16's default bundler) runs
+  // the @svgr/webpack loader via turbopack.rules; the webpack block is the
+  // equivalent for `next build --webpack`.
+  turbopack: {
+    rules: {
+      "*.svg": {
+        loaders: ["@svgr/webpack"],
+        as: "*.js",
+      },
+    },
   },
 
   webpack(config) {
@@ -28,6 +35,9 @@ const nextConfig = {
       },
     ],
   },
+
+  // Silence the multi-lockfile "inferred workspace root" warning.
+  outputFileTracingRoot: path.join(__dirname),
   output: "standalone",
 };
 

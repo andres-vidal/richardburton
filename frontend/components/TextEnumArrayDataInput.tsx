@@ -7,11 +7,7 @@ import Multicombobox from "./Multicombobox";
 type Enum = { id: string; label: string };
 
 export default forwardRef<HTMLDivElement, DataInputProps>(
-  function TextEnumArrayDataInput(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    { colId, value, onChange, ...props },
-    ref,
-  ) {
+  function TextEnumArrayDataInput({ colId, value, onChange, ...props }, ref) {
     const toEnum = useCallback(
       (id: string): Enum => {
         return { id, label: Publication.describeValue(id, colId) };
@@ -23,8 +19,6 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
       () => (value === "" ? [] : value.split(",").map(toEnum)),
       [value, toEnum],
     );
-
-    console.log({ value, items });
 
     function handleChange(value: Enum[]) {
       onChange?.(value.map(({ id }) => id).join(","));

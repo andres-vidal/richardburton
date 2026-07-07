@@ -55,7 +55,7 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
         >
           <TableHeaderContent
             layout={toggleable ? true : undefined}
-            className="flex items-center justify-between gap-2"
+            className="flex gap-2 justify-between items-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -174,7 +174,7 @@ const Row = forwardRef<HTMLTableRowElement, RowProps>(function Row(
 ) {
   const clickable = Boolean(onClick);
 
-  const innerRef = useRef(null);
+  const innerRef = useRef<HTMLTableRowElement>(null);
 
   const compositeRef = useMemo(
     () => mergeRefs([ref, innerRef]),
@@ -186,7 +186,7 @@ const Row = forwardRef<HTMLTableRowElement, RowProps>(function Row(
   return (
     <tr
       ref={compositeRef}
-      className={c(className, "relative group h-9", {
+      className={c(className, "relative h-9 group", {
         "cursor-pointer": clickable,
       })}
       onClick={onClick}
@@ -227,7 +227,7 @@ const SignalColumn: FC<{
   return (
     <td
       className={c(
-        "sticky left-0 flex items-center justify-center h-full px-2 truncate bg-gray-100",
+        "flex sticky left-0 justify-center items-center px-2 h-full truncate bg-gray-100",
         "group-hover:bg-indigo-100",
         "error:group-hover:bg-red-100 error:focused:bg-red-100",
         "selected:bg-amber-100 selected:focused:error:bg-amber-100",
@@ -268,11 +268,15 @@ const PublicationIndexTable: FC<Props> = ({
 
   return ids && (ids.length > 0 || ExtraRow) ? (
     <table
-      className={c("h-fit w-full table-fixed", { "select-none": !selectable })}
+      className={c("w-full table-fixed h-fit", { "select-none": !selectable })}
     >
       <thead className="sticky top-0 z-10 bg-gray-100">
         <tr>
-          {ExtendedSignalColumn && <th className="w-10" />}
+          {ExtendedSignalColumn && (
+            <th className="w-10">
+              <span className="sr-only">Status</span>
+            </th>
+          )}
           {Publication.ATTRIBUTES.map((key) => (
             <ExtendedColumnHeader
               key={key}

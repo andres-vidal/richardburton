@@ -9,13 +9,7 @@ import {
   useRole,
 } from "@floating-ui/react";
 import { isString } from "lodash";
-import {
-  cloneElement,
-  MutableRefObject,
-  ReactElement,
-  useMemo,
-  useRef,
-} from "react";
+import { cloneElement, ReactElement, Ref, useMemo, useRef } from "react";
 import { mergeRefs } from "react-merge-refs";
 import Menu from "./Menu";
 import MenuItem from "./MenuItem";
@@ -73,12 +67,15 @@ const MenuProvider = <OptionType extends Option | string>({
     ],
   );
 
-  const childrenRef = (
-    children as unknown as { ref: MutableRefObject<unknown> }
-  ).ref;
+  // React 19 exposes a child's ref as a regular prop (children.props.ref).
+  // Merge it with floating-ui's ref, and spread the child props first so the
+  // merged ref wins over the incoming one.
+  const childProps = children.props as Record<string, unknown> & {
+    ref?: Ref<unknown>;
+  };
   const ref = useMemo(
-    () => mergeRefs([refs.setReference, childrenRef]),
-    [refs.setReference, childrenRef],
+    () => mergeRefs([refs.setReference, childProps.ref]),
+    [refs.setReference, childProps.ref],
   );
 
   return (
@@ -86,8 +83,8 @@ const MenuProvider = <OptionType extends Option | string>({
       {cloneElement(
         children,
         getReferenceProps({
-          ref,
-          ...children.props,
+          ...childProps,
+          ref: ref as Ref<Element>,
         }),
       )}
       <FloatingPortal>
@@ -110,7 +107,9 @@ const MenuProvider = <OptionType extends Option | string>({
               {options.map((option, index) => (
                 <MenuItem
                   key={isString(option) ? option : option.id}
-                  ref={(node) => (listRef.current[index] = node)}
+                  ref={(node) => {
+                    listRef.current[index] = node;
+                  }}
                   selected={activeIndex === index}
                   {...getItemProps({
                     onClick: () => {

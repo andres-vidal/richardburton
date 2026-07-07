@@ -5,11 +5,7 @@ import { DataInputProps } from "./DataInput";
 import Multicombobox from "./Multicombobox";
 
 export default forwardRef<HTMLDivElement, DataInputProps>(
-  function TextArrayDataInput(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    { colId, value, onChange, ...props },
-    ref,
-  ) {
+  function TextArrayDataInput({ colId, value, onChange, ...props }, ref) {
     const items = useMemo(
       () => (value === "" ? [] : value.split(",")),
       [value],
