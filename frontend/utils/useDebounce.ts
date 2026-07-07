@@ -1,9 +1,13 @@
 import { debounce, DebounceSettings } from "lodash";
 import { useCallback } from "react";
 
-function useDebounce<F>(factory: F, delay: number, opts?: DebounceSettings): F {
-  //eslint-disable-next-line react-hooks/exhaustive-deps
-  return useCallback(debounce(factory as any, delay, opts) as any, [
+function useDebounce<F extends (...args: never[]) => unknown>(
+  factory: F,
+  delay: number,
+  opts?: DebounceSettings,
+): F {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useCallback(debounce(factory, delay, opts) as unknown as F, [
     factory,
     delay,
   ]);

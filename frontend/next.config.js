@@ -3,6 +3,12 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
 
+  // Lint the whole source tree, not just next's defaults (pages/components) —
+  // `modules` (the state layer) and `utils` were previously unchecked in CI.
+  eslint: {
+    dirs: ["pages", "components", "modules", "utils"],
+  },
+
   webpack(config) {
     config.module.rules.push({
       test: /\.svg$/i,
