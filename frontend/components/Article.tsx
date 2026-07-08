@@ -14,7 +14,7 @@ const Article: FC<Props> = ({ content, heading, aside, noSeparator }) => {
     <article className="relative flex flex-col w-full min-h-full gap-5 p-8 sm:flex-row overflow-clip">
       <Logo className="absolute z-50 lg:w-screen h-screen lg:h-auto text-indigo-700 pointer-events-none opacity-20 left-[-70%] sm:left-[-52%] -top-44 sm:-top-96 aspect-square" />
       {!noSeparator && (
-        <hr className="absolute inset-x-7 top-28 sm:top-[5.5rem] z-40" />
+        <hr className="absolute inset-x-7 top-28 sm:top-22 z-40" />
       )}
       <section
         className={clsx("space-y-6 h-fit", aside ? "sm:w-7/12" : "w-full")}

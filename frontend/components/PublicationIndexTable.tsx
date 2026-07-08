@@ -352,8 +352,8 @@ const PublicationIndexTable: FC<Props> = ({
       className={c(
         "grid relative w-full h-fit",
         "duration-300 ease-in-out transition-[grid-template-columns]",
-        "collapsing:[grid-template-columns:var(--rb-cols-collapsing)]",
-        "settled:[grid-template-columns:var(--rb-cols-settled)]",
+        "collapsing:grid-cols-(--rb-cols-collapsing)",
+        "settled:grid-cols-(--rb-cols-settled)",
         { "select-none": !selectable },
       )}
     >

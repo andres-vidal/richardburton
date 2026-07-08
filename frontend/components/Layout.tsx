@@ -35,7 +35,7 @@ const Layout: FC<Props> = ({
       <div className="flex flex-col h-full px-1 md:px-8 overflow-x-clip">
         <header className="sticky top-0 z-20 bg-gray-100 md:pb-6">
           <h1 className="select-none py-1.5 -mx-8 text-center text-white bg-indigo-600 flex items-center justify-center">
-            <div className="flex flex-col items-center justify-center flex-shrink transition-colors md:flex-row md:gap-4 shadow-white">
+            <div className="flex flex-col items-center justify-center shrink transition-colors md:flex-row md:gap-4 shadow-white">
               <Link
                 href="/"
                 className="px-3 py-0.5 rounded hover:bg-indigo-500"

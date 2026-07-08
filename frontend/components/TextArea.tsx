@@ -43,7 +43,7 @@ export default forwardRef<HTMLDivElement, Props>(function TextArea(
         "w-full gap-1 inline-flex items-center rounded scrollbar scrollbar-none",
         fill ? "h-full" : "h-fit",
         "error-within:shadow-sm focus-within:error-within:bg-red-400/80, error-within:bg-red-300/40",
-        "has-[:disabled]:opacity-60 has-[:disabled]:cursor-not-allowed",
+        "has-disabled:opacity-60 has-disabled:cursor-not-allowed",
         label
           ? "mt-2 px-2 py-2 bg-gray-active shadow-sm focus-within:bg-indigo-500/10"
           : "text-xs p-1 overflow-x-scroll focus-within:bg-gray-active focus-within:shadow-sm",
