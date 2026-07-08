@@ -42,6 +42,21 @@ const SAMPLE_PUBLICATIONS: Partial<Publication>[] = [
 ];
 
 /**
+ * Cycle the samples into `count` publications with light variation — for stories
+ * that showcase overflow (a scrolling viewport) and the row virtualization.
+ */
+function sampleManyPublications(count: number): Partial<Publication>[] {
+  return Array.from({ length: count }, (_, i) => {
+    const base = SAMPLE_PUBLICATIONS[i % SAMPLE_PUBLICATIONS.length];
+    return {
+      ...base,
+      title: `${base.title} #${i + 1}`,
+      year: `${1950 + (i % 70)}`,
+    };
+  });
+}
+
+/**
  * Reset the store and seed it with the given publications (defaults to
  * samples). Each entry may carry an `errors` value to render an invalid row.
  */
@@ -59,4 +74,4 @@ function seed(entries: SeedEntry[] = SAMPLE_PUBLICATIONS): void {
   );
 }
 
-export { SAMPLE_PUBLICATIONS, fieldErrors, seed };
+export { SAMPLE_PUBLICATIONS, fieldErrors, sampleManyPublications, seed };

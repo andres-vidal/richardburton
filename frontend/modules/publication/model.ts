@@ -22,8 +22,8 @@ type PublicationKeyType = "array" | "text" | "enum" | "enumArray" | "number";
 
 const ATTRIBUTES: PublicationKey[] = [
   "originalTitle",
-  "originalAuthors",
   "title",
+  "originalAuthors",
   "authors",
   "year",
   "countries",
@@ -185,18 +185,18 @@ const Publication = {
 };
 
 export {
-  ATTRIBUTES,
   ATTRIBUTE_IS_TOGGLEABLE,
   ATTRIBUTE_LABELS,
   ATTRIBUTE_TYPES,
+  ATTRIBUTES,
+  autocomplete,
   COUNTRIES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
-  Publication,
-  autocomplete,
   define,
   describeError,
   describeValue,
   empty,
+  Publication,
 };
 export type {
   PublicationEntry,

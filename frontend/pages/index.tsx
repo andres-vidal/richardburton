@@ -6,7 +6,6 @@ import Layout from "components/Layout";
 import { LearnMoreModal } from "components/LearnMoreModal";
 import { useURLQueryModal } from "components/Modal";
 import PublicationDownload from "components/PublicationDownload";
-import PublicationHiddenAttributes from "components/PublicationHiddenAttributes";
 import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
 import {
@@ -64,7 +63,6 @@ const Home: NextPage = () => {
           <PublicationModal />
         </>
       }
-      leftAside={<PublicationHiddenAttributes />}
       subheader={
         <div className="py-4 space-y-4">
           <div className="flex items-center justify-center gap-3 text-sm text-indigo-700">

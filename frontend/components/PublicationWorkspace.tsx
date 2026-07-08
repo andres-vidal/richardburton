@@ -104,7 +104,7 @@ const ExtendedRow: FC<RowProps> = (props) => {
   const error = usePublicationErrorDescription(rowId);
   const focused = useIsPublicationFocused(rowId);
 
-  const ref = useRef<HTMLTableRowElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (focused && ref.current) {
@@ -185,6 +185,7 @@ const NewPublicationRow: FC = () => {
       Column={Column}
       Content={SubmittableData}
       SignalColumn={NewPublicationSignalColumn}
+      collapsible={false}
     />
   );
 };
@@ -213,6 +214,7 @@ const PublicationWorkspace: FC = () => {
       ExtraRow={NewPublicationRow}
       onRowClick={toggleSelection}
       selectable={isSelectionEmpty}
+      collapsible={false}
     />
   );
 };

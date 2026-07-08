@@ -31,6 +31,10 @@ module.exports = {
       addVariant("selected", '&[data-selected="true"]');
       addVariant("focused", '&[data-focused="true"]');
 
+      // The two stages of the column-collapse animation (PublicationIndexTable).
+      addVariant("collapsing", '&[data-phase="collapsing"]');
+      addVariant("settled", '&[data-phase="settled"]');
+
       addVariant("error", `&${error}`);
       addVariant("error-within", `&:has(${error})`);
       addVariant("peer-error", `:merge(.peer):is(${error}) ~ &`);
