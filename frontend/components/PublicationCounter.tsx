@@ -1,3 +1,5 @@
+"use client";
+
 import SparklesIcon from "assets/sparkles.svg";
 import { useVisiblePublicationCount } from "modules/publication";
 import { FC } from "react";

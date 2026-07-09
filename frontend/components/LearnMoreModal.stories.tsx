@@ -24,7 +24,7 @@ type Story = StoryObj<typeof meta>;
  * platform" article alongside the Richard & Isabel Burton aside.
  */
 export const Default: Story = {
-  parameters: { nextjs: { router: { query: { "learn-more": "true" } } } },
+  parameters: { nextjs: { navigation: { query: { "learn-more": "true" } } } },
   play: async () => {
     await waitFor(() =>
       expect(

@@ -44,7 +44,7 @@ export const Default: Story = {
       },
     ]),
   parameters: {
-    nextjs: { router: { query: { publication: "1" } } },
+    nextjs: { navigation: { query: { publication: "1" } } },
     // Full-screen portalled modal — bound it in the docs page.
     docs: { story: { inline: false, height: "30rem" } },
   },

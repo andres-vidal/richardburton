@@ -1,3 +1,5 @@
+"use client";
+
 import { Key } from "app";
 import AddCircleIcon from "assets/add-circle.svg";
 import ErrorIcon from "assets/error.svg";

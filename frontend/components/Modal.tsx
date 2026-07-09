@@ -1,3 +1,5 @@
+"use client";
+
 import {
   FloatingFocusManager,
   FloatingPortal,
@@ -7,7 +9,7 @@ import { Key } from "app";
 import CloseIcon from "assets/close.svg";
 import Logo from "assets/logo.svg";
 import { AnimatePresence, motion } from "framer-motion";
-import { useRouter } from "next/router";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   FC,
   MouseEvent,
@@ -39,19 +41,26 @@ interface URLModalInterface extends ModalInterface {
 
 function useURLQueryModal(param: string): URLModalInterface {
   const router = useRouter();
+  const pathname = usePathname() ?? "";
+  const searchParams = useSearchParams();
 
-  const { [param]: value, ...rest } = router.query;
+  const value = searchParams?.get(param) ?? undefined;
 
   const open = useCallback(
     (value: string = "true") => {
-      router.replace({ query: { ...rest, [param]: value } });
+      const params = new URLSearchParams(searchParams ?? undefined);
+      params.set(param, value);
+      router.replace(`${pathname}?${params}`);
     },
-    [router, param, rest],
+    [router, pathname, searchParams, param],
   );
 
   const close = useCallback(() => {
-    router.replace({ query: rest });
-  }, [router, rest]);
+    const params = new URLSearchParams(searchParams ?? undefined);
+    params.delete(param);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }, [router, pathname, searchParams, param]);
 
   return { isOpen: Boolean(value), value, open, close };
 }

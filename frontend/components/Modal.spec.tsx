@@ -1,9 +1,43 @@
 import { act, fireEvent, render, renderHook } from "@testing-library/react";
 import { Key } from "app";
-import router from "next-router-mock";
+import React from "react";
 import { Modal, useModal, useURLQueryModal } from "./Modal";
 
-vi.mock("next/router", async () => vi.importActual("next-router-mock"));
+// A minimal reactive `next/navigation` mock: `router.replace` updates the shared
+// search params and notifies subscribers so `useSearchParams()` re-renders — the
+// URL round-trip the URL-driven modal hooks depend on, like the real router.
+const nav = vi.hoisted(() => {
+  let search = new URLSearchParams();
+  const listeners = new Set<() => void>();
+  return {
+    replace(url: string) {
+      const i = url.indexOf("?");
+      search = new URLSearchParams(i === -1 ? "" : url.slice(i + 1));
+      listeners.forEach((fn) => fn());
+    },
+    get: () => search,
+    reset() {
+      search = new URLSearchParams();
+      listeners.forEach((fn) => fn());
+    },
+    subscribe(fn: () => void) {
+      listeners.add(fn);
+      return () => void listeners.delete(fn);
+    },
+  };
+});
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: nav.replace }),
+  usePathname: () => "/",
+  useSearchParams: () => {
+    const [, force] = React.useReducer((n: number) => n + 1, 0);
+    React.useEffect(() => nav.subscribe(force), []);
+    return nav.get();
+  },
+}));
+
+beforeEach(() => nav.reset());
 
 describe("Modal", () => {
   it("renders a modal", () => {
@@ -126,7 +160,7 @@ describe("useURLQueryModal", () => {
   });
 
   test("the isOpen boolean is initially true when the query param is set", () => {
-    router.replace({ query: { modal: "true" } });
+    nav.replace("?modal=true");
 
     const { result } = renderHook(() => useURLQueryModal("modal"));
 

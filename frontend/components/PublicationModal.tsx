@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Publication,
   PublicationKey,
@@ -66,18 +68,24 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
 const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
+  // `value` (not `id`): it's the field SearchableList keys on and Searchable
+  // searches by. Naming it `id` left `value` undefined — a duplicate-key warning
+  // and links that searched the human label (e.g. "United States of America")
+  // instead of the raw value ("US").
   function getSearchableItems(p: Publication, key: PublicationKey) {
     return p[key]
       .split(",")
-      .map((id) => id.trim())
-      .map((id) => ({
-        id,
-        label: Publication.describeValue(id, key),
+      .map((value) => value.trim())
+      .map((value) => ({
+        value,
+        label: Publication.describeValue(value, key),
       }));
   }
 
+  // A <div>, not a <p>: SearchableList renders a <ul>, which is invalid (and a
+  // hydration error) nested inside a paragraph.
   return (
-    <p>
+    <div>
       <Searchable label={p.title} /> is a translation of{" "}
       <Searchable label={p.originalTitle} />, by{" "}
       <SearchableList items={getSearchableItems(p, "originalAuthors")} />. It
@@ -86,7 +94,7 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
       <SearchableList items={getSearchableItems(p, "countries")} />
       in {p.year} by{" "}
       <SearchableList items={getSearchableItems(p, "publishers")} />.
-    </p>
+    </div>
   );
 };
 

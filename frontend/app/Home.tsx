@@ -1,3 +1,5 @@
+"use client";
+
 import AddIcon from "assets/add.svg";
 import Button from "components/Button";
 import { ContactModal } from "components/ContactModal";
@@ -15,34 +17,29 @@ import {
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
-import { isString } from "lodash";
 import {
   resetAll,
   usePublicationIndex,
   usePublicationIndexCount,
 } from "modules/publication";
-import { User } from "modules/users";
-import { NextPage } from "next";
+import { useIsAuthenticated } from "modules/session";
 import Link from "next/link";
-import { useRouter } from "next/router";
+import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
-const Home: NextPage = () => {
+export default function Home() {
   const index = usePublicationIndex();
-  const isAuthenticated = User.useIsAuthenticated();
+  const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
 
-  const router = useRouter();
-  const { search } = router.query;
-  const { isReady } = router;
+  const searchParams = useSearchParams();
+  const search = searchParams?.get("search") ?? undefined;
 
   useEffect(() => resetAll(), []);
 
   useEffect(() => {
-    if (isReady) {
-      index({ search: isString(search) ? search : undefined });
-    }
-  }, [index, search, isReady]);
+    index({ search });
+  }, [index, search]);
 
   const modal = useURLQueryModal(PUBLICATION_MODAL_KEY);
 
@@ -105,6 +102,4 @@ const Home: NextPage = () => {
       }
     />
   );
-};
-
-export default Home;
+}

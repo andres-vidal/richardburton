@@ -1,3 +1,5 @@
+"use client";
+
 import RestoreTrashIcon from "assets/restore-trash.svg";
 import { resetDeleted, useDeletedPublicationCount } from "modules/publication";
 import { FC } from "react";

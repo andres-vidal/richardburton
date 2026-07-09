@@ -1,3 +1,5 @@
+"use client";
+
 import CheckIcon from "assets/check.svg";
 import { forwardRef } from "react";
 import Button, { ButtonProps } from "./Button";

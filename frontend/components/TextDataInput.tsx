@@ -1,3 +1,5 @@
+"use client";
+
 import { FC, forwardRef } from "react";
 import { DataInputProps } from "./DataInput";
 import TextInput from "./TextInput";

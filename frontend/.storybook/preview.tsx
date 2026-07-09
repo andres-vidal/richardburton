@@ -19,6 +19,10 @@ const preview: Preview = {
     controls: {
       matchers: { color: /(background|color)$/i, date: /Date$/i },
     },
+    // The app is on the App Router, so components use `next/navigation`. This
+    // makes @storybook/nextjs-vite mount the App Router mocks (useRouter/
+    // usePathname/useSearchParams) instead of the Pages Router ones.
+    nextjs: { appDirectory: true },
     // Run axe-core on every story via @storybook/addon-a11y. "todo" surfaces
     // violations in the a11y panel + as non-failing notes in the test run; flip
     // to "error" to make accessibility violations fail the suite.

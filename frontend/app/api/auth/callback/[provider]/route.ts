@@ -1,48 +1,52 @@
 import axios from "axios";
-import type { NextApiRequest, NextApiResponse } from "next";
-
 import HTTP from "modules/http";
-import { PROVIDERS, isProvider } from "modules/oauth";
 import { User } from "modules/users";
+import { NextRequest, NextResponse } from "next/server";
 
 const http = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
 
 // OAuth callback: validate state, exchange the code for the provider id_token,
 // run the admin gate, mint the Phoenix rb-session, and relay it to the browser.
 // Phoenix stays the session authority — the id_token never reaches the client.
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ provider: string }> },
 ) {
-  const { provider } = req.query;
+  // Imported at request time: `modules/oauth` asserts the OAuth secrets at load,
+  // and App Router evaluates route modules during `next build` (where they're unset).
+  const { PROVIDERS, isProvider } = await import("modules/oauth");
+  const { provider } = await params;
 
-  if (typeof provider !== "string" || !isProvider(provider)) {
-    return res.status(404).end();
+  if (!isProvider(provider)) {
+    return new NextResponse(null, { status: 404 });
   }
 
+  // Phoenix Set-Cookie strings to relay to the browser (rb-session), collected
+  // before `finish`.
+  const relayed: string[] = [];
+
   // Always clear the handshake cookies, whatever the outcome.
-  const setCookies = [
-    expire("oauth_state"),
-    expire("oauth_verifier"),
-    expire("oauth_next"),
-  ];
   const finish = (location: string) => {
-    res.setHeader("Set-Cookie", setCookies);
-    res.redirect(location);
+    const response = NextResponse.redirect(new URL(location, request.url));
+    for (const name of ["oauth_state", "oauth_verifier", "oauth_next"]) {
+      response.headers.append("Set-Cookie", expire(name));
+    }
+    for (const cookie of relayed) {
+      response.headers.append("Set-Cookie", cookie);
+    }
+    return response;
   };
 
-  const { code, state } = req.query;
-  const storedState = req.cookies.oauth_state;
-  const verifier = req.cookies.oauth_verifier;
-  const next = safeNext(req, req.cookies.oauth_next ?? "/");
+  const code = request.nextUrl.searchParams.get("code");
+  const state = request.nextUrl.searchParams.get("state");
+  const storedState = request.cookies.get("oauth_state")?.value;
+  const verifier = request.cookies.get("oauth_verifier")?.value;
+  const next = safeNext(
+    request,
+    request.cookies.get("oauth_next")?.value ?? "/",
+  );
 
-  if (
-    typeof code !== "string" ||
-    typeof state !== "string" ||
-    !storedState ||
-    state !== storedState ||
-    !verifier
-  ) {
+  if (!code || !state || !storedState || state !== storedState || !verifier) {
     return finish("/auth/error?error=Verification");
   }
 
@@ -80,9 +84,9 @@ export default async function handler(
   // Mint the Phoenix rb-session and relay its Set-Cookie to the browser.
   try {
     const response = await http.post("/sessions", { email }, authorization);
-    const relayed = response.headers["set-cookie"];
-    if (relayed) {
-      setCookies.push(...(Array.isArray(relayed) ? relayed : [relayed]));
+    const relayedCookies = response.headers["set-cookie"];
+    if (relayedCookies) {
+      relayed.push(...[relayedCookies].flat());
     }
   } catch {
     // Exchange failed; redirect anyway — the user just won't have a session yet.
@@ -104,10 +108,11 @@ function decodeEmail(idToken: string): string | undefined {
 }
 
 // Reduce `next` to a same-origin relative path, to prevent open redirects.
-function safeNext(req: NextApiRequest, next: string): string {
+function safeNext(request: NextRequest, next: string): string {
+  const host = request.headers.get("host");
   try {
-    const url = new URL(next, `http://${req.headers.host}`);
-    return url.host === req.headers.host ? url.pathname + url.search : "/";
+    const url = new URL(next, `http://${host}`);
+    return url.host === host ? url.pathname + url.search : "/";
   } catch {
     return "/";
   }

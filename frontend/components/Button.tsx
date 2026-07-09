@@ -1,3 +1,5 @@
+"use client";
+
 import { isFunction } from "lodash";
 import { FC, forwardRef, HTMLProps, ReactNode } from "react";
 

@@ -1,11 +1,4 @@
-import PublicationWorkspace from "components/PublicationWorkspace";
-import {
-  Publication,
-  resetAll,
-  setAll,
-  setAttributesVisible,
-} from "modules/publication";
-import { NextPage } from "next";
+"use client";
 
 import Layout from "components/Layout";
 import PublicationCounter from "components/PublicationCounter";
@@ -15,14 +8,21 @@ import PublicationDuplicate from "components/PublicationDuplicate";
 import PublicationErrorCounter from "components/PublicationErrorCounter";
 import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
+import PublicationWorkspace from "components/PublicationWorkspace";
 import ResetDeleted from "components/ResetDeleted";
 import ResetOverridden from "components/ResetOverridden";
 import RowIdToggle from "components/RowIdToggle";
 import StrikeHeading from "components/StrikeHeading";
+import {
+  Publication,
+  resetAll,
+  setAll,
+  setAttributesVisible,
+} from "modules/publication";
 import { useEffect } from "react";
 import { useIsSelectionEmpty } from "react-selection-manager";
 
-const NewPublications: NextPage = () => {
+export default function NewPublications() {
   const isSelectionEmpty = useIsSelectionEmpty();
 
   useEffect(() => setAll([]), []);
@@ -58,6 +58,4 @@ const NewPublications: NextPage = () => {
       }
     />
   );
-};
-
-export default NewPublications;
+}

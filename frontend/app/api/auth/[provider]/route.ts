@@ -1,15 +1,19 @@
 import { generateCodeVerifier, generateState } from "arctic";
-import type { NextApiRequest, NextApiResponse } from "next";
-
-import { PROVIDERS, isProvider } from "modules/oauth";
+import { NextRequest, NextResponse } from "next/server";
 
 // Starts the OAuth handshake: create state + PKCE verifier, stash them (and the
 // post-login destination) in short-lived cookies, and redirect to the provider.
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { provider } = req.query;
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ provider: string }> },
+) {
+  // Imported at request time: `modules/oauth` asserts the OAuth secrets at load,
+  // and App Router evaluates route modules during `next build` (where they're unset).
+  const { PROVIDERS, isProvider } = await import("modules/oauth");
+  const { provider } = await params;
 
-  if (typeof provider !== "string" || !isProvider(provider)) {
-    return res.status(404).end();
+  if (!isProvider(provider)) {
+    return new NextResponse(null, { status: 404 });
   }
 
   const { client, scopes } = PROVIDERS[provider];
@@ -17,15 +21,16 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const codeVerifier = generateCodeVerifier();
   const url = client.createAuthorizationURL(state, codeVerifier, scopes);
 
-  const next = typeof req.query.next === "string" ? req.query.next : "/";
+  const next = request.nextUrl.searchParams.get("next") ?? "/";
 
-  res.setHeader("Set-Cookie", [
-    tempCookie("oauth_state", state),
+  const response = NextResponse.redirect(url);
+  response.headers.append("Set-Cookie", tempCookie("oauth_state", state));
+  response.headers.append(
+    "Set-Cookie",
     tempCookie("oauth_verifier", codeVerifier),
-    tempCookie("oauth_next", next),
-  ]);
-
-  res.redirect(url.toString());
+  );
+  response.headers.append("Set-Cookie", tempCookie("oauth_next", next));
+  return response;
 }
 
 function tempCookie(name: string, value: string): string {
