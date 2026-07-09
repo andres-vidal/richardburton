@@ -11,6 +11,13 @@ const meta = {
     message: "Something needs your attention",
     children: <button className="px-3 py-1 rounded border">Hover me</button>,
   },
+  decorators: [
+    (Story) => (
+      <div className="py-8">
+        <Story />
+      </div>
+    ),
+  ],
   parameters: { layout: "centered" },
 } satisfies Meta<typeof Tooltip>;
 
