@@ -1,10 +1,9 @@
-import c from "classnames";
 import { isFunction } from "lodash";
 import { FC, forwardRef, HTMLProps, ReactNode } from "react";
 
 const Spinner: FC<{ className: string }> = ({ className }) => (
   <svg
-    className={c("animate-spin", className)}
+    className={`animate-spin ${className}`}
     viewBox="0 0 24 24"
     fill="none"
     aria-hidden
@@ -51,15 +50,6 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
   },
   ref,
 ) {
-  const isPrimary = variant === "primary";
-  const isSecondary = variant === "secondary";
-  const isOutline = variant === "outline";
-  const isDanger = variant === "danger";
-  const isTextCentered = alignment === "center";
-  const isFixedWidth = width === "fixed";
-  const isFullWidth = width === "full";
-  const isFitWidth = width === "fit";
-
   if (loading) {
     Icon = Spinner;
   }
@@ -69,42 +59,44 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       disabled={loading}
       {...props}
       ref={ref}
-      className={c(
-        "flex py-1.5 px-2 transition-colors items-center rounded font-base shadow-sm text-xs group space-x-2 whitespace-nowrap",
-        {
-          "disabled:bg-gray-100 disabled:text-gray-300 disabled:hover:bg-gray-100":
-            !loading,
-          "text-white bg-indigo-600 hover:bg-indigo-700 loading:bg-indigo-700":
-            isPrimary,
-          "text-gray-900 bg-yellow-500 hover:bg-yellow-600 loading:bg-yellow-600":
-            isSecondary,
-          "text-gray-700 bg-gray-100 hover:bg-gray-active loading:bg-gray-active":
-            isOutline,
-          "text-white bg-red-600 hover:bg-red-700 loading:bg-red-700": isDanger,
-          "justify-center": isTextCentered,
-          "w-full": isFullWidth,
-          "w-36": isFixedWidth,
-          "w-fit": isFitWidth,
-        },
-      )}
+      data-variant={variant}
+      data-width={width}
+      data-alignment={alignment}
+      className={`
+        flex py-1.5 px-2 transition-colors items-center rounded font-base shadow-sm text-xs group space-x-2 whitespace-nowrap
+        data-[loading=false]:disabled:bg-gray-100 data-[loading=false]:disabled:text-gray-300 data-[loading=false]:disabled:hover:bg-gray-100
+        data-[variant=primary]:text-white data-[variant=primary]:bg-indigo-600 data-[variant=primary]:hover:bg-indigo-700 data-[variant=primary]:loading:bg-indigo-700
+        data-[variant=secondary]:text-gray-900 data-[variant=secondary]:bg-yellow-500 data-[variant=secondary]:hover:bg-yellow-600 data-[variant=secondary]:loading:bg-yellow-600
+        data-[variant=outline]:text-gray-700 data-[variant=outline]:bg-gray-100 data-[variant=outline]:hover:bg-gray-active data-[variant=outline]:loading:bg-gray-active
+        data-[variant=danger]:text-white data-[variant=danger]:bg-red-600 data-[variant=danger]:hover:bg-red-700 data-[variant=danger]:loading:bg-red-700
+        data-[alignment=center]:justify-center
+        data-[width=full]:w-full
+        data-[width=fixed]:w-36
+        data-[width=fit]:w-fit
+      `}
       aria-busy={loading}
-      data-loading={loading}
+      data-loading={Boolean(loading)}
       onClick={onClick}
       type={type}
     >
       {Icon && isFunction(Icon) ? (
         <Icon
-          className={c("w-4 h-4 group-disabled:text-gray-300", {
-            "text-indigo-700": isOutline,
-            "-ml-0.5": !labelSrOnly && !isTextCentered,
-            "-ml-4": !labelSrOnly && isTextCentered,
-          })}
+          className={`
+            w-4 h-4 group-disabled:text-gray-300
+            group-data-[variant=outline]:text-indigo-700
+            ${labelSrOnly ? "" : alignment === "center" ? "-ml-4" : "-ml-0.5"}
+          `}
         />
       ) : (
         Icon
       )}
 
-      <span className={c({ "sr-only": labelSrOnly })}>{label}</span>
+      <span
+        data-sr-only={Boolean(labelSrOnly)}
+        className="data-[sr-only=true]:sr-only"
+      >
+        {label}
+      </span>
     </button>
   );
 });

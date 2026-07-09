@@ -1,4 +1,3 @@
-import c from "classnames";
 import {
   ChangeEvent,
   forwardRef,
@@ -38,23 +37,25 @@ export default forwardRef<HTMLDivElement, Props>(function TextArea(
   return (
     <div
       ref={ref}
-      className={c(
-        "relative group",
-        "w-full gap-1 inline-flex items-center rounded scrollbar scrollbar-none",
-        fill ? "h-full" : "h-fit",
-        "error-within:shadow-sm focus-within:error-within:bg-red-400/80, error-within:bg-red-300/40",
-        "has-disabled:opacity-60 has-disabled:cursor-not-allowed",
-        label
-          ? "mt-2 px-2 py-2 bg-gray-active shadow-sm focus-within:bg-indigo-500/10"
-          : "text-xs p-1 overflow-x-scroll focus-within:bg-gray-active focus-within:shadow-sm",
-      )}
+      data-fill={Boolean(fill)}
+      data-labeled={Boolean(label)}
+      className={`
+        relative group
+        w-full gap-1 inline-flex items-center rounded scrollbar scrollbar-none
+        error-within:shadow-sm focus-within:error-within:bg-red-400/80, error-within:bg-red-300/40
+        has-disabled:opacity-60 has-disabled:cursor-not-allowed
+        data-[fill=true]:h-full
+        data-[fill=false]:h-fit
+        data-[labeled=true]:mt-2 data-[labeled=true]:px-2 data-[labeled=true]:py-2 data-[labeled=true]:bg-gray-active data-[labeled=true]:shadow-sm data-[labeled=true]:focus-within:bg-indigo-500/10
+        data-[labeled=false]:text-xs data-[labeled=false]:p-1 data-[labeled=false]:overflow-x-scroll data-[labeled=false]:focus-within:bg-gray-active data-[labeled=false]:focus-within:shadow-sm
+      `}
     >
       {left}
       <textarea
         {...props}
         ref={inputRef}
         value={value}
-        className="w-full px-1 bg-transparent outline-none min-h-40 peer shrink grow placeholder:text-xs error:focus:text-white error:placeholder-white disabled:cursor-not-allowed"
+        className="px-1 w-full bg-transparent outline-none min-h-40 peer shrink grow placeholder:text-xs error:focus:text-white error:placeholder-white disabled:cursor-not-allowed"
         onChange={handleChange}
         data-error={Boolean(error)}
         placeholder={label ? "" : props.placeholder}
@@ -65,13 +66,7 @@ export default forwardRef<HTMLDivElement, Props>(function TextArea(
       {label && (
         <label
           id={labelId}
-          className={c(
-            "absolute transition-all pointer-events-none",
-            "peer-placeholder-shown:text-gray-600 peer-placeholder-shown:text-sm text-xs peer-focus:text-xs text-indigo-600 peer-focus:text-indigo-600",
-            "peer-placeholder-shown:left-2 left-0 peer-focus:left-0 ",
-            "peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-4 -translate-y-full peer-focus:-translate-y-full top-0 peer-focus:top-0",
-            "peer-error:text-red-700 peer-error:-translate-y-full peer-error:top-0 peer-error:left-0 peer-error:text-xs",
-          )}
+          className="absolute top-0 left-0 text-xs text-indigo-600 transition-all -translate-y-full pointer-events-none peer-placeholder-shown:text-gray-600 peer-placeholder-shown:text-sm peer-focus:text-xs peer-focus:text-indigo-600 peer-placeholder-shown:left-2 peer-focus:left-0 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-4 peer-focus:-translate-y-full peer-focus:top-0 peer-error:text-red-700 peer-error:-translate-y-full peer-error:top-0 peer-error:left-0 peer-error:text-xs"
         >
           {label}{" "}
           {error && (

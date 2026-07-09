@@ -1,3 +1,5 @@
+import { Key } from "app";
+import ChevronDownIcon from "assets/chevron-down.svg";
 import {
   FocusEvent,
   forwardRef,
@@ -8,10 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import c from "classnames";
 import MenuProvider, { MenuOption } from "./MenuProvider";
-import ChevronDownIcon from "assets/chevron-down.svg";
-import { Key } from "app";
 import TextInput from "./TextInput";
 
 type Option = MenuOption;
@@ -125,14 +124,15 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
             type="button"
             aria-label={isOpen ? "Hide options" : "Show options"}
             tabIndex={-1}
-            className={c(
-              "flex items-center justify-center h-5 aspect-square transition-transform rounded-full",
-              "outline-none focus:bg-indigo-500 focus:text-white",
-              "error:text-white focus:error:bg-red-500",
-              { "rotate-180": isOpen },
-            )}
+            className={`
+              flex items-center justify-center h-5 aspect-square transition-transform rounded-full
+              outline-none focus:bg-indigo-500 focus:text-white
+              error:text-white focus:error:bg-red-500
+              data-[open=true]:rotate-180
+            `}
             onClick={handleToggleClick}
             data-error={Boolean(error)}
+            data-open={isOpen}
           >
             <ChevronDownIcon className="h-5" />
           </button>

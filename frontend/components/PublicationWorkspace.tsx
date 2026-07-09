@@ -114,7 +114,7 @@ const ExtendedRow: FC<RowProps> = (props) => {
 
   return (
     <Tooltip
-      error
+      variant="error"
       message={error}
       placement="top-start"
       boundary="main"

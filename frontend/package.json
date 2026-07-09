@@ -21,7 +21,6 @@
     "arctic": "^3.7.0",
     "axios": "^1.6.8",
     "axios-case-converter": "^1.1.1",
-    "classnames": "^2.5.1",
     "framer-motion": "^12.42.2",
     "i18n-iso-countries": "^7.10.1",
     "is-hotkey": "^0.2.0",

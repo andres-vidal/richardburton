@@ -1,5 +1,4 @@
 import VisibilityOffIcon from "assets/visibility-off.svg";
-import c from "classnames";
 import {
   Publication,
   PublicationId,
@@ -85,7 +84,7 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
     <Aria.ColumnHeader className="relative font-semibold text-left">
       <span className="block px-4 py-2 truncate">{label}</span>
       <span className="flex absolute inset-y-0 right-2 items-center pl-2 bg-gray-100">
-        <Tooltip info message={hideLabel}>
+        <Tooltip variant="info" message={hideLabel}>
           <Button
             label={hideLabel}
             labelSrOnly
@@ -178,12 +177,7 @@ const Column: FC<{
     <Aria.Cell />
   ) : (
     <Aria.Cell
-      className={c(
-        "px-2 py-1 text-sm truncate transition-colors",
-        "group-hover:bg-indigo-100",
-        "error:group-hover:bg-red-100 error:focused:bg-red-100",
-        "selected:bg-amber-100 selected:focused:error:bg-amber-100",
-      )}
+      className="px-2 py-1 text-sm truncate transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
       data-selected={selected}
       data-selectable={selectable}
       data-error={invalid}
@@ -216,7 +210,7 @@ const Row = forwardRef<HTMLDivElement, RowProps>(function Row(
     Content,
     SignalColumn,
     collapsible,
-    className,
+    className = "",
     onClick,
     ...props
   },
@@ -236,11 +230,12 @@ const Row = forwardRef<HTMLDivElement, RowProps>(function Row(
   return (
     <Aria.Row
       ref={compositeRef}
-      className={c(
-        className,
-        "grid col-span-full grid-cols-subgrid min-h-9 group",
-        { "cursor-pointer": clickable },
-      )}
+      data-clickable={clickable}
+      className={`
+        ${className} 
+        grid col-span-full grid-cols-subgrid min-h-9 group
+        data-[clickable=true]:cursor-pointer
+      `}
       onClick={onClick}
       {...props}
     >
@@ -285,12 +280,7 @@ const SignalColumn: FC<{
 }) => {
   return (
     <Aria.Cell
-      className={c(
-        "flex sticky left-0 z-10 justify-center items-center px-2 bg-gray-100",
-        "group-hover:bg-indigo-100",
-        "error:group-hover:bg-red-100 error:focused:bg-red-100",
-        "selected:bg-amber-100 selected:focused:error:bg-amber-100",
-      )}
+      className="flex sticky left-0 z-10 justify-center items-center px-2 bg-gray-100 group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
       data-selected={selected}
       data-selectable={selectable}
       data-error={invalid}
@@ -347,15 +337,16 @@ const PublicationIndexTable: FC<Props> = ({
     <Aria.Table
       aria-label="Publications"
       data-phase={phase}
+      data-selectable={selectable}
       style={vars}
       onTransitionEnd={onSettle}
-      className={c(
-        "grid relative w-full h-fit",
-        "duration-300 ease-in-out transition-[grid-template-columns]",
-        "collapsing:grid-cols-(--rb-cols-collapsing)",
-        "settled:grid-cols-(--rb-cols-settled)",
-        { "select-none": !selectable },
-      )}
+      className={`
+        grid relative w-full h-fit
+        duration-300 ease-in-out transition-[grid-template-columns]
+        collapsing:grid-cols-(--rb-cols-collapsing)
+        settled:grid-cols-(--rb-cols-settled)
+        data-[selectable=false]:select-none
+      `}
     >
       <Aria.Row className="grid sticky top-0 z-20 col-span-full bg-gray-100 grid-cols-subgrid">
         {ExtendedSignalColumn && (

@@ -21,7 +21,7 @@ const PublicationErrorCounter: FC = () => {
   // All valid — a green check reassures instead of showing a red "0".
   if (invalidPublicationCount === 0) {
     return (
-      <Tooltip info message="All publications are valid">
+      <Tooltip variant="info" message="All publications are valid">
         <span
           role="status"
           aria-label="All publications are valid"
@@ -35,7 +35,7 @@ const PublicationErrorCounter: FC = () => {
 
   return (
     <Tooltip
-      error
+      variant="error"
       message={`${invalidPublicationCount} ${
         invalidPublicationCount === 1 ? "publication" : "publications"
       } with errors`}

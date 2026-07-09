@@ -86,7 +86,7 @@ const DataInput = forwardRef<HTMLElement, Props>(
     }, [data, rowId, colId, value, setValue]);
 
     return (
-      <Tooltip error message={props.error}>
+      <Tooltip variant="error" message={props.error}>
         <Component
           {...props}
           {...Publication.define(colId)}

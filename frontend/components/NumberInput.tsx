@@ -1,10 +1,9 @@
 import { Key } from "app";
+import ChevronDownIcon from "assets/chevron-down.svg";
+import ChevronUpIcon from "assets/chevron-up.svg";
 import { clamp, isString, parseInt, toString } from "lodash";
 import { FC, forwardRef, HTMLProps, KeyboardEvent, ReactNode } from "react";
 import TextInput from "./TextInput";
-import ChevronUpIcon from "assets/chevron-up.svg";
-import ChevronDownIcon from "assets/chevron-down.svg";
-import c from "classnames";
 
 type Props = Omit<HTMLProps<HTMLInputElement>, "value" | "onChange"> & {
   value?: number;
@@ -22,12 +21,7 @@ const IncrementButton: FC<{
     <button
       type="button"
       aria-label={label}
-      className={c(
-        "flex items-center justify-center h-2 rounded-full",
-        "hover:bg-indigo-500 hover:text-white",
-        "focus:bg-indigo-500 focus:text-white outline-none",
-        "error:text-white focus:error:bg-red-500",
-      )}
+      className="flex justify-center items-center h-2 rounded-full outline-none hover:bg-indigo-500 hover:text-white focus:bg-indigo-500 focus:text-white error:text-white focus:error:bg-red-500"
       onClick={onClick}
       data-error={Boolean(error)}
     >

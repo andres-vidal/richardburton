@@ -12,7 +12,7 @@ const PublicationCounter: FC = () => {
   }`;
 
   return publicationCount !== 0 ? (
-    <Tooltip info message={message}>
+    <Tooltip variant="info" message={message}>
       <Button
         variant="outline"
         width="fit"

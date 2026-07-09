@@ -6,7 +6,6 @@ import {
 import { Key } from "app";
 import CloseIcon from "assets/close.svg";
 import Logo from "assets/logo.svg";
-import clsx from "classnames";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/router";
 import {
@@ -58,11 +57,11 @@ function useURLQueryModal(param: string): URLModalInterface {
 }
 
 const Header: FC<{ onClose: Props["onClose"] }> = ({ onClose }) => (
-  <header className="sticky top-0 z-50 flex items-center justify-between text-white bg-indigo-700 sm:hidden">
+  <header className="flex sticky top-0 z-50 justify-between items-center text-white bg-indigo-700 sm:hidden">
     <Logo className="p-2 h-11" />
     <span className="font-normal">Richard & Isabel Burton Platform</span>
     <button
-      className="z-50 flex items-center justify-center h-11 aspect-square"
+      className="flex z-50 justify-center items-center h-11 aspect-square"
       onClick={onClose}
     >
       <CloseIcon className="h-8" />
@@ -109,13 +108,13 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
                 role="dialog"
                 aria-modal="true"
                 aria-label={label}
-                className={clsx(
-                  "mb-5 sm:rounded-lg bg-white text-gray-900 shadow-lg scrollbar-thin scrollbar-thumb-indigo-600",
-                  "overflow-y-auto overflow-x-clip",
-                  "absolute left-1/2 absolute-center-x",
-                  "w-full sm:w-11/12 lg:w-2/3 xl:w-1/2",
-                  "h-full sm:h-auto sm:max-h-[85%] lg:max-h-[80%] min-h-0",
-                )}
+                className={`
+                  mb-5 sm:rounded-lg bg-white text-gray-900 shadow-lg scrollbar-thin scrollbar-thumb-indigo-600
+                  overflow-y-auto overflow-x-clip
+                  absolute left-1/2 absolute-center-x
+                  w-full sm:w-11/12 lg:w-2/3 xl:w-1/2
+                  h-full sm:h-auto sm:max-h-[85%] lg:max-h-[80%] min-h-0
+                `}
                 initial={{ scale: 0.9, transform: "translateX(-50%)" }}
                 animate={{
                   scale: 1,

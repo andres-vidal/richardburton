@@ -1,5 +1,4 @@
 import { FloatingPortal } from "@floating-ui/react";
-import classNames from "classnames";
 import { AnimatePresence, motion } from "framer-motion";
 import { atom, useAtom } from "jotai";
 import { store } from "modules/store";
@@ -84,7 +83,7 @@ const Notifications: FC = () => {
     <FloatingPortal>
       <section
         aria-label="Notifications"
-        className="fixed z-60 flex flex-col items-center space-y-2 -translate-x-1/2 left-1/2 top-10"
+        className="flex fixed top-10 left-1/2 flex-col items-center space-y-2 -translate-x-1/2 z-60"
       >
         <AnimatePresence>
           {snackbars.map(
@@ -95,7 +94,7 @@ const Notifications: FC = () => {
                   layout
                   key={key}
                   role="status"
-                  className="flex py-2 pl-1 pr-3 space-x-3 bg-white rounded shadow-md w-96"
+                  className="flex py-2 pr-3 pl-1 space-x-3 w-96 bg-white rounded shadow-md"
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
@@ -103,10 +102,11 @@ const Notifications: FC = () => {
                 >
                   <div
                     aria-hidden="true"
-                    className={classNames(
-                      "flex items-center justify-center w-7 h-6",
-                      { "text-indigo-700 text-xl": level === "info" },
-                    )}
+                    data-level={level}
+                    className={`
+                      flex items-center justify-center w-7 h-6
+                      data-[level=info]:text-indigo-700 data-[level=info]:text-xl
+                    `}
                   >
                     {NOTIFICATION_ICONS[level]}
                   </div>

@@ -1,4 +1,3 @@
-import c from "classnames";
 import { DetailedHTMLProps, forwardRef, LiHTMLAttributes } from "react";
 
 type Props = Omit<
@@ -20,10 +19,10 @@ export default forwardRef<HTMLLIElement, Props>(function MenuItem(
       {...props}
       role="option"
       aria-selected={selected}
-      className={c(
-        "px-2.5 py-1 text-left rounded cursor-pointer hover:bg-indigo-100",
-        { "bg-indigo-100": selected },
-      )}
+      className={`
+        px-2.5 py-1 text-left rounded cursor-pointer hover:bg-indigo-100
+        aria-selected:bg-indigo-100
+      `}
       ref={ref}
     >
       {children}

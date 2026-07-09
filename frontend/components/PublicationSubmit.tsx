@@ -36,7 +36,7 @@ const PublicationSubmit: FC = () => {
 
   return (
     <Tooltip
-      info
+      variant="info"
       message="Save the publications to the repository"
       placement="top"
     >

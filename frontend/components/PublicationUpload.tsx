@@ -32,7 +32,7 @@ const PublicationUpload: FC = () => {
 
   return (
     <>
-      <Tooltip warning message={message} placement="top">
+      <Tooltip variant="warning" message={message} placement="top">
         <Button
           label="Upload.csv"
           variant="outline"

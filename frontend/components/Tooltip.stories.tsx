@@ -36,7 +36,7 @@ export const Default: Story = {
 
 /** The `error` variant — red background with an error icon. */
 export const Error: Story = {
-  args: { error: true, message: "This field is required" },
+  args: { variant: "error", message: "This field is required" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.hover(canvas.getByRole("button", { name: "Hover me" }));
@@ -48,7 +48,7 @@ export const Error: Story = {
 
 /** The `warning` variant — white background with a warning icon. */
 export const Warning: Story = {
-  args: { warning: true, message: "Double-check this value" },
+  args: { variant: "warning", message: "Double-check this value" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.hover(canvas.getByRole("button", { name: "Hover me" }));
@@ -60,7 +60,7 @@ export const Warning: Story = {
 
 /** The `info` variant — white background with an info icon. */
 export const Info: Story = {
-  args: { info: true, message: "Extra context lives here" },
+  args: { variant: "info", message: "Extra context lives here" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.hover(canvas.getByRole("button", { name: "Hover me" }));
