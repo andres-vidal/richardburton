@@ -11,8 +11,14 @@ interface HttpModule {
 const HTTP: HttpModule = {
   client(options) {
     // withCredentials so the browser sends/receives the backend's rb-session cookie.
+    // ignoreHeaders: convert JSON bodies (camelCase ↔ snake_case) but leave header
+    // names alone. Otherwise the converter renames the response `set-cookie` header
+    // to `setCookie`, so the OAuth callback's `headers["set-cookie"]` reads undefined
+    // and Phoenix's rb-session is never relayed to the browser (sign-in appears to
+    // do nothing — you land back signed-out).
     const instance = axiosCaseConverter(
       axios.create({ withCredentials: true, ...options }),
+      { ignoreHeaders: true },
     );
 
     // A backend 401 means the rb-session is gone (expired/revoked) — send the

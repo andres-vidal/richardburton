@@ -1,3 +1,5 @@
+"use client";
+
 import { Key } from "app";
 import ChevronDownIcon from "assets/chevron-down.svg";
 import {

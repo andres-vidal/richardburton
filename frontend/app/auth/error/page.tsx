@@ -1,7 +1,10 @@
-import GoogleIcon from "assets/google.svg";
-import Button from "components/Button";
 import Layout from "components/Layout";
-import { GetServerSideProps, NextPage } from "next";
+import SignInButton from "components/SignInButton";
+import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+
+export const metadata: Metadata = { title: "Error" };
 
 type ErrorCode = "AccessDenied" | "Verification" | "Default" | "Configuration";
 type ErrorDescription = { title: string; message: string; suggestion?: string };
@@ -33,29 +36,26 @@ const ERROR_DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
   },
 };
 
-export const getServerSideProps: GetServerSideProps<{
-  code: string | null;
-}> = async ({ req, query }) => {
+export default async function AuthErrorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   // An authenticated user has no reason to be on the error page — redirect home
   // server-side (no flash, no client effect). Check the rb-session cookie's
   // presence rather than importing the server auth instance, which would run its
   // boot-time invariants during `next build`, where the secrets aren't set.
-  if (req.cookies["rb-session"]) {
-    return { redirect: { destination: "/", permanent: false } };
+  if ((await cookies()).get("rb-session")) {
+    redirect("/");
   }
 
-  const code = typeof query.error === "string" ? query.error : null;
-  return { props: { code } };
-};
-
-const SignIn: NextPage<{ code: string | null }> = ({ code }) => {
-  const description = code
-    ? ERROR_DESCRIPTIONS[code as ErrorCode] ?? ERROR_DESCRIPTIONS.Default
+  const { error } = await searchParams;
+  const description = error
+    ? ERROR_DESCRIPTIONS[error as ErrorCode] ?? ERROR_DESCRIPTIONS.Default
     : null;
 
   return (
     <Layout
-      title="Error"
       content={
         description ? (
           <div className="flex justify-center items-center py-32 w-full">
@@ -67,18 +67,11 @@ const SignIn: NextPage<{ code: string | null }> = ({ code }) => {
                   <p className="text-sm">{description.suggestion}</p>
                 )}
               </div>
-              <Button
-                label="Try again"
-                variant="outline"
-                onClick={() => window.location.assign("/api/auth/google")}
-                Icon={GoogleIcon}
-              />
+              <SignInButton label="Try again" />
             </section>
           </div>
         ) : null
       }
     />
   );
-};
-
-export default SignIn;
+}

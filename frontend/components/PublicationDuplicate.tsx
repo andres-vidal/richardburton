@@ -1,3 +1,5 @@
+"use client";
+
 import CopyIcon from "assets/copy.svg";
 import { duplicate, validate } from "modules/publication";
 import { FC } from "react";

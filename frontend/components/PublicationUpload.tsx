@@ -1,3 +1,5 @@
+"use client";
+
 import UploadIcon from "assets/upload.svg";
 import { upload, useTotalPublicationCount } from "modules/publication";
 import { ChangeEvent, FC, useRef, useState } from "react";

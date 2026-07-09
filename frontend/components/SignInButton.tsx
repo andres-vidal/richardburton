@@ -1,19 +1,25 @@
+"use client";
+
 import GoogleIcon from "assets/google.svg";
 import { FC } from "react";
 import Button from "./Button";
 
 type Props = {
   next?: string;
+  label?: string;
 };
 
-const SignInButton: FC<Props> = ({ next = "/" }) => {
+const SignInButton: FC<Props> = ({
+  next = "/",
+  label = "Sign in with Google",
+}) => {
   const handleClick = () => {
     window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`);
   };
 
   return (
     <Button
-      label="Sign in with Google"
+      label={label}
       variant="outline"
       alignment="left"
       onClick={handleClick}

@@ -26,7 +26,7 @@ type Story = StoryObj<typeof meta>;
  * form POSTs to `/contact`).
  */
 export const Default: Story = {
-  parameters: { nextjs: { router: { query: { contact: "true" } } } },
+  parameters: { nextjs: { navigation: { query: { contact: "true" } } } },
   play: async () => {
     await waitFor(() =>
       expect(screen.getByText("Contact Us")).toBeInTheDocument(),

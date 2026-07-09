@@ -1,3 +1,5 @@
+"use client";
+
 import { usePublication, useVisiblePublicationIds } from "modules/publication";
 import { FC, MouseEvent } from "react";
 import { EmptySearchResults } from "./EmptySearchResults";

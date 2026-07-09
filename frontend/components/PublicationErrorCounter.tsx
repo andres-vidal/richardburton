@@ -1,3 +1,5 @@
+"use client";
+
 import CheckIcon from "assets/check.svg";
 import ErrorCircleIcon from "assets/error-circle.svg";
 import { toString } from "lodash";

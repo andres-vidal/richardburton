@@ -1,3 +1,5 @@
+"use client";
+
 import { DetailedHTMLProps, forwardRef, OlHTMLAttributes } from "react";
 
 type Props = Omit<

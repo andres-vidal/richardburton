@@ -1,8 +1,10 @@
+"use client";
+
 import { FloatingPortal } from "@floating-ui/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { atom, useAtom } from "jotai";
 import { store } from "modules/store";
-import { useRouter } from "next/router";
+import { usePathname } from "next/navigation";
 import { FC, useEffect } from "react";
 import { v4 as uuid } from "uuid";
 
@@ -44,7 +46,7 @@ function useNotify(): Notifier {
 
 const Notifications: FC = () => {
   const [notifications, setNotifications] = useAtom(notificationsAtom);
-  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (notifications.length > 0) {
@@ -57,10 +59,7 @@ const Notifications: FC = () => {
   }, [notifications, setNotifications]);
 
   // Clear notifications when navigating to another route.
-  useEffect(
-    () => () => setNotifications([]),
-    [router.pathname, setNotifications],
-  );
+  useEffect(() => () => setNotifications([]), [pathname, setNotifications]);
 
   const shownNotificationsCount =
     notifications.length === MAX_SNACKBARS

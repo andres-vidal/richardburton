@@ -1,3 +1,5 @@
+"use client";
+
 import ExitIcon from "assets/exit.svg";
 import HTTP from "modules/http";
 import { FC } from "react";

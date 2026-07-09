@@ -1,3 +1,5 @@
+"use client";
+
 import { Publication } from "modules/publication";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useMemo } from "react";

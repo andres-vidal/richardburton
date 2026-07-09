@@ -1,3 +1,5 @@
+"use client";
+
 import RestorePageIcon from "assets/restore-page.svg";
 import {
   resetOverridden,

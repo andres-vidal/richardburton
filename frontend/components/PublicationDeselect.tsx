@@ -1,3 +1,5 @@
+"use client";
+
 import DeselectIcon from "assets/deselect.svg";
 import { FC } from "react";
 import { useClearSelection, useSelectionSize } from "react-selection-manager";

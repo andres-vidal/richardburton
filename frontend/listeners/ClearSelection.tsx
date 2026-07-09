@@ -1,3 +1,5 @@
+"use client";
+
 import { isElement } from "lodash";
 import { FC, useEffect } from "react";
 import { useClearSelection } from "react-selection-manager";

@@ -1,3 +1,5 @@
+"use client";
+
 import TrashIcon from "assets/trash.svg";
 import { setDeleted } from "modules/publication";
 import { FC } from "react";

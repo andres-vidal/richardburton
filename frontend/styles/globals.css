@@ -2,7 +2,7 @@
 
 /* Template files to scan for classes (was `content` in tailwind.config.js). */
 @source "../components";
-@source "../pages";
+@source "../app";
 
 /* Theme extensions (was `theme.extend`). */
 @theme {

@@ -1,3 +1,5 @@
+"use client";
+
 import { GOOGLE_RECAPTCHA_SITEKEY, http } from "app";
 import { isAxiosError } from "axios";
 import { FC, useRef, useState } from "react";

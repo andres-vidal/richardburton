@@ -1,3 +1,5 @@
+"use client";
+
 import { parseInt, toString } from "lodash";
 import { FC, forwardRef } from "react";
 import { DataInputProps } from "./DataInput";

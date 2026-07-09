@@ -1,3 +1,5 @@
+"use client";
+
 import VisibilityOffIcon from "assets/visibility-off.svg";
 import {
   Publication,

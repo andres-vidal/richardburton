@@ -1,3 +1,5 @@
+"use client";
+
 import { ForwardedRef, KeyboardEvent, useRef, useState } from "react";
 import Pill from "./Pill";
 

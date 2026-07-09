@@ -1,3 +1,5 @@
+"use client";
+
 import { Publication } from "modules/publication";
 import { FC, forwardRef, useCallback, useMemo } from "react";
 import { DataInputProps } from "./DataInput";
