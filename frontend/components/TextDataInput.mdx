@@ -1,0 +1,20 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as TextDataInputStories from "./TextDataInput.stories";
+
+<Meta of={TextDataInputStories} />
+
+# Text data input
+
+The plain-text cell editor, used for free-text columns such as `title` and
+`originalTitle`. It is a thin pass-through to `TextInput`, the concrete editor
+that [Data input](?path=/docs/publications-data-input--docs) dispatches to for
+`text` columns.
+
+## Data flow
+
+It takes `value`, `error`, and `onChange` directly, so it needs no store: the
+value renders as-is and typing emits the raw string straight through
+`onChange`. An `error` marks the input invalid via `aria-invalid`.
+
+<Canvas of={TextDataInputStories.Default} />

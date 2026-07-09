@@ -1,9 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { resetAll, resetAttributes } from "modules/publication";
-import { seed } from "modules/publication/fixtures";
+import { sampleManyPublications, seed } from "modules/publication/fixtures";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
-import PublicationHiddenAttributes from "./PublicationHiddenAttributes";
 import { PublicationIndexTable } from "./PublicationIndexTable";
 
 const meta = {
@@ -11,17 +10,8 @@ const meta = {
   component: PublicationIndexTable,
   decorators: [
     (Story) => (
-      <div className="flex items-stretch gap-2 p-4">
-        {/* Toggleable columns hide into this left panel — click a chip to show
-            the column again (the app renders it as the layout's leftAside). The
-            wrapper stretches to the table's height so the chips' `h-full`
-            resolves (there's no fixed-height container here as in the app). */}
-        <div>
-          <PublicationHiddenAttributes />
-        </div>
-        <div className="min-w-0 grow overflow-x-auto">
-          <Story />
-        </div>
+      <div className="p-4 overflow-x-auto">
+        <Story />
       </div>
     ),
   ],
@@ -57,9 +47,31 @@ export const Loading: Story = {
 };
 
 /**
- * Hiding a toggleable column (its header's hide button) moves it into the left
- * panel; clicking the panel's chip brings it back. The round-trip a user needs
- * — so it can't silently regress.
+ * A large dataset in a fixed-height viewport — showcases vertical overflow (the
+ * sticky header stays put while the body scrolls) and the row virtualization:
+ * off-screen rows keep their ARIA structure and height but don't render or
+ * subscribe their cells until they scroll into view.
+ */
+export const ManyRows: Story = {
+  beforeEach: () => seed(sampleManyPublications(100)),
+  decorators: [
+    (Story) => (
+      <div className="h-[420px] overflow-auto rounded border border-gray-200">
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Header + all 100 rows are present (off-screen ones keep their structure).
+    await expect(canvas.getAllByRole("row")).toHaveLength(101);
+  },
+};
+
+/**
+ * Hiding a toggleable column (its header's hide button) collapses it in place to
+ * a narrow labelled strip; clicking that strip brings the column back. The
+ * round-trip a user needs — so it can't silently regress.
  */
 export const HideAndRestoreColumn: Story = {
   beforeEach: () => seed(),
@@ -70,14 +82,14 @@ export const HideAndRestoreColumn: Story = {
     const hideYear = await canvas.findByRole("button", { name: "Hide Year" });
     expect(canvas.queryByRole("button", { name: "Show Year" })).toBeNull();
 
-    // Hiding drops a "Show Year" chip into the panel and removes the column.
+    // Hiding collapses the column to a "Show Year" restore strip in its header.
     await userEvent.click(hideYear);
     await canvas.findByRole("button", { name: "Show Year" });
     await waitFor(() =>
       expect(canvas.queryByRole("button", { name: "Hide Year" })).toBeNull(),
     );
 
-    // Clicking the chip restores the column and clears the chip.
+    // Clicking the strip restores the column and removes the strip.
     await userEvent.click(canvas.getByRole("button", { name: "Show Year" }));
     await canvas.findByRole("button", { name: "Hide Year" });
     await waitFor(() =>

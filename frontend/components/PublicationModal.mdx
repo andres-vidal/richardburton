@@ -1,0 +1,29 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationModalStories from "./PublicationModal.stories";
+
+<Meta of={PublicationModalStories} />
+
+# Publication modal
+
+A read-only detail view for a single publication, shown in a dialog. It's
+**URL-driven**: open state and which publication to show both come from the
+`?publication=<id>` query (via `useURLQueryModal`), and the record itself is read
+from the publication store (`usePublication`). No props — dropping `<PublicationModal />`
+into a page is enough; links elsewhere open it by setting the query.
+
+## What it renders
+
+The publication is laid out as a searchable [`Article`](?path=/docs/components-article--docs):
+the title and translators as the heading, and a prose description whose fields
+(original title, authors, countries, publishers) are `Searchable` links that
+navigate to a filtered index. Closing it clears the query param.
+
+<Canvas of={PublicationModalStories.Default} />
+
+## States
+
+- **Open** — with `?publication=<id>` present and that id in the store, the dialog
+  shows the publication (above).
+- **Closed** — without the query param the modal renders nothing (see the
+  [Closed](?path=/story/publications-publication-modal--closed) story).

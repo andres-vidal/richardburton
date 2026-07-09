@@ -1,9 +1,9 @@
 import {
-  FloatingPortal,
-  Placement,
   autoUpdate,
   flip,
+  FloatingPortal,
   offset,
+  Placement,
   shift,
   useDismiss,
   useFloating,
@@ -12,7 +12,6 @@ import {
   useInteractions,
   useRole,
 } from "@floating-ui/react";
-import classNames from "classnames";
 import {
   cloneElement,
   FC,
@@ -123,10 +122,12 @@ const TooltipProvider: FC<Props> = ({
         {state.open && (
           <div
             ref={state.refs.setFloating}
+            data-center={Boolean(absoluteCenter)}
             {...state.getFloatingProps({
-              className: classNames("z-50", {
-                "left-1/2 -translate-x-1/2": absoluteCenter,
-              }),
+              className: `
+                z-50
+                data-[center=true]:left-1/2 data-[center=true]:-translate-x-1/2
+              `,
               style: {
                 position: state.strategy,
                 top: state.y ?? 0,

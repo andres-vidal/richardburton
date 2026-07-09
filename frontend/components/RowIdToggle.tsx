@@ -12,7 +12,10 @@ const RowIdToggle: FC = () => {
   const [active, set] = useAreRowIdsVisible();
 
   return publicationCount !== 0 ? (
-    <Tooltip info message={active ? "Hide row numbers" : "Show row numbers"}>
+    <Tooltip
+      variant="info"
+      message={active ? "Hide row numbers" : "Show row numbers"}
+    >
       <Toggle
         label="Row Ids"
         checked={active}

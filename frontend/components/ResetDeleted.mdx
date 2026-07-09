@@ -1,0 +1,38 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ResetDeletedStories from "./ResetDeleted.stories";
+
+<Meta of={ResetDeletedStories} />
+
+# Reset deleted
+
+An undo affordance for row deletions in the workspace. When one or more rows
+have been marked deleted, this button appears and restores them all at once,
+labelled with the count — e.g. "Reset 3 deleted".
+
+## Data source
+
+The button is **state-driven**: it takes no props. It reads the deleted count
+from the store (`useDeletedPublicationCount`) and **renders nothing when the
+count is zero** — it only shows once at least one row is deleted. Clicking calls
+`resetDeleted()` to restore the rows and clears the current selection. In
+stories the store is seeded through the shared fixtures, and a story-only "Delete
+a row" control marks the first visible row deleted so the button can be
+exercised on its own:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications, then delete a row to reveal the button
+```
+
+<Canvas of={ResetDeletedStories.Default} />
+
+## States
+
+- **Hidden** — the default with nothing deleted: the component returns `null`
+  and there is no button.
+- **Visible** — after a row is deleted, the button appears showing the deleted
+  count; clicking it restores the rows and hides the button again. The Default
+  story walks this full round-trip: delete a row, reset, and the button
+  disappears.

@@ -107,7 +107,7 @@ const ContactModal: FC = () => {
   const { isOpen, close } = useURLQueryModal(CONTACT_MODAL_KEY);
 
   return (
-    <Modal isOpen={isOpen} onClose={close}>
+    <Modal isOpen={isOpen} onClose={close} label="Contact us">
       <Article heading={<div>Contact Us</div>} content={<ContactForm />} />
     </Modal>
   );

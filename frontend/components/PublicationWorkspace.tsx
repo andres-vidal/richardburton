@@ -104,7 +104,7 @@ const ExtendedRow: FC<RowProps> = (props) => {
   const error = usePublicationErrorDescription(rowId);
   const focused = useIsPublicationFocused(rowId);
 
-  const ref = useRef<HTMLTableRowElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (focused && ref.current) {
@@ -114,7 +114,7 @@ const ExtendedRow: FC<RowProps> = (props) => {
 
   return (
     <Tooltip
-      error
+      variant="error"
       message={error}
       placement="top-start"
       boundary="main"
@@ -167,6 +167,8 @@ const NewPublicationSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
   return (
     <SignalColumn rowId={rowId}>
       <button
+        type="button"
+        aria-label="Add publication"
         className="flex text-indigo-600 rounded-full w-fit h-fit hover:text-indigo-700"
         onClick={submit}
       >
@@ -183,11 +185,12 @@ const NewPublicationRow: FC = () => {
       Column={Column}
       Content={SubmittableData}
       SignalColumn={NewPublicationSignalColumn}
+      collapsible={false}
     />
   );
 };
 
-const PublicationReview: FC = () => {
+const PublicationWorkspace: FC = () => {
   const ids = useVisiblePublicationIds();
   const onSelect = useSelectionEvent();
   const isSelectionEmpty = useIsSelectionEmpty();
@@ -211,8 +214,9 @@ const PublicationReview: FC = () => {
       ExtraRow={NewPublicationRow}
       onRowClick={toggleSelection}
       selectable={isSelectionEmpty}
+      collapsible={false}
     />
   );
 };
 
-export default PublicationReview;
+export default PublicationWorkspace;

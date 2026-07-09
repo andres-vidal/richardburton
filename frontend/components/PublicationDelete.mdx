@@ -1,0 +1,35 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DeleteStories from "./PublicationDelete.stories";
+
+<Meta of={DeleteStories} />
+
+# Publication delete
+
+A danger button in the review toolbar that removes the currently selected rows.
+Its label tracks the selection size ("Delete 2"), and on click it marks those ids
+as deleted in the store (`setDeleted`) and clears the selection.
+
+## Data source
+
+The button bridges two pieces of state. The selection comes from
+`react-selection-manager` (`useSelectionSize` for the label, `getSelection` for
+the ids on click), while the delete itself is a **state-driven** write to the
+publication store via `setDeleted` — deleted rows drop out of the visible set
+everywhere. In stories the publication store is seeded through the shared
+fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications before the story renders
+```
+
+<Canvas of={DeleteStories.Default} />
+
+## States
+
+- **Nothing selected** — the sample above: the button still renders and reads
+  "Delete 0". Clicking it is a safe no-op (it bails out when no ids are selected).
+- **Rows selected** — the label counts up ("Delete 2"); clicking marks those ids
+  deleted and clears the selection.

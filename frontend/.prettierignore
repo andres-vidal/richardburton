@@ -1,0 +1,10 @@
+# Build & generated output (mirrors the repo .gitignore) — not ours to format.
+node_modules
+coverage
+.next/
+out/
+build
+storybook-static/
+debug-storybook.log
+*.tsbuildinfo
+next-env.d.ts

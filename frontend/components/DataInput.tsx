@@ -31,13 +31,14 @@ const COMPONENTS_PER_TYPE: Record<PublicationKeyType, FC<Props>> = {
 };
 
 type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
-  ref: Ref<HTMLElement>;
+  ref?: Ref<HTMLElement>;
   rowId: PublicationId;
   colId: PublicationKey;
   value: string;
   error: string;
   onChange?: (value: string) => void;
   autoValidated?: boolean;
+  fill?: boolean;
 };
 
 const DataInput = forwardRef<HTMLElement, Props>(
@@ -85,7 +86,7 @@ const DataInput = forwardRef<HTMLElement, Props>(
     }, [data, rowId, colId, value, setValue]);
 
     return (
-      <Tooltip error message={props.error}>
+      <Tooltip variant="error" message={props.error}>
         <Component
           {...props}
           {...Publication.define(colId)}
@@ -95,6 +96,7 @@ const DataInput = forwardRef<HTMLElement, Props>(
           onChange={handleChange}
           placeholder={placeholder}
           error={error}
+          fill
         />
       </Tooltip>
     );

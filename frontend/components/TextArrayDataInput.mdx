@@ -1,0 +1,23 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as TextArrayDataInputStories from "./TextArrayDataInput.stories";
+
+<Meta of={TextArrayDataInputStories} />
+
+# Text array data input
+
+The multi-value cell editor for free-text lists such as `authors`,
+`originalAuthors`, and `publishers`. It is the concrete editor that
+[Data input](?path=/docs/publications-data-input--docs) dispatches to for
+`array` columns, built on a `Multicombobox`.
+
+## Data flow
+
+The stored `value` is a comma-separated string. The component splits it into
+items rendered as removable pills, and joins the selection back with commas
+before re-emitting it through `onChange`. Typing queries `Publication.autocomplete`
+(debounced) to suggest matching entries. Because that autocomplete hits the
+network on keystroke, the stories stay render-only and never type into the
+field.
+
+<Canvas of={TextArrayDataInputStories.Default} />

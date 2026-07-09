@@ -1,6 +1,48 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+
+/* Template files to scan for classes (was `content` in tailwind.config.js). */
+@source "../components";
+@source "../pages";
+
+/* Theme extensions (was `theme.extend`). */
+@theme {
+  --color-gray-active: #f8fafb;
+  --font-montserrat: "Montserrat", sans-serif;
+}
+
+/* Data-attribute state variants (was the `addVariant` plugin). */
+@custom-variant selected (&[data-selected="true"]);
+@custom-variant focused (&[data-focused="true"]);
+/* The two stages of the column-collapse animation (PublicationIndexTable). */
+@custom-variant collapsing (&[data-phase="collapsing"]);
+@custom-variant settled (&[data-phase="settled"]);
+@custom-variant error (&[data-error="true"]);
+@custom-variant error-within (&:has([data-error="true"]));
+@custom-variant peer-error (:merge(.peer):is([data-error="true"]) ~ &);
+@custom-variant loading (&[data-loading="true"]);
+
+/* Scrollbar utilities (was the `tailwind-scrollbar` plugin). */
+@plugin "tailwind-scrollbar" {
+  preferredstrategy: pseudoelements;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 @font-face {
   font-family: "Montserrat";
@@ -19,14 +61,14 @@ body {
   @apply font-normal text-indigo-600 underline visited:text-indigo-700;
 }
 
-.absolute-center-x {
-  @apply transform -translate-x-1/2 left-1/2;
+@utility absolute-center-x {
+  @apply left-1/2 -translate-x-1/2;
 }
 
-.absolute-center-y {
-  @apply transform -translate-y-1/2 top-1/2;
+@utility absolute-center-y {
+  @apply top-1/2 -translate-y-1/2;
 }
 
-.absolute-center {
-  @apply absolute-center-x absolute-center-y;
+@utility absolute-center {
+  @apply left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2;
 }

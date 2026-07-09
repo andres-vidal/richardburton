@@ -1,0 +1,22 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as TextEnumDataInputStories from "./TextEnumDataInput.stories";
+
+<Meta of={TextEnumDataInputStories} />
+
+# Text enum data input
+
+The single-value enum cell editor, backed by a `Select` with autocomplete. It is
+the concrete editor that
+[Data input](?path=/docs/publications-data-input--docs) dispatches to for `enum`
+columns.
+
+## Data flow
+
+The stored `value` is a single code. The component resolves it to a selectable
+option — labelled by `Publication.describeValue` — so the input shows the
+human-readable name rather than the raw code, and re-emits the chosen option's
+`id` through `onChange`. Typing queries `Publication.autocomplete` (debounced)
+for matching options, and an `error` marks the input invalid.
+
+<Canvas of={TextEnumDataInputStories.Default} />

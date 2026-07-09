@@ -50,12 +50,12 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
   publication,
 }) => (
   <div className="flex flex-col w-full text-2xl font-normal sm:gap-2 sm:items-center sm:flex-row">
-    <Tooltip info message="Translation's title">
+    <Tooltip variant="info" message="Translation's title">
       <span className="w-full truncate sm:w-min whitespace-nowrap">
         {publication.title}
       </span>
     </Tooltip>
-    <Tooltip info message="Who translated this publication">
+    <Tooltip variant="info" message="Who translated this publication">
       <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl">
         ({publication.authors})
       </span>
@@ -98,7 +98,11 @@ const PublicationModal: FC = () => {
   const publication = usePublication(publicationId);
 
   return (
-    <Modal isOpen={modal.isOpen} onClose={modal.close}>
+    <Modal
+      isOpen={modal.isOpen}
+      onClose={modal.close}
+      label="Publication details"
+    >
       {publication && (
         <Article
           heading={<PublicationHeading publication={publication} />}

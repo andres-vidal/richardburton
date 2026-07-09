@@ -1,0 +1,34 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as CounterStories from "./PublicationCounter.stories";
+
+<Meta of={CounterStories} />
+
+# Publication counter
+
+A small pill button that reports how many publications are currently in view — a
+sparkle icon next to the count, with a tooltip like "3 new publications". It sits
+in the review toolbar as an at-a-glance total of the rows the user is about to
+submit.
+
+## Data source
+
+The counter is **state-driven**: it takes no props. It reads the visible count
+from the publication store via `useVisiblePublicationCount` (visible = not
+deleted), so it updates on its own as rows are loaded, added, or removed. In
+stories the store is seeded through the shared fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications before the story renders
+```
+
+<Canvas of={CounterStories.Default} />
+
+## States
+
+- **Populated** — the sample above: with the 3 sample rows the button reads "3".
+  The label pluralizes, so a single row tooltips "1 new publication".
+- **Empty** — when the count is 0 the counter renders nothing at all, keeping the
+  toolbar clean until there is something to count.

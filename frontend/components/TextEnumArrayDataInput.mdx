@@ -1,0 +1,22 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as TextEnumArrayDataInputStories from "./TextEnumArrayDataInput.stories";
+
+<Meta of={TextEnumArrayDataInputStories} />
+
+# Text enum array data input
+
+The country multi-select cell editor, used for the `countries` column. It is the
+concrete editor that [Data input](?path=/docs/publications-data-input--docs)
+dispatches to for `enumArray` columns, built on a `Multicombobox`.
+
+## Data flow
+
+The stored `value` is a comma-separated string of ISO country codes. Each code
+becomes a pill labelled by its country name via `Publication.describeValue`, and
+the selection is joined back into codes before re-emitting through `onChange`.
+Typing queries `Publication.autocomplete` (debounced) for matching countries;
+those options resolve locally, but the stories stay render-only to avoid
+depending on the dropdown.
+
+<Canvas of={TextEnumArrayDataInputStories.Default} />

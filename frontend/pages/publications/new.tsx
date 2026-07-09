@@ -1,4 +1,4 @@
-import PublicationReview from "components/PublicationReview";
+import PublicationWorkspace from "components/PublicationWorkspace";
 import {
   Publication,
   resetAll,
@@ -34,7 +34,7 @@ const NewPublications: NextPage = () => {
       subheader={
         <StrikeHeading label="Prepare new publications to be inserted in the database" />
       }
-      content={<PublicationReview />}
+      content={<PublicationWorkspace />}
       footer={
         <div className="flex space-x-2">
           {isSelectionEmpty ? (

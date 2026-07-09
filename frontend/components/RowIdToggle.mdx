@@ -1,0 +1,33 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as RowIdToggleStories from "./RowIdToggle.stories";
+
+<Meta of={RowIdToggleStories} />
+
+# Row id toggle
+
+A toolbar toggle that shows or hides the row-number column in the publication
+index. It carries a numbered-list icon and a tooltip that flips between "Show row
+numbers" and "Hide row numbers" depending on the current state.
+
+## Data source
+
+The toggle is **state-driven**: it takes no props. It reads and writes the
+row-id visibility flag through `useAreRowIdsVisible`, and reads
+`useVisiblePublicationCount` to decide whether to render at all. In stories the
+store is seeded through the shared fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications before the story renders
+```
+
+<Canvas of={RowIdToggleStories.Default} />
+
+## States
+
+- **Populated** — the sample above: with publications loaded the toggle renders
+  and switches the row-number column on and off.
+- **Empty** — with nothing loaded (count is 0) the toggle hides itself entirely;
+  there are no rows to number.

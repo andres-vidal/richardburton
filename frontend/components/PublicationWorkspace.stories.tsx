@@ -2,11 +2,11 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { fieldErrors, seed } from "modules/publication/fixtures";
 import { expect, waitFor, within } from "storybook/test";
 
-import PublicationReview from "./PublicationReview";
+import PublicationWorkspace from "./PublicationWorkspace";
 
 const meta = {
-  title: "Publications/Review",
-  component: PublicationReview,
+  title: "Publications/Workspace",
+  component: PublicationWorkspace,
   decorators: [
     (Story) => (
       <div className="overflow-x-auto p-4">
@@ -15,7 +15,7 @@ const meta = {
     ),
   ],
   parameters: { layout: "fullscreen" },
-} satisfies Meta<typeof PublicationReview>;
+} satisfies Meta<typeof PublicationWorkspace>;
 
 export default meta;
 

@@ -8,7 +8,7 @@ import * as IndexTableStories from "./PublicationIndexTable.stories";
 
 The **desktop** presentation of the publication index — one column per
 publication attribute, one row per publication. It is read-only on its own; the
-editable [review](?path=/docs/publications-review--docs) is built by extending
+editable [review](?path=/docs/publications-workspace--docs) is built by extending
 it (see _Extension points_ below).
 
 ## Data source
@@ -51,5 +51,5 @@ seed();
 The table accepts injectable pieces — `ExtendedRow`, `ExtendedColumn`,
 `ExtendedColumnHeader`, `ExtendedContent`, `ExtendedSignalColumn`, and an
 `ExtraRow` — each defaulting to the read-only implementation. Overriding them is
-how [`PublicationReview`](?path=/docs/publications-review--docs) turns this same
+how [`PublicationWorkspace`](?path=/docs/publications-workspace--docs) turns this same
 table into an editable, validated grid without duplicating its structure.

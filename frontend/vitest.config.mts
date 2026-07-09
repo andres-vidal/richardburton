@@ -30,6 +30,9 @@ export default defineConfig({
         plugins: [storybookTest({ configDir: join(dir, ".storybook") })],
         test: {
           name: "storybook",
+          // Test-only tweaks (e.g. disabling framer-motion animations) that must
+          // not leak into interactive Storybook, which never loads this file.
+          setupFiles: [join(dir, ".storybook/vitest.setup.ts")],
           browser: {
             enabled: true,
             provider: playwright(),

@@ -1,5 +1,4 @@
 import { FloatingPortal } from "@floating-ui/react";
-import classNames from "classnames";
 import { AnimatePresence, motion } from "framer-motion";
 import { atom, useAtom } from "jotai";
 import { store } from "modules/store";
@@ -82,7 +81,10 @@ const Notifications: FC = () => {
 
   return (
     <FloatingPortal>
-      <section className="fixed z-[60] flex flex-col items-center space-y-2 -translate-x-1/2 left-1/2 top-10">
+      <section
+        aria-label="Notifications"
+        className="flex fixed top-10 left-1/2 flex-col items-center space-y-2 -translate-x-1/2 z-60"
+      >
         <AnimatePresence>
           {snackbars.map(
             ({ key, message, level }) =>
@@ -91,25 +93,24 @@ const Notifications: FC = () => {
                 <motion.div
                   layout
                   key={key}
-                  className="flex py-2 pl-1 pr-3 space-x-3 bg-white rounded shadow-md w-96"
+                  role="status"
+                  className="flex py-2 pr-3 pl-1 space-x-3 w-96 bg-white rounded shadow-md"
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
                   transition={{ duration: 0.1 }}
-                  aria-modal="true"
-                  aria-describedby="snackbar-message"
-                  aria-label="Notification"
                 >
                   <div
-                    role="presentation"
-                    className={classNames(
-                      "flex items-center justify-center w-7 h-6",
-                      { "text-indigo-700 text-xl": level === "info" },
-                    )}
+                    aria-hidden="true"
+                    data-level={level}
+                    className={`
+                      flex items-center justify-center w-7 h-6
+                      data-[level=info]:text-indigo-700 data-[level=info]:text-xl
+                    `}
                   >
                     {NOTIFICATION_ICONS[level]}
                   </div>
-                  <label id={`snackbar-message-${key}`}>{message}</label>
+                  <span>{message}</span>
                 </motion.div>
               ),
           )}

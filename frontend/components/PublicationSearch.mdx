@@ -1,0 +1,39 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as SearchStories from "./PublicationSearch.stories";
+
+<Meta of={SearchStories} />
+
+# Publication search
+
+The search bar for the publication index — a single text input that filters the
+list by keyword. It sits above the index table/list and drives what the rest of
+the workspace shows.
+
+## Data source
+
+The input is **URL-driven**: on change it writes the current text to the
+`search` query param (`router.replace`, shallow), and on mount it hydrates its
+value back from that param, so a shared link reproduces the same search. The
+keyword layer below the input is **state-driven** — it reads the active
+keywords from the publication store (`useKeywords`) and, when any are present,
+renders "Showing results for" followed by each keyword as a link back to that
+single-term search. In stories the store is seeded through the shared fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications before the story renders
+```
+
+<Canvas of={SearchStories.Default} />
+
+## States
+
+- **Empty** — the default: the input renders with its placeholder and no
+  keyword line below it.
+- **Typing** — entering text updates the input and the `search` param, which
+  debounces to the index endpoint. See the
+  [Typing](?path=/story/publications-publication-search--typing) story.
+- **Showing results** — when the store reports active keywords, the line under
+  the input lists them as links.

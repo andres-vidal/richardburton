@@ -1,0 +1,39 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ResetOverriddenStories from "./ResetOverridden.stories";
+
+<Meta of={ResetOverriddenStories} />
+
+# Reset overridden
+
+An undo affordance for cell edits in the workspace. When one or more fields have
+been overridden (edited in place), this button appears and reverts them to their
+original values, labelled with the count — e.g. "Reset 2 overriden".
+
+## Data source
+
+The button is **state-driven**: it takes no props. It reads the overridden count
+from the store (`useOverriddenPublicationCount`) and **renders nothing when the
+count is zero** — it only shows once at least one field has been edited.
+Clicking calls `resetOverridden()`, clears the current selection, and
+re-validates the affected rows against the server (`validate(overriddenIds)`).
+In stories the store is seeded through the shared fixtures, and a story-only
+"Edit a field" control overrides the title of the first visible row so the
+button can be exercised on its own:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications, then edit a field to reveal the button
+```
+
+<Canvas of={ResetOverriddenStories.Default} />
+
+## States
+
+- **Hidden** — the default with nothing overridden: the component returns `null`
+  and there is no button.
+- **Visible** — after a field is edited, the button appears showing the
+  overridden count. Because clicking it also re-validates against the server,
+  the Default story stops at the button appearing; the "Edit a field" control
+  lets you repeat the round-trip.

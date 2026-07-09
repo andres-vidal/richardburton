@@ -19,6 +19,10 @@ const preview: Preview = {
     controls: {
       matchers: { color: /(background|color)$/i, date: /Date$/i },
     },
+    // Run axe-core on every story via @storybook/addon-a11y. "todo" surfaces
+    // violations in the a11y panel + as non-failing notes in the test run; flip
+    // to "error" to make accessibility violations fail the suite.
+    a11y: { test: "error" },
   },
 };
 
