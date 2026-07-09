@@ -65,7 +65,7 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       data-width={width}
       data-alignment={alignment}
       className={`
-        flex py-1.5 px-2 transition-colors items-center rounded font-base shadow-sm text-xs group space-x-2 whitespace-nowrap
+        flex py-1.5 px-2 transition-colors items-center rounded font-base shadow-sm text-xs group gap-2 whitespace-nowrap
         data-[loading=false]:disabled:bg-gray-100 data-[loading=false]:disabled:text-gray-300 data-[loading=false]:disabled:hover:bg-gray-100
         data-[variant=primary]:text-white data-[variant=primary]:bg-indigo-600 data-[variant=primary]:hover:bg-indigo-700 data-[variant=primary]:loading:bg-indigo-700
         data-[variant=secondary]:text-gray-900 data-[variant=secondary]:bg-yellow-500 data-[variant=secondary]:hover:bg-yellow-600 data-[variant=secondary]:loading:bg-yellow-600

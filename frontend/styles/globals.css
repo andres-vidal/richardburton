@@ -18,7 +18,7 @@
 @custom-variant settled (&[data-phase="settled"]);
 @custom-variant error (&[data-error="true"]);
 @custom-variant error-within (&:has([data-error="true"]));
-@custom-variant peer-error (:merge(.peer):is([data-error="true"]) ~ &);
+@custom-variant peer-error (.peer[data-error="true"] ~ &);
 @custom-variant loading (&[data-loading="true"]);
 
 /* Scrollbar utilities (was the `tailwind-scrollbar` plugin). */
@@ -71,4 +71,8 @@ body {
 
 @utility absolute-center {
   @apply left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2;
+}
+
+@utility bg-stripes-diagonal {
+  @apply bg-[repeating-linear-gradient(45deg,#e1e1e1_0,#e1e1e1_1px,transparent_0,transparent_50%)] bg-size-[10px_10px];
 }

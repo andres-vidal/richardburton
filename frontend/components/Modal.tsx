@@ -124,11 +124,10 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
                   w-full sm:w-11/12 lg:w-2/3 xl:w-1/2
                   h-full sm:h-auto sm:max-h-[85%] lg:max-h-[80%] min-h-0
                 `}
-                initial={{ scale: 0.9, transform: "translateX(-50%)" }}
+                initial={{ scale: 0.9 }}
                 animate={{
                   scale: 1,
                   top: isWiderThanSmall ? "12%" : "0",
-                  transform: "translateX(-50%)",
                 }}
                 exit={{ scale: 0.9, top: 0 }}
               >

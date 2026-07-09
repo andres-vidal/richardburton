@@ -10,6 +10,13 @@ const meta = {
   title: "Publications/Data input",
   component: DataInput,
   args: { rowId: 1, colId: "title", value: "", error: "", onChange: () => {} },
+  decorators: [
+    (Story) => (
+      <div className="flex items-center justify-center w-72 aspect-square overflow-auto rounded-lg border border-dashed border-gray-300 p-8 bg-stripes-diagonal">
+        <Story />
+      </div>
+    ),
+  ],
   parameters: { layout: "centered" },
 } satisfies Meta<typeof DataInput>;
 

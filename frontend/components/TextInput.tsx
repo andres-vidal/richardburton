@@ -42,7 +42,7 @@ export default forwardRef<HTMLDivElement, Props>(function TextInput(
       data-fill={Boolean(fill)}
       data-labeled={Boolean(label)}
       className={`
-        relative group
+        relative group bg-white
         w-full gap-1 inline-flex items-center rounded scrollbar scrollbar-none
         error-within:shadow-sm focus-within:error-within:bg-red-400/80, error-within:bg-red-300/40
         has-disabled:opacity-60 has-disabled:cursor-not-allowed
