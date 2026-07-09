@@ -116,7 +116,7 @@ const RestoreChip: FC<{ colId: ColId; column: number }> = ({
       aria-label={`Show ${label}`}
       onClick={() => setAttributesVisible([colId], true)}
       style={{ gridColumn: `${column} / ${column + 1}` }}
-      className="flex absolute inset-0 z-30 justify-center items-start text-white bg-indigo-600 rounded shadow transition-colors hover:bg-indigo-700"
+      className="flex absolute inset-0 z-30 py-2 justify-center items-start text-white bg-indigo-600 rounded shadow transition-colors hover:bg-indigo-700"
     >
       <span
         aria-hidden
