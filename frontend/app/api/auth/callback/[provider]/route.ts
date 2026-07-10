@@ -1,4 +1,3 @@
-import axios from "axios";
 import HTTP from "modules/http";
 import { User } from "modules/users";
 import { NextRequest, NextResponse } from "next/server";
@@ -64,34 +63,32 @@ export async function GET(
   const email = decodeEmail(idToken);
   const authorization = { headers: { Authorization: `Bearer ${idToken}` } };
 
-  // Admin gate: only admins may sign in.
+  // Exchange the id_token for the app session: POST /sessions upserts the user,
+  // mints the rb-session + csrf-token cookies, and returns the user (with role).
+  // Relay the cookies only once the admin gate passes.
   let user: User | null = null;
+  let sessionCookies: string[] = [];
   try {
-    const { data } = await http.post<User>("/users", { email }, authorization);
-    user = data;
-  } catch (e) {
-    if (axios.isAxiosError(e) && e.response?.status === 409) {
-      user = e.response.data as User;
-    } else {
-      console.error(e);
+    const response = await http.post<User>(
+      "/sessions",
+      { email },
+      authorization,
+    );
+    user = response.data;
+    const setCookie = response.headers["set-cookie"];
+    if (setCookie) {
+      sessionCookies = [setCookie].flat();
     }
+  } catch (e) {
+    console.error(e);
   }
 
+  // Admin gate: only admins may sign in.
   if (!user || !User.isAdmin(user.role)) {
     return finish("/auth/error?error=AccessDenied");
   }
 
-  // Mint the Phoenix rb-session and relay its Set-Cookie to the browser.
-  try {
-    const response = await http.post("/sessions", { email }, authorization);
-    const relayedCookies = response.headers["set-cookie"];
-    if (relayedCookies) {
-      relayed.push(...[relayedCookies].flat());
-    }
-  } catch {
-    // Exchange failed; redirect anyway — the user just won't have a session yet.
-  }
-
+  relayed.push(...sessionCookies);
   return finish(next);
 }
 

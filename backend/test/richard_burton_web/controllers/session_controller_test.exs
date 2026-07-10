@@ -4,6 +4,7 @@ defmodule RichardBurtonWeb.SessionControllerTest do
 
   import Routes, only: [session_path: 2]
 
+  alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
   alias RichardBurton.Repo
   alias RichardBurton.User
@@ -22,6 +23,7 @@ defmodule RichardBurtonWeb.SessionControllerTest do
 
       assert %{"email" => @email, "role" => "reader"} = json_response(conn, 201)
       assert Session.verify(conn.resp_cookies["rb-session"].value) == {:ok, @subject_id}
+      assert Csrf.verify(conn.resp_cookies["csrf-token"].value) == {:ok, @subject_id}
     end
 
     test "for an existing user, sets rb-session and returns 200 with the user", %{conn: conn} do
@@ -32,6 +34,7 @@ defmodule RichardBurtonWeb.SessionControllerTest do
 
       assert %{"email" => @email, "role" => "reader"} = json_response(conn, 200)
       assert Session.verify(conn.resp_cookies["rb-session"].value) == {:ok, @subject_id}
+      assert Csrf.verify(conn.resp_cookies["csrf-token"].value) == {:ok, @subject_id}
     end
   end
 
@@ -43,6 +46,7 @@ defmodule RichardBurtonWeb.SessionControllerTest do
 
       assert response(conn, 204)
       assert %{max_age: 0, universal_time: {{1970, 1, 1}, _}} = conn.resp_cookies["rb-session"]
+      assert %{max_age: 0} = conn.resp_cookies["csrf-token"]
       assert Repo.aggregate(Session, :count) == 0
     end
   end

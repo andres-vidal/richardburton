@@ -8,7 +8,7 @@ defmodule RichardBurtonWeb.PublicationController do
     {:ok, results, keywords} = Publication.Index.search(query)
 
     conn
-    |> put_resp_header("x-total-count", Integer.to_string(Publication.Index.count()))
+    |> put_resp_header("rb-total-count", Integer.to_string(Publication.Index.count()))
     |> json(%{entries: results, keywords: keywords})
   end
 
@@ -16,7 +16,7 @@ defmodule RichardBurtonWeb.PublicationController do
     {:ok, results} = Publication.Index.all()
 
     conn
-    |> put_resp_header("x-total-count", Integer.to_string(Publication.Index.count()))
+    |> put_resp_header("rb-total-count", Integer.to_string(Publication.Index.count()))
     |> json(%{entries: results})
   end
 

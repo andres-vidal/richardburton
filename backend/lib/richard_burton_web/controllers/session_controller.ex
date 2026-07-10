@@ -9,6 +9,7 @@ defmodule RichardBurtonWeb.SessionController do
   """
   use RichardBurtonWeb, :controller
 
+  alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
   alias RichardBurton.User
 
@@ -43,21 +44,34 @@ defmodule RichardBurtonWeb.SessionController do
     end
 
     conn
-    |> delete_resp_cookie("rb-session",
+    |> delete_resp_cookie("rb-session", same_site: "Lax", secure: secure_cookie?())
+    |> delete_resp_cookie("csrf-token",
       same_site: "Lax",
-      secure: Application.get_env(:richard_burton, :phx_session_tls, true)
+      secure: secure_cookie?(),
+      http_only: false
     )
     |> send_resp(:no_content, "")
   end
 
+  # Sets the httpOnly `rb-session` cookie plus the readable `csrf-token` cookie
+  # the browser echoes back in the `rb-csrf-token` header (see Auth.Csrf).
   defp put_session_cookie(conn, subject_id) do
     {:ok, token} = Session.create(subject_id)
 
-    put_resp_cookie(conn, "rb-session", token,
+    conn
+    |> put_resp_cookie("rb-session", token,
       http_only: true,
       same_site: "Lax",
-      secure: Application.get_env(:richard_burton, :phx_session_tls, true),
+      secure: secure_cookie?(),
+      max_age: Session.max_age()
+    )
+    |> put_resp_cookie("csrf-token", Csrf.sign(subject_id),
+      http_only: false,
+      same_site: "Lax",
+      secure: secure_cookie?(),
       max_age: Session.max_age()
     )
   end
+
+  defp secure_cookie?, do: Application.get_env(:richard_burton, :phx_session_tls, true)
 end

@@ -57,7 +57,7 @@ describe("index", () => {
         ],
         keywords: ["machado"],
       },
-      headers: { xTotalCount: "42" },
+      headers: { "rb-total-count": "42" },
     });
 
     await index();

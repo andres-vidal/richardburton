@@ -1,6 +1,6 @@
 defmodule RichardBurtonWeb.UserControllerTest do
   @moduledoc """
-  Tests for the Publication controller
+  Tests for the user controller
   """
   use RichardBurtonWeb.ConnCase
   import Routes, only: [user_path: 2]

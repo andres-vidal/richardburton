@@ -1,6 +1,7 @@
-defmodule RichardBurtonWeb.Plugs.AuthorizeAdmin do
+defmodule RichardBurtonWeb.Plugs.Authorize.Admin do
   @moduledoc """
-  Plug for authentication with Google
+  Authorizes the request only if the authenticated subject (assigned by an
+  `Authenticate` plug) has the `:admin` role.
   """
 
   alias RichardBurton.Auth

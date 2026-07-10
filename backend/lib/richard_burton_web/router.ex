@@ -15,11 +15,12 @@ defmodule RichardBurtonWeb.Router do
 
   pipeline :authorize_admin do
     plug(RichardBurtonWeb.Plugs.Authenticate.Cookie)
-    plug(RichardBurtonWeb.Plugs.AuthorizeAdmin)
+    plug(RichardBurtonWeb.Plugs.VerifyCsrf)
+    plug(RichardBurtonWeb.Plugs.Authorize.Admin)
   end
 
   pipeline :authorize_recaptcha do
-    plug(RichardBurtonWeb.Plugs.AuthorizeRecaptcha)
+    plug(RichardBurtonWeb.Plugs.Authorize.Recaptcha)
   end
 
   scope "/api", RichardBurtonWeb do

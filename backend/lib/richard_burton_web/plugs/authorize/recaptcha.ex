@@ -1,4 +1,4 @@
-defmodule RichardBurtonWeb.Plugs.AuthorizeRecaptcha do
+defmodule RichardBurtonWeb.Plugs.Authorize.Recaptcha do
   @moduledoc """
   Plug for recaptcha verification
   """

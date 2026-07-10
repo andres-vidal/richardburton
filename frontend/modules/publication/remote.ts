@@ -54,8 +54,9 @@ async function index({ search }: { search?: string } = {}): Promise<void> {
     const { data, headers } = await http.get<IndexResult>(url);
     const { entries, keywords } = data;
 
-    if (headers.xTotalCount) {
-      store.set(totalIndexCountAtom, parseInt(headers.xTotalCount));
+    // Read raw: the client no longer camelCases response headers (see modules/http).
+    if (headers["rb-total-count"]) {
+      store.set(totalIndexCountAtom, parseInt(headers["rb-total-count"]));
     }
     store.set(keywordsAtom, keywords);
 
