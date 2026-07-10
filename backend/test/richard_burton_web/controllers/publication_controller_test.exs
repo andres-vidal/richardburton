@@ -27,11 +27,31 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       get(conn, publication_path(conn, :index))
     end
 
-    test "returns X-total-count header with value 0", %{conn: conn} do
+    test "returns rb-total-count header with value 0", %{conn: conn} do
       assert ["0"] ==
                conn
                |> get(publication_path(conn, :index))
-               |> Plug.Conn.get_resp_header("x-total-count")
+               |> Plug.Conn.get_resp_header("rb-total-count")
+    end
+  end
+
+  describe "CSRF protection on admin mutations" do
+    test "rejects a POST without a CSRF token", %{conn: conn} do
+      conn =
+        conn
+        |> delete_req_header("rb-csrf-token")
+        |> post(publication_path(conn, :create_all), %{"_json" => []})
+
+      assert response(conn, 403)
+    end
+
+    test "rejects a POST whose CSRF token is for a different subject", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("rb-csrf-token", RichardBurton.Auth.Csrf.sign("99999"))
+        |> post(publication_path(conn, :create_all), %{"_json" => []})
+
+      assert response(conn, 403)
     end
   end
 

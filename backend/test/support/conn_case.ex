@@ -40,13 +40,15 @@ defmodule RichardBurtonWeb.ConnCase do
   setup :verify_on_exit!
 
   defp build_conn do
-    # Admin routes authenticate via the rb-session cookie (a real DB-backed Auth.Session);
-    # the bearer header is for the login routes (mocked Auth.verify).
+    # Admin routes authenticate via the rb-session cookie (a real DB-backed Auth.Session)
+    # plus a matching rb-csrf-token header; the bearer header is for the login routes
+    # (mocked Auth.verify).
     {:ok, token} = RichardBurton.Auth.Session.create("12345")
 
     Phoenix.ConnTest.build_conn()
     |> Plug.Test.put_req_cookie("rb-session", token)
     |> Plug.Conn.put_req_header("authorization", "Bearer token")
+    |> Plug.Conn.put_req_header("rb-csrf-token", RichardBurton.Auth.Csrf.sign("12345"))
   end
 
   def uploaded_file_fixture(path) do

@@ -51,7 +51,23 @@ defmodule RichardBurtonWeb.Endpoint do
   plug(CORSPlug,
     origin: &RichardBurton.Application.origin/0,
     credentials: Application.compile_env(:richard_burton, :phx_cors_credentials, false),
-    expose: ["content-disposition", "x-total-count"]
+    expose: ["content-disposition", "rb-total-count"],
+    # CORSPlug's default allow-headers list, plus our custom rb-csrf-token so the
+    # double-submit header survives the preflight once a csrf-token cookie exists.
+    headers: [
+      "Authorization",
+      "Content-Type",
+      "Accept",
+      "Origin",
+      "User-Agent",
+      "DNT",
+      "Cache-Control",
+      "X-Mx-ReqToken",
+      "Keep-Alive",
+      "X-Requested-With",
+      "If-Modified-Since",
+      "rb-csrf-token"
+    ]
   )
 
   plug(RichardBurtonWeb.Router)

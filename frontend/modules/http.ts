@@ -8,6 +8,12 @@ interface HttpModule {
   client(options: HttpClientOptions): HttpClient;
 }
 
+function readCookie(name: string): string | undefined {
+  const prefix = `${name}=`;
+  const row = document.cookie.split("; ").find((r) => r.startsWith(prefix));
+  return row?.slice(prefix.length);
+}
+
 const HTTP: HttpModule = {
   client(options) {
     // withCredentials so the browser sends/receives the backend's rb-session cookie.
@@ -20,6 +26,17 @@ const HTTP: HttpModule = {
       axios.create({ withCredentials: true, ...options }),
       { ignoreHeaders: true },
     );
+
+    // Double-submit CSRF: echo the readable `csrf-token` cookie (set by the
+    // backend at login) in the rb-csrf-token header. The backend enforces it on
+    // state-changing admin endpoints; everything else ignores it. Server-side
+    // callers (no document) skip it — they authenticate with the bearer token.
+    instance.interceptors.request.use((config) => {
+      const token =
+        typeof document === "undefined" ? undefined : readCookie("csrf-token");
+      if (token) config.headers.set("rb-csrf-token", token);
+      return config;
+    });
 
     // A backend 401 means the rb-session is gone (expired/revoked) — send the
     // user to sign in again. (GET /users/me returns null, not 401, so polling

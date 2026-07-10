@@ -17,6 +17,11 @@ defmodule RichardBurtonWeb.UserController do
     end
   end
 
+  @doc """
+  Upserts the user for the verified provider subject (assigned by the bearer
+  plug). Login itself goes through `POST /sessions`; this endpoint is kept for
+  the planned admin user-management dashboard (see roadmap 12).
+  """
   def create(conn = %{assigns: %{subject_id: subject_id}}, attrs) do
     case User.insert(Map.put(attrs, "subject_id", subject_id)) do
       {:ok, user} -> conn |> put_status(:created) |> json(user)
