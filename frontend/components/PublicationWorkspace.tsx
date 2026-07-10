@@ -32,11 +32,7 @@ import {
   useEffect,
   useRef,
 } from "react";
-import {
-  useIsSelected,
-  useIsSelectionEmpty,
-  useSelectionEvent,
-} from "react-selection-manager";
+import { select, useIsSelected, useIsSelectionEmpty } from "modules/selection";
 import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
 
@@ -194,11 +190,10 @@ const NewPublicationRow: FC = () => {
 
 const PublicationWorkspace: FC = () => {
   const ids = useVisiblePublicationIds();
-  const onSelect = useSelectionEvent();
   const isSelectionEmpty = useIsSelectionEmpty();
 
   const toggleSelection = (id: number) => (event: MouseEvent) =>
-    onSelect({
+    select({
       id,
       type: "publication",
       shiftKey: event.shiftKey,

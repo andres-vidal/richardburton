@@ -20,7 +20,7 @@ import {
   setAttributesVisible,
 } from "modules/publication";
 import { useEffect } from "react";
-import { useIsSelectionEmpty } from "react-selection-manager";
+import { useIsSelectionEmpty } from "modules/selection";
 
 export default function NewPublications() {
   const isSelectionEmpty = useIsSelectionEmpty();

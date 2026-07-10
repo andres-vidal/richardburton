@@ -1,11 +1,10 @@
 "use client";
 
 import { isElement } from "lodash";
+import { clearSelection } from "modules/selection";
 import { FC, useEffect } from "react";
-import { useClearSelection } from "react-selection-manager";
 
 const ClearSelection: FC = () => {
-  const clearSelection = useClearSelection();
   useEffect(() => {
     const handle = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -19,7 +18,7 @@ const ClearSelection: FC = () => {
     return () => {
       document.removeEventListener("click", handle);
     };
-  }, [clearSelection]);
+  }, []);
 
   return null;
 };

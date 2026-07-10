@@ -2,12 +2,11 @@
 
 import DeselectIcon from "assets/deselect.svg";
 import { FC } from "react";
-import { useClearSelection, useSelectionSize } from "react-selection-manager";
+import { clearSelection, useSelectionSize } from "modules/selection";
 import Button from "./Button";
 
 const PublicationDeselect: FC = () => {
   const selectionSize = useSelectionSize();
-  const clearSelection = useClearSelection();
 
   return (
     <Button
