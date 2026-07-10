@@ -4,15 +4,14 @@ import CopyIcon from "assets/copy.svg";
 import { duplicate, validate } from "modules/publication";
 import { FC } from "react";
 import {
+  clearSelection,
   getSelection,
-  useClearSelection,
   useSelectionSize,
-} from "react-selection-manager";
+} from "modules/selection";
 import Button from "./Button";
 
 const PublicationDuplicate: FC = () => {
   const selectionSize = useSelectionSize();
-  const clearSelection = useClearSelection();
 
   const duplicateSelected = () => {
     const selectedIds = getSelection() as Set<number>;

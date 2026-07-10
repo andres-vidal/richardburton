@@ -4,15 +4,14 @@ import TrashIcon from "assets/trash.svg";
 import { setDeleted } from "modules/publication";
 import { FC } from "react";
 import {
+  clearSelection,
   getSelection,
-  useClearSelection,
   useSelectionSize,
-} from "react-selection-manager";
+} from "modules/selection";
 import Button from "./Button";
 
 const PublicationDelete: FC = () => {
   const selectionSize = useSelectionSize();
-  const clearSelection = useClearSelection();
 
   const deleteSelected = () => {
     const selectedIds = [...getSelection()] as number[];

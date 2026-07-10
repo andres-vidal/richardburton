@@ -8,12 +8,11 @@ import {
   validate,
 } from "modules/publication";
 import { FC } from "react";
-import { useClearSelection } from "react-selection-manager";
+import { clearSelection } from "modules/selection";
 import Button from "./Button";
 
 const ResetOverridden: FC = () => {
   const overriddenCount = useOverriddenPublicationCount();
-  const clearSelection = useClearSelection();
 
   const overriddenIds = useOverriddenPublicationIds();
 

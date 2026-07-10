@@ -15,7 +15,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Acts on the react-selection-manager selection. With nothing selected it
+ * Acts on the shared selection store. With nothing selected it
  * still renders and reads "Duplicate 0" (a safe no-op on click).
  */
 export const Default: Story = {

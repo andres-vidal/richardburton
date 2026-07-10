@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fieldErrors, seed } from "modules/publication/fixtures";
-import { expect, waitFor, within } from "storybook/test";
+import { expect, fireEvent, waitFor, within } from "storybook/test";
 
 import PublicationWorkspace from "./PublicationWorkspace";
 
@@ -50,5 +50,36 @@ export const WithInvalidRow: Story = {
         canvasElement.querySelectorAll('[aria-invalid="true"]').length,
       ).toBeGreaterThan(0),
     );
+  },
+};
+
+/**
+ * Multi-select: a plain click selects one row, shift-click extends a contiguous
+ * range from it, and cmd/ctrl-click toggles a single row. Selected rows carry
+ * `data-selected` on their (amber) signal cell.
+ */
+export const Selection: Story = {
+  beforeEach: () => seed(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Skip the header; the three seeded rows (the new-publication row trails).
+    const [, first, second, third] = canvas.getAllByRole("row");
+
+    const selectedCount = () =>
+      canvas
+        .getAllByRole("row")
+        .filter((row) => row.querySelector('[data-selected="true"]')).length;
+
+    // Plain click selects just that row.
+    fireEvent.click(first);
+    await waitFor(() => expect(selectedCount()).toBe(1));
+
+    // Shift-click extends the contiguous range from the first row through it.
+    fireEvent.click(third, { shiftKey: true });
+    await waitFor(() => expect(selectedCount()).toBe(3));
+
+    // Cmd/ctrl-click toggles a single row out of the range.
+    fireEvent.click(second, { metaKey: true });
+    await waitFor(() => expect(selectedCount()).toBe(2));
   },
 };
