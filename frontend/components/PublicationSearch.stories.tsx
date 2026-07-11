@@ -26,6 +26,18 @@ export const Default: Story = {
   },
 };
 
+/** A `?search=` param (e.g. following a keyword link) is mirrored into the box. */
+export const FromUrlParam: Story = {
+  parameters: { nextjs: { navigation: { query: { search: "Machado" } } } },
+  beforeEach: () => seed(),
+  play: async ({ canvasElement }) => {
+    const input = within(canvasElement).getByRole("textbox", {
+      name: "Search publications",
+    });
+    await expect(input).toHaveValue("Machado");
+  },
+};
+
 /** Typing into the input updates its value (debounces to the index endpoint). */
 export const Typing: Story = {
   beforeEach: () => seed(),

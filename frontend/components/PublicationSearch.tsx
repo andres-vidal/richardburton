@@ -3,19 +3,22 @@
 import { useKeywords } from "modules/publication";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChangeEventHandler, FC, useEffect, useState } from "react";
+import { ChangeEventHandler, FC, useState } from "react";
 
 const PublicationSearch: FC = () => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const keywords = useKeywords();
-  const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    const searchUrlParam = searchParams?.get("search") ?? "";
-    setSearch((search) => (searchUrlParam ? searchUrlParam : search));
-  }, [searchParams]);
+  const searchUrlParam = searchParams?.get("search") ?? "";
+  const [search, setSearch] = useState(searchUrlParam);
+  const [previousParam, setPreviousParam] = useState(searchUrlParam);
+
+  if (searchUrlParam !== previousParam) {
+    setPreviousParam(searchUrlParam);
+    if (searchUrlParam) setSearch(searchUrlParam);
+  }
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
     setSearch(e.target.value);

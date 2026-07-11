@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fieldErrors, seed } from "modules/publication/fixtures";
-import { expect, fireEvent, waitFor, within } from "storybook/test";
+import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationWorkspace from "./PublicationWorkspace";
 
@@ -81,5 +81,28 @@ export const Selection: Story = {
     // Cmd/ctrl-click toggles a single row out of the range.
     fireEvent.click(second, { metaKey: true });
     await waitFor(() => expect(selectedCount()).toBe(2));
+  },
+};
+
+/**
+ * Editing a cell round-trips through the store: the cell input has no local
+ * mirror, so what you type only shows up if `overrideField` writes it and the
+ * value flows back through `usePublicationField`.
+ */
+export const EditCell: Story = {
+  beforeEach: () =>
+    seed([{ title: "Dom Casmurro", authors: "Helen Caldwell", year: "1953" }]),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // findBy*: the row virtualizes on an IntersectionObserver, so its input
+    // isn't in the DOM until the row is scrolled into view / observed visible.
+    const title = await canvas.findByDisplayValue("Dom Casmurro");
+
+    await userEvent.clear(title);
+    await userEvent.type(title, "The Posthumous Memoirs");
+
+    await waitFor(() =>
+      expect(title).toHaveValue("The Posthumous Memoirs"),
+    );
   },
 };

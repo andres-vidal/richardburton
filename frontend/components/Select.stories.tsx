@@ -64,6 +64,30 @@ export const FilterAndSelect: Story = {
   },
 };
 
+/**
+ * Closing the menu clears the typed filter: the input reverts to the selected
+ * option's label. There's no local mirror holding the stale query — it's reset
+ * from `isOpen` during render.
+ */
+export const ClearsFilterOnClose: Story = {
+  args: { value: { id: "1", label: "Brazil" } },
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox");
+
+    await userEvent.type(input, "por");
+    await waitFor(() => expect(input).toHaveValue("por"));
+
+    // Close the menu (floating-ui dismiss on Escape); the typed filter is
+    // dropped and the selected label comes back.
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(input).toHaveValue("Brazil"));
+  },
+};
+
 /** Error state — the field is marked invalid via `aria-invalid`. */
 export const WithError: Story = {
   args: { error: "is required" },
