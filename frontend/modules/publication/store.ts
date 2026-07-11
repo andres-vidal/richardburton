@@ -33,6 +33,7 @@ const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
 const isValidatingAtom = atom(false);
+const isIndexLoadingAtom = atom(false);
 const keywordsAtom = atom<string[] | undefined>(undefined);
 const areRowIdsVisibleAtom = atom(false);
 const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
@@ -235,6 +236,7 @@ function resetAll(): void {
   });
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
+  store.set(isIndexLoadingAtom, false);
 }
 
 function resetDeleted(): void {
@@ -281,6 +283,7 @@ export {
   focusNextInvalid,
   focusedRowIdAtom,
   hiddenAttributesAtom,
+  isIndexLoadingAtom,
   isValidFamily,
   isValidatingAtom,
   keywordsAtom,

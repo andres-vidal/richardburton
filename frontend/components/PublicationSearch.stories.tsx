@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { seed } from "modules/publication/fixtures";
+import { isIndexLoadingAtom } from "modules/publication/store";
+import { store } from "modules/store";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationSearch from "./PublicationSearch";
@@ -35,6 +37,19 @@ export const FromUrlParam: Story = {
       name: "Search publications",
     });
     await expect(input).toHaveValue("Machado");
+  },
+};
+
+/** While a search is in flight, the keyword line becomes an animated status. */
+export const Searching: Story = {
+  beforeEach: () => {
+    seed();
+    store.set(isIndexLoadingAtom, true);
+  },
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).getByText(/Searching the collection/i),
+    ).toBeInTheDocument();
   },
 };
 
