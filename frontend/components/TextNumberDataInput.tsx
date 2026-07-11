@@ -6,7 +6,17 @@ import { DataInputProps } from "./DataInput";
 import NumberInput from "./NumberInput";
 
 export default forwardRef<HTMLInputElement, DataInputProps>(
-  function TextNumberDataInput({ value, onChange, ...props }, ref) {
+  function TextNumberDataInput(
+    {
+      rowId: _rowId,
+      colId: _colId,
+      autoValidated: _autoValidated,
+      value,
+      onChange,
+      ...props
+    },
+    ref,
+  ) {
     function handleChange(value: number) {
       onChange?.(toString(value));
     }
