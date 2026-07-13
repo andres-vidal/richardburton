@@ -28,7 +28,7 @@ const EmptySearchResults: FC = () => {
             className="stroke-indigo-600"
           />
         </svg>
-        <span className="text-xl text-gray-300 group-hover:text-indigo-600">
+        <span className="text-xl text-gray-600 group-hover:text-indigo-600">
           No results found, try another query.
         </span>
       </div>
