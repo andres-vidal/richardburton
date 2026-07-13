@@ -30,9 +30,10 @@ seed();
 
 ## Column visibility & virtualization
 
-- **Toggleable columns** — headers of toggleable attributes carry a hide button;
-  visibility is driven by the store (`useIsAttributeVisible` /
-  `setAttributesVisible`) and animated with Framer Motion.
+- **Toggleable columns** — the `ColumnMenu` (next to the search bar) shows or hides
+  attributes; visibility is driven by the store (`useIsAttributeVisible` /
+  `setAttributesVisible`). Hidden columns simply don't render — no header, no cells,
+  no grid track — so the visible columns re-share the width with nothing to animate.
 - **Row virtualization** — each row only renders its cells once scrolled into
   view (`useVisible`, an `IntersectionObserver`), keeping long result sets cheap.
   This is why story assertions count `role="row"` rather than reading cell text —

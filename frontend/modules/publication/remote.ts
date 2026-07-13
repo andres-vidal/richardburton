@@ -3,6 +3,7 @@ import { AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
 import { RESET } from "jotai/utils";
 import hash from "object-hash";
+import { useCallback } from "react";
 import useDebounce from "utils/useDebounce";
 
 import {
@@ -14,6 +15,7 @@ import {
 import type { Publication } from "./model";
 import {
   createId,
+  isIndexLoadingAtom,
   isValidatingAtom,
   keywordsAtom,
   lastValidatedFamily,
@@ -49,22 +51,27 @@ async function index({ search }: { search?: string } = {}): Promise<void> {
   return run(async (http) => {
     const url = search ? `publications?search=${search}` : "publications";
 
-    store.set(publicationIdsAtom, undefined);
+    // Leave the current rows on screen while the new results load — the skeleton
+    // is only for the first load (publicationIdsAtom starts undefined). The
+    // search bar shows a subtle loading bar instead (isIndexLoadingAtom).
+    try {
+      const { data, headers } = await http.get<IndexResult>(url);
+      const { entries, keywords } = data;
 
-    const { data, headers } = await http.get<IndexResult>(url);
-    const { entries, keywords } = data;
+      // Read raw: the client no longer camelCases response headers (see modules/http).
+      if (headers["rb-total-count"]) {
+        store.set(totalIndexCountAtom, parseInt(headers["rb-total-count"]));
+      }
+      store.set(keywordsAtom, keywords);
 
-    // Read raw: the client no longer camelCases response headers (see modules/http).
-    if (headers["rb-total-count"]) {
-      store.set(totalIndexCountAtom, parseInt(headers["rb-total-count"]));
+      const ids = entries.map(() => createId());
+      store.set(publicationIdsAtom, ids);
+      entries.forEach((publication, i) =>
+        store.set(publicationFamily(ids[i]), publication),
+      );
+    } finally {
+      store.set(isIndexLoadingAtom, false);
     }
-    store.set(keywordsAtom, keywords);
-
-    const ids = entries.map(() => createId());
-    store.set(publicationIdsAtom, ids);
-    entries.forEach((publication, i) =>
-      store.set(publicationFamily(ids[i]), publication),
-    );
   });
 }
 
@@ -133,7 +140,16 @@ async function upload(payload: FormData): Promise<void> {
 
 /** Debounced index, for search-as-you-type. */
 function usePublicationIndex() {
-  return useDebounce(index, 350);
+  const debounced = useDebounce(index, 350);
+  // Flag loading immediately (before the debounce) so the search bar's loading
+  // bar spans the whole keystroke-to-results window, not just the fetch.
+  return useCallback(
+    (args?: { search?: string }) => {
+      store.set(isIndexLoadingAtom, true);
+      return debounced(args);
+    },
+    [debounced],
+  );
 }
 
 export { bulk, index, upload, usePublicationIndex, validate };

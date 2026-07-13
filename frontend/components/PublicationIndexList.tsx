@@ -1,6 +1,9 @@
 "use client";
 
-import { usePublication, useVisiblePublicationIds } from "modules/publication";
+import {
+  usePublication,
+  useVisiblePublicationIds,
+} from "modules/publication/hooks";
 import { FC, MouseEvent } from "react";
 import { EmptySearchResults } from "./EmptySearchResults";
 import { ListSkeleton } from "./ListSkeleton";

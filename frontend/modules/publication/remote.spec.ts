@@ -8,6 +8,7 @@ import type { Publication } from "./model";
 import {
   createId,
   errorFamily,
+  isIndexLoadingAtom,
   isValidatingAtom,
   keywordsAtom,
   lastValidatedFamily,
@@ -82,6 +83,37 @@ describe("index", () => {
     await index({ search: "Machado" });
 
     expect(http.get).toHaveBeenCalledWith("publications?search=Machado");
+  });
+
+  test("keeps the previous rows on screen until the new results arrive", async () => {
+    const [a, b] = [createId(), createId()];
+    setAll([
+      { id: a, publication: pub({ title: "Old A" }), errors: null },
+      { id: b, publication: pub({ title: "Old B" }), errors: null },
+    ]);
+
+    // Defer the response so we can inspect the store mid-fetch.
+    let resolve!: (value: unknown) => void;
+    http.get.mockReturnValue(new Promise((r) => (resolve = r)));
+
+    store.set(isIndexLoadingAtom, true);
+    const pending = index({ search: "new" });
+
+    // Mid-fetch: the old ids are still there — no reset-to-undefined, so the
+    // table shows the stale rows instead of blinking the skeleton.
+    expect(store.get(publicationIdsAtom)).toEqual([a, b]);
+
+    resolve({
+      data: { entries: [pub({ title: "New" })], keywords: [] },
+      headers: {},
+    });
+    await pending;
+
+    // The new results replace the old ones, and loading is cleared.
+    const ids = store.get(publicationIdsAtom);
+    expect(ids).toHaveLength(1);
+    expect(store.get(publicationFamily(ids![0])).title).toBe("New");
+    expect(store.get(isIndexLoadingAtom)).toBe(false);
   });
 });
 

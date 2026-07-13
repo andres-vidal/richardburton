@@ -2,8 +2,8 @@
 
 import AddIcon from "assets/add.svg";
 import Button from "components/Button";
+import ColumnMenu from "components/ColumnMenu";
 import { ContactModal } from "components/ContactModal";
-import { Counter } from "components/Counter";
 import Layout from "components/Layout";
 import { LearnMoreModal } from "components/LearnMoreModal";
 import { useURLQueryModal } from "components/Modal";
@@ -17,11 +17,9 @@ import {
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
-import {
-  resetAll,
-  usePublicationIndex,
-  usePublicationIndexCount,
-} from "modules/publication";
+import { usePublicationIndexCount } from "modules/publication/hooks";
+import { usePublicationIndex } from "modules/publication/remote";
+import { resetAll } from "modules/publication/store";
 import { useIsAuthenticated } from "modules/session";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -64,13 +62,16 @@ export default function Home() {
         <div className="py-4 space-y-4">
           <div className="flex items-center justify-center gap-3 text-sm text-indigo-700">
             <span className="border-b grow h-fit" />
-            <span>
-              <Counter value={count} /> publications registered so far
-            </span>
+            <span>{count} publications registered so far</span>
             <span className="border-b grow h-fit" />
           </div>
-          <div className="pr-3 md:pr-0">
-            <PublicationSearch />
+          <div className="flex gap-2 items-start pr-3 md:pr-0">
+            <div className="grow">
+              <PublicationSearch />
+            </div>
+            <div className="hidden sm:block">
+              <ColumnMenu />
+            </div>
           </div>
         </div>
       }

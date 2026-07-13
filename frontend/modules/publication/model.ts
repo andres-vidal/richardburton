@@ -21,10 +21,10 @@ type PublicationId = number;
 type PublicationKeyType = "array" | "text" | "enum" | "enumArray" | "number";
 
 const ATTRIBUTES: PublicationKey[] = [
-  "originalTitle",
   "title",
-  "originalAuthors",
+  "originalTitle",
   "authors",
+  "originalAuthors",
   "year",
   "countries",
   "publishers",

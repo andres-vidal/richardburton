@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { resetAll } from "modules/publication";
+import { resetAll } from "modules/publication/store";
 import { seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
 

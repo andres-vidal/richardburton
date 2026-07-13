@@ -1,7 +1,7 @@
 "use client";
 
 import SparklesIcon from "assets/sparkles.svg";
-import { useVisiblePublicationCount } from "modules/publication";
+import { useVisiblePublicationCount } from "modules/publication/hooks";
 import { FC } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";

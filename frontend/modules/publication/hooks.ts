@@ -11,6 +11,7 @@ import {
   fieldValueFamily,
   focusedRowIdAtom,
   hiddenAttributesAtom,
+  isIndexLoadingAtom,
   isValidFamily,
   isValidatingAtom,
   keywordsAtom,
@@ -113,6 +114,10 @@ function useIsValidating() {
   return useAtomValue(isValidatingAtom);
 }
 
+function useIsIndexLoading() {
+  return useAtomValue(isIndexLoadingAtom);
+}
+
 function useKeywords() {
   return useAtomValue(keywordsAtom);
 }
@@ -141,6 +146,7 @@ export {
   useDeletedPublicationCount,
   useHiddenAttributes,
   useIsAttributeVisible,
+  useIsIndexLoading,
   useIsPublicationFocused,
   useIsPublicationValid,
   useIsValidating,

@@ -13,12 +13,12 @@ import ResetDeleted from "components/ResetDeleted";
 import ResetOverridden from "components/ResetOverridden";
 import RowIdToggle from "components/RowIdToggle";
 import StrikeHeading from "components/StrikeHeading";
+import { Publication } from "modules/publication/model";
 import {
-  Publication,
   resetAll,
   setAll,
   setAttributesVisible,
-} from "modules/publication";
+} from "modules/publication/store";
 import { useEffect } from "react";
 import { useIsSelectionEmpty } from "modules/selection";
 

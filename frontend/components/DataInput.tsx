@@ -2,21 +2,13 @@
 
 import {
   Publication,
-  PublicationId,
-  PublicationKey,
-  PublicationKeyType,
-  overrideField,
-  validate,
-} from "modules/publication";
-import {
-  FC,
-  FocusEvent,
-  HTMLProps,
-  Ref,
-  forwardRef,
-  useEffect,
-  useState,
-} from "react";
+  type PublicationId,
+  type PublicationKey,
+  type PublicationKeyType,
+} from "modules/publication/model";
+import { overrideField } from "modules/publication/store";
+import { validate } from "modules/publication/remote";
+import { FC, FocusEvent, HTMLProps, Ref, forwardRef } from "react";
 import TextArrayDataInput from "./TextArrayDataInput";
 import TextDataInput from "./TextDataInput";
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
@@ -59,8 +51,6 @@ const DataInput = forwardRef<HTMLElement, Props>(
     const Component = COMPONENTS_PER_TYPE[type];
     const placeholder = Publication.ATTRIBUTE_LABELS[colId];
 
-    const [value, setValue] = useState(data);
-
     function doValidate() {
       if (autoValidated) {
         validate([rowId]);
@@ -68,7 +58,6 @@ const DataInput = forwardRef<HTMLElement, Props>(
     }
 
     function handleChange(value: string) {
-      setValue(value);
       overrideField(rowId, colId, value);
       if (type == "array" || type == "enum") {
         doValidate();
@@ -81,19 +70,13 @@ const DataInput = forwardRef<HTMLElement, Props>(
       onBlur?.(event);
     }
 
-    useEffect(() => {
-      if (data !== value) {
-        setValue(data);
-      }
-    }, [data, rowId, colId, value, setValue]);
-
     return (
       <Tooltip variant="error" message={props.error}>
         <Component
           {...props}
           {...Publication.define(colId)}
           ref={ref}
-          value={value}
+          value={data}
           onBlur={handleBlur}
           onChange={handleChange}
           placeholder={placeholder}

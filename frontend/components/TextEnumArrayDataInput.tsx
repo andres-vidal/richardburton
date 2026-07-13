@@ -1,6 +1,6 @@
 "use client";
 
-import { Publication } from "modules/publication";
+import { Publication } from "modules/publication/model";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useMemo } from "react";
 import { DataInputProps } from "./DataInput";
@@ -9,7 +9,17 @@ import Multicombobox from "./Multicombobox";
 type Enum = { id: string; label: string };
 
 export default forwardRef<HTMLDivElement, DataInputProps>(
-  function TextEnumArrayDataInput({ colId, value, onChange, ...props }, ref) {
+  function TextEnumArrayDataInput(
+    {
+      rowId: _rowId,
+      autoValidated: _autoValidated,
+      colId,
+      value,
+      onChange,
+      ...props
+    },
+    ref,
+  ) {
     const toEnum = useCallback(
       (id: string): Enum => {
         return { id, label: Publication.describeValue(id, colId) };

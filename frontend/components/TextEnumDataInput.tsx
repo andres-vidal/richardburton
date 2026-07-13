@@ -1,13 +1,23 @@
 "use client";
 
-import { Publication } from "modules/publication";
+import { Publication } from "modules/publication/model";
+import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useMemo } from "react";
 import { DataInputProps } from "./DataInput";
 import Select, { SelectOption } from "./Select";
-import pDebounce from "p-debounce";
 
 export default forwardRef<HTMLInputElement, DataInputProps>(
-  function TextEnumDataInput({ colId, value, onChange, ...props }, ref) {
+  function TextEnumDataInput(
+    {
+      rowId: _rowId,
+      autoValidated: _autoValidated,
+      colId,
+      value,
+      onChange,
+      ...props
+    },
+    ref,
+  ) {
     function handleChange(option: SelectOption) {
       onChange?.(option.id);
     }

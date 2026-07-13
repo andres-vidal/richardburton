@@ -5,7 +5,7 @@ import Tooltip from "./Tooltip";
 import {
   useAreRowIdsVisible,
   useVisiblePublicationCount,
-} from "modules/publication";
+} from "modules/publication/hooks";
 import NumberedListIcon from "assets/numbered-list.svg";
 import Toggle from "./Toggle";
 

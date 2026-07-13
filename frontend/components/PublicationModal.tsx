@@ -1,10 +1,7 @@
 "use client";
 
-import {
-  Publication,
-  PublicationKey,
-  usePublication,
-} from "modules/publication";
+import { Publication, type PublicationKey } from "modules/publication/model";
+import { usePublication } from "modules/publication/hooks";
 import Link from "next/link";
 import { FC } from "react";
 import { z } from "zod";

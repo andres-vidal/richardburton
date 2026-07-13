@@ -1,13 +1,23 @@
 "use client";
 
-import { Publication } from "modules/publication";
+import { Publication } from "modules/publication/model";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useMemo } from "react";
 import { DataInputProps } from "./DataInput";
 import Multicombobox from "./Multicombobox";
 
 export default forwardRef<HTMLDivElement, DataInputProps>(
-  function TextArrayDataInput({ colId, value, onChange, ...props }, ref) {
+  function TextArrayDataInput(
+    {
+      rowId: _rowId,
+      autoValidated: _autoValidated,
+      colId,
+      value,
+      onChange,
+      ...props
+    },
+    ref,
+  ) {
     const items = useMemo(
       () => (value === "" ? [] : value.split(",")),
       [value],

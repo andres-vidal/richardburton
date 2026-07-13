@@ -4,10 +4,10 @@ import CheckIcon from "assets/check.svg";
 import ErrorCircleIcon from "assets/error-circle.svg";
 import { toString } from "lodash";
 import {
-  focusNextInvalid,
   useValidPublicationCount,
   useVisiblePublicationCount,
-} from "modules/publication";
+} from "modules/publication/hooks";
+import { focusNextInvalid } from "modules/publication/store";
 import { FC } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";

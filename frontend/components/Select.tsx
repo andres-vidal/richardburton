@@ -8,7 +8,6 @@ import {
   HTMLProps,
   KeyboardEvent,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -91,13 +90,14 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
 
   const inputValue = search === undefined ? value?.label || "" : search;
 
-  useEffect(() => {
-    if (!isOpen) {
-      setSearch(undefined);
-    }
-  }, [isOpen]);
+  const [wasOpen, setWasOpen] = useState(isOpen);
 
-  useLayoutEffect(() => {
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (!isOpen) setSearch(undefined);
+  }
+
+  useEffect(() => {
     getOptions("").then(setOptions);
   }, [getOptions]);
 

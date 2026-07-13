@@ -13,9 +13,6 @@
 /* Data-attribute state variants (was the `addVariant` plugin). */
 @custom-variant selected (&[data-selected="true"]);
 @custom-variant focused (&[data-focused="true"]);
-/* The two stages of the column-collapse animation (PublicationIndexTable). */
-@custom-variant collapsing (&[data-phase="collapsing"]);
-@custom-variant settled (&[data-phase="settled"]);
 @custom-variant error (&[data-error="true"]);
 @custom-variant error-within (&:has([data-error="true"]));
 @custom-variant peer-error (.peer[data-error="true"] ~ &);

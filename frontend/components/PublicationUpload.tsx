@@ -1,7 +1,8 @@
 "use client";
 
 import UploadIcon from "assets/upload.svg";
-import { upload, useTotalPublicationCount } from "modules/publication";
+import { useTotalPublicationCount } from "modules/publication/hooks";
+import { upload } from "modules/publication/remote";
 import { ChangeEvent, FC, useRef, useState } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";

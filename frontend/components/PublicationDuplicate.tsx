@@ -1,7 +1,8 @@
 "use client";
 
 import CopyIcon from "assets/copy.svg";
-import { duplicate, validate } from "modules/publication";
+import { duplicate } from "modules/publication/store";
+import { validate } from "modules/publication/remote";
 import { FC } from "react";
 import {
   clearSelection,
