@@ -2,6 +2,7 @@
 
 import AddIcon from "assets/add.svg";
 import Button from "components/Button";
+import ColumnMenu from "components/ColumnMenu";
 import { ContactModal } from "components/ContactModal";
 import { Counter } from "components/Counter";
 import Layout from "components/Layout";
@@ -69,8 +70,13 @@ export default function Home() {
             </span>
             <span className="border-b grow h-fit" />
           </div>
-          <div className="pr-3 md:pr-0">
-            <PublicationSearch />
+          <div className="flex gap-2 items-start pr-3 md:pr-0">
+            <div className="grow">
+              <PublicationSearch />
+            </div>
+            <div className="hidden sm:block">
+              <ColumnMenu />
+            </div>
           </div>
         </div>
       }

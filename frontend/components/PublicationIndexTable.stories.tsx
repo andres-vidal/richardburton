@@ -1,13 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { resetAll, resetAttributes } from "modules/publication";
+import {
+  resetAll,
+  resetAttributes,
+  setAttributesVisible,
+} from "modules/publication";
 import { sampleManyPublications, seed } from "modules/publication/fixtures";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { expect, within } from "storybook/test";
 
 import { PublicationIndexTable } from "./PublicationIndexTable";
 
 const meta = {
   title: "Publications/Index table",
   component: PublicationIndexTable,
+  // Normalize column visibility before every story so hidden-column state doesn't
+  // leak between them (the store is a module singleton).
+  beforeEach: () => resetAttributes(),
   decorators: [
     (Story) => (
       <div className="p-4 overflow-x-auto">
@@ -69,31 +76,20 @@ export const ManyRows: Story = {
 };
 
 /**
- * Hiding a toggleable column (its header's hide button) collapses it in place to
- * a narrow labelled strip; clicking that strip brings the column back. The
- * round-trip a user needs — so it can't silently regress.
+ * Columns hidden through the column menu simply don't render — no header cell, no
+ * body cells, no track in the grid. The remaining columns re-share the width.
  */
-export const HideAndRestoreColumn: Story = {
-  beforeEach: () => seed(),
+export const HiddenColumns: Story = {
+  beforeEach: () => {
+    seed(sampleManyPublications(20));
+    setAttributesVisible(["publishers", "year"], false);
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-
-    // Year starts visible (its header carries a hide button); nothing is hidden.
-    const hideYear = await canvas.findByRole("button", { name: "Hide Year" });
-    expect(canvas.queryByRole("button", { name: "Show Year" })).toBeNull();
-
-    // Hiding collapses the column to a "Show Year" restore strip in its header.
-    await userEvent.click(hideYear);
-    await canvas.findByRole("button", { name: "Show Year" });
-    await waitFor(() =>
-      expect(canvas.queryByRole("button", { name: "Hide Year" })).toBeNull(),
-    );
-
-    // Clicking the strip restores the column and removes the strip.
-    await userEvent.click(canvas.getByRole("button", { name: "Show Year" }));
-    await canvas.findByRole("button", { name: "Hide Year" });
-    await waitFor(() =>
-      expect(canvas.queryByRole("button", { name: "Show Year" })).toBeNull(),
-    );
+    await canvas.findByRole("columnheader", { name: "Title" });
+    expect(
+      canvas.queryByRole("columnheader", { name: "Publishers" }),
+    ).toBeNull();
+    expect(canvas.queryByRole("columnheader", { name: "Year" })).toBeNull();
   },
 };

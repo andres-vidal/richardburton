@@ -45,7 +45,7 @@ const Layout: FC<Props> = ({ footer, content, subheader, leftAside }) => {
       </header>
       <div className="flex flex-col h-full gap-2 md:flex-row overflow-clip">
         {leftAside && <aside>{leftAside}</aside>}
-        <main className="relative pb-4 overflow-y-auto overflow-x-clip grow scrollbar-thin scrollbar-thumb-indigo-600">
+        <main className="relative pb-4 overflow-y-auto overflow-x-clip grow scrollbar-thin scrollbar-thumb-gray-300">
           {content}
         </main>
       </div>
