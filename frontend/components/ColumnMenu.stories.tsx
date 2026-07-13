@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { resetAttributes } from "modules/publication";
+import { resetAttributes } from "modules/publication/store";
 import { expect, userEvent, within } from "storybook/test";
 
 import ColumnMenu from "./ColumnMenu";

@@ -3,11 +3,11 @@
 import { request } from "app";
 import DownloadIcon from "assets/download.svg";
 import { snakeCase } from "lodash";
+import { Publication } from "modules/publication/model";
 import {
-  Publication,
   useVisibleAttributes,
   useVisiblePublicationCount,
-} from "modules/publication";
+} from "modules/publication/hooks";
 import { useSearchParams } from "next/navigation";
 import qs from "qs";
 import { FC, useRef } from "react";

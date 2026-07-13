@@ -1,6 +1,6 @@
 "use client";
 
-import { Publication } from "modules/publication";
+import { Publication } from "modules/publication/model";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useMemo } from "react";
 import { DataInputProps } from "./DataInput";

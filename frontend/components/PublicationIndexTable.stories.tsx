@@ -3,7 +3,7 @@ import {
   resetAll,
   resetAttributes,
   setAttributesVisible,
-} from "modules/publication";
+} from "modules/publication/store";
 import { sampleManyPublications, seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
 

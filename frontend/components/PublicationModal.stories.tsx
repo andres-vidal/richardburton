@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Publication, resetAll, setAll } from "modules/publication";
+import { Publication } from "modules/publication/model";
+import { resetAll, setAll } from "modules/publication/store";
 import { expect, screen, waitFor } from "storybook/test";
 
 import { PublicationModal } from "./PublicationModal";

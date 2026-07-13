@@ -1,12 +1,12 @@
 "use client";
 
 import {
-  bulk,
-  setAll,
   useIsValidating,
   useValidPublicationCount,
   useVisiblePublicationCount,
-} from "modules/publication";
+} from "modules/publication/hooks";
+import { setAll } from "modules/publication/store";
+import { bulk } from "modules/publication/remote";
 import { FC, useCallback } from "react";
 import Button from "./Button";
 import { useNotify } from "./Notifications";

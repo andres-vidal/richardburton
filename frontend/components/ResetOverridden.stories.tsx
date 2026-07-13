@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { overrideField, useVisiblePublicationIds } from "modules/publication";
+import { useVisiblePublicationIds } from "modules/publication/hooks";
+import { overrideField } from "modules/publication/store";
 import { seed } from "modules/publication/fixtures";
 import { FC } from "react";
 import { expect, userEvent, within } from "storybook/test";

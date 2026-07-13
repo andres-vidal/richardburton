@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { setDeleted, useVisiblePublicationIds } from "modules/publication";
+import { useVisiblePublicationIds } from "modules/publication/hooks";
+import { setDeleted } from "modules/publication/store";
 import { seed } from "modules/publication/fixtures";
 import { FC } from "react";
 import { expect, userEvent, waitFor, within } from "storybook/test";

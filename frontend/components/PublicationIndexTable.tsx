@@ -2,13 +2,15 @@
 
 import {
   Publication,
-  PublicationId,
-  PublicationKey,
+  type PublicationId,
+  type PublicationKey,
+} from "modules/publication/model";
+import {
   useHiddenAttributes,
   usePublicationField,
   usePublicationFieldError,
   useVisiblePublicationIds,
-} from "modules/publication";
+} from "modules/publication/hooks";
 import {
   AriaRole,
   FC,

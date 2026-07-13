@@ -101,8 +101,6 @@ export const EditCell: Story = {
     await userEvent.clear(title);
     await userEvent.type(title, "The Posthumous Memoirs");
 
-    await waitFor(() =>
-      expect(title).toHaveValue("The Posthumous Memoirs"),
-    );
+    await waitFor(() => expect(title).toHaveValue("The Posthumous Memoirs"));
   },
 };

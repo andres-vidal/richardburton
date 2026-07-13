@@ -2,12 +2,12 @@
 
 import {
   Publication,
-  PublicationId,
-  PublicationKey,
-  PublicationKeyType,
-  overrideField,
-  validate,
-} from "modules/publication";
+  type PublicationId,
+  type PublicationKey,
+  type PublicationKeyType,
+} from "modules/publication/model";
+import { overrideField } from "modules/publication/store";
+import { validate } from "modules/publication/remote";
 import { FC, FocusEvent, HTMLProps, Ref, forwardRef } from "react";
 import TextArrayDataInput from "./TextArrayDataInput";
 import TextDataInput from "./TextDataInput";

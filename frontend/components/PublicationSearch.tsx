@@ -1,6 +1,6 @@
 "use client";
 
-import { useIsIndexLoading, useKeywords } from "modules/publication";
+import { useIsIndexLoading, useKeywords } from "modules/publication/hooks";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChangeEventHandler, FC, useState } from "react";

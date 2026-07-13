@@ -1,7 +1,7 @@
 "use client";
 
 import TrashIcon from "assets/trash.svg";
-import { setDeleted } from "modules/publication";
+import { setDeleted } from "modules/publication/store";
 import { FC } from "react";
 import {
   clearSelection,

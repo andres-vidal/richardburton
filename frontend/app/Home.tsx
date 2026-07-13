@@ -18,11 +18,9 @@ import {
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
-import {
-  resetAll,
-  usePublicationIndex,
-  usePublicationIndexCount,
-} from "modules/publication";
+import { usePublicationIndexCount } from "modules/publication/hooks";
+import { resetAll } from "modules/publication/store";
+import { usePublicationIndex } from "modules/publication/remote";
 import { useIsAuthenticated } from "modules/session";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";

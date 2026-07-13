@@ -14,14 +14,15 @@ import {
 } from "@floating-ui/react";
 import CheckIcon from "assets/check.svg";
 import ChevronDownIcon from "assets/chevron-down.svg";
+import { Publication, type PublicationKey } from "modules/publication/model";
 import {
-  Publication,
-  PublicationKey,
-  resetAttributes,
-  setAttributesVisible,
   useHiddenAttributes,
   useIsAttributeVisible,
-} from "modules/publication";
+} from "modules/publication/hooks";
+import {
+  resetAttributes,
+  setAttributesVisible,
+} from "modules/publication/store";
 import { FC, useState } from "react";
 
 // Only these columns can be hidden; the titles always stay.

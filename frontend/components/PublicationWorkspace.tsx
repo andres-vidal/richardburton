@@ -15,15 +15,14 @@ import {
 } from "components/PublicationIndexTable";
 import { isElement } from "lodash";
 import {
-  DRAFT_ID,
-  addNew,
   useAreRowIdsVisible,
   useIsPublicationFocused,
   useIsPublicationValid,
   usePublicationErrorDescription,
   useVisiblePublicationIds,
-  validate,
-} from "modules/publication";
+} from "modules/publication/hooks";
+import { DRAFT_ID, addNew } from "modules/publication/store";
+import { validate } from "modules/publication/remote";
 import {
   FC,
   KeyboardEventHandler,
