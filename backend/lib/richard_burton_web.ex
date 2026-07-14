@@ -19,7 +19,7 @@ defmodule RichardBurtonWeb do
 
   def controller do
     quote do
-      use Phoenix.Controller, namespace: RichardBurtonWeb
+      use Phoenix.Controller, formats: [:json]
 
       import Plug.Conn
       alias RichardBurtonWeb.Router.Helpers, as: Routes
