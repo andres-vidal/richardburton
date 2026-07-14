@@ -52,7 +52,7 @@ export default async function AuthErrorPage({
 
   const { error } = await searchParams;
   const description = error
-    ? ERROR_DESCRIPTIONS[error as ErrorCode] ?? ERROR_DESCRIPTIONS.Default
+    ? (ERROR_DESCRIPTIONS[error as ErrorCode] ?? ERROR_DESCRIPTIONS.Default)
     : null;
 
   return (
