@@ -1,0 +1,162 @@
+{
+  "metadata": {
+    "title": "Richard & Isabel Burton Platform",
+    "description": "Richard & Isabel Burton Platform: a database about Brazilian literature in translation"
+  },
+  "common": {
+    "appName": "Richard & Isabel Burton Platform",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "submit": "Submit",
+    "send": "Send",
+    "tryAgain": "Try again",
+    "somethingWentWrong": "Something went wrong.",
+    "required": "Required",
+    "and": "and"
+  },
+  "layout": {
+    "heading": "Richard & Isabel Burton Platform",
+    "subheading": "A database about Brazilian literature in translation",
+    "learnMore": "Learn More",
+    "contactUs": "Contact Us"
+  },
+  "language": {
+    "pt": "Portuguese",
+    "en": "English"
+  },
+  "auth": {
+    "signIn": {
+      "title": "Sign in",
+      "withGoogle": "Sign in with Google"
+    },
+    "signOut": "Sign out",
+    "errors": {
+      "accessDenied": {
+        "title": "Access denied",
+        "description": "You are not allowed to sign into the app. Currently, only system administrators can access it.",
+        "support": "Please contact support if you think this could be a mistake."
+      },
+      "verification": {
+        "title": "Verification error",
+        "description": "It seems that your token has expired or has already been used. Please contact support."
+      },
+      "configuration": {
+        "title": "Configuration error",
+        "description": "It seems that the server is not configured correctly. Please contact support."
+      },
+      "default": {
+        "title": "Something went wrong...",
+        "description": "It seems that the app is not working correctly. Please contact support."
+      }
+    }
+  },
+  "home": {
+    "description": "An open access online repository with reliable data about Brazilian literature in translation to English."
+  },
+  "search": {
+    "placeholder": "Browse data about Brazilian literature in translation",
+    "publications": "Search publications",
+    "searchingCollection": "Searching the collection",
+    "showingResultsFor": "Showing results for"
+  },
+  "columns": {
+    "button": "Columns",
+    "showOrHide": "Show or hide columns",
+    "showAll": "Show all"
+  },
+  "publications": {
+    "title": "Publications",
+    "registeredCount": "{count, plural, =0 {No publications registered so far} =1 {# publication registered so far} other {# publications registered so far}}",
+    "prepare": "Prepare new publications to be inserted in the database",
+    "details": "Publication details",
+    "translationTitle": "Translation's title",
+    "translatorTooltip": "Who translated this publication",
+    "description": "<title>{title}</title> is a translation of <originalTitle>{originalTitle}</originalTitle>, by <originalAuthors>{originalAuthors}</originalAuthors>. It was written by <authors>{authors}</authors> and published in <countries>{countries}</countries> in {year} by <publishers>{publishers}</publishers>.",
+    "fields": {
+      "title": "Title",
+      "originalTitle": "Original Title",
+      "authors": "Translators",
+      "originalAuthors": "Original Authors",
+      "year": "Year",
+      "countries": "Countries",
+      "publishers": "Publishers"
+    },
+    "actions": {
+      "add": "Add publication",
+      "addPlural": "Add publications",
+      "addAnother": "Add another",
+      "uploadCsv": "Upload .csv",
+      "downloadCsv": "Download .csv",
+      "submit": "Submit",
+      "saveToRepository": "Save the publications to the repository",
+      "deleteSelected": "Delete {count}",
+      "duplicateSelected": "Duplicate {count}",
+      "deselectSelected": "Deselect {count}",
+      "resetDeleted": "Reset {count} deleted",
+      "resetOverridden": "Reset {count} overridden",
+      "showRowNumbers": "Show row numbers",
+      "hideRowNumbers": "Hide row numbers",
+      "rowIds": "Row IDs"
+    },
+    "status": {
+      "allValid": "All publications are valid",
+      "invalidCount": "{count, plural, =1 {# invalid publication} other {# invalid publications}}",
+      "currentDataWillBeReplaced": "Current data will be replaced!"
+    },
+    "errors": {
+      "conflict": "A publication with this data already exists",
+      "required": "This field is required and cannot be blank",
+      "integer": "This field should be an integer",
+      "incorrectRowLength": "Expected a different number of columns in the CSV",
+      "invalidFormat": "Could not parse publications from the provided file",
+      "alpha2": "This field should be a valid ISO 3166-1 alpha-2 country code",
+      "cannotResetOverridden": "Cannot reset publications: overridden IDs are undefined.",
+      "cannotAddNotLoaded": "Cannot add new publications: entries have not been loaded.",
+      "cannotDuplicateNotLoaded": "Cannot duplicate publications: entries have not been loaded."
+    }
+  },
+  "contact": {
+    "modalTitle": "Contact us",
+    "heading": "Contact",
+    "senderIntroduction": "Please fill in your contact details so we can address your query promptly. Your full name and email address are essential for us to send you a response, and you may also include your institution, although this field is optional. We assure you that your details will be kept confidential and used solely for communication.",
+    "messageIntroduction": "Provide a concise description of your reason for reaching out. Whether you are interested in collaborating with our research, offering feedback on our data or sharing insights about the web application, we invite you to briefly outline your thoughts. This initial communication is important so we can give you an effective reply and, when appropriate, continue the discussion.",
+    "fields": {
+      "name": "Name",
+      "email": "Email",
+      "institution": "Institution",
+      "subject": "Subject",
+      "message": "Write your message here..."
+    },
+    "thankYou": "Thank you for contacting us!",
+    "success": "Your message has been sent!",
+    "error": "Something went wrong."
+  },
+  "about": {
+    "modalTitle": "About the platform",
+    "heading": "About the Richard & Isabel Burton Platform",
+    "platform": {
+      "paragraph1": "The <platform>Richard & Isabel Burton Platform</platform> is an open access online repository with reliable data about Brazilian literature in translation to English. It stemmed from the need to preserve Brazilian cultural and historical heritage and promote its international dissemination. The platform intends to contribute to translation flows worldwide by facilitating access to Brazilian literature for Anglophone readers and researchers.",
+      "paragraph2": "The first version of the platform was registered by the <ifrs>Federal Institute of Education, Science and Technology of Rio Grande do Sul (IFRS)</ifrs> in 2016, linked to the project <project>“Brazilian Literature and Transnationalities: Displacements, Identities and Technological Experiments”</project>, with the goal of serving as a tool for readers, researchers, and academic and governmental institutions interested in accessing data about works of Brazilian literature translated into English. Furthermore, the platform intends to contribute to worldwide translation flows and to promote Brazilian cultural heritage in Brazil and abroad by facilitating access for Anglophone readers and researchers.",
+      "paragraph3": "The current version has been developed since 2022 through the research project <project>“Brazilian Literature in Translation: Solutions in Science and Technology”</project>, with support from the <fapergs>Foundation of Research Support of the State of Rio Grande do Sul (Fapergs)</fapergs> and collaboration from <wyeworks>WyeWorks</wyeworks>.",
+      "paragraph4": "The R&I Platform's data collection includes titles of Brazilian literature books translated into English. It does not include titles of anthologies, collections, or works published in magazines, newspapers and/or electronic media."
+    },
+    "burtons": {
+      "heading": "About Richard & Isabel Burton",
+      "portraitAlt": "Portrait of Sir Richard Burton",
+      "paragraph": "The platform is named after the first known translators of a book of Brazilian literature into English. Sir Richard Francis Burton (1821–1890) and his wife Isabel Burton (1831–1896) are considered pioneers in translating Brazilian literature into English. They came into contact with author José de Alencar and his literary works while Sir Burton served as British consul in Santos, Brazil (1865–1868). The English translation of <iracema>Iracema, The Honey-lips: A legend of Brazil</iracema> (1886), by José de Alencar, was first published by Bickers and Son in London. After this first step, hundreds of literary books were translated into English through the efforts of independent translators, literary agents, publishing houses, and universities, making Brazilian literature available to Anglophone readers.",
+      "readMore": "Read more about Richard & Isabel Burton at <burtoniana>burtoniana.org</burtoniana> and <museum>sir richard burton museum.co.uk</museum>.",
+      "browseBooks": "Browse books translated by Richard & Isabel Burton <link>here</link>."
+    }
+  },
+  "notifications": {
+    "more": "{count, plural, =1 {# more notification} other {# more notifications}}"
+  }
+}

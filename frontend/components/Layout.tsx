@@ -2,6 +2,7 @@ import Dot from "assets/dot.svg";
 import Logo from "assets/logo.svg";
 import Link from "next/link";
 import { FC, ReactNode } from "react";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 import Anchor from "./Anchor";
 import { CONTACT_MODAL_KEY } from "./ContactModal";
 import { LEARN_MORE_MODAL_KEY } from "./LearnMoreModal";
@@ -38,6 +39,10 @@ const Layout: FC<Props> = ({ footer, content, subheader, leftAside }) => {
               <Anchor query={`${LEARN_MORE_MODAL_KEY}=true`}>Learn More</Anchor>
               <Dot className="size-1" />
               <Anchor query={`${CONTACT_MODAL_KEY}=true`}>Contact Us</Anchor>
+            </div>
+            <hr className="w-0.5 h-8 mx-2 bg-current border-none hidden md:block" />
+            <div className="w-fit">
+              <LanguageSwitcher />
             </div>
           </div>
         </h1>

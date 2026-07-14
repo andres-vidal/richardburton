@@ -1,0 +1,162 @@
+{
+  "metadata": {
+    "title": "Plataforma Richard & Isabel Burton",
+    "description": "Plataforma Richard & Isabel Burton: um banco de dados sobre a literatura brasileira traduzida"
+  },
+  "common": {
+    "appName": "Plataforma Richard & Isabel Burton",
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "search": "Pesquisar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "confirm": "Confirmar",
+    "submit": "Enviar",
+    "send": "Enviar",
+    "tryAgain": "Tentar novamente",
+    "somethingWentWrong": "Algo deu errado.",
+    "required": "Obrigatório",
+    "and": "e"
+  },
+  "layout": {
+    "heading": "Plataforma Richard & Isabel Burton",
+    "subheading": "Um banco de dados sobre a literatura brasileira traduzida",
+    "learnMore": "Saiba mais",
+    "contactUs": "Fale conosco"
+  },
+  "language": {
+    "pt": "Português",
+    "en": "Inglês"
+  },
+  "auth": {
+    "signIn": {
+      "title": "Entrar",
+      "withGoogle": "Entrar com o Google"
+    },
+    "signOut": "Sair",
+    "errors": {
+      "accessDenied": {
+        "title": "Acesso negado",
+        "description": "Você não tem permissão para entrar no aplicativo. No momento, somente administradores do sistema podem acessá-lo.",
+        "support": "Entre em contato com o suporte caso acredite que isso seja um engano."
+      },
+      "verification": {
+        "title": "Erro de verificação",
+        "description": "Parece que seu token expirou ou já foi utilizado. Entre em contato com o suporte."
+      },
+      "configuration": {
+        "title": "Erro de configuração",
+        "description": "Parece que o servidor não está configurado corretamente. Entre em contato com o suporte."
+      },
+      "default": {
+        "title": "Algo deu errado...",
+        "description": "Parece que o aplicativo não está funcionando corretamente. Entre em contato com o suporte."
+      }
+    }
+  },
+  "home": {
+    "description": "Um repositório online de acesso aberto com dados confiáveis sobre a literatura brasileira traduzida para o inglês."
+  },
+  "search": {
+    "placeholder": "Explore dados sobre a literatura brasileira traduzida",
+    "publications": "Pesquisar publicações",
+    "searchingCollection": "Pesquisando na coleção",
+    "showingResultsFor": "Exibindo resultados para"
+  },
+  "columns": {
+    "button": "Colunas",
+    "showOrHide": "Mostrar ou ocultar colunas",
+    "showAll": "Mostrar todas"
+  },
+  "publications": {
+    "title": "Publicações",
+    "registeredCount": "{count, plural, =0 {Nenhuma publicação cadastrada até agora} =1 {# publicação cadastrada até agora} other {# publicações cadastradas até agora}}",
+    "prepare": "Prepare novas publicações para serem inseridas no banco de dados",
+    "details": "Detalhes da publicação",
+    "translationTitle": "Título da tradução",
+    "translatorTooltip": "Quem traduziu esta publicação",
+    "description": "<title>{title}</title> é uma tradução de <originalTitle>{originalTitle}</originalTitle>, de <originalAuthors>{originalAuthors}</originalAuthors>. Foi escrita por <authors>{authors}</authors> e publicada em <countries>{countries}</countries>, no ano de {year}, por <publishers>{publishers}</publishers>.",
+    "fields": {
+      "title": "Título",
+      "originalTitle": "Título original",
+      "authors": "Tradutores",
+      "originalAuthors": "Autores originais",
+      "year": "Ano",
+      "countries": "Países",
+      "publishers": "Editoras"
+    },
+    "actions": {
+      "add": "Adicionar publicação",
+      "addPlural": "Adicionar publicações",
+      "addAnother": "Adicionar outra",
+      "uploadCsv": "Enviar .csv",
+      "downloadCsv": "Baixar .csv",
+      "submit": "Enviar",
+      "saveToRepository": "Salvar as publicações no repositório",
+      "deleteSelected": "Excluir {count}",
+      "duplicateSelected": "Duplicar {count}",
+      "deselectSelected": "Desmarcar {count}",
+      "resetDeleted": "Restaurar {count} excluídas",
+      "resetOverridden": "Restaurar {count} substituídas",
+      "showRowNumbers": "Mostrar números das linhas",
+      "hideRowNumbers": "Ocultar números das linhas",
+      "rowIds": "Números das linhas"
+    },
+    "status": {
+      "allValid": "Todas as publicações são válidas",
+      "invalidCount": "{count, plural, =1 {# publicação inválida} other {# publicações inválidas}}",
+      "currentDataWillBeReplaced": "Os dados atuais serão substituídos!"
+    },
+    "errors": {
+      "conflict": "Já existe uma publicação com estes dados",
+      "required": "Este campo é obrigatório e não pode ficar em branco",
+      "integer": "Este campo deve ser um número inteiro",
+      "incorrectRowLength": "Era esperado um número diferente de colunas no CSV",
+      "invalidFormat": "Não foi possível interpretar as publicações do arquivo fornecido",
+      "alpha2": "Este campo deve conter um código de país ISO 3166-1 alfa-2 válido",
+      "cannotResetOverridden": "Não foi possível restaurar as publicações: os identificadores substituídos não foram encontrados.",
+      "cannotAddNotLoaded": "Não foi possível adicionar novas publicações: os registros ainda não foram carregados.",
+      "cannotDuplicateNotLoaded": "Não foi possível duplicar as publicações: os registros ainda não foram carregados."
+    }
+  },
+  "contact": {
+    "modalTitle": "Fale conosco",
+    "heading": "Contato",
+    "senderIntroduction": "Preencha seus dados de contato para que possamos responder à sua solicitação rapidamente. Seu nome completo e endereço de e-mail são essenciais para enviarmos uma resposta; você também pode informar sua instituição, embora esse campo seja opcional. Garantimos que seus dados serão mantidos em sigilo e utilizados exclusivamente para comunicação.",
+    "messageIntroduction": "Descreva de forma breve o motivo do seu contato. Seja para colaborar com nossa pesquisa, enviar comentários sobre os dados ou compartilhar observações sobre a aplicação, convidamos você a resumir suas ideias. Esta primeira mensagem é importante para que possamos oferecer uma resposta eficaz e, quando necessário, dar continuidade à conversa.",
+    "fields": {
+      "name": "Nome",
+      "email": "E-mail",
+      "institution": "Instituição",
+      "subject": "Assunto",
+      "message": "Escreva sua mensagem aqui..."
+    },
+    "thankYou": "Agradecemos seu contato!",
+    "success": "Sua mensagem foi enviada!",
+    "error": "Algo deu errado."
+  },
+  "about": {
+    "modalTitle": "Sobre a plataforma",
+    "heading": "Sobre a Plataforma Richard & Isabel Burton",
+    "platform": {
+      "paragraph1": "A <platform>Plataforma Richard & Isabel Burton</platform> é um repositório online de acesso aberto com dados confiáveis sobre a literatura brasileira traduzida para o inglês. Ela surgiu da necessidade de preservar o patrimônio cultural e histórico brasileiro e ampliar sua divulgação internacional. A plataforma busca contribuir para os fluxos de tradução em todo o mundo, facilitando o acesso de leitores e pesquisadores anglófonos à literatura brasileira.",
+      "paragraph2": "A primeira versão da plataforma foi registrada pelo <ifrs>Instituto Federal de Educação, Ciência e Tecnologia do Rio Grande do Sul (IFRS)</ifrs> em 2016, vinculada ao projeto <project>“Literatura Brasileira e Transnacionalidades: Deslocamentos, Identidades e Experimentos Tecnológicos”</project>, com o objetivo de servir como ferramenta para leitores, pesquisadores e instituições acadêmicas e governamentais interessados em acessar dados sobre obras da literatura brasileira traduzidas para o inglês. Além disso, a plataforma pretende contribuir para os fluxos de tradução em todo o mundo e para a promoção do patrimônio cultural brasileiro no Brasil e no exterior, facilitando seu acesso por leitores e pesquisadores anglófonos.",
+      "paragraph3": "A versão atual é desenvolvida desde 2022 por meio do projeto de pesquisa <project>“Literatura Brasileira em Tradução: Soluções em Ciência e Tecnologia”</project>, com apoio da <fapergs>Fundação de Amparo à Pesquisa do Estado do Rio Grande do Sul (Fapergs)</fapergs> e colaboração da <wyeworks>WyeWorks</wyeworks>.",
+      "paragraph4": "A coleção de dados da plataforma R&I inclui títulos de livros da literatura brasileira traduzidos para o inglês. Ela não inclui títulos de antologias, coletâneas nem obras publicadas em revistas, jornais e/ou meios eletrônicos."
+    },
+    "burtons": {
+      "heading": "Sobre Richard & Isabel Burton",
+      "portraitAlt": "Retrato de Sir Richard Burton",
+      "paragraph": "A plataforma recebeu o nome dos primeiros tradutores conhecidos de um livro da literatura brasileira para o inglês. Sir Richard Francis Burton (1821–1890) e sua esposa, Isabel Burton (1831–1896), são considerados pioneiros na tradução da literatura brasileira para o inglês. Eles tiveram contato com o escritor José de Alencar e sua obra literária durante o período em que Sir Burton atuou como cônsul britânico em Santos, Brasil (1865–1868). A tradução inglesa de <iracema>Iracema, The Honey-lips: A legend of Brazil</iracema> (1886), de José de Alencar, foi publicada pela primeira vez pela editora Bickers and Son, em Londres. Depois desse primeiro passo, centenas de livros de literatura foram traduzidos para o inglês graças ao trabalho de tradutores independentes, agentes literários, editoras e universidades, tornando a literatura brasileira acessível ao público anglófono.",
+      "readMore": "Leia mais sobre Richard & Isabel Burton em <burtoniana>burtoniana.org</burtoniana> e <museum>sir richard burton museum.co.uk</museum>.",
+      "browseBooks": "Explore <link>aqui</link> os livros traduzidos por Richard & Isabel Burton."
+    }
+  },
+  "notifications": {
+    "more": "{count, plural, =1 {Mais # notificação} other {Mais # notificações}}"
+  }
+}

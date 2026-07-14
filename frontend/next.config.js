@@ -1,12 +1,12 @@
+const createNextIntlPlugin = require("next-intl/plugin");
 const path = require("path");
+
+const withNextIntl = createNextIntlPlugin();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
 
-  // Import SVGs as React components. Turbopack (Next 16's default bundler) runs
-  // the @svgr/webpack loader via turbopack.rules; the webpack block is the
-  // equivalent for `next build --webpack`.
   turbopack: {
     rules: {
       "*.svg": {
@@ -36,9 +36,8 @@ const nextConfig = {
     ],
   },
 
-  // Silence the multi-lockfile "inferred workspace root" warning.
   outputFileTracingRoot: path.join(__dirname),
   output: "standalone",
 };
 
-module.exports = nextConfig;
+module.exports = withNextIntl(nextConfig);

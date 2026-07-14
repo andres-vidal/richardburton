@@ -24,10 +24,21 @@ type Props = Omit<
   value?: Option;
   onChange: (option: Option) => void;
   getOptions: (search: string) => Promise<Option[]>;
+  hideToggleButton?: boolean;
 };
 
 export default forwardRef<HTMLInputElement, Props>(function Select(
-  { value, error, onChange, onBlur, onFocus, onKeyDown, getOptions, ...props },
+  {
+    value,
+    error,
+    onChange,
+    onBlur,
+    onFocus,
+    onKeyDown,
+    getOptions,
+    hideToggleButton = false,
+    ...props
+  },
   ref,
 ) {
   const [isOpen, setIsOpen] = useState(false);
@@ -74,11 +85,13 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
 
   function handleToggleClick() {
     setIsOpen((isOpen) => !isOpen);
+
     if (!isOpen) {
       inputRef.current?.focus();
     } else {
       inputRef.current?.blur();
     }
+
     getOptions("").then(setOptions);
   }
 
@@ -94,7 +107,10 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
 
   if (isOpen !== wasOpen) {
     setWasOpen(isOpen);
-    if (!isOpen) setSearch(undefined);
+
+    if (!isOpen) {
+      setSearch(undefined);
+    }
   }
 
   useEffect(() => {
@@ -122,22 +138,25 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
         error={error}
         aria-autocomplete="list"
         right={
-          <button
-            type="button"
-            aria-label={isOpen ? "Hide options" : "Show options"}
-            tabIndex={-1}
-            className={`
-              flex items-center justify-center h-5 aspect-square transition-transform rounded-full
-              outline-none focus:bg-indigo-500 focus:text-white
-              error:text-white focus:error:bg-red-500
-              data-[open=true]:rotate-180
-            `}
-            onClick={handleToggleClick}
-            data-error={Boolean(error)}
-            data-open={isOpen}
-          >
-            <ChevronDownIcon className="h-5" />
-          </button>
+          hideToggleButton ? null : (
+            <button
+              type="button"
+              aria-label={isOpen ? "Hide options" : "Show options"}
+              tabIndex={-1}
+              className={`
+                flex items-center justify-center h-5 aspect-square
+                transition-transform rounded-full outline-none
+                focus:bg-indigo-500 focus:text-white
+                error:text-white focus:error:bg-red-500
+                data-[open=true]:rotate-180
+              `}
+              onClick={handleToggleClick}
+              data-error={Boolean(error)}
+              data-open={isOpen}
+            >
+              <ChevronDownIcon className="h-5" />
+            </button>
+          )
         }
       />
     </MenuProvider>

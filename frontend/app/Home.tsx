@@ -21,11 +21,14 @@ import { usePublicationIndexCount } from "modules/publication/hooks";
 import { usePublicationIndex } from "modules/publication/remote";
 import { resetAll } from "modules/publication/store";
 import { useIsAuthenticated } from "modules/session";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { Link } from "../i18n/navigation";
+
 
 export default function Home() {
+  const t = useTranslations();
   const index = usePublicationIndex();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
@@ -62,7 +65,9 @@ export default function Home() {
         <div className="py-4 space-y-4">
           <div className="flex items-center justify-center gap-3 text-sm text-indigo-700">
             <span className="border-b grow h-fit" />
-            <span>{count} publications registered so far</span>
+            <span>
+              {t("publications.registeredCount", { count })}
+            </span>
             <span className="border-b grow h-fit" />
           </div>
           <div className="flex gap-2 items-start pr-3 md:pr-0">
@@ -82,7 +87,7 @@ export default function Home() {
               <PublicationDownload />
               <Link href="/publications/new">
                 <Button
-                  label="Add publications"
+                  label={t("publications.addPlural")}
                   variant="outline"
                   Icon={AddIcon}
                   alignment="left"

@@ -28,6 +28,7 @@
     "jotai-family": "^1.0.2",
     "lodash": "^4.17.21",
     "next": "^16.2.10",
+    "next-intl": "^4.13.2",
     "object-hash": "^3.0.0",
     "p-debounce": "^4.0.0",
     "qs": "^6.12.0",
