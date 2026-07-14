@@ -5,32 +5,34 @@ import {
   SetStateAction,
   useState,
 } from "react";
-import { ZodDefault, ZodObject, ZodRawShape, ZodSchema, z } from "zod";
+import { z } from "zod";
 
-function stripDefaults<T extends ZodObject<ZodRawShape>>(
+function stripDefaults<T extends z.ZodObject<z.ZodRawShape>>(
   schema: T,
 ): [z.infer<T>, T] {
-  const [defaults, s] = Object.entries(schema.shape).reduce(
+  const entries = Object.entries(schema.shape) as [string, z.ZodType][];
+
+  const [defaults, s] = entries.reduce(
     ([d, s], [key, field]) => {
-      if (field instanceof ZodDefault) {
+      if (field instanceof z.ZodDefault) {
         return [
           { ...d, [key]: field.parse(undefined) },
-          { ...s, [key]: field.removeDefault() },
+          { ...s, [key]: field.def.innerType },
         ];
       }
       return [d, { ...s, [key]: field }];
     },
-    [{}, {}] as [Record<string, unknown>, Record<string, ZodSchema>],
+    [{}, {}] as [Record<string, unknown>, z.ZodRawShape],
   );
 
-  return [defaults, z.object(s) as T] as const;
+  return [defaults as z.infer<T>, z.object(s) as unknown as T] as const;
 }
 
 interface ValidateOptions {
   all: boolean;
 }
 
-function validate<T extends ZodObject<ZodRawShape>>(
+function validate<T extends z.ZodObject<z.ZodRawShape>>(
   schema: T,
   input: Partial<z.infer<T>>,
   { all }: ValidateOptions,
@@ -38,7 +40,9 @@ function validate<T extends ZodObject<ZodRawShape>>(
   const parsed: Record<string, string> = {};
   const errors: Record<string, string> = {};
 
-  for (const [key, field] of Object.entries(schema.shape)) {
+  const entries = Object.entries(schema.shape) as [string, z.ZodType][];
+
+  for (const [key, field] of entries) {
     if (!all && !(key in input)) {
       continue;
     }
@@ -46,10 +50,10 @@ function validate<T extends ZodObject<ZodRawShape>>(
     const result = field.safeParse(input[key]);
 
     if (result.success) {
-      parsed[key] = result.data;
+      parsed[key] = result.data as string;
     } else {
-      parsed[key] = input[key]!;
-      errors[key] = result.error.errors[0].message;
+      parsed[key] = input[key] as string;
+      errors[key] = result.error.issues[0].message;
     }
   }
 
@@ -75,7 +79,7 @@ interface Options<T> {
   ) => void;
 }
 
-export function useForm<T extends ZodObject<ZodRawShape>>(
+export function useForm<T extends z.ZodObject<z.ZodRawShape>>(
   schema: T,
   options?: Options<z.infer<T>>,
 ): {
