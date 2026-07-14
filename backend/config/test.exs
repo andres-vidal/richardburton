@@ -7,7 +7,10 @@ config :richard_burton,
   google_oauth2_certs_url: nil,
   # The key store runs in all environments; under test it uses a no-op JWKS
   # provider so it makes no network calls (auth itself is mocked via Mox).
-  jwks_provider: RichardBurton.Auth.JWKS.Stub
+  jwks_provider: RichardBurton.Auth.JWKS.Stub,
+  # Capture built emails in the process mailbox instead of opening an SMTP
+  # connection (see RichardBurton.Mailer.SMTP).
+  mailer_adapter: Swoosh.Adapters.Test
 
 # Configure your database
 #

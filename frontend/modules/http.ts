@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import axiosCaseConverter from "axios-case-converter";
+import { CSRF_HEADER } from "modules/api";
 
 type HttpClientOptions = AxiosRequestConfig;
 type HttpClient = AxiosInstance;
@@ -34,7 +35,7 @@ const HTTP: HttpModule = {
     instance.interceptors.request.use((config) => {
       const token =
         typeof document === "undefined" ? undefined : readCookie("csrf-token");
-      if (token) config.headers.set("rb-csrf-token", token);
+      if (token) config.headers.set(CSRF_HEADER, token);
       return config;
     });
 

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
 import Select from "./Select";
 
@@ -94,5 +94,34 @@ export const WithError: Story = {
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("combobox");
     await expect(input).toHaveAttribute("aria-invalid", "true");
+  },
+};
+
+/**
+ * Typing filters the async options and highlights the first (activeIndex 0);
+ * pressing Enter selects the highlighted option, emitting it through `onChange`.
+ */
+export const SelectsHighlightedOption: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ args, canvasElement }) => {
+    const input = within(canvasElement).getByRole("combobox");
+
+    await userEvent.type(input, "por");
+
+    // Wait for the option to render (portalled) so the highlight is settled
+    // before we commit it with Enter.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("option", { name: "Portugal" }),
+      ).toBeInTheDocument(),
+    );
+    await userEvent.keyboard("{Enter}");
+
+    await expect(args.onChange).toHaveBeenCalledWith({
+      id: "2",
+      label: "Portugal",
+    });
   },
 };

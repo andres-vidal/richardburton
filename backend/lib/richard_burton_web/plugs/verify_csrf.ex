@@ -19,7 +19,7 @@ defmodule RichardBurtonWeb.Plugs.VerifyCsrf do
   end
 
   def call(conn, _params) do
-    with [token] <- get_req_header(conn, "rb-csrf-token"),
+    with [token] <- get_req_header(conn, Csrf.header_name()),
          {:ok, subject_id} <- Csrf.verify(token),
          true <- subject_id == conn.assigns[:subject_id] do
       conn

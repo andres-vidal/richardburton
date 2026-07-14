@@ -1,0 +1,14 @@
+name: Run frontend app audit
+on: push
+jobs:
+  NpmAudit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "frontend"
+    steps:
+      - uses: actions/checkout@v3
+      # Advisory signal, not a deploy gate: a newly disclosed advisory should surface
+      # here without wedging every release. `--audit-level=high` fails only on
+      # high/critical, and audits the lockfile directly (no install needed).
+      - run: npm audit --audit-level=high

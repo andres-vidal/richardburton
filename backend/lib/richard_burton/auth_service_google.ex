@@ -16,11 +16,14 @@ defmodule RichardBurton.Auth.Google do
 
   @impl true
   @spec verify(token :: String.t()) :: {:ok, String.t()} | :error
-  def verify(token) do
+  # `key_store` is injectable (defaulting to the running `KeyStore`) so tests can
+  # supply a stub holding a known signing key and exercise the full signature +
+  # claims pipeline.
+  def verify(token, key_store \\ KeyStore) do
     with {:ok, %{"kid" => kid}} <- Joken.peek_header(token),
-         {:ok, key} <- KeyStore.fetch_key(kid),
+         {:ok, key} <- key_store.fetch_key(kid),
          {:ok, claims} <- verify_signature(token, key) do
-      Claims.validate(claims, KeyStore.issuer(), audience())
+      Claims.validate(claims, key_store.issuer(), audience())
     else
       _ -> :error
     end

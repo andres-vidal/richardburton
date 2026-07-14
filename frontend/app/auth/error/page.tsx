@@ -1,5 +1,6 @@
 import Layout from "components/Layout";
 import SignInButton from "components/SignInButton";
+import { SESSION_COOKIE } from "modules/api";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -45,7 +46,7 @@ export default async function AuthErrorPage({
   // server-side (no flash, no client effect). Check the rb-session cookie's
   // presence rather than importing the server auth instance, which would run its
   // boot-time invariants during `next build`, where the secrets aren't set.
-  if ((await cookies()).get("rb-session")) {
+  if ((await cookies()).get(SESSION_COOKIE)) {
     redirect("/");
   }
 

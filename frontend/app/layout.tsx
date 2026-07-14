@@ -1,3 +1,4 @@
+import { SESSION_COOKIE } from "modules/api";
 import HTTP from "modules/http";
 import type { User } from "modules/users";
 import type { Metadata, Viewport } from "next";
@@ -12,7 +13,7 @@ const api = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
 // user is (GET /users/me → user or null). Fetched once here and provided
 // app-wide via the client SessionProvider — no client fetch/store/effect.
 async function getSession(): Promise<User | null> {
-  const cookie = (await cookies()).get("rb-session");
+  const cookie = (await cookies()).get(SESSION_COOKIE);
   if (!cookie) return null;
 
   try {

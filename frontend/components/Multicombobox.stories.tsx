@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { FC, useState } from "react";
-import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
 import Multicombobox from "./Multicombobox";
 
@@ -107,5 +107,80 @@ export const WithError: Story = {
       "aria-invalid",
       "true",
     );
+  },
+};
+
+/**
+ * The same value can't be added twice: `select` guards on `!value.includes(item)`,
+ * so re-entering an existing value is a no-op — no duplicate pill, no extra
+ * `onChange`.
+ */
+export const DuplicateFilter: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox");
+
+    await userEvent.type(input, "Fiction{Enter}");
+    await expect(canvas.getAllByText("Fiction")).toHaveLength(1);
+    await expect(args.onChange).toHaveBeenLastCalledWith(["Fiction"]);
+
+    // Re-adding "Fiction" changes nothing: still one pill, and the last onChange
+    // is still the single-item array (never ["Fiction", "Fiction"]).
+    await userEvent.type(input, "Fiction{Enter}");
+    await expect(canvas.getAllByText("Fiction")).toHaveLength(1);
+    await expect(args.onChange).toHaveBeenLastCalledWith(["Fiction"]);
+  },
+};
+
+/**
+ * Positioning (the `size` middleware in MenuProvider): the dropdown is pinned to
+ * the trigger's width. Verified by geometry (getBoundingClientRect), not pixels.
+ */
+export const MenuMatchesTriggerWidth: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox");
+
+    await userEvent.type(input, "e");
+    const listbox = await screen.findByRole("listbox");
+
+    // The reference floating-ui measures is the input's wrapper (TextInput's
+    // root), and `size` sets the menu width to it.
+    const reference = input.parentElement!.getBoundingClientRect();
+    const menu = listbox.getBoundingClientRect();
+    await expect(Math.round(menu.width)).toBe(Math.round(reference.width));
+  },
+};
+
+/**
+ * Arrow keys move the highlight through the options (MenuProvider's
+ * `useListNavigation`), and Enter commits the highlighted one — here the second
+ * match, not the auto-highlighted first. A floating-ui bump that broke list
+ * navigation would surface here.
+ */
+export const NavigatesOptionsWithArrowKeys: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox");
+
+    // "e" matches Poetry (index 0, auto-highlighted) and Essay (index 1).
+    await userEvent.type(input, "e");
+    await screen.findByRole("listbox");
+
+    // Move the highlight down to the second option, then commit it: Enter selects
+    // the navigated-to option, not the one that was auto-highlighted on typing.
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+
+    await expect(args.onChange).toHaveBeenLastCalledWith(["Essay"]);
+    await expect(canvas.getByText("Essay")).toBeInTheDocument();
   },
 };
