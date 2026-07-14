@@ -10,7 +10,20 @@ defmodule RichardBurton.MixProject do
       compilers: Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      test_coverage: [tool: ExCoveralls]
+    ]
+  end
+
+  # Run coverage-reporting tasks in the test environment.
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test
+      ]
     ]
   end
 
@@ -47,6 +60,7 @@ defmodule RichardBurton.MixProject do
       {:plug_cowboy, "~> 2.9"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:csv, "~> 3.2.1"},
       {:cors_plug, "~> 3.0.3"},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},

@@ -1,5 +1,11 @@
 name: Run frontend app tests
-on: push
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
 jobs:
   Vitest:
     runs-on: ubuntu-latest
@@ -12,4 +18,35 @@ jobs:
       # Storybook stories run as tests in a headless browser (@storybook/addon-vitest),
       # so the Playwright Chromium binary must be present.
       - run: npx playwright install chromium --with-deps
-      - run: npm run test
+      # `vitest run --coverage` gates on test failures and writes a coverage
+      # summary (track-only, no threshold) to establish a baseline. `test:watch`
+      # stays coverage-free for fast local runs.
+      - run: npm run test:coverage
+      - name: Comment coverage on the PR
+        if: ${{ success() && github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = `${process.env.GITHUB_WORKSPACE}/frontend/coverage/coverage-summary.json`;
+            const t = JSON.parse(fs.readFileSync(path, "utf8")).total;
+            const marker = "<!-- coverage: frontend -->";
+            const body = [
+              marker,
+              "### 🎨 Frontend test coverage",
+              "",
+              "| Lines | Statements | Functions | Branches |",
+              "| --- | --- | --- | --- |",
+              `| ${t.lines.pct}% | ${t.statements.pct}% | ${t.functions.pct}% | ${t.branches.pct}% |`,
+              "",
+              "_Track-only baseline (components / modules / utils)._",
+            ].join("\n");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const prev = comments.find((c) => c.body?.includes(marker));
+            if (prev) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: prev.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

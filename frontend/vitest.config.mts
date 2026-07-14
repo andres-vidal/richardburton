@@ -11,6 +11,20 @@ const dir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {
+    // Track-only coverage baseline (no thresholds yet). Scoped to the client
+    // source the suite exercises; the Next.js `app/` shell is covered by the
+    // build/integration path, not unit tests, so it's left out here.
+    coverage: {
+      provider: "v8",
+      // json-summary feeds the PR coverage comment (run-frontend-tests.yml).
+      reporter: ["text", "html", "json-summary"],
+      include: [
+        "components/**/*.{ts,tsx}",
+        "modules/**/*.{ts,tsx}",
+        "utils/**/*.{ts,tsx}",
+      ],
+      exclude: ["**/*.spec.{ts,tsx}", "**/*.stories.{ts,tsx}", "**/*.d.ts"],
+    },
     projects: [
       {
         // Plain unit/hook/component tests in jsdom.
