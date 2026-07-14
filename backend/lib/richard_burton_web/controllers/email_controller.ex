@@ -1,5 +1,5 @@
 defmodule RichardBurtonWeb.EmailController do
-  use Phoenix.Controller
+  use Phoenix.Controller, formats: [:json]
   alias RichardBurton.Email
 
   @spec contact(Plug.Conn.t(), any()) :: Plug.Conn.t()

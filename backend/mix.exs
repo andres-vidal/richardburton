@@ -33,31 +33,31 @@ defmodule RichardBurton.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.7.11"},
-      {:phoenix_ecto, "~> 4.5.1"},
+      {:phoenix, "~> 1.8"},
+      {:phoenix_ecto, "~> 4.7"},
       {:phoenix_view, "~> 2.0.3"},
-      {:ecto_sql, "~> 3.11.1"},
+      {:ecto_sql, "~> 3.13"},
       {:ecto_commons, "~> 0.3.4"},
-      {:postgrex, "~> 0.17.5"},
+      {:postgrex, "~> 0.20"},
       {:phoenix_live_dashboard, "~> 0.8.3"},
-      {:telemetry_metrics, "~> 0.6.2"},
-      {:telemetry_poller, "~> 1.0.0"},
+      {:telemetry_metrics, "~> 1.1"},
+      {:telemetry_poller, "~> 1.3"},
       {:jason, "~> 1.4.1"},
-      {:plug, "~> 1.15.3"},
-      {:plug_cowboy, "~> 2.7.0"},
+      {:plug, "~> 1.16"},
+      {:plug_cowboy, "~> 2.9"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       {:csv, "~> 3.2.1"},
       {:cors_plug, "~> 3.0.3"},
-      {:ex_doc, "~> 0.31.2", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:joken, "~> 2.6.0"},
-      {:httpoison, "~> 2.2.1"},
-      {:mox, "~> 1.1.0", only: :test},
+      {:httpoison, "~> 3.0"},
+      {:mox, "~> 1.2", only: :test},
       {:bypass, "~> 2.1", only: :test},
       {:countries, "~> 1.6.0"},
       {:ssl_verify_fun, "~> 1.1.7"},
-      {:swoosh, "~> 1.16.1"},
-      {:gen_smtp, "1.2.0"}
+      {:swoosh, "~> 1.26"},
+      {:gen_smtp, "~> 1.3"}
     ]
   end
 
