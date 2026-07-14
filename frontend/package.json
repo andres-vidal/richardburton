@@ -17,8 +17,6 @@
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
     "@tailwindcss/postcss": "^4.3.2",
-    "@typescript-eslint/eslint-plugin": "^8.64.0",
-    "@typescript-eslint/parser": "^8.64.0",
     "arctic": "^3.7.0",
     "axios": "^1.18.1",
     "axios-case-converter": "^1.1.1",
