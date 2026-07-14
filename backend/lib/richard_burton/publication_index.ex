@@ -10,6 +10,13 @@ defmodule RichardBurton.Publication.Index do
   alias RichardBurton.Publication.Index.SearchKeyword
   alias RichardBurton.Repo
 
+  # The response header carrying the index's total publication count.
+  @count_header "rb-total-count"
+
+  @doc "Name of the response header carrying the index's total count."
+  @spec count_header() :: String.t()
+  def count_header, do: @count_header
+
   def all do
     all(select: [])
   end

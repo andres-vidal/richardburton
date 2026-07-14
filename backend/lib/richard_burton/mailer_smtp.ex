@@ -11,7 +11,9 @@ defmodule RichardBurton.Mailer.SMTP do
   defp config() do
     Keyword.merge(
       [
-        adapter: Swoosh.Adapters.SMTP,
+        # SMTP in dev/prod; overridden to Swoosh's test adapter under test so the
+        # suite can assert on built emails without opening a connection.
+        adapter: Application.get_env(:richard_burton, :mailer_adapter, Swoosh.Adapters.SMTP),
         relay: System.get_env("SMTP_HOST"),
         username: System.get_env("SMTP_USER"),
         port: System.get_env("SMTP_PORT"),

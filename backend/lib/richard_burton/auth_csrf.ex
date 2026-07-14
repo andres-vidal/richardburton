@@ -13,6 +13,12 @@ defmodule RichardBurton.Auth.Csrf do
   alias RichardBurtonWeb.Endpoint
 
   @salt "csrf token"
+  # The request header the browser echoes the CSRF token back in.
+  @header "rb-csrf-token"
+
+  @doc "Name of the request header carrying the double-submit CSRF token."
+  @spec header_name() :: String.t()
+  def header_name, do: @header
 
   @spec sign(String.t()) :: String.t()
   def sign(subject_id) do

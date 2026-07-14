@@ -38,13 +38,13 @@ defmodule RichardBurtonWeb.SessionController do
   def delete(conn, _params) do
     conn = fetch_cookies(conn)
 
-    case conn.cookies["rb-session"] do
+    case conn.cookies[Session.cookie_name()] do
       nil -> :ok
       token -> Session.revoke(token)
     end
 
     conn
-    |> delete_resp_cookie("rb-session", same_site: "Lax", secure: secure_cookie?())
+    |> delete_resp_cookie(Session.cookie_name(), same_site: "Lax", secure: secure_cookie?())
     |> delete_resp_cookie("csrf-token",
       same_site: "Lax",
       secure: secure_cookie?(),
@@ -59,7 +59,7 @@ defmodule RichardBurtonWeb.SessionController do
     {:ok, token} = Session.create(subject_id)
 
     conn
-    |> put_resp_cookie("rb-session", token,
+    |> put_resp_cookie(Session.cookie_name(), token,
       http_only: true,
       same_site: "Lax",
       secure: secure_cookie?(),

@@ -176,6 +176,32 @@ describe("validate", () => {
     expect(store.get(isValidatingAtom)).toBe(false);
   });
 
+  test("re-sends a row after its value changes and refreshes its error", async () => {
+    const a = createId();
+    setAll([{ id: a, publication: pub({ title: "" }), errors: null }]);
+
+    // First pass: the server rejects the row.
+    http.post.mockResolvedValueOnce({
+      data: [{ publication: pub({ title: "" }), errors: "conflict" }],
+    });
+    await validate([a]);
+    expect(store.get(errorFamily(a))).toBe("conflict");
+
+    // The user fixes the row: its value — and therefore its hash — changes, so
+    // it is no longer deduplicated against the last validated value.
+    store.set(publicationFamily(a), pub({ title: "Dom Casmurro" }));
+
+    // Second pass: the row is re-sent and its (now clean) result replaces the
+    // stale error.
+    http.post.mockResolvedValueOnce({
+      data: [{ publication: pub({ title: "Dom Casmurro" }), errors: null }],
+    });
+    await validate([a]);
+
+    expect(http.post).toHaveBeenCalledTimes(2);
+    expect(store.get(errorFamily(a))).toBeNull();
+  });
+
   test("skips the request when nothing changed", async () => {
     const a = createId();
     setAll([{ id: a, publication: pub({ title: "A" }), errors: null }]);

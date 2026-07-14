@@ -1,0 +1,22 @@
+name: Run backend app audit
+on: push
+jobs:
+  MixAudit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "backend"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: erlef/setup-beam@v1
+        with:
+          version-type: strict
+          version-file: backend/.tool-versions
+      # config/dev.exs imports the gitignored dev.local.exs, so stub it (as the
+      # test workflow does) before any mix task loads the dev config.
+      - run: echo -e "import Config\nconfig :richard_burton, []" >> config/dev.local.exs
+      - run: mix deps.get
+      # `deps.audit` (mix_audit) flags dependencies with known CVEs; `hex.audit`
+      # flags retired packages. Advisory, like the frontend audit — not a deploy gate.
+      - run: mix deps.audit
+      - run: mix hex.audit

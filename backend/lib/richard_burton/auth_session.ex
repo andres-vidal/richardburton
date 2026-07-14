@@ -22,6 +22,8 @@ defmodule RichardBurton.Auth.Session do
   # Throttle idle-timeout refreshes to at most once per interval.
   @slide_after 3_600
   @token_bytes 32
+  # The httpOnly cookie carrying the raw session token.
+  @cookie_name "rb-session"
 
   schema "auth_sessions" do
     field :subject_id, :string
@@ -91,6 +93,10 @@ defmodule RichardBurton.Auth.Session do
   @spec idle_timeout() :: pos_integer()
   def idle_timeout,
     do: Application.get_env(:richard_burton, :session_idle_timeout, @default_idle_timeout)
+
+  @doc "Name of the httpOnly cookie carrying the raw session token."
+  @spec cookie_name() :: String.t()
+  def cookie_name, do: @cookie_name
 
   # Slide the idle timeout forward on use, throttled, never past the absolute cap.
   defp maybe_slide(session, now) do

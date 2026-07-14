@@ -17,7 +17,7 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Cookie do
   end
 
   defp verify(conn) do
-    case fetch_cookies(conn).cookies["rb-session"] do
+    case fetch_cookies(conn).cookies[Session.cookie_name()] do
       nil -> :error
       token -> Session.verify(token)
     end

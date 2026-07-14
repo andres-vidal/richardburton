@@ -9,7 +9,7 @@ defmodule RichardBurtonWeb.UserController do
   (reads the cookie itself) so the SPA can poll auth state without a 401.
   """
   def me(conn, _params) do
-    with token when is_binary(token) <- fetch_cookies(conn).cookies["rb-session"],
+    with token when is_binary(token) <- fetch_cookies(conn).cookies[Session.cookie_name()],
          {:ok, subject_id} <- Session.verify(token) do
       json(conn, User.get(subject_id))
     else

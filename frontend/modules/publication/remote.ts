@@ -1,6 +1,7 @@
 import { request } from "app";
 import { AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
+import { TOTAL_COUNT_HEADER } from "modules/api";
 import { RESET } from "jotai/utils";
 import hash from "object-hash";
 import { useCallback } from "react";
@@ -59,8 +60,8 @@ async function index({ search }: { search?: string } = {}): Promise<void> {
       const { entries, keywords } = data;
 
       // Read raw: the client no longer camelCases response headers (see modules/http).
-      if (headers["rb-total-count"]) {
-        store.set(totalIndexCountAtom, parseInt(headers["rb-total-count"]));
+      if (headers[TOTAL_COUNT_HEADER]) {
+        store.set(totalIndexCountAtom, parseInt(headers[TOTAL_COUNT_HEADER]));
       }
       store.set(keywordsAtom, keywords);
 
