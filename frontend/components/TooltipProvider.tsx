@@ -133,7 +133,7 @@ const TooltipProvider: FC<Props> = ({
               style: {
                 position: state.strategy,
                 top: state.y ?? 0,
-                left: absoluteCenter ? undefined : state.x ?? 0,
+                left: absoluteCenter ? undefined : (state.x ?? 0),
                 visibility: state.x == null ? "hidden" : "visible",
               },
             })}
