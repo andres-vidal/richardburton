@@ -79,5 +79,12 @@ defmodule RichardBurtonWeb.Router do
 
       live_dashboard("/dashboard", metrics: RichardBurtonWeb.Telemetry)
     end
+
+    # Dev/test-only credentials provider — mints an admin session without Google.
+    scope "/api/dev", RichardBurtonWeb do
+      pipe_through(:api)
+
+      post("/session", DevSessionController, :create)
+    end
   end
 end
