@@ -55,15 +55,15 @@ defmodule RichardBurton.FlatPublication do
     Repo.all(FlatPublication)
   end
 
-  def validate(attrs) do
-    %FlatPublication{} |> changeset(attrs) |> validate_changeset()
+  def validate(attrs, exclude_id \\ nil) do
+    %FlatPublication{} |> changeset(attrs) |> validate_changeset(exclude_id)
   end
 
-  defp validate_changeset(changeset = %{valid?: false}) do
+  defp validate_changeset(changeset = %{valid?: false}, _exclude_id) do
     {:error, Validation.get_errors(changeset)}
   end
 
-  defp validate_changeset(changeset = %{valid?: true}) do
+  defp validate_changeset(changeset = %{valid?: true}, exclude_id) do
     where =
       Enum.map(
         [
@@ -76,12 +76,20 @@ defmodule RichardBurton.FlatPublication do
         &{&1, get_field(changeset, &1)}
       )
 
-    query = from(fp in FlatPublication, where: ^where)
+    conflict =
+      from(fp in FlatPublication, where: ^where)
+      |> exclude_self(exclude_id)
+      |> Repo.exists?()
 
-    if Repo.exists?(query) do
+    if conflict do
       {:error, :conflict}
     else
       :ok
     end
   end
+
+  # The row being re-validated during an edit must not count as a conflict with
+  # itself; without an id (a fresh create) there is nothing to exclude.
+  defp exclude_self(query, nil), do: query
+  defp exclude_self(query, id), do: from(fp in query, where: fp.id != ^id)
 end

@@ -102,6 +102,7 @@ defmodule RichardBurton.Country do
     countries =
       changeset
       |> get_change(:countries)
+      |> Enum.reject(&(&1.action == :replace))
       |> Enum.map(&apply_changes/1)
       |> Enum.map(&maybe_insert!/1)
 

@@ -66,6 +66,7 @@ defmodule RichardBurton.Publisher do
     publishers =
       changeset
       |> get_change(:publishers)
+      |> Enum.reject(&(&1.action == :replace))
       |> Enum.map(&apply_changes/1)
       |> Enum.map(&maybe_insert!/1)
 

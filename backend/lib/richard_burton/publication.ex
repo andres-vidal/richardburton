@@ -24,10 +24,17 @@ defmodule RichardBurton.Publication do
     field(:countries_fingerprint, :string)
     field(:publishers_fingerprint, :string)
 
-    belongs_to(:translated_book, TranslatedBook)
+    belongs_to(:translated_book, TranslatedBook, on_replace: :nilify)
 
-    many_to_many(:countries, Country, join_through: "publication_countries")
-    many_to_many(:publishers, Publisher, join_through: "publication_publishers")
+    many_to_many(:countries, Country,
+      join_through: "publication_countries",
+      on_replace: :delete
+    )
+
+    many_to_many(:publishers, Publisher,
+      join_through: "publication_publishers",
+      on_replace: :delete
+    )
 
     timestamps()
   end
@@ -92,6 +99,24 @@ defmodule RichardBurton.Publication do
 
   def validate(attrs) do
     Validation.validate(changeset(%Publication{}, attrs), &link_assocs/1)
+  end
+
+  def update(id, attrs) do
+    case Repo.get(Publication, id) do
+      nil ->
+        {:error, :not_found}
+
+      publication ->
+        publication
+        |> preload()
+        |> changeset(attrs)
+        |> link_assocs()
+        |> Repo.update()
+        |> case do
+          {:ok, updated} -> {:ok, preload(updated)}
+          {:error, changeset} -> {:error, Validation.get_errors(changeset)}
+        end
+    end
   end
 
   defp link_fingerprints(changeset) do

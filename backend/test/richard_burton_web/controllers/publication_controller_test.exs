@@ -4,7 +4,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   """
   alias RichardBurton.FlatPublication
   use RichardBurtonWeb.ConnCase
-  import Routes, only: [publication_path: 2]
+  import Routes, only: [publication_path: 2, publication_path: 3]
 
   alias RichardBurton.Country
   alias RichardBurton.Publication
@@ -642,5 +642,125 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert expected_content_disposition == content_disposition
       assert expected_data == response(conn, 200)
     end
+  end
+
+  describe "PUT /publications/:id" do
+    test "updates a publication and returns the flattened result", meta do
+      publication = insert_publication(@publication_attrs)
+      expect_auth_authorize_admin()
+
+      attrs = %{@publication_attrs | "title" => "A New Title"}
+
+      result =
+        meta.conn
+        |> put(publication_path(meta.conn, :update, publication.id), attrs)
+        |> json_response(200)
+
+      assert result["id"] == publication.id
+      assert result["title"] == "A New Title"
+      # The change is persisted and visible through the read model.
+      assert ["A New Title"] == FlatPublication.all() |> Enum.map(& &1.title)
+    end
+
+    test "edits a keyed field, changing the record's identity", meta do
+      publication = insert_publication(@publication_attrs)
+      expect_auth_authorize_admin()
+
+      attrs = %{@publication_attrs | "year" => "1999"}
+
+      result =
+        meta.conn
+        |> put(publication_path(meta.conn, :update, publication.id), attrs)
+        |> json_response(200)
+
+      assert result["id"] == publication.id
+      assert result["year"] == 1999
+    end
+
+    test "updates the translated book when the original fields change", meta do
+      publication = insert_publication(@publication_attrs)
+      expect_auth_authorize_admin()
+
+      attrs = %{@publication_attrs | "original_title" => "Iracema (rev.)"}
+
+      result =
+        meta.conn
+        |> put(publication_path(meta.conn, :update, publication.id), attrs)
+        |> json_response(200)
+
+      assert result["original_title"] == "Iracema (rev.)"
+    end
+
+    test "returns 409 when the edit collides with another publication", meta do
+      a = insert_publication(@publication_attrs)
+      _b = insert_publication(%{@publication_attrs | "title" => "Another Title"})
+      expect_auth_authorize_admin()
+
+      # Editing `a` to `b`'s title collides with `b`'s composite key.
+      attrs = %{@publication_attrs | "title" => "Another Title"}
+
+      conn = put(meta.conn, publication_path(meta.conn, :update, a.id), attrs)
+      assert response(conn, 409)
+    end
+
+    test "re-saving the same data does not conflict with itself", meta do
+      publication = insert_publication(@publication_attrs)
+      expect_auth_authorize_admin()
+
+      conn =
+        put(meta.conn, publication_path(meta.conn, :update, publication.id), @publication_attrs)
+
+      assert response(conn, 200)
+    end
+
+    test "returns 400 for invalid data", meta do
+      publication = insert_publication(@publication_attrs)
+      expect_auth_authorize_admin()
+
+      attrs = %{@publication_attrs | "title" => ""}
+
+      conn = put(meta.conn, publication_path(meta.conn, :update, publication.id), attrs)
+      assert response(conn, 400)
+    end
+
+    test "returns 404 for a missing publication", meta do
+      expect_auth_authorize_admin()
+
+      conn = put(meta.conn, publication_path(meta.conn, :update, 999_999), @publication_attrs)
+      assert response(conn, 404)
+    end
+  end
+
+  describe "POST /publications/:id/validate" do
+    test "does not report the row being edited as a conflict", meta do
+      publication = insert_publication(@publication_attrs)
+      expect_auth_authorize_admin()
+
+      result =
+        meta.conn
+        |> post(publication_path(meta.conn, :validate, publication.id), @publication_attrs)
+        |> json_response(200)
+
+      assert result["errors"] == nil
+    end
+
+    test "reports a conflict against a different publication", meta do
+      _a = insert_publication(@publication_attrs)
+      b = insert_publication(%{@publication_attrs | "title" => "Another Title"})
+      expect_auth_authorize_admin()
+
+      # Validating `b` against `a`'s data conflicts with `a`.
+      result =
+        meta.conn
+        |> post(publication_path(meta.conn, :validate, b.id), @publication_attrs)
+        |> json_response(200)
+
+      assert result["errors"] == "conflict"
+    end
+  end
+
+  defp insert_publication(attrs) do
+    {:ok, publication} = attrs |> Publication.Codec.nest() |> Publication.insert()
+    publication
   end
 end

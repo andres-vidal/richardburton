@@ -82,6 +82,29 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_status(status) |> json(Publication.Codec.flatten(response_body))
   end
 
+  def update(conn, params = %{"id" => id}) do
+    {status, body} =
+      params
+      |> Map.delete("id")
+      |> Publication.Codec.nest()
+      |> then(&Publication.update(id, &1))
+      |> case do
+        {:ok, publication} ->
+          {:ok, Publication.Codec.flatten(publication)}
+
+        {:error, :not_found} ->
+          {:not_found, %{error: :not_found}}
+
+        {:error, :conflict} ->
+          {:conflict, %{errors: :conflict}}
+
+        {:error, errors} ->
+          {:bad_request, %{errors: errors}}
+      end
+
+    conn |> put_status(status) |> json(body)
+  end
+
   def validate(conn, %{"csv" => %Plug.Upload{path: path}}) do
     case Publication.Codec.from_csv(path) do
       {:ok, publications} ->
@@ -104,8 +127,16 @@ defmodule RichardBurtonWeb.PublicationController do
     |> json(result)
   end
 
-  defp validate_publication(p) do
-    case FlatPublication.validate(p) do
+  def validate(conn, params = %{"id" => id}) do
+    publication = Map.delete(params, "id")
+
+    conn
+    |> put_status(:ok)
+    |> json(validate_publication(publication, id))
+  end
+
+  defp validate_publication(p, exclude_id \\ nil) do
+    case FlatPublication.validate(p, exclude_id) do
       :ok -> %{publication: p, errors: nil}
       {:error, errors} -> %{publication: p, errors: errors}
     end

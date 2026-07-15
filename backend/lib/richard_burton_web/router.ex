@@ -46,6 +46,8 @@ defmodule RichardBurtonWeb.Router do
     scope "/publications" do
       post("/bulk", PublicationController, :create_all)
       post("/validate", PublicationController, :validate)
+      put("/:id", PublicationController, :update)
+      post("/:id/validate", PublicationController, :validate)
     end
   end
 

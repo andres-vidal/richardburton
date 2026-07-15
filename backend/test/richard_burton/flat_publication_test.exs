@@ -53,6 +53,11 @@ defmodule RichardBurton.FlatPublicationTest do
     %Publication{} |> Publication.changeset(Publication.Codec.nest(attrs)) |> Repo.insert()
   end
 
+  defp insert_publication(attrs) do
+    {:ok, publication} = attrs |> Publication.Codec.nest() |> Publication.insert()
+    publication
+  end
+
   describe "changeset/2" do
     test "when valid attributes are provided, is valid" do
       assert changeset(@valid_attrs).valid?
@@ -168,6 +173,31 @@ defmodule RichardBurton.FlatPublicationTest do
         |> Publication.validate()
 
       assert expected == FlatPublication.validate(attrs)
+    end
+  end
+
+  describe "validate/2" do
+    import FlatPublication, only: [validate: 2]
+
+    test "excludes the given id, so the row being edited is not a conflict with itself" do
+      publication = insert_publication(@valid_attrs)
+
+      assert :ok == validate(@valid_attrs, publication.id)
+    end
+
+    test "still reports a conflict when a different row matches the attributes" do
+      conflicting = insert_publication(@valid_attrs)
+      other = insert_publication(Map.put(@valid_attrs, "title", "Another title"))
+
+      # Excluding `other` does not hide the collision with `conflicting`.
+      assert conflicting.id != other.id
+      assert {:error, :conflict} == validate(@valid_attrs, other.id)
+    end
+
+    test "with a nil id, behaves like validate/1" do
+      insert_publication(@valid_attrs)
+
+      assert {:error, :conflict} == validate(@valid_attrs, nil)
     end
   end
 end
