@@ -14,9 +14,9 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Validation
 
-  @external_attributes [:countries, :publishers, :title, :year, :translated_book]
+  @readable_attributes [:countries, :publishers, :title, :year, :translated_book]
 
-  @derive {Jason.Encoder, only: @external_attributes}
+  @derive {Jason.Encoder, only: @readable_attributes}
   schema "publications" do
     field(:title, :string)
     field(:year, :integer)

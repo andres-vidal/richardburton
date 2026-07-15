@@ -12,9 +12,9 @@ defmodule RichardBurton.Author do
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Util
 
-  @external_attributes [:name]
+  @readable_attributes [:name]
 
-  @derive {Jason.Encoder, only: @external_attributes}
+  @derive {Jason.Encoder, only: @readable_attributes}
   schema "authors" do
     field(:name, :string)
 

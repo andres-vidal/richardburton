@@ -11,9 +11,9 @@ defmodule RichardBurton.OriginalBook do
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Util
 
-  @external_attributes [:authors, :title]
+  @readable_attributes [:authors, :title]
 
-  @derive {Jason.Encoder, only: @external_attributes}
+  @derive {Jason.Encoder, only: @readable_attributes}
   schema "original_books" do
     field(:title, :string)
     field(:authors_fingerprint, :binary)
