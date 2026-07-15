@@ -110,6 +110,14 @@ defmodule RichardBurton.AuthorTest do
 
       assert Author.fingerprint(authors1) == Author.fingerprint(authors2)
     end
+
+    test "given sets whose names concatenate the same, generates different fingerprints" do
+      # Without a delimiter, ["AnnBob"] and ["Ann", "Bob"] both join to "AnnBob".
+      one = [%Author{name: "AnnBob"}]
+      two = [%Author{name: "Ann"}, %Author{name: "Bob"}]
+
+      refute Author.fingerprint(one) == Author.fingerprint(two)
+    end
   end
 
   defmodule WithManyAuthors do

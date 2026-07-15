@@ -10,7 +10,7 @@ defmodule RichardBurton.Author do
   alias RichardBurton.Repo
   alias RichardBurton.OriginalBook
   alias RichardBurton.TranslatedBook
-  alias RichardBurton.Util
+  alias RichardBurton.Fingerprint
 
   @readable_attributes [:name]
 
@@ -65,9 +65,7 @@ defmodule RichardBurton.Author do
   def fingerprint(authors) when is_list(authors) do
     authors
     |> Enum.map(fn %Author{name: name} -> name end)
-    |> Enum.sort()
-    |> Enum.join()
-    |> Util.create_fingerprint()
+    |> Fingerprint.of_set()
   end
 
   def link_fingerprint(changeset = %Ecto.Changeset{valid?: true}) do

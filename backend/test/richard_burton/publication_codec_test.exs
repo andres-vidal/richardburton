@@ -126,7 +126,7 @@ defmodule RichardBurton.Publication.CodecTest do
       countries: "GB",
       countries_fingerprint: "B4043B0B8297E379BC559AB33B6AE9C7A9B4EF6519D3BAEE53270F0C0DD3D960",
       publishers: "Bickers & Son, Noonday Press",
-      publishers_fingerprint: "74A2D52E4AC165134F6A85A9A109A3459B37B557C2D3939D33F02821A8D8A97D",
+      publishers_fingerprint: "830DE6E9CE04669334B8C1A5D61E94E37A8842B9241C2EB3C9E72E7973CF3A7C",
       authors: "Isabel Burton",
       original_authors: "José de Alencar",
       original_title: "Iracema",
@@ -360,7 +360,7 @@ defmodule RichardBurton.Publication.CodecTest do
       countries: [%Country{code: "GB"}],
       countries_fingerprint: "B4043B0B8297E379BC559AB33B6AE9C7A9B4EF6519D3BAEE53270F0C0DD3D960",
       publishers: [%Publisher{name: "Bickers & Son"}, %Publisher{name: "Noonday Press"}],
-      publishers_fingerprint: "74A2D52E4AC165134F6A85A9A109A3459B37B557C2D3939D33F02821A8D8A97D",
+      publishers_fingerprint: "830DE6E9CE04669334B8C1A5D61E94E37A8842B9241C2EB3C9E72E7973CF3A7C",
       translated_book: %TranslatedBook{
         authors: [
           %Author{name: "Isabel Burton"}
