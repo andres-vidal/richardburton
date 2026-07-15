@@ -1,19 +1,19 @@
 import { request } from "app";
 import { AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
-import { TOTAL_COUNT_HEADER } from "modules/api";
 import { RESET } from "jotai/utils";
+import { TOTAL_COUNT_HEADER } from "modules/api";
 import hash from "object-hash";
 import { useCallback } from "react";
 import useDebounce from "utils/useDebounce";
 
+import type { Publication } from "./model";
 import {
   PublicationError,
   PublicationId,
   ValidationResult,
   describeError,
 } from "./model";
-import type { Publication } from "./model";
 import {
   createId,
   isIndexLoadingAtom,
@@ -65,10 +65,10 @@ async function index({ search }: { search?: string } = {}): Promise<void> {
       }
       store.set(keywordsAtom, keywords);
 
-      const ids = entries.map(() => createId());
+      const ids = entries.map((entry) => entry.id!);
       store.set(publicationIdsAtom, ids);
-      entries.forEach((publication, i) =>
-        store.set(publicationFamily(ids[i]), publication),
+      entries.forEach((entry, i) =>
+        store.set(publicationFamily(ids[i]), entry),
       );
     } finally {
       store.set(isIndexLoadingAtom, false);

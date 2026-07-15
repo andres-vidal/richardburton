@@ -13,7 +13,7 @@ defmodule RichardBurton.FlatPublication do
   alias RichardBurton.Validation
   alias RichardBurton.Country
 
-  @external_attributes [
+  @writable_attributes [
     :title,
     :year,
     :countries,
@@ -23,7 +23,9 @@ defmodule RichardBurton.FlatPublication do
     :original_authors
   ]
 
-  @derive {Jason.Encoder, only: @external_attributes}
+  @readable_attributes [:id | @writable_attributes]
+
+  @derive {Jason.Encoder, only: @readable_attributes}
   schema "flat_publications" do
     field(:title, :string)
     field(:year, :integer)
@@ -41,8 +43,8 @@ defmodule RichardBurton.FlatPublication do
   @doc false
   def changeset(flat_publication, attrs) do
     flat_publication
-    |> cast(attrs, @external_attributes)
-    |> validate_required(@external_attributes)
+    |> cast(attrs, @writable_attributes)
+    |> validate_required(@writable_attributes)
     |> Country.validate_countries()
     |> Country.link_fingerprint()
     |> Publisher.link_fingerprint()

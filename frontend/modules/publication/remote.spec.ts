@@ -3,8 +3,9 @@ import type { AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
 import hash from "object-hash";
 
-import { empty } from "./model";
 import type { Publication } from "./model";
+import { empty } from "./model";
+import { bulk, index, upload, validate } from "./remote";
 import {
   createId,
   errorFamily,
@@ -20,7 +21,6 @@ import {
   totalIndexCountAtom,
   visiblePublicationFamily,
 } from "./store";
-import { bulk, index, upload, validate } from "./remote";
 
 // The two side-effecting seams. Mocking the modules keeps `pages/_app.tsx` and
 // the Notifications UI out of the test; the rest (store, model, hashing) is real.
@@ -53,8 +53,8 @@ describe("index", () => {
     http.get.mockResolvedValue({
       data: {
         entries: [
-          pub({ title: "Dom Casmurro" }),
-          pub({ title: "The Hour of the Star" }),
+          pub({ title: "Dom Casmurro", id: 7 }),
+          pub({ title: "The Hour of the Star", id: 12 }),
         ],
         keywords: ["machado"],
       },
@@ -64,7 +64,7 @@ describe("index", () => {
     await index();
 
     const ids = store.get(publicationIdsAtom);
-    expect(ids).toHaveLength(2);
+    expect(ids).toEqual([7, 12]);
     expect(store.get(publicationFamily(ids![0])).title).toBe("Dom Casmurro");
     expect(store.get(publicationFamily(ids![1])).title).toBe(
       "The Hour of the Star",

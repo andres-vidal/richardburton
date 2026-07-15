@@ -11,13 +11,16 @@ type Publication = {
   authors: string;
   originalTitle: string;
   originalAuthors: string;
+  // The server PK: a real id on persisted rows (index/search), null on
+  // unsaved/working rows. Read-only: never cast from client input.
+  id: number | null;
 };
 
-type PublicationKey = keyof Publication;
+type PublicationKey = keyof Omit<Publication, "id">;
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: number };
-type PublicationId = number;
+type PublicationId = NonNullable<Publication["id"]>;
 type PublicationKeyType = "array" | "text" | "enum" | "enumArray" | "number";
 
 const ATTRIBUTES: PublicationKey[] = [
@@ -81,6 +84,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 function empty(): Publication {
   return {
+    id: null,
     authors: "",
     countries: "",
     originalAuthors: "",

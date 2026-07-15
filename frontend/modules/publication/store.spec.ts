@@ -17,10 +17,10 @@ import {
   focusedRowIdAtom,
   hiddenAttributesAtom,
   isValidFamily,
-  overrideField,
-  overrideFamily,
   overriddenCountAtom,
   overriddenIdsAtom,
+  overrideFamily,
+  overrideField,
   publicationFamily,
   publicationIdsAtom,
   resetAll,
@@ -261,8 +261,12 @@ describe("focusNextInvalid", () => {
 });
 
 describe("ids and the draft", () => {
-  test("createId hands out unique, increasing ids", () => {
-    expect(createId()).toBeLessThan(createId());
+  test("createId hands out unique, negative ids (never collide with server ids)", () => {
+    const a = createId();
+    const b = createId();
+    expect(a).not.toBe(b);
+    expect(a).toBeLessThan(0);
+    expect(b).toBeLessThan(0);
   });
 
   test("the draft row starts empty", () => {

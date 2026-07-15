@@ -87,7 +87,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :create_all), input)
         |> json_response(201)
 
-      assert publications == result
+      assert publications == Enum.map(result, &Map.delete(&1, "id"))
     end
 
     test "returns 201 and inserts publications with several countries", meta do
@@ -162,7 +162,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert 3 == FlatPublication.all() |> length()
       assert ["GB", "US", "BR"] == Country.all() |> Enum.map(&Country.get_code/1)
-      assert output == result
+      assert output == Enum.map(result, &Map.delete(&1, "id"))
     end
 
     test "returns 201 and inserts publications with several publishers", meta do
@@ -239,7 +239,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert 3 == FlatPublication.all() |> length()
       assert publishers == Publisher.all() |> Enum.map(&Publisher.get_name/1)
-      assert output == result
+      assert output == Enum.map(result, &Map.delete(&1, "id"))
     end
 
     test "returns 409 when publications are repeated, and returns the first repeated one", meta do
