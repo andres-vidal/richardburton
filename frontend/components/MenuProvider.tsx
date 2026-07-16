@@ -23,6 +23,7 @@ type Props<OptionType extends Option | string> = {
   options: OptionType[];
   isOpen: boolean;
   activeIndex: number | null;
+  bordered?: boolean;
   setIsOpen: (value: boolean) => void;
   setActiveIndex: (value: number | null) => void;
   onSelect: (option: OptionType) => void;
@@ -36,6 +37,7 @@ const MenuProvider = <OptionType extends Option | string>({
   setIsOpen,
   setActiveIndex,
   onSelect,
+  bordered,
 }: Props<OptionType>) => {
   const listRef = useRef<(HTMLLIElement | null)[]>([]);
 
@@ -98,6 +100,7 @@ const MenuProvider = <OptionType extends Option | string>({
           >
             <Menu
               ref={refs.setFloating}
+              bordered={bordered}
               {...getFloatingProps({
                 style: {
                   position: strategy,

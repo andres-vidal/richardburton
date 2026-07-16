@@ -19,6 +19,7 @@ type Props<ItemType extends string | Item> = {
   onChange: (value: ItemType[]) => void;
   getOptions: (search: string) => Promise<ItemType[]> | ItemType[];
   forwardedRef?: ForwardedRef<HTMLDivElement>;
+  bordered?: boolean;
 };
 
 function isStringArray(value: unknown): value is string[] {
@@ -120,6 +121,7 @@ export default function Multicombobox<ItemType extends string | Item>({
       setIsOpen={setIsOpen}
       setActiveIndex={setActiveIndex}
       onSelect={handleOptionSelect}
+      bordered={props.bordered}
     >
       <TextInput
         {...props}

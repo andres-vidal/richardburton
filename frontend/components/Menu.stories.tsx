@@ -33,3 +33,23 @@ export const Default: Story = {
     ).toBeInTheDocument();
   },
 };
+
+/**
+ * `bordered` — the outlined dropdown that pairs with a bordered input (white,
+ * bordered, `text-sm`), instead of the subtle borderless dense style.
+ */
+export const Bordered: Story = {
+  args: { bordered: true },
+  render: (args) => (
+    <Menu {...args} aria-label="Books">
+      <MenuItem selected={false}>Dom Casmurro</MenuItem>
+      <MenuItem selected>Memórias Póstumas</MenuItem>
+      <MenuItem selected={false}>Quincas Borba</MenuItem>
+    </Menu>
+  ),
+  play: async ({ canvasElement }) => {
+    const listbox = within(canvasElement).getByRole("listbox");
+    await expect(getComputedStyle(listbox).borderTopWidth).toBe("1px");
+    await expect(getComputedStyle(listbox).fontSize).toBe("14px");
+  },
+};

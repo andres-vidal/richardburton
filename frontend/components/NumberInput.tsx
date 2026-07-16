@@ -11,6 +11,7 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "value" | "onChange"> & {
   value?: number;
   error?: string;
   onChange?: (value: number) => void;
+  bordered?: boolean;
 };
 
 const IncrementButton: FC<{

@@ -19,6 +19,7 @@ import {
   overriddenCountAtom,
   overriddenIdsAtom,
   publicationOrNullFamily,
+  storedFieldValueFamily,
   totalCountAtom,
   totalIndexCountAtom,
   validCountAtom,
@@ -60,6 +61,14 @@ function usePublicationField<K extends PublicationKey>(
   key: K,
 ) {
   return useAtomValue(fieldValueFamily({ id, key })) as Publication[K];
+}
+
+/** A single cell's stored value, ignoring pending edits — its own subscription. */
+function usePublicationStoredField<K extends PublicationKey>(
+  id: PublicationId,
+  key: K,
+) {
+  return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
 }
 
 function usePublicationError(id: PublicationId) {
@@ -160,6 +169,7 @@ export {
   usePublicationFieldError,
   usePublicationIndexCount,
   usePublicationOverride,
+  usePublicationStoredField,
   useTotalPublicationCount,
   useValidPublicationCount,
   useVisibleAttributes,

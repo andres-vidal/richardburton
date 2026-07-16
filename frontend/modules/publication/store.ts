@@ -141,6 +141,16 @@ const fieldValueFamily = atomFamily(
   sameField,
 );
 
+/**
+ * A single cell's *stored* value, ignoring pending edits — what the server last
+ * returned. The read-only index reads this so an in-progress edit (the modal's
+ * draft lives in the same override overlay) doesn't leak into the table beneath.
+ */
+const storedFieldValueFamily = atomFamily(
+  ({ id, key }: FieldKey) => atom((get) => get(publicationFamily(id))[key]),
+  sameField,
+);
+
 const fieldErrorDescriptionFamily = atomFamily(
   ({ id, key }: FieldKey) =>
     atom((get) => describeError(get(errorFamily(id)), key)),
@@ -191,6 +201,12 @@ function overrideField(
   store.set(overrideFamily(id), { ...current, [attribute]: value });
 }
 
+/** Drop a single row's pending edits and errors (cancelling an edit). */
+function discardEdit(id: PublicationId): void {
+  store.set(overrideFamily(id), RESET);
+  store.set(errorFamily(id), RESET);
+}
+
 function setAttributesVisible(keys: PublicationKey[], isVisible = true): void {
   keys.forEach((key) => store.set(attributeVisibleFamily(key), isVisible));
 }
@@ -239,7 +255,10 @@ function resetAll(): void {
     store.set(overrideFamily(id), RESET);
     store.set(errorFamily(id), RESET);
     store.set(deletedFamily(id), RESET);
+    store.set(lastValidatedFamily(id), RESET);
   });
+  store.set(overrideFamily(DRAFT_ID), RESET);
+  store.set(errorFamily(DRAFT_ID), RESET);
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
   store.set(isIndexLoadingAtom, false);
@@ -284,6 +303,7 @@ export {
   attributeVisibleFamily,
   createId,
   deletedCountAtom,
+  discardEdit,
   duplicate,
   errorDescriptionFamily,
   errorFamily,
@@ -297,10 +317,10 @@ export {
   isValidatingAtom,
   keywordsAtom,
   lastValidatedFamily,
-  overrideField,
-  overrideFamily,
   overriddenCountAtom,
   overriddenIdsAtom,
+  overrideFamily,
+  overrideField,
   publicationFamily,
   publicationIdsAtom,
   publicationOrNullFamily,
@@ -315,11 +335,12 @@ export {
   setFocusedRowId,
   setPublications,
   store,
+  storedFieldValueFamily,
   totalCountAtom,
   totalIndexCountAtom,
   validCountAtom,
   visibleAttributesAtom,
+  visibleCountAtom,
   visibleIdsAtom,
   visiblePublicationFamily,
-  visibleCountAtom,
 };

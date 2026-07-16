@@ -31,6 +31,23 @@ export const Default: Story = {
   },
 };
 
+/**
+ * The new-publication row is an editing surface too, so typing into it must
+ * stick. It renders through the *base* `Column` (not the workspace's extended
+ * one), so a table that reads stored values by default would leave this row
+ * permanently empty — seeded rows would keep working and hide it.
+ */
+export const NewRowAcceptsInput: Story = {
+  beforeEach: () => seed([]),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const title = await canvas.findByPlaceholderText("Title");
+
+    await userEvent.type(title, "Dom Casmurro");
+    await waitFor(() => expect(title).toHaveValue("Dom Casmurro"));
+  },
+};
+
 /** Field-level validation errors — the title and year cells are flagged. */
 export const WithInvalidRow: Story = {
   beforeEach: () =>

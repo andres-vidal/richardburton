@@ -22,12 +22,24 @@ type Props = Omit<
 > & {
   error: string;
   value?: Option;
+  /** Outlined style — applies to the input *and* its dropdown. */
+  bordered?: boolean;
   onChange: (option: Option) => void;
   getOptions: (search: string) => Promise<Option[]>;
 };
 
 export default forwardRef<HTMLInputElement, Props>(function Select(
-  { value, error, onChange, onBlur, onFocus, onKeyDown, getOptions, ...props },
+  {
+    value,
+    error,
+    bordered,
+    onChange,
+    onBlur,
+    onFocus,
+    onKeyDown,
+    getOptions,
+    ...props
+  },
   ref,
 ) {
   const [isOpen, setIsOpen] = useState(false);
@@ -109,9 +121,11 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
       setIsOpen={setIsOpen}
       setActiveIndex={setActiveIndex}
       onSelect={handleSelect}
+      bordered={bordered}
     >
       <TextInput
         {...props}
+        bordered={bordered}
         ref={ref}
         inputRef={inputRef}
         onChange={handleInputChange}

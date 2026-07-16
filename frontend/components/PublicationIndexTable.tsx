@@ -7,8 +7,7 @@ import {
 } from "modules/publication/model";
 import {
   useHiddenAttributes,
-  usePublicationField,
-  usePublicationFieldError,
+  usePublicationStoredField,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
 import {
@@ -99,9 +98,11 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
 const Content: FC<{
   rowId: RowId;
   colId: ColId;
-  error: string;
-  value: string;
-}> = ({ value, colId }) => {
+}> = ({ rowId, colId }) => {
+  // Read-only surface: the *stored* value. An editing surface injects its own
+  // Content, which reads the edited value — see PublicationWorkspace.
+  const value = usePublicationStoredField(rowId, colId);
+
   return (
     <div className="px-2 py-1 truncate">
       {Publication.describeValue(value, colId)}
@@ -126,9 +127,6 @@ const Column: FC<{
   selected = false,
   selectable = false,
 }) => {
-  const value = usePublicationField(rowId, colId);
-  const error = usePublicationFieldError(rowId, colId);
-
   // `truncate` sets overflow:hidden, which zeroes the grid item's auto min-width so
   // the fixed-width track never expands to fit the content.
   return (
@@ -139,7 +137,7 @@ const Column: FC<{
       data-error={invalid}
       data-focused={focused}
     >
-      <Content rowId={rowId} colId={colId} value={value} error={error} />
+      <Content rowId={rowId} colId={colId} />
     </Aria.Cell>
   );
 };

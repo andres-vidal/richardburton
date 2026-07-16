@@ -5,7 +5,14 @@ import hash from "object-hash";
 
 import type { Publication } from "./model";
 import { empty } from "./model";
-import { bulk, index, upload, validate } from "./remote";
+import {
+  bulk,
+  index,
+  update,
+  upload,
+  validate,
+  validateUpdate,
+} from "./remote";
 import {
   createId,
   errorFamily,
@@ -13,6 +20,8 @@ import {
   isValidatingAtom,
   keywordsAtom,
   lastValidatedFamily,
+  overrideFamily,
+  overrideField,
   publicationFamily,
   publicationIdsAtom,
   resetAll,
@@ -30,7 +39,11 @@ vi.mock("components/Notifications", () => ({ notify: vi.fn() }));
 const mockRequest = vi.mocked(request);
 const mockNotify = vi.mocked(notify);
 
-type Http = { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
+type Http = {
+  get: ReturnType<typeof vi.fn>;
+  post: ReturnType<typeof vi.fn>;
+  put: ReturnType<typeof vi.fn>;
+};
 let http: Http;
 
 function pub(fields: Partial<Publication> = {}): Publication {
@@ -42,7 +55,7 @@ beforeEach(() => {
   store.set(isValidatingAtom, false);
   vi.clearAllMocks();
 
-  http = { get: vi.fn(), post: vi.fn() };
+  http = { get: vi.fn(), post: vi.fn(), put: vi.fn() };
   // By default, `request(op)` runs the op against our fake http client.
   mockRequest.mockImplementation(((op: (client: AxiosInstance) => unknown) =>
     op(http as unknown as AxiosInstance)) as typeof request);
@@ -137,6 +150,108 @@ describe("bulk", () => {
     expect(result).toBe(created);
     // The list is reset while the server responds.
     expect(store.get(publicationIdsAtom)).toBeUndefined();
+  });
+});
+
+describe("update", () => {
+  test("PUTs the edited row, replaces it with the server value, and clears the edit", async () => {
+    const id = 7;
+    store.set(publicationFamily(id), pub({ title: "Old title" }));
+    overrideField(id, "title", "New title");
+    const returned = { ...pub({ title: "New title" }), id };
+    http.put.mockResolvedValue({ data: returned });
+
+    const ok = await update(id);
+
+    expect(ok).toBe(true);
+    const [url, body] = http.put.mock.calls[0];
+    expect(url).toBe("publications/7");
+    // The body is the visible value (base ⊕ pending edit).
+    expect((body as Publication).title).toBe("New title");
+    // The row is replaced with the server's value and the edit is cleared.
+    expect(store.get(publicationFamily(id))).toEqual(returned);
+    expect(store.get(overrideFamily(id))).toBeUndefined();
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "success" }),
+    );
+  });
+
+  test("on a 409 conflict, notifies and returns false", async () => {
+    const id = 7;
+    store.set(publicationFamily(id), pub({ title: "A" }));
+    http.put.mockRejectedValue({
+      response: { status: 409, data: { errors: "conflict" } },
+    });
+
+    const ok = await update(id);
+
+    expect(ok).toBe(false);
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "warning" }),
+    );
+  });
+
+  test("on a 400, surfaces the field errors on the row and returns false", async () => {
+    const id = 7;
+    store.set(publicationFamily(id), pub({ title: "" }));
+    http.put.mockRejectedValue({
+      response: { status: 400, data: { errors: { title: "required" } } },
+    });
+
+    const ok = await update(id);
+
+    expect(ok).toBe(false);
+    expect(store.get(errorFamily(id))).toEqual({ title: "required" });
+  });
+});
+
+describe("validateUpdate", () => {
+  test("POSTs the visible value to the row's validate endpoint and surfaces its errors", async () => {
+    const id = 7;
+    store.set(publicationFamily(id), pub({ title: "Old title" }));
+    overrideField(id, "title", "New title");
+    http.post.mockResolvedValue({
+      data: { publication: pub({ title: "New title" }), errors: "conflict" },
+    });
+
+    await validateUpdate(id);
+
+    const [url, body] = http.post.mock.calls[0];
+    // The id is in the path so the server can exclude the row from its own
+    // conflict check.
+    expect(url).toBe("publications/7/validate");
+    // The body is the visible value (base ⊕ pending edit).
+    expect((body as Publication).title).toBe("New title");
+    expect(store.get(errorFamily(id))).toBe("conflict");
+  });
+
+  // Each test uses its own id: these rows are written straight to
+  // `publicationFamily`, so they never enter `publicationIdsAtom` and `resetAll`
+  // can't clear them between tests.
+  test("skips the request when nothing changed", async () => {
+    const id = 8;
+    store.set(publicationFamily(id), pub({ title: "Dom Casmurro" }));
+    http.post.mockResolvedValue({
+      data: { publication: pub({ title: "Dom Casmurro" }), errors: null },
+    });
+
+    // Blur fires this on every field, so an untouched row must not re-ask.
+    await validateUpdate(id);
+    await validateUpdate(id);
+
+    expect(http.post).toHaveBeenCalledTimes(1);
+  });
+
+  test("clears the row's errors when the edit is valid", async () => {
+    const id = 9;
+    store.set(publicationFamily(id), pub({ title: "Dom Casmurro" }));
+    http.post.mockResolvedValue({
+      data: { publication: pub({ title: "Dom Casmurro" }), errors: null },
+    });
+
+    await validateUpdate(id);
+
+    expect(store.get(errorFamily(id))).toBeNull();
   });
 });
 

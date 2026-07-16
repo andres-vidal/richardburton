@@ -1,8 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import {
+  overrideField,
+  publicationIdsAtom,
   resetAll,
   resetAttributes,
   setAttributesVisible,
+  store,
 } from "modules/publication/store";
 import { sampleManyPublications, seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
@@ -37,6 +40,31 @@ export const Default: Story = {
     // 3 seeded publications → 3 body rows (+ the header row). Cell contents are
     // gated behind an IntersectionObserver, so we assert on the rows themselves.
     await expect(canvas.getAllByRole("row")).toHaveLength(4);
+  },
+};
+
+/**
+ * The index shows what is *saved*. The modal's edit draft lives in the same
+ * override overlay, so without this the values would visibly change in the table
+ * beneath the open modal, before anything was saved.
+ */
+export const IgnoresPendingEdits: Story = {
+  beforeEach: () => {
+    seed();
+    const [id] = store.get(publicationIdsAtom)!;
+    overrideField(id, "title", "Edited in the modal");
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The stored title still renders ("Dom Casmurro" is both title and original
+    // title in the fixture, hence findAll)...
+    await expect(
+      (await canvas.findAllByText("Dom Casmurro")).length,
+    ).toBeGreaterThan(0);
+    // ...and the pending edit is nowhere in the table.
+    await expect(
+      canvas.queryByText("Edited in the modal"),
+    ).not.toBeInTheDocument();
   },
 };
 

@@ -11,6 +11,7 @@ import {
   addNew,
   createId,
   deletedCountAtom,
+  discardEdit,
   duplicate,
   fieldValueFamily,
   focusNextInvalid,
@@ -178,6 +179,22 @@ describe("overrides", () => {
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
       "Dom Casmurro",
     );
+  });
+
+  test("discardEdit drops one row's pending edits and errors", () => {
+    const a = createId();
+    setAll([entry(a, { title: "Dom Casmurro" }, "conflict")]);
+    overrideField(a, "title", "changed");
+    expect(store.get(overriddenCountAtom)).toBe(1);
+    expect(store.get(isValidFamily(a))).toBe(false);
+
+    discardEdit(a);
+
+    expect(store.get(overriddenCountAtom)).toBe(0);
+    expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
+      "Dom Casmurro",
+    );
+    expect(store.get(isValidFamily(a))).toBe(true);
   });
 });
 

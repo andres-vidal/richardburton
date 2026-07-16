@@ -1,11 +1,26 @@
 "use client";
 
-import { Publication, type PublicationKey } from "modules/publication/model";
-import { usePublication } from "modules/publication/hooks";
+import {
+  useIsPublicationValid,
+  usePublication,
+  usePublicationErrorDescription,
+  usePublicationField,
+  usePublicationFieldError,
+} from "modules/publication/hooks";
+import {
+  Publication,
+  type PublicationId,
+  type PublicationKey,
+} from "modules/publication/model";
+import { update, validateUpdate } from "modules/publication/remote";
+import { discardEdit } from "modules/publication/store";
+import { useIsAdmin } from "modules/session";
 import Link from "next/link";
-import { FC } from "react";
+import { FC, SubmitEvent, useState } from "react";
 import { z } from "zod";
 import { Article } from "./Article";
+import Button from "./Button";
+import DataInput from "./DataInput";
 import { Modal, useURLQueryModal } from "./Modal";
 import Tooltip from "./Tooltip";
 
@@ -55,7 +70,7 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
       </span>
     </Tooltip>
     <Tooltip variant="info" message="Who translated this publication">
-      <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl">
+      <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl whitespace-nowrap">
         ({publication.authors})
       </span>
     </Tooltip>
@@ -95,25 +110,130 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
   );
 };
 
+const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
+  id,
+  attribute,
+}) => {
+  const value = usePublicationField(id, attribute);
+  const error = usePublicationFieldError(id, attribute);
+
+  return (
+    <div className="flex flex-col gap-1 text-sm">
+      <span className="text-gray-500">
+        {Publication.ATTRIBUTE_LABELS[attribute]}
+      </span>
+      <DataInput
+        rowId={id}
+        colId={attribute}
+        value={value}
+        error={error}
+        aria-label={Publication.ATTRIBUTE_LABELS[attribute]}
+        bordered
+        autoValidated
+        onValidate={() => validateUpdate(id)}
+      />
+    </div>
+  );
+};
+
+const PublicationEditForm: FC<{ id: PublicationId; onDone: () => void }> = ({
+  id,
+  onDone,
+}) => {
+  const [saving, setSaving] = useState(false);
+  const error = usePublicationErrorDescription(id);
+  const isValid = useIsPublicationValid(id);
+
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    const saved = await update(id);
+    setSaving(false);
+    if (saved) onDone();
+  }
+
+  function handleCancel() {
+    discardEdit(id);
+    onDone();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-8 w-full">
+      <h1 className="text-2xl font-normal">Edit publication</h1>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {Publication.ATTRIBUTES.map((attribute) => (
+          <EditField key={attribute} id={id} attribute={attribute} />
+        ))}
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex gap-3 justify-end">
+        <Button
+          label="Cancel"
+          variant="outline"
+          width="fit"
+          size="medium"
+          onClick={handleCancel}
+        />
+        <Button
+          label="Save"
+          type="submit"
+          width="fit"
+          size="medium"
+          loading={saving}
+          // Nothing to gain from a round-trip we know the server will reject.
+          // `saving` is included because Button lets an explicit `disabled`
+          // override its own `loading`-implies-disabled.
+          disabled={!isValid || saving}
+        />
+      </div>
+    </form>
+  );
+};
+
 const PublicationModal: FC = () => {
   const { value, ...modal } = useURLQueryModal(PUBLICATION_MODAL_KEY);
 
   const publicationId = Param.parse(value);
 
   const publication = usePublication(publicationId);
+  const isAdmin = useIsAdmin();
+
+  const [editingId, setEditingId] = useState<PublicationId>();
+  const editing = editingId !== undefined && editingId === publicationId;
+
+  function close() {
+    if (editing && publicationId !== undefined) discardEdit(publicationId);
+    modal.close();
+  }
 
   return (
-    <Modal
-      isOpen={modal.isOpen}
-      onClose={modal.close}
-      label="Publication details"
-    >
-      {publication && (
-        <Article
-          heading={<PublicationHeading publication={publication} />}
-          content={<PublicationDescription publication={publication} />}
-        />
-      )}
+    <Modal isOpen={modal.isOpen} onClose={close} label="Publication details">
+      {publication &&
+        publicationId !== undefined &&
+        (editing ? (
+          <PublicationEditForm
+            id={publicationId}
+            onDone={() => setEditingId(undefined)}
+          />
+        ) : (
+          <Article
+            heading={<PublicationHeading publication={publication} />}
+            content={
+              <div className="space-y-6">
+                <PublicationDescription publication={publication} />
+                {isAdmin && (
+                  <Button
+                    label="Edit"
+                    variant="outline-primary"
+                    width="fit"
+                    size="medium"
+                    onClick={() => setEditingId(publicationId)}
+                  />
+                )}
+              </div>
+            }
+          />
+        ))}
     </Modal>
   );
 };

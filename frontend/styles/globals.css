@@ -15,6 +15,7 @@
 @custom-variant focused (&[data-focused="true"]);
 @custom-variant error (&[data-error="true"]);
 @custom-variant error-within (&:has([data-error="true"]));
+@custom-variant not-error-within (&:not(:has([data-error="true"])));
 @custom-variant peer-error (.peer[data-error="true"] ~ &);
 @custom-variant loading (&[data-loading="true"]);
 

@@ -12,15 +12,17 @@ const OPTIONS = ["Fiction", "Poetry", "Essay", "Drama"];
 const Controlled: FC<{
   value?: string[];
   error?: string;
+  bordered?: boolean;
   getOptions: (search: string) => Promise<string[]> | string[];
   onChange: (value: string[]) => void;
-}> = ({ value: initial = [], error, getOptions, onChange }) => {
+}> = ({ value: initial = [], error, bordered, getOptions, onChange }) => {
   const [value, setValue] = useState(initial);
 
   return (
     <Multicombobox<string>
       value={value}
       error={error}
+      bordered={bordered}
       placeholder="Add a genre"
       getOptions={getOptions}
       onChange={(next) => {
@@ -47,6 +49,7 @@ const meta = {
     <Controlled
       value={args.value}
       error={args.error}
+      bordered={args.bordered}
       getOptions={args.getOptions}
       onChange={args.onChange}
     />
@@ -96,6 +99,27 @@ export const Default: Story = {
     // Typing runs the async option lookup that backs the floating menu.
     await userEvent.type(input, "dr");
     await waitFor(() => expect(args.getOptions).toHaveBeenCalledWith("dr"));
+  },
+};
+
+/**
+ * `bordered` — the outlined variant used in forms (e.g. the edit modal). The
+ * dropdown adopts the matching outlined style (white, bordered, `text-sm`)
+ * rather than the subtle dense style of the workspace table.
+ */
+export const Bordered: Story = {
+  args: { bordered: true, value: ["Fiction"] },
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ canvasElement }) => {
+    const input = within(canvasElement).getByRole("combobox");
+    await userEvent.type(input, "e");
+    const listbox = await screen.findByRole("listbox");
+    // Outlined dropdown: a visible border and the larger text-sm size, unlike
+    // the borderless text-xs subtle menu.
+    await expect(getComputedStyle(listbox).borderTopWidth).toBe("1px");
+    await expect(getComputedStyle(listbox).fontSize).toBe("14px");
   },
 };
 

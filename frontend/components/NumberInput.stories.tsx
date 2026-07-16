@@ -9,10 +9,11 @@ import NumberInput from "./NumberInput";
 const Controlled: FC<{
   value?: number;
   error?: string;
+  bordered?: boolean;
   min?: number;
   max?: number;
   onChange?: (value: number) => void;
-}> = ({ value: initial, error, min, max, onChange }) => {
+}> = ({ value: initial, error, bordered, min, max, onChange }) => {
   const [value, setValue] = useState(initial);
 
   return (
@@ -20,6 +21,7 @@ const Controlled: FC<{
       aria-label="Year"
       value={value}
       error={error}
+      bordered={bordered}
       min={min}
       max={max}
       onChange={(next) => {
@@ -39,6 +41,7 @@ const meta = {
     <Controlled
       value={args.value}
       error={args.error}
+      bordered={args.bordered}
       min={args.min as number | undefined}
       max={args.max as number | undefined}
       onChange={args.onChange}
@@ -93,5 +96,15 @@ export const WithError: Story = {
       "aria-invalid",
       "true",
     );
+  },
+};
+
+/** `bordered` — the outlined variant (edit form), a visible box with `text-sm`. */
+export const Bordered: Story = {
+  args: { value: 1953, bordered: true },
+  play: async ({ canvasElement }) => {
+    const input = within(canvasElement).getByRole("textbox");
+    const box = input.closest("[data-bordered='true']")!;
+    await expect(getComputedStyle(box).borderTopWidth).toBe("1px");
   },
 };

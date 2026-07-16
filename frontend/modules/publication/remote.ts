@@ -1,5 +1,5 @@
 import { request } from "app";
-import { AxiosInstance } from "axios";
+import { AxiosError, AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
 import { RESET } from "jotai/utils";
 import { TOTAL_COUNT_HEADER } from "modules/api";
@@ -16,10 +16,12 @@ import {
 } from "./model";
 import {
   createId,
+  errorFamily,
   isIndexLoadingAtom,
   isValidatingAtom,
   keywordsAtom,
   lastValidatedFamily,
+  overrideFamily,
   publicationFamily,
   publicationIdsAtom,
   resetAll,
@@ -94,6 +96,64 @@ async function bulk(): Promise<Publication[]> {
   });
 }
 
+/**
+ * Persist edits to a single publication (admin). Returns whether it succeeded;
+ * on a conflict or validation error the row keeps its edits so they can be fixed.
+ */
+async function update(id: PublicationId): Promise<boolean> {
+  const publication = store.get(visiblePublicationFamily(id));
+
+  try {
+    const { data } = await request((http) =>
+      http.put<Publication>(`publications/${id}`, publication),
+    );
+
+    // Replace the row with the server's canonical value and clear the edit.
+    store.set(publicationFamily(id), data);
+    store.set(overrideFamily(id), RESET);
+    store.set(errorFamily(id), RESET);
+    notify({ message: "Publication updated.", level: "success" });
+    return true;
+  } catch (error) {
+    const { response } = error as AxiosError<{ errors: PublicationError }>;
+
+    if (response?.status === 409) {
+      notify({ message: describeError("conflict"), level: "warning" });
+    } else if (response?.status === 400) {
+      store.set(errorFamily(id), response.data?.errors ?? null);
+    } else {
+      notify({
+        message: "The publication could not be updated.",
+        level: "warning",
+      });
+    }
+
+    return false;
+  }
+}
+
+/**
+ * Live-validate a single publication's pending edits, excluding it from the
+ * conflict check so an in-place edit doesn't collide with itself.
+ */
+async function validateUpdate(id: PublicationId): Promise<void> {
+  const publication = store.get(visiblePublicationFamily(id));
+  const fingerprint = hash(publication);
+
+  // Same dedup as `validate`: this runs on every blur (and on every change for
+  // array fields), so a field the user only tabbed through costs no round-trip.
+  if (fingerprint === store.get(lastValidatedFamily(id))) return;
+  store.set(lastValidatedFamily(id), fingerprint);
+
+  return run(async (http) => {
+    const { data } = await http.post<ValidationResult>(
+      `publications/${id}/validate`,
+      publication,
+    );
+    setErrors([{ ...data, id }]);
+  });
+}
+
 /** Validate the given rows server-side, but only those whose value changed. */
 async function validate(ids: PublicationId[]): Promise<void> {
   return run(async (http) => {
@@ -153,4 +213,12 @@ function usePublicationIndex() {
   );
 }
 
-export { bulk, index, upload, usePublicationIndex, validate };
+export {
+  bulk,
+  index,
+  update,
+  upload,
+  usePublicationIndex,
+  validate,
+  validateUpdate,
+};

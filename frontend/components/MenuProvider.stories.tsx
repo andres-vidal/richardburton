@@ -14,7 +14,7 @@ const options: MenuOption[] = [
  * MenuProvider is fully controlled — open state, active index, and selection all
  * live in the parent. This harness wires them up so the menu is interactive.
  */
-const Harness = () => {
+const Harness = ({ bordered }: { bordered?: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [selected, setSelected] = useState<string>();
@@ -28,6 +28,7 @@ const Harness = () => {
         setIsOpen={setIsOpen}
         setActiveIndex={setActiveIndex}
         onSelect={(option) => setSelected(option.label)}
+        bordered={bordered}
       >
         <button
           aria-label="Open menu"
@@ -120,6 +121,20 @@ export const HighlightsWithArrowKeys: Story = {
     // the trigger and the active option is tracked via aria, never moved to the
     // list.
     await expect(trigger).toHaveFocus();
+  },
+};
+
+/**
+ * `bordered` — the outlined dropdown style is forwarded to `Menu` so the
+ * option list matches a bordered input (visible border, `text-sm`).
+ */
+export const Bordered: Story = {
+  render: () => <Harness bordered />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByText("Open menu"));
+    const listbox = await screen.findByRole("listbox");
+    await expect(getComputedStyle(listbox).borderTopWidth).toBe("1px");
   },
 };
 
