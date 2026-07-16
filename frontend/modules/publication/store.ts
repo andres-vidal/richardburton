@@ -1,4 +1,4 @@
-import { atom } from "jotai";
+import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
 import { store } from "modules/store";
@@ -131,14 +131,35 @@ const errorDescriptionFamily = atomFamily((id: PublicationId) =>
 );
 
 type FieldKey = { id: PublicationId; key: PublicationKey };
-const sameField = (a: FieldKey, b: FieldKey) =>
-  a.id === b.id && a.key === b.key;
+type CellKey = `${PublicationId}:${PublicationKey}`;
+
+const cellKey = ({ id, key }: FieldKey): CellKey => `${id}:${key}`;
+
+const fieldKey = (cell: CellKey): FieldKey => {
+  const separator = cell.indexOf(":");
+  return {
+    id: Number(cell.slice(0, separator)),
+    key: cell.slice(separator + 1) as PublicationKey,
+  };
+};
+
+/**
+ * Cache a per-cell atom under a *string* key, keeping the `{id, key}` call
+ * signature.
+ *
+ * `atomFamily` only takes its `Map.get` fast path when no custom comparator is
+ * passed; give it one and it linear-scans the whole cache on every lookup. These
+ * caches hold an entry per cell (ids × attributes) and are read on every cell
+ * render, so an object key made lookup cost grow with the size of the index.
+ */
+function cellFamily<T>(initialize: (field: FieldKey) => Atom<T>) {
+  const family = atomFamily((cell: CellKey) => initialize(fieldKey(cell)));
+  return (field: FieldKey) => family(cellKey(field));
+}
 
 /** A single cell's value — its own subscription, so editing one cell is cheap. */
-const fieldValueFamily = atomFamily(
-  ({ id, key }: FieldKey) =>
-    atom((get) => get(visiblePublicationFamily(id))[key]),
-  sameField,
+const fieldValueFamily = cellFamily(({ id, key }) =>
+  atom((get) => get(visiblePublicationFamily(id))[key]),
 );
 
 /**
@@ -146,15 +167,12 @@ const fieldValueFamily = atomFamily(
  * returned. The read-only index reads this so an in-progress edit (the modal's
  * draft lives in the same override overlay) doesn't leak into the table beneath.
  */
-const storedFieldValueFamily = atomFamily(
-  ({ id, key }: FieldKey) => atom((get) => get(publicationFamily(id))[key]),
-  sameField,
+const storedFieldValueFamily = cellFamily(({ id, key }) =>
+  atom((get) => get(publicationFamily(id))[key]),
 );
 
-const fieldErrorDescriptionFamily = atomFamily(
-  ({ id, key }: FieldKey) =>
-    atom((get) => describeError(get(errorFamily(id)), key)),
-  sameField,
+const fieldErrorDescriptionFamily = cellFamily(({ id, key }) =>
+  atom((get) => describeError(get(errorFamily(id)), key)),
 );
 
 // --- Actions (imperative; operate on the module `store`) --------------------

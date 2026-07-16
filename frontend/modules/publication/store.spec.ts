@@ -87,6 +87,32 @@ describe("setAll", () => {
       "Dom Casmurro",
     );
   });
+
+  test("a cell is cached by value, so it keeps one stable atom", () => {
+    const a = createId();
+
+    // Each call passes a fresh `{id, key}` object, so caching by identity would
+    // mint a new atom every render — a new subscription per keystroke. Distinct
+    // cells must still get distinct atoms.
+    expect(fieldValueFamily({ id: a, key: "title" })).toBe(
+      fieldValueFamily({ id: a, key: "title" }),
+    );
+    expect(fieldValueFamily({ id: a, key: "title" })).not.toBe(
+      fieldValueFamily({ id: a, key: "authors" }),
+    );
+  });
+
+  test("a cell key survives the negative ids minted for unsaved rows", () => {
+    const a = createId();
+    setAll([entry(a, { title: "Dom Casmurro" })]);
+
+    // Ids are packed into a `<id>:<key>` string; a negative id carries its own
+    // "-", so splitting on the wrong separator would misread the id.
+    expect(a).toBeLessThan(0);
+    expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
+      "Dom Casmurro",
+    );
+  });
 });
 
 describe("validity", () => {
