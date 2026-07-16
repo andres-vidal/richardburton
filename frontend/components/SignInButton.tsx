@@ -7,11 +7,13 @@ import Button from "./Button";
 type Props = {
   next?: string;
   label?: string;
+  centered?: boolean;
 };
 
 const SignInButton: FC<Props> = ({
   next = "/",
   label = "Sign in with Google",
+  centered = false,
 }) => {
   const handleClick = () => {
     window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`);
@@ -21,7 +23,7 @@ const SignInButton: FC<Props> = ({
     <Button
       label={label}
       variant="outline"
-      alignment="left"
+      alignment={centered ? "center" : "left"}
       onClick={handleClick}
       Icon={GoogleIcon}
       width="fixed"

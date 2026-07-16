@@ -9,7 +9,7 @@ defmodule RichardBurton.Publisher do
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
   alias RichardBurton.Publication
-  alias RichardBurton.Util
+  alias RichardBurton.Fingerprint
 
   @derive {Jason.Encoder, only: [:name]}
   schema "publishers" do
@@ -47,9 +47,7 @@ defmodule RichardBurton.Publisher do
   def fingerprint(publishers) when is_list(publishers) do
     publishers
     |> Enum.map(fn %Publisher{name: name} -> name end)
-    |> Enum.sort()
-    |> Enum.join()
-    |> Util.create_fingerprint()
+    |> Fingerprint.of_set()
   end
 
   def maybe_insert!(attrs) do
@@ -66,6 +64,7 @@ defmodule RichardBurton.Publisher do
     publishers =
       changeset
       |> get_change(:publishers)
+      |> Enum.reject(&(&1.action == :replace))
       |> Enum.map(&apply_changes/1)
       |> Enum.map(&maybe_insert!/1)
 

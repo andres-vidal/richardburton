@@ -68,7 +68,9 @@ export default async function AuthErrorPage({
                   <p className="text-sm">{description.suggestion}</p>
                 )}
               </div>
-              <SignInButton label="Try again" />
+              <div className="mx-auto">
+                <SignInButton label="Try again" centered />
+              </div>
             </section>
           </div>
         ) : null

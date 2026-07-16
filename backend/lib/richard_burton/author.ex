@@ -10,11 +10,11 @@ defmodule RichardBurton.Author do
   alias RichardBurton.Repo
   alias RichardBurton.OriginalBook
   alias RichardBurton.TranslatedBook
-  alias RichardBurton.Util
+  alias RichardBurton.Fingerprint
 
-  @external_attributes [:name]
+  @readable_attributes [:name]
 
-  @derive {Jason.Encoder, only: @external_attributes}
+  @derive {Jason.Encoder, only: @readable_attributes}
   schema "authors" do
     field(:name, :string)
 
@@ -65,9 +65,7 @@ defmodule RichardBurton.Author do
   def fingerprint(authors) when is_list(authors) do
     authors
     |> Enum.map(fn %Author{name: name} -> name end)
-    |> Enum.sort()
-    |> Enum.join()
-    |> Util.create_fingerprint()
+    |> Fingerprint.of_set()
   end
 
   def link_fingerprint(changeset = %Ecto.Changeset{valid?: true}) do

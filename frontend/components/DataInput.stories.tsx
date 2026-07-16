@@ -57,3 +57,17 @@ export const WithError: Story = {
     );
   },
 };
+
+/**
+ * `bordered` — the outlined variant used by the edit form. The dispatcher
+ * forwards it to the underlying input, which draws a visible box.
+ */
+export const Bordered: Story = {
+  beforeEach: () => seed(),
+  args: { colId: "title", value: "Dom Casmurro", bordered: true },
+  play: async ({ canvasElement }) => {
+    const input = within(canvasElement).getByRole("textbox");
+    const box = input.closest("[data-bordered='true']")!;
+    await expect(getComputedStyle(box).borderTopWidth).toBe("1px");
+  },
+};

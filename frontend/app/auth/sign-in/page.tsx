@@ -1,3 +1,4 @@
+import DevSignInButton from "components/DevSignInButton";
 import Layout from "components/Layout";
 import SignInButton from "components/SignInButton";
 import type { Metadata } from "next";
@@ -29,8 +30,9 @@ export default async function SignInPage({
             <p className="text-lg">
               Sign in with your Google account to access the platform.
             </p>
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-3">
               <SignInButton next={next} />
+              {process.env.NODE_ENV === "development" && <DevSignInButton />}
             </div>
           </section>
         </div>

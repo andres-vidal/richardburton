@@ -19,10 +19,13 @@ import {
   useIsPublicationFocused,
   useIsPublicationValid,
   usePublicationErrorDescription,
+  usePublicationField,
+  usePublicationFieldError,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
-import { DRAFT_ID, addNew } from "modules/publication/store";
 import { validate } from "modules/publication/remote";
+import { DRAFT_ID, addNew } from "modules/publication/store";
+import { select, useIsSelected, useIsSelectionEmpty } from "modules/selection";
 import {
   FC,
   KeyboardEventHandler,
@@ -31,7 +34,6 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { select, useIsSelected, useIsSelectionEmpty } from "modules/selection";
 import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
 
@@ -83,7 +85,10 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
   );
 };
 
-const ExtendedContent: typeof Content = ({ rowId, colId, value, error }) => {
+const ExtendedContent: typeof Content = ({ rowId, colId }) => {
+  const value = usePublicationField(rowId, colId);
+  const error = usePublicationFieldError(rowId, colId);
+
   return (
     <DataInput
       rowId={rowId}
@@ -130,8 +135,10 @@ const useSubmit = () => {
   }, []);
 };
 
-const SubmittableData: typeof Content = ({ rowId, colId, value, error }) => {
+const SubmittableData: typeof Content = ({ rowId, colId }) => {
   const submit = useSubmit();
+  const value = usePublicationField(rowId, colId);
+  const error = usePublicationFieldError(rowId, colId);
 
   const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = useCallback(
     (event) => {

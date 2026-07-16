@@ -14,7 +14,11 @@ describe("empty", () => {
 
     // Every model attribute is present and empty — the shape editing relies on.
     ATTRIBUTES.forEach((key) => expect(publication[key]).toBe(""));
-    expect(Object.keys(publication).sort()).toEqual([...ATTRIBUTES].sort());
+    // Plus a null id: an unsaved row has no server PK yet.
+    expect(publication.id).toBeNull();
+    expect(Object.keys(publication).sort()).toEqual(
+      ["id", ...ATTRIBUTES].sort(),
+    );
   });
 });
 

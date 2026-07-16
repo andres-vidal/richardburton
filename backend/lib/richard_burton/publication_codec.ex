@@ -117,6 +117,7 @@ defmodule RichardBurton.Publication.Codec do
 
     %FlatPublication{}
     |> FlatPublication.changeset(attrs)
+    |> Ecto.Changeset.put_change(:id, publication.id)
     |> Ecto.Changeset.apply_changes()
   end
 

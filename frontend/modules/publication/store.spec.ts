@@ -11,16 +11,17 @@ import {
   addNew,
   createId,
   deletedCountAtom,
+  discardEdit,
   duplicate,
   fieldValueFamily,
   focusNextInvalid,
   focusedRowIdAtom,
   hiddenAttributesAtom,
   isValidFamily,
-  overrideField,
-  overrideFamily,
   overriddenCountAtom,
   overriddenIdsAtom,
+  overrideFamily,
+  overrideField,
   publicationFamily,
   publicationIdsAtom,
   resetAll,
@@ -82,6 +83,32 @@ describe("setAll", () => {
     const a = createId();
     setAll([entry(a, { title: "Dom Casmurro" })]);
 
+    expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
+      "Dom Casmurro",
+    );
+  });
+
+  test("a cell is cached by value, so it keeps one stable atom", () => {
+    const a = createId();
+
+    // Each call passes a fresh `{id, key}` object, so caching by identity would
+    // mint a new atom every render — a new subscription per keystroke. Distinct
+    // cells must still get distinct atoms.
+    expect(fieldValueFamily({ id: a, key: "title" })).toBe(
+      fieldValueFamily({ id: a, key: "title" }),
+    );
+    expect(fieldValueFamily({ id: a, key: "title" })).not.toBe(
+      fieldValueFamily({ id: a, key: "authors" }),
+    );
+  });
+
+  test("a cell key survives the negative ids minted for unsaved rows", () => {
+    const a = createId();
+    setAll([entry(a, { title: "Dom Casmurro" })]);
+
+    // Ids are packed into a `<id>:<key>` string; a negative id carries its own
+    // "-", so splitting on the wrong separator would misread the id.
+    expect(a).toBeLessThan(0);
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
       "Dom Casmurro",
     );
@@ -179,6 +206,22 @@ describe("overrides", () => {
       "Dom Casmurro",
     );
   });
+
+  test("discardEdit drops one row's pending edits and errors", () => {
+    const a = createId();
+    setAll([entry(a, { title: "Dom Casmurro" }, "conflict")]);
+    overrideField(a, "title", "changed");
+    expect(store.get(overriddenCountAtom)).toBe(1);
+    expect(store.get(isValidFamily(a))).toBe(false);
+
+    discardEdit(a);
+
+    expect(store.get(overriddenCountAtom)).toBe(0);
+    expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
+      "Dom Casmurro",
+    );
+    expect(store.get(isValidFamily(a))).toBe(true);
+  });
 });
 
 describe("addNew", () => {
@@ -261,8 +304,12 @@ describe("focusNextInvalid", () => {
 });
 
 describe("ids and the draft", () => {
-  test("createId hands out unique, increasing ids", () => {
-    expect(createId()).toBeLessThan(createId());
+  test("createId hands out unique, negative ids (never collide with server ids)", () => {
+    const a = createId();
+    const b = createId();
+    expect(a).not.toBe(b);
+    expect(a).toBeLessThan(0);
+    expect(b).toBeLessThan(0);
   });
 
   test("the draft row starts empty", () => {

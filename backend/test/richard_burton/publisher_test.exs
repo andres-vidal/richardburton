@@ -133,6 +133,14 @@ defmodule RichardBurton.PublisherTest do
 
       assert Publisher.fingerprint(publishers1) == Publisher.fingerprint(publishers2)
     end
+
+    test "given sets whose names concatenate the same, generates different fingerprints" do
+      # Without a delimiter, ["AB"] + ["C"] and ["A"] + ["BC"] both join to "ABC".
+      one = [%Publisher{name: "AB"}, %Publisher{name: "C"}]
+      two = [%Publisher{name: "A"}, %Publisher{name: "BC"}]
+
+      refute Publisher.fingerprint(one) == Publisher.fingerprint(two)
+    end
   end
 
   describe "link/1" do

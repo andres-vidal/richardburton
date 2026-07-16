@@ -46,6 +46,8 @@ defmodule RichardBurtonWeb.Router do
     scope "/publications" do
       post("/bulk", PublicationController, :create_all)
       post("/validate", PublicationController, :validate)
+      put("/:id", PublicationController, :update)
+      post("/:id/validate", PublicationController, :validate)
     end
   end
 
@@ -76,6 +78,13 @@ defmodule RichardBurtonWeb.Router do
       pipe_through([:fetch_session, :protect_from_forgery])
 
       live_dashboard("/dashboard", metrics: RichardBurtonWeb.Telemetry)
+    end
+
+    # Dev/test-only credentials provider — mints an admin session without Google.
+    scope "/api/dev", RichardBurtonWeb do
+      pipe_through(:api)
+
+      post("/session", DevSessionController, :create)
     end
   end
 end

@@ -72,3 +72,4 @@ rel/
 *.local.*
 credentials.md
 .claude
+/CLAUDE.md

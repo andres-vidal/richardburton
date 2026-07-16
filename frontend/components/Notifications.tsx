@@ -82,7 +82,7 @@ const Notifications: FC = () => {
     <FloatingPortal>
       <section
         aria-label="Notifications"
-        className="flex fixed top-10 left-1/2 flex-col items-center space-y-2 -translate-x-1/2 z-60"
+        className="flex fixed top-10 left-1/2 flex-col items-center space-y-2 -translate-x-1/2 z-70"
       >
         <AnimatePresence>
           {snackbars.map(

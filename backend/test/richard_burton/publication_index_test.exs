@@ -281,12 +281,20 @@ defmodule RichardBurton.Publication.IndexTest do
     test "returns all publications flattened" do
       {:ok, output} = Publication.Index.all()
 
-      actual =
-        output
-        |> Enum.map(&%{&1 | __meta__: nil, id: nil, translated_book_fingerprint: nil})
-        |> Enum.sort()
+      # Fingerprint values are covered by the fingerprint/composite-key tests; this
+      # test is about the flattened representation, so ignore them.
+      strip =
+        &%{
+          &1
+          | __meta__: nil,
+            id: nil,
+            countries_fingerprint: nil,
+            publishers_fingerprint: nil,
+            translated_book_fingerprint: nil
+        }
 
-      expected = @publications |> Enum.map(&%{&1 | __meta__: nil}) |> Enum.sort()
+      actual = output |> Enum.map(strip) |> Enum.sort()
+      expected = @publications |> Enum.map(strip) |> Enum.sort()
 
       assert expected == actual
     end

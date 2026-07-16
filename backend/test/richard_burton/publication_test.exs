@@ -5,6 +5,7 @@ defmodule RichardBurton.PublicationTest do
 
   use RichardBurton.DataCase
 
+  alias RichardBurton.Country
   alias RichardBurton.Publication
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Util
@@ -61,6 +62,11 @@ defmodule RichardBurton.PublicationTest do
 
   defp insert(attrs) do
     attrs |> changeset() |> Repo.insert()
+  end
+
+  defp insert_publication(attrs \\ @valid_attrs) do
+    {:ok, publication} = Publication.insert(attrs)
+    publication
   end
 
   describe "changeset/2" do
@@ -247,6 +253,98 @@ defmodule RichardBurton.PublicationTest do
       assert {@skeleton_attrs, @skeleton_attrs_error_map} == description
 
       assert [] == Publication.all()
+    end
+  end
+
+  describe "update/2" do
+    test "updates the publication and returns {:ok, updated}" do
+      publication = insert_publication()
+
+      result = Publication.update(publication.id, Map.put(@valid_attrs, "title", "New Title"))
+
+      assert {:ok, updated} = result
+      assert updated.id == publication.id
+      assert updated.title == "New Title"
+      assert [%Publication{title: "New Title"}] = Publication.all()
+    end
+
+    test "editing a keyed field changes identity without a collision" do
+      publication = insert_publication()
+
+      result = Publication.update(publication.id, Map.put(@valid_attrs, "year", 2000))
+
+      assert {:ok, updated} = result
+      assert updated.id == publication.id
+      assert updated.year == 2000
+    end
+
+    test "when the edit collides with another publication, returns {:error, :conflict}" do
+      insert_publication()
+      other = insert_publication(Map.put(@valid_attrs, "year", 1999))
+
+      assert {:error, :conflict} == Publication.update(other.id, @valid_attrs)
+    end
+
+    test "re-saving the same attributes does not conflict with itself" do
+      publication = insert_publication()
+
+      assert {:ok, _} = Publication.update(publication.id, @valid_attrs)
+    end
+
+    test "when the attributes are invalid, returns an error map" do
+      publication = insert_publication()
+
+      result = Publication.update(publication.id, Map.put(@valid_attrs, "title", ""))
+      assert {:error, %{title: :required}} = result
+    end
+
+    test "when the id does not exist, returns {:error, :not_found}" do
+      assert {:error, :not_found} == Publication.update(999_999, @valid_attrs)
+    end
+
+    test "replaces the linked countries, dropping the old join row but keeping the shared country" do
+      publication =
+        insert_publication(
+          Map.put(@valid_attrs, "countries", [%{"code" => "GB"}, %{"code" => "US"}])
+        )
+
+      {:ok, updated} = Publication.update(publication.id, @valid_attrs)
+
+      # The publication now links only GB...
+      assert ["GB"] == Enum.map(updated.countries, & &1.code)
+      # ...but the shared US country row is untouched (only the join row was removed).
+      assert ["GB", "US"] == Country.all() |> Enum.map(& &1.code) |> Enum.sort()
+    end
+
+    test "recomputes the fingerprint when an association changes" do
+      publication = insert_publication()
+      original_fingerprint = publication.countries_fingerprint
+
+      {:ok, updated} =
+        Publication.update(
+          publication.id,
+          Map.put(@valid_attrs, "countries", [%{"code" => "US"}])
+        )
+
+      assert ["US"] == Enum.map(updated.countries, & &1.code)
+      # The stored fingerprint reflects the new country, not the stale one.
+      refute updated.countries_fingerprint == original_fingerprint
+      assert Country.fingerprint("US") == updated.countries_fingerprint
+    end
+
+    test "repoints the translated book when the original fields change, leaving the old one" do
+      publication = insert_publication()
+      assert 1 == length(TranslatedBook.all())
+
+      {:ok, updated} =
+        Publication.update(
+          publication.id,
+          put_in(@valid_attrs, ["translated_book", "original_book", "title"], "A different book")
+        )
+
+      assert "A different book" == updated.translated_book.original_book.title
+      # The previous translated book is left behind
+      assert 2 == length(TranslatedBook.all())
     end
   end
 end

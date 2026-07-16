@@ -1,6 +1,6 @@
 "use client";
 
-import type { User } from "modules/users";
+import { User } from "modules/users";
 import { createContext, ReactNode, useContext } from "react";
 
 // The signed-in user (or null), fetched once server-side in the root layout and
@@ -28,4 +28,9 @@ export function useSession(): User | null {
 
 export function useIsAuthenticated(): boolean {
   return useSession() != null;
+}
+
+export function useIsAdmin(): boolean {
+  const session = useSession();
+  return session != null && User.isAdmin(session.role);
 }

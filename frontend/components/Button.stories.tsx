@@ -42,7 +42,11 @@ export const Default: Story = {
   },
 };
 
-/** The four visual variants, side by side. */
+/**
+ * The visual variants, side by side. The two outlined styles are the quieter
+ * options: `outline` for a neutral secondary action, `outline-primary` where the
+ * action is primary but shouldn't carry a filled button's weight.
+ */
 export const Variants: Story = {
   args: { width: "fit" },
   render: (args) => (
@@ -50,9 +54,47 @@ export const Variants: Story = {
       <Button {...args} variant="primary" label="Primary" />
       <Button {...args} variant="secondary" label="Secondary" />
       <Button {...args} variant="outline" label="Outline" />
+      <Button {...args} variant="outline-primary" label="Outline primary" />
       <Button {...args} variant="danger" label="Danger" />
     </div>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const outline = canvas.getByRole("button", { name: "Outline" });
+    const primary = canvas.getByRole("button", { name: "Primary" });
+
+    // Outlined means a visible border over an unfilled ground — not a grey fill.
+    const border = getComputedStyle(outline);
+    await expect(border.borderTopWidth).toBe("1px");
+    await expect(border.borderTopColor).not.toBe("rgba(0, 0, 0, 0)");
+    // A transparent border keeps filled variants the same size as outlined ones.
+    await expect(primary.offsetHeight).toBe(outline.offsetHeight);
+  },
+};
+
+/**
+ * `size`: `small` (the default) suits dense surfaces like toolbars and table
+ * rows; `medium` suits forms, where the actions want more presence.
+ */
+export const Sizes: Story = {
+  args: { width: "fit" },
+  render: (args) => (
+    <div className="flex flex-wrap gap-3 items-center">
+      <Button {...args} size="small" label="Small" />
+      <Button {...args} size="medium" label="Medium" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const small = canvas.getByRole("button", { name: "Small" });
+    const medium = canvas.getByRole("button", { name: "Medium" });
+
+    // Roomier type and a taller hit target, not just wider padding.
+    await expect(parseFloat(getComputedStyle(medium).fontSize)).toBeGreaterThan(
+      parseFloat(getComputedStyle(small).fontSize),
+    );
+    await expect(medium.offsetHeight).toBeGreaterThan(small.offsetHeight);
+  },
 };
 
 /** `width`: `full` fills its container, `fixed` is a set width, `fit` hugs its content. */

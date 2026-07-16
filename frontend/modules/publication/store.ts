@@ -1,4 +1,4 @@
-import { atom } from "jotai";
+import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
 import { store } from "modules/store";
@@ -15,15 +15,21 @@ import {
 } from "./model";
 
 /**
- * Well-known id for the always-present "new publication" draft row. Real
- * publications get stable ids from `createId()` (>= 1), so `0` never collides.
+ * Well-known id for the always-present "new publication" draft row. Persisted
+ * rows are addressed by their server id (the publication PK, positive) and
+ * unsaved rows by a client-minted id (negative, see `createId`), so `0` never
+ * collides with either.
  */
 const DRAFT_ID: PublicationId = 0;
 
-let sequence = 1;
-/** Mint a fresh, stable client id — decoupled from a publication's list position. */
+let sequence = -1;
+/**
+ * Mint a client id for an unsaved row (upload/review/duplicate). Negative and
+ * descending so it can never collide with a server id (positive) or the draft
+ * (`0`); persisted rows are addressed by their real server id instead.
+ */
 function createId(): PublicationId {
-  return sequence++;
+  return sequence--;
 }
 
 // --- Base atoms -------------------------------------------------------------
@@ -125,20 +131,48 @@ const errorDescriptionFamily = atomFamily((id: PublicationId) =>
 );
 
 type FieldKey = { id: PublicationId; key: PublicationKey };
-const sameField = (a: FieldKey, b: FieldKey) =>
-  a.id === b.id && a.key === b.key;
+type CellKey = `${PublicationId}:${PublicationKey}`;
+
+const cellKey = ({ id, key }: FieldKey): CellKey => `${id}:${key}`;
+
+const fieldKey = (cell: CellKey): FieldKey => {
+  const separator = cell.indexOf(":");
+  return {
+    id: Number(cell.slice(0, separator)),
+    key: cell.slice(separator + 1) as PublicationKey,
+  };
+};
+
+/**
+ * Cache a per-cell atom under a *string* key, keeping the `{id, key}` call
+ * signature.
+ *
+ * `atomFamily` only takes its `Map.get` fast path when no custom comparator is
+ * passed; give it one and it linear-scans the whole cache on every lookup. These
+ * caches hold an entry per cell (ids × attributes) and are read on every cell
+ * render, so an object key made lookup cost grow with the size of the index.
+ */
+function cellFamily<T>(initialize: (field: FieldKey) => Atom<T>) {
+  const family = atomFamily((cell: CellKey) => initialize(fieldKey(cell)));
+  return (field: FieldKey) => family(cellKey(field));
+}
 
 /** A single cell's value — its own subscription, so editing one cell is cheap. */
-const fieldValueFamily = atomFamily(
-  ({ id, key }: FieldKey) =>
-    atom((get) => get(visiblePublicationFamily(id))[key]),
-  sameField,
+const fieldValueFamily = cellFamily(({ id, key }) =>
+  atom((get) => get(visiblePublicationFamily(id))[key]),
 );
 
-const fieldErrorDescriptionFamily = atomFamily(
-  ({ id, key }: FieldKey) =>
-    atom((get) => describeError(get(errorFamily(id)), key)),
-  sameField,
+/**
+ * A single cell's *stored* value, ignoring pending edits — what the server last
+ * returned. The read-only index reads this so an in-progress edit (the modal's
+ * draft lives in the same override overlay) doesn't leak into the table beneath.
+ */
+const storedFieldValueFamily = cellFamily(({ id, key }) =>
+  atom((get) => get(publicationFamily(id))[key]),
+);
+
+const fieldErrorDescriptionFamily = cellFamily(({ id, key }) =>
+  atom((get) => describeError(get(errorFamily(id)), key)),
 );
 
 // --- Actions (imperative; operate on the module `store`) --------------------
@@ -183,6 +217,12 @@ function overrideField(
 ): void {
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
+}
+
+/** Drop a single row's pending edits and errors (cancelling an edit). */
+function discardEdit(id: PublicationId): void {
+  store.set(overrideFamily(id), RESET);
+  store.set(errorFamily(id), RESET);
 }
 
 function setAttributesVisible(keys: PublicationKey[], isVisible = true): void {
@@ -233,7 +273,10 @@ function resetAll(): void {
     store.set(overrideFamily(id), RESET);
     store.set(errorFamily(id), RESET);
     store.set(deletedFamily(id), RESET);
+    store.set(lastValidatedFamily(id), RESET);
   });
+  store.set(overrideFamily(DRAFT_ID), RESET);
+  store.set(errorFamily(DRAFT_ID), RESET);
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
   store.set(isIndexLoadingAtom, false);
@@ -260,10 +303,13 @@ function focusNextInvalid(): void {
   const visibleIds = store.get(visibleIdsAtom);
   if (!visibleIds) return;
 
-  const focusedId = store.get(focusedRowIdAtom) ?? -1;
+  const isInvalid = (id: PublicationId) => store.get(errorFamily(id));
+  const focusedId = store.get(focusedRowIdAtom);
+  // Walk by list position (ids are no longer monotonic once rows are keyed by
+  // server id), then wrap to the first invalid row.
+  const start = focusedId === undefined ? -1 : visibleIds.indexOf(focusedId);
   const nextInvalidId =
-    visibleIds.find((id) => id > focusedId && store.get(errorFamily(id))) ||
-    visibleIds.find((id) => store.get(errorFamily(id)));
+    visibleIds.slice(start + 1).find(isInvalid) ?? visibleIds.find(isInvalid);
 
   store.set(focusedRowIdAtom, nextInvalidId);
 }
@@ -275,6 +321,7 @@ export {
   attributeVisibleFamily,
   createId,
   deletedCountAtom,
+  discardEdit,
   duplicate,
   errorDescriptionFamily,
   errorFamily,
@@ -288,10 +335,10 @@ export {
   isValidatingAtom,
   keywordsAtom,
   lastValidatedFamily,
-  overrideField,
-  overrideFamily,
   overriddenCountAtom,
   overriddenIdsAtom,
+  overrideFamily,
+  overrideField,
   publicationFamily,
   publicationIdsAtom,
   publicationOrNullFamily,
@@ -306,11 +353,12 @@ export {
   setFocusedRowId,
   setPublications,
   store,
+  storedFieldValueFamily,
   totalCountAtom,
   totalIndexCountAtom,
   validCountAtom,
   visibleAttributesAtom,
+  visibleCountAtom,
   visibleIdsAtom,
   visiblePublicationFamily,
-  visibleCountAtom,
 };

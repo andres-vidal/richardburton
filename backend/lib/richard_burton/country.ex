@@ -8,7 +8,7 @@ defmodule RichardBurton.Country do
   alias RichardBurton.Country
   alias RichardBurton.Repo
   alias RichardBurton.Publication
-  alias RichardBurton.Util
+  alias RichardBurton.Fingerprint
 
   @derive {Jason.Encoder, only: [:code]}
   schema "countries" do
@@ -83,9 +83,7 @@ defmodule RichardBurton.Country do
   def fingerprint(countries) when is_list(countries) do
     countries
     |> Enum.map(fn %Country{code: code} -> code end)
-    |> Enum.sort()
-    |> Enum.join()
-    |> Util.create_fingerprint()
+    |> Fingerprint.of_set()
   end
 
   def maybe_insert!(attrs) do
@@ -102,6 +100,7 @@ defmodule RichardBurton.Country do
     countries =
       changeset
       |> get_change(:countries)
+      |> Enum.reject(&(&1.action == :replace))
       |> Enum.map(&apply_changes/1)
       |> Enum.map(&maybe_insert!/1)
 

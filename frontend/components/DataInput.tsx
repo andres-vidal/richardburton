@@ -6,8 +6,8 @@ import {
   type PublicationKey,
   type PublicationKeyType,
 } from "modules/publication/model";
-import { overrideField } from "modules/publication/store";
 import { validate } from "modules/publication/remote";
+import { overrideField } from "modules/publication/store";
 import { FC, FocusEvent, HTMLProps, Ref, forwardRef } from "react";
 import TextArrayDataInput from "./TextArrayDataInput";
 import TextDataInput from "./TextDataInput";
@@ -32,61 +32,66 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
   error: string;
   onChange?: (value: string) => void;
   autoValidated?: boolean;
+  /** What to run when `autoValidated` fires. Defaults to the bulk validate; the
+   * edit form passes the id-aware one. */
+  onValidate?: () => void;
   fill?: boolean;
+  bordered?: boolean;
 };
 
-const DataInput = forwardRef<HTMLElement, Props>(
-  function DataInput(props, ref) {
-    const {
-      rowId,
-      colId,
-      value: data,
-      error,
-      autoValidated,
-      onBlur,
-      onChange,
-    } = props;
+const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
+  { onValidate, ...props },
+  ref,
+) {
+  const {
+    rowId,
+    colId,
+    value: data,
+    error,
+    autoValidated,
+    onBlur,
+    onChange,
+  } = props;
 
-    const type = Publication.ATTRIBUTE_TYPES[props.colId];
-    const Component = COMPONENTS_PER_TYPE[type];
-    const placeholder = Publication.ATTRIBUTE_LABELS[colId];
+  const type = Publication.ATTRIBUTE_TYPES[props.colId];
+  const Component = COMPONENTS_PER_TYPE[type];
+  const placeholder = Publication.ATTRIBUTE_LABELS[colId];
 
-    function doValidate() {
-      if (autoValidated) {
-        validate([rowId]);
-      }
-    }
+  const validateRow = onValidate ?? (() => validate([rowId]));
 
-    function handleChange(value: string) {
-      overrideField(rowId, colId, value);
-      if (type == "array" || type == "enum") {
-        doValidate();
-      }
-      onChange?.(value);
-    }
+  function doValidate() {
+    if (autoValidated) validateRow();
+  }
 
-    function handleBlur(event: FocusEvent<HTMLInputElement>) {
+  function handleChange(value: string) {
+    overrideField(rowId, colId, value);
+    if (type == "array" || type == "enum") {
       doValidate();
-      onBlur?.(event);
     }
+    onChange?.(value);
+  }
 
-    return (
-      <Tooltip variant="error" message={props.error}>
-        <Component
-          {...props}
-          {...Publication.define(colId)}
-          ref={ref}
-          value={data}
-          onBlur={handleBlur}
-          onChange={handleChange}
-          placeholder={placeholder}
-          error={error}
-          fill
-        />
-      </Tooltip>
-    );
-  },
-);
+  function handleBlur(event: FocusEvent<HTMLInputElement>) {
+    doValidate();
+    onBlur?.(event);
+  }
+
+  return (
+    <Tooltip variant="error" message={props.error}>
+      <Component
+        {...props}
+        {...Publication.define(colId)}
+        ref={ref}
+        value={data}
+        onBlur={handleBlur}
+        onChange={handleChange}
+        placeholder={placeholder}
+        error={error}
+        fill
+      />
+    </Tooltip>
+  );
+});
 
 export type { Props as DataInputProps };
 export default DataInput;
