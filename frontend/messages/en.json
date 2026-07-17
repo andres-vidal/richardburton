@@ -20,13 +20,15 @@
     "tryAgain": "Try again",
     "somethingWentWrong": "Something went wrong.",
     "required": "Required",
-    "and": "and"
+    "and": "and",
+    "dialog": "Dialog"
   },
   "layout": {
     "heading": "Richard & Isabel Burton Platform",
     "subheading": "A database about Brazilian literature in translation",
     "learnMore": "Learn More",
-    "contactUs": "Contact Us"
+    "contactUs": "Contact Us",
+    "platformName": "Richard & Isabel Burton Platform"
   },
   "language": {
     "pt": "Portuguese",
@@ -140,23 +142,40 @@
     "error": "Something went wrong."
   },
   "about": {
-    "modalTitle": "About the platform",
-    "heading": "About the Richard & Isabel Burton Platform",
-    "platform": {
-      "paragraph1": "The <platform>Richard & Isabel Burton Platform</platform> is an open access online repository with reliable data about Brazilian literature in translation to English. It stemmed from the need to preserve Brazilian cultural and historical heritage and promote its international dissemination. The platform intends to contribute to translation flows worldwide by facilitating access to Brazilian literature for Anglophone readers and researchers.",
-      "paragraph2": "The first version of the platform was registered by the <ifrs>Federal Institute of Education, Science and Technology of Rio Grande do Sul (IFRS)</ifrs> in 2016, linked to the project <project>“Brazilian Literature and Transnationalities: Displacements, Identities and Technological Experiments”</project>, with the goal of serving as a tool for readers, researchers, and academic and governmental institutions interested in accessing data about works of Brazilian literature translated into English. Furthermore, the platform intends to contribute to worldwide translation flows and to promote Brazilian cultural heritage in Brazil and abroad by facilitating access for Anglophone readers and researchers.",
-      "paragraph3": "The current version has been developed since 2022 through the research project <project>“Brazilian Literature in Translation: Solutions in Science and Technology”</project>, with support from the <fapergs>Foundation of Research Support of the State of Rio Grande do Sul (Fapergs)</fapergs> and collaboration from <wyeworks>WyeWorks</wyeworks>.",
-      "paragraph4": "The R&I Platform's data collection includes titles of Brazilian literature books translated into English. It does not include titles of anthologies, collections, or works published in magazines, newspapers and/or electronic media."
+    "modalLabel": "About the platform",
+    "heading": {
+      "prefix": "About the",
+      "platformName": "Richard & Isabel Burton Platform"
     },
+    "richardBurton": {
+      "heading": {
+        "prefix": "About",
+        "name": "Richard & Isabel Burton"
+      },
+      "imageAlt": "Portrait of Sir Richard Burton",
+      "description": "The platform is named after the first known translators of a book of Brazilian literature into English. Sir Richard Francis Burton (1821-1890), and his wife Isabel Burton (1831-1896) are considered the pioneers in translating Brazilian literature into English. They had contact with author José de Alencar and his literary works while Sir Burton served as British consul in Santos, Brazil (1865-1868). The English translation for <iracema>Iracema, The Honey-lips: A legend of Brazil</iracema> (1886), by José de Alencar, was first published by Bickers and Son publishing house, in London. After this first step, hundreds of books of literature have been translated into English with the efforts of independent translators, literary agents, publishing houses, and universities, making Brazilian literature available to the Anglophone readership.",
+      "readMore": "Read more about Richard & Isabel Burton at <burtoniana>burtoniana.org</burtoniana> and <museum>sir richard burton museum.co.uk</museum>.",
+      "browseBooks": "Browse books translated by Richard & Isabel Burton <link>here</link>"
+    },
+    "platform": {
+      "introduction": "The <platform>Richard & Isabel Burton Platform</platform> is an open access online repository with reliable data about Brazilian literature in translation to English, stemmed from the need to preserve the Brazilian cultural and historical heritage as well as its international dissemination. The platform intends to contribute to translation flows worldwide, facilitating the access of Brazilian literature to Anglophone readers and researchers.",
+      "firstVersion": "The first version of the platform was registered by the <ifrs>Federal Institute of Education, Science and Technology of Rio Grande do Sul (IFRS)</ifrs> in 2016, linked to the project <project>“Brazilian Literature and Transnationalities: Displacements, Identities and Technological Experiments”</project>, with the goal of serving as a tool for readers, researchers, academic and governmental institutions interested in accessing data on works of Brazilian literature translated into English. Furthermore, the platform intends to contribute to translation flows worldwide, and the promotion of Brazilian cultural heritage in Brazil and abroad, facilitating its access to Anglophone readers and researchers.",
+      "currentVersion": "The current version has been developed since 2022, through the research project <project>“Brazilian Literature in Translation: Solutions in Science and Technology”</project>, with support of the <fapergs>Foundation of Research Support of the Rio Grande do Sul State (Fapergs)</fapergs> and <wyeworks>WyeWorks</wyeworks>'s collaboration.",
+      "dataCollection": "The R&I platform's data collection includes titles of books from Brazilian literature translated into English. It doesn't include titles of anthologies, collections or works published in magazines, newspapers and/or electronic media."
+    }
+  },
     "burtons": {
       "heading": "About Richard & Isabel Burton",
       "portraitAlt": "Portrait of Sir Richard Burton",
       "paragraph": "The platform is named after the first known translators of a book of Brazilian literature into English. Sir Richard Francis Burton (1821–1890) and his wife Isabel Burton (1831–1896) are considered pioneers in translating Brazilian literature into English. They came into contact with author José de Alencar and his literary works while Sir Burton served as British consul in Santos, Brazil (1865–1868). The English translation of <iracema>Iracema, The Honey-lips: A legend of Brazil</iracema> (1886), by José de Alencar, was first published by Bickers and Son in London. After this first step, hundreds of literary books were translated into English through the efforts of independent translators, literary agents, publishing houses, and universities, making Brazilian literature available to Anglophone readers.",
       "readMore": "Read more about Richard & Isabel Burton at <burtoniana>burtoniana.org</burtoniana> and <museum>sir richard burton museum.co.uk</museum>.",
       "browseBooks": "Browse books translated by Richard & Isabel Burton <link>here</link>."
-    }
-  },
+    },
   "notifications": {
-    "more": "{count, plural, =1 {# more notification} other {# more notifications}}"
+    "more": "{count, plural, =1 {# more notification} other {# more notifications}}",
+    "ariaLabel": "Notifications"
+  },
+  "search": {
+    "noResults": "No results found. Try another search."
   }
 }

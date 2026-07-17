@@ -2,6 +2,7 @@
 
 import { GOOGLE_RECAPTCHA_SITEKEY, http } from "app";
 import { isAxiosError } from "axios";
+import { useTranslations } from "next-intl";
 import { FC, useRef, useState } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useForm } from "utils/useForm";
@@ -16,35 +17,47 @@ import TextInput from "./TextInput";
 
 const CONTACT_MODAL_KEY = "contact";
 
-const Contact = z.object({
-  name: z.string().trim().min(1, "Required"),
-  institution: z.string().optional(),
-  address: z.string().trim().email().min(1, "Required"),
-  subject: z.string().trim().min(1, "Required"),
-  message: z.string().trim().min(1, "Required"),
-});
-
-type Contact = z.infer<typeof Contact>;
-
-const SENDER_INTRODUCTION = `Please fill in your contact details to enable us to address your query promptly. Your full name and email address are essential for us to send you a response, and you can include your institution details as well (optional field though). We assure you that your details will be kept confidential and used solely for communication purposes only.`;
-const MESSAGE_INTRODUCTION = `Provide a concise description of your purpose for reaching out. Whether you're interested in collaborating with our research, offering feedback on our data, or sharing insights about our web application, we invite you to outline your thoughts briefly. This initial communication is an important step for us to give you an effective reply and/or engaging in further discussions`;
+type Contact = {
+  name: string;
+  institution?: string;
+  address: string;
+  subject: string;
+  message: string;
+};
 
 const ContactForm: FC = () => {
+  const t = useTranslations();
   const { close } = useURLQueryModal(CONTACT_MODAL_KEY);
   const notify = useNotify();
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const [loading, setLoading] = useState(false);
 
-  const { inputs, form } = useForm(Contact, {
+  const ContactSchema = z.object({
+    name: z.string().trim().min(1, t("common.required")),
+    institution: z.string().optional(),
+    address: z.string().trim().email().min(1, t("common.required")),
+    subject: z.string().trim().min(1, t("common.required")),
+    message: z.string().trim().min(1, t("common.required")),
+  });
+
+  const { inputs, form } = useForm(ContactSchema, {
     disabled: loading,
     async onSubmit(values, { setErrors }) {
       setLoading(true);
 
       try {
         const recaptchaToken = await recaptchaRef.current!.executeAsync();
-        await http.post("/contact", { ...values, recaptchaToken });
-        notify({ level: "success", message: "Your message has been sent!" });
+
+        await http.post("/contact", {
+          ...values,
+          recaptchaToken,
+        });
+
+        notify({
+          level: "success",
+          message: t("contact.success"),
+        });
 
         close();
       } catch (error) {
@@ -58,7 +71,10 @@ const ContactForm: FC = () => {
           return;
         }
 
-        notify({ level: "error", message: "Something went wrong." });
+        notify({
+          level: "error",
+          message: t("contact.error"),
+        });
       } finally {
         setLoading(false);
       }
@@ -68,32 +84,54 @@ const ContactForm: FC = () => {
   return (
     <form className="relative py-4 space-y-5 text-sm sm:text-base" {...form}>
       <section className="space-y-6">
-        <p>{SENDER_INTRODUCTION}</p>
+        <p>{t("contact.senderIntroduction")}</p>
+
         <fieldset className="space-y-6">
-          <TextInput label="Name" {...inputs.name} />
-          <TextInput label="Email" {...inputs.address} />
-          <TextInput label="Institution" {...inputs.institution} />
+          <TextInput label={t("contact.fields.name")} {...inputs.name} />
+
+          <TextInput label={t("contact.fields.email")} {...inputs.address} />
+
+          <TextInput
+            label={t("contact.fields.institution")}
+            {...inputs.institution}
+          />
         </fieldset>
       </section>
 
       <section className="space-y-6">
-        <p>{MESSAGE_INTRODUCTION}</p>
+        <p>{t("contact.messageIntroduction")}</p>
+
         <fieldset className="space-y-6">
-          <TextInput label="Subject" {...inputs.subject} />
-          <TextArea label="Write your message here..." {...inputs.message} />
+          <TextInput
+            label={t("contact.fields.subject")}
+            {...inputs.subject}
+          />
+
+          <TextArea
+            label={t("contact.fields.message")}
+            {...inputs.message}
+          />
         </fieldset>
-        <div>Thank you for your contact!</div>
+
+        <div>{t("contact.thankYou")}</div>
       </section>
 
       <footer className="flex justify-end gap-2">
         {loading && <AppLoader />}
+
         <Button
-          label="Cancel"
+          label={t("common.cancel")}
           variant="outline"
           onClick={close}
           disabled={loading}
         />
-        <Button type="submit" label="Send" loading={loading} />
+
+        <Button
+          type="submit"
+          label={t("common.send")}
+          loading={loading}
+        />
+
         <ReCAPTCHA
           ref={recaptchaRef}
           size="invisible"
@@ -106,11 +144,19 @@ const ContactForm: FC = () => {
 };
 
 const ContactModal: FC = () => {
+  const t = useTranslations();
   const { isOpen, close } = useURLQueryModal(CONTACT_MODAL_KEY);
 
   return (
-    <Modal isOpen={isOpen} onClose={close} label="Contact us">
-      <Article heading={<div>Contact Us</div>} content={<ContactForm />} />
+    <Modal
+      isOpen={isOpen}
+      onClose={close}
+      label={t("contact.modalTitle")}
+    >
+      <Article
+        heading={<div>{t("contact.heading")}</div>}
+        content={<ContactForm />}
+      />
     </Modal>
   );
 };

@@ -20,13 +20,15 @@
     "tryAgain": "Tentar novamente",
     "somethingWentWrong": "Algo deu errado.",
     "required": "Obrigatório",
-    "and": "e"
+    "and": "e",
+    "dialog": "Janela de diálogo"
   },
   "layout": {
     "heading": "Plataforma Richard & Isabel Burton",
     "subheading": "Um banco de dados sobre a literatura brasileira traduzida",
     "learnMore": "Saiba mais",
-    "contactUs": "Fale conosco"
+    "contactUs": "Fale conosco",
+    "platformName": "Plataforma Richard & Isabel Burton"
   },
   "language": {
     "pt": "Português",
@@ -140,23 +142,40 @@
     "error": "Algo deu errado."
   },
   "about": {
-    "modalTitle": "Sobre a plataforma",
-    "heading": "Sobre a Plataforma Richard & Isabel Burton",
-    "platform": {
-      "paragraph1": "A <platform>Plataforma Richard & Isabel Burton</platform> é um repositório online de acesso aberto com dados confiáveis sobre a literatura brasileira traduzida para o inglês. Ela surgiu da necessidade de preservar o patrimônio cultural e histórico brasileiro e ampliar sua divulgação internacional. A plataforma busca contribuir para os fluxos de tradução em todo o mundo, facilitando o acesso de leitores e pesquisadores anglófonos à literatura brasileira.",
-      "paragraph2": "A primeira versão da plataforma foi registrada pelo <ifrs>Instituto Federal de Educação, Ciência e Tecnologia do Rio Grande do Sul (IFRS)</ifrs> em 2016, vinculada ao projeto <project>“Literatura Brasileira e Transnacionalidades: Deslocamentos, Identidades e Experimentos Tecnológicos”</project>, com o objetivo de servir como ferramenta para leitores, pesquisadores e instituições acadêmicas e governamentais interessados em acessar dados sobre obras da literatura brasileira traduzidas para o inglês. Além disso, a plataforma pretende contribuir para os fluxos de tradução em todo o mundo e para a promoção do patrimônio cultural brasileiro no Brasil e no exterior, facilitando seu acesso por leitores e pesquisadores anglófonos.",
-      "paragraph3": "A versão atual é desenvolvida desde 2022 por meio do projeto de pesquisa <project>“Literatura Brasileira em Tradução: Soluções em Ciência e Tecnologia”</project>, com apoio da <fapergs>Fundação de Amparo à Pesquisa do Estado do Rio Grande do Sul (Fapergs)</fapergs> e colaboração da <wyeworks>WyeWorks</wyeworks>.",
-      "paragraph4": "A coleção de dados da plataforma R&I inclui títulos de livros da literatura brasileira traduzidos para o inglês. Ela não inclui títulos de antologias, coletâneas nem obras publicadas em revistas, jornais e/ou meios eletrônicos."
+    "modalLabel": "Sobre a plataforma",
+    "heading": {
+      "prefix": "Sobre a",
+      "platformName": "Plataforma Richard & Isabel Burton"
     },
+    "richardBurton": {
+      "heading": {
+        "prefix": "Sobre",
+        "name": "Richard & Isabel Burton"
+      },
+      "imageAlt": "Retrato de Sir Richard Burton",
+      "description": "A plataforma recebeu esse nome em homenagem aos primeiros tradutores conhecidos de uma obra da literatura brasileira para o inglês. Sir Richard Francis Burton (1821-1890) e sua esposa, Isabel Burton (1831-1896), são considerados pioneiros na tradução da literatura brasileira para o inglês. Eles tiveram contato com o autor José de Alencar e suas obras literárias enquanto Sir Burton atuava como cônsul britânico em Santos, Brasil (1865-1868). A tradução inglesa de <iracema>Iracema, The Honey-lips: A legend of Brazil</iracema> (1886), de José de Alencar, foi publicada inicialmente pela editora Bickers and Son, em Londres. Depois desse primeiro passo, centenas de obras literárias foram traduzidas para o inglês graças ao trabalho de tradutores independentes, agentes literários, editoras e universidades, tornando a literatura brasileira acessível ao público anglófono.",
+      "readMore": "Leia mais sobre Richard & Isabel Burton em <burtoniana>burtoniana.org</burtoniana> e <museum>sir richard burton museum.co.uk</museum>.",
+      "browseBooks": "Consulte os livros traduzidos por Richard & Isabel Burton <link>aqui</link>"
+    },
+    "platform": {
+      "introduction": "A <platform>Plataforma Richard & Isabel Burton</platform> é um repositório on-line de acesso aberto que reúne dados confiáveis sobre a literatura brasileira traduzida para o inglês. Ela surgiu da necessidade de preservar o patrimônio cultural e histórico brasileiro, bem como de promover sua divulgação internacional. A plataforma busca contribuir para os fluxos de tradução em todo o mundo, facilitando o acesso de leitores e pesquisadores anglófonos à literatura brasileira.",
+      "firstVersion": "A primeira versão da plataforma foi registrada pelo <ifrs>Instituto Federal de Educação, Ciência e Tecnologia do Rio Grande do Sul (IFRS)</ifrs> em 2016, vinculada ao projeto <project>“Literatura Brasileira e Transnacionalidades: Deslocamentos, Identidades e Experimentos Tecnológicos”</project>. Seu objetivo era servir como ferramenta para leitores, pesquisadores e instituições acadêmicas e governamentais interessadas em acessar dados sobre obras da literatura brasileira traduzidas para o inglês. Além disso, a plataforma busca contribuir para os fluxos de tradução em todo o mundo e para a promoção do patrimônio cultural brasileiro no Brasil e no exterior, facilitando seu acesso por leitores e pesquisadores anglófonos.",
+      "currentVersion": "A versão atual vem sendo desenvolvida desde 2022 por meio do projeto de pesquisa <project>“Literatura Brasileira em Tradução: Soluções em Ciência e Tecnologia”</project>, com o apoio da <fapergs>Fundação de Amparo à Pesquisa do Estado do Rio Grande do Sul (Fapergs)</fapergs> e a colaboração da <wyeworks>WyeWorks</wyeworks>.",
+      "dataCollection": "A coleta de dados da plataforma R&I inclui títulos de livros da literatura brasileira traduzidos para o inglês. Ela não inclui títulos de antologias, coletâneas ou obras publicadas em revistas, jornais e/ou mídias eletrônicas."
+    }
+  },
     "burtons": {
       "heading": "Sobre Richard & Isabel Burton",
       "portraitAlt": "Retrato de Sir Richard Burton",
       "paragraph": "A plataforma recebeu o nome dos primeiros tradutores conhecidos de um livro da literatura brasileira para o inglês. Sir Richard Francis Burton (1821–1890) e sua esposa, Isabel Burton (1831–1896), são considerados pioneiros na tradução da literatura brasileira para o inglês. Eles tiveram contato com o escritor José de Alencar e sua obra literária durante o período em que Sir Burton atuou como cônsul britânico em Santos, Brasil (1865–1868). A tradução inglesa de <iracema>Iracema, The Honey-lips: A legend of Brazil</iracema> (1886), de José de Alencar, foi publicada pela primeira vez pela editora Bickers and Son, em Londres. Depois desse primeiro passo, centenas de livros de literatura foram traduzidos para o inglês graças ao trabalho de tradutores independentes, agentes literários, editoras e universidades, tornando a literatura brasileira acessível ao público anglófono.",
       "readMore": "Leia mais sobre Richard & Isabel Burton em <burtoniana>burtoniana.org</burtoniana> e <museum>sir richard burton museum.co.uk</museum>.",
       "browseBooks": "Explore <link>aqui</link> os livros traduzidos por Richard & Isabel Burton."
-    }
-  },
+    },
   "notifications": {
-    "more": "{count, plural, =1 {Mais # notificação} other {Mais # notificações}}"
+    "more": "{count, plural, =1 {Mais # notificação} other {Mais # notificações}}",
+      "ariaLabel": "Notificações"
+  },
+  "search": {
+    "noResults": "Nenhum resultado encontrado. Tente outra busca."
   }
 }

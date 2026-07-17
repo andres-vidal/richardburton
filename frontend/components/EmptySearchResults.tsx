@@ -1,6 +1,9 @@
+import { useTranslations } from "next-intl";
 import { FC } from "react";
 
 const EmptySearchResults: FC = () => {
+  const t = useTranslations("search");
+
   return (
     <div className="flex items-center justify-center w-full h-full">
       <div className="flex flex-col items-center justify-center group">
@@ -28,8 +31,9 @@ const EmptySearchResults: FC = () => {
             className="stroke-indigo-600"
           />
         </svg>
+
         <span className="text-xl text-gray-600 group-hover:text-indigo-600">
-          No results found, try another query.
+          {t("noResults")}
         </span>
       </div>
     </div>

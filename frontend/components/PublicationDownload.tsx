@@ -3,17 +3,19 @@
 import { request } from "app";
 import DownloadIcon from "assets/download.svg";
 import { snakeCase } from "lodash";
-import { Publication } from "modules/publication/model";
 import {
   useVisibleAttributes,
   useVisiblePublicationCount,
 } from "modules/publication/hooks";
+import { Publication } from "modules/publication/model";
+import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import qs from "qs";
 import { FC, useRef } from "react";
 import Button from "./Button";
 
 const PublicationDownload: FC = () => {
+  const t = useTranslations("publications");
   const visibleCount = useVisiblePublicationCount();
   const visibleAttributes = useVisibleAttributes();
   const areAllAttributesVisible =
@@ -56,7 +58,7 @@ const PublicationDownload: FC = () => {
   return (
     <>
       <Button
-        label="Download .csv"
+        label={t("actions.downloadCsv")}
         variant="outline"
         alignment="left"
         Icon={DownloadIcon}

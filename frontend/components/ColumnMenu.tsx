@@ -14,15 +14,16 @@ import {
 } from "@floating-ui/react";
 import CheckIcon from "assets/check.svg";
 import ChevronDownIcon from "assets/chevron-down.svg";
-import { Publication, type PublicationKey } from "modules/publication/model";
 import {
   useHiddenAttributes,
   useIsAttributeVisible,
 } from "modules/publication/hooks";
+import { Publication, type PublicationKey } from "modules/publication/model";
 import {
   resetAttributes,
   setAttributesVisible,
 } from "modules/publication/store";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 
 // Only these columns can be hidden; the titles always stay.
@@ -35,6 +36,7 @@ const TOGGLEABLE_ATTRIBUTES = Publication.ATTRIBUTES.filter(
 // model to implement — Tab moves between rows, the checkbox square is decorative.
 const ColumnToggle: FC<{ colId: PublicationKey }> = ({ colId }) => {
   const visible = useIsAttributeVisible(colId);
+
   return (
     <button
       type="button"
@@ -52,6 +54,7 @@ const ColumnToggle: FC<{ colId: PublicationKey }> = ({ colId }) => {
       >
         {visible && <CheckIcon className="w-3 h-3" />}
       </span>
+
       {Publication.ATTRIBUTE_LABELS[colId]}
     </button>
   );
@@ -61,10 +64,14 @@ const ColumnToggle: FC<{ colId: PublicationKey }> = ({ colId }) => {
 // columns. Replaces the in-place collapse-to-strip UI — hidden columns simply don't
 // render, so there's no `grid-template-columns` animation to lag on large lists.
 const ColumnMenu: FC = () => {
+  const t = useTranslations("columns");
+
   const [isOpen, setIsOpen] = useState(false);
+
   const hiddenCount = useHiddenAttributes().filter(
     (key) => Publication.ATTRIBUTE_IS_TOGGLEABLE[key],
   ).length;
+
   const totalCount = Publication.ATTRIBUTES.length;
 
   const { refs, floatingStyles, context } = useFloating({
@@ -92,12 +99,14 @@ const ColumnMenu: FC = () => {
           isOpen ? "bg-gray-active" : "bg-gray-100 hover:bg-gray-active"
         }`}
       >
-        Columns
+        {t("button")}
+
         {hiddenCount > 0 && (
           <span className="px-1.5 py-0.5 text-xs font-medium text-indigo-700 rounded-full bg-indigo-100 tabular-nums">
             {totalCount - hiddenCount}/{totalCount}
           </span>
         )}
+
         <ChevronDownIcon
           aria-hidden
           className={`w-4 h-4 text-gray-400 transition-transform ${
@@ -105,6 +114,7 @@ const ColumnMenu: FC = () => {
           }`}
         />
       </button>
+
       <FloatingPortal>
         {isOpen && (
           <FloatingFocusManager context={context} modal={false}>
@@ -113,18 +123,19 @@ const ColumnMenu: FC = () => {
               style={floatingStyles}
               {...getFloatingProps()}
               role="group"
-              aria-label="Show or hide columns"
+              aria-label={t("showOrHide")}
               className="flex z-30 flex-col gap-0.5 p-1.5 w-48 rounded shadow-sm bg-gray-active"
             >
               {TOGGLEABLE_ATTRIBUTES.map((colId) => (
                 <ColumnToggle key={colId} colId={colId} />
               ))}
+
               <button
                 type="button"
                 onClick={() => resetAttributes()}
                 className="px-2 py-1.5 mt-1 text-xs text-left text-gray-500 rounded border-t border-gray-200 cursor-pointer hover:text-indigo-700 hover:bg-indigo-100"
               >
-                Show all
+                {t("showAll")}
               </button>
             </div>
           </FloatingFocusManager>

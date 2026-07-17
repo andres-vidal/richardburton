@@ -9,6 +9,7 @@ import { Key } from "app";
 import CloseIcon from "assets/close.svg";
 import Logo from "assets/logo.svg";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   FC,
@@ -65,18 +66,25 @@ function useURLQueryModal(param: string): URLModalInterface {
   return { isOpen: Boolean(value), value, open, close };
 }
 
-const Header: FC<{ onClose: Props["onClose"] }> = ({ onClose }) => (
-  <header className="flex sticky top-0 z-50 justify-between items-center text-white bg-indigo-700 sm:hidden">
-    <Logo className="p-2 h-11" />
-    <span className="font-normal">Richard & Isabel Burton Platform</span>
-    <button
-      className="flex z-50 justify-center items-center h-11 aspect-square"
-      onClick={onClose}
-    >
-      <CloseIcon className="h-8" />
-    </button>
-  </header>
-);
+const Header: FC<{ onClose: Props["onClose"] }> = ({ onClose }) => {
+  const t = useTranslations();
+
+  return (
+    <header className="flex sticky top-0 z-50 justify-between items-center text-white bg-indigo-700 sm:hidden">
+      <Logo className="p-2 h-11" />
+
+      <span className="font-normal">{t("layout.platformName")}</span>
+
+      <button
+        className="flex z-50 justify-center items-center h-11 aspect-square"
+        onClick={onClose}
+        aria-label={t("common.close")}
+      >
+        <CloseIcon className="h-8" />
+      </button>
+    </header>
+  );
+};
 
 interface Props extends PropsWithChildren {
   isOpen: boolean;
@@ -85,7 +93,9 @@ interface Props extends PropsWithChildren {
   label?: string;
 }
 
-const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
+const Modal: FC<Props> = ({ children, isOpen, onClose, label }) => {
+  const t = useTranslations();
+
   function handleOverlayMouseDown(event: MouseEvent) {
     if (event.target === event.currentTarget) {
       onClose();
@@ -112,11 +122,12 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
               exit={{ opacity: 0 }}
             >
               <Header onClose={onClose} />
+
               <motion.dialog
                 open
                 role="dialog"
                 aria-modal="true"
-                aria-label={label}
+                aria-label={label ?? t("common.dialog")}
                 className={`
                   mb-5 sm:rounded-lg bg-white text-gray-900 shadow-lg scrollbar-thin scrollbar-thumb-indigo-600
                   overflow-y-auto overflow-x-clip

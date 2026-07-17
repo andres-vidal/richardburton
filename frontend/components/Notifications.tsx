@@ -4,6 +4,7 @@ import { FloatingPortal } from "@floating-ui/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { atom, useAtom } from "jotai";
 import { store } from "modules/store";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { FC, useEffect } from "react";
 import { v4 as uuid } from "uuid";
@@ -45,6 +46,7 @@ function useNotify(): Notifier {
 }
 
 const Notifications: FC = () => {
+  const t = useTranslations("notifications");
   const [notifications, setNotifications] = useAtom(notificationsAtom);
   const pathname = usePathname();
 
@@ -73,7 +75,7 @@ const Notifications: FC = () => {
     .slice(0, shownNotificationsCount)
     .map(({ message, id, level }) => ({ message, key: id, level }))
     .concat({
-      message: `${stackedNotificationsCount} more notifications`,
+      message: t("more", { count: stackedNotificationsCount }),
       key: "notification-stack",
       level: "info",
     });
@@ -81,7 +83,7 @@ const Notifications: FC = () => {
   return (
     <FloatingPortal>
       <section
-        aria-label="Notifications"
+        aria-label={t("ariaLabel")}
         className="flex fixed top-10 left-1/2 flex-col items-center space-y-2 -translate-x-1/2 z-60"
       >
         <AnimatePresence>

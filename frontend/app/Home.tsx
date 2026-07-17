@@ -26,9 +26,9 @@ import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { Link } from "../i18n/navigation";
 
-
 export default function Home() {
   const t = useTranslations();
+
   const index = usePublicationIndex();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
@@ -87,7 +87,7 @@ export default function Home() {
               <PublicationDownload />
               <Link href="/publications/new">
                 <Button
-                  label={t("publications.addPlural")}
+                  label={t("publications.actions.addPlural")}
                   variant="outline"
                   Icon={AddIcon}
                   alignment="left"
