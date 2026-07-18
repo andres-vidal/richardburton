@@ -4,6 +4,7 @@ defmodule RichardBurton.Publication.CodecTest do
   """
 
   use RichardBurton.DataCase
+  doctest RichardBurton.Publication.Codec
 
   alias RichardBurton.Author
   alias RichardBurton.Country

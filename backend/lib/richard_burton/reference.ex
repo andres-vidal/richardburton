@@ -29,10 +29,27 @@ defmodule RichardBurton.Reference do
     |> validate_required([:content])
   end
 
-  @doc """
+  @doc ~S"""
   Turn the flat wire shape (an ordered list of free-text strings) into the nested
   child maps `cast_assoc(:references)` expects, assigning `position` from order.
   Blank rows are dropped so an empty editor row doesn't fail validation.
+
+  ## Examples
+
+    iex> RichardBurton.Reference.nest(["First source", "Second source"])
+    [%{"content" => "First source", "position" => 0}, %{"content" => "Second source", "position" => 1}]
+
+    iex> RichardBurton.Reference.nest(["A source", "  "])
+    [%{"content" => "A source", "position" => 0}]
+
+    A blank in the middle is dropped and positions stay contiguous — the entry
+    after it is `1`, not `2`:
+
+    iex> RichardBurton.Reference.nest(["First", "", "Second"])
+    [%{"content" => "First", "position" => 0}, %{"content" => "Second", "position" => 1}]
+
+    iex> RichardBurton.Reference.nest(nil)
+    []
   """
   def nest(references) when is_list(references) do
     references
@@ -45,10 +62,21 @@ defmodule RichardBurton.Reference do
 
   def nest(_), do: []
 
-  @doc """
+  @doc ~S"""
   Reverse of `nest/1`: an ordered list of the reference strings. Accepts loaded
   child structs (ordered by `position`) or an already-flat list; anything else
   (nil, `%NotLoaded{}`) flattens to an empty list.
+
+  ## Examples
+
+    iex> RichardBurton.Reference.flatten([
+    ...>   %RichardBurton.Reference{content: "Second", position: 1},
+    ...>   %RichardBurton.Reference{content: "First", position: 0}
+    ...> ])
+    ["First", "Second"]
+
+    iex> RichardBurton.Reference.flatten(nil)
+    []
   """
   def flatten(references = [%Reference{} | _]) do
     references |> Enum.sort_by(& &1.position) |> Enum.map(& &1.content)

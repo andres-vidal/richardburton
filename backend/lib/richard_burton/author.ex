@@ -97,10 +97,30 @@ defmodule RichardBurton.Author do
     end
   end
 
+  @doc ~S"""
+  Split a comma-separated authors string into nested author maps.
+
+  ## Examples
+
+    iex> RichardBurton.Author.nest("Machado de Assis, Clarice Lispector")
+    [%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}]
+  """
   def nest(authors) when is_binary(authors) do
     authors |> String.split(",") |> Enum.map(&%{"name" => String.trim(&1)})
   end
 
+  @doc ~S"""
+  Join a list of authors back into a comma-separated string. A non-list value
+  (already flat) is returned unchanged.
+
+  ## Examples
+
+    iex> RichardBurton.Author.flatten([%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}])
+    "Machado de Assis, Clarice Lispector"
+
+    iex> RichardBurton.Author.flatten("Machado de Assis")
+    "Machado de Assis"
+  """
   def flatten(authors) when is_list(authors), do: Enum.map_join(authors, ", ", &get_name/1)
   def flatten(authors), do: authors
 

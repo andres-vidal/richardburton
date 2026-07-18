@@ -84,6 +84,26 @@ defmodule RichardBurton.Publication.Codec do
     end
   end
 
+  @doc ~S"""
+  Nest a flat publication — a `FlatPublication` struct, a flat map, or a list of
+  them — into the shape the `Publication` changeset expects: multi-value fields
+  become child maps, and the `translated_book`/`original_book` fields are
+  re-parented under their association.
+
+  ## Examples
+
+    iex> nested =
+    ...>   RichardBurton.Publication.Codec.nest(%{
+    ...>     "title" => "Dom Casmurro",
+    ...>     "authors" => "Helen Caldwell",
+    ...>     "original_title" => "Dom Casmurro",
+    ...>     "original_authors" => "Machado de Assis"
+    ...>   })
+    iex> nested["translated_book"]["authors"]
+    [%{"name" => "Helen Caldwell"}]
+    iex> nested["translated_book"]["original_book"]["title"]
+    "Dom Casmurro"
+  """
   def nest(flat_publication = %FlatPublication{}) do
     attrs =
       flat_publication
@@ -124,10 +144,39 @@ defmodule RichardBurton.Publication.Codec do
   defp nest_entry({key, value}),
     do: {key, value}
 
+  @doc ~S"""
+  Nest a comma-separated authors string into author maps — used when building a
+  translated book's author associations.
+
+  ## Examples
+
+    iex> RichardBurton.Publication.Codec.nest_authors("Helen Caldwell, Gregory Rabassa")
+    [%{"name" => "Helen Caldwell"}, %{"name" => "Gregory Rabassa"}]
+  """
   def nest_authors(authors) when is_binary(authors) do
     Enum.map(String.split(authors, ","), &%{"name" => String.trim(&1)})
   end
 
+  @doc ~S"""
+  Flatten a nested publication back to flat, string-keyed fields — the inverse of
+  `nest/1`. Child lists are joined and the `translated_book` association is lifted
+  back to top-level `authors` / `original_title` / `original_authors`. Accepts a
+  `Publication` struct, a nested map, a list, or a `%{publication:, errors:}` pair.
+
+  ## Examples
+
+    iex> RichardBurton.Publication.Codec.flatten(%{
+    ...>   "title" => "Dom Casmurro",
+    ...>   "translated_book" => %{
+    ...>     "authors" => [%{"name" => "Helen Caldwell"}],
+    ...>     "original_book" => %{
+    ...>       "title" => "Dom Casmurro",
+    ...>       "authors" => [%{"name" => "Machado de Assis"}]
+    ...>     }
+    ...>   }
+    ...> })
+    %{"authors" => "Helen Caldwell", "original_authors" => "Machado de Assis", "original_title" => "Dom Casmurro", "title" => "Dom Casmurro"}
+  """
   def flatten(publication = %Publication{}) do
     attrs =
       publication

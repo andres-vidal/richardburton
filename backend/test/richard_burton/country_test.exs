@@ -3,6 +3,7 @@ defmodule RichardBurton.CountryTest do
   Tests for the Country schema
   """
   use RichardBurton.DataCase
+  doctest RichardBurton.Country
 
   alias RichardBurton.Country
   alias RichardBurton.Validation

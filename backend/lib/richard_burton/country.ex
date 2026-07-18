@@ -120,10 +120,30 @@ defmodule RichardBurton.Country do
 
   def link_fingerprint(changeset = %Ecto.Changeset{valid?: false}), do: changeset
 
+  @doc ~S"""
+  Split a comma-separated country-code string into nested country maps.
+
+  ## Examples
+
+    iex> RichardBurton.Country.nest("BR, US")
+    [%{"code" => "BR"}, %{"code" => "US"}]
+  """
   def nest(countries) when is_binary(countries) do
     countries |> String.split(",") |> Enum.map(&%{"code" => String.trim(&1)})
   end
 
+  @doc ~S"""
+  Join a list of countries back into a comma-separated code string. A non-list
+  value (already flat) is returned unchanged.
+
+  ## Examples
+
+    iex> RichardBurton.Country.flatten([%{"code" => "BR"}, %{"code" => "US"}])
+    "BR, US"
+
+    iex> RichardBurton.Country.flatten("BR")
+    "BR"
+  """
   def flatten(countries) when is_list(countries), do: Enum.map_join(countries, ", ", &get_code/1)
   def flatten(countries), do: countries
 
