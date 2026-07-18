@@ -1,5 +1,5 @@
-import { atom, useAtom, useAtomValue } from "jotai";
 import type { SetStateAction } from "jotai";
+import { atom, useAtom, useAtomValue } from "jotai";
 import { Publication, PublicationId, PublicationKey } from "./model";
 import {
   areRowIdsVisibleAtom,
@@ -15,10 +15,11 @@ import {
   isValidFamily,
   isValidatingAtom,
   keywordsAtom,
-  overrideFamily,
   overriddenCountAtom,
   overriddenIdsAtom,
+  overrideFamily,
   publicationOrNullFamily,
+  publicationReferencesFamily,
   storedFieldValueFamily,
   totalCountAtom,
   totalIndexCountAtom,
@@ -69,6 +70,10 @@ function usePublicationStoredField<K extends PublicationKey>(
   key: K,
 ) {
   return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
+}
+
+function usePublicationReferences(id: PublicationId) {
+  return useAtomValue(publicationReferencesFamily(id));
 }
 
 function usePublicationError(id: PublicationId) {
@@ -169,6 +174,7 @@ export {
   usePublicationFieldError,
   usePublicationIndexCount,
   usePublicationOverride,
+  usePublicationReferences,
   usePublicationStoredField,
   useTotalPublicationCount,
   useValidPublicationCount,

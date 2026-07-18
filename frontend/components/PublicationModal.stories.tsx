@@ -19,6 +19,9 @@ const DOM_CASMURRO = {
     year: "1953",
     countries: "US",
     publishers: "Noonday Press",
+    references: [
+      "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
+    ],
   },
   errors: null,
 };
@@ -57,6 +60,10 @@ export const Default: Story = {
     await expect(screen.getAllByText(/Helen Caldwell/).length).toBeGreaterThan(
       0,
     );
+    // Provenance is listed for the reader to verify against.
+    await expect(
+      screen.getByText(/Introduction to Dom Casmurro/),
+    ).toBeInTheDocument();
   },
 };
 
@@ -86,6 +93,51 @@ export const Editing: Story = {
     await expect(screen.getByText("Noonday Press")).toBeInTheDocument();
     await userEvent.click(screen.getByText("Publishers"));
     await expect(screen.getByText("Noonday Press")).toBeInTheDocument();
+  },
+};
+
+/**
+ * The edit form carries a provenance editor: the publication's existing
+ * references load as rows, and "Add reference" appends an empty one.
+ */
+export const EditingReferences: Story = {
+  beforeEach: () => setAll([DOM_CASMURRO]),
+  decorators: [
+    (Story) => (
+      <SessionProvider session={ADMIN}>
+        <Story />
+      </SessionProvider>
+    ),
+  ],
+  parameters: {
+    nextjs: { navigation: { query: { publication: "1" } } },
+    docs: { story: { inline: false, height: "40rem" } },
+  },
+  play: async () => {
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    // The stored reference loads as the first row.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Reference 1")).toHaveValue(
+        "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
+      ),
+    );
+
+    // Adding appends an empty, focusable row.
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add reference" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText("Reference 2")).toHaveValue(""),
+    );
+    await userEvent.type(
+      screen.getByLabelText("Reference 2"),
+      "https://archive.org/details/domcasmurro",
+    );
+    await expect(screen.getByLabelText("Reference 2")).toHaveValue(
+      "https://archive.org/details/domcasmurro",
+    );
   },
 };
 

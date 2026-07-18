@@ -6,6 +6,7 @@ import {
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
+  usePublicationReferences,
 } from "modules/publication/hooks";
 import {
   Publication,
@@ -13,7 +14,7 @@ import {
   type PublicationKey,
 } from "modules/publication/model";
 import { update, validateUpdate } from "modules/publication/remote";
-import { discardEdit } from "modules/publication/store";
+import { discardEdit, overrideReferences } from "modules/publication/store";
 import { useIsAdmin } from "modules/session";
 import Link from "next/link";
 import { FC, SubmitEvent, useState } from "react";
@@ -22,6 +23,7 @@ import { Article } from "./Article";
 import Button from "./Button";
 import DataInput from "./DataInput";
 import { Modal, useURLQueryModal } from "./Modal";
+import ReferencesEditor from "./ReferencesEditor";
 import Tooltip from "./Tooltip";
 
 const PUBLICATION_MODAL_KEY = "publication";
@@ -110,6 +112,26 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
   );
 };
 
+const PublicationReferences: FC<{ references: string[] }> = ({ references }) =>
+  references.length === 0 ? null : (
+    <section className="space-y-2">
+      <h2 className="text-sm font-medium tracking-wide text-gray-500 uppercase">
+        References
+      </h2>
+      <ul className="space-y-1.5 text-sm text-gray-700">
+        {references.map((reference, index) => (
+          <li key={index} className="flex gap-2.5 items-baseline">
+            <span
+              aria-hidden
+              className="size-1.5 rounded-full shrink-0 bg-indigo-400 ring-2 ring-indigo-100"
+            />
+            <span className="wrap-break-words">{reference}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+
 const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
   id,
   attribute,
@@ -143,6 +165,7 @@ const PublicationEditForm: FC<{ id: PublicationId; onDone: () => void }> = ({
   const [saving, setSaving] = useState(false);
   const error = usePublicationErrorDescription(id);
   const isValid = useIsPublicationValid(id);
+  const references = usePublicationReferences(id);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -165,6 +188,10 @@ const PublicationEditForm: FC<{ id: PublicationId; onDone: () => void }> = ({
           <EditField key={attribute} id={id} attribute={attribute} />
         ))}
       </div>
+      <ReferencesEditor
+        value={references}
+        onChange={(next) => overrideReferences(id, next)}
+      />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 justify-end">
         <Button
@@ -221,6 +248,7 @@ const PublicationModal: FC = () => {
             content={
               <div className="space-y-6">
                 <PublicationDescription publication={publication} />
+                <PublicationReferences references={publication.references} />
                 {isAdmin && (
                   <Button
                     label="Edit"

@@ -9,6 +9,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   alias RichardBurton.Country
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
+  alias RichardBurton.Reference
 
   @publication_attrs %{
     "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -87,7 +88,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :create_all), input)
         |> json_response(201)
 
-      assert publications == Enum.map(result, &Map.delete(&1, "id"))
+      assert publications == Enum.map(result, &Map.drop(&1, ["id", "references"]))
     end
 
     test "returns 201 and inserts publications with several countries", meta do
@@ -162,7 +163,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert 3 == FlatPublication.all() |> length()
       assert ["GB", "US", "BR"] == Country.all() |> Enum.map(&Country.get_code/1)
-      assert output == Enum.map(result, &Map.delete(&1, "id"))
+      assert output == Enum.map(result, &Map.drop(&1, ["id", "references"]))
     end
 
     test "returns 201 and inserts publications with several publishers", meta do
@@ -239,7 +240,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert 3 == FlatPublication.all() |> length()
       assert publishers == Publisher.all() |> Enum.map(&Publisher.get_name/1)
-      assert output == Enum.map(result, &Map.delete(&1, "id"))
+      assert output == Enum.map(result, &Map.drop(&1, ["id", "references"]))
     end
 
     test "returns 409 when publications are repeated, and returns the first repeated one", meta do
@@ -539,7 +540,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
       expected_data =
-        "authors;countries;original_authors;original_title;publishers;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
+        "authors;countries;original_authors;original_title;publishers;references;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
 
       expected_filename = "publications.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -549,6 +550,29 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert response_content_type(conn, :csv)
       assert expected_content_disposition == content_disposition
       assert expected_data == response(conn, 200)
+    end
+
+    test "joins a publication's references into the references cell", meta do
+      expect_auth_authorize_admin()
+
+      {:ok, publication} =
+        @publication_attrs
+        |> Publication.Codec.nest()
+        |> Publication.insert()
+
+      # Attach provenance, then export.
+      {:ok, _} =
+        Publication.update(
+          publication.id,
+          @publication_attrs
+          |> Publication.Codec.nest()
+          |> Map.put("references", Reference.nest(["First source", "Second source"]))
+        )
+
+      conn = get(meta.conn, publication_path(meta.conn, :export))
+
+      # References are the alphabetically-placed column between publishers and title.
+      assert response(conn, 200) =~ "Bickers & Son;First source | Second source;Iraçéma"
     end
   end
 
@@ -569,7 +593,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors;countries;original_authors;original_title;publishers;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
+        "authors;countries;original_authors;original_title;publishers;references;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
 
       expected_filename = "publications-#{search}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -728,6 +752,25 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       conn = put(meta.conn, publication_path(meta.conn, :update, 999_999), @publication_attrs)
       assert response(conn, 404)
+    end
+
+    test "sets the publication's references from the flat payload", meta do
+      publication = insert_publication(@publication_attrs)
+      expect_auth_authorize_admin()
+
+      attrs = Map.put(@publication_attrs, "references", ["First source", "Second source"])
+
+      result =
+        meta.conn
+        |> put(publication_path(meta.conn, :update, publication.id), attrs)
+        |> json_response(200)
+
+      # The flat string list round-trips: nested into child rows on the way in,
+      # flattened back to an ordered list in the response and the read model.
+      assert result["references"] == ["First source", "Second source"]
+
+      assert [["First source", "Second source"]] ==
+               Enum.map(FlatPublication.all(), & &1.references)
     end
   end
 

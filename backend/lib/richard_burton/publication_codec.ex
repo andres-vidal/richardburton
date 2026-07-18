@@ -9,6 +9,7 @@ defmodule RichardBurton.Publication.Codec do
   alias RichardBurton.Util
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
+  alias RichardBurton.Reference
   alias RichardBurton.FlatPublication
 
   @empty_flat_attrs %{
@@ -30,6 +31,13 @@ defmodule RichardBurton.Publication.Codec do
     "authors",
     "publishers"
   ]
+
+  # Export includes provenance; import does not (that is roadmap 16). Kept as a
+  # separate list so `from_csv` never expects a references column. The list is
+  # flattened into one cell with `@references_csv_separator` — lossy for content
+  # that contains the separator, which 16 addresses with escaping.
+  @csv_export_headers @csv_headers ++ ["references"]
+  @references_csv_separator " | "
 
   def from_csv(path) do
     try do
@@ -55,10 +63,19 @@ defmodule RichardBurton.Publication.Codec do
   def to_csv(flat_publications) do
     flat_publications
     |> Enum.map(&Util.stringify_keys/1)
-    |> Enum.map(&Map.take(&1, @csv_headers))
+    |> Enum.map(&flatten_references_cell/1)
+    |> Enum.map(&Map.take(&1, @csv_export_headers))
     |> CSV.encode(separator: ?;, delimiter: "\n", headers: true)
     |> Enum.to_list()
   end
+
+  # Only touch the cell when it's present (a full export) — a `select`-limited
+  # export omits references entirely, and must not gain the column.
+  defp flatten_references_cell(%{"references" => refs} = row) when is_list(refs) do
+    %{row | "references" => Enum.join(refs, @references_csv_separator)}
+  end
+
+  defp flatten_references_cell(row), do: row
 
   def from_csv!(path) do
     case from_csv(path) do
@@ -101,6 +118,9 @@ defmodule RichardBurton.Publication.Codec do
   defp nest_entry({"publishers", value}),
     do: {"publishers", Publisher.nest(value)}
 
+  defp nest_entry({"references", value}),
+    do: {"references", Reference.nest(value)}
+
   defp nest_entry({key, value}),
     do: {key, value}
 
@@ -142,6 +162,7 @@ defmodule RichardBurton.Publication.Codec do
   defp flatten_entry({"original_authors", value}), do: {"original_authors", Author.flatten(value)}
   defp flatten_entry({"countries", value}), do: {"countries", Country.flatten(value)}
   defp flatten_entry({"publishers", value}), do: {"publishers", Publisher.flatten(value)}
+  defp flatten_entry({"references", value}), do: {"references", Reference.flatten(value)}
   defp flatten_entry({key, value}), do: {key, value}
 
   defp rename_key({"translated_book_authors", v}), do: {"authors", v}

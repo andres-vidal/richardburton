@@ -281,13 +281,16 @@ defmodule RichardBurton.Publication.IndexTest do
     test "returns all publications flattened" do
       {:ok, output} = Publication.Index.all()
 
-      # Fingerprint values are covered by the fingerprint/composite-key tests; this
-      # test is about the flattened representation, so ignore them.
+      # Fingerprint values are covered by the fingerprint/composite-key tests, and
+      # references by the codec/controller round-trip tests; this test is about the
+      # flattened representation, so normalise them. (The seeds carry no references,
+      # so every row flattens to an empty list.)
       strip =
         &%{
           &1
           | __meta__: nil,
             id: nil,
+            references: [],
             countries_fingerprint: nil,
             publishers_fingerprint: nil,
             translated_book_fingerprint: nil

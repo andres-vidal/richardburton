@@ -122,6 +122,11 @@ const publicationOrNullFamily = atomFamily((id: PublicationId) =>
   atom<Publication | null>((get) => get(publicationFamily(id)) || null),
 );
 
+/** A publication's provenance list (base ⊕ override), never undefined. */
+const publicationReferencesFamily = atomFamily((id: PublicationId) =>
+  atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
+);
+
 const isValidFamily = atomFamily((id: PublicationId) =>
   atom((get) => !get(errorFamily(id))),
 );
@@ -217,6 +222,13 @@ function overrideField(
 ): void {
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
+}
+
+/** Overlay the whole provenance list (references are edited as a unit, not per
+ * cell), reusing the same override overlay as the scalar fields. */
+function overrideReferences(id: PublicationId, references: string[]): void {
+  const current = store.get(overrideFamily(id));
+  store.set(overrideFamily(id), { ...current, references });
 }
 
 /** Drop a single row's pending edits and errors (cancelling an edit). */
@@ -339,9 +351,11 @@ export {
   overriddenIdsAtom,
   overrideFamily,
   overrideField,
+  overrideReferences,
   publicationFamily,
   publicationIdsAtom,
   publicationOrNullFamily,
+  publicationReferencesFamily,
   resetAll,
   resetAttributes,
   resetDeleted,

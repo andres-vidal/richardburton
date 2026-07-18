@@ -10,6 +10,7 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.Country
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
+  alias RichardBurton.Reference
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Validation
@@ -36,6 +37,13 @@ defmodule RichardBurton.Publication do
       on_replace: :delete
     )
 
+    # Owned provenance: replaced wholesale on edit (children carry no client id,
+    # so cast_assoc treats every incoming entry as new), preloaded in order.
+    has_many(:references, Reference,
+      on_replace: :delete,
+      preload_order: [asc: :position]
+    )
+
     timestamps()
   end
 
@@ -54,6 +62,7 @@ defmodule RichardBurton.Publication do
     |> cast_assoc(:translated_book, required: true)
     |> cast_assoc(:countries, required: true)
     |> cast_assoc(:publishers, required: true)
+    |> cast_assoc(:references)
     |> validate_length(:countries, min: 1)
     |> validate_required([:title, :year])
     |> unique_constraint(
@@ -79,6 +88,7 @@ defmodule RichardBurton.Publication do
     Repo.preload(data, [
       :countries,
       :publishers,
+      :references,
       translated_book: [:authors, original_book: [:authors]]
     ])
   end
