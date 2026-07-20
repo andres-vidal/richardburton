@@ -20,7 +20,7 @@
     "@tailwindcss/postcss": "^4.3.2",
     "arctic": "^3.7.0",
     "axios": "^1.18.1",
-    "axios-case-converter": "^1.1.1",
+    "axios-case-converter": "^2.0.1",
     "framer-motion": "^12.42.2",
     "i18n-iso-countries": "^7.14.0",
     "is-hotkey": "^0.2.0",
