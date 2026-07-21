@@ -1,6 +1,6 @@
 "use client";
 
-import AddIcon from "assets/add.svg";
+import DashboardIcon from "assets/dashboard.svg";
 import Button from "components/Button";
 import ColumnMenu from "components/ColumnMenu";
 import { ContactModal } from "components/ContactModal";
@@ -80,11 +80,11 @@ export default function Home() {
           {isAuthenticated ? (
             <div className="flex gap-2">
               <PublicationDownload />
-              <Link href="/publications/new">
+              <Link href="/admin">
                 <Button
-                  label="Add publications"
+                  label="Admin"
                   variant="outline"
-                  Icon={AddIcon}
+                  Icon={DashboardIcon}
                   alignment="left"
                   width="fixed"
                 />

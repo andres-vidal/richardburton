@@ -1,0 +1,27 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PageHeaderStories from "./PageHeader.stories";
+
+<Meta of={PageHeaderStories} />
+
+# Page header
+
+The heading for a page: a left-aligned title (`<h1>`) with an optional muted
+description, aligned with the breadcrumb above it. Use it in a page's `Layout`
+subheader to say what the page is — it replaces the old centered "strike" heading.
+
+## Props
+
+- `title` — the page title, rendered as the page's `<h1>`.
+- `description` — an optional supporting line under the title (a short sentence of
+  context).
+
+<Canvas of={PageHeaderStories.Default} />
+
+## States
+
+- **Default** — title with a description.
+- **Title only** — the description is optional; omit it when the title says
+  enough.
+
+<Canvas of={PageHeaderStories.TitleOnly} />

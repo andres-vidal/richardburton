@@ -130,6 +130,28 @@ describe("index", () => {
   });
 });
 
+describe("index({ unreferenced })", () => {
+  test("loads the reference-less publications and returns their ids", async () => {
+    http.get.mockResolvedValue({
+      data: {
+        entries: [
+          pub({ title: "Dom Casmurro", id: 7 }),
+          pub({ title: "The Hour of the Star", id: 12 }),
+        ],
+      },
+      headers: {},
+    });
+
+    const ids = await index({ unreferenced: true });
+
+    expect(http.get).toHaveBeenCalledWith("publications?unreferenced");
+    expect(ids).toEqual([7, 12]);
+    expect(store.get(publicationIdsAtom)).toEqual([7, 12]);
+    expect(store.get(publicationFamily(7)).title).toBe("Dom Casmurro");
+    expect(store.get(publicationFamily(12)).title).toBe("The Hour of the Star");
+  });
+});
+
 describe("bulk", () => {
   test("submits the visible working set and clears the list", async () => {
     const [a, b] = [createId(), createId()];

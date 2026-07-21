@@ -27,7 +27,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "original_title" => "Iracema",
           "publishers" => "Bickers & Son",
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-          "year" => "1886"
+          "year" => "1886",
+          "references" => []
         },
         %{
           "authors" => "J. T. W. Sadler",
@@ -36,7 +37,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "original_title" => "Ubirajara",
           "publishers" => "Ronald Massey",
           "title" => "Ubirajara: A Legend of the Tupy Indians",
-          "year" => "1922"
+          "year" => "1922",
+          "references" => []
         },
         %{
           "authors" => "",
@@ -45,7 +47,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "original_title" => "Iracema",
           "publishers" => "Bickers & Son",
           "title" => "",
-          "year" => "AAAA"
+          "year" => "AAAA",
+          "references" => []
         },
         %{
           "authors" => "J. T. W. Sadler",
@@ -54,7 +57,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "original_title" => "",
           "publishers" => "",
           "title" => "Ubirajara: A Legend of the Tupy Indians",
-          "year" => ""
+          "year" => "",
+          "references" => []
         }
       ]
 
@@ -74,7 +78,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "original_title" => "Iracema",
           "publishers" => "",
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-          "year" => "1886"
+          "year" => "1886",
+          "references" => []
         },
         %{
           "authors" => "Ronald Massey",
@@ -83,7 +88,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "original_title" => "Ubirajara: A Legend of the Tupy Indians",
           "publishers" => "",
           "title" => "J. T. W. Sadler",
-          "year" => "GB"
+          "year" => "GB",
+          "references" => []
         },
         %{
           "authors" => "",
@@ -93,7 +99,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "original_title" => "",
           "publishers" => "",
           "title" => "",
-          "year" => ""
+          "year" => "",
+          "references" => []
         }
       ]
 
@@ -505,6 +512,31 @@ defmodule RichardBurton.Publication.CodecTest do
 
       assert %FlatPublication{references: ["First source", "Second source"]} =
                Publication.Codec.flatten(input)
+    end
+
+    test "from_csv splits a newline-per-line references cell into a list" do
+      input = "test/fixtures/data_with_references.csv"
+
+      assert {:ok, [row]} = Publication.Codec.from_csv(input)
+      assert ["First source", "Second source"] == row["references"]
+    end
+
+    test "to_csv joins the references list back into one quoted newline cell" do
+      flat = %{
+        "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
+        "year" => "1886",
+        "countries" => "GB",
+        "publishers" => "Bickers & Son",
+        "authors" => "Isabel Burton",
+        "original_title" => "Iracema",
+        "original_authors" => "José de Alencar",
+        "references" => ["First source", "Second source"]
+      }
+
+      csv = [flat] |> Publication.Codec.to_csv() |> Enum.join()
+
+      # The newline lives inside a quoted field, so the row stays intact.
+      assert csv =~ "\"First source\nSecond source\""
     end
   end
 end

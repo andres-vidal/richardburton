@@ -88,6 +88,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
         placeholder={placeholder}
         error={error}
         fill
+        bordered
       />
     </Tooltip>
   );

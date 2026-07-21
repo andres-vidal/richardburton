@@ -15,6 +15,17 @@ defmodule RichardBurtonWeb.PublicationController do
     |> json(%{entries: results, keywords: keywords})
   end
 
+  def index(conn, %{"unreferenced" => _}) do
+    {:ok, results} = Publication.Index.without_references()
+
+    conn
+    |> put_resp_header(
+      Publication.Index.count_header(),
+      Integer.to_string(Publication.Index.count())
+    )
+    |> json(%{entries: results})
+  end
+
   def index(conn, _params) do
     {:ok, results} = Publication.Index.all()
 

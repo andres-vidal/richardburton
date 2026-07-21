@@ -34,6 +34,21 @@ defmodule RichardBurton.Publication.Index do
     Repo.aggregate(FlatPublication, :count, :id)
   end
 
+  @doc """
+  Publications with no provenance, ordered by id — the stable queue the references
+  backfill steps through.
+  """
+  def without_references do
+    results =
+      from(fp in FlatPublication,
+        where: fragment("cardinality(?) = 0", fp.references),
+        order_by: [asc: fp.id]
+      )
+      |> Repo.all()
+
+    {:ok, results}
+  end
+
   defp maybe_select(query, []) do
     query
   end

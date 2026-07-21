@@ -1,0 +1,35 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as LayoutStories from "./Layout.stories";
+
+<Meta of={LayoutStories} />
+
+# Layout
+
+The app shell every page renders inside: a sticky header (the branded banner
+plus an optional `subheader`) and an optional sticky footer around a scrollable
+`main` content slot. The page body scrolls while the header and footer stay
+pinned.
+
+## Slots
+
+- `content` — the main page content (required).
+- `subheader` — an optional band under the banner, inside the sticky header
+  (e.g. a page's breadcrumb + `PageHeader`, or the search panel).
+- `leftAside` — an optional left rail beside the content.
+- `footer` — an optional sticky footer.
+
+## Sticky column headers
+
+The header publishes its measured height as the `--app-header-h` CSS variable,
+kept current by a `ResizeObserver`, so a table's column-header row can pin just
+below the header — at the bottom of the subheader panel — rather than scrolling
+behind it.
+
+<Canvas of={LayoutStories.Default} />
+
+## All slots
+
+Subheader, left aside, and footer all filled.
+
+<Canvas of={LayoutStories.AllSlots} />

@@ -6,7 +6,6 @@ import Layout from "./Layout";
 const meta = {
   title: "Components/Layout",
   component: Layout,
-  tags: ["autodocs"],
   args: {
     content: <div>Main content</div>,
   },

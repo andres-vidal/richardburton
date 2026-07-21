@@ -29,15 +29,11 @@ defmodule RichardBurton.Publication.Codec do
     "original_title",
     "title",
     "authors",
-    "publishers"
+    "publishers",
+    "references"
   ]
 
-  # Export includes provenance; import does not (that is roadmap 16). Kept as a
-  # separate list so `from_csv` never expects a references column. The list is
-  # flattened into one cell with `@references_csv_separator` — lossy for content
-  # that contains the separator, which 16 addresses with escaping.
-  @csv_export_headers @csv_headers ++ ["references"]
-  @references_csv_separator " | "
+  @references_csv_separator "\n"
 
   def from_csv(path) do
     try do
@@ -46,6 +42,7 @@ defmodule RichardBurton.Publication.Codec do
         |> File.stream!()
         |> CSV.decode!(separator: ?;, headers: @csv_headers)
         |> Enum.map(&Util.deep_merge_maps(@empty_flat_attrs, &1))
+        |> Enum.map(&parse_references_cell/1)
 
       {:ok, publications}
     rescue
@@ -64,13 +61,33 @@ defmodule RichardBurton.Publication.Codec do
     flat_publications
     |> Enum.map(&Util.stringify_keys/1)
     |> Enum.map(&flatten_references_cell/1)
-    |> Enum.map(&Map.take(&1, @csv_export_headers))
+    |> Enum.map(&Map.take(&1, @csv_headers))
     |> CSV.encode(separator: ?;, delimiter: "\n", headers: true)
     |> Enum.to_list()
   end
 
-  # Only touch the cell when it's present (a full export) — a `select`-limited
-  # export omits references entirely, and must not gain the column.
+  # Split the newline-per-line cell into a trimmed, blank-free list, so a CSV row
+  # carries `references` in the same array shape the frontend bulk payload uses —
+  # a missing/absent column becomes an empty list.
+  defp parse_references_cell(row) do
+    parsed =
+      case Map.get(row, "references") do
+        content when is_binary(content) ->
+          content
+          |> String.split(@references_csv_separator)
+          |> Enum.map(&String.trim/1)
+          |> Enum.reject(&(&1 == ""))
+
+        _ ->
+          []
+      end
+
+    Map.put(row, "references", parsed)
+  end
+
+  # Join the list back into one newline-per-line cell. Only touch the cell when
+  # it's present (a full export) — a `select`-limited export omits references and
+  # must not gain the column.
   defp flatten_references_cell(%{"references" => refs} = row) when is_list(refs) do
     %{row | "references" => Enum.join(refs, @references_csv_separator)}
   end

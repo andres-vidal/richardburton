@@ -1,15 +1,15 @@
 "use client";
 
 import {
-  Publication,
-  type PublicationId,
-  type PublicationKey,
-} from "modules/publication/model";
-import {
   useHiddenAttributes,
   usePublicationStoredField,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
+import {
+  Publication,
+  type PublicationId,
+  type PublicationKey,
+} from "modules/publication/model";
 import {
   AriaRole,
   FC,
@@ -57,7 +57,7 @@ const Aria = {
 // column is shown; the maxes are generous enough to fit the titles and values, and
 // only the longest outliers truncate.
 const COLUMN_MAX_WIDTH: Partial<Record<ColId, string>> = {
-  year: "5rem",
+  year: "5.5rem",
   originalTitle: "20rem",
   title: "24rem",
 };
@@ -89,7 +89,7 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
 }) => {
   const label = Publication.ATTRIBUTE_LABELS[colId];
   return (
-    <Aria.ColumnHeader className="px-4 py-2 font-semibold text-left truncate">
+    <Aria.ColumnHeader className="mx-0.5 px-3 py-2 font-semibold text-left truncate">
       {label}
     </Aria.ColumnHeader>
   );
@@ -147,6 +147,7 @@ type RowProps = DivProps & {
   Column: typeof Column;
   Content: typeof Content;
   SignalColumn?: typeof SignalColumn;
+  TrailingColumn?: FC<{ rowId: RowId }>;
   collapsible?: boolean;
   onClick?: (event: MouseEvent) => void;
 };
@@ -157,6 +158,7 @@ const Row = forwardRef<HTMLDivElement, RowProps>(function Row(
     Column,
     Content,
     SignalColumn,
+    TrailingColumn,
     collapsible,
     className = "",
     onClick,
@@ -199,13 +201,17 @@ const Row = forwardRef<HTMLDivElement, RowProps>(function Row(
               Content={Content}
             />
           ))}
+          {TrailingColumn && <TrailingColumn rowId={rowId} />}
         </>
       ) : (
         // Off-screen rows keep their cell structure — so the row stays a valid ARIA
         // row and reserves its grid height — without subscribing to the store (that's
         // the point of the virtualization).
         Array.from({
-          length: (SignalColumn ? 1 : 0) + attributes.length,
+          length:
+            (SignalColumn ? 1 : 0) +
+            attributes.length +
+            (TrailingColumn ? 1 : 0),
         }).map((_, i) => <Aria.Cell key={i} />)
       )}
     </Aria.Row>
@@ -245,6 +251,7 @@ interface Props {
   ExtendedColumnHeader?: typeof ColumnHeader;
   ExtendedContent?: typeof Content;
   ExtendedSignalColumn?: typeof SignalColumn;
+  ExtendedTrailingColumn?: FC<{ rowId: RowId }>;
   ExtraRow?: FC;
   onRowClick?: (id: RowId) => (event: MouseEvent) => void;
   selectable?: boolean;
@@ -257,6 +264,7 @@ const PublicationIndexTable: FC<Props> = ({
   ExtendedColumnHeader = ColumnHeader,
   ExtendedContent = Content,
   ExtendedSignalColumn,
+  ExtendedTrailingColumn,
   ExtraRow,
   onRowClick,
   selectable = true,
@@ -264,6 +272,7 @@ const PublicationIndexTable: FC<Props> = ({
 }) => {
   const ids = useVisiblePublicationIds();
   const hasSignal = Boolean(ExtendedSignalColumn);
+  const hasTrailing = Boolean(ExtendedTrailingColumn);
   const visibleAttributes = useVisibleAttributes(collapsible);
   const gridTemplateColumns = useMemo(
     () =>
@@ -273,10 +282,11 @@ const PublicationIndexTable: FC<Props> = ({
           (col) =>
             `minmax(0, ${COLUMN_MAX_WIDTH[col] ?? DEFAULT_COLUMN_MAX_WIDTH})`,
         ),
+        hasTrailing ? "auto" : null,
       ]
         .filter(Boolean)
         .join(" "),
-    [visibleAttributes, hasSignal],
+    [visibleAttributes, hasSignal, hasTrailing],
   );
 
   return ids && (ids.length > 0 || ExtraRow) ? (
@@ -286,7 +296,7 @@ const PublicationIndexTable: FC<Props> = ({
       style={{ gridTemplateColumns }}
       className="grid relative justify-start w-full h-fit data-[selectable=false]:select-none"
     >
-      <Aria.Row className="grid sticky top-0 z-20 col-span-full bg-gray-100 grid-cols-subgrid">
+      <Aria.Row className="grid sticky top-(--app-header-h) z-20 col-span-full bg-gray-100 grid-cols-subgrid">
         {ExtendedSignalColumn && (
           <Aria.ColumnHeader>
             <span className="sr-only">Status</span>
@@ -295,6 +305,11 @@ const PublicationIndexTable: FC<Props> = ({
         {visibleAttributes.map((key) => (
           <ExtendedColumnHeader key={key} colId={key} />
         ))}
+        {ExtendedTrailingColumn && (
+          <Aria.ColumnHeader>
+            <span className="sr-only">References</span>
+          </Aria.ColumnHeader>
+        )}
       </Aria.Row>
       {ids.map((id) => (
         <ExtendedRow
@@ -302,6 +317,7 @@ const PublicationIndexTable: FC<Props> = ({
           rowId={id}
           Column={ExtendedColumn}
           SignalColumn={ExtendedSignalColumn}
+          TrailingColumn={ExtendedTrailingColumn}
           Content={ExtendedContent}
           collapsible={collapsible}
           onClick={onRowClick?.(id)}

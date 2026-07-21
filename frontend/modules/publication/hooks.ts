@@ -23,6 +23,7 @@ import {
   storedFieldValueFamily,
   totalCountAtom,
   totalIndexCountAtom,
+  unreferencedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
@@ -120,6 +121,11 @@ function useTotalPublicationCount() {
   return useAtomValue(totalCountAtom);
 }
 
+/** How many loaded publications still lack references (live). */
+function useUnreferencedPublicationCount() {
+  return useAtomValue(unreferencedCountAtom);
+}
+
 function usePublicationIndexCount() {
   return useAtomValue(totalIndexCountAtom);
 }
@@ -177,6 +183,7 @@ export {
   usePublicationReferences,
   usePublicationStoredField,
   useTotalPublicationCount,
+  useUnreferencedPublicationCount,
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,

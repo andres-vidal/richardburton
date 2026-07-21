@@ -10,7 +10,7 @@ const meta = {
   beforeEach: () => resetAttributes(),
   decorators: [
     (Story) => (
-      <div className="flex justify-end p-8">
+      <div className="flex justify-center p-8">
         <Story />
       </div>
     ),

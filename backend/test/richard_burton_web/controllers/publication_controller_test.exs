@@ -36,6 +36,36 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
   end
 
+  describe "GET /publications?unreferenced" do
+    test "returns only publications that have no references", %{conn: conn} do
+      {:ok, with_refs} =
+        @publication_attrs |> Publication.Codec.nest() |> Publication.insert()
+
+      {:ok, _} =
+        Publication.update(
+          with_refs.id,
+          @publication_attrs
+          |> Publication.Codec.nest()
+          |> Map.put("references", Reference.nest(["A source"]))
+        )
+
+      {:ok, _without} =
+        %{@publication_attrs | "title" => "Unsourced Title"}
+        |> Publication.Codec.nest()
+        |> Publication.insert()
+
+      entries =
+        conn
+        |> get("#{publication_path(conn, :index)}?unreferenced")
+        |> json_response(200)
+        |> Map.get("entries")
+
+      titles = Enum.map(entries, & &1["title"])
+      assert "Unsourced Title" in titles
+      refute @publication_attrs["title"] in titles
+    end
+  end
+
   describe "CSRF protection on admin mutations" do
     test "rejects a POST without a CSRF token", %{conn: conn} do
       conn =
@@ -89,6 +119,24 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> json_response(201)
 
       assert publications == Enum.map(result, &Map.drop(&1, ["id", "references"]))
+    end
+
+    test "bulk-inserts publications with their references", meta do
+      expect_auth_authorize_admin()
+
+      input = %{
+        "_json" => [
+          Map.put(@publication_attrs, "references", ["First source", "Second source"])
+        ]
+      }
+
+      result =
+        meta.conn
+        |> post(publication_path(meta.conn, :create_all), input)
+        |> json_response(201)
+
+      assert [%{"references" => ["First source", "Second source"]}] = result
+      assert [%{references: ["First source", "Second source"]}] = FlatPublication.all()
     end
 
     test "returns 201 and inserts publications with several countries", meta do
@@ -450,7 +498,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "Isabel Burton, Richard Burton",
           "original_authors" => "José de Alencar",
-          "original_title" => "Iracema"
+          "original_title" => "Iracema",
+          "references" => []
         },
         "errors" => nil
       },
@@ -462,7 +511,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Ronald Massey",
           "authors" => "J. T. W. Sadler",
           "original_authors" => "José de Alencar",
-          "original_title" => "Ubirajara"
+          "original_title" => "Ubirajara",
+          "references" => []
         },
         "errors" => nil
       },
@@ -474,7 +524,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "Bickers & Son",
           "authors" => "",
           "original_authors" => "José de Alencar",
-          "original_title" => "Iracema"
+          "original_title" => "Iracema",
+          "references" => []
         },
         "errors" => %{
           "year" => "integer",
@@ -490,7 +541,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "publishers" => "",
           "authors" => "J. T. W. Sadler",
           "original_authors" => "",
-          "original_title" => ""
+          "original_title" => "",
+          "references" => []
         },
         "errors" => %{
           "year" => "required",
@@ -571,8 +623,20 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
-      # References are the alphabetically-placed column between publishers and title.
-      assert response(conn, 200) =~ "Bickers & Son;First source | Second source;Iraçéma"
+      # One reference per line inside a single quoted cell (CSV quotes the newline).
+      assert response(conn, 200) =~ "\"First source\nSecond source\""
+    end
+
+    test "imports a newline-per-line references cell back into a list", meta do
+      expect_auth_authorize_admin()
+      input = uploaded_csv_fixture("test/fixtures/data_with_references.csv")
+
+      [first | _] =
+        meta.conn
+        |> post(publication_path(meta.conn, :validate), input)
+        |> json_response(200)
+
+      assert ["First source", "Second source"] == first["publication"]["references"]
     end
   end
 
@@ -769,8 +833,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       # flattened back to an ordered list in the response and the read model.
       assert result["references"] == ["First source", "Second source"]
 
-      assert [["First source", "Second source"]] ==
-               Enum.map(FlatPublication.all(), & &1.references)
+      assert [%{references: ["First source", "Second source"]}] = FlatPublication.all()
     end
   end
 

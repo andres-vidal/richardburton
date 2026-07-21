@@ -1,0 +1,36 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as BreadcrumbStories from "./Breadcrumb.stories";
+
+<Meta of={BreadcrumbStories} />
+
+# Breadcrumb
+
+Location and back-navigation for nested pages such as the admin panel. It renders
+the path to the current page as a trail of crumbs — ancestors are links back up
+the hierarchy, and the current page is the plain last crumb.
+
+## Props
+
+A single `items` prop: an ordered list of crumbs from the root down to the current
+page. Each crumb is `{ label, href? }`. Give a crumb an `href` to render it as a
+link; omit it on the **last** crumb so the current page reads as plain text.
+
+```tsx
+<Breadcrumb
+  items={[
+    { label: "Home", href: "/" },
+    { label: "Admin", href: "/admin" },
+    { label: "Backfill references" }, // current page — no href
+  ]}
+/>
+```
+
+<Canvas of={BreadcrumbStories.Default} />
+
+## Accessibility
+
+- Wrapped in `<nav aria-label="Breadcrumb">` around an ordered list, so assistive
+  tech announces it as the breadcrumb landmark in its natural sequence.
+- The current page carries `aria-current="page"` and is not a link.
+- The `/` separators are decorative (`aria-hidden`), so they are not read out.

@@ -1,0 +1,55 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ReferencesBackfillStories from "./ReferencesBackfill.stories";
+
+<Meta of={ReferencesBackfillStories} />
+
+# References backfill
+
+A master-detail wizard for adding provenance to publications that have none: a
+queue of reference-less publications on the left, the editor for the selected one
+on the right. Reached from the admin panel at `/admin/publications/references`.
+
+## Composition
+
+- **`ReferencesBackfill`** (default export) — the orchestrator. On mount it loads
+  the reference-less publications (`index({ unreferenced: true })`) into the
+  store, tracks the current position and save state, and wires Save / Skip. It
+  resets the store on unmount, leaving it as it found it.
+- **`ReferencesBackfillView`** — the presentational shell. It takes the queue as
+  an `ids` prop so its **loading** (`undefined`), **empty** (`[]`), and
+  **populated** states can each be rendered and a11y-checked in isolation.
+- **`ReferencesQueue`** — the queue listbox (see below).
+- **`BackfillStep`** — the detail pane: the selected publication's identifying
+  context, the shared `ReferencesEditor`, and the Skip / Save & next actions.
+
+<Canvas of={ReferencesBackfillStories.Populated} />
+
+## States
+
+- **Populated** — the master-detail: the queue next to the editor, first
+  publication selected.
+- **Loading** — while the queue is being fetched.
+- **Empty** — nothing left to source ("All caught up").
+
+<Canvas of={ReferencesBackfillStories.Loading} />
+<Canvas of={ReferencesBackfillStories.Empty} />
+
+## Queue
+
+The queue is a single-select **listbox**: one tab stop, arrow / Home / End move
+the selection (via `aria-activedescendant`), and a click jumps straight to a
+publication. A dot marks whether each publication is already sourced, and the
+panel header counts the entries still missing references — decreasing live as
+sources are added.
+
+<Canvas of={ReferencesBackfillStories.Queue} />
+
+## Step
+
+The detail pane shows the publication's context and progress. **Save & next** is
+disabled until a source is added — **Skip** moves past a publication you can't
+source. Edits write to the row's override overlay and are persisted by `update`
+on save.
+
+<Canvas of={ReferencesBackfillStories.Step} />

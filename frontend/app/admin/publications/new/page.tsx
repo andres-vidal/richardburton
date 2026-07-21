@@ -1,6 +1,8 @@
 "use client";
 
+import Breadcrumb from "components/Breadcrumb";
 import Layout from "components/Layout";
+import PageHeader from "components/PageHeader";
 import PublicationCounter from "components/PublicationCounter";
 import PublicationDelete from "components/PublicationDelete";
 import PublicationDeselect from "components/PublicationDeselect";
@@ -12,15 +14,20 @@ import PublicationWorkspace from "components/PublicationWorkspace";
 import ResetDeleted from "components/ResetDeleted";
 import ResetOverridden from "components/ResetOverridden";
 import RowIdToggle from "components/RowIdToggle";
-import StrikeHeading from "components/StrikeHeading";
 import { Publication } from "modules/publication/model";
 import {
   resetAll,
   setAll,
   setAttributesVisible,
 } from "modules/publication/store";
-import { useEffect } from "react";
 import { useIsSelectionEmpty } from "modules/selection";
+import { useEffect } from "react";
+
+const BREADCRUMB_ITEMS = [
+  { label: "Home", href: "/" },
+  { label: "Admin", href: "/admin" },
+  { label: "Add publications" },
+];
 
 export default function NewPublications() {
   const isSelectionEmpty = useIsSelectionEmpty();
@@ -32,7 +39,13 @@ export default function NewPublications() {
   return (
     <Layout
       subheader={
-        <StrikeHeading label="Prepare new publications to be inserted in the database" />
+        <>
+          <Breadcrumb items={BREADCRUMB_ITEMS} />
+          <PageHeader
+            title="Add publications"
+            description="Prepare new publications to be inserted in the database."
+          />
+        </>
       }
       content={<PublicationWorkspace />}
       footer={

@@ -127,6 +127,16 @@ const publicationReferencesFamily = atomFamily((id: PublicationId) =>
   atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
 );
 
+/** How many loaded publications still have no references — drives the backfill
+ * wizard's counter, shrinking live as sources are added (same signal as the
+ * queue's sourced dots). */
+const unreferencedCountAtom = atom(
+  (get) =>
+    get(publicationIdsAtom)?.filter(
+      (id) => get(publicationReferencesFamily(id)).length === 0,
+    ).length || 0,
+);
+
 const isValidFamily = atomFamily((id: PublicationId) =>
   atom((get) => !get(errorFamily(id))),
 );
@@ -370,6 +380,7 @@ export {
   storedFieldValueFamily,
   totalCountAtom,
   totalIndexCountAtom,
+  unreferencedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,

@@ -1,7 +1,9 @@
+"use client";
+
 import Dot from "assets/dot.svg";
 import Logo from "assets/logo.svg";
 import Link from "next/link";
-import { FC, ReactNode } from "react";
+import { FC, ReactNode, useEffect, useRef } from "react";
 import Anchor from "./Anchor";
 import { CONTACT_MODAL_KEY } from "./ContactModal";
 import { LEARN_MORE_MODAL_KEY } from "./LearnMoreModal";
@@ -20,9 +22,31 @@ const SUBHEADING_TEXT = "A database about Brazilian literature in translation";
 // `title` is set per-route via the App Router `metadata` export, not here — the
 // prop is kept so existing callers still typecheck during the migration.
 const Layout: FC<Props> = ({ footer, content, subheader, leftAside }) => {
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Publish the header's height as `--app-header-h` so the table's column headers
+  // can pin at its bottom (the end of the searchbar panel), not behind it. A
+  // ResizeObserver keeps it current as the searchbar panel grows/shrinks or the
+  // banner wraps at the mobile breakpoint.
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+
+    const publishHeight = () =>
+      document.documentElement.style.setProperty(
+        "--app-header-h",
+        `${header.offsetHeight - 1}px`,
+      );
+
+    publishHeight();
+    const observer = new ResizeObserver(publishHeight);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="flex flex-col h-full px-1 md:px-8 overflow-x-clip">
-      <header className="sticky top-0 z-20 bg-gray-100 md:pb-6">
+    <div className="flex flex-col min-h-screen px-1 md:px-8">
+      <header ref={headerRef} className="sticky top-0 z-30 bg-gray-100">
         <h1 className="select-none py-1.5 -mx-8 text-center text-white bg-indigo-600 flex items-center justify-center">
           <div className="flex flex-col items-center justify-center shrink transition-colors md:flex-row md:gap-4 shadow-white">
             <Link href="/" className="px-3 py-0.5 rounded hover:bg-indigo-500">
@@ -43,15 +67,15 @@ const Layout: FC<Props> = ({ footer, content, subheader, leftAside }) => {
         </h1>
         {subheader}
       </header>
-      <div className="flex flex-col h-full gap-2 md:flex-row overflow-clip">
+      <div className="flex flex-col grow gap-2 md:flex-row">
         {leftAside && <aside>{leftAside}</aside>}
-        <main className="relative pb-4 overflow-y-auto overflow-x-clip grow scrollbar-thin scrollbar-thumb-gray-300">
-          {content}
-        </main>
+        <main className="relative grow pb-4">{content}</main>
       </div>
-      <footer className="sticky bottom-0 py-1 bg-gray-100 md:py-4">
-        {footer}
-      </footer>
+      {footer && (
+        <footer className="sticky bottom-0 z-30 py-1 bg-gray-100 md:py-4">
+          {footer}
+        </footer>
+      )}
     </div>
   );
 };

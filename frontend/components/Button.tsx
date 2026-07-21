@@ -59,6 +59,17 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
     Icon = Spinner;
   }
 
+  // Resolve the icon's horizontal offset to a data-attribute so the rule lives in
+  // Tailwind variants below, not an interpolated className. "hang": a centered
+  // button with room pulls the icon into the padding so the label reads centered;
+  // "nudge": fit/left just tightens it a hair; "none": an icon-only button
+  // (sr-only label) keeps the icon centered.
+  const iconOffset = labelSrOnly
+    ? "none"
+    : alignment === "center" && width !== "fit"
+      ? "hang"
+      : "nudge";
+
   return (
     <button
       disabled={loading}
@@ -67,9 +78,10 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       data-variant={variant}
       data-width={width}
       data-alignment={alignment}
+      data-icon-offset={iconOffset}
       data-size={size}
       className={`
-        flex transition-colors items-center rounded font-base shadow-sm group gap-2 whitespace-nowrap
+        flex transition-colors items-center rounded font-base group gap-2 whitespace-nowrap
         border border-transparent
         data-[size=small]:py-1.5 data-[size=small]:px-2 data-[size=small]:text-xs
         data-[size=medium]:py-2 data-[size=medium]:px-4 data-[size=medium]:text-sm
@@ -92,9 +104,10 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       {Icon && isFunction(Icon) ? (
         <Icon
           className={`
-            w-4 h-4 group-disabled:text-gray-300
+            size-4 group-disabled:text-gray-300
             group-data-[variant=outline]:text-indigo-700
-            ${labelSrOnly ? "" : alignment === "center" ? "-ml-4" : "-ml-0.5"}
+            group-data-[icon-offset=nudge]:-ml-0.5
+            group-data-[icon-offset=hang]:-ml-4
           `}
         />
       ) : (

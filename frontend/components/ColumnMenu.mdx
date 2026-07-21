@@ -1,0 +1,27 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ColumnMenuStories from "./ColumnMenu.stories";
+
+<Meta of={ColumnMenuStories} />
+
+# Column menu
+
+The **Columns** control: a button that opens a popover to show or hide the
+table's toggleable columns. Hiding a column simply stops rendering its cells —
+there is no in-place collapse animation to lag on long lists. The title columns
+always stay; only attributes flagged toggleable appear in the popover.
+
+## Behaviour
+
+- **Toggle a column** — each row is a checkbox-style toggle button
+  (`aria-pressed`); pressed means the column is shown.
+- **Badge** — when any column is hidden, the trigger shows a `shown/total`
+  count.
+- **Show all** — restores every column.
+- **Positioning** — floating-ui anchors the popover below the trigger
+  (`bottom-end`, 4px offset) and keeps it on screen: it flips above near the
+  viewport bottom, shifts back in near the left edge, and follows the trigger on
+  scroll (`autoUpdate`). These are asserted by geometry in the story play tests.
+- **Dismiss** — a pointer press outside the popover closes it.
+
+<Canvas of={ColumnMenuStories.Default} />
