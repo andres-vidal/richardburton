@@ -102,10 +102,30 @@ defmodule RichardBurton.Publisher do
     end
   end
 
+  @doc ~S"""
+  Split a comma-separated publishers string into nested publisher maps.
+
+  ## Examples
+
+    iex> RichardBurton.Publisher.nest("Noonday Press, Penguin")
+    [%{"name" => "Noonday Press"}, %{"name" => "Penguin"}]
+  """
   def nest(publishers) when is_binary(publishers) do
     publishers |> String.split(",") |> Enum.map(&%{"name" => String.trim(&1)})
   end
 
+  @doc ~S"""
+  Join a list of publishers back into a comma-separated string. A non-list value
+  (already flat) is returned unchanged.
+
+  ## Examples
+
+    iex> RichardBurton.Publisher.flatten([%{"name" => "Noonday Press"}, %{"name" => "Penguin"}])
+    "Noonday Press, Penguin"
+
+    iex> RichardBurton.Publisher.flatten("Noonday Press")
+    "Noonday Press"
+  """
   def flatten(publishers) when is_list(publishers),
     do: Enum.map_join(publishers, ", ", &get_name/1)
 

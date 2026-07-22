@@ -1,0 +1,38 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ReferencesEditorStories from "./ReferencesEditor.stories";
+
+<Meta of={ReferencesEditorStories} />
+
+# References editor
+
+The editor for a publication's **references** — free-text provenance entries
+that record how the record's data was collected, so a reader can verify it. It
+lives in the publication [edit form](?path=/docs/publications-publication-modal--docs),
+below the scalar fields.
+
+## Data flow
+
+Unlike the array cell editors (authors, publishers), a reference is not a
+comma-joined string but a genuine ordered list: provenance is free text that may
+itself contain commas. The `value` is therefore a `string[]`, and every action —
+add, edit, remove, reorder — produces a **new array** through `onChange`. The
+component keeps no internal state; the parent owns the list (in the app, the
+publication's override overlay).
+
+Reordering is a plain array swap driven by the ↑/↓ controls (bounded at the ends,
+no drag). Blank rows are allowed while editing and dropped server-side on save,
+so an empty row never blocks a submit.
+
+<Canvas of={ReferencesEditorStories.Default} />
+
+## States
+
+An empty list shows a hint and just the add control:
+
+<Canvas of={ReferencesEditorStories.Empty} />
+
+A populated list renders one input per entry, each with reorder and remove
+controls:
+
+<Canvas of={ReferencesEditorStories.WithReferences} />

@@ -80,7 +80,7 @@ export default async function RootLayout({
   const session = await getSession();
 
   return (
-    <html lang="en" className="h-screen">
+    <html lang="en">
       <body>
         <Providers session={session}>{children}</Providers>
       </body>

@@ -34,13 +34,13 @@ const PublicationSearch: FC = () => {
   return (
     <section className="space-y-3">
       <input
-        className="w-full p-2 bg-gray-100 border border-gray-200 rounded outline-none placeholder:text-sm focus:bg-gray-active hover:bg-gray-active"
+        className="w-full py-2 px-3 bg-white border border-gray-300 rounded outline-none transition-colors placeholder:text-sm focus:bg-gray-100 hover:bg-gray-100"
         placeholder="Browse data about Brazilian literature in translation"
         aria-label="Search publications"
         value={search}
         onChange={handleChange}
       />
-      <div aria-live="polite" className="h-4 px-2 space-x-1 text-xs truncate">
+      <div aria-live="polite" className="h-4 px-3 space-x-1 text-xs truncate">
         {isLoading ? (
           <span>
             Searching the collection

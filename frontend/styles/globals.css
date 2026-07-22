@@ -52,7 +52,14 @@
 }
 
 body {
-  @apply h-screen overflow-hidden font-light text-gray-900 bg-gray-100 font-montserrat;
+  @apply min-h-screen overflow-x-clip font-light text-gray-900 bg-gray-100 font-montserrat;
+}
+
+/* Published by Layout's header measure ref; the table's column headers pin just
+   below it (`top: var(--app-header-h)`). Defaults to 0 so the table works without
+   a Layout (e.g. Storybook). */
+:root {
+  --app-header-h: 0px;
 }
 
 .anchor {

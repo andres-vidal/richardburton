@@ -1,0 +1,42 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as WorkspaceReferencesCellStories from "./WorkspaceReferencesCell.stories";
+
+<Meta of={WorkspaceReferencesCellStories} />
+
+# Workspace references cell
+
+The trailing "sources" cell for a row in the Add-publications workspace.
+References are a list, not a scalar, so they live outside the attribute grid: a
+design-system `Button` (outline) that fills the cell shows the source count and
+opens the list editor in a modal.
+
+## Props
+
+`rowId` — the workspace row the cell belongs to. It reads that row's references
+from the store (`usePublicationReferences`) and writes edits back to the row's
+**override overlay** (`overrideReferences`), so they ride the bulk insert with
+the rest of the row — there is no separate save.
+
+`invalid` / `selected` / `focused` — optional row-state flags (default `false`)
+that drive the cell's background so it shares the row's hover / error / selected
+highlight, just like the attribute cells. The workspace supplies them for
+committed rows and omits them for the plain draft row.
+
+The button label reflects the count: "Sources" when empty (an invitation to add),
+"N sources" once there are some. Clicking it opens a modal with the shared
+`ReferencesEditor`; the click is stopped from bubbling so it doesn't also select
+the row.
+
+<Canvas of={WorkspaceReferencesCellStories.WithReferences} />
+
+## States
+
+- **Empty** — no references yet; the button reads "Sources", labelled "Add
+  references".
+- **With references** — the button reads "N sources", labelled "Edit references
+  (N)".
+
+Note: the stories wrap the cell in a plain `role="row"` for valid ARIA, so it
+sits at its natural height there; in the real workspace grid the button stretches
+to fill the row.

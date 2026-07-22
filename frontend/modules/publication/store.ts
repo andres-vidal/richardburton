@@ -122,6 +122,21 @@ const publicationOrNullFamily = atomFamily((id: PublicationId) =>
   atom<Publication | null>((get) => get(publicationFamily(id)) || null),
 );
 
+/** A publication's provenance list (base ⊕ override), never undefined. */
+const publicationReferencesFamily = atomFamily((id: PublicationId) =>
+  atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
+);
+
+/** How many loaded publications still have no references — drives the backfill
+ * wizard's counter, shrinking live as sources are added (same signal as the
+ * queue's sourced dots). */
+const unreferencedCountAtom = atom(
+  (get) =>
+    get(publicationIdsAtom)?.filter(
+      (id) => get(publicationReferencesFamily(id)).length === 0,
+    ).length || 0,
+);
+
 const isValidFamily = atomFamily((id: PublicationId) =>
   atom((get) => !get(errorFamily(id))),
 );
@@ -217,6 +232,13 @@ function overrideField(
 ): void {
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
+}
+
+/** Overlay the whole provenance list (references are edited as a unit, not per
+ * cell), reusing the same override overlay as the scalar fields. */
+function overrideReferences(id: PublicationId, references: string[]): void {
+  const current = store.get(overrideFamily(id));
+  store.set(overrideFamily(id), { ...current, references });
 }
 
 /** Drop a single row's pending edits and errors (cancelling an edit). */
@@ -339,9 +361,11 @@ export {
   overriddenIdsAtom,
   overrideFamily,
   overrideField,
+  overrideReferences,
   publicationFamily,
   publicationIdsAtom,
   publicationOrNullFamily,
+  publicationReferencesFamily,
   resetAll,
   resetAttributes,
   resetDeleted,
@@ -356,6 +380,7 @@ export {
   storedFieldValueFamily,
   totalCountAtom,
   totalIndexCountAtom,
+  unreferencedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,

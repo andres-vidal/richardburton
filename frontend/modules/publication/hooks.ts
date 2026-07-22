@@ -1,5 +1,5 @@
-import { atom, useAtom, useAtomValue } from "jotai";
 import type { SetStateAction } from "jotai";
+import { atom, useAtom, useAtomValue } from "jotai";
 import { Publication, PublicationId, PublicationKey } from "./model";
 import {
   areRowIdsVisibleAtom,
@@ -15,13 +15,15 @@ import {
   isValidFamily,
   isValidatingAtom,
   keywordsAtom,
-  overrideFamily,
   overriddenCountAtom,
   overriddenIdsAtom,
+  overrideFamily,
   publicationOrNullFamily,
+  publicationReferencesFamily,
   storedFieldValueFamily,
   totalCountAtom,
   totalIndexCountAtom,
+  unreferencedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
@@ -71,6 +73,10 @@ function usePublicationStoredField<K extends PublicationKey>(
   return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
 }
 
+function usePublicationReferences(id: PublicationId) {
+  return useAtomValue(publicationReferencesFamily(id));
+}
+
 function usePublicationError(id: PublicationId) {
   return useAtomValue(errorFamily(id));
 }
@@ -113,6 +119,11 @@ function useOverriddenPublicationCount() {
 
 function useTotalPublicationCount() {
   return useAtomValue(totalCountAtom);
+}
+
+/** How many loaded publications still lack references (live). */
+function useUnreferencedPublicationCount() {
+  return useAtomValue(unreferencedCountAtom);
 }
 
 function usePublicationIndexCount() {
@@ -169,8 +180,10 @@ export {
   usePublicationFieldError,
   usePublicationIndexCount,
   usePublicationOverride,
+  usePublicationReferences,
   usePublicationStoredField,
   useTotalPublicationCount,
+  useUnreferencedPublicationCount,
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,

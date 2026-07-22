@@ -49,29 +49,45 @@ async function run<T>(op: (http: AxiosInstance) => Promise<T>): Promise<T> {
 
 type IndexResult = { entries: Publication[]; keywords?: string[] };
 
-/** Load the publication index (optionally filtered by `search`). */
-async function index({ search }: { search?: string } = {}): Promise<void> {
+type IndexOptions = { search?: string; unreferenced?: boolean };
+
+/**
+ * Load the publication index into the store and return its ids in order. Filter
+ * by `search`, or to only the publications missing references (`unreferenced`) —
+ * the queue the references backfill wizard steps through.
+ */
+async function index({ search, unreferenced }: IndexOptions = {}): Promise<
+  PublicationId[]
+> {
   return run(async (http) => {
-    const url = search ? `publications?search=${search}` : "publications";
+    const query = search
+      ? `?search=${search}`
+      : unreferenced
+        ? "?unreferenced"
+        : "";
 
     // Leave the current rows on screen while the new results load — the skeleton
     // is only for the first load (publicationIdsAtom starts undefined). The
     // search bar shows a subtle loading bar instead (isIndexLoadingAtom).
     try {
-      const { data, headers } = await http.get<IndexResult>(url);
+      const { data, headers } = await http.get<IndexResult>(
+        `publications${query}`,
+      );
       const { entries, keywords } = data;
 
       // Read raw: the client no longer camelCases response headers (see modules/http).
       if (headers[TOTAL_COUNT_HEADER]) {
         store.set(totalIndexCountAtom, parseInt(headers[TOTAL_COUNT_HEADER]));
       }
-      store.set(keywordsAtom, keywords);
+      store.set(keywordsAtom, keywords ?? []);
 
       const ids = entries.map((entry) => entry.id!);
       store.set(publicationIdsAtom, ids);
       entries.forEach((entry, i) =>
         store.set(publicationFamily(ids[i]), entry),
       );
+
+      return ids;
     } finally {
       store.set(isIndexLoadingAtom, false);
     }

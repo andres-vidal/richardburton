@@ -5,6 +5,7 @@ defmodule RichardBurton.AuthorTest do
 
   use RichardBurton.DataCase
   import Ecto.Changeset
+  doctest RichardBurton.Author
 
   alias RichardBurton.Author
   alias RichardBurton.Validation

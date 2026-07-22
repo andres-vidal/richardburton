@@ -3,6 +3,7 @@ defmodule RichardBurton.PublisherTest do
   Tests for the Publisher schema
   """
   use RichardBurton.DataCase
+  doctest RichardBurton.Publisher
 
   alias RichardBurton.Publisher
   alias RichardBurton.Validation

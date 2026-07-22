@@ -9,6 +9,7 @@ defmodule RichardBurton.Publication.Codec do
   alias RichardBurton.Util
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
+  alias RichardBurton.Reference
   alias RichardBurton.FlatPublication
 
   @empty_flat_attrs %{
@@ -28,8 +29,11 @@ defmodule RichardBurton.Publication.Codec do
     "original_title",
     "title",
     "authors",
-    "publishers"
+    "publishers",
+    "references"
   ]
+
+  @references_csv_separator "\n"
 
   def from_csv(path) do
     try do
@@ -38,6 +42,7 @@ defmodule RichardBurton.Publication.Codec do
         |> File.stream!()
         |> CSV.decode!(separator: ?;, headers: @csv_headers)
         |> Enum.map(&Util.deep_merge_maps(@empty_flat_attrs, &1))
+        |> Enum.map(&parse_references_cell/1)
 
       {:ok, publications}
     rescue
@@ -55,10 +60,39 @@ defmodule RichardBurton.Publication.Codec do
   def to_csv(flat_publications) do
     flat_publications
     |> Enum.map(&Util.stringify_keys/1)
+    |> Enum.map(&flatten_references_cell/1)
     |> Enum.map(&Map.take(&1, @csv_headers))
     |> CSV.encode(separator: ?;, delimiter: "\n", headers: true)
     |> Enum.to_list()
   end
+
+  # Split the newline-per-line cell into a trimmed, blank-free list, so a CSV row
+  # carries `references` in the same array shape the frontend bulk payload uses —
+  # a missing/absent column becomes an empty list.
+  defp parse_references_cell(row) do
+    parsed =
+      case Map.get(row, "references") do
+        content when is_binary(content) ->
+          content
+          |> String.split(@references_csv_separator)
+          |> Enum.map(&String.trim/1)
+          |> Enum.reject(&(&1 == ""))
+
+        _ ->
+          []
+      end
+
+    Map.put(row, "references", parsed)
+  end
+
+  # Join the list back into one newline-per-line cell. Only touch the cell when
+  # it's present (a full export) — a `select`-limited export omits references and
+  # must not gain the column.
+  defp flatten_references_cell(%{"references" => refs} = row) when is_list(refs) do
+    %{row | "references" => Enum.join(refs, @references_csv_separator)}
+  end
+
+  defp flatten_references_cell(row), do: row
 
   def from_csv!(path) do
     case from_csv(path) do
@@ -67,6 +101,26 @@ defmodule RichardBurton.Publication.Codec do
     end
   end
 
+  @doc ~S"""
+  Nest a flat publication — a `FlatPublication` struct, a flat map, or a list of
+  them — into the shape the `Publication` changeset expects: multi-value fields
+  become child maps, and the `translated_book`/`original_book` fields are
+  re-parented under their association.
+
+  ## Examples
+
+    iex> nested =
+    ...>   RichardBurton.Publication.Codec.nest(%{
+    ...>     "title" => "Dom Casmurro",
+    ...>     "authors" => "Helen Caldwell",
+    ...>     "original_title" => "Dom Casmurro",
+    ...>     "original_authors" => "Machado de Assis"
+    ...>   })
+    iex> nested["translated_book"]["authors"]
+    [%{"name" => "Helen Caldwell"}]
+    iex> nested["translated_book"]["original_book"]["title"]
+    "Dom Casmurro"
+  """
   def nest(flat_publication = %FlatPublication{}) do
     attrs =
       flat_publication
@@ -101,13 +155,45 @@ defmodule RichardBurton.Publication.Codec do
   defp nest_entry({"publishers", value}),
     do: {"publishers", Publisher.nest(value)}
 
+  defp nest_entry({"references", value}),
+    do: {"references", Reference.nest(value)}
+
   defp nest_entry({key, value}),
     do: {key, value}
 
+  @doc ~S"""
+  Nest a comma-separated authors string into author maps — used when building a
+  translated book's author associations.
+
+  ## Examples
+
+    iex> RichardBurton.Publication.Codec.nest_authors("Helen Caldwell, Gregory Rabassa")
+    [%{"name" => "Helen Caldwell"}, %{"name" => "Gregory Rabassa"}]
+  """
   def nest_authors(authors) when is_binary(authors) do
     Enum.map(String.split(authors, ","), &%{"name" => String.trim(&1)})
   end
 
+  @doc ~S"""
+  Flatten a nested publication back to flat, string-keyed fields — the inverse of
+  `nest/1`. Child lists are joined and the `translated_book` association is lifted
+  back to top-level `authors` / `original_title` / `original_authors`. Accepts a
+  `Publication` struct, a nested map, a list, or a `%{publication:, errors:}` pair.
+
+  ## Examples
+
+    iex> RichardBurton.Publication.Codec.flatten(%{
+    ...>   "title" => "Dom Casmurro",
+    ...>   "translated_book" => %{
+    ...>     "authors" => [%{"name" => "Helen Caldwell"}],
+    ...>     "original_book" => %{
+    ...>       "title" => "Dom Casmurro",
+    ...>       "authors" => [%{"name" => "Machado de Assis"}]
+    ...>     }
+    ...>   }
+    ...> })
+    %{"authors" => "Helen Caldwell", "original_authors" => "Machado de Assis", "original_title" => "Dom Casmurro", "title" => "Dom Casmurro"}
+  """
   def flatten(publication = %Publication{}) do
     attrs =
       publication
@@ -142,6 +228,7 @@ defmodule RichardBurton.Publication.Codec do
   defp flatten_entry({"original_authors", value}), do: {"original_authors", Author.flatten(value)}
   defp flatten_entry({"countries", value}), do: {"countries", Country.flatten(value)}
   defp flatten_entry({"publishers", value}), do: {"publishers", Publisher.flatten(value)}
+  defp flatten_entry({"references", value}), do: {"references", Reference.flatten(value)}
   defp flatten_entry({key, value}), do: {key, value}
 
   defp rename_key({"translated_book_authors", v}), do: {"authors", v}

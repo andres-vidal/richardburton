@@ -36,6 +36,7 @@ import {
 } from "react";
 import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
+import WorkspaceReferencesCell from "./WorkspaceReferencesCell";
 
 const ExtendedColumn: typeof Column = (props) => {
   const { rowId } = props;
@@ -51,6 +52,23 @@ const ExtendedColumn: typeof Column = (props) => {
       focused={isFocused}
       selected={isSelected}
       selectable={true}
+    />
+  );
+};
+
+// Feeds the trailing references cell the same row state the attribute cells get,
+// so it shares the row's hover / error / selected background.
+const ExtendedTrailingColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
+  const isSelected = useIsSelected(rowId);
+  const isValid = useIsPublicationValid(rowId);
+  const isFocused = useIsPublicationFocused(rowId);
+
+  return (
+    <WorkspaceReferencesCell
+      rowId={rowId}
+      invalid={!isValid}
+      focused={isFocused}
+      selected={isSelected}
     />
   );
 };
@@ -189,6 +207,7 @@ const NewPublicationRow: FC = () => {
       Column={Column}
       Content={SubmittableData}
       SignalColumn={NewPublicationSignalColumn}
+      TrailingColumn={WorkspaceReferencesCell}
       collapsible={false}
     />
   );
@@ -214,6 +233,7 @@ const PublicationWorkspace: FC = () => {
       ExtendedColumnHeader={ExtendedColumnHeader}
       ExtendedContent={ExtendedContent}
       ExtendedSignalColumn={ExtendedSignalColumn}
+      ExtendedTrailingColumn={ExtendedTrailingColumn}
       ExtraRow={NewPublicationRow}
       onRowClick={toggleSelection}
       selectable={isSelectionEmpty}

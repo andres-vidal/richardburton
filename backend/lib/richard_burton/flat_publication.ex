@@ -13,7 +13,7 @@ defmodule RichardBurton.FlatPublication do
   alias RichardBurton.Validation
   alias RichardBurton.Country
 
-  @writable_attributes [
+  @required_attributes [
     :title,
     :year,
     :countries,
@@ -22,6 +22,10 @@ defmodule RichardBurton.FlatPublication do
     :original_title,
     :original_authors
   ]
+
+  # Writable but not required: a publication may legitimately have no provenance,
+  # and the bulk CSV import doesn't carry it.
+  @writable_attributes [:references | @required_attributes]
 
   @readable_attributes [:id | @writable_attributes]
 
@@ -34,6 +38,7 @@ defmodule RichardBurton.FlatPublication do
     field(:publishers, :string)
     field(:original_title, :string)
     field(:original_authors, :string)
+    field(:references, {:array, :string})
 
     field(:countries_fingerprint, :string)
     field(:translated_book_fingerprint, :string)
@@ -44,7 +49,7 @@ defmodule RichardBurton.FlatPublication do
   def changeset(flat_publication, attrs) do
     flat_publication
     |> cast(attrs, @writable_attributes)
-    |> validate_required(@writable_attributes)
+    |> validate_required(@required_attributes)
     |> Country.validate_countries()
     |> Country.link_fingerprint()
     |> Publisher.link_fingerprint()

@@ -88,9 +88,7 @@ const ColumnMenu: FC = () => {
         type="button"
         aria-haspopup="true"
         aria-expanded={isOpen}
-        className={`flex gap-2 items-center px-3 py-2.5 text-sm text-gray-700 whitespace-nowrap rounded border border-gray-200 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-          isOpen ? "bg-gray-active" : "bg-gray-100 hover:bg-gray-active"
-        }`}
+        className="flex gap-2 items-center px-3 py-2.5 text-sm text-gray-700 whitespace-nowrap bg-white rounded border border-gray-300 outline-none transition-colors hover:bg-gray-100 aria-[expanded=true]:bg-gray-100 focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
         Columns
         {hiddenCount > 0 && (
