@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.3">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>API Reference — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-NHQLCD6Y.css" />
+
+    <script defer src="dist/sidebar_items-5D424B49.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-Y2MUTVIN.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-extra" id="main" data-type="extras">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>API Reference <small class="app-vsn">richard_burton v#0.1.0</small></h1>
+
+
+  </div>
+
+    <section class="details-list">
+      <h2 id="modules" class="section-heading">Modules</h2>
+      <div class="summary">
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.html" translate="no">RichardBurton</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>RichardBurton keeps the contexts that define your domain
+and business logic.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.html" translate="no">RichardBurton.<wbr />Auth</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Authentication/authorization boundary. Delegates to the implementation
+configured under <code class="inline">:auth_service</code> (default <a href="RichardBurton.Auth.Google.html"><code class="inline">RichardBurton.Auth.Google</code></a>, swapped
+for a Mox mock in tests).</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.Claims.html" translate="no">RichardBurton.<wbr />Auth.<wbr />Claims</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Validates the claims of an OIDC ID token: issuer, audience, subject and
+expiry. Signature verification is performed separately (see
+<a href="RichardBurton.Auth.Google.html"><code class="inline">RichardBurton.Auth.Google</code></a>); this module only checks the decoded claims.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.Csrf.html" translate="no">RichardBurton.<wbr />Auth.<wbr />Csrf</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Double-submit CSRF token: a signed, session-bound token issued as a readable
+(<code class="inline">http_only: false</code>) cookie at login and echoed back in the <code class="inline">rb-csrf-token</code>
+header on state-changing admin requests (see <a href="RichardBurtonWeb.Plugs.VerifyCsrf.html"><code class="inline">RichardBurtonWeb.Plugs.VerifyCsrf</code></a>).</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.Google.html" translate="no">RichardBurton.<wbr />Auth.<wbr />Google</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Google identity-provider implementation of the <a href="RichardBurton.Auth.html"><code class="inline">RichardBurton.Auth</code></a> behaviour.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.JWKS.html" translate="no">RichardBurton.<wbr />Auth.<wbr />JWKS</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Behaviour for fetching a JSON Web Key Set (JWKS): the signing keys and issuer
+used to verify ID tokens, plus the cache lifetime the provider advertises.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.JWKS.Google.html" translate="no">RichardBurton.<wbr />Auth.<wbr />JWKS.<wbr />Google</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p><a href="RichardBurton.Auth.JWKS.html"><code class="inline">RichardBurton.Auth.JWKS</code></a> implementation that fetches from Google: the issuer
+from Google's OpenID configuration and the signing keys from its OAuth2 certs
+endpoint (respecting the certs' <code class="inline">Cache-Control: max-age</code>).</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.JWKS.Stub.html" translate="no">RichardBurton.<wbr />Auth.<wbr />JWKS.<wbr />Stub</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p><a href="RichardBurton.Auth.JWKS.html"><code class="inline">RichardBurton.Auth.JWKS</code></a> implementation that fetches nothing.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.KeyStore.html" translate="no">RichardBurton.<wbr />Auth.<wbr />KeyStore</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Caches a provider's JWKS signing keys and keeps them fresh so that key
+rotation does not require restarting the server.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.Recaptcha.html" translate="no">RichardBurton.<wbr />Auth.<wbr />Recaptcha</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Behaviour for recaptcha authorization services</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.Recaptcha.Google.html" translate="no">RichardBurton.<wbr />Auth.<wbr />Recaptcha.<wbr />Google</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Google Recaptcha implementation for RichardBurton.Auth.Recaptcha behaviour</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Auth.Session.html" translate="no">RichardBurton.<wbr />Auth.<wbr />Session</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Server-side (stateful) app sessions. Each session is a row in <code class="inline">auth_sessions</code>
+holding the authenticated user's <code class="inline">subject_id</code> and the SHA-256 hash of an opaque
+token. The raw token is set as the <code class="inline">rb-session</code> cookie and looked up on every
+request, so a session can be revoked instantly by deleting its row.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Author.html" translate="no">RichardBurton.<wbr />Author</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for authors</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Codec.html" translate="no">RichardBurton.<wbr />Codec</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Utilities for serialization and deserialization</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Country.html" translate="no">RichardBurton.<wbr />Country</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for countries</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Email.html" translate="no">RichardBurton.<wbr />Email</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for emails</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Fingerprint.html" translate="no">RichardBurton.<wbr />Fingerprint</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Computes the fingerprints used as composite-identity keys for publications and
+their shared associations.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.FlatPublication.html" translate="no">RichardBurton.<wbr />FlatPublication</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for publications</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Mailer.html" translate="no">RichardBurton.<wbr />Mailer</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Behaviour for Mailer</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Mailer.SMTP.html" translate="no">RichardBurton.<wbr />Mailer.<wbr />SMTP</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>STMP implementation for RichardBurton.Mailer behaviour</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.OriginalBook.html" translate="no">RichardBurton.<wbr />OriginalBook</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for original books</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Publication.html" translate="no">RichardBurton.<wbr />Publication</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for publications</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Publication.Codec.html" translate="no">RichardBurton.<wbr />Publication.<wbr />Codec</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Serialization and deserialization utilities for publications</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Publication.Index.html" translate="no">RichardBurton.<wbr />Publication.<wbr />Index</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Interface with the searchable publication index</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Publication.Index.SearchDocument.html" translate="no">RichardBurton.<wbr />Publication.<wbr />Index.<wbr />SearchDocument</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for searchable documents</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Publication.Index.SearchKeyword.html" translate="no">RichardBurton.<wbr />Publication.<wbr />Index.<wbr />SearchKeyword</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for searchable documents</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Publisher.html" translate="no">RichardBurton.<wbr />Publisher</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for publishers</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Reference.html" translate="no">RichardBurton.<wbr />Reference</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for publication references: free-text provenance entries that record how
+a publication's data was collected, so a reader can verify the claim. Owned by a
+single publication (deleted with it), ordered, and edited inline via the
+publication update path — never shared or deduplicated across publications.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Release.html" translate="no">RichardBurton.<wbr />Release</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Used for executing DB release tasks when run in production without Mix
+installed.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Repo.html" translate="no">RichardBurton.<wbr />Repo</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.TranslatedBook.html" translate="no">RichardBurton.<wbr />TranslatedBook</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for translated books</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.User.html" translate="no">RichardBurton.<wbr />User</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Schema for users</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Util.html" translate="no">RichardBurton.<wbr />Util</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Utilities for general purpose</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurton.Validation.html" translate="no">RichardBurton.<wbr />Validation</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Utilities for data validation</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.html" translate="no">RichardBurtonWeb</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>The entrypoint for defining your web interface, such
+as controllers, views, channels and so on.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.AuthorController.html" translate="no">RichardBurtonWeb.<wbr />AuthorController</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.DevSessionController.html" translate="no">RichardBurtonWeb.<wbr />DevSessionController</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Dev/test-only credentials provider. Mints an admin <code class="inline">rb-session</code> (plus the
+readable <code class="inline">csrf-token</code>) without the Google OAuth handshake, so the admin UI can
+be exercised locally.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.EmailController.html" translate="no">RichardBurtonWeb.<wbr />EmailController</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.Endpoint.html" translate="no">RichardBurtonWeb.<wbr />Endpoint</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.ErrorHelpers.html" translate="no">RichardBurtonWeb.<wbr />ErrorHelpers</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Conveniences for translating and building error messages.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.ErrorView.html" translate="no">RichardBurtonWeb.<wbr />ErrorView</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.Plugs.Authenticate.Bearer.html" translate="no">RichardBurtonWeb.<wbr />Plugs.<wbr />Authenticate.<wbr />Bearer</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Authenticates a request via an identity-provider token in the
+<code class="inline">Authorization: Bearer</code> header (see <a href="RichardBurton.Auth.html"><code class="inline">RichardBurton.Auth</code></a>) and assigns
+<code class="inline">:subject_id</code>. Used by the login endpoints that exchange the provider token
+for a session.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.Plugs.Authenticate.Cookie.html" translate="no">RichardBurtonWeb.<wbr />Plugs.<wbr />Authenticate.<wbr />Cookie</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Authenticates a request via the app's own <code class="inline">rb-session</code> cookie
+(see <a href="RichardBurton.Auth.Session.html"><code class="inline">RichardBurton.Auth.Session</code></a>) and assigns <code class="inline">:subject_id</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.Plugs.Authorize.Admin.html" translate="no">RichardBurtonWeb.<wbr />Plugs.<wbr />Authorize.<wbr />Admin</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Authorizes the request only if the authenticated subject (assigned by an
+<code class="inline">Authenticate</code> plug) has the <code class="inline">:admin</code> role.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.Plugs.Authorize.Recaptcha.html" translate="no">RichardBurtonWeb.<wbr />Plugs.<wbr />Authorize.<wbr />Recaptcha</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Plug for recaptcha verification</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.Plugs.VerifyCsrf.html" translate="no">RichardBurtonWeb.<wbr />Plugs.<wbr />VerifyCsrf</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Double-submit CSRF check for state-changing admin requests. Safe methods
+(GET/HEAD/OPTIONS) pass through untouched. For unsafe methods it requires an
+<code class="inline">rb-csrf-token</code> header carrying a valid <a href="RichardBurton.Auth.Csrf.html"><code class="inline">RichardBurton.Auth.Csrf</code></a> token whose
+subject matches the authenticated session (assigned by <code class="inline">Authenticate.Cookie</code>,
+which must run first). Defense in depth on top of the <code class="inline">SameSite=Lax</code> cookie.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.PublicationController.html" translate="no">RichardBurtonWeb.<wbr />PublicationController</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.PublisherController.html" translate="no">RichardBurtonWeb.<wbr />PublisherController</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.Router.html" translate="no">RichardBurtonWeb.<wbr />Router</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.SessionController.html" translate="no">RichardBurtonWeb.<wbr />SessionController</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Exchanges a verified identity-provider token for the app's own session cookie.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="RichardBurtonWeb.UserController.html" translate="no">RichardBurtonWeb.<wbr />UserController</a>
+
+  </div>
+
+</div>
+
+      </div>
+    </section>
+
+
+    <section class="details-list">
+      <h2 id="tasks" class="section-heading">Mix Tasks</h2>
+      <div class="summary">
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Mix.Tasks.Rb.AuditFingerprints.html" translate="no">mix rb.<wbr />audit_fingerprints</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Recomputes every fingerprint from its associations and reports any row whose
+stored value has drifted from what the current algorithm produces.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Mix.Tasks.Rb.LoadData.html" translate="no">mix rb.<wbr />load_data</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Mix task to initialize the repo using a data.csv file in the project's root directory</p></div>
+
+</div>
+
+      </div>
+    </section>
+
+</div>
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.3) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.3">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Util — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-NHQLCD6Y.css" />
+
+    <script defer src="dist/sidebar_items-5D424B49.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-Y2MUTVIN.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Util</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Utilities for general purpose</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#create_fingerprint/1" data-no-tooltip="" translate="no">create_fingerprint(data)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#deep_merge_maps/2" data-no-tooltip="" translate="no">deep_merge_maps(map1, map2)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#stringify_keys/1" data-no-tooltip="" translate="no">stringify_keys(s)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>  Given an enumerable with atom keys, return the enumerable with string keys instead.
+  Works for keyword lists, key-value tuples, maps and structs.
+  When an ordinary list is given, it stringify the keys of its elements.
+  Does not traverse structures other than ordinary lists.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="create_fingerprint/1">
+
+  <div class="detail-header">
+    <a href="#create_fingerprint/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">create_fingerprint(data)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="deep_merge_maps/2">
+
+  <div class="detail-header">
+    <a href="#deep_merge_maps/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">deep_merge_maps(map1, map2)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="stringify_keys/1">
+
+  <div class="detail-header">
+    <a href="#stringify_keys/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">stringify_keys(s)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>  Given an enumerable with atom keys, return the enumerable with string keys instead.
+  Works for keyword lists, key-value tuples, maps and structs.
+  When an ordinary list is given, it stringify the keys of its elements.
+  Does not traverse structures other than ordinary lists.</p><p>  ## Examples</p><pre><code class="makeup elixir" translate="no"><span class="w">  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-1">(</span><span class="p" data-group-id="5304436103-2">%{</span><span class="p" data-group-id="5304436103-2">}</span><span class="p" data-group-id="5304436103-1">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-3">%{</span><span class="p" data-group-id="5304436103-3">}</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-4">(</span><span class="p" data-group-id="5304436103-5">%{</span><span class="s">&quot;key&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-5">}</span><span class="p" data-group-id="5304436103-4">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-6">%{</span><span class="s">&quot;key&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-6">}</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-7">(</span><span class="p" data-group-id="5304436103-8">{</span><span class="s">&quot;key&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-8">}</span><span class="p" data-group-id="5304436103-7">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-9">{</span><span class="s">&quot;key&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-9">}</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-10">(</span><span class="p" data-group-id="5304436103-11">[</span><span class="p" data-group-id="5304436103-11">]</span><span class="p" data-group-id="5304436103-10">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-12">[</span><span class="p" data-group-id="5304436103-12">]</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-13">(</span><span class="p" data-group-id="5304436103-14">{</span><span class="ss">:key</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-14">}</span><span class="p" data-group-id="5304436103-13">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-15">{</span><span class="s">&quot;key&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-15">}</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-16">(</span><span class="p" data-group-id="5304436103-17">{</span><span class="ss">:key</span><span class="p">,</span><span class="w"> </span><span class="ss">:value</span><span class="p" data-group-id="5304436103-17">}</span><span class="p" data-group-id="5304436103-16">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-18">{</span><span class="s">&quot;key&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:value</span><span class="p" data-group-id="5304436103-18">}</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-19">(</span><span class="p" data-group-id="5304436103-20">[</span><span class="ss">key1</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">key2</span><span class="p">:</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-20">]</span><span class="p" data-group-id="5304436103-19">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-21">[</span><span class="p" data-group-id="5304436103-22">{</span><span class="s">&quot;key1&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-22">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5304436103-23">{</span><span class="s">&quot;key2&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-23">}</span><span class="p" data-group-id="5304436103-21">]</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-24">(</span><span class="p" data-group-id="5304436103-25">[</span><span class="ss">key</span><span class="p">:</span><span class="w"> </span><span class="ss">:value</span><span class="p" data-group-id="5304436103-25">]</span><span class="p" data-group-id="5304436103-24">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-26">[</span><span class="p" data-group-id="5304436103-27">{</span><span class="s">&quot;key&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:value</span><span class="p" data-group-id="5304436103-27">}</span><span class="p" data-group-id="5304436103-26">]</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-28">(</span><span class="p" data-group-id="5304436103-29">[</span><span class="p" data-group-id="5304436103-30">{</span><span class="ss">:key1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-30">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5304436103-31">{</span><span class="ss">:key2</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-31">}</span><span class="p" data-group-id="5304436103-29">]</span><span class="p" data-group-id="5304436103-28">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-32">[</span><span class="p" data-group-id="5304436103-33">{</span><span class="s">&quot;key1&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-33">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5304436103-34">{</span><span class="s">&quot;key2&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-34">}</span><span class="p" data-group-id="5304436103-32">]</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-35">(</span><span class="p" data-group-id="5304436103-36">[</span><span class="p" data-group-id="5304436103-37">{</span><span class="ss">:key1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-37">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5304436103-38">{</span><span class="s">&quot;key2&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-38">}</span><span class="p" data-group-id="5304436103-36">]</span><span class="p" data-group-id="5304436103-35">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-39">[</span><span class="p" data-group-id="5304436103-40">{</span><span class="s">&quot;key1&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-40">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5304436103-41">{</span><span class="s">&quot;key2&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-41">}</span><span class="p" data-group-id="5304436103-39">]</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-42">(</span><span class="p" data-group-id="5304436103-43">%{</span><span class="ss">key1</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">key2</span><span class="p">:</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-43">}</span><span class="p" data-group-id="5304436103-42">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-44">%{</span><span class="s">&quot;key1&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;key2&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-44">}</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-45">(</span><span class="p" data-group-id="5304436103-46">%{</span><span class="ss">key</span><span class="p">:</span><span class="w"> </span><span class="ss">:value</span><span class="p" data-group-id="5304436103-46">}</span><span class="p" data-group-id="5304436103-45">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-47">%{</span><span class="s">&quot;key&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ss">:value</span><span class="p" data-group-id="5304436103-47">}</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-48">(</span><span class="p" data-group-id="5304436103-49">%{</span><span class="ss">:key1</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;key2&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-49">}</span><span class="p" data-group-id="5304436103-48">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-50">%{</span><span class="s">&quot;key1&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;key2&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-50">}</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-51">(</span><span class="p" data-group-id="5304436103-52">[</span><span class="p" data-group-id="5304436103-53">{</span><span class="ss">:key1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-53">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5304436103-54">%{</span><span class="ss">key2</span><span class="p">:</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-54">}</span><span class="p" data-group-id="5304436103-52">]</span><span class="p" data-group-id="5304436103-51">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-55">[</span><span class="p" data-group-id="5304436103-56">{</span><span class="s">&quot;key1&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-56">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5304436103-57">%{</span><span class="s">&quot;key2&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="mi">1234</span><span class="p" data-group-id="5304436103-57">}</span><span class="p" data-group-id="5304436103-55">]</span><span class="w">
+
+  </span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Util</span><span class="o">.</span><span class="n">stringify_keys</span><span class="p" data-group-id="5304436103-58">(</span><span class="p" data-group-id="5304436103-59">%{</span><span class="ss">key</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5304436103-60">{</span><span class="ss">:key</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-60">}</span><span class="p" data-group-id="5304436103-59">}</span><span class="p" data-group-id="5304436103-58">)</span><span class="w">
+  </span><span class="p" data-group-id="5304436103-61">%{</span><span class="s">&quot;key&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="5304436103-62">{</span><span class="ss">:key</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;value&quot;</span><span class="p" data-group-id="5304436103-62">}</span><span class="p" data-group-id="5304436103-61">}</span></code></pre>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.3) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
