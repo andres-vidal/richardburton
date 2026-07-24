@@ -5,7 +5,11 @@ export async function signInAsAdmin(page: Page) {
   await page.goto("/auth/sign-in");
   await page.getByRole("button", { name: "Dev admin sign-in" }).click();
   // The route handler redirects to "/"; the footer then shows authed controls.
-  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  // Generous timeout: this is the suite's longest cross-stack chain (two server
+  // hops + a full SSR reload), and the busiest tail-latency spot on CI.
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 export type PublicationInput = {

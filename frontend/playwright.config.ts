@@ -47,6 +47,10 @@ export default defineConfig({
   // the stack, Postgres, and Chromium) — give tests and assertions headroom.
   timeout: process.env.CI ? 60_000 : 30_000,
   expect: { timeout: process.env.CI ? 15_000 : 5_000 },
+  // One retry on CI absorbs tail-latency flakes; the per-test database reset
+  // makes a retry start from the same clean state as any run, and retried
+  // passes are reported as "flaky" so they stay visible.
+  retries: process.env.CI ? 1 : 0,
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI
     ? [["list"], ["html", { open: "never" }]]
