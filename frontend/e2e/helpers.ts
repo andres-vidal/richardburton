@@ -80,16 +80,16 @@ export async function addPublicationRow(page: Page, pub: PublicationInput) {
 }
 
 /** Submit the working set and wait for the success toast. Timeouts are generous
- * so large batches (validation + one bulk insert) fit comfortably. */
+ * so large batches (validation + one bulk insert) fit even on slow CI runners. */
 export async function submitWorkspace(page: Page, count: number) {
   const submit = page.getByRole("button", { name: "Submit" });
-  await expect(submit).toBeEnabled({ timeout: 15_000 });
+  await expect(submit).toBeEnabled({ timeout: 30_000 });
   await submit.click();
   await expect(
     page.getByText(
       `${count} publication${count === 1 ? "" : "s"} inserted successfully`,
     ),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 /**

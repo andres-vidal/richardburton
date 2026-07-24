@@ -43,6 +43,10 @@ export default defineConfig({
   workers: WORKERS,
   // Tests within a worker run serially — each needs a clean database (reset).
   fullyParallel: false,
+  // CI runners are several times slower than a dev machine (2 vCPUs shared by
+  // the stack, Postgres, and Chromium) — give tests and assertions headroom.
+  timeout: process.env.CI ? 60_000 : 30_000,
+  expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI
     ? [["list"], ["html", { open: "never" }]]

@@ -43,13 +43,15 @@ jobs:
           npm ci
           npx playwright install chromium --with-deps
 
-      # Two workers → two isolated (backend, frontend, database) stacks in
-      # parallel. Track-only for now (not a required check) — promote via branch
-      # protection once it has proven stable, consistent with the coverage rollout.
+      # One worker on CI: the 2-vCPU runner can't host two full stacks plus
+      # Postgres and Chromium without contention-induced flakes (bump as runners
+      # or the suite warrant — the harness scales via E2E_WORKERS). Track-only
+      # for now (not a required check) — promote via branch protection once it
+      # has proven stable, consistent with the coverage rollout.
       - name: Run Playwright E2E
         working-directory: frontend
         env:
-          E2E_WORKERS: 2
+          E2E_WORKERS: 1
         run: npm run test:e2e
 
       - name: Upload Playwright report
