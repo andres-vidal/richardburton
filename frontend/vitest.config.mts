@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import magicalSvg from "vite-plugin-magical-svg";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
@@ -34,6 +34,8 @@ export default defineConfig({
           environment: "jsdom",
           globals: true,
           include: ["**/*.spec.{ts,tsx}"],
+          // Playwright specs (frontend/e2e) run under `npm run test:e2e`, not Vitest.
+          exclude: [...configDefaults.exclude, "e2e/**"],
         },
       },
       {

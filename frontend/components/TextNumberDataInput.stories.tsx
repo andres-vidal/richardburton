@@ -1,7 +1,28 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { ComponentProps, FC, useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import TextNumberDataInput from "./TextNumberDataInput";
+
+// The cell is controlled: hold the stored string in state so typing and the
+// ▲/▼ buttons visibly move the value (its base NumberInput.stories does the same).
+const Controlled: FC<ComponentProps<typeof TextNumberDataInput>> = ({
+  value: initial,
+  onChange,
+  ...props
+}) => {
+  const [value, setValue] = useState(initial);
+  return (
+    <TextNumberDataInput
+      {...props}
+      value={value}
+      onChange={(next) => {
+        setValue(next);
+        onChange?.(next);
+      }}
+    />
+  );
+};
 
 // Wraps NumberInput for the `year` cell. `value` is the stored string; typing a
 // digit parses it and `onChange` re-emits it as a string. Props are passed
@@ -17,6 +38,7 @@ const meta = {
     onChange: fn(),
     "aria-label": "Year",
   },
+  render: (args) => <Controlled {...args} />,
   decorators: [
     (Story) => (
       <div className="flex items-center justify-center w-72 aspect-square overflow-auto rounded-lg border border-dashed border-gray-300 p-8 bg-stripes-diagonal">
@@ -31,13 +53,14 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Empty numeric cell — typing a digit emits the parsed value as a string. */
+/** Empty numeric cell — typing a digit shows it and emits it as a string. */
 export const Default: Story = {
   play: async ({ args, canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox");
     await expect(input).toBeInTheDocument();
 
     await userEvent.type(input, "7");
+    await expect(input).toHaveValue("7");
     await expect(args.onChange).toHaveBeenCalledWith("7");
   },
 };

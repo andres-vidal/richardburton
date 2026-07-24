@@ -24,6 +24,13 @@ jobs:
         with:
           version-type: strict
           version-file: backend/.tool-versions
+      - uses: actions/cache@v4
+        with:
+          path: |
+            backend/deps
+            backend/_build
+          key: mix-fingerprint-${{ runner.os }}-${{ hashFiles('backend/.tool-versions', 'backend/mix.lock') }}
+          restore-keys: mix-fingerprint-${{ runner.os }}-
       # config/dev.exs imports the gitignored dev.local.exs, so stub it before any
       # mix task loads the dev config (the audit and seeds run in the dev env).
       - run: echo -e "import Config\nconfig :richard_burton, []" >> config/dev.local.exs

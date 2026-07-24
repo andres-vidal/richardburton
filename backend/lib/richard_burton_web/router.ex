@@ -64,14 +64,10 @@ defmodule RichardBurtonWeb.Router do
     get("/publications", PublicationController, :export)
   end
 
-  # Enables LiveDashboard only for development
-  #
-  # If you want to use the LiveDashboard in production, you should put
-  # it behind authentication and allow only admins to access it.
-  # If your application does not have an admins-only section yet,
-  # you can use Plug.BasicAuth to set up some basic authentication
-  # as long as you are also using SSL (which you should anyway).
-  if Mix.env() in [:dev, :test] do
+  # Developer conveniences, never mounted in production: the LiveDashboard
+  # (if you ever want it in production, put it behind admin authentication)
+  # and the credentials provider that mints an admin session without Google.
+  if Mix.env() in [:dev, :test, :e2e] do
     import Phoenix.LiveDashboard.Router
 
     scope "/" do
@@ -80,11 +76,21 @@ defmodule RichardBurtonWeb.Router do
       live_dashboard("/dashboard", metrics: RichardBurtonWeb.Telemetry)
     end
 
-    # Dev/test-only credentials provider — mints an admin session without Google.
     scope "/api/dev", RichardBurtonWeb do
       pipe_through(:api)
 
       post("/session", DevSessionController, :create)
+    end
+  end
+
+  # Destructive test plumbing, mounted ONLY in the e2e environment: resets the
+  # worker's database between Playwright tests (truncates every table). Keeping
+  # it out of :dev means a misconfigured harness can never wipe real data.
+  if Mix.env() == :e2e do
+    scope "/test", RichardBurtonWeb do
+      pipe_through(:api)
+
+      post("/reset", E2EResetController, :create)
     end
   end
 end

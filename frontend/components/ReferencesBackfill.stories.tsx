@@ -1,6 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { RESET } from "jotai/utils";
 import { Publication } from "modules/publication/model";
-import { resetAll, setAll } from "modules/publication/store";
+import {
+  discardEdit,
+  overrideFamily,
+  publicationFamily,
+  resetAll,
+  setAll,
+  store,
+  visiblePublicationFamily,
+} from "modules/publication/store";
+import { ComponentProps, FC, useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import {
@@ -64,8 +74,57 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** Mimic a successful save without a server: promote the draft (base ⊕
+ * override) to the stored publication and clear the edit — exactly the state
+ * `update()` leaves behind. Dots and the count react to *stored* references,
+ * so they only change here, never while typing. */
+const persistDraft = (id: number) => {
+  store.set(publicationFamily(id), store.get(visiblePublicationFamily(id)));
+  store.set(overrideFamily(id), RESET);
+};
+
+/**
+ * Recreates the orchestrator's local state around the presentational view, so
+ * the story is fully interactive: clicking the queue moves the selection, Skip
+ * discards the draft and advances, Save "persists" locally and advances.
+ */
+const InteractiveView: FC<ComponentProps<typeof ReferencesBackfillView>> = ({
+  ids = [1, 2, 3],
+  onSelect,
+  onSave,
+  onSkip,
+}) => {
+  const [position, setPosition] = useState(0);
+  const advance = () =>
+    setPosition((p) => Math.min(p + 1, (ids?.length ?? 1) - 1));
+  const currentId = ids?.[position];
+
+  return (
+    <ReferencesBackfillView
+      ids={ids}
+      position={position}
+      saving={false}
+      onSelect={(p) => {
+        onSelect(p);
+        setPosition(p);
+      }}
+      onSave={() => {
+        if (currentId !== undefined) persistDraft(currentId);
+        onSave();
+        advance();
+      }}
+      onSkip={() => {
+        if (currentId !== undefined) discardEdit(currentId);
+        onSkip();
+        advance();
+      }}
+    />
+  );
+};
+
 /** The whole master-detail: the queue listbox next to the editor. */
 export const Populated: Story = {
+  render: (args) => <InteractiveView {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("listbox")).toBeInTheDocument();
@@ -78,12 +137,35 @@ export const Populated: Story = {
     await expect(
       canvas.getByRole("option", { name: "Dom Casmurro" }),
     ).toHaveAttribute("aria-selected", "true");
-    // Sourcing the selected publication drops the count live.
+    // Drafting a reference does NOT mark the publication sourced — the dot and
+    // the count only react to saved references.
     await userEvent.click(
       canvas.getByRole("button", { name: "Add reference" }),
     );
     await userEvent.type(canvas.getByLabelText("Reference 1"), "A citation");
+    await expect(within(header).getByText("2")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("option", { name: "Dom Casmurro" }),
+    ).toBeInTheDocument();
+
+    // Saving persists the draft: the dot flips, the count drops, and the
+    // wizard advances.
+    await userEvent.click(canvas.getByRole("button", { name: "Save & next" }));
+    await expect(
+      canvas.getByRole("option", { name: "Dom Casmurro — sourced" }),
+    ).toBeInTheDocument();
     await expect(within(header).getByText("1")).toBeInTheDocument();
+    await expect(canvas.getByText("2 / 3")).toBeInTheDocument();
+
+    // The story is interactive: clicking a queue item moves the selection and
+    // the detail pane follows.
+    await userEvent.click(
+      canvas.getByRole("option", { name: "The Devil to Pay" }),
+    );
+    await expect(
+      canvas.getByRole("option", { name: "The Devil to Pay" }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(canvas.getByText("3 / 3")).toBeInTheDocument();
   },
 };
 
@@ -138,6 +220,25 @@ export const Queue: Story = {
 
     await userEvent.keyboard("{Home}");
     await expect(args.onSelect).toHaveBeenCalledWith(0);
+  },
+};
+
+/** On the final publication there is no "next" — the action is just Save. */
+export const LastStep: Story = {
+  render: (args) => (
+    <BackfillStep
+      id={1}
+      position={11}
+      total={12}
+      saving={false}
+      onSave={args.onSave}
+      onSkip={args.onSkip}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("12 / 12")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeVisible();
   },
 };
 

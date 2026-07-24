@@ -25,6 +25,13 @@ jobs:
         with:
           version-type: strict
           version-file: backend/.tool-versions
+      - uses: actions/cache@v4
+        with:
+          path: |
+            backend/deps
+            backend/_build
+          key: mix-test-${{ runner.os }}-${{ hashFiles('backend/.tool-versions', 'backend/mix.lock') }}
+          restore-keys: mix-test-${{ runner.os }}-
       - run: echo -e "import Config\nconfig :richard_burton, []" >> config/dev.local.exs
       - run: mix deps.get
       # `mix coveralls` runs the suite (via the `test` alias, so ecto setup still

@@ -28,8 +28,17 @@ const eslintConfig = [
     },
   },
   {
+    // Playwright fixture callbacks take a `use` argument, which the React hooks
+    // rule mistakes for the `use` hook — E2E files aren't React components.
+    files: ["e2e/**/*.ts"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+    },
+  },
+  {
     ignores: [
       ".next/**",
+      ".next-e2e-*/**",
       "node_modules/**",
       "storybook-static/**",
       "**/*.config.{js,cjs,mjs,ts,mts}",

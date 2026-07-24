@@ -28,7 +28,9 @@ on the right. Reached from the admin panel at `/admin/publications/references`.
 ## States
 
 - **Populated** — the master-detail: the queue next to the editor, first
-  publication selected.
+  publication selected. Fully interactive: click through the queue, edit
+  references, and Skip / Save advance the position (persistence is the one
+  part stubbed out).
 - **Loading** — while the queue is being fetched.
 - **Empty** — nothing left to source ("All caught up").
 
@@ -39,9 +41,9 @@ on the right. Reached from the admin panel at `/admin/publications/references`.
 
 The queue is a single-select **listbox**: one tab stop, arrow / Home / End move
 the selection (via `aria-activedescendant`), and a click jumps straight to a
-publication. A dot marks whether each publication is already sourced, and the
-panel header counts the entries still missing references — decreasing live as
-sources are added.
+publication. A dot marks whether each publication has **saved** sources, and the
+panel header counts the entries still missing references — both react when a
+save lands, never to an unsaved draft.
 
 <Canvas of={ReferencesBackfillStories.Queue} />
 
@@ -50,6 +52,8 @@ sources are added.
 The detail pane shows the publication's context and progress. **Save & next** is
 disabled until a source is added — **Skip** moves past a publication you can't
 source. Edits write to the row's override overlay and are persisted by `update`
-on save.
+on save. On the last publication in the queue the button reads just **Save** —
+there is no next to advance to.
 
 <Canvas of={ReferencesBackfillStories.Step} />
+<Canvas of={ReferencesBackfillStories.LastStep} />

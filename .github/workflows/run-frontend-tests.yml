@@ -14,6 +14,17 @@ jobs:
         working-directory: "frontend"
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.tool-versions
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # The Chromium binary is cached by lockfile (which pins the Playwright
+      # version); the install below is a no-op download when already present.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
       - run: npm ci
       # Storybook stories run as tests in a headless browser (@storybook/addon-vitest),
       # so the Playwright Chromium binary must be present.

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { ComponentProps, FC, useState } from "react";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
 import Select from "./Select";
@@ -8,6 +9,26 @@ const OPTIONS = [
   { id: "2", label: "Portugal" },
   { id: "3", label: "Angola" },
 ];
+
+// The selected `value` is controlled (the dropdown/search state is internal):
+// hold it in state so a picked option sticks instead of the input going blank.
+const Controlled: FC<ComponentProps<typeof Select>> = ({
+  value: initial,
+  onChange,
+  ...props
+}) => {
+  const [value, setValue] = useState(initial);
+  return (
+    <Select
+      {...props}
+      value={value}
+      onChange={(next) => {
+        setValue(next);
+        onChange?.(next);
+      }}
+    />
+  );
+};
 
 const meta = {
   title: "Components/Select",
@@ -22,6 +43,7 @@ const meta = {
     ),
     "aria-label": "Country",
   },
+  render: (args) => <Controlled {...args} />,
   parameters: { layout: "centered" },
 } satisfies Meta<typeof Select>;
 
@@ -123,5 +145,12 @@ export const SelectsHighlightedOption: Story = {
       id: "2",
       label: "Portugal",
     });
+    // Regression guard (combobox pattern): the pick sticks in the input, the
+    // menu stays closed, and focus remains in the input. Blurring on Enter used
+    // to bounce focus through the menu's focus-return, re-firing handleFocus and
+    // reopening an emptied menu over the fresh selection.
+    await waitFor(() => expect(input).toHaveValue("Portugal"));
+    await expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    await expect(input).toHaveFocus();
   },
 };

@@ -1,30 +1,8 @@
-import { SESSION_COOKIE } from "modules/api";
-import HTTP from "modules/http";
-import type { User } from "modules/users";
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
 import { ReactNode } from "react";
 import "styles/globals.css";
 import { Providers } from "./providers";
-
-const api = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
-
-// Read the httpOnly rb-session cookie server-side and ask the backend who the
-// user is (GET /users/me → user or null). Fetched once here and provided
-// app-wide via the client SessionProvider — no client fetch/store/effect.
-async function getSession(): Promise<User | null> {
-  const cookie = (await cookies()).get(SESSION_COOKIE);
-  if (!cookie) return null;
-
-  try {
-    const { data } = await api.get<User | null>("/users/me", {
-      headers: { Cookie: `${cookie.name}=${cookie.value}` },
-    });
-    return data ?? null;
-  } catch {
-    return null;
-  }
-}
+import { getSession } from "./session";
 
 const APP_NAME = "Richard & Isabel Burton Platform";
 const IMAGE_ALT = `${APP_NAME}: A database about Brazilian literature in translation`;
