@@ -214,6 +214,10 @@ defmodule RichardBurton.Publication.IndexTest do
     |> Publication.Codec.nest()
     |> Enum.map(&Publication.insert/1)
 
+    # Single inserts don't signal the refresher (callers do, once per logical
+    # operation) — this seed is one such operation, and search needs the index.
+    Publication.Index.Refresher.refresh()
+
     []
   end
 

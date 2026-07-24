@@ -9,6 +9,7 @@ defmodule RichardBurton.Publication do
 
   alias RichardBurton.Country
   alias RichardBurton.Publication
+  alias RichardBurton.Publication.Index
   alias RichardBurton.Publisher
   alias RichardBurton.Reference
   alias RichardBurton.Repo
@@ -123,8 +124,12 @@ defmodule RichardBurton.Publication do
         |> link_assocs()
         |> Repo.update()
         |> case do
-          {:ok, updated} -> {:ok, preload(updated)}
-          {:error, changeset} -> {:error, Validation.get_errors(changeset)}
+          {:ok, updated} ->
+            Index.Refresher.refresh()
+            {:ok, preload(updated)}
+
+          {:error, changeset} ->
+            {:error, Validation.get_errors(changeset)}
         end
     end
   end
@@ -146,27 +151,20 @@ defmodule RichardBurton.Publication do
   def insert_all(attrs_list) do
     result =
       Repo.transaction(fn ->
-        # Skip the per-statement search-index rebuild for the whole batch — the
-        # trigger would otherwise rebuild both materialized views for every
-        # inserted row. One rebuild below covers the entire transaction.
-        Repo.query!("SET LOCAL richard_burton.skip_search_refresh = 'on'")
         Enum.map(attrs_list, &insert_or_rollback/1)
       end)
 
     case result do
       {:ok, _publications} ->
-        refresh_search_index()
+        # One signal for the whole batch — never per row, so the synchronous
+        # refresh strategies don't rebuild N times.
+        Index.Refresher.refresh()
         result
 
       error ->
         # Rolled back: nothing changed, so the index needs no refresh.
         error
     end
-  end
-
-  defp refresh_search_index do
-    Repo.query!("REFRESH MATERIALIZED VIEW search_documents")
-    Repo.query!("REFRESH MATERIALIZED VIEW search_keywords")
   end
 
   defp insert_or_rollback(attrs) do

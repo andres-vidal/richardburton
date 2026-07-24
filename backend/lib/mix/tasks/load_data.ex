@@ -16,7 +16,11 @@ defmodule Mix.Tasks.Rb.LoadData do
       {:ok, publications} ->
         publications
         |> Publication.Codec.nest()
-        |> Enum.map(&Publication.insert/1)
+        |> Enum.each(&Publication.insert/1)
+
+        # Single inserts don't signal the refresher (that's the callers' job,
+        # once per logical operation) — this seed is one such operation.
+        Publication.Index.Refresher.refresh()
 
       {:error, error} ->
         IO.puts("Operation failed with error #{error}")

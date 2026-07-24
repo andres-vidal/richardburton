@@ -18,7 +18,10 @@ defmodule RichardBurton.Application do
       RichardBurtonWeb.Endpoint,
       # Start the JWKS key store. Its provider is configured via :jwks_provider
       # (Google in dev/prod; a stub under test, so no network calls are made).
-      RichardBurton.Auth.KeyStore
+      RichardBurton.Auth.KeyStore,
+      # Coalesces search-index rebuild signals from the write paths (in the
+      # debounced strategy; the sync strategies rebuild inline and bypass it).
+      RichardBurton.Publication.Index.Refresher
     ]
 
     # Set missing runtime config from Application env

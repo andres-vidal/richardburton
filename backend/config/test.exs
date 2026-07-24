@@ -12,6 +12,10 @@ config :richard_burton,
   # connection (see RichardBurton.Mailer.SMTP).
   mailer_adapter: Swoosh.Adapters.Test
 
+# Rebuild the search index inline (plain REFRESH): tests need writes visible to
+# search immediately, and the sandbox's transactions forbid CONCURRENTLY.
+config :richard_burton, search_index_refresh: :sync
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

@@ -24,6 +24,10 @@ config :richard_burton,
   jwks_provider: RichardBurton.Auth.JWKS.Stub,
   mailer_adapter: Swoosh.Adapters.Test
 
+# Rebuild the search index inline so browser tests see writes deterministically,
+# but with CONCURRENTLY — the same SQL path production's debounced mode runs.
+config :richard_burton, search_index_refresh: :sync_concurrent
+
 config :richard_burton, RichardBurton.Repo,
   username: "postgres",
   password: "postgres",
