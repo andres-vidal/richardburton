@@ -21,6 +21,7 @@ import {
   publicationOrNullFamily,
   publicationReferencesFamily,
   storedFieldValueFamily,
+  storedReferencesFamily,
   totalCountAtom,
   totalIndexCountAtom,
   unreferencedCountAtom,
@@ -75,6 +76,11 @@ function usePublicationStoredField<K extends PublicationKey>(
 
 function usePublicationReferences(id: PublicationId) {
   return useAtomValue(publicationReferencesFamily(id));
+}
+
+/** The persisted references only — drafts don't show until saved. */
+function useStoredPublicationReferences(id: PublicationId) {
+  return useAtomValue(storedReferencesFamily(id));
 }
 
 function usePublicationError(id: PublicationId) {
@@ -182,6 +188,7 @@ export {
   usePublicationOverride,
   usePublicationReferences,
   usePublicationStoredField,
+  useStoredPublicationReferences,
   useTotalPublicationCount,
   useUnreferencedPublicationCount,
   useValidPublicationCount,

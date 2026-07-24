@@ -1,0 +1,4 @@
+/playwright-report/
+/test-results/
+/playwright/.cache/
+/.next-e2e-*/

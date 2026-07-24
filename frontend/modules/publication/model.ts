@@ -75,12 +75,14 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
-  conflict: "A publication with this data already exists",
-  required: "This field is required and cannot be blank",
-  integer: "This field should be an integer",
-  incorrect_row_length: "Expected a different number of columns in csv",
-  invalid_format: "Could not parse publications from the provided file",
-  alpha2: "This field should be a valid ISO 3166-1 alpha 2 country code",
+  conflict: `A publication with this data already exists`,
+  required: `This field is required and cannot be blank`,
+  integer: `This field should be an integer`,
+  incorrect_row_length: `Expected a different number of columns in csv`,
+  invalid_format: `Could not parse publications from the provided file`,
+  invalid_escape_sequence: `Could not parse publications from the provided file`,
+  stray_escape_character: `Could not parse publications from the provided file`,
+  alpha2: `This field should be a valid ISO 3166-1 alpha 2 country code`,
 };
 
 function empty(): Publication {

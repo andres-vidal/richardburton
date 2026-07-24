@@ -95,6 +95,7 @@ const MenuProvider = <OptionType extends Option | string>({
         {isOpen && (
           <FloatingFocusManager
             context={context}
+            modal={false}
             initialFocus={-1}
             visuallyHiddenDismiss
           >
