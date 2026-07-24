@@ -10,6 +10,11 @@ import Config
 config :richard_burton,
   ecto_repos: [RichardBurton.Repo]
 
+# Search-index maintenance strategy (see Publication.Index.Refresher): rebuild
+# the materialized views once per burst of writes, concurrently, off the write
+# path. Test and e2e override this with synchronous strategies for determinism.
+config :richard_burton, search_index_refresh: {:debounced, 2_000}
+
 # Configures Postgrex
 config :richard_burton, RichardBurton.Repo,
   timeout: String.to_integer(System.get_env("POSTGREX_TIMEOUT", "15000"))
