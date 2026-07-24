@@ -85,7 +85,9 @@ export const SelectsOption: Story = {
     await userEvent.type(input, "braz");
 
     await waitFor(() =>
-      expect(screen.getByRole("option", { name: "Brazil" })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("option", { name: "Brazil" }),
+      ).toBeInTheDocument(),
     );
     await userEvent.keyboard("{Enter}");
 
