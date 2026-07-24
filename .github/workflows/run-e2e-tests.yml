@@ -25,6 +25,15 @@ jobs:
         with:
           version-type: strict
           version-file: backend/.tool-versions
+      # Hex deps + compiled build, keyed by toolchain and lockfile; the restore
+      # key lets a lockfile bump start from the previous build instead of cold.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            backend/deps
+            backend/_build
+          key: mix-e2e-${{ runner.os }}-${{ hashFiles('backend/.tool-versions', 'backend/mix.lock') }}
+          restore-keys: mix-e2e-${{ runner.os }}-
       - name: Compile backend (e2e)
         working-directory: backend
         env:
@@ -33,10 +42,18 @@ jobs:
           mix deps.get
           mix compile
 
-      # Frontend toolchain + the Chromium binary Playwright drives.
+      # Frontend toolchain (with the npm cache) + the Chromium binary Playwright
+      # drives — cached by lockfile, which pins the Playwright version; the
+      # install is a no-op when the binary is already present.
       - uses: actions/setup-node@v4
         with:
           node-version-file: frontend/.tool-versions
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
       - name: Install frontend deps + Chromium
         working-directory: frontend
         run: |

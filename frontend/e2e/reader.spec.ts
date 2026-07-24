@@ -48,9 +48,11 @@ test("browse the corpus, search, and toggle a column", async ({ page }) => {
   );
 });
 
-// 60 distinct publications, imported in one shot (titles carry the index so a
-// specific far-away row is addressable).
-const BULK_SIZE = 60;
+// Enough distinct publications to far overflow the viewport (~18 visible rows),
+// imported in one shot; titles carry the index so a far-away row is addressable.
+// Kept moderate on purpose: the backend validates rows sequentially, so seeding
+// cost scales linearly and CI runners are slow.
+const BULK_SIZE = 30;
 const BULK_CSV =
   Array.from(
     { length: BULK_SIZE },
@@ -58,9 +60,15 @@ const BULK_CSV =
       `Author ${i};${1900 + i};US;Original ${i};Bulk Title ${i};Translator ${i};Publisher ${i};`,
   ).join("\n") + "\n";
 
+const LAST_TITLE = `Bulk Title ${BULK_SIZE - 1}`;
+
 test("a large index virtualizes: far rows render as they scroll into view", async ({
   page,
 }) => {
+  // Seeding this many rows through validate + bulk insert is the suite's
+  // heaviest server work — give it triple the timeout for slow CI runners.
+  test.slow();
+
   await signInAsAdmin(page);
   await page.goto("/admin/publications/new");
   await page.locator("#upload-csv").setInputFiles({
@@ -76,7 +84,7 @@ test("a large index virtualizes: far rows render as they scroll into view", asyn
 
   // The last row exists but is virtualized: its cells are empty placeholders
   // until scrolled into view.
-  await expect(table.getByText("Bulk Title 59")).toHaveCount(0);
+  await expect(table.getByText(LAST_TITLE)).toHaveCount(0);
   await table.getByRole("row").last().scrollIntoViewIfNeeded();
-  await expect(table.getByText("Bulk Title 59")).toBeVisible();
+  await expect(table.getByText(LAST_TITLE)).toBeVisible();
 });
