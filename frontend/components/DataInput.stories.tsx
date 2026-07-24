@@ -1,15 +1,37 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { seed } from "modules/publication/fixtures";
-import { expect, within } from "storybook/test";
+import { ComponentProps, FC, useState } from "react";
+import { expect, fn, userEvent, within } from "storybook/test";
 
 import DataInput from "./DataInput";
+
+// The dispatcher's `value` is a controlled prop (the app closes the loop via
+// usePublicationField): hold it in state so edits show on screen here too.
+const Controlled: FC<ComponentProps<typeof DataInput>> = ({
+  value: initial,
+  onChange,
+  ...props
+}) => {
+  const [value, setValue] = useState(initial);
+  return (
+    <DataInput
+      {...props}
+      value={value}
+      onChange={(next) => {
+        setValue(next);
+        onChange?.(next);
+      }}
+    />
+  );
+};
 
 // The cell-editor dispatcher: picks the right Text*DataInput by the column's
 // attribute type and wires edits back into the publication store.
 const meta = {
   title: "Publications/Data input",
   component: DataInput,
-  args: { rowId: 1, colId: "title", value: "", error: "", onChange: () => {} },
+  args: { rowId: 1, colId: "title", value: "", error: "", onChange: fn() },
+  render: (args) => <Controlled {...args} />,
   decorators: [
     (Story) => (
       <div className="flex items-center justify-center w-72 aspect-square overflow-auto rounded-lg border border-dashed border-gray-300 p-8 bg-stripes-diagonal">
@@ -24,14 +46,16 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** A text column renders a plain text cell. */
+/** A text column renders a plain, editable text cell. */
 export const Default: Story = {
   beforeEach: () => seed(),
   args: { colId: "title", value: "Dom Casmurro" },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole("textbox")).toHaveValue(
-      "Dom Casmurro",
-    );
+    const input = within(canvasElement).getByRole("textbox");
+    await expect(input).toHaveValue("Dom Casmurro");
+
+    await userEvent.type(input, "!");
+    await expect(input).toHaveValue("Dom Casmurro!");
   },
 };
 

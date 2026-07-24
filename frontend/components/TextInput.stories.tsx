@@ -1,9 +1,30 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { colord, extend } from "colord";
 import a11yPlugin from "colord/plugins/a11y";
+import { ComponentProps, FC, useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import TextInput from "./TextInput";
+
+// TextInput is controlled: hold `value` in state so typing shows on screen —
+// otherwise onChange fires but the field never moves.
+const Controlled: FC<ComponentProps<typeof TextInput>> = ({
+  value: initial,
+  onChange,
+  ...props
+}) => {
+  const [value, setValue] = useState(initial);
+  return (
+    <TextInput
+      {...props}
+      value={value}
+      onChange={(next) => {
+        setValue(next);
+        onChange?.(next);
+      }}
+    />
+  );
+};
 
 extend([a11yPlugin]);
 
@@ -50,6 +71,7 @@ const meta = {
   component: TextInput,
   tags: ["autodocs"],
   args: { value: "", onChange: fn(), "aria-label": "Title" },
+  render: (args) => <Controlled {...args} />,
   // The input is borderless + `bg-transparent` (it sits on a colored surface in
   // the app). Show it inside a dashed auxiliary container so the demo area is
   // clear without the frame masquerading as the input's own chrome.
@@ -67,14 +89,14 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Empty text field. Typing emits the raw string value via `onChange`. */
+/** Empty text field. Typing updates the value and emits it via `onChange`. */
 export const Default: Story = {
   play: async ({ args, canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox");
     await expect(input).toBeInTheDocument();
 
-    // Controlled input (value is forced), so onChange fires per keystroke.
     await userEvent.type(input, "Dom Casmurro");
+    await expect(input).toHaveValue("Dom Casmurro");
     await expect(args.onChange).toHaveBeenCalled();
   },
 };

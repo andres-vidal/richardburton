@@ -1,0 +1,63 @@
+name: Run E2E tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  E2E:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:15.1
+        ports: ["5432:5432"]
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+
+      # Backend toolchain + compile the :e2e app. Playwright's globalSetup then
+      # creates/migrates the per-worker databases, and its webServer boots a
+      # Phoenix server per worker.
+      - uses: erlef/setup-beam@v1
+        with:
+          version-type: strict
+          version-file: backend/.tool-versions
+      - name: Compile backend (e2e)
+        working-directory: backend
+        env:
+          MIX_ENV: e2e
+        run: |
+          mix deps.get
+          mix compile
+
+      # Frontend toolchain + the Chromium binary Playwright drives.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.tool-versions
+      - name: Install frontend deps + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      # One worker on CI: the 2-vCPU runner can't host two full stacks plus
+      # Postgres and Chromium without contention-induced flakes (bump as runners
+      # or the suite warrant — the harness scales via E2E_WORKERS). Track-only
+      # for now (not a required check) — promote via branch protection once it
+      # has proven stable, consistent with the coverage rollout.
+      - name: Run Playwright E2E
+        working-directory: frontend
+        env:
+          E2E_WORKERS: 1
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

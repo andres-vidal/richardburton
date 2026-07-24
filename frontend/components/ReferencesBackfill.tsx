@@ -5,6 +5,7 @@ import ReferencesEditor from "components/ReferencesEditor";
 import {
   usePublication,
   usePublicationReferences,
+  useStoredPublicationReferences,
   useUnreferencedPublicationCount,
 } from "modules/publication/hooks";
 import type { PublicationId } from "modules/publication/model";
@@ -26,7 +27,9 @@ const QueueOption: FC<{
   onSelect: () => void;
 }> = ({ id, active, onSelect }) => {
   const publication = usePublication(id);
-  const sourced = usePublicationReferences(id).length > 0;
+  // Persisted sources only: a drafted reference must not turn the dot green (or
+  // decrement the count) until it is actually saved.
+  const sourced = useStoredPublicationReferences(id).length > 0;
   const ref = useRef<HTMLLIElement>(null);
 
   // Keep the selected option in view as arrow keys move through a long queue.
@@ -163,7 +166,9 @@ export const BackfillStep: FC<{
           onClick={onSkip}
         />
         <Button
-          label="Save & next"
+          // The last publication has no "next" to advance to — the action is
+          // just Save (position clamps, so the wizard stays put either way).
+          label={position === total - 1 ? "Save" : "Save & next"}
           width="fit"
           size="medium"
           loading={saving}

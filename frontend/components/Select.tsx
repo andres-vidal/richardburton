@@ -78,7 +78,9 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
     ) {
       handleSelect(options[activeIndex]);
       setIsOpen(false);
-      inputRef.current?.blur();
+      // Keep focus in the input (combobox pattern). Blurring here bounced focus
+      // through the menu's focus manager, whose focus-return re-triggered
+      // handleFocus and reopened an emptied menu over the fresh selection.
     }
 
     onKeyDown?.(event);

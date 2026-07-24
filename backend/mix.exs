@@ -39,6 +39,7 @@ defmodule RichardBurton.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support", "dev"]
   defp elixirc_paths(:dev), do: ["lib", "dev"]
+  defp elixirc_paths(:e2e), do: ["lib", "dev"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.

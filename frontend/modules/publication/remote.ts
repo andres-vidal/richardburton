@@ -207,11 +207,16 @@ async function validate(ids: PublicationId[]): Promise<void> {
 async function upload(payload: FormData): Promise<void> {
   return run(async (http) => {
     resetAll();
-    const { data } = await http.post<ValidationResult[]>(
-      "publications/validate",
-      payload,
-    );
-    setAll(data.map((entry) => ({ ...entry, id: createId() })));
+    try {
+      const { data } = await http.post<ValidationResult[]>(
+        "publications/validate",
+        payload,
+      );
+      setAll(data.map((entry) => ({ ...entry, id: createId() })));
+    } catch (error) {
+      setAll([]);
+      throw error;
+    }
   });
 }
 

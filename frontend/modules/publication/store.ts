@@ -127,13 +127,19 @@ const publicationReferencesFamily = atomFamily((id: PublicationId) =>
   atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
 );
 
-/** How many loaded publications still have no references — drives the backfill
- * wizard's counter, shrinking live as sources are added (same signal as the
- * queue's sourced dots). */
+/** A publication's *persisted* provenance list — ignores in-progress drafts,
+ * the same stored-vs-visible distinction as `storedFieldValueFamily`. */
+const storedReferencesFamily = atomFamily((id: PublicationId) =>
+  atom<string[]>((get) => get(publicationFamily(id))?.references ?? []),
+);
+
+/** How many loaded publications still have no *saved* references — drives the
+ * backfill wizard's counter and queue dots, updating as saves land (drafts
+ * don't count until they're persisted). */
 const unreferencedCountAtom = atom(
   (get) =>
     get(publicationIdsAtom)?.filter(
-      (id) => get(publicationReferencesFamily(id)).length === 0,
+      (id) => get(storedReferencesFamily(id)).length === 0,
     ).length || 0,
 );
 
@@ -378,6 +384,7 @@ export {
   setPublications,
   store,
   storedFieldValueFamily,
+  storedReferencesFamily,
   totalCountAtom,
   totalIndexCountAtom,
   unreferencedCountAtom,
