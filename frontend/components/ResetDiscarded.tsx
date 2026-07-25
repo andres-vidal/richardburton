@@ -1,23 +1,23 @@
 "use client";
 
 import RestoreTrashIcon from "assets/restore-trash.svg";
-import { useDeletedPublicationCount } from "modules/publication/hooks";
-import { resetDeleted } from "modules/publication/store";
+import { useDiscardedPublicationCount } from "modules/publication/hooks";
+import { resetDiscarded } from "modules/publication/store";
 import { FC } from "react";
 import { clearSelection } from "modules/selection";
 import Button from "./Button";
 
-const ResetDeleted: FC = () => {
-  const deletedCount = useDeletedPublicationCount();
+const ResetDiscarded: FC = () => {
+  const discardedCount = useDiscardedPublicationCount();
 
   const reset = () => {
-    resetDeleted();
+    resetDiscarded();
     clearSelection();
   };
 
-  return deletedCount !== 0 ? (
+  return discardedCount !== 0 ? (
     <Button
-      label={`Reset ${deletedCount} deleted`}
+      label={`Reset ${discardedCount} discarded`}
       variant="outline"
       Icon={RestoreTrashIcon}
       alignment="left"
@@ -27,4 +27,4 @@ const ResetDeleted: FC = () => {
   ) : null;
 };
 
-export default ResetDeleted;
+export default ResetDiscarded;

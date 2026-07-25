@@ -1,7 +1,7 @@
 "use client";
 
 import TrashIcon from "assets/trash.svg";
-import { setDeleted } from "modules/publication/store";
+import { setDiscarded } from "modules/publication/store";
 import { FC } from "react";
 import {
   clearSelection,
@@ -10,27 +10,27 @@ import {
 } from "modules/selection";
 import Button from "./Button";
 
-const PublicationDelete: FC = () => {
+const PublicationDiscard: FC = () => {
   const selectionSize = useSelectionSize();
 
-  const deleteSelected = () => {
+  const discardSelected = () => {
     const selectedIds = [...getSelection()] as number[];
     if (selectedIds.length > 0) {
-      setDeleted(selectedIds);
+      setDiscarded(selectedIds);
       clearSelection();
     }
   };
 
   return (
     <Button
-      label={`Delete ${selectionSize}`}
+      label={`Discard ${selectionSize}`}
       variant="danger"
       alignment="left"
       width="fit"
       Icon={TrashIcon}
-      onClick={deleteSelected}
+      onClick={discardSelected}
     />
   );
 };
 
-export default PublicationDelete;
+export default PublicationDiscard;

@@ -23,6 +23,29 @@ type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: number };
 type PublicationId = NonNullable<Publication["id"]>;
 type PublicationKeyType = "array" | "text" | "enum" | "enumArray" | "number";
+type PublicationHistoryAction = "created" | "updated" | "deleted" | "restored";
+
+type SnapshotDiff = {
+  fields: Partial<Record<PublicationKey, { from: unknown; to: unknown }>>;
+  references: { added: string[]; removed: string[]; reordered: boolean } | null;
+};
+
+type PublicationHistoryEntry = {
+  version: number;
+  action: PublicationHistoryAction;
+  actor: string;
+  timestamp: string;
+  snapshot: Omit<Publication, "id" | "year"> & { year: number };
+  diff: SnapshotDiff | null;
+  undoable: boolean;
+};
+
+// The catalogue-wide feed tags each entry with the publication it belongs to.
+type FullHistoryEntry = PublicationHistoryEntry & { publicationId: number };
+
+// A publication that is *currently* deleted — the trash's state, distinct from
+// the history's record of deletion events.
+type DeletedPublicationEntry = { publication: Publication; deletedAt: string };
 
 const ATTRIBUTES: PublicationKey[] = [
   "title",
@@ -83,6 +106,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_escape_sequence: `Could not parse publications from the provided file`,
   stray_escape_character: `Could not parse publications from the provided file`,
   alpha2: `This field should be a valid ISO 3166-1 alpha 2 country code`,
+  duplicate: `This field cannot repeat the same entry`,
 };
 
 function empty(): Publication {
@@ -207,10 +231,15 @@ export {
   Publication,
 };
 export type {
+  DeletedPublicationEntry,
+  FullHistoryEntry,
   PublicationEntry,
   PublicationError,
+  PublicationHistoryAction,
+  PublicationHistoryEntry,
   PublicationId,
   PublicationKey,
   PublicationKeyType,
+  SnapshotDiff,
   ValidationResult,
 };

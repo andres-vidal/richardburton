@@ -4,14 +4,14 @@ import Breadcrumb from "components/Breadcrumb";
 import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
 import PublicationCounter from "components/PublicationCounter";
-import PublicationDelete from "components/PublicationDelete";
+import PublicationDiscard from "components/PublicationDiscard";
 import PublicationDeselect from "components/PublicationDeselect";
 import PublicationDuplicate from "components/PublicationDuplicate";
 import PublicationErrorCounter from "components/PublicationErrorCounter";
 import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
 import PublicationWorkspace from "components/PublicationWorkspace";
-import ResetDeleted from "components/ResetDeleted";
+import ResetDiscarded from "components/ResetDiscarded";
 import ResetOverridden from "components/ResetOverridden";
 import RowIdToggle from "components/RowIdToggle";
 import { Publication } from "modules/publication/model";
@@ -56,7 +56,7 @@ export default function NewPublications() {
               <PublicationCounter />
               <PublicationErrorCounter />
               <ResetOverridden />
-              <ResetDeleted />
+              <ResetDiscarded />
               <RowIdToggle />
               <PublicationSubmit />
             </>
@@ -64,7 +64,7 @@ export default function NewPublications() {
             <>
               <PublicationDeselect />
               <PublicationDuplicate />
-              <PublicationDelete />
+              <PublicationDiscard />
             </>
           )}
         </div>

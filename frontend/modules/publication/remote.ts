@@ -7,7 +7,14 @@ import hash from "object-hash";
 import { useCallback } from "react";
 import useDebounce from "utils/useDebounce";
 
-import type { Publication } from "./model";
+import { withChanges } from "./history";
+import type { WithChanges } from "./history";
+import type {
+  DeletedPublicationEntry,
+  FullHistoryEntry,
+  Publication,
+  PublicationHistoryEntry,
+} from "./model";
 import {
   PublicationError,
   PublicationId,
@@ -24,6 +31,7 @@ import {
   overrideFamily,
   publicationFamily,
   publicationIdsAtom,
+  removePublication,
   resetAll,
   setAll,
   setErrors,
@@ -32,6 +40,15 @@ import {
   visibleIdsAtom,
   visiblePublicationFamily,
 } from "./store";
+
+/**
+ * Whether a failed call was a composite-key conflict. `request` unwraps a 409
+ * into the thrown string "conflict"; the raw AxiosError shape is also
+ * accepted so tests can reject with either.
+ */
+function isConflict(error: unknown): boolean {
+  return error === "conflict" || (error as AxiosError).response?.status === 409;
+}
 
 /**
  * Run a server call, surfacing a friendly notification on failure and
@@ -128,22 +145,162 @@ async function update(id: PublicationId): Promise<boolean> {
     store.set(publicationFamily(id), data);
     store.set(overrideFamily(id), RESET);
     store.set(errorFamily(id), RESET);
-    notify({ message: "Publication updated.", level: "success" });
+    notify({
+      message: "Publication updated",
+      detail: `"${data.title}" is saved.`,
+      level: "success",
+    });
     return true;
   } catch (error) {
     const { response } = error as AxiosError<{ errors: PublicationError }>;
 
-    if (response?.status === 409) {
-      notify({ message: describeError("conflict"), level: "warning" });
+    if (isConflict(error)) {
+      notify({
+        message: describeError("conflict"),
+        detail:
+          "Change one of the keyed fields — title, year, countries, publishers or the original book.",
+        level: "warning",
+      });
     } else if (response?.status === 400) {
+      // Field errors belong on the fields; the form shows them in place.
       store.set(errorFamily(id), response.data?.errors ?? null);
     } else {
       notify({
-        message: "The publication could not be updated.",
+        message: "Could not save the publication",
+        detail:
+          "Your edits are still here. Check your connection and try again.",
         level: "warning",
       });
     }
 
+    return false;
+  }
+}
+
+/**
+ * Delete a publication from the catalogue (admin). The server soft-deletes —
+ * the record leaves the index and search but stays restorable, and the change
+ * lands in the publication history. Returns whether it succeeded.
+ */
+async function deletePublication(id: PublicationId): Promise<boolean> {
+  const { title } = store.get(publicationFamily(id));
+
+  try {
+    await request((http) => http.delete(`publications/${id}`));
+
+    removePublication(id);
+    notify({
+      message: "Publication deleted",
+      detail: `“${title}” is out of the catalogue. Restore it from Deleted publications.`,
+      level: "success",
+    });
+    return true;
+  } catch {
+    notify({
+      message: "Could not delete the publication",
+      detail: `“${title}” is unchanged. Check your connection and try again.`,
+      level: "warning",
+    });
+    return false;
+  }
+}
+
+/**
+ * A publication's mutation log (admin), newest first.
+ *
+ * Both history calls resolve each entry's changes here, on the way in, so views
+ * render a ready list instead of diffing during paint.
+ */
+async function history(
+  id: PublicationId,
+): Promise<WithChanges<PublicationHistoryEntry>[]> {
+  return run(async (http) => {
+    const { data } = await http.get<{ entries: PublicationHistoryEntry[] }>(
+      `publications/${id}/history`,
+    );
+    return withChanges(data.entries);
+  });
+}
+
+/** Every recorded change across the catalogue (admin), newest first. */
+async function fullHistory(): Promise<WithChanges<FullHistoryEntry>[]> {
+  return run(async (http) => {
+    const { data } = await http.get<{ entries: FullHistoryEntry[] }>(
+      "publications/history",
+    );
+    return withChanges(data.entries);
+  });
+}
+
+/**
+ * The publications that are currently deleted (admin), most recently deleted
+ * first — the trash's own state, not the log's record of deletion events.
+ */
+async function deleted(): Promise<DeletedPublicationEntry[]> {
+  return run(async (http) => {
+    const { data } = await http.get<{ entries: DeletedPublicationEntry[] }>(
+      "publications/deleted",
+    );
+    return data.entries;
+  });
+}
+
+/**
+ * Undo one recorded change (admin), naming the entry rather than describing the
+ * result: the server decides which action compensates it and what state that
+ * produces. A new entry lands in the log — history is never rewritten — so the
+ * undo is itself undoable. Returns whether it succeeded.
+ */
+async function undo(
+  id: PublicationId,
+  version: PublicationHistoryEntry["version"],
+): Promise<boolean> {
+  try {
+    await request((http) =>
+      http.post(`publications/${id}/history/${version}/undo`),
+    );
+
+    notify({ message: "Change undone", level: "success" });
+    return true;
+  } catch (error) {
+    notify({
+      message: isConflict(error)
+        ? "Could not undo — the record has moved on since"
+        : "Could not undo the change",
+      detail: isConflict(error)
+        ? "A later change would be lost, or another publication now holds that data."
+        : "Nothing changed. Check your connection and try again.",
+      level: "warning",
+    });
+    return false;
+  }
+}
+
+/**
+ * Bring a deleted publication back into the catalogue (admin). Returns whether
+ * it succeeded; a conflict means the same record was imported again while this
+ * one sat in the trash.
+ */
+async function restore(id: PublicationId): Promise<boolean> {
+  try {
+    await request((http) => http.post(`publications/${id}/restore`));
+
+    notify({
+      message: "Publication restored",
+      detail: "It is back in the catalogue and in search results.",
+      level: "success",
+    });
+    return true;
+  } catch (error) {
+    notify({
+      message: isConflict(error)
+        ? "Could not restore — the record exists again"
+        : "Could not restore the publication",
+      detail: isConflict(error)
+        ? "It was imported again while deleted, so restoring would duplicate it. Delete the newer copy first, or leave this one deleted."
+        : "Nothing changed. Check your connection and try again.",
+      level: "warning",
+    });
     return false;
   }
 }
@@ -236,7 +393,13 @@ function usePublicationIndex() {
 
 export {
   bulk,
+  deleted,
+  fullHistory,
+  history,
   index,
+  deletePublication,
+  restore,
+  undo,
   update,
   upload,
   usePublicationIndex,
