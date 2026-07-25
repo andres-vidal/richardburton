@@ -20,10 +20,20 @@ type Props<ItemType extends string | Item> = {
   getOptions: (search: string) => Promise<ItemType[]> | ItemType[];
   forwardedRef?: ForwardedRef<HTMLDivElement>;
   bordered?: boolean;
+  /**
+   * Shown when a search matches nothing. Callers word it, because only they
+   * know whether the field accepts values outside the offered options.
+   */
+  emptyMessage?: string;
 };
 
 function isStringArray(value: unknown): value is string[] {
   return z.string().array().safeParse(value).success;
+}
+
+/** What makes two entries the same: the trimmed text, or an item's id. */
+function identity<ItemType extends string | Item>(item: ItemType): string {
+  return isString(item) ? item.trim() : item.id;
 }
 
 export default function Multicombobox<ItemType extends string | Item>({
@@ -34,6 +44,7 @@ export default function Multicombobox<ItemType extends string | Item>({
   onKeyDown,
   error,
   forwardedRef,
+  emptyMessage = "No matches",
   ...props
 }: Props<ItemType>) {
   const [inputValue, setInputValue] = useState("");
@@ -48,8 +59,16 @@ export default function Multicombobox<ItemType extends string | Item>({
     onChange(value.filter((_, i) => i !== index));
   }
 
+  function isSelected(item: ItemType) {
+    return value.some((selected) => identity(selected) === identity(item));
+  }
+
   function select(item: ItemType) {
-    if (!value.includes(item)) onChange([...value, item]);
+    const trimmed = (isString(item) ? item.trim() : item) as ItemType;
+
+    if (!isSelected(trimmed) && identity(trimmed) !== "") {
+      onChange([...value, trimmed]);
+    }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -73,6 +92,7 @@ export default function Multicombobox<ItemType extends string | Item>({
       (event.key === Key.ENTER || event.key === Key.ARROW_RIGHT) &&
       !isInputValueBlank
     ) {
+      event.preventDefault();
       setInputValue("");
       setOptions([]);
       setIsOpen(false);
@@ -99,7 +119,7 @@ export default function Multicombobox<ItemType extends string | Item>({
 
       setIsOpen(true);
       setActiveIndex(0);
-      setOptions(options.filter((option) => !value.includes(option)));
+      setOptions(options.filter((option) => !isSelected(option)));
     } else {
       setIsOpen(false);
     }
@@ -122,6 +142,7 @@ export default function Multicombobox<ItemType extends string | Item>({
       setActiveIndex={setActiveIndex}
       onSelect={handleOptionSelect}
       bordered={props.bordered}
+      emptyMessage={emptyMessage}
     >
       <TextInput
         {...props}

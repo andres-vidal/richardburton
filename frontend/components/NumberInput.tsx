@@ -24,7 +24,7 @@ const IncrementButton: FC<{
     <button
       type="button"
       aria-label={label}
-      className="flex justify-center items-center h-2 rounded-full outline-none hover:bg-indigo-500 hover:text-white focus:bg-indigo-500 focus:text-white error:text-white focus:error:bg-red-500"
+      className="flex justify-center items-center h-2 rounded-full focus-ring hover:bg-indigo-500 hover:text-white focus-visible:bg-indigo-500 focus-visible:text-white error:text-white focus-visible:error:bg-red-500"
       onClick={onClick}
       data-error={Boolean(error)}
     >

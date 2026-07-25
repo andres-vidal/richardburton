@@ -43,6 +43,7 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
         value={items}
         onChange={handleChange}
         getOptions={getOptions}
+        emptyMessage="No match — press , to add it anyway"
       />
     );
   },

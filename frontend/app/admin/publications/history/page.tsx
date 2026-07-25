@@ -49,7 +49,7 @@ export default function PublicationHistoryPage() {
           />
         </>
       }
-      measure="readable"
+      measure="centered"
       content={
         entries === undefined ? (
           <p className="text-sm text-gray-600">Loading…</p>

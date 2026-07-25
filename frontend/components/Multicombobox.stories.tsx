@@ -6,6 +6,40 @@ import Multicombobox from "./Multicombobox";
 
 const OPTIONS = ["Fiction", "Poetry", "Essay", "Drama"];
 
+const onSubmit = fn();
+
+type Enum = { id: string; label: string };
+
+const COUNTRIES: Enum[] = [
+  { id: "GB", label: "United Kingdom" },
+  { id: "US", label: "United States of America" },
+  { id: "BR", label: "Brazil" },
+];
+
+const onEnumChange = fn();
+
+const ControlledEnum: FC<{ onChange: (value: Enum[]) => void }> = ({
+  onChange,
+}) => {
+  const [value, setValue] = useState<Enum[]>([]);
+
+  return (
+    <Multicombobox<Enum>
+      value={value}
+      placeholder="Add a country"
+      getOptions={(search) =>
+        COUNTRIES.filter((c) => c.label.toLowerCase().includes(search)).map(
+          (c) => ({ ...c }),
+        )
+      }
+      onChange={(next) => {
+        setValue(next);
+        onChange(next);
+      }}
+    />
+  );
+};
+
 // Multicombobox is controlled: `value` lives in the parent. This wrapper holds
 // it in state so pills actually add/remove as you interact, while still
 // forwarding every change to the `onChange` spy for assertions.
@@ -156,6 +190,157 @@ export const DuplicateFilter: Story = {
     await userEvent.type(input, "Fiction{Enter}");
     await expect(canvas.getAllByText("Fiction")).toHaveLength(1);
     await expect(args.onChange).toHaveBeenLastCalledWith(["Fiction"]);
+
+    // Padding doesn't smuggle a duplicate through: the server trims before
+    // storing, so the comparison trims too — otherwise the record would be
+    // rejected on save for repeating an entry.
+    await userEvent.type(input, "  Fiction  {Enter}");
+    await expect(canvas.getAllByText("Fiction")).toHaveLength(1);
+    await expect(args.onChange).toHaveBeenLastCalledWith(["Fiction"]);
+  },
+};
+
+/**
+ * Inside a form — the edit modal's context. Committing an entry with Enter
+ * must not submit the surrounding form: the keystroke belongs to the field.
+ */
+export const InsideAForm: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  beforeEach: () => {
+    onSubmit.mockClear();
+  },
+  render: (args) => (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      <Controlled
+        value={args.value}
+        getOptions={args.getOptions}
+        onChange={args.onChange}
+      />
+      <button type="submit">Save</button>
+    </form>
+  ),
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox");
+
+    // Enter commits the typed entry...
+    await userEvent.type(input, "Fiction{Enter}");
+    await expect(canvas.getByText("Fiction")).toBeInTheDocument();
+    // ...and the form stays put.
+    await expect(onSubmit).not.toHaveBeenCalled();
+
+    // Enter picks the highlighted option without submitting either.
+    await userEvent.type(input, "dr{Enter}");
+    await expect(args.onChange).toHaveBeenLastCalledWith(["Fiction", "Drama"]);
+    await expect(onSubmit).not.toHaveBeenCalled();
+
+    // Clicking an option behaves the same.
+    await userEvent.type(input, "po");
+    const listbox = await screen.findByRole("listbox");
+    await userEvent.click(within(listbox).getByText("Poetry"));
+    await expect(args.onChange).toHaveBeenLastCalledWith([
+      "Fiction",
+      "Drama",
+      "Poetry",
+    ]);
+    await expect(onSubmit).not.toHaveBeenCalled();
+
+    // With nothing typed, Enter is the form's again.
+    await userEvent.type(input, "{Enter}");
+    await expect(onSubmit).toHaveBeenCalled();
+  },
+};
+
+/**
+ * Object items — the shape the Countries field uses. Each lookup builds fresh
+ * objects, so identity has to come from `id`; reference equality would let the
+ * same country in twice.
+ */
+export const ObjectItems: StoryObj = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  render: () => <ControlledEnum onChange={onEnumChange} />,
+  beforeEach: () => {
+    onEnumChange.mockClear();
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox");
+
+    // Clicking an option selects it.
+    await userEvent.type(input, "united");
+    const listbox = await screen.findByRole("listbox");
+    await userEvent.click(within(listbox).getByText("United Kingdom"));
+
+    await expect(onEnumChange).toHaveBeenLastCalledWith([
+      { id: "GB", label: "United Kingdom" },
+    ]);
+    await expect(canvas.getByText("United Kingdom")).toBeInTheDocument();
+    await expect(input).toHaveValue("");
+
+    // The same country cannot be added twice, even though the lookup returns
+    // a brand-new object each time.
+    await userEvent.type(input, "united");
+    await waitFor(async () =>
+      expect(
+        within(await screen.findByRole("listbox")).queryByText(
+          "United Kingdom",
+        ),
+      ).not.toBeInTheDocument(),
+    );
+  },
+};
+
+/** Clicking an option selects it, exactly as Enter and ArrowRight do. */
+export const SelectsByClicking: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox");
+
+    await userEvent.type(input, "dr");
+    const listbox = await screen.findByRole("listbox");
+    await userEvent.click(within(listbox).getByText("Drama"));
+
+    await expect(args.onChange).toHaveBeenLastCalledWith(["Drama"]);
+    await expect(canvas.getByText("Drama")).toBeInTheDocument();
+    // The search text is consumed, not left behind for the next entry.
+    await expect(input).toHaveValue("");
+  },
+};
+
+/**
+ * A search with no matches says so, rather than opening an empty box. For a
+ * free-text field the message also points out that the typed value can still
+ * be added.
+ */
+export const NoMatches: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.type(canvas.getByRole("combobox"), "Sonnet");
+
+    const listbox = await screen.findByRole("listbox");
+    await expect(listbox).toHaveTextContent("No matches");
+
+    // A listbox must contain an option, so the message is one — but a
+    // disabled one: there is nothing here to choose.
+    const options = within(listbox).getAllByRole("option");
+    await expect(options).toHaveLength(1);
+    await expect(options[0]).toHaveAttribute("aria-disabled", "true");
   },
 };
 

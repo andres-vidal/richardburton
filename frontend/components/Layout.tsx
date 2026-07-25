@@ -14,6 +14,15 @@ type Props = {
   content: ReactNode;
   subheader?: ReactNode;
   leftAside?: ReactNode;
+  /**
+   * How the page is laid out across the viewport. `full` fills it, which is
+   * what the index and the bulk workspace need from their tables. `centered`
+   * holds the subheader and the content to one column and centres both — the
+   * pairing is the point, so a page's breadcrumb and title line up with what
+   * they introduce instead of drifting to the edge while the content sits in
+   * the middle.
+   */
+  measure?: "full" | "centered";
 };
 
 const HEADING_TEXT = "Richard & Isabel Burton Platform";
@@ -21,7 +30,13 @@ const SUBHEADING_TEXT = "A database about Brazilian literature in translation";
 
 // `title` is set per-route via the App Router `metadata` export, not here — the
 // prop is kept so existing callers still typecheck during the migration.
-const Layout: FC<Props> = ({ footer, content, subheader, leftAside }) => {
+const Layout: FC<Props> = ({
+  footer,
+  content,
+  subheader,
+  leftAside,
+  measure = "full",
+}) => {
   const headerRef = useRef<HTMLElement>(null);
 
   // Publish the header's height as `--app-header-h` so the table's column headers
@@ -65,11 +80,21 @@ const Layout: FC<Props> = ({ footer, content, subheader, leftAside }) => {
             </div>
           </div>
         </h1>
-        {subheader}
+        <div
+          data-measure={measure}
+          className="data-[measure=centered]:mx-auto data-[measure=centered]:w-full data-[measure=centered]:max-w-3xl"
+        >
+          {subheader}
+        </div>
       </header>
       <div className="flex flex-col grow gap-2 md:flex-row">
         {leftAside && <aside>{leftAside}</aside>}
-        <main className="relative grow pb-4">{content}</main>
+        <main
+          data-measure={measure}
+          className="relative grow pb-4 data-[measure=centered]:mx-auto data-[measure=centered]:w-full data-[measure=centered]:max-w-3xl"
+        >
+          {content}
+        </main>
       </div>
       {footer && (
         <footer className="sticky bottom-0 z-30 py-1 bg-gray-100 md:py-4">

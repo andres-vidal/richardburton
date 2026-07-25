@@ -18,7 +18,17 @@ as the source of truth: an effect re-syncs when the store's value changes. On
 every edit it calls `overrideField(rowId, colId, value)` to write the change
 back into the publication store, then re-emits through `onChange`. For `array`
 and `enum` columns it also revalidates the row; the other types validate on
-blur. Any `error` prop is surfaced through a `Tooltip` and marks the cell
-invalid.
+blur. Any `error` prop marks the cell invalid.
 
 <Canvas of={DataInputStories.Default} />
+
+## Where errors appear
+
+`errorDisplay` decides, because the two callers need opposite things. In the
+bulk workspace (`"tooltip"`, the default) there is no room under a cell — a
+message would reflow the grid — so the tinted cell carries the signal and the
+tooltip carries the detail. In the edit form (`"inline"`) the message is written
+under the field, where it can be read without hovering and announced as an
+alert.
+
+<Canvas of={DataInputStories.InlineError} />

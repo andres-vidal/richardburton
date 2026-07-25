@@ -82,7 +82,7 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       data-size={size}
       className={`
         flex transition-colors items-center rounded font-base group gap-2 whitespace-nowrap
-        border border-transparent
+        border border-transparent focus-ring
         data-[size=small]:py-1.5 data-[size=small]:px-2 data-[size=small]:text-xs
         data-[size=medium]:py-2 data-[size=medium]:px-4 data-[size=medium]:text-sm
         data-[loading=false]:disabled:bg-gray-100 data-[loading=false]:disabled:text-gray-300 data-[loading=false]:disabled:border-gray-200 data-[loading=false]:disabled:hover:bg-gray-100

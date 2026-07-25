@@ -1,0 +1,48 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as NotificationStories from "./Notification.stories";
+
+<Meta of={NotificationStories} />
+
+# Notification
+
+One message about something that just happened. Purely presentational: it knows
+nothing about where it sits, how long it lives, or what raised it —
+[`Notifications`](?path=/docs/components-notifications--docs) owns all of that.
+Kept separate so the card can be read, reviewed and audited on its own, without
+a portal and a four-second timer in the way.
+
+<Canvas of={NotificationStories.Default} />
+
+## Writing one
+
+Two lines, each with a job. The **message** names what happened, in the past
+tense and without an apology — "Publication deleted", not "Successfully deleted
+the publication!". The **detail** is optional and carries what the message
+cannot: which record it applies to, or what to do next. A failure without a
+detail tells the reader they are stuck; a failure with one tells them the way
+out.
+
+<Canvas of={NotificationStories.Failure} />
+
+## Levels
+
+`success` and `info` are confirmations and announce politely (`role="status"`).
+`warning` and `error` are failures and interrupt (`role="alert"`), because they
+usually need acting on. The card derives that from its level through the
+exported `isFailure`, which the container also reads to decide what times out —
+so the two can never disagree about which levels are failures.
+
+The level shows as a coloured edge rather than an icon, in the same semantic
+palette the [history](?path=/docs/publications-publication-history--docs) uses
+for its actions, so red means the same thing everywhere in the app.
+
+<Canvas of={NotificationStories.Levels} />
+
+## Dismissing
+
+`onDismiss` renders the close button and is called on click; the card does not
+remove itself. Omit it for a card that cannot be dismissed — the container uses
+that for its "N more notifications" summary.
+
+<Canvas of={NotificationStories.NotDismissible} />
