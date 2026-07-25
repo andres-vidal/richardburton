@@ -171,6 +171,52 @@ export const EditingWithErrors: Story = {
 };
 
 /**
+ * The server-side delete is guarded: the Delete button opens a confirmation
+ * naming the publication, and cancelling backs out without consequence. (The
+ * confirmed path needs the real backend — the E2E suite covers it.)
+ */
+export const DeleteConfirmation: Story = {
+  beforeEach: () => setAll([DOM_CASMURRO]),
+  decorators: [
+    (Story) => (
+      <SessionProvider session={ADMIN}>
+        <Story />
+      </SessionProvider>
+    ),
+  ],
+  parameters: {
+    nextjs: { navigation: { query: { publication: "1" } } },
+    docs: { story: { inline: false, height: "30rem" } },
+  },
+  play: async () => {
+    await waitFor(() =>
+      expect(
+        screen.getByRole("dialog", { name: "Publication details" }),
+      ).toBeInTheDocument(),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    // The confirmation names the record it is about to remove.
+    const confirmation = await screen.findByRole("dialog", {
+      name: "Delete this publication?",
+    });
+    await expect(confirmation).toHaveTextContent(/Dom Casmurro.*1953/);
+
+    // Backing out leaves the publication modal (and the record) untouched.
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Delete this publication?" }),
+      ).not.toBeInTheDocument(),
+    );
+    await expect(
+      screen.getByRole("dialog", { name: "Publication details" }),
+    ).toBeInTheDocument();
+  },
+};
+
+/**
  * A combobox dropdown opened inside the edit modal must stack *above* the modal,
  * not behind it. Regression guard for the z-index bug (the menu was `z-30`,
  * under the modal's `z-50`, so it opened but was hidden by the dialog). Uses the

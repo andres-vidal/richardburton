@@ -1,0 +1,56 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationHistoryFeedStories from "./PublicationHistoryFeed.stories";
+
+<Meta of={PublicationHistoryFeedStories} />
+
+# Publication history feed
+
+The catalogue-wide mutation log, newest first — the admin "History" page.
+Each entry names its publication, the action, the acting user, and the date;
+updates carry the same exact field-level diffs as the
+[per-record history](?path=/docs/publications-publication-history--docs).
+Because the feed interleaves records, diffs are computed **per publication** —
+an update is compared against that record's previous version, wherever it sits
+in the feed. The server does that pairing and sends each diff with its entry, so
+the feed cannot get it wrong by reading the row above.
+
+Every entry the server marks `undoable` carries an **Undo**, which names the
+entry (`POST /publications/:id/history/:version/undo`) and lets the server work
+out the rest: a record's latest entry is always reconcilable (restore for a
+delete, delete for an import or restore, revert for an update), as is **any
+older update whose fields are untouched since** — reverted field by field, so
+later changes to others survive. Older deletes (already negated by a restore)
+and older imports/restores (undoing them would discard the edits that followed)
+are settled history.
+
+That rule lives on the server rather than here, which is what makes it binding:
+the endpoint refuses an entry it cannot reconcile instead of trusting the
+caller. Undo writes a _new_ history entry — the log is append-only and never
+rewritten — so every undo is itself undoable from this feed, and no
+confirmation gates stand in the way. **One at a time:** while a request is in
+flight the pressed row spins and every other Undo goes disabled, so a refused
+click looks refused.
+
+**Filters** — action chips and a title/user text filter — narrow what is
+_shown_, never what diffs or undoability are computed against. They are view
+state, not navigation: what is _currently_ deleted lives on its own
+[Deleted publications](?path=/docs/publications-deleted-publications--docs)
+page, because a log of deletion _events_ answers a different question than the
+set of records presently in the trash.
+
+Data comes from the admin-scoped `GET /publications/history`; the component is
+presentational — entries, the undo handler, and the in-flight key arrive as
+props.
+
+<Canvas of={PublicationHistoryFeedStories.Default} />
+
+## States
+
+- **Default** — interleaved streams; per-record diffs; undo wherever the
+  action is still reconcilable.
+- **Filtered by action** — chips narrowing the view.
+- **Text filter** — narrowing by title or acting user.
+- **Empty** — a fresh log states its emptiness.
+
+<Canvas of={PublicationHistoryFeedStories.FilteredByAction} />

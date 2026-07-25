@@ -34,5 +34,14 @@ export const Default: Story = {
     await expect(
       canvas.getByRole("link", { name: /Backfill references/ }),
     ).toHaveAttribute("href", "/admin/publications/references");
+
+    await expect(canvas.getByRole("link", { name: /History/ })).toHaveAttribute(
+      "href",
+      "/admin/publications/history",
+    );
+
+    await expect(
+      canvas.getByRole("link", { name: /Deleted publications/ }),
+    ).toHaveAttribute("href", "/admin/publications/deleted");
   },
 };

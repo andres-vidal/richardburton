@@ -1,5 +1,6 @@
 "use client";
 
+import type { WithChanges } from "modules/publication/history";
 import {
   useIsPublicationValid,
   usePublication,
@@ -10,19 +11,27 @@ import {
 } from "modules/publication/hooks";
 import {
   Publication,
+  type PublicationHistoryEntry,
   type PublicationId,
   type PublicationKey,
 } from "modules/publication/model";
-import { update, validateUpdate } from "modules/publication/remote";
+import {
+  deletePublication,
+  history,
+  update,
+  validateUpdate,
+} from "modules/publication/remote";
 import { discardEdit, overrideReferences } from "modules/publication/store";
 import { useIsAdmin } from "modules/session";
 import Link from "next/link";
-import { FC, SubmitEvent, useState } from "react";
+import { FC, SubmitEvent, SyntheticEvent, useState } from "react";
 import { z } from "zod";
 import { Article } from "./Article";
 import Button from "./Button";
+import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
-import { Modal, useURLQueryModal } from "./Modal";
+import { Modal, useModal, useURLQueryModal } from "./Modal";
+import PublicationHistory from "./PublicationHistory";
 import ReferencesEditor from "./ReferencesEditor";
 import Tooltip from "./Tooltip";
 
@@ -132,6 +141,35 @@ const PublicationReferences: FC<{ references: string[] }> = ({ references }) =>
     </section>
   );
 
+/**
+ * Admin-only, lazily loaded: the mutation log is fetched on first expand, so
+ * opening the modal costs nothing extra and the section works offline in
+ * Storybook (nothing fetches until a user opens it).
+ */
+const PublicationHistorySection: FC<{ id: PublicationId }> = ({ id }) => {
+  const [entries, setEntries] =
+    useState<WithChanges<PublicationHistoryEntry>[]>();
+
+  async function handleToggle(event: SyntheticEvent<HTMLDetailsElement>) {
+    if (event.currentTarget.open && entries === undefined) {
+      setEntries(await history(id));
+    }
+  }
+
+  return (
+    <details className="space-y-2" onToggle={handleToggle}>
+      <summary className="text-sm font-medium tracking-wide text-gray-500 uppercase cursor-pointer select-none">
+        History
+      </summary>
+      {entries === undefined ? (
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : (
+        <PublicationHistory entries={entries} />
+      )}
+    </details>
+  );
+};
+
 const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
   id,
   attribute,
@@ -152,6 +190,8 @@ const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
         aria-label={Publication.ATTRIBUTE_LABELS[attribute]}
         bordered
         autoValidated
+        // A form has room to say what is wrong, in place.
+        errorDisplay="inline"
         onValidate={() => validateUpdate(id)}
       />
     </div>
@@ -228,41 +268,76 @@ const PublicationModal: FC = () => {
   const [editingId, setEditingId] = useState<PublicationId>();
   const editing = editingId !== undefined && editingId === publicationId;
 
+  const deleteConfirmation = useModal();
+  const [deleting, setDeleting] = useState(false);
+
   function close() {
     if (editing && publicationId !== undefined) discardEdit(publicationId);
     modal.close();
   }
 
+  async function handleDelete() {
+    if (publicationId === undefined) return;
+    setDeleting(true);
+    const removed = await deletePublication(publicationId);
+    setDeleting(false);
+    deleteConfirmation.close();
+    if (removed) modal.close();
+  }
+
   return (
-    <Modal isOpen={modal.isOpen} onClose={close} label="Publication details">
-      {publication &&
-        publicationId !== undefined &&
-        (editing ? (
-          <PublicationEditForm
-            id={publicationId}
-            onDone={() => setEditingId(undefined)}
-          />
-        ) : (
-          <Article
-            heading={<PublicationHeading publication={publication} />}
-            content={
-              <div className="space-y-6">
-                <PublicationDescription publication={publication} />
-                <PublicationReferences references={publication.references} />
-                {isAdmin && (
-                  <Button
-                    label="Edit"
-                    variant="outline-primary"
-                    width="fit"
-                    size="medium"
-                    onClick={() => setEditingId(publicationId)}
-                  />
-                )}
-              </div>
-            }
-          />
-        ))}
-    </Modal>
+    <>
+      <Modal isOpen={modal.isOpen} onClose={close} label="Publication details">
+        {publication &&
+          publicationId !== undefined &&
+          (editing ? (
+            <PublicationEditForm
+              id={publicationId}
+              onDone={() => setEditingId(undefined)}
+            />
+          ) : (
+            <Article
+              heading={<PublicationHeading publication={publication} />}
+              content={
+                <div className="space-y-6">
+                  <PublicationDescription publication={publication} />
+                  <PublicationReferences references={publication.references} />
+                  {isAdmin && <PublicationHistorySection id={publicationId} />}
+                  {isAdmin && (
+                    <div className="flex gap-3">
+                      <Button
+                        label="Edit"
+                        variant="outline-primary"
+                        width="fit"
+                        size="medium"
+                        onClick={() => setEditingId(publicationId)}
+                      />
+                      <Button
+                        label="Delete"
+                        variant="danger"
+                        width="fit"
+                        size="medium"
+                        onClick={() => deleteConfirmation.open()}
+                      />
+                    </div>
+                  )}
+                </div>
+              }
+            />
+          ))}
+      </Modal>
+      {publication && (
+        <ConfirmationModal
+          isOpen={deleteConfirmation.isOpen}
+          title="Delete this publication?"
+          message={`“${publication.title}” (${publication.year}) will be removed from the catalogue, its index, and search results.`}
+          confirmLabel="Delete"
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={deleteConfirmation.close}
+        />
+      )}
+    </>
   );
 };
 

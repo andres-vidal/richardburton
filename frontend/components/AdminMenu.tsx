@@ -17,10 +17,22 @@ const ACTIONS = [
     description:
       "Work through the publications that are missing sources and add their provenance.",
   },
+  {
+    href: "/admin/publications/history",
+    title: "History",
+    description:
+      "Every change to the catalogue — who created, edited, deleted, or restored what, and when.",
+  },
+  {
+    href: "/admin/publications/deleted",
+    title: "Deleted publications",
+    description:
+      "The records currently deleted from the catalogue, restorable exactly as they were.",
+  },
 ] as const;
 
 const AdminMenu: FC = () => (
-  <ul className="grid gap-4 mx-auto max-w-3xl sm:grid-cols-2">
+  <ul className="grid gap-4 sm:grid-cols-2">
     {ACTIONS.map(({ href, title, description }) => (
       <li key={href} className="contents">
         <Link
