@@ -7,36 +7,30 @@ import { store } from "modules/store";
 import { usePathname } from "next/navigation";
 import { FC, useEffect } from "react";
 import { v4 as uuid } from "uuid";
+import Notification, { isFailure, NotificationLevel } from "./Notification";
 
-type NotificationLevel = "error" | "warning" | "info" | "success";
-
-type Notification = {
+type NotificationEntry = {
   id: string;
   message: string;
   level: NotificationLevel;
+  detail?: string;
 };
 
-const notificationsAtom = atom<Notification[]>([]);
+const notificationsAtom = atom<NotificationEntry[]>([]);
 
 const NOTIFICATION_TIMEOUT_MS = 4000;
 const MAX_SNACKBARS = 5;
-const NOTIFICATION_ICONS: Record<NotificationLevel, string> = {
-  error: "❗️",
-  warning: "⚠️",
-  info: "ℹ",
-  success: "🙌",
-};
 
-type Notifier = (notification: Omit<Notification, "id">) => void;
+type Notifier = (notification: Omit<NotificationEntry, "id">) => void;
 
 /**
  * Push a notification imperatively. Safe to call outside React (e.g. from the
  * publication remote layer) since it writes straight to the app store.
  */
-const notify: Notifier = ({ message, level }) => {
+const notify: Notifier = ({ message, level, detail }) => {
   store.set(notificationsAtom, (current) => [
     ...current,
-    { id: uuid(), message, level },
+    { id: uuid(), message, level, detail },
   ]);
 };
 
@@ -44,16 +38,29 @@ function useNotify(): Notifier {
   return notify;
 }
 
+/**
+ * Where notifications live and how long: a stack pinned near the top, capped,
+ * with confirmations timing out and failures waiting to be dismissed. The
+ * cards themselves are `Notification`.
+ */
 const Notifications: FC = () => {
   const [notifications, setNotifications] = useAtom(notificationsAtom);
   const pathname = usePathname();
 
+  function dismiss(id: string) {
+    setNotifications((current) => current.filter((n) => n.id !== id));
+  }
+
   useEffect(() => {
-    if (notifications.length > 0) {
-      const timeout = setTimeout(
-        () => setNotifications(notifications.slice(1)),
-        NOTIFICATION_TIMEOUT_MS,
-      );
+    // Time out the oldest confirmation; failures wait to be dismissed.
+    const transient = notifications.find(({ level }) => !isFailure(level));
+
+    if (transient) {
+      const timeout = setTimeout(() => {
+        return setNotifications((current) =>
+          current.filter(({ id }) => id !== transient.id),
+        );
+      }, NOTIFICATION_TIMEOUT_MS);
       return () => clearTimeout(timeout);
     }
   }, [notifications, setNotifications]);
@@ -69,15 +76,6 @@ const Notifications: FC = () => {
   const stackedNotificationsCount =
     notifications.length - shownNotificationsCount;
 
-  const snackbars = notifications
-    .slice(0, shownNotificationsCount)
-    .map(({ message, id, level }) => ({ message, key: id, level }))
-    .concat({
-      message: `${stackedNotificationsCount} more notifications`,
-      key: "notification-stack",
-      level: "info",
-    });
-
   return (
     <FloatingPortal>
       <section
@@ -85,33 +83,39 @@ const Notifications: FC = () => {
         className="flex fixed top-10 left-1/2 flex-col items-center space-y-2 -translate-x-1/2 z-70"
       >
         <AnimatePresence>
-          {snackbars.map(
-            ({ key, message, level }) =>
-              (key !== "notification-stack" ||
-                stackedNotificationsCount > 0) && (
-                <motion.div
-                  layout
-                  key={key}
-                  role="status"
-                  className="flex py-2 pr-3 pl-1 space-x-3 w-96 bg-white rounded shadow-md"
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  transition={{ duration: 0.1 }}
-                >
-                  <div
-                    aria-hidden="true"
-                    data-level={level}
-                    className={`
-                      flex items-center justify-center w-7 h-6
-                      data-[level=info]:text-indigo-700 data-[level=info]:text-xl
-                    `}
-                  >
-                    {NOTIFICATION_ICONS[level]}
-                  </div>
-                  <span>{message}</span>
-                </motion.div>
-              ),
+          {notifications
+            .slice(0, shownNotificationsCount)
+            .map(({ id, message, level, detail }) => (
+              <motion.div
+                layout
+                key={id}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.1 }}
+              >
+                <Notification
+                  level={level}
+                  message={message}
+                  detail={detail}
+                  onDismiss={() => dismiss(id)}
+                />
+              </motion.div>
+            ))}
+          {stackedNotificationsCount > 0 && (
+            <motion.div
+              layout
+              key="notification-stack"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.1 }}
+            >
+              <Notification
+                level="info"
+                message={`${stackedNotificationsCount} more notifications`}
+              />
+            </motion.div>
           )}
         </AnimatePresence>
       </section>

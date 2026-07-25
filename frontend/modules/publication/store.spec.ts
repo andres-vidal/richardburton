@@ -10,7 +10,7 @@ import {
   DRAFT_ID,
   addNew,
   createId,
-  deletedCountAtom,
+  discardedCountAtom,
   discardEdit,
   duplicate,
   fieldValueFamily,
@@ -26,11 +26,11 @@ import {
   publicationIdsAtom,
   resetAll,
   resetAttributes,
-  resetDeleted,
+  resetDiscarded,
   resetOverridden,
   setAll,
   setAttributesVisible,
-  setDeleted,
+  setDiscarded,
   setErrors,
   store,
   totalCountAtom,
@@ -138,15 +138,15 @@ describe("validity", () => {
 });
 
 describe("deletion", () => {
-  test("setDeleted hides a row without dropping it from the list", () => {
+  test("setDiscarded hides a row without dropping it from the list", () => {
     const [a, b] = [createId(), createId()];
     setAll([entry(a), entry(b)]);
 
-    setDeleted([a]);
+    setDiscarded([a]);
 
     expect(store.get(visibleIdsAtom)).toEqual([b]);
     expect(store.get(visibleCountAtom)).toBe(1);
-    expect(store.get(deletedCountAtom)).toBe(1);
+    expect(store.get(discardedCountAtom)).toBe(1);
     expect(store.get(totalCountAtom)).toBe(2);
   });
 
@@ -155,18 +155,18 @@ describe("deletion", () => {
     setAll([entry(a), entry(b)]);
     expect(store.get(validCountAtom)).toBe(2);
 
-    setDeleted([a]);
+    setDiscarded([a]);
 
     expect(store.get(validCountAtom)).toBe(1);
   });
 
-  test("resetDeleted brings hidden rows back", () => {
+  test("resetDiscarded brings hidden rows back", () => {
     const [a, b] = [createId(), createId()];
     setAll([entry(a), entry(b)]);
-    setDeleted([a]);
+    setDiscarded([a]);
     expect(store.get(visibleCountAtom)).toBe(1);
 
-    resetDeleted();
+    resetDiscarded();
 
     expect(store.get(visibleIdsAtom)).toEqual([a, b]);
   });

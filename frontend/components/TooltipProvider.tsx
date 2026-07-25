@@ -59,6 +59,7 @@ function useTooltip(options: TooltipOptions = {}) {
     placement,
     open,
     onOpenChange: setOpen,
+    strategy: "fixed",
     whileElementsMounted: autoUpdate,
     middleware: [offset(5), flip({ boundary }), shift({ boundary })],
   });

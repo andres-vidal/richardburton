@@ -1,0 +1,30 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DeletedPublicationsStories from "./DeletedPublications.stories";
+
+<Meta of={DeletedPublicationsStories} />
+
+# Deleted publications
+
+The trash — the admin "Deleted publications" page. Soft-deleted records listed
+most recently deleted first, each showing what it was (title, translators,
+year, publisher) and when it left the catalogue, with a one-click **Restore**.
+Restoring is non-destructive, so no confirmation stands in the way; the row's
+button carries the in-flight state (`restoringId`).
+
+Restoring can fail as a conflict when the same record was imported again while
+this one sat in the trash — the caller surfaces that as a notification (see
+`restore` in `modules/publication/remote`).
+
+Data comes from the admin-scoped `GET /publications/deleted`; the component is
+presentational — entries and the restore handler arrive as props.
+
+<Canvas of={DeletedPublicationsStories.Default} />
+
+## States
+
+- **Default** — tombstones with one-click restore.
+- **Restoring** — the in-flight row's button is busy; the others stay usable.
+- **Empty** — an empty trash says so.
+
+<Canvas of={DeletedPublicationsStories.Empty} />

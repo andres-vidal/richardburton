@@ -13,7 +13,7 @@ const Pill: FC<Props> = ({ label, onRemove }) => {
       <button
         type="button"
         aria-label={`Remove ${label}`}
-        className="inline-flex justify-center items-center rounded-full transition-colors outline-none hover:bg-indigo-500 hover:text-white focus:bg-indigo-500 focus:text-white"
+        className="inline-flex justify-center items-center rounded-full transition-colors focus-ring hover:bg-indigo-500 hover:text-white focus-visible:bg-indigo-500 focus-visible:text-white"
         onClick={onRemove}
       >
         <CloseIcon className="inline w-3 aspect-square" />

@@ -7,7 +7,12 @@ import type { Publication } from "./model";
 import { empty } from "./model";
 import {
   bulk,
+  deletePublication,
+  fullHistory,
+  history,
   index,
+  restore,
+  undo,
   update,
   upload,
   validate,
@@ -43,6 +48,7 @@ type Http = {
   get: ReturnType<typeof vi.fn>;
   post: ReturnType<typeof vi.fn>;
   put: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
 };
 let http: Http;
 
@@ -55,7 +61,7 @@ beforeEach(() => {
   store.set(isValidatingAtom, false);
   vi.clearAllMocks();
 
-  http = { get: vi.fn(), post: vi.fn(), put: vi.fn() };
+  http = { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() };
   // By default, `request(op)` runs the op against our fake http client.
   mockRequest.mockImplementation(((op: (client: AxiosInstance) => unknown) =>
     op(http as unknown as AxiosInstance)) as typeof request);
@@ -224,6 +230,154 @@ describe("update", () => {
 
     expect(ok).toBe(false);
     expect(store.get(errorFamily(id))).toEqual({ title: "required" });
+  });
+});
+
+describe("remove", () => {
+  test("DELETEs the publication and drops it from the index", async () => {
+    store.set(publicationIdsAtom, [7, 12]);
+    store.set(publicationFamily(7), { ...pub({ title: "Doomed" }), id: 7 });
+    store.set(publicationFamily(12), { ...pub({ title: "Kept" }), id: 12 });
+    store.set(totalIndexCountAtom, 288);
+    http.delete.mockResolvedValue({});
+
+    const ok = await deletePublication(7);
+
+    expect(ok).toBe(true);
+    expect(http.delete).toHaveBeenCalledWith("publications/7");
+    // The row leaves the list, its state resets, and the footer count follows.
+    expect(store.get(publicationIdsAtom)).toEqual([12]);
+    expect(store.get(publicationFamily(7))).toBeUndefined();
+    expect(store.get(totalIndexCountAtom)).toBe(287);
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "success" }),
+    );
+  });
+
+  test("on failure, notifies and leaves the index untouched", async () => {
+    store.set(publicationIdsAtom, [7]);
+    store.set(publicationFamily(7), { ...pub({ title: "Survivor" }), id: 7 });
+    store.set(totalIndexCountAtom, 288);
+    http.delete.mockRejectedValue({ response: { status: 404 } });
+
+    const ok = await deletePublication(7);
+
+    expect(ok).toBe(false);
+    expect(store.get(publicationIdsAtom)).toEqual([7]);
+    expect(store.get(totalIndexCountAtom)).toBe(288);
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "warning" }),
+    );
+  });
+});
+
+describe("history", () => {
+  test("GETs the publication's mutation log", async () => {
+    const entries = [
+      { version: 1, action: "created", actor: "importer@rb.test", diff: null },
+    ];
+    http.get.mockResolvedValue({ data: { entries } });
+
+    const result = await history(7);
+
+    expect(http.get).toHaveBeenCalledWith("publications/7/history");
+    expect(result).toEqual([{ ...entries[0], changes: [] }]);
+  });
+
+  test("resolves each entry's changes from the server's diff", async () => {
+    const entries = [
+      {
+        version: 2,
+        action: "updated",
+        actor: "admin@rb.test",
+        diff: {
+          fields: { title: { from: "Before", to: "After" } },
+          references: null,
+        },
+      },
+    ];
+    http.get.mockResolvedValue({ data: { entries } });
+
+    const [entry] = await history(7);
+
+    expect(entry.changes).toEqual([
+      { kind: "field", label: "Title", from: "Before", to: "After" },
+    ]);
+  });
+});
+
+describe("fullHistory", () => {
+  test("GETs the catalogue-wide feed", async () => {
+    const entries = [
+      { publicationId: 7, version: 1, action: "created", diff: null },
+    ];
+    http.get.mockResolvedValue({ data: { entries } });
+
+    const result = await fullHistory();
+
+    expect(http.get).toHaveBeenCalledWith("publications/history");
+    expect(result).toEqual([{ ...entries[0], changes: [] }]);
+  });
+});
+
+describe("undo", () => {
+  test("POSTs the entry to undo, and sends no state of its own", async () => {
+    http.post.mockResolvedValue({});
+
+    const ok = await undo(7, 3);
+
+    expect(ok).toBe(true);
+    // Names the entry, nothing more: which action compensates it and what state
+    // that produces are the server's to decide.
+    expect(http.post).toHaveBeenCalledWith("publications/7/history/3/undo");
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "success" }),
+    );
+  });
+
+  test("a 409 explains that the record has moved on", async () => {
+    http.post.mockRejectedValue({ response: { status: 409 } });
+
+    const ok = await undo(7, 3);
+
+    expect(ok).toBe(false);
+    // The detail is where the explanation lives — the headline says what
+    // failed, the detail says why.
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: "warning",
+        detail: expect.stringContaining("later change would be lost"),
+      }),
+    );
+  });
+});
+
+describe("restore", () => {
+  test("POSTs the restore and notifies success", async () => {
+    http.post.mockResolvedValue({});
+
+    const ok = await restore(7);
+
+    expect(ok).toBe(true);
+    expect(http.post).toHaveBeenCalledWith("publications/7/restore");
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "success" }),
+    );
+  });
+
+  test("a 409 explains the record already exists again", async () => {
+    http.post.mockRejectedValue({ response: { status: 409 } });
+
+    const ok = await restore(7);
+
+    expect(ok).toBe(false);
+    // Names the cause and the way out, rather than just failing.
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: "warning",
+        detail: expect.stringContaining("imported again while deleted"),
+      }),
+    );
   });
 });
 

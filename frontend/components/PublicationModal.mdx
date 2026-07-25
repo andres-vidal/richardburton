@@ -27,3 +27,19 @@ navigate to a filtered index. Closing it clears the query param.
   shows the publication (above).
 - **Closed** — without the query param the modal renders nothing (see the
   [Closed](?path=/story/publications-publication-modal--closed) story).
+
+## Admin actions
+
+For admins the article gains an action row: **Edit** switches the dialog to an
+inline edit form (`PUT /publications/:id` on save), and **Delete** removes the
+record server-side — guarded by a
+[confirmation](?path=/docs/components-confirmation-modal--docs) that names the
+publication before anything happens. Cancelling the confirmation backs out
+without consequence; confirming closes the dialog and drops the row from the
+index.
+
+Admins also get a collapsed **History** section — the record's
+[mutation log](?path=/docs/publications-publication-history--docs), fetched
+lazily on first expand.
+
+<Canvas of={PublicationModalStories.DeleteConfirmation} />

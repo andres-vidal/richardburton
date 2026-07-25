@@ -1,0 +1,51 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as NotificationsStories from "./Notifications.stories";
+
+<Meta of={NotificationsStories} />
+
+# Notifications
+
+Where messages live and how long they last: a stack pinned near the top of the
+page, capped, with confirmations timing out and failures waiting. The cards
+themselves are [`Notification`](?path=/docs/components-notification--docs) —
+this component owns only placement, stacking and lifetime.
+
+Mount `<Notifications />` once per page; anything can then raise one through
+`notify` — including code outside React, since it writes straight to the app
+store rather than through a hook.
+
+```ts
+notify({
+  level: "success",
+  message: "Publication deleted",
+  detail:
+    "“Dom Casmurro” is out of the catalogue. Restore it from Deleted publications.",
+});
+```
+
+<Canvas of={NotificationsStories.Default} />
+
+## Lifetime
+
+Confirmations (`success`, `info`) clear themselves after a few seconds.
+Failures (`warning`, `error`) do not: they wait to be dismissed, because they
+usually need acting on and a message that disappears before it is read is no
+message at all. Which levels count as failures is decided once, by
+`isFailure` in `Notification` — the card reads it to pick its aria role and the
+container reads it to decide what times out, so the two cannot disagree.
+
+<Canvas of={NotificationsStories.FailuresWaitToBeDismissed} />
+
+## Stacking
+
+Up to five show at once; beyond that the remainder is summarised as a count
+rather than burying the page. Navigating to another route clears them — a
+message about the page you left rarely makes sense on the page you arrived at.
+
+<Canvas of={NotificationsStories.StacksAndSummarises} />
+
+## What to write
+
+See [`Notification`](?path=/docs/components-notification--docs) — the message
+and detail are the card's concern.

@@ -2,6 +2,7 @@
 
 import {
   FloatingFocusManager,
+  FloatingOverlay,
   FloatingPortal,
   useFloating,
 } from "@floating-ui/react";
@@ -50,7 +51,7 @@ function useURLQueryModal(param: string): URLModalInterface {
     (value: string = "true") => {
       const params = new URLSearchParams(searchParams ?? undefined);
       params.set(param, value);
-      router.replace(`${pathname}?${params}`);
+      router.replace(`${pathname}?${params}`, { scroll: false });
     },
     [router, pathname, searchParams, param],
   );
@@ -59,7 +60,9 @@ function useURLQueryModal(param: string): URLModalInterface {
     const params = new URLSearchParams(searchParams ?? undefined);
     params.delete(param);
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
   }, [router, pathname, searchParams, param]);
 
   return { isOpen: Boolean(value), value, open, close };
@@ -102,39 +105,41 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
     <AnimatePresence>
       {isOpen && (
         <FloatingPortal>
-          <FloatingFocusManager context={context} initialFocus={refs.floating}>
-            <motion.div
-              ref={refs.setFloating}
-              className="fixed inset-0 z-50 bg-indigo-900/30"
-              onMouseDown={handleOverlayMouseDown}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+          <FloatingOverlay lockScroll className="z-50">
+            <FloatingFocusManager
+              context={context}
+              initialFocus={refs.floating}
             >
-              <Header onClose={onClose} />
-              <motion.dialog
-                open
-                role="dialog"
-                aria-modal="true"
-                aria-label={label}
-                className={`
+              <motion.div
+                ref={refs.setFloating}
+                className="fixed inset-0 z-50 bg-indigo-900/30"
+                onMouseDown={handleOverlayMouseDown}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <Header onClose={onClose} />
+                <motion.dialog
+                  open
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={label}
+                  className={`
                   mb-5 sm:rounded-lg bg-white text-gray-900 shadow-lg scrollbar-thin scrollbar-thumb-indigo-600
                   overflow-y-auto overflow-x-clip
                   absolute left-1/2 absolute-center-x
                   w-full sm:w-11/12 lg:w-2/3 xl:w-1/2
                   h-full sm:h-auto sm:max-h-[85%] lg:max-h-[80%] min-h-0
                 `}
-                initial={{ scale: 0.9 }}
-                animate={{
-                  scale: 1,
-                  top: isWiderThanSmall ? "12%" : "0",
-                }}
-                exit={{ scale: 0.9, top: 0 }}
-              >
-                {children}
-              </motion.dialog>
-            </motion.div>
-          </FloatingFocusManager>
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1, top: isWiderThanSmall ? "12%" : "0" }}
+                  exit={{ scale: 0.9, top: 0 }}
+                >
+                  {children}
+                </motion.dialog>
+              </motion.div>
+            </FloatingFocusManager>
+          </FloatingOverlay>
         </FloatingPortal>
       )}
     </AnimatePresence>

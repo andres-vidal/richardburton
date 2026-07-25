@@ -14,11 +14,11 @@ import {
 } from "@floating-ui/react";
 import CheckIcon from "assets/check.svg";
 import ChevronDownIcon from "assets/chevron-down.svg";
-import { Publication, type PublicationKey } from "modules/publication/model";
 import {
   useHiddenAttributes,
   useIsAttributeVisible,
 } from "modules/publication/hooks";
+import { Publication, type PublicationKey } from "modules/publication/model";
 import {
   resetAttributes,
   setAttributesVisible,
@@ -71,6 +71,7 @@ const ColumnMenu: FC = () => {
     open: isOpen,
     onOpenChange: setIsOpen,
     placement: "bottom-end",
+    strategy: "fixed",
     middleware: [offset(4), flip({ padding: 8 }), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
   });
@@ -88,7 +89,7 @@ const ColumnMenu: FC = () => {
         type="button"
         aria-haspopup="true"
         aria-expanded={isOpen}
-        className="flex gap-2 items-center px-3 py-2.5 text-sm text-gray-700 whitespace-nowrap bg-white rounded border border-gray-300 outline-none transition-colors hover:bg-gray-100 aria-[expanded=true]:bg-gray-100 focus-visible:ring-2 focus-visible:ring-indigo-500"
+        className="flex gap-2 items-center px-3 py-2.5 text-sm text-gray-700 whitespace-nowrap bg-white rounded border border-gray-300 transition-colors focus-ring hover:bg-gray-100 aria-expanded:bg-gray-100"
       >
         Columns
         {hiddenCount > 0 && (

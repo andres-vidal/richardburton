@@ -66,6 +66,10 @@ body {
   @apply font-normal text-indigo-600 underline visited:text-indigo-700;
 }
 
+@utility focus-ring {
+  @apply outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white;
+}
+
 @utility absolute-center-x {
   @apply left-1/2 -translate-x-1/2;
 }

@@ -4,6 +4,7 @@ defmodule RichardBurton.TranslatedBook do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import RichardBurton.Validation
 
   alias RichardBurton.Author
   alias RichardBurton.FlatPublication
@@ -44,6 +45,7 @@ defmodule RichardBurton.TranslatedBook do
     |> cast_assoc(:authors, required: true)
     |> cast_assoc(:original_book, required: true)
     |> validate_length(:authors, min: 1)
+    |> validate_no_duplicates(:authors, :name)
     |> OriginalBook.link_fingerprint()
     |> Author.link_fingerprint()
     |> unique_constraint(

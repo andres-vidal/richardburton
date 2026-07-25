@@ -4,7 +4,7 @@ import { Publication, PublicationId, PublicationKey } from "./model";
 import {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
-  deletedCountAtom,
+  discardedCountAtom,
   errorDescriptionFamily,
   errorFamily,
   fieldErrorDescriptionFamily,
@@ -115,8 +115,8 @@ function useValidPublicationCount() {
   return useAtomValue(validCountAtom);
 }
 
-function useDeletedPublicationCount() {
-  return useAtomValue(deletedCountAtom);
+function useDiscardedPublicationCount() {
+  return useAtomValue(discardedCountAtom);
 }
 
 function useOverriddenPublicationCount() {
@@ -169,7 +169,7 @@ function useAreRowIdsVisible(): [
 
 export {
   useAreRowIdsVisible,
-  useDeletedPublicationCount,
+  useDiscardedPublicationCount,
   useHiddenAttributes,
   useIsAttributeVisible,
   useIsIndexLoading,

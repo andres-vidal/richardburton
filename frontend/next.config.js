@@ -8,6 +8,15 @@ const nextConfig = {
   // shared `.next` (each Playwright worker sets E2E_DIST_DIR). Defaults to `.next`.
   distDir: process.env.E2E_DIST_DIR || ".next",
 
+  // …and its own tsconfig while it is at it. Next writes the build directory's
+  // generated route types into the `include` of whichever config it is handed,
+  // so pointing E2E at the real one left `tsconfig.json` dirty after every run.
+  // A separate file absorbs that, and keeps `tsc` from type-checking throwaway
+  // builds — including the stale ones an earlier branch left behind.
+  typescript: process.env.E2E_DIST_DIR
+    ? { tsconfigPath: "tsconfig.e2e.json" }
+    : {},
+
   // Import SVGs as React components. Turbopack (Next 16's default bundler) runs
   // the @svgr/webpack loader via turbopack.rules; the webpack block is the
   // equivalent for `next build --webpack`.

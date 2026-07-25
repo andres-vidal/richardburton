@@ -1,0 +1,35 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DiscardStories from "./PublicationDiscard.stories";
+
+<Meta of={DiscardStories} />
+
+# Publication discard
+
+A danger button in the review toolbar that removes the currently selected rows.
+Its label tracks the selection size ("Discard 2"), and on click it marks those ids
+as discarded in the store (`setDiscarded`) and clears the selection.
+
+## Data source
+
+The button bridges two pieces of state. The selection comes from
+`react-selection-manager` (`useSelectionSize` for the label, `getSelection` for
+the ids on click), while the discard itself is a **state-driven** write to the
+publication store via `setDiscarded` — discarded rows drop out of the visible set
+everywhere. In stories the publication store is seeded through the shared
+fixtures:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications before the story renders
+```
+
+<Canvas of={DiscardStories.Default} />
+
+## States
+
+- **Nothing selected** — the sample above: the button still renders and reads
+  "Discard 0". Clicking it is a safe no-op (it bails out when no ids are selected).
+- **Rows selected** — the label counts up ("Discard 2"); clicking marks those ids
+  discarded and clears the selection.

@@ -1,0 +1,40 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationHistoryStories from "./PublicationHistory.stories";
+
+<Meta of={PublicationHistoryStories} />
+
+# Publication history
+
+A publication's mutation log, newest first: each entry names the action
+(created / updated / deleted / restored), the acting user, and the date, and
+**updates state exactly what changed**: scalar fields as `old → new`, and
+references as the precise entries added (+) and removed (−) — or a reorder, when
+the same entries merely moved.
+
+The data comes from the append-only `publication_history` log
+(`GET /publications/:id/history`, admin-only). The server computes each diff
+against the previous version of that record and sends it **structurally** —
+field keys and raw values, no labels — and the data layer turns that into
+labelled, ordered changes on the way in (`presentChanges`). So this component
+never diffs anything: it renders `entry.changes` as given. The
+[publication modal](?path=/docs/publications-publication-modal--docs) hosts it
+in a collapsed, lazily-fetched "History" section for admins.
+
+Styling is deliberately quiet here — no card chrome, smaller type, compact
+badges — because inside the modal the log is a supporting detail within an
+already-framed dialog. The standalone
+[history feed](?path=/docs/publications-publication-history-feed--docs) renders
+the same entries as full cards, where they _are_ the page's subject.
+
+<Canvas of={PublicationHistoryStories.Default} />
+
+## States
+
+- **Default** — the stream above: a full lifecycle whose updates carry exact,
+  attributed diffs (a retitle, a reference added, that reference later replaced)
+  and no diff rows for delete/restore (nothing changed field-wise).
+- **Empty** — records created before the history log exist have no entries;
+  the absence is stated rather than hidden.
+
+<Canvas of={PublicationHistoryStories.Empty} />

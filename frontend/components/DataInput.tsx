@@ -24,6 +24,22 @@ const COMPONENTS_PER_TYPE: Record<PublicationKeyType, FC<Props>> = {
   array: TextArrayDataInput,
 };
 
+/**
+ * Types whose change is a discrete commit — a chip added, an option picked —
+ * rather than a keystroke. They validate immediately, because the user has
+ * finished saying what they mean and may never blur the field: a combobox
+ * keeps focus after a selection, so waiting for blur leaves the row looking
+ * valid until some *other* field is touched.
+ *
+ * Typed fields (`text`, `number`) wait for blur instead, since `validate` is a
+ * server call and validating per keystroke would mean a request per character.
+ */
+const VALIDATES_ON_CHANGE: PublicationKeyType[] = [
+  "array",
+  "enum",
+  "enumArray",
+];
+
 type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
   ref?: Ref<HTMLElement>;
   rowId: PublicationId;
@@ -37,10 +53,17 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
   onValidate?: () => void;
   fill?: boolean;
   bordered?: boolean;
+  /**
+   * How a field's error reaches the reader. The workspace table has no room
+   * for a message under a cell — it would reflow the grid — so there the
+   * tinted cell is the signal and the tooltip carries the detail. A form has
+   * the room, and an error nobody hovers is an error nobody reads.
+   */
+  errorDisplay?: "tooltip" | "inline";
 };
 
 const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
-  { onValidate, ...props },
+  { onValidate, errorDisplay, ...props },
   ref,
 ) {
   const {
@@ -65,7 +88,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
 
   function handleChange(value: string) {
     overrideField(rowId, colId, value);
-    if (type == "array" || type == "enum") {
+    if (VALIDATES_ON_CHANGE.includes(type)) {
       doValidate();
     }
     onChange?.(value);
@@ -76,20 +99,31 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
     onBlur?.(event);
   }
 
-  return (
+  const field = (
+    <Component
+      {...props}
+      {...Publication.define(colId)}
+      ref={ref}
+      value={data}
+      onBlur={handleBlur}
+      onChange={handleChange}
+      placeholder={placeholder}
+      error={error}
+      fill
+      bordered
+    />
+  );
+
+  return errorDisplay === "inline" ? (
+    <div className="flex flex-col gap-1">
+      {field}
+      <p role="alert" className="min-h-4 text-xs text-red-700">
+        {error}
+      </p>
+    </div>
+  ) : (
     <Tooltip variant="error" message={props.error}>
-      <Component
-        {...props}
-        {...Publication.define(colId)}
-        ref={ref}
-        value={data}
-        onBlur={handleBlur}
-        onChange={handleChange}
-        placeholder={placeholder}
-        error={error}
-        fill
-        bordered
-      />
+      {field}
     </Tooltip>
   );
 });

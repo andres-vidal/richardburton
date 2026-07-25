@@ -1,0 +1,31 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ConfirmationModalStories from "./ConfirmationModal.stories";
+
+<Meta of={ConfirmationModalStories} />
+
+# Confirmation modal
+
+A guard in front of a destructive action. It names what is about to happen
+(`title`), spells out the consequence (`message`), and waits for an explicit
+choice: the confirm button uses the danger variant, and cancelling — via the
+button, the overlay, or <kbd>Esc</kbd> — backs out without consequence.
+
+Built on [`Modal`](?path=/docs/components-modal--docs); the dialog's accessible
+name is the `title`, so tests and screen readers address it directly.
+
+<Canvas of={ConfirmationModalStories.Default} />
+
+## Usage
+
+Controlled by the caller: pair it with `useModal()` and flip `loading` while
+the confirmed action is in flight — the confirm button shows a spinner and
+disables itself, while Cancel stays available.
+
+Used by the
+[publication modal](?path=/docs/publications-publication-modal--docs)'s
+server-side delete.
+
+## States
+
+<Canvas of={ConfirmationModalStories.Loading} />

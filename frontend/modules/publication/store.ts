@@ -62,7 +62,7 @@ const errorFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<PublicationError>(null),
 );
 
-const deletedFamily = atomFamily((_id: PublicationId) =>
+const discardedFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<boolean>(false),
 );
 
@@ -77,11 +77,11 @@ const attributeVisibleFamily = atomFamily((key: PublicationKey) =>
 // --- Derived atoms ----------------------------------------------------------
 
 const visibleIdsAtom = atom((get) =>
-  get(publicationIdsAtom)?.filter((id) => !get(deletedFamily(id))),
+  get(publicationIdsAtom)?.filter((id) => !get(discardedFamily(id))),
 );
 
-const deletedIdsAtom = atom((get) =>
-  get(publicationIdsAtom)?.filter((id) => get(deletedFamily(id))),
+const discardedIdsAtom = atom((get) =>
+  get(publicationIdsAtom)?.filter((id) => get(discardedFamily(id))),
 );
 
 const overriddenIdsAtom = atom((get) =>
@@ -90,12 +90,12 @@ const overriddenIdsAtom = atom((get) =>
 
 const validIdsAtom = atom((get) =>
   get(publicationIdsAtom)
-    ?.filter((id) => !get(deletedFamily(id)))
+    ?.filter((id) => !get(discardedFamily(id)))
     .filter((id) => !get(errorFamily(id))),
 );
 
 const visibleCountAtom = atom((get) => get(visibleIdsAtom)?.length || 0);
-const deletedCountAtom = atom((get) => get(deletedIdsAtom)?.length || 0);
+const discardedCountAtom = atom((get) => get(discardedIdsAtom)?.length || 0);
 const overriddenCountAtom = atom((get) => get(overriddenIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
@@ -223,8 +223,8 @@ function setErrors(entries: PublicationEntry[]): void {
   entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
 }
 
-function setDeleted(ids: PublicationId[], isDeleted = true): void {
-  ids.forEach((id) => store.set(deletedFamily(id), isDeleted));
+function setDiscarded(ids: PublicationId[], isDeleted = true): void {
+  ids.forEach((id) => store.set(discardedFamily(id), isDeleted));
 }
 
 function setFocusedRowId(id: PublicationId | undefined): void {
@@ -300,7 +300,7 @@ function resetAll(): void {
     store.set(publicationFamily(id), RESET);
     store.set(overrideFamily(id), RESET);
     store.set(errorFamily(id), RESET);
-    store.set(deletedFamily(id), RESET);
+    store.set(discardedFamily(id), RESET);
     store.set(lastValidatedFamily(id), RESET);
   });
   store.set(overrideFamily(DRAFT_ID), RESET);
@@ -310,10 +310,37 @@ function resetAll(): void {
   store.set(isIndexLoadingAtom, false);
 }
 
-function resetDeleted(): void {
+function resetDiscarded(): void {
   store
-    .get(deletedIdsAtom)
-    ?.forEach((id) => store.set(deletedFamily(id), RESET));
+    .get(discardedIdsAtom)
+    ?.forEach((id) => store.set(discardedFamily(id), RESET));
+}
+
+/**
+ * Drop a publication that no longer exists on the server (after a server-side
+ * delete): remove its id from the index and reset its per-row state. Distinct
+ * from the workspace's `setDiscarded`, which only hides rows in memory.
+ */
+function removePublication(id: PublicationId): void {
+  const ids = store.get(publicationIdsAtom);
+  if (ids) {
+    store.set(
+      publicationIdsAtom,
+      ids.filter((current) => current !== id),
+    );
+  }
+
+  store.set(publicationFamily(id), RESET);
+  store.set(overrideFamily(id), RESET);
+  store.set(errorFamily(id), RESET);
+  store.set(discardedFamily(id), RESET);
+  store.set(lastValidatedFamily(id), RESET);
+
+  // Keep the footer's "N publications registered" honest without a refetch.
+  const total = store.get(totalIndexCountAtom);
+  if (total !== null) {
+    store.set(totalIndexCountAtom, total - 1);
+  }
 }
 
 function resetOverridden(): void {
@@ -348,7 +375,7 @@ export {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
   createId,
-  deletedCountAtom,
+  discardedCountAtom,
   discardEdit,
   duplicate,
   errorDescriptionFamily,
@@ -372,13 +399,14 @@ export {
   publicationIdsAtom,
   publicationOrNullFamily,
   publicationReferencesFamily,
+  removePublication,
   resetAll,
   resetAttributes,
-  resetDeleted,
+  resetDiscarded,
   resetOverridden,
   setAll,
   setAttributesVisible,
-  setDeleted,
+  setDiscarded,
   setErrors,
   setFocusedRowId,
   setPublications,

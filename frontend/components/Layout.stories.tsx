@@ -57,3 +57,27 @@ export const AllSlots: Story = {
     await expect(canvas.getByText("Footer slot")).toBeInTheDocument();
   },
 };
+
+/**
+ * `measure="centered"` holds the subheader and the content to one column, so a
+ * page's breadcrumb and title line up with what they introduce. Without it a
+ * narrow page reads as misaligned: the heading sits at the viewport edge while
+ * the content floats in the middle.
+ */
+export const CenteredMeasure: Story = {
+  args: {
+    measure: "centered",
+    subheader: <div data-testid="subheader">Breadcrumb and title</div>,
+    content: <div data-testid="content">Page content</div>,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    // Both regions share a left edge — that is the whole point of the measure.
+    const subheader = canvas.getByTestId("subheader").getBoundingClientRect();
+    const content = canvas.getByTestId("content").getBoundingClientRect();
+
+    await expect(Math.abs(subheader.left - content.left)).toBeLessThan(2);
+    await expect(Math.abs(subheader.right - content.right)).toBeLessThan(2);
+  },
+};

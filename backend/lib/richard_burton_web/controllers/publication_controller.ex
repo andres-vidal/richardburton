@@ -3,6 +3,7 @@ defmodule RichardBurtonWeb.PublicationController do
 
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
+  alias RichardBurton.User
 
   def index(conn, %{"search" => query}) do
     {:ok, results, keywords} = Publication.Index.search(query)
@@ -78,7 +79,7 @@ defmodule RichardBurtonWeb.PublicationController do
     {status, response_body} =
       entries
       |> Publication.Codec.nest()
-      |> Publication.insert_all()
+      |> Publication.insert_all(actor(conn))
       |> case do
         {:ok, publications} ->
           {:created, publications}
@@ -98,7 +99,7 @@ defmodule RichardBurtonWeb.PublicationController do
       params
       |> Map.delete("id")
       |> Publication.Codec.nest()
-      |> then(&Publication.update(id, &1))
+      |> then(&Publication.update(id, &1, actor(conn)))
       |> case do
         {:ok, publication} ->
           {:ok, Publication.Codec.flatten(publication)}
@@ -114,6 +115,92 @@ defmodule RichardBurtonWeb.PublicationController do
       end
 
     conn |> put_status(status) |> json(body)
+  end
+
+  def delete(conn, %{"id" => id}) do
+    case Publication.delete(id, actor(conn)) do
+      {:ok, _publication} ->
+        send_resp(conn, :no_content, "")
+
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: :not_found})
+    end
+  end
+
+  # A publication's mutation stream, newest first, for the admin history viewer.
+  # Records created before the history log simply have no entries.
+  def history(conn, %{"id" => id}) do
+    json(conn, %{entries: id |> Publication.History.of() |> Enum.map(&serialize_history/1)})
+  end
+
+  # Every recorded change across the catalogue, newest first — the admin feed.
+  def history(conn, _params) do
+    json(conn, %{entries: Publication.History.all() |> Enum.map(&serialize_history/1)})
+  end
+
+  # Undo one recorded change. The server decides whether the entry is still
+  # reconcilable and what the compensating action is; the client only names the
+  # entry. A version that is not a number cannot match a row, so it reads as a
+  # miss rather than an error.
+  def undo(conn, %{"id" => id, "version" => version}) do
+    case Integer.parse(version) do
+      {version, ""} ->
+        case Publication.undo(id, version, actor(conn)) do
+          {:ok, _publication} -> send_resp(conn, :no_content, "")
+          {:error, :not_found} -> conn |> put_status(:not_found) |> json(%{error: :not_found})
+          {:error, :conflict} -> conn |> put_status(:conflict) |> json(%{error: :conflict})
+          {:error, errors} -> conn |> put_status(:bad_request) |> json(%{errors: errors})
+        end
+
+      _ ->
+        conn |> put_status(:not_found) |> json(%{error: :not_found})
+    end
+  end
+
+  # The publications that are *currently* deleted — the trash's own state,
+  # not the history of deletions (a record deleted, restored, and deleted
+  # again is one tombstone but three entries in the log).
+  def index_deleted(conn, _params) do
+    entries =
+      Enum.map(
+        Publication.all_deleted(),
+        &%{publication: Publication.Codec.flatten(&1), deleted_at: &1.deleted_at}
+      )
+
+    json(conn, %{entries: entries})
+  end
+
+  def restore(conn, %{"id" => id}) do
+    case Publication.restore(id, actor(conn)) do
+      {:ok, _publication} ->
+        send_resp(conn, :no_content, "")
+
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: :not_found})
+
+      # The same record was imported again while this one sat in the trash.
+      {:error, :conflict} ->
+        conn |> put_status(:conflict) |> json(%{error: :conflict})
+    end
+  end
+
+  defp serialize_history(entry) do
+    %{
+      publication_id: entry.publication_id,
+      version: entry.version,
+      action: entry.action,
+      actor: entry.actor,
+      snapshot: entry.snapshot,
+      diff: entry.diff,
+      undoable: entry.undoable,
+      timestamp: entry.inserted_at
+    }
+  end
+
+  # Admin mutations are recorded in the publication history under the acting
+  # user's email; subject_id is assigned by the authentication plug.
+  defp actor(conn) do
+    User.get(conn.assigns.subject_id).email
   end
 
   def validate(conn, %{"csv" => %Plug.Upload{path: path}}) do

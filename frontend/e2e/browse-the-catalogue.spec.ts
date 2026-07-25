@@ -1,5 +1,7 @@
 import { test, expect } from "./fixtures";
 import {
+  openPublicationModal,
+  signOut,
   seedCorpus,
   signInAsAdmin,
   submitWorkspace,
@@ -87,4 +89,21 @@ test("a large index virtualizes: far rows render as they scroll into view", asyn
   await expect(table.getByText(LAST_TITLE)).toHaveCount(0);
   await table.getByRole("row").last().scrollIntoViewIfNeeded();
   await expect(table.getByText(LAST_TITLE)).toBeVisible();
+});
+
+test("a signed-out reader sees publication details read-only, references included", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  // Sign out from the home footer (the admin workspace footer has no session controls).
+  await page.goto("/");
+  await signOut(page);
+
+  const dialog = await openPublicationModal(page, "The Hour of the Star");
+  // Provenance is public: the reference shows in the read view…
+  await expect(
+    dialog.getByText("Pontiero, Giovanni. Afterword."),
+  ).toBeVisible();
+  // …but editing is admin-only.
+  await expect(dialog.getByRole("button", { name: "Edit" })).toHaveCount(0);
 });

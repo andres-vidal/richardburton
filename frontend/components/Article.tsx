@@ -23,7 +23,7 @@ const Article: FC<Props> = ({ content, heading, aside, noSeparator }) => {
           data-[aside=false]:w-full
         `}
       >
-        <header className="sticky top-10 z-30 py-2 w-full text-2xl bg-white sm:top-4">
+        <header className="sticky top-10 z-40 py-2 w-full text-2xl bg-white sm:top-4">
           <h1 className="flex gap-2 items-center w-full text-2xl font-normal">
             {heading}
           </h1>

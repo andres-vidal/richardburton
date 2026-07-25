@@ -1,0 +1,38 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ResetDiscardedStories from "./ResetDiscarded.stories";
+
+<Meta of={ResetDiscardedStories} />
+
+# Reset discarded
+
+An undo affordance for discarded rows in the workspace. When one or more rows
+have been discarded, this button appears and restores them all at once,
+labelled with the count — e.g. "Reset 3 discarded".
+
+## Data source
+
+The button is **state-driven**: it takes no props. It reads the discarded count
+from the store (`useDiscardedPublicationCount`) and **renders nothing when the
+count is zero** — it only shows once at least one row is discarded. Clicking calls
+`resetDiscarded()` to restore the rows and clears the current selection. In
+stories the store is seeded through the shared fixtures, and a story-only "Discard
+a row" control marks the first visible row discarded so the button can be
+exercised on its own:
+
+```tsx
+import { seed } from "modules/publication/fixtures";
+
+seed(); // load the sample publications, then discard a row to reveal the button
+```
+
+<Canvas of={ResetDiscardedStories.Default} />
+
+## States
+
+- **Hidden** — the default with nothing discarded: the component returns `null`
+  and there is no button.
+- **Visible** — after a row is discarded, the button appears showing the discarded
+  count; clicking it restores the rows and hides the button again. The Default
+  story walks this full round-trip: discard a row, reset, and the button
+  disappears.

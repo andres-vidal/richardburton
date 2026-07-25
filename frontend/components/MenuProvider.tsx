@@ -1,8 +1,12 @@
 "use client";
 
 import {
+  autoUpdate,
+  flip,
   FloatingFocusManager,
   FloatingPortal,
+  offset,
+  shift,
   size,
   useDismiss,
   useFloating,
@@ -27,6 +31,8 @@ type Props<OptionType extends Option | string> = {
   setIsOpen: (value: boolean) => void;
   setActiveIndex: (value: number | null) => void;
   onSelect: (option: OptionType) => void;
+  /** Shown in place of the list when there is nothing to offer. */
+  emptyMessage?: string;
 };
 
 const MenuProvider = <OptionType extends Option | string>({
@@ -38,19 +44,24 @@ const MenuProvider = <OptionType extends Option | string>({
   setActiveIndex,
   onSelect,
   bordered,
+  emptyMessage,
 }: Props<OptionType>) => {
   const listRef = useRef<(HTMLLIElement | null)[]>([]);
 
-  const { x, y, strategy, refs, context } = useFloating<HTMLDivElement>({
+  const { refs, floatingStyles, context } = useFloating<HTMLDivElement>({
     open: isOpen,
     onOpenChange: setIsOpen,
     placement: "bottom-start",
+    strategy: "fixed",
+    whileElementsMounted: autoUpdate,
     middleware: [
+      offset(4),
+      flip({ padding: 8 }),
+      shift({ padding: 8 }),
       size({
-        apply({ rects, elements }) {
-          Object.assign(elements.floating.style, {
-            width: `${rects.reference.width}px`,
-          });
+        apply({ rects, elements, availableHeight }) {
+          elements.floating.style.width = `${rects.reference.width}px`;
+          elements.floating.style.maxHeight = `${Math.max(availableHeight, 96)}px`;
         },
         padding: 10,
       }),
@@ -77,6 +88,7 @@ const MenuProvider = <OptionType extends Option | string>({
   const childProps = children.props as Record<string, unknown> & {
     ref?: Ref<unknown>;
   };
+
   const ref = useMemo(
     () => mergeRefs([refs.setReference, childProps.ref]),
     [refs.setReference, childProps.ref],
@@ -102,31 +114,36 @@ const MenuProvider = <OptionType extends Option | string>({
             <Menu
               ref={refs.setFloating}
               bordered={bordered}
-              {...getFloatingProps({
-                style: {
-                  position: strategy,
-                  top: y ?? 0,
-                  left: x ?? 0,
-                },
-              })}
+              {...getFloatingProps({ style: floatingStyles })}
             >
-              {options.map((option, index) => (
-                <MenuItem
-                  key={isString(option) ? option : option.id}
-                  ref={(node) => {
-                    listRef.current[index] = node;
-                  }}
-                  selected={activeIndex === index}
-                  {...getItemProps({
-                    onClick: () => {
-                      setIsOpen(false);
-                      onSelect(option);
-                    },
-                  })}
+              {options.length === 0 && emptyMessage ? (
+                <li
+                  role="option"
+                  aria-disabled="true"
+                  aria-selected="false"
+                  className="px-3 py-2 text-sm text-gray-600"
                 >
-                  {isString(option) ? option : option.label}
-                </MenuItem>
-              ))}
+                  {emptyMessage}
+                </li>
+              ) : (
+                options.map((option, index) => (
+                  <MenuItem
+                    key={isString(option) ? option : option.id}
+                    ref={(node) => {
+                      listRef.current[index] = node;
+                    }}
+                    selected={activeIndex === index}
+                    {...getItemProps({
+                      onClick: () => {
+                        setIsOpen(false);
+                        onSelect(option);
+                      },
+                    })}
+                  >
+                    {isString(option) ? option : option.label}
+                  </MenuItem>
+                ))
+              )}
             </Menu>
           </FloatingFocusManager>
         )}
