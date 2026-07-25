@@ -42,10 +42,10 @@ test("an admin bulk-inserts publications with references from the workspace", as
   await expect(duplicatedRows).toHaveCount(2);
 
   await duplicatedRows.nth(1).getByRole("cell").first().click();
-  await page.getByRole("button", { name: "Delete 1" }).click();
+  await page.getByRole("button", { name: "Discard 1" }).click();
   await expect(duplicatedRows).toHaveCount(1);
   await expect(
-    page.getByRole("button", { name: "Reset 1 deleted" }),
+    page.getByRole("button", { name: "Reset 1 discarded" }),
   ).toBeVisible();
 
   // One submit persists the whole batch.

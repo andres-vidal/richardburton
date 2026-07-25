@@ -79,7 +79,7 @@ test("a duplicate of an existing publication is flagged as a conflict", async ({
     .getByRole("cell")
     .first()
     .click({ position: { x: 4, y: 4 } });
-  await page.getByRole("button", { name: "Delete 1" }).click();
+  await page.getByRole("button", { name: "Discard 1" }).click();
 
   await expect(page.getByLabel("All publications are valid")).toBeVisible();
   await submitWorkspace(page, 1);
