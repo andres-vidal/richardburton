@@ -32,3 +32,15 @@ test("an admin signs in and out, and the footer controls follow", async ({
   await expect(page.getByRole("button", { name: "Admin" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
 });
+
+test("a signed-out visitor cannot reach the admin workspace", async ({
+  page,
+}) => {
+  await page.goto("/admin/publications/new");
+
+  // The guard bounces the visitor back to the public index.
+  await expect(page).toHaveURL("/");
+  await expect(
+    page.getByRole("heading", { name: "Add publications" }),
+  ).toHaveCount(0);
+});
