@@ -6,7 +6,9 @@ defmodule RichardBurton.PublicationTest do
   use RichardBurton.DataCase
 
   alias RichardBurton.Country
+  alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
+  alias RichardBurton.Publication.History
   alias RichardBurton.Reference
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Util
@@ -446,6 +448,184 @@ defmodule RichardBurton.PublicationTest do
       {:ok, updated} = Publication.update(publication.id, @valid_attrs)
 
       assert ["A source"] == Enum.map(updated.references, & &1.content)
+    end
+  end
+
+  describe "duplicate entries in multi-value fields" do
+    # Without validation these reach the join tables' unique indexes and raise
+    # there, turning a data-entry slip into a 500.
+    test "a repeated country is rejected" do
+      attrs = Map.put(@valid_attrs, "countries", [%{"code" => "GB"}, %{"code" => "GB"}])
+
+      assert {:error, %{countries: :duplicate}} = Publication.insert(attrs)
+    end
+
+    test "a repeated publisher is rejected" do
+      attrs =
+        Map.put(@valid_attrs, "publishers", [
+          %{"name" => "Bickers & Son"},
+          %{"name" => "Bickers & Son"}
+        ])
+
+      assert {:error, %{publishers: :duplicate}} = Publication.insert(attrs)
+    end
+
+    test "a repeated translator is rejected" do
+      attrs =
+        Util.deep_merge_maps(@valid_attrs, %{
+          "translated_book" => %{
+            "authors" => [%{"name" => "Richard Burton"}, %{"name" => "Richard Burton"}]
+          }
+        })
+
+      # Nested errors collapse to their innermost map; translators keep the
+      # flat name the client knows them by.
+      assert {:error, %{authors: :duplicate}} = Publication.insert(attrs)
+    end
+
+    test "a repeated original author is rejected" do
+      attrs =
+        Util.deep_merge_maps(@valid_attrs, %{
+          "translated_book" => %{
+            "original_book" => %{
+              "authors" => [
+                %{"name" => "J. M. Pereira da Silva"},
+                %{"name" => "J. M. Pereira da Silva"}
+              ]
+            }
+          }
+        })
+
+      # Reported as `original_authors`, not `authors`: otherwise it would be
+      # indistinguishable from a duplicate translator and point the admin at
+      # the wrong column.
+      assert {:error, %{original_authors: :duplicate}} = Publication.insert(attrs)
+    end
+
+    test "distinct entries in the same field are fine" do
+      attrs = Map.put(@valid_attrs, "countries", [%{"code" => "GB"}, %{"code" => "US"}])
+
+      assert {:ok, publication} = Publication.insert(attrs)
+      assert 2 == length(publication.countries)
+    end
+
+    test "an edit that introduces a duplicate is rejected" do
+      publication = insert_publication()
+      attrs = Map.put(@valid_attrs, "countries", [%{"code" => "GB"}, %{"code" => "GB"}])
+
+      assert {:error, %{countries: :duplicate}} = Publication.update(publication.id, attrs)
+    end
+  end
+
+  describe "saving a publication unchanged" do
+    test "records no history entry and leaves the record alone" do
+      publication = insert_publication()
+
+      assert {:ok, _} = Publication.update(publication.id, @valid_attrs)
+      assert {:ok, _} = Publication.update(publication.id, @valid_attrs)
+
+      # Only the creation; re-saving identical data is not an event.
+      assert ["created"] == Enum.map(History.of(publication.id), & &1.action)
+    end
+
+    test "a real edit after a no-op save is still recorded" do
+      publication = insert_publication()
+
+      {:ok, _} = Publication.update(publication.id, @valid_attrs)
+      {:ok, _} = Publication.update(publication.id, Map.put(@valid_attrs, "year", 1999))
+
+      # Newest first, as the log reads everywhere.
+      assert ["updated", "created"] == Enum.map(History.of(publication.id), & &1.action)
+    end
+
+    test "a reference-only edit is recorded, despite identical scalar fields" do
+      publication = insert_publication()
+
+      {:ok, _} =
+        Publication.update(
+          publication.id,
+          Map.put(@valid_attrs, "references", [%{"content" => "A source", "position" => 0}])
+        )
+
+      assert ["updated", "created"] == Enum.map(History.of(publication.id), & &1.action)
+    end
+  end
+
+  describe "delete/2" do
+    test "soft-deletes: the flat view hides the publication but the row survives" do
+      publication = insert_publication()
+      assert [_] = Repo.all(FlatPublication)
+
+      assert {:ok, %Publication{}} = Publication.delete(publication.id)
+
+      assert [] == Repo.all(FlatPublication)
+      assert %Publication{deleted_at: %DateTime{}} = Repo.get(Publication, publication.id)
+    end
+
+    test "keeps shared entities and owned references" do
+      publication =
+        insert_publication(
+          Map.put(@valid_attrs, "references", [%{"content" => "A source", "position" => 0}])
+        )
+
+      countries = Repo.all(Country)
+      translated_books = Repo.all(TranslatedBook)
+
+      {:ok, _} = Publication.delete(publication.id)
+
+      # Nothing cascades: shared entities and the tombstone's references stay.
+      assert countries == Repo.all(Country)
+      assert translated_books == Repo.all(TranslatedBook)
+      assert ["A source"] == Repo.all(Reference) |> Enum.map(& &1.content)
+    end
+
+    test "frees the composite key: the same record can be imported again" do
+      publication = insert_publication()
+      {:ok, _} = Publication.delete(publication.id)
+
+      assert {:ok, reimported} = Publication.insert(@valid_attrs)
+      assert reimported.id != publication.id
+
+      # Exactly one live row; the tombstone stays underneath.
+      assert [%{id: live_id}] = Repo.all(FlatPublication)
+      assert live_id == reimported.id
+      assert 2 == Repo.aggregate(Publication, :count)
+    end
+
+    test "returns :not_found for a missing or already-deleted publication" do
+      publication = insert_publication()
+      {:ok, _} = Publication.delete(publication.id)
+
+      assert {:error, :not_found} = Publication.delete(publication.id)
+      assert {:error, :not_found} = Publication.delete(-1)
+    end
+
+    test "a deleted publication cannot be updated" do
+      publication = insert_publication()
+      {:ok, _} = Publication.delete(publication.id)
+
+      assert {:error, :not_found} = Publication.update(publication.id, @valid_attrs)
+    end
+  end
+
+  describe "restore/2" do
+    test "brings a deleted publication back into the flat view" do
+      publication = insert_publication()
+      {:ok, _} = Publication.delete(publication.id)
+      assert [] == Repo.all(FlatPublication)
+
+      assert {:ok, %Publication{}} = Publication.restore(publication.id)
+
+      assert [%{id: id}] = Repo.all(FlatPublication)
+      assert id == publication.id
+      assert %Publication{deleted_at: nil} = Repo.get(Publication, publication.id)
+    end
+
+    test "returns :not_found for a live or missing publication" do
+      publication = insert_publication()
+
+      assert {:error, :not_found} = Publication.restore(publication.id)
+      assert {:error, :not_found} = Publication.restore(-1)
     end
   end
 end

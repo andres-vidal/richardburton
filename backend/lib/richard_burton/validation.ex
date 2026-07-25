@@ -25,6 +25,38 @@ defmodule RichardBurton.Validation do
     {:error, get_errors(changeset)}
   end
 
+  @doc """
+  Rejects repeated entries in a cast association, comparing each child by
+  `key`. Without this a publication carrying the same country, publisher or
+  author twice reaches the join tables' unique indexes and raises there,
+  turning a data-entry slip into a 500.
+
+  Errors are reported under `field` unless `:as` names another key. Nested
+  errors collapse to their innermost map, so an original book's `authors`
+  would otherwise arrive indistinguishable from the translators' — `:as` puts
+  it under the flat name the client knows it by.
+  """
+  def validate_no_duplicates(changeset, field, key, opts \\ []) do
+    values =
+      changeset
+      |> Ecto.Changeset.get_field(field, [])
+      |> Enum.map(&get_child_value(&1, key))
+
+    if length(Enum.uniq(values)) == length(values) do
+      changeset
+    else
+      Ecto.Changeset.add_error(
+        changeset,
+        Keyword.get(opts, :as, field),
+        "has duplicates",
+        validation: :duplicate
+      )
+    end
+  end
+
+  defp get_child_value(child = %Ecto.Changeset{}, key), do: Ecto.Changeset.get_field(child, key)
+  defp get_child_value(child, key), do: Map.get(child, key)
+
   def get_errors(changeset) do
     changeset
     |> Ecto.Changeset.traverse_errors(&get_description/1)
@@ -38,6 +70,7 @@ defmodule RichardBurton.Validation do
   defp get_description(%{validation: :length, kind: :min, count: 1}), do: :required
   defp get_description(%{validation: :assoc}), do: :required
   defp get_description(%{validation: :alpha2}), do: :alpha2
+  defp get_description(%{validation: :duplicate}), do: :duplicate
   defp get_description(%{validation: :email}), do: :invalid
   defp get_description(%{constraint: :unique}), do: :conflict
 
