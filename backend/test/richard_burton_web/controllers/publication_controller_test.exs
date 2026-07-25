@@ -4,12 +4,19 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   """
   alias RichardBurton.FlatPublication
   use RichardBurtonWeb.ConnCase
-  import Routes, only: [publication_path: 2, publication_path: 3]
+  # Arity 4 carries a second path segment — the history version an undo names.
+  import Routes, only: [publication_path: 2, publication_path: 3, publication_path: 4]
 
   alias RichardBurton.Country
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
   alias RichardBurton.Reference
+
+  # Admin mutations resolve the acting user for the history log.
+  setup do
+    create_session_user()
+    :ok
+  end
 
   @publication_attrs %{
     "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
@@ -83,6 +90,273 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(conn, :create_all), %{"_json" => []})
 
       assert response(conn, 403)
+    end
+
+    test "rejects a DELETE without a CSRF token", %{conn: conn} do
+      conn =
+        conn
+        |> delete_req_header("rb-csrf-token")
+        |> delete(publication_path(conn, :delete, 1))
+
+      assert response(conn, 403)
+    end
+  end
+
+  describe "DELETE /publications/:id" do
+    setup(%{conn: conn}) do
+      {:ok, publication} =
+        @publication_attrs
+        |> Publication.Codec.nest()
+        |> Publication.insert()
+
+      [conn: conn, publication: publication]
+    end
+
+    test "soft-deletes the publication and returns 204", meta do
+      expect_auth_authorize_admin()
+
+      conn = delete(meta.conn, publication_path(meta.conn, :delete, meta.publication.id))
+      assert response(conn, 204)
+
+      # Gone from the index the readers see.
+      conn = get(build_conn(), publication_path(conn, :index))
+      assert %{"entries" => []} = json_response(conn, 200)
+    end
+
+    test "records the acting admin in the publication's history", meta do
+      expect_auth_authorize_admin()
+
+      conn = delete(meta.conn, publication_path(meta.conn, :delete, meta.publication.id))
+      assert response(conn, 204)
+
+      assert [%{action: "deleted", actor: actor}, _created] =
+               RichardBurton.Publication.History.of(meta.publication.id)
+
+      assert actor == session_user_email()
+    end
+
+    test "returns 404 for a missing publication", meta do
+      expect_auth_authorize_admin()
+
+      conn = delete(meta.conn, publication_path(meta.conn, :delete, -1))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
+    end
+
+    test "returns 404 for an already-deleted publication", meta do
+      expect_auth_authorize_admin(2)
+
+      conn = delete(meta.conn, publication_path(meta.conn, :delete, meta.publication.id))
+      assert response(conn, 204)
+
+      conn = delete(meta.conn, publication_path(meta.conn, :delete, meta.publication.id))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
+    end
+  end
+
+  describe "GET /publications/:id/history" do
+    setup(%{conn: conn}) do
+      {:ok, publication} =
+        @publication_attrs
+        |> Publication.Codec.nest()
+        |> Publication.insert("importer@example.com")
+
+      [conn: conn, publication: publication]
+    end
+
+    test "returns the ordered mutation stream with actors and snapshots", meta do
+      expect_auth_authorize_admin(2)
+
+      attrs = Map.put(@publication_attrs, "title", "Iracema, revised")
+
+      conn =
+        put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), attrs)
+
+      assert response(conn, 200)
+
+      conn = get(meta.conn, publication_path(meta.conn, :history, meta.publication.id))
+
+      # Newest first, so the viewer renders the response as it arrives.
+      assert %{"entries" => [updated, created]} = json_response(conn, 200)
+      assert %{"version" => 1, "action" => "created", "actor" => "importer@example.com"} = created
+      assert %{"version" => 2, "action" => "updated"} = updated
+      assert updated["actor"] == session_user_email()
+      assert created["snapshot"]["title"] =~ "Honey-Lips"
+      assert updated["snapshot"]["title"] == "Iracema, revised"
+      assert %{"timestamp" => _} = updated
+    end
+
+    test "reports whether each entry can still be undone", meta do
+      expect_auth_authorize_admin(2)
+
+      attrs = Map.put(@publication_attrs, "title", "Iracema, revised")
+      put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), attrs)
+
+      conn = get(meta.conn, publication_path(meta.conn, :history, meta.publication.id))
+
+      # The client is told, not left to work it out: the answer depends on the
+      # whole log, which a paginated client would not have.
+      assert %{"entries" => [%{"undoable" => true}, %{"undoable" => false}]} =
+               json_response(conn, 200)
+    end
+
+    test "returns no entries for an unknown publication", meta do
+      expect_auth_authorize_admin()
+
+      conn = get(meta.conn, publication_path(meta.conn, :history, -1))
+
+      assert %{"entries" => []} = json_response(conn, 200)
+    end
+  end
+
+  describe "GET /publications/history (catalogue-wide)" do
+    test "returns every recorded change, newest first, tagged with its publication", %{
+      conn: conn
+    } do
+      expect_auth_authorize_admin()
+
+      {:ok, first} =
+        @publication_attrs |> Publication.Codec.nest() |> Publication.insert("a@example.com")
+
+      {:ok, _second} =
+        @publication_attrs
+        |> Map.put("title", "Iracema, again")
+        |> Publication.Codec.nest()
+        |> Publication.insert("b@example.com")
+
+      conn = get(conn, publication_path(conn, :history))
+
+      assert %{"entries" => [newest, oldest]} = json_response(conn, 200)
+      assert %{"action" => "created", "actor" => "b@example.com"} = newest
+      assert oldest["publication_id"] == first.id
+      assert oldest["snapshot"]["title"] =~ "Honey-Lips"
+    end
+  end
+
+  describe "POST /publications/:id/history/:version/undo" do
+    setup(%{conn: conn}) do
+      {:ok, publication} =
+        @publication_attrs
+        |> Publication.Codec.nest()
+        |> Publication.insert("importer@example.com")
+
+      [conn: conn, publication: publication]
+    end
+
+    defp undo_path(conn, publication, version) do
+      publication_path(conn, :undo, publication.id, version)
+    end
+
+    test "undoes a recorded change and records the undo as its own entry", meta do
+      expect_auth_authorize_admin(3)
+
+      attrs = Map.put(@publication_attrs, "title", "Iracema, revised")
+      put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), attrs)
+
+      conn = post(meta.conn, undo_path(meta.conn, meta.publication, 2))
+      assert response(conn, 204)
+
+      conn = get(meta.conn, publication_path(meta.conn, :history, meta.publication.id))
+      assert %{"entries" => entries} = json_response(conn, 200)
+
+      # Three entries, not one: the log grew rather than losing the update.
+      assert ["updated", "updated", "created"] = Enum.map(entries, & &1["action"])
+      assert hd(entries)["snapshot"]["title"] == @publication_attrs["title"]
+      assert hd(entries)["actor"] == session_user_email()
+    end
+
+    test "refuses an entry that is no longer reconcilable", meta do
+      expect_auth_authorize_admin(3)
+
+      first = Map.put(@publication_attrs, "title", "First")
+      put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), first)
+
+      second = Map.put(@publication_attrs, "title", "Second")
+      put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), second)
+
+      # Undoing the first retitle would silently discard the second.
+      conn = post(meta.conn, undo_path(meta.conn, meta.publication, 2))
+      assert json_response(conn, 409) == %{"error" => "conflict"}
+    end
+
+    test "returns 404 for a version that was never recorded", meta do
+      expect_auth_authorize_admin()
+
+      conn = post(meta.conn, undo_path(meta.conn, meta.publication, 99))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
+    end
+  end
+
+  describe "POST /publications/:id/restore" do
+    setup(%{conn: conn}) do
+      {:ok, publication} =
+        @publication_attrs
+        |> Publication.Codec.nest()
+        |> Publication.insert()
+
+      {:ok, _} = Publication.delete(publication.id)
+
+      [conn: conn, publication: publication]
+    end
+
+    test "restores a deleted publication back into the index", meta do
+      expect_auth_authorize_admin()
+
+      conn = post(meta.conn, publication_path(meta.conn, :restore, meta.publication.id))
+      assert response(conn, 204)
+
+      conn = get(build_conn(), publication_path(conn, :index))
+      assert %{"entries" => [entry]} = json_response(conn, 200)
+      assert entry["title"] == @publication_attrs["title"]
+    end
+
+    test "the trash lists what is currently deleted, and a restore empties it", meta do
+      expect_auth_authorize_admin(3)
+
+      conn = get(meta.conn, publication_path(meta.conn, :index_deleted))
+
+      assert %{"entries" => [entry]} = json_response(conn, 200)
+      assert entry["publication"]["title"] == @publication_attrs["title"]
+      assert is_binary(entry["deleted_at"])
+
+      conn = post(meta.conn, publication_path(meta.conn, :restore, meta.publication.id))
+      assert response(conn, 204)
+
+      conn = get(meta.conn, publication_path(meta.conn, :index_deleted))
+      assert %{"entries" => []} = json_response(conn, 200)
+    end
+
+    test "a deleted, restored and re-deleted record is one tombstone, not three", meta do
+      expect_auth_authorize_admin(2)
+
+      {:ok, _} = Publication.restore(meta.publication.id)
+      {:ok, _} = Publication.delete(meta.publication.id)
+
+      conn = get(meta.conn, publication_path(meta.conn, :index_deleted))
+      assert %{"entries" => [_only_one]} = json_response(conn, 200)
+
+      # The log, by contrast, keeps every event.
+      conn = get(meta.conn, publication_path(meta.conn, :history))
+      assert %{"entries" => entries} = json_response(conn, 200)
+      assert 2 == Enum.count(entries, &(&1["action"] == "deleted"))
+    end
+
+    test "restoring is a conflict when the same record was imported again", meta do
+      expect_auth_authorize_admin()
+
+      {:ok, _twin} =
+        @publication_attrs
+        |> Publication.Codec.nest()
+        |> Publication.insert()
+
+      conn = post(meta.conn, publication_path(meta.conn, :restore, meta.publication.id))
+      assert json_response(conn, 409) == %{"error" => "conflict"}
+    end
+
+    test "restoring a live or unknown publication is not found", meta do
+      expect_auth_authorize_admin()
+
+      conn = post(meta.conn, publication_path(meta.conn, :restore, -1))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
     end
   end
 

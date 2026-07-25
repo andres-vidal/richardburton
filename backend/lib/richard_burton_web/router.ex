@@ -46,8 +46,15 @@ defmodule RichardBurtonWeb.Router do
     scope "/publications" do
       post("/bulk", PublicationController, :create_all)
       post("/validate", PublicationController, :validate)
+      # Literal paths before "/:id" ones, so "history"/"deleted" never bind as ids.
+      get("/history", PublicationController, :history)
+      get("/deleted", PublicationController, :index_deleted)
       put("/:id", PublicationController, :update)
+      delete("/:id", PublicationController, :delete)
       post("/:id/validate", PublicationController, :validate)
+      post("/:id/restore", PublicationController, :restore)
+      get("/:id/history", PublicationController, :history)
+      post("/:id/history/:version/undo", PublicationController, :undo)
     end
   end
 

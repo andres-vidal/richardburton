@@ -63,6 +63,24 @@ defmodule RichardBurtonWeb.ConnCase do
     expect(RichardBurton.AuthMock, :verify, n, fn _ -> {:ok, "12345"} end)
   end
 
+  # The subject and email behind the test session minted in build_conn/0. In
+  # production, sign-in always creates the user row; admin-mutation tests call
+  # create_session_user/0 so actor resolution finds it here too.
+  @session_subject_id "12345"
+  @session_user_email "admin@richardburton.test"
+
+  def session_user_email, do: @session_user_email
+
+  def create_session_user do
+    {:ok, user} =
+      RichardBurton.User.insert(%{
+        subject_id: @session_subject_id,
+        email: @session_user_email
+      })
+
+    user
+  end
+
   def expect_auth_authorize_admin(n \\ 1) do
     # Admin routes authenticate via the rb-session cookie (Auth.Session, not the
     # mock); only the role check goes through Auth.authorize.
