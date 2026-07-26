@@ -117,7 +117,6 @@ const Column: FC<{
   focused?: boolean;
   invalid?: boolean;
   selected?: boolean;
-  selectable?: boolean;
 }> = ({
   rowId,
   colId,
@@ -125,7 +124,6 @@ const Column: FC<{
   focused = false,
   invalid = false,
   selected = false,
-  selectable = false,
 }) => {
   // `truncate` sets overflow:hidden, which zeroes the grid item's auto min-width so
   // the fixed-width track never expands to fit the content.
@@ -133,7 +131,6 @@ const Column: FC<{
     <Aria.Cell
       className="px-2 py-1 text-sm truncate transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
       data-selected={selected}
-      data-selectable={selectable}
       data-error={invalid}
       data-focused={focused}
     >
@@ -218,25 +215,31 @@ const Row = forwardRef<HTMLDivElement, RowProps>(function Row(
   );
 });
 
+/**
+ * The row's leading cell: its signal (invalid, focused) and its handle. Where a
+ * row is selectable this is *the* place to click for it — the other cells may
+ * hold a field, and a click there belongs to the field.
+ */
 const SignalColumn: FC<{
   rowId: RowId;
   focused?: boolean;
   invalid?: boolean;
   selected?: boolean;
-  selectable?: boolean;
+  /** Clicking this cell selects the row. */
+  selectsRow?: boolean;
   children?: ReactNode;
 }> = ({
   focused = false,
   invalid = false,
   selected = false,
-  selectable = false,
+  selectsRow = false,
   children,
 }) => {
   return (
     <Aria.Cell
       className="flex sticky left-0 z-10 justify-center items-center px-2 bg-gray-100 group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
       data-selected={selected}
-      data-selectable={selectable}
+      data-selects-row={selectsRow}
       data-error={invalid}
       data-focused={focused}
     >
@@ -254,6 +257,8 @@ interface Props {
   ExtendedTrailingColumn?: FC<{ rowId: RowId }>;
   ExtraRow?: FC;
   onRowClick?: (id: RowId) => (event: MouseEvent) => void;
+  /** Whether the *text* in the table can be selected. Off while rows are
+   * selected, so dragging across them does not highlight their content. */
   selectable?: boolean;
   collapsible?: boolean;
 }
