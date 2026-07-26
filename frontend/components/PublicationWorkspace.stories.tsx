@@ -71,39 +71,91 @@ export const WithInvalidRow: Story = {
   },
 };
 
+/** Skip the header; the seeded rows follow, and the new-publication row trails. */
+const rowsIn = (canvas: ReturnType<typeof within>) =>
+  canvas.getAllByRole("row").slice(1);
+
 /**
- * Multi-select: a plain click selects one row, shift-click extends a contiguous
- * range from it, and cmd/ctrl-click toggles a single row. Selected rows carry
- * `data-selected` on their (amber) signal cell.
+ * A row's selection handle — its leading cell. Rows render placeholder cells until
+ * they scroll into view, so a story has to wait for the real ones before it can
+ * click them.
+ */
+const handleIn = async (row: HTMLElement) => {
+  await waitFor(() =>
+    expect(row.querySelector('[data-selects-row="true"]')).not.toBeNull(),
+  );
+  return row.querySelector('[data-selects-row="true"]') as HTMLElement;
+};
+
+const selectedCount = (canvas: ReturnType<typeof within>) =>
+  canvas
+    .getAllByRole("row")
+    .filter((row: HTMLElement) => row.querySelector('[data-selected="true"]'))
+    .length;
+
+/**
+ * Multi-select from the row handles: a plain click selects one row, shift-click
+ * extends a contiguous range from it, and cmd/ctrl-click toggles a single row.
+ * Selected rows carry `data-selected` on their (amber) signal cell.
  */
 export const Selection: Story = {
   beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Skip the header; the three seeded rows (the new-publication row trails).
-    const [, first, second, third] = canvas.getAllByRole("row");
-
-    // Click a cell, the way a user does: the row container is not selectable, and
-    // a click outside anything selectable clears the selection.
-    const cellIn = (row: HTMLElement) =>
-      row.querySelector('[role="cell"]') as HTMLElement;
-
-    const selectedCount = () =>
-      canvas
-        .getAllByRole("row")
-        .filter((row) => row.querySelector('[data-selected="true"]')).length;
+    const [first, second, third] = rowsIn(canvas);
 
     // Plain click selects just that row.
-    fireEvent.click(cellIn(first));
-    await waitFor(() => expect(selectedCount()).toBe(1));
+    fireEvent.click(await handleIn(first));
+    await waitFor(() => expect(selectedCount(canvas)).toBe(1));
 
     // Shift-click extends the contiguous range from the first row through it.
-    fireEvent.click(cellIn(third), { shiftKey: true });
-    await waitFor(() => expect(selectedCount()).toBe(3));
+    fireEvent.click(await handleIn(third), { shiftKey: true });
+    await waitFor(() => expect(selectedCount(canvas)).toBe(3));
 
     // Cmd/ctrl-click toggles a single row out of the range.
-    fireEvent.click(cellIn(second), { metaKey: true });
-    await waitFor(() => expect(selectedCount()).toBe(2));
+    fireEvent.click(await handleIn(second), { metaKey: true });
+    await waitFor(() => expect(selectedCount(canvas)).toBe(2));
+  },
+};
+
+/**
+ * The handle's own content — a row number, an error icon — is part of the handle:
+ * clicking it selects the row like clicking around it does. Selecting used to
+ * depend on the click *missing* that content.
+ */
+export const SelectionFromTheHandleContent: Story = {
+  beforeEach: () =>
+    seed(store, [{ title: "Dom Casmurro", errors: "conflict" }]),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [row] = rowsIn(canvas);
+
+    // The invalid row's handle draws an icon, which covers its middle.
+    const icon = (await handleIn(row)).querySelector("span") as HTMLElement;
+    fireEvent.click(icon);
+
+    await waitFor(() => expect(selectedCount(canvas)).toBe(1));
+  },
+};
+
+/**
+ * A click that lands in a field belongs to the field. The row hears it too — it
+ * hears every click inside it — and must not turn it into a selection, or typing
+ * would swap the submit bar for the selection toolbar.
+ */
+export const TypingDoesNotSelect: Story = {
+  beforeEach: () => seed(store),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [row] = rowsIn(canvas);
+
+    // Wait for the row to render for real, then click into one of its fields.
+    await handleIn(row);
+    const input = row.querySelector("input") as HTMLElement;
+    fireEvent.click(input);
+    await userEvent.type(input, "x");
+
+    await expect(selectedCount(canvas)).toBe(0);
   },
 };
 

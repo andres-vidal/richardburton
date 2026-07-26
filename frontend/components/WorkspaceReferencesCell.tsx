@@ -42,7 +42,6 @@ const WorkspaceReferencesCell: FC<{
     <div
       role="cell"
       data-selected={selected}
-      data-selectable
       data-error={invalid}
       data-focused={focused}
       className="flex py-1 px-2 transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"

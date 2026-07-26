@@ -1,12 +1,11 @@
 "use client";
 
-import { isElement } from "lodash";
-import { clearSelection } from "modules/selection";
+import { clearSelection, isSelectionGesture } from "modules/selection";
 import type { Store } from "modules/store";
 import { FC, useEffect } from "react";
 
 /**
- * Clicking outside the rows clears the selection.
+ * A click that is not asking for a row clears the selection.
  *
  * Rendered by the surface that selects — the bulk workspace — and given its
  * store: a selection belongs to the rows one workspace holds, so clearing it has
@@ -15,11 +14,11 @@ import { FC, useEffect } from "react";
 const ClearSelection: FC<{ store: Store }> = ({ store }) => {
   useEffect(() => {
     const handle = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-
-      if (isElement(target) && !target.matches('[data-selectable="true"]')) {
-        clearSelection(store);
-      }
+      // `closest`, via the shared gesture test: the handle has content of its
+      // own (a row number, an error icon), and a click that landed on *that*
+      // is still a click on the handle. Testing the exact target made selecting
+      // depend on missing the icon.
+      if (!isSelectionGesture(event.target)) clearSelection(store);
     };
 
     document.addEventListener("click", handle);
