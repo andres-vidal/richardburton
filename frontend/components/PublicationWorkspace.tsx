@@ -24,6 +24,7 @@ import {
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
 import { validate } from "modules/publication/remote";
+import { usePublicationStore } from "modules/publication/workspace";
 import { DRAFT_ID, addNew } from "modules/publication/store";
 import { select, useIsSelected, useIsSelectionEmpty } from "modules/selection";
 import {
@@ -147,10 +148,12 @@ const ExtendedRow: FC<RowProps> = (props) => {
 };
 
 const useSubmit = () => {
+  const store = usePublicationStore();
+
   return useCallback(() => {
-    const id = addNew();
-    validate([id]);
-  }, []);
+    const id = addNew(store);
+    validate(store, [id]);
+  }, [store]);
 };
 
 const SubmittableData: typeof Content = ({ rowId, colId }) => {
@@ -214,11 +217,12 @@ const NewPublicationRow: FC = () => {
 };
 
 const PublicationWorkspace: FC = () => {
+  const store = usePublicationStore();
   const ids = useVisiblePublicationIds();
   const isSelectionEmpty = useIsSelectionEmpty();
 
   const toggleSelection = (id: number) => (event: MouseEvent) =>
-    select({
+    select(store, {
       id,
       type: "publication",
       shiftKey: event.shiftKey,

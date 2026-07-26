@@ -1,4 +1,5 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { withChanges } from "modules/publication/history";
 import {
   Publication,
@@ -82,7 +83,7 @@ type Story = StoryObj<typeof meta>;
 
 /** No `?publication=` query — the modal stays closed. */
 export const Closed: Story = {
-  beforeEach: () => resetAll(),
+  beforeEach: () => resetAll(store),
   play: async () => {
     await expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   },
@@ -130,7 +131,7 @@ export const Missing: Story = {
 
 /** Opened by a `?publication=1` URL query, showing that publication's details. */
 export const Default: Story = {
-  beforeEach: () => setAll([DOM_CASMURRO]),
+  beforeEach: () => setAll(store, [DOM_CASMURRO]),
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
     // Full-screen portalled modal — bound it in the docs page.
@@ -150,7 +151,7 @@ export const Default: Story = {
 };
 
 export const Editing: Story = {
-  beforeEach: () => setAll([DOM_CASMURRO]),
+  beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
@@ -177,7 +178,7 @@ export const Editing: Story = {
  * references load as rows, and "Add reference" appends an empty one.
  */
 export const EditingReferences: Story = {
-  beforeEach: () => setAll([DOM_CASMURRO]),
+  beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
@@ -216,7 +217,7 @@ export const EditingReferences: Story = {
  * from a round-trip the server will reject.
  */
 export const EditingWithErrors: Story = {
-  beforeEach: () => setAll([{ ...DOM_CASMURRO, errors: "conflict" }]),
+  beforeEach: () => setAll(store, [{ ...DOM_CASMURRO, errors: "conflict" }]),
   decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
@@ -240,7 +241,7 @@ export const EditingWithErrors: Story = {
  * confirmed path needs the real backend — the E2E suite covers it.)
  */
 export const DeleteConfirmation: Story = {
-  beforeEach: () => setAll([DOM_CASMURRO]),
+  beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
@@ -281,7 +282,7 @@ export const DeleteConfirmation: Story = {
  * Countries field, which autocompletes from a static list (no backend).
  */
 export const EditingMenuAboveModal: Story = {
-  beforeEach: () => setAll([DOM_CASMURRO]),
+  beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },

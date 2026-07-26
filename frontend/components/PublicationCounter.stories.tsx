@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { resetAll } from "modules/publication/store";
 import { seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
@@ -17,7 +18,7 @@ type Story = StoryObj<typeof meta>;
 
 /** With the 3 sample publications loaded, the counter reads "3". */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).getByRole("button", { name: "3" }),
@@ -27,7 +28,7 @@ export const Default: Story = {
 
 /** A single publication — the button shows the count "1". */
 export const Single: Story = {
-  beforeEach: () => seed([{ title: "Dom Casmurro" }]),
+  beforeEach: () => seed(store, [{ title: "Dom Casmurro" }]),
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).getByRole("button", { name: "1" }),
@@ -37,7 +38,7 @@ export const Single: Story = {
 
 /** Nothing loaded — the counter hides itself entirely. */
 export const Empty: Story = {
-  beforeEach: () => resetAll(),
+  beforeEach: () => resetAll(store),
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).queryByRole("button")).toBeNull();
   },

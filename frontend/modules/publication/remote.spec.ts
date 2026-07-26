@@ -1,7 +1,10 @@
 import { request } from "app";
+import { createStore } from "jotai";
 import type { AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
 import hash from "object-hash";
+
+import type { Store } from "modules/store";
 
 import type { Publication } from "./model";
 import { empty } from "./model";
@@ -27,9 +30,7 @@ import {
   overrideField,
   publicationFamily,
   publicationIdsAtom,
-  resetAll,
   setAll,
-  store,
   totalIndexCountAtom,
   visiblePublicationFamily,
 } from "./store";
@@ -50,13 +51,15 @@ type Http = {
 };
 let http: Http;
 
+// A store per test — the remote layer writes the one it is handed.
+let store: Store;
+
 function pub(fields: Partial<Publication> = {}): Publication {
   return { ...empty(), ...fields };
 }
 
 beforeEach(() => {
-  resetAll();
-  store.set(isValidatingAtom, false);
+  store = createStore();
   vi.clearAllMocks();
 
   http = { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() };
@@ -78,7 +81,7 @@ describe("index", () => {
       headers: { "rb-total-count": "42" },
     });
 
-    await index();
+    await index(store);
 
     const ids = store.get(publicationIdsAtom);
     expect(ids).toEqual([7, 12]);
@@ -97,14 +100,14 @@ describe("index", () => {
       headers: {},
     });
 
-    await index({ search: "Machado" });
+    await index(store, { search: "Machado" });
 
     expect(http.get).toHaveBeenCalledWith("publications?search=Machado");
   });
 
   test("keeps the previous rows on screen until the new results arrive", async () => {
     const [a, b] = [createId(), createId()];
-    setAll([
+    setAll(store, [
       { id: a, publication: pub({ title: "Old A" }), errors: null },
       { id: b, publication: pub({ title: "Old B" }), errors: null },
     ]);
@@ -114,7 +117,7 @@ describe("index", () => {
     http.get.mockReturnValue(new Promise((r) => (resolve = r)));
 
     store.set(isIndexLoadingAtom, true);
-    const pending = index({ search: "new" });
+    const pending = index(store, { search: "new" });
 
     // Mid-fetch: the old ids are still there — no reset-to-undefined, so the
     // table shows the stale rows instead of blinking the skeleton.
@@ -134,7 +137,7 @@ describe("index", () => {
   });
 });
 
-describe("index({ unreferenced })", () => {
+describe("index(store, { unreferenced })", () => {
   test("loads the reference-less publications and returns their ids", async () => {
     http.get.mockResolvedValue({
       data: {
@@ -146,7 +149,7 @@ describe("index({ unreferenced })", () => {
       headers: {},
     });
 
-    const ids = await index({ unreferenced: true });
+    const ids = await index(store, { unreferenced: true });
 
     expect(http.get).toHaveBeenCalledWith("publications?unreferenced");
     expect(ids).toEqual([7, 12]);
@@ -159,14 +162,14 @@ describe("index({ unreferenced })", () => {
 describe("bulk", () => {
   test("submits the visible working set and clears the list", async () => {
     const [a, b] = [createId(), createId()];
-    setAll([
+    setAll(store, [
       { id: a, publication: pub({ title: "A" }), errors: null },
       { id: b, publication: pub({ title: "B" }), errors: null },
     ]);
     const created = [pub({ title: "A" })];
     http.post.mockResolvedValue({ data: created });
 
-    const result = await bulk();
+    const result = await bulk(store);
 
     expect(http.post).toHaveBeenCalledTimes(1);
     const [url, body] = http.post.mock.calls[0];
@@ -183,11 +186,11 @@ describe("update", () => {
   test("PUTs the edited row, replaces it with the server value, and clears the edit", async () => {
     const id = 7;
     store.set(publicationFamily(id), pub({ title: "Old title" }));
-    overrideField(id, "title", "New title");
+    overrideField(store, id, "title", "New title");
     const returned = { ...pub({ title: "New title" }), id };
     http.put.mockResolvedValue({ data: returned });
 
-    const ok = await update(id);
+    const ok = await update(store, id);
 
     expect(ok).toBe(true);
     const [url, body] = http.put.mock.calls[0];
@@ -209,7 +212,7 @@ describe("update", () => {
       response: { status: 409, data: { errors: "conflict" } },
     });
 
-    const ok = await update(id);
+    const ok = await update(store, id);
 
     expect(ok).toBe(false);
     expect(mockNotify).toHaveBeenCalledWith(
@@ -224,7 +227,7 @@ describe("update", () => {
       response: { status: 400, data: { errors: { title: "required" } } },
     });
 
-    const ok = await update(id);
+    const ok = await update(store, id);
 
     expect(ok).toBe(false);
     expect(store.get(errorFamily(id))).toEqual({ title: "required" });
@@ -239,7 +242,7 @@ describe("remove", () => {
     store.set(totalIndexCountAtom, 288);
     http.delete.mockResolvedValue({});
 
-    const ok = await deletePublication(7);
+    const ok = await deletePublication(store, 7);
 
     expect(ok).toBe(true);
     expect(http.delete).toHaveBeenCalledWith("publications/7");
@@ -258,7 +261,7 @@ describe("remove", () => {
     store.set(totalIndexCountAtom, 288);
     http.delete.mockRejectedValue({ response: { status: 404 } });
 
-    const ok = await deletePublication(7);
+    const ok = await deletePublication(store, 7);
 
     expect(ok).toBe(false);
     expect(store.get(publicationIdsAtom)).toEqual([7]);
@@ -334,12 +337,12 @@ describe("validateUpdate", () => {
   test("POSTs the visible value to the row's validate endpoint and surfaces its errors", async () => {
     const id = 7;
     store.set(publicationFamily(id), pub({ title: "Old title" }));
-    overrideField(id, "title", "New title");
+    overrideField(store, id, "title", "New title");
     http.post.mockResolvedValue({
       data: { publication: pub({ title: "New title" }), errors: "conflict" },
     });
 
-    await validateUpdate(id);
+    await validateUpdate(store, id);
 
     const [url, body] = http.post.mock.calls[0];
     // The id is in the path so the server can exclude the row from its own
@@ -361,8 +364,8 @@ describe("validateUpdate", () => {
     });
 
     // Blur fires this on every field, so an untouched row must not re-ask.
-    await validateUpdate(id);
-    await validateUpdate(id);
+    await validateUpdate(store, id);
+    await validateUpdate(store, id);
 
     expect(http.post).toHaveBeenCalledTimes(1);
   });
@@ -374,7 +377,7 @@ describe("validateUpdate", () => {
       data: { publication: pub({ title: "Dom Casmurro" }), errors: null },
     });
 
-    await validateUpdate(id);
+    await validateUpdate(store, id);
 
     expect(store.get(errorFamily(id))).toBeNull();
   });
@@ -383,7 +386,7 @@ describe("validateUpdate", () => {
 describe("validate", () => {
   test("maps each result back to the row it was sent for, not the row's list position", async () => {
     const [a, b, c] = [createId(), createId(), createId()];
-    setAll([
+    setAll(store, [
       { id: a, publication: pub({ title: "A" }), errors: null },
       { id: b, publication: pub({ title: "B" }), errors: null },
       { id: c, publication: pub({ title: "C" }), errors: null },
@@ -403,7 +406,7 @@ describe("validate", () => {
       ],
     });
 
-    await validate([a, b, c]);
+    await validate(store, [a, b, c]);
 
     // The 2nd result must land on C (the 2nd row *sent*), never B (2nd *listed*).
     expect(store.get(errorFamily(a))).toBe("conflict");
@@ -418,13 +421,13 @@ describe("validate", () => {
 
   test("re-sends a row after its value changes and refreshes its error", async () => {
     const a = createId();
-    setAll([{ id: a, publication: pub({ title: "" }), errors: null }]);
+    setAll(store, [{ id: a, publication: pub({ title: "" }), errors: null }]);
 
     // First pass: the server rejects the row.
     http.post.mockResolvedValueOnce({
       data: [{ publication: pub({ title: "" }), errors: "conflict" }],
     });
-    await validate([a]);
+    await validate(store, [a]);
     expect(store.get(errorFamily(a))).toBe("conflict");
 
     // The user fixes the row: its value — and therefore its hash — changes, so
@@ -436,7 +439,7 @@ describe("validate", () => {
     http.post.mockResolvedValueOnce({
       data: [{ publication: pub({ title: "Dom Casmurro" }), errors: null }],
     });
-    await validate([a]);
+    await validate(store, [a]);
 
     expect(http.post).toHaveBeenCalledTimes(2);
     expect(store.get(errorFamily(a))).toBeNull();
@@ -444,13 +447,13 @@ describe("validate", () => {
 
   test("skips the request when nothing changed", async () => {
     const a = createId();
-    setAll([{ id: a, publication: pub({ title: "A" }), errors: null }]);
+    setAll(store, [{ id: a, publication: pub({ title: "A" }), errors: null }]);
     store.set(
       lastValidatedFamily(a),
       hash(store.get(visiblePublicationFamily(a))),
     );
 
-    await validate([a]);
+    await validate(store, [a]);
 
     expect(http.post).not.toHaveBeenCalled();
     expect(store.get(isValidatingAtom)).toBe(false);
@@ -458,10 +461,10 @@ describe("validate", () => {
 
   test("clears the validating flag even when the request fails", async () => {
     const a = createId();
-    setAll([{ id: a, publication: pub({ title: "A" }), errors: null }]);
+    setAll(store, [{ id: a, publication: pub({ title: "A" }), errors: null }]);
     http.post.mockRejectedValue("boom");
 
-    await expect(validate([a])).rejects.toBe("boom");
+    await expect(validate(store, [a])).rejects.toBe("boom");
 
     expect(store.get(isValidatingAtom)).toBe(false);
     expect(mockNotify).toHaveBeenCalled();
@@ -471,7 +474,9 @@ describe("validate", () => {
 describe("upload", () => {
   test("replaces the working set from the server's validation", async () => {
     const old = createId();
-    setAll([{ id: old, publication: pub({ title: "old" }), errors: null }]);
+    setAll(store, [
+      { id: old, publication: pub({ title: "old" }), errors: null },
+    ]);
 
     http.post.mockResolvedValue({
       data: [
@@ -480,7 +485,7 @@ describe("upload", () => {
       ],
     });
 
-    await upload(new FormData());
+    await upload(store, new FormData());
 
     const ids = store.get(publicationIdsAtom);
     expect(ids).toHaveLength(2);
@@ -498,7 +503,7 @@ describe("run (error handling)", () => {
   test("notifies with a friendly message and re-throws on failure", async () => {
     mockRequest.mockRejectedValueOnce("conflict");
 
-    await expect(index()).rejects.toBe("conflict");
+    await expect(index(store)).rejects.toBe("conflict");
 
     expect(mockNotify).toHaveBeenCalledWith({
       message: "A publication with this data already exists",

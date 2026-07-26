@@ -2,12 +2,14 @@
 
 import UploadIcon from "assets/upload.svg";
 import { useTotalPublicationCount } from "modules/publication/hooks";
+import { usePublicationStore } from "modules/publication/workspace";
 import { upload } from "modules/publication/remote";
 import { ChangeEvent, FC, useRef, useState } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";
 
 const PublicationUpload: FC = () => {
+  const store = usePublicationStore();
   const totalPublications = useTotalPublicationCount();
 
   const [key, setKey] = useState(1);
@@ -19,7 +21,7 @@ const PublicationUpload: FC = () => {
       payload.append("csv", file);
 
       try {
-        await upload(payload);
+        await upload(store, payload);
       } catch {
         // The remote layer already surfaced a notification; just reset the
         // input so the same file can be re-selected.

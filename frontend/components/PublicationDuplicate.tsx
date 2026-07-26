@@ -2,6 +2,7 @@
 
 import CopyIcon from "assets/copy.svg";
 import { duplicate } from "modules/publication/store";
+import { usePublicationStore } from "modules/publication/workspace";
 import { validate } from "modules/publication/remote";
 import { FC } from "react";
 import {
@@ -14,12 +15,14 @@ import Button from "./Button";
 const PublicationDuplicate: FC = () => {
   const selectionSize = useSelectionSize();
 
+  const store = usePublicationStore();
+
   const duplicateSelected = () => {
-    const selectedIds = getSelection() as Set<number>;
+    const selectedIds = getSelection(store) as Set<number>;
     if (selectedIds.size > 0) {
-      const newIds = duplicate(selectedIds);
-      validate(newIds);
-      clearSelection();
+      const newIds = duplicate(store, selectedIds);
+      validate(store, newIds);
+      clearSelection(store);
     }
   };
 

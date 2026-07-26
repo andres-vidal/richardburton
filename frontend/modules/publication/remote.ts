@@ -3,6 +3,8 @@ import { AxiosError, AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
 import { RESET } from "jotai/utils";
 import { TOTAL_COUNT_HEADER } from "modules/api";
+import type { Store } from "modules/store";
+import { usePublicationStore } from "./workspace";
 import hash from "object-hash";
 import { useCallback } from "react";
 import useDebounce from "utils/useDebounce";
@@ -29,7 +31,6 @@ import {
   resetAll,
   setAll,
   setErrors,
-  store,
   totalIndexCountAtom,
   visibleIdsAtom,
   visiblePublicationFamily,
@@ -67,9 +68,10 @@ type IndexOptions = { search?: string; unreferenced?: boolean };
  * by `search`, or to only the publications missing references (`unreferenced`) —
  * the queue the references backfill wizard steps through.
  */
-async function index({ search, unreferenced }: IndexOptions = {}): Promise<
-  PublicationId[]
-> {
+async function index(
+  store: Store,
+  { search, unreferenced }: IndexOptions = {},
+): Promise<PublicationId[]> {
   return run(async (http) => {
     const query = search
       ? `?search=${search}`
@@ -92,7 +94,7 @@ async function index({ search, unreferenced }: IndexOptions = {}): Promise<
       }
       store.set(keywordsAtom, keywords ?? []);
 
-      return hydrate(entries);
+      return hydrate(store, entries);
     } finally {
       store.set(isIndexLoadingAtom, false);
     }
@@ -100,7 +102,7 @@ async function index({ search, unreferenced }: IndexOptions = {}): Promise<
 }
 
 /** Submit the current (visible) working set. */
-async function bulk(): Promise<Publication[]> {
+async function bulk(store: Store): Promise<Publication[]> {
   return run(async (http) => {
     const ids = store.get(visibleIdsAtom);
     const publications = ids?.map((id) =>
@@ -121,7 +123,7 @@ async function bulk(): Promise<Publication[]> {
  * Persist edits to a single publication (admin). Returns whether it succeeded;
  * on a conflict or validation error the row keeps its edits so they can be fixed.
  */
-async function update(id: PublicationId): Promise<boolean> {
+async function update(store: Store, id: PublicationId): Promise<boolean> {
   const publication = store.get(visiblePublicationFamily(id));
 
   try {
@@ -170,13 +172,16 @@ async function update(id: PublicationId): Promise<boolean> {
  * the record leaves the index and search but stays restorable, and the change
  * lands in the publication history. Returns whether it succeeded.
  */
-async function deletePublication(id: PublicationId): Promise<boolean> {
+async function deletePublication(
+  store: Store,
+  id: PublicationId,
+): Promise<boolean> {
   const { title } = store.get(publicationFamily(id));
 
   try {
     await request((http) => http.delete(`publications/${id}`));
 
-    removePublication(id);
+    removePublication(store, id);
     notify({
       message: "Publication deleted",
       detail: `“${title}” is out of the catalogue. Restore it from Deleted publications.`,
@@ -257,7 +262,7 @@ async function restore(id: PublicationId): Promise<boolean> {
  * Live-validate a single publication's pending edits, excluding it from the
  * conflict check so an in-place edit doesn't collide with itself.
  */
-async function validateUpdate(id: PublicationId): Promise<void> {
+async function validateUpdate(store: Store, id: PublicationId): Promise<void> {
   const publication = store.get(visiblePublicationFamily(id));
   const fingerprint = hash(publication);
 
@@ -271,12 +276,12 @@ async function validateUpdate(id: PublicationId): Promise<void> {
       `publications/${id}/validate`,
       publication,
     );
-    setErrors([{ ...data, id }]);
+    setErrors(store, [{ ...data, id }]);
   });
 }
 
 /** Validate the given rows server-side, but only those whose value changed. */
-async function validate(ids: PublicationId[]): Promise<void> {
+async function validate(store: Store, ids: PublicationId[]): Promise<void> {
   return run(async (http) => {
     store.set(isValidatingAtom, true);
     try {
@@ -299,7 +304,10 @@ async function validate(ids: PublicationId[]): Promise<void> {
         );
         // Map results back to the rows we actually sent (the filtered set),
         // not the original id list.
-        setErrors(data.map((entry, i) => ({ ...entry, id: pending[i].id })));
+        setErrors(
+          store,
+          data.map((entry, i) => ({ ...entry, id: pending[i].id })),
+        );
       }
     } finally {
       // Always clear the flag, even if the request throws.
@@ -309,33 +317,37 @@ async function validate(ids: PublicationId[]): Promise<void> {
 }
 
 /** Replace the working set from an uploaded CSV (validated server-side). */
-async function upload(payload: FormData): Promise<void> {
+async function upload(store: Store, payload: FormData): Promise<void> {
   return run(async (http) => {
-    resetAll();
+    resetAll(store);
     try {
       const { data } = await http.post<ValidationResult[]>(
         "publications/validate",
         payload,
       );
-      setAll(data.map((entry) => ({ ...entry, id: createId() })));
+      setAll(
+        store,
+        data.map((entry) => ({ ...entry, id: createId() })),
+      );
     } catch (error) {
-      setAll([]);
+      setAll(store, []);
       throw error;
     }
   });
 }
 
-/** Debounced index, for search-as-you-type. */
+/** Debounced index, for search-as-you-type, against the workspace's own store. */
 function usePublicationIndex() {
+  const store = usePublicationStore();
   const debounced = useDebounce(index, 350);
   // Flag loading immediately (before the debounce) so the search bar's loading
   // bar spans the whole keystroke-to-results window, not just the fetch.
   return useCallback(
     (args?: { search?: string }) => {
       store.set(isIndexLoadingAtom, true);
-      return debounced(args);
+      return debounced(store, args);
     },
-    [debounced],
+    [debounced, store],
   );
 }
 

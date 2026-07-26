@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { fieldErrors, seed } from "modules/publication/fixtures";
 import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test";
 
@@ -23,7 +24,7 @@ type Story = StoryObj<typeof meta>;
 
 /** The editable review table — an inline input per cell, plus the "new row". */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // header + 3 seeded rows + the always-present new-publication row.
@@ -38,7 +39,7 @@ export const Default: Story = {
  * permanently empty — seeded rows would keep working and hide it.
  */
 export const NewRowAcceptsInput: Story = {
-  beforeEach: () => seed([]),
+  beforeEach: () => seed(store, []),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const title = await canvas.findByPlaceholderText("Title");
@@ -51,7 +52,7 @@ export const NewRowAcceptsInput: Story = {
 /** Field-level validation errors — the title and year cells are flagged. */
 export const WithInvalidRow: Story = {
   beforeEach: () =>
-    seed([
+    seed(store, [
       { title: "Dom Casmurro", authors: "Helen Caldwell", year: "1953" },
       {
         title: "",
@@ -76,11 +77,16 @@ export const WithInvalidRow: Story = {
  * `data-selected` on their (amber) signal cell.
  */
 export const Selection: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // Skip the header; the three seeded rows (the new-publication row trails).
     const [, first, second, third] = canvas.getAllByRole("row");
+
+    // Click a cell, the way a user does: the row container is not selectable, and
+    // a click outside anything selectable clears the selection.
+    const cellIn = (row: HTMLElement) =>
+      row.querySelector('[role="cell"]') as HTMLElement;
 
     const selectedCount = () =>
       canvas
@@ -88,15 +94,15 @@ export const Selection: Story = {
         .filter((row) => row.querySelector('[data-selected="true"]')).length;
 
     // Plain click selects just that row.
-    fireEvent.click(first);
+    fireEvent.click(cellIn(first));
     await waitFor(() => expect(selectedCount()).toBe(1));
 
     // Shift-click extends the contiguous range from the first row through it.
-    fireEvent.click(third, { shiftKey: true });
+    fireEvent.click(cellIn(third), { shiftKey: true });
     await waitFor(() => expect(selectedCount()).toBe(3));
 
     // Cmd/ctrl-click toggles a single row out of the range.
-    fireEvent.click(second, { metaKey: true });
+    fireEvent.click(cellIn(second), { metaKey: true });
     await waitFor(() => expect(selectedCount()).toBe(2));
   },
 };
@@ -108,7 +114,9 @@ export const Selection: Story = {
  */
 export const EditCell: Story = {
   beforeEach: () =>
-    seed([{ title: "Dom Casmurro", authors: "Helen Caldwell", year: "1953" }]),
+    seed(store, [
+      { title: "Dom Casmurro", authors: "Helen Caldwell", year: "1953" },
+    ]),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // findBy*: the row virtualizes on an IntersectionObserver, so its input

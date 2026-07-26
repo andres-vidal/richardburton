@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { useVisiblePublicationIds } from "modules/publication/hooks";
 import { overrideField } from "modules/publication/store";
 import { seed } from "modules/publication/fixtures";
@@ -19,7 +20,8 @@ const OverrideControls: FC = () => {
       className="rounded border border-indigo-600 px-3 py-1 text-sm text-indigo-600 hover:bg-indigo-50 disabled:opacity-40"
       disabled={first === undefined}
       onClick={() =>
-        first !== undefined && overrideField(first, "title", "Edited title")
+        first !== undefined &&
+        overrideField(store, first, "title", "Edited title")
       }
     >
       Edit a field
@@ -51,7 +53,7 @@ type Story = StoryObj<typeof meta>;
  * "Edit a field" lets you repeat the round-trip.)
  */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 

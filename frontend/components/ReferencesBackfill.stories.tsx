@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { RESET } from "jotai/utils";
+import { store } from "modules/store";
 import { Publication } from "modules/publication/model";
 import {
   discardEdit,
@@ -7,7 +8,6 @@ import {
   publicationFamily,
   resetAll,
   setAll,
-  store,
   visiblePublicationFamily,
 } from "modules/publication/store";
 import { ComponentProps, FC, useState } from "react";
@@ -32,8 +32,8 @@ const publication = (title: string, references: string[] = []) => ({
 });
 
 const seedQueue = () => {
-  resetAll();
-  setAll([
+  resetAll(store);
+  setAll(store, [
     { id: 1, publication: publication("Dom Casmurro"), errors: null },
     {
       id: 2,
@@ -114,7 +114,7 @@ const InteractiveView: FC<ComponentProps<typeof ReferencesBackfillView>> = ({
         advance();
       }}
       onSkip={() => {
-        if (currentId !== undefined) discardEdit(currentId);
+        if (currentId !== undefined) discardEdit(store, currentId);
         onSkip();
         advance();
       }}

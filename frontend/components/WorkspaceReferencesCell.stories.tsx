@@ -1,13 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store, type Store } from "modules/store";
 import { Publication } from "modules/publication/model";
 import { resetAll, setAll } from "modules/publication/store";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
 import WorkspaceReferencesCell from "./WorkspaceReferencesCell";
 
-const seed = (rowId: number, references: string[]) => {
-  resetAll();
-  setAll([
+const seed = (store: Store, rowId: number, references: string[]) => {
+  resetAll(store);
+  setAll(store, [
     {
       id: rowId,
       publication: {
@@ -44,7 +45,7 @@ type Story = StoryObj<typeof meta>;
 
 /** With references: the button summarizes the count and opens the list editor. */
 export const WithReferences: Story = {
-  beforeEach: () => seed(1, ["A source", "Another source"]),
+  beforeEach: () => seed(store, 1, ["A source", "Another source"]),
   parameters: {
     // The open modal aria-hides the background trigger, which is still focusable.
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
@@ -63,7 +64,7 @@ export const WithReferences: Story = {
 
 /** With none: the button invites adding references. */
 export const Empty: Story = {
-  beforeEach: () => seed(1, []),
+  beforeEach: () => seed(store, 1, []),
   play: async () => {
     await expect(
       screen.getByRole("button", { name: "Add references" }),

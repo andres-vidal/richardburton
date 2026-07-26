@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { resetAll } from "modules/publication/store";
 import { fieldErrors, seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
@@ -18,7 +19,7 @@ type Story = StoryObj<typeof meta>;
 /** One invalid row among valid ones — the counter shows "1". */
 export const Default: Story = {
   beforeEach: () =>
-    seed([
+    seed(store, [
       { title: "", errors: fieldErrors({ title: "required" }) },
       { title: "Dom Casmurro" },
       { title: "The Hour of the Star" },
@@ -35,7 +36,7 @@ export const Default: Story = {
 /** Two invalid rows — the counter shows "2". */
 export const MultipleErrors: Story = {
   beforeEach: () =>
-    seed([
+    seed(store, [
       { title: "", errors: fieldErrors({ title: "required" }) },
       { year: "abc", errors: fieldErrors({ year: "integer" }) },
       { title: "The Hour of the Star" },
@@ -51,7 +52,7 @@ export const MultipleErrors: Story = {
 
 /** All rows valid — a green check instead of a red count. */
 export const AllValid: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
@@ -63,7 +64,7 @@ export const AllValid: Story = {
 
 /** Nothing loaded — the counter hides entirely. */
 export const Empty: Story = {
-  beforeEach: () => resetAll(),
+  beforeEach: () => resetAll(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole("button")).toBeNull();

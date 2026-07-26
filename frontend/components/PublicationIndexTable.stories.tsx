@@ -5,8 +5,8 @@ import {
   resetAll,
   resetAttributes,
   setAttributesVisible,
-  store,
 } from "modules/publication/store";
+import { store } from "modules/store";
 import { sampleManyPublications, seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
 
@@ -17,7 +17,7 @@ const meta = {
   component: PublicationIndexTable,
   // Normalize column visibility before every story so hidden-column state doesn't
   // leak between them (the store is a module singleton).
-  beforeEach: () => resetAttributes(),
+  beforeEach: () => resetAttributes(store),
   decorators: [
     (Story) => (
       <div className="p-4 overflow-x-auto">
@@ -34,7 +34,7 @@ type Story = StoryObj<typeof meta>;
 
 /** The index populated with a few publications. */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // 3 seeded publications → 3 body rows (+ the header row). Cell contents are
@@ -50,9 +50,9 @@ export const Default: Story = {
  */
 export const IgnoresPendingEdits: Story = {
   beforeEach: () => {
-    seed();
+    seed(store);
     const [id] = store.get(publicationIdsAtom)!;
-    overrideField(id, "title", "Edited in the modal");
+    overrideField(store, id, "title", "Edited in the modal");
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -70,14 +70,14 @@ export const IgnoresPendingEdits: Story = {
 
 /** A search that matched nothing (ids loaded, but empty). */
 export const Empty: Story = {
-  beforeEach: () => seed([]),
+  beforeEach: () => seed(store, []),
 };
 
 /** Ids not loaded yet — the skeleton placeholder. */
 export const Loading: Story = {
   beforeEach: () => {
-    resetAll();
-    resetAttributes();
+    resetAll(store);
+    resetAttributes(store);
   },
 };
 
@@ -88,7 +88,7 @@ export const Loading: Story = {
  * subscribe their cells until they scroll into view.
  */
 export const ManyRows: Story = {
-  beforeEach: () => seed(sampleManyPublications(100)),
+  beforeEach: () => seed(store, sampleManyPublications(100)),
   decorators: [
     (Story) => (
       <div className="h-[420px] overflow-auto rounded border border-gray-200">
@@ -109,8 +109,8 @@ export const ManyRows: Story = {
  */
 export const HiddenColumns: Story = {
   beforeEach: () => {
-    seed(sampleManyPublications(20));
-    setAttributesVisible(["publishers", "year"], false);
+    seed(store, sampleManyPublications(20));
+    setAttributesVisible(store, ["publishers", "year"], false);
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
