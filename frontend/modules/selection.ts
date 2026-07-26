@@ -1,5 +1,7 @@
 // Ported from `react-selection-manager` to `jotai`.
 
+import { isElement } from "lodash";
+
 import { atom, useAtomValue } from "jotai";
 import { atomFamily } from "jotai-family";
 import type { Store } from "modules/store";
@@ -113,6 +115,25 @@ function reduce(state: SelectionState, event: SelectionEvent): SelectionState {
 
   // Plain click: select just the clicked row.
   return { selection: new Set([id]), type, pivot: id };
+}
+
+/**
+ * The marker for a row's **selection handle**: a click on it, or on anything
+ * inside it, asks for that row to be selected.
+ *
+ * Deliberately separate from the flag that governs *text* selection, and
+ * deliberately absent from cells that hold a field — a click that lands in an
+ * input is there to type, not to select. Both the row that selects and the
+ * listener that clears read this one marker, so the two can never disagree about
+ * what counts as a selection.
+ */
+const SELECTION_HANDLE = '[data-selects-row="true"]';
+
+/** Whether a click asks for a row to be selected. */
+export function isSelectionGesture(target: EventTarget | null): boolean {
+  return (
+    isElement(target) && Boolean((target as Element).closest(SELECTION_HANDLE))
+  );
 }
 
 // --- Actions (write the store they are given, like modules/publication) -----
