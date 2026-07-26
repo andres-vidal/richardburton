@@ -1,0 +1,39 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationDetailStories from "./PublicationDetail.stories";
+
+<Meta of={PublicationDetailStories} />
+
+# Publication detail
+
+A publication as a reader sees it: a sentence placing the translation among its
+people and places, and the sources behind it. Every field a reader might want to
+pivot on is a link back into the index — countries show their label but search
+by the stored code (`US`, not "United States of America").
+
+It takes the **record**, not an id. That is the point of it: whoever renders
+this decides where the publication came from — a page that read it on the
+server, or an overlay opened over the index — and the view itself neither
+fetches nor reads a store. Before this existed, the detail view could only show
+a publication the index had already loaded, so a link naming a record outside
+the current search rendered an empty dialog.
+
+<Canvas of={PublicationDetailStories.Default} />
+
+## Props
+
+- `publication` — the record to show.
+- `actions` — admin affordances (edit, delete, the mutation log), passed in
+  rather than decided here. A signed-out reader and an admin get the same view;
+  only this slot differs.
+- `onNavigate` — called when a search link is followed. An overlay uses it to
+  close itself; a page has nothing to close and omits it.
+
+## States
+
+- **Default** — a fully sourced record.
+- **Without references** — the section is omitted rather than shown empty.
+- **With actions** — the admin slot filled.
+- **Notifies on navigate** — following a link tells the caller.
+
+<Canvas of={PublicationDetailStories.WithoutReferences} />
