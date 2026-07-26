@@ -198,6 +198,23 @@ const fieldErrorDescriptionFamily = cellFamily(({ id, key }) =>
 
 // --- Actions (imperative; operate on the module `store`) --------------------
 
+/**
+ * Seed the store with publications the backend has already saved, keyed by
+ * their server ids. Used by the index fetch and by a server-rendered page
+ * handing over what it read — the one definition of "these rows are now the
+ * working set", so both arrive at the same state.
+ */
+function hydrate(publications: Publication[]): PublicationId[] {
+  const ids = publications.map((publication) => publication.id!);
+
+  store.set(publicationIdsAtom, ids);
+  publications.forEach((publication, index) =>
+    store.set(publicationFamily(ids[index]), publication),
+  );
+
+  return ids;
+}
+
 function setAll(entries: PublicationEntry[]): void {
   store.set(
     publicationIdsAtom,
@@ -384,6 +401,7 @@ export {
   fieldValueFamily,
   focusNextInvalid,
   focusedRowIdAtom,
+  hydrate,
   hiddenAttributesAtom,
   isIndexLoadingAtom,
   isValidFamily,
