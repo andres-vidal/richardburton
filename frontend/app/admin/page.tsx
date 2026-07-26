@@ -16,7 +16,7 @@ export default function AdminPage() {
           <PageHeader title="Admin tools" />
         </>
       }
-      measure="centered"
+      measure="aligned"
       content={<AdminMenu />}
     />
   );
