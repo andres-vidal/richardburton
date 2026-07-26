@@ -61,4 +61,32 @@ describe("useHotkey", () => {
 
     expect(handle).toHaveBeenCalledTimes(2);
   });
+  test("a disabled hotkey does not answer the press", () => {
+    const handle = vi.fn();
+    renderHook(() => useHotkey(Key.ESCAPE, handle, false));
+
+    fireEvent.keyDown(document, { key: Key.ESCAPE });
+
+    expect(handle).not.toHaveBeenCalled();
+  });
+
+  test("enabling and disabling follows the flag, so a hidden component stops answering", () => {
+    const handle = vi.fn();
+    const { rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useHotkey(Key.ESCAPE, handle, enabled),
+      { initialProps: { enabled: true } },
+    );
+
+    fireEvent.keyDown(document, { key: Key.ESCAPE });
+    expect(handle).toHaveBeenCalledTimes(1);
+
+    rerender({ enabled: false });
+    fireEvent.keyDown(document, { key: Key.ESCAPE });
+    expect(handle).toHaveBeenCalledTimes(1);
+
+    rerender({ enabled: true });
+    fireEvent.keyDown(document, { key: Key.ESCAPE });
+    expect(handle).toHaveBeenCalledTimes(2);
+  });
 });
