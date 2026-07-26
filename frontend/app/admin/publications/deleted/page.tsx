@@ -28,7 +28,7 @@ export default async function DeletedPublicationsPage() {
           />
         </>
       }
-      measure="centered"
+      measure="aligned"
       content={<DeletedPublications entries={entries} />}
     />
   );

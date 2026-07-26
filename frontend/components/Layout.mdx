@@ -19,6 +19,17 @@ pinned.
 - `leftAside` — an optional left rail beside the content.
 - `footer` — an optional sticky footer.
 
+## Measure
+
+- `full` (default) — the content fills the viewport. What the index and the bulk
+  workspace need from their tables.
+- `aligned` — the subheader and the content share one column of readable width,
+  both starting at the page's own gutter, where the header's content begins. The
+  pairing is the point: a page's breadcrumb and title line up with what they
+  introduce, instead of a narrow column floating in the middle of an empty page.
+
+<Canvas of={LayoutStories.AlignedMeasure} />
+
 ## Sticky column headers
 
 The header publishes its measured height as the `--app-header-h` CSS variable,
