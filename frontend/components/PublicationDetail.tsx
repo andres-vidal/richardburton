@@ -11,9 +11,9 @@ import Tooltip from "./Tooltip";
  *
  * Takes the record rather than an id, so whoever renders it decides where it
  * came from — a page reading it on the server, or an overlay opened over the
- * index. Everything admin-only (editing, deleting, the mutation log) is passed
- * in as `actions`, which keeps this the same view for a signed-out reader and
- * an admin.
+ * index. Controls go in as `actions` rather than being decided here — copying a link
+ * for everyone, editing and deleting for an admin — which keeps this the same
+ * view whoever is reading.
  */
 
 const Searchable: FC<{
@@ -125,7 +125,7 @@ const PublicationDetail: FC<{
   publication: Publication;
   /** Run when a search link is followed — an overlay uses it to close itself. */
   onNavigate?: () => void;
-  /** Admin-only affordances, if the viewer has any. */
+  /** Controls the caller adds beneath the record — sharing, and admin affordances. */
   actions?: ReactNode;
 }> = ({ publication, onNavigate, actions }) => (
   <div className="space-y-6">

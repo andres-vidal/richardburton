@@ -28,6 +28,7 @@ import { z } from "zod";
 import { Article } from "./Article";
 import Button from "./Button";
 import ConfirmationModal from "./ConfirmationModal";
+import CopyLink from "./CopyLink";
 import DataInput from "./DataInput";
 import { Modal, useModal, useURLQueryModal } from "./Modal";
 import PublicationDetail, { PublicationHeading } from "./PublicationDetail";
@@ -201,27 +202,33 @@ const PublicationModal: FC = () => {
                   publication={publication}
                   onNavigate={modal.close}
                   actions={
-                    isAdmin && (
-                      <>
-                        <PublicationHistorySection id={publicationId} />
-                        <div className="flex gap-3">
-                          <Button
-                            label="Edit"
-                            variant="outline-primary"
-                            width="fit"
-                            size="medium"
-                            onClick={() => setEditingId(publicationId)}
-                          />
-                          <Button
-                            label="Delete"
-                            variant="danger"
-                            width="fit"
-                            size="medium"
-                            onClick={() => deleteConfirmation.open()}
-                          />
-                        </div>
-                      </>
-                    )
+                    <>
+                      {/* Everyone, not just admins: the URL bar is still
+                          showing the index underneath, so this is the only
+                          place the publication's own address appears. */}
+                      <CopyLink href={`/publications/${publicationId}`} />
+                      {isAdmin && (
+                        <>
+                          <PublicationHistorySection id={publicationId} />
+                          <div className="flex gap-3">
+                            <Button
+                              label="Edit"
+                              variant="outline-primary"
+                              width="fit"
+                              size="medium"
+                              onClick={() => setEditingId(publicationId)}
+                            />
+                            <Button
+                              label="Delete"
+                              variant="danger"
+                              width="fit"
+                              size="medium"
+                              onClick={() => deleteConfirmation.open()}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </>
                   }
                 />
               }
