@@ -4,8 +4,8 @@ import PageHeader from "components/PageHeader";
 import { withChanges } from "modules/publication/history";
 import type { FullHistoryEntry } from "modules/publication/model";
 
-import { read } from "app/api";
-import HistoryFeed from "./HistoryFeed";
+import { get } from "app/api";
+import PublicationHistoryFeed from "components/PublicationHistoryFeed";
 
 const BREADCRUMB_ITEMS = [
   { label: "Home", href: "/" },
@@ -14,7 +14,7 @@ const BREADCRUMB_ITEMS = [
 ];
 
 export default async function PublicationHistoryPage() {
-  const { entries } = await read<{ entries: FullHistoryEntry[] }>(
+  const { entries } = await get<{ entries: FullHistoryEntry[] }>(
     "/publications/history",
   );
 
@@ -30,7 +30,7 @@ export default async function PublicationHistoryPage() {
         </>
       }
       measure="centered"
-      content={<HistoryFeed entries={withChanges(entries)} />}
+      content={<PublicationHistoryFeed entries={withChanges(entries)} />}
     />
   );
 }

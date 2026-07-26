@@ -6,7 +6,9 @@ import type {
   FullHistoryEntry,
   PublicationHistoryAction,
 } from "modules/publication/model";
+import { useRouter } from "next/navigation";
 import { FC, useState } from "react";
+import { undo } from "modules/publication/remote";
 import { Entry, UNDO_DISABLED } from "./PublicationHistory";
 
 type FeedEntry = WithChanges<FullHistoryEntry>;
@@ -39,16 +41,22 @@ type Filter = { actions: PublicationHistoryAction[]; query: string };
  */
 const PublicationHistoryFeed: FC<{
   entries: FeedEntry[];
-  /** Dispatches the compensating action; resolve when the feed is settled. */
-  onUndo: (entry: FeedEntry) => Promise<void>;
-}> = ({ entries, onUndo }) => {
+  /** The undo call. Defaults to the real one; stories pass their own. */
+  onUndo?: (entry: FeedEntry) => Promise<boolean>;
+}> = ({
+  entries,
+  onUndo = (entry) => undo(entry.publicationId, entry.version),
+}) => {
   const [filter, setFilter] = useState<Filter>({ actions: [], query: "" });
+  const router = useRouter();
   const [undoing, setUndoing] = useState(false);
 
+  // A successful undo asks the server to render again: it is itself a new entry,
+  // and it may have changed which *other* entries are still undoable.
   async function handleUndo(entry: FeedEntry) {
     setUndoing(true);
     try {
-      await onUndo(entry);
+      if (await onUndo(entry)) router.refresh();
     } finally {
       setUndoing(false);
     }
