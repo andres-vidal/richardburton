@@ -16,7 +16,7 @@ const api = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
  * Responses come back camelCased, since this is the same client the browser
  * uses.
  */
-export async function read<T>(path: string): Promise<T> {
+export async function get<T>(path: string): Promise<T> {
   const cookie = (await cookies()).get(SESSION_COOKIE);
 
   const { data } = await api.get<T>(path, {

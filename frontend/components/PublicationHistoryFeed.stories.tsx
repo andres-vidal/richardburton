@@ -173,7 +173,7 @@ export const Default: Story = {
 export const UndoInFlight: Story = {
   args: {
     // Never resolves, so the in-flight window stays open for the assertions.
-    onUndo: fn(() => new Promise<void>(() => {})),
+    onUndo: fn(() => new Promise<boolean>(() => {})),
   },
   play: async ({ args }) => {
     const undos = screen.getAllByRole("button", { name: "Undo" });

@@ -3,8 +3,8 @@ import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
 import type { DeletedPublicationEntry } from "modules/publication/model";
 
-import { read } from "app/api";
-import Trash from "./Trash";
+import { get } from "app/api";
+import DeletedPublications from "components/DeletedPublications";
 
 const BREADCRUMB_ITEMS = [
   { label: "Home", href: "/" },
@@ -12,10 +12,8 @@ const BREADCRUMB_ITEMS = [
   { label: "Deleted publications" },
 ];
 
-// A server component: the trash is this page's whole content, so it arrives
-// with the page instead of a beat later.
 export default async function DeletedPublicationsPage() {
-  const { entries } = await read<{ entries: DeletedPublicationEntry[] }>(
+  const { entries } = await get<{ entries: DeletedPublicationEntry[] }>(
     "/publications/deleted",
   );
 
@@ -31,7 +29,7 @@ export default async function DeletedPublicationsPage() {
         </>
       }
       measure="centered"
-      content={<Trash entries={entries} />}
+      content={<DeletedPublications entries={entries} />}
     />
   );
 }

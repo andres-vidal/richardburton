@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
-import { read } from "app/api";
+import { get } from "app/api";
 
 /**
  * Read once per request even though the page and its metadata both ask: `cache`
@@ -20,7 +20,7 @@ import { read } from "app/api";
  */
 const publication = cache(async (id: string): Promise<Publication> => {
   try {
-    return await read<Publication>(`/publications/${id}`);
+    return await get<Publication>(`/publications/${id}`);
   } catch {
     notFound();
   }
