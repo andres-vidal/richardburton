@@ -23,19 +23,9 @@ defmodule RichardBurtonWeb.Router do
     plug(RichardBurtonWeb.Plugs.Authorize.Recaptcha)
   end
 
-  scope "/api", RichardBurtonWeb do
-    pipe_through(:api)
-    get("/publications", PublicationController, :index)
-    get("/users/me", UserController, :me)
-    delete("/sessions", SessionController, :delete)
-  end
-
-  scope "/api", RichardBurtonWeb do
-    pipe_through(:api)
-    pipe_through(:authorize_recaptcha)
-    post("/contact", EmailController, :contact)
-  end
-
+  # Literal paths before "/:id" ones, so "history" and "deleted" never bind as
+  # ids. Routes match in declaration order *across* scopes, which is why this
+  # scope comes before the public one and its "/publications/:id".
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)
     pipe_through(:authorize_admin)
@@ -46,7 +36,6 @@ defmodule RichardBurtonWeb.Router do
     scope "/publications" do
       post("/bulk", PublicationController, :create_all)
       post("/validate", PublicationController, :validate)
-      # Literal paths before "/:id" ones, so "history"/"deleted" never bind as ids.
       get("/history", PublicationController, :history)
       get("/deleted", PublicationController, :index_deleted)
       put("/:id", PublicationController, :update)
@@ -58,16 +47,18 @@ defmodule RichardBurtonWeb.Router do
     end
   end
 
-  # Public, like the index: a reader following a link to one publication sees
-  # what a reader browsing to it sees.
-  #
-  # Declared after the admin scope on purpose. Routes match in declaration
-  # order *across* scopes, so a "/publications/:id" placed with the other public
-  # reads would bind "history" and "deleted" as ids and swallow the admin routes
-  # above — the same trap the comment up there guards against, one level out.
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)
+    get("/publications", PublicationController, :index)
     get("/publications/:id", PublicationController, :show)
+    get("/users/me", UserController, :me)
+    delete("/sessions", SessionController, :delete)
+  end
+
+  scope "/api", RichardBurtonWeb do
+    pipe_through(:api)
+    pipe_through(:authorize_recaptcha)
+    post("/contact", EmailController, :contact)
   end
 
   scope "/api", RichardBurtonWeb do
