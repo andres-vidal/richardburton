@@ -62,7 +62,7 @@ export const Default: Story = {
 export const Restoring: Story = {
   args: {
     // Never resolves, so the in-flight window stays open for the assertions.
-    onRestore: fn(() => new Promise<void>(() => {})),
+    onRestore: fn(() => new Promise<boolean>(() => {})),
   },
   play: async ({ args }) => {
     const [first, second] = screen.getAllByRole("button", { name: "Restore" });
