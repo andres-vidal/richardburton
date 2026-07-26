@@ -13,20 +13,25 @@ no use to them.
 It earns its place where the address is not already on screen. Inside the
 [publication modal](?path=/docs/publications-publication-modal--docs) the URL
 bar still shows the index underneath, so a reader has nothing to select; the
-button copies the publication's own page
+control copies the publication's own page
 (`/publications/:id`) instead of whatever the overlay left in the address.
+
+It is drawn as a **bare icon**, sitting in the heading beside whatever it
+addresses: sharing is an aside to reading, so it should be reachable without
+competing with the record itself. The label is carried by the accessible name
+and a tooltip rather than by visible text.
 
 ## Props
 
 - `href` — the path to copy, made absolute against the current origin.
-- `label` — defaults to "Copy link".
+- `label` — defaults to "Copy link"; used as the accessible name and tooltip.
 
 ## Feedback
 
-Two confirmations, deliberately: the button itself says **Copied** for a couple
-of seconds, because that is where the reader is already looking, and a
-notification carries the URL for anyone who wants to see what was taken. A
-browser that refuses the clipboard says so and shows the address rather than
-failing silently.
+Two confirmations, deliberately: the icon turns green and renames itself
+**Copied** for a couple of seconds, because that is where the reader is already
+looking, and a notification carries the URL for anyone who wants to see what was
+taken. A browser that refuses the clipboard says so and shows the address rather
+than failing silently.
 
 <Canvas of={CopyLinkStories.Default} />

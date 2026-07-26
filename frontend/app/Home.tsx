@@ -17,6 +17,7 @@ import {
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
+import type { PublicationView } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
 import { usePublicationIndex } from "modules/publication/remote";
 import { resetAll } from "modules/publication/store";
@@ -25,7 +26,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
-export default function Home() {
+export default function Home({
+  opened,
+}: {
+  /** The publication the URL names, read on the server. Unawaited, so the
+   * overlay can open before it arrives. */
+  opened?: Promise<PublicationView | null>;
+}) {
   const index = usePublicationIndex();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
@@ -55,7 +62,7 @@ export default function Home() {
           <div className="sm:hidden">
             <PublicationIndexList onItemClick={handleRowClick} />
           </div>
-          <PublicationModal />
+          <PublicationModal view={opened} />
         </>
       }
       subheader={

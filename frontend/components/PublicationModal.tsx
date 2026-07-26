@@ -1,249 +1,89 @@
 "use client";
 
-import type { WithChanges } from "modules/publication/history";
-import {
-  useIsPublicationValid,
-  usePublication,
-  usePublicationErrorDescription,
-  usePublicationField,
-  usePublicationFieldError,
-  usePublicationReferences,
-} from "modules/publication/hooks";
-import {
-  Publication,
-  type PublicationHistoryEntry,
-  type PublicationId,
-  type PublicationKey,
-} from "modules/publication/model";
-import {
-  deletePublication,
-  history,
-  update,
-  validateUpdate,
-} from "modules/publication/remote";
-import { discardEdit, overrideReferences } from "modules/publication/store";
-import { useIsAdmin } from "modules/session";
-import { FC, SubmitEvent, SyntheticEvent, useState } from "react";
-import { z } from "zod";
+import type { PublicationView } from "app/publications/read";
+import { FC, Suspense, use } from "react";
 import { Article } from "./Article";
-import Button from "./Button";
-import ConfirmationModal from "./ConfirmationModal";
 import CopyLink from "./CopyLink";
-import DataInput from "./DataInput";
-import { Modal, useModal, useURLQueryModal } from "./Modal";
+import { Modal, useURLQueryModal } from "./Modal";
 import PublicationDetail, { PublicationHeading } from "./PublicationDetail";
-import PublicationHistory from "./PublicationHistory";
-import ReferencesEditor from "./ReferencesEditor";
 
 const PUBLICATION_MODAL_KEY = "publication";
 
-const Param = z.string().regex(/^\d+$/).transform(Number).optional();
-type Param = z.infer<typeof Param>;
+const Loading: FC = () => (
+  <div className="p-8 w-full text-gray-400">Loading…</div>
+);
+
+const Missing: FC = () => (
+  <div className="p-8 w-full space-y-2">
+    <h1 className="text-2xl font-normal">This publication is not here</h1>
+    <p className="text-gray-700">
+      It has been removed from the catalogue, or the link names a record that
+      never existed.
+    </p>
+  </div>
+);
+
+const Opened: FC<{
+  view: Promise<PublicationView | null>;
+  onClose: () => void;
+}> = ({ view, onClose }) => {
+  const opened = use(view);
+
+  return opened === null ? (
+    <Missing />
+  ) : (
+    <Article
+      heading={
+        <>
+          <PublicationHeading publication={opened.publication} />
+          <CopyLink href={`/publications/${opened.publication.id}`} />
+        </>
+      }
+      content={
+        <PublicationDetail
+          publication={opened.publication}
+          history={opened.history}
+          onNavigate={onClose}
+          onDeleted={onClose}
+        />
+      }
+    />
+  );
+};
 
 /**
- * Admin-only, lazily loaded: the mutation log is fetched on first expand, so
- * opening the modal costs nothing extra and the section works offline in
- * Storybook (nothing fetches until a user opens it).
+ * A publication read over the index, addressed by the URL so the view survives
+ * a reload and can be linked to.
+ *
+ * The record is read on the server from the address itself, not taken from the
+ * index behind it — so a link to a publication outside the current search opens
+ * it all the same, and the mutation log arrives with it rather than after a
+ * click. The view is `PublicationDetail`, the same one the publication's own
+ * page renders; all this adds is the overlay and the address to copy, since the
+ * URL bar is still showing the catalogue underneath.
+ *
+ * The overlay opens on the URL alone and the record streams into it, so a click
+ * is answered at once instead of waiting on the server.
  */
-const PublicationHistorySection: FC<{ id: PublicationId }> = ({ id }) => {
-  const [entries, setEntries] =
-    useState<WithChanges<PublicationHistoryEntry>[]>();
-
-  async function handleToggle(event: SyntheticEvent<HTMLDetailsElement>) {
-    if (event.currentTarget.open && entries === undefined) {
-      setEntries(await history(id));
-    }
-  }
+const PublicationModal: FC<{ view?: Promise<PublicationView | null> }> = ({
+  view,
+}) => {
+  const modal = useURLQueryModal(PUBLICATION_MODAL_KEY);
 
   return (
-    <details className="space-y-2" onToggle={handleToggle}>
-      <summary className="text-sm font-medium tracking-wide text-gray-500 uppercase cursor-pointer select-none">
-        History
-      </summary>
-      {entries === undefined ? (
-        <p className="text-sm text-gray-400">Loading…</p>
+    <Modal
+      isOpen={modal.isOpen}
+      onClose={modal.close}
+      label="Publication details"
+    >
+      {view ? (
+        <Suspense fallback={<Loading />}>
+          <Opened view={view} onClose={modal.close} />
+        </Suspense>
       ) : (
-        <PublicationHistory entries={entries} />
+        <Loading />
       )}
-    </details>
-  );
-};
-
-const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
-  id,
-  attribute,
-}) => {
-  const value = usePublicationField(id, attribute);
-  const error = usePublicationFieldError(id, attribute);
-
-  return (
-    <div className="flex flex-col gap-1 text-sm">
-      <span className="text-gray-500">
-        {Publication.ATTRIBUTE_LABELS[attribute]}
-      </span>
-      <DataInput
-        rowId={id}
-        colId={attribute}
-        value={value}
-        error={error}
-        aria-label={Publication.ATTRIBUTE_LABELS[attribute]}
-        bordered
-        autoValidated
-        // A form has room to say what is wrong, in place.
-        errorDisplay="inline"
-        onValidate={() => validateUpdate(id)}
-      />
-    </div>
-  );
-};
-
-const PublicationEditForm: FC<{ id: PublicationId; onDone: () => void }> = ({
-  id,
-  onDone,
-}) => {
-  const [saving, setSaving] = useState(false);
-  const error = usePublicationErrorDescription(id);
-  const isValid = useIsPublicationValid(id);
-  const references = usePublicationReferences(id);
-
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true);
-    const saved = await update(id);
-    setSaving(false);
-    if (saved) onDone();
-  }
-
-  function handleCancel() {
-    discardEdit(id);
-    onDone();
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-8 w-full">
-      <h1 className="text-2xl font-normal">Edit publication</h1>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {Publication.ATTRIBUTES.map((attribute) => (
-          <EditField key={attribute} id={id} attribute={attribute} />
-        ))}
-      </div>
-      <ReferencesEditor
-        value={references}
-        onChange={(next) => overrideReferences(id, next)}
-      />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="flex gap-3 justify-end">
-        <Button
-          label="Cancel"
-          variant="outline"
-          width="fit"
-          size="medium"
-          onClick={handleCancel}
-        />
-        <Button
-          label="Save"
-          type="submit"
-          width="fit"
-          size="medium"
-          loading={saving}
-          // Nothing to gain from a round-trip we know the server will reject.
-          // `saving` is included because Button lets an explicit `disabled`
-          // override its own `loading`-implies-disabled.
-          disabled={!isValid || saving}
-        />
-      </div>
-    </form>
-  );
-};
-
-const PublicationModal: FC = () => {
-  const { value, ...modal } = useURLQueryModal(PUBLICATION_MODAL_KEY);
-
-  const publicationId = Param.parse(value);
-
-  const publication = usePublication(publicationId);
-  const isAdmin = useIsAdmin();
-
-  const [editingId, setEditingId] = useState<PublicationId>();
-  const editing = editingId !== undefined && editingId === publicationId;
-
-  const deleteConfirmation = useModal();
-  const [deleting, setDeleting] = useState(false);
-
-  function close() {
-    if (editing && publicationId !== undefined) discardEdit(publicationId);
-    modal.close();
-  }
-
-  async function handleDelete() {
-    if (publicationId === undefined) return;
-    setDeleting(true);
-    const removed = await deletePublication(publicationId);
-    setDeleting(false);
-    deleteConfirmation.close();
-    if (removed) modal.close();
-  }
-
-  return (
-    <>
-      <Modal isOpen={modal.isOpen} onClose={close} label="Publication details">
-        {publication &&
-          publicationId !== undefined &&
-          (editing ? (
-            <PublicationEditForm
-              id={publicationId}
-              onDone={() => setEditingId(undefined)}
-            />
-          ) : (
-            <Article
-              heading={<PublicationHeading publication={publication} />}
-              content={
-                <PublicationDetail
-                  publication={publication}
-                  onNavigate={modal.close}
-                  actions={
-                    <>
-                      <CopyLink href={`/publications/${publicationId}`} />
-                      {isAdmin && (
-                        <>
-                          <PublicationHistorySection id={publicationId} />
-                          <div className="flex gap-3">
-                            <Button
-                              label="Edit"
-                              variant="outline-primary"
-                              width="fit"
-                              size="medium"
-                              onClick={() => setEditingId(publicationId)}
-                            />
-                            <Button
-                              label="Delete"
-                              variant="danger"
-                              width="fit"
-                              size="medium"
-                              onClick={() => deleteConfirmation.open()}
-                            />
-                          </div>
-                        </>
-                      )}
-                    </>
-                  }
-                />
-              }
-            />
-          ))}
-      </Modal>
-      {publication && (
-        <ConfirmationModal
-          isOpen={deleteConfirmation.isOpen}
-          title="Delete this publication?"
-          message={`“${publication.title}” (${publication.year}) will be removed from the catalogue, its index, and search results.`}
-          confirmLabel="Delete"
-          loading={deleting}
-          onConfirm={handleDelete}
-          onCancel={deleteConfirmation.close}
-        />
-      )}
-    </>
+    </Modal>
   );
 };
 
