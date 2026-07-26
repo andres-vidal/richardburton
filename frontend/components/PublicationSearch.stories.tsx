@@ -18,7 +18,7 @@ type Story = StoryObj<typeof meta>;
 
 /** The search input renders and is initially empty. */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox", {
       name: "Search publications",
@@ -31,7 +31,7 @@ export const Default: Story = {
 /** A `?search=` param (e.g. following a keyword link) is mirrored into the box. */
 export const FromUrlParam: Story = {
   parameters: { nextjs: { navigation: { query: { search: "Machado" } } } },
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox", {
       name: "Search publications",
@@ -43,7 +43,7 @@ export const FromUrlParam: Story = {
 /** While a search is in flight, the keyword line becomes an animated status. */
 export const Searching: Story = {
   beforeEach: () => {
-    seed();
+    seed(store);
     store.set(isIndexLoadingAtom, true);
   },
   play: async ({ canvasElement }) => {
@@ -55,7 +55,7 @@ export const Searching: Story = {
 
 /** Typing into the input updates its value (debounces to the index endpoint). */
 export const Typing: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox", {
       name: "Search publications",

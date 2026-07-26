@@ -6,6 +6,7 @@ import {
   useVisiblePublicationCount,
 } from "modules/publication/hooks";
 import { setAll } from "modules/publication/store";
+import { usePublicationStore } from "modules/publication/workspace";
 import { bulk } from "modules/publication/remote";
 import { FC, useCallback } from "react";
 import Button from "./Button";
@@ -13,11 +14,12 @@ import { useNotify } from "./Notifications";
 import Tooltip from "./Tooltip";
 
 const PublicationSubmit: FC = () => {
+  const store = usePublicationStore();
   const notify = useNotify();
 
   const handleSubmit = useCallback(() => {
-    bulk().then((publications) => {
-      setAll([]);
+    bulk(store).then((publications) => {
+      setAll(store, []);
       notify({
         message: `${publications.length} ${
           publications.length === 1 ? "publication" : "publications"
@@ -25,7 +27,7 @@ const PublicationSubmit: FC = () => {
         level: "success",
       });
     });
-  }, [notify]);
+  }, [notify, store]);
 
   const publicationCount = useVisiblePublicationCount();
   const validPublicationCount = useValidPublicationCount();

@@ -1,4 +1,5 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { withChanges } from "modules/publication/history";
 import { empty, type PublicationHistoryEntry } from "modules/publication/model";
 import { resetAll } from "modules/publication/store";
@@ -130,7 +131,7 @@ export const AsAdmin: Story = {
  */
 export const Editing: Story = {
   decorators: [asAdmin],
-  beforeEach: () => resetAll(),
+  beforeEach: () => resetAll(store),
   play: async () => {
     await userEvent.click(screen.getByRole("button", { name: "Edit" }));
 

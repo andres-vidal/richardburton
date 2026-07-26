@@ -2,7 +2,6 @@
 
 import Notifications from "components/Notifications";
 import { Provider } from "jotai";
-import ClearSelection from "listeners/ClearSelection";
 import { SessionProvider } from "modules/session";
 import { store } from "modules/store";
 import type { User } from "modules/users";
@@ -22,7 +21,6 @@ export function Providers({
     <SessionProvider session={session}>
       <Provider store={store}>
         <Notifications />
-        <ClearSelection />
         {children}
       </Provider>
     </SessionProvider>

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
 
@@ -16,7 +17,7 @@ type Story = StoryObj<typeof meta>;
 
 /** The upload trigger — a button that opens a hidden file input. */
 export const Default: Story = {
-  beforeEach: () => seed([]),
+  beforeEach: () => seed(store, []),
   play: async ({ canvasElement }) => {
     // The visible affordance is the button; the file input is hidden.
     const button = within(canvasElement).getByRole("button", {
@@ -35,7 +36,7 @@ export const Default: Story = {
 
 /** With existing data, the button warns (via tooltip) that it will be replaced. */
 export const WithExistingData: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).getByRole("button", { name: /Upload\.csv/ }),

@@ -6,6 +6,7 @@ import {
   useOverriddenPublicationIds,
 } from "modules/publication/hooks";
 import { resetOverridden } from "modules/publication/store";
+import { usePublicationStore } from "modules/publication/workspace";
 import { validate } from "modules/publication/remote";
 import { FC } from "react";
 import { clearSelection } from "modules/selection";
@@ -16,12 +17,14 @@ const ResetOverridden: FC = () => {
 
   const overriddenIds = useOverriddenPublicationIds();
 
+  const store = usePublicationStore();
+
   const reset = () => {
     if (!overriddenIds)
       throw "Can not reset publications: overriden ids are undefined.";
-    resetOverridden();
-    clearSelection();
-    validate(overriddenIds);
+    resetOverridden(store);
+    clearSelection(store);
+    validate(store, overriddenIds);
   };
 
   return overriddenCount !== 0 ? (

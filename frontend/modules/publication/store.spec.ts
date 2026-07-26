@@ -1,3 +1,4 @@
+import { createStore } from "jotai";
 import { RESET } from "jotai/utils";
 
 import {
@@ -35,7 +36,6 @@ import {
   setAttributesVisible,
   setDiscarded,
   setErrors,
-  store,
   totalCountAtom,
   validCountAtom,
   visibleAttributesAtom,
@@ -43,6 +43,12 @@ import {
   visibleIdsAtom,
   visiblePublicationFamily,
 } from "./store";
+
+import type { Store } from "modules/store";
+
+// A store per test: publication state belongs to a workspace, so a spec makes
+// its own rather than resetting one everybody shares.
+let store: Store;
 
 type Fields = Partial<ReturnType<typeof empty>>;
 
@@ -63,18 +69,18 @@ function fieldErrors(
 }
 
 beforeEach(() => {
-  // The store is a module singleton; give every test a clean slate. `resetAll`
-  // only touches rows currently in the id list, so reset the draft (never
-  // listed) and the attribute toggles explicitly.
-  resetAll();
+  store = createStore();
+  // The atom *caches* are still module-level, so ids from an earlier test are
+  // reachable through the families even with a fresh store — clear them, and the
+  // draft row with them (it is never in the id list).
+  forget(knownIds());
   store.set(overrideFamily(DRAFT_ID), RESET);
-  resetAttributes();
 });
 
 describe("setAll", () => {
   test("registers the given ids and exposes them as visible", () => {
     const [a, b, c] = [createId(), createId(), createId()];
-    setAll([entry(a, { title: "Dom Casmurro" }), entry(b), entry(c)]);
+    setAll(store, [entry(a, { title: "Dom Casmurro" }), entry(b), entry(c)]);
 
     expect(store.get(publicationIdsAtom)).toEqual([a, b, c]);
     expect(store.get(visibleIdsAtom)).toEqual([a, b, c]);
@@ -84,7 +90,7 @@ describe("setAll", () => {
 
   test("a cell reads its publication's field", () => {
     const a = createId();
-    setAll([entry(a, { title: "Dom Casmurro" })]);
+    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
 
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
       "Dom Casmurro",
@@ -107,7 +113,7 @@ describe("setAll", () => {
 
   test("a cell key survives the negative ids minted for unsaved rows", () => {
     const a = createId();
-    setAll([entry(a, { title: "Dom Casmurro" })]);
+    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
 
     // Ids are packed into a `<id>:<key>` string; a negative id carries its own
     // "-", so splitting on the wrong separator would misread the id.
@@ -121,7 +127,7 @@ describe("setAll", () => {
 describe("validity", () => {
   test("only error-free rows count as valid", () => {
     const [a, b] = [createId(), createId()];
-    setAll([entry(a), entry(b, {}, "conflict")]);
+    setAll(store, [entry(a), entry(b, {}, "conflict")]);
 
     expect(store.get(validCountAtom)).toBe(1);
     expect(store.get(isValidFamily(a))).toBe(true);
@@ -130,10 +136,10 @@ describe("validity", () => {
 
   test("setErrors flips a loaded row to invalid", () => {
     const a = createId();
-    setAll([entry(a)]);
+    setAll(store, [entry(a)]);
     expect(store.get(validCountAtom)).toBe(1);
 
-    setErrors([entry(a, {}, fieldErrors({ title: "required" }))]);
+    setErrors(store, [entry(a, {}, fieldErrors({ title: "required" }))]);
 
     expect(store.get(isValidFamily(a))).toBe(false);
     expect(store.get(validCountAtom)).toBe(0);
@@ -143,9 +149,9 @@ describe("validity", () => {
 describe("deletion", () => {
   test("setDiscarded hides a row without dropping it from the list", () => {
     const [a, b] = [createId(), createId()];
-    setAll([entry(a), entry(b)]);
+    setAll(store, [entry(a), entry(b)]);
 
-    setDiscarded([a]);
+    setDiscarded(store, [a]);
 
     expect(store.get(visibleIdsAtom)).toEqual([b]);
     expect(store.get(visibleCountAtom)).toBe(1);
@@ -155,21 +161,21 @@ describe("deletion", () => {
 
   test("a deleted row no longer counts as valid", () => {
     const [a, b] = [createId(), createId()];
-    setAll([entry(a), entry(b)]);
+    setAll(store, [entry(a), entry(b)]);
     expect(store.get(validCountAtom)).toBe(2);
 
-    setDiscarded([a]);
+    setDiscarded(store, [a]);
 
     expect(store.get(validCountAtom)).toBe(1);
   });
 
   test("resetDiscarded brings hidden rows back", () => {
     const [a, b] = [createId(), createId()];
-    setAll([entry(a), entry(b)]);
-    setDiscarded([a]);
+    setAll(store, [entry(a), entry(b)]);
+    setDiscarded(store, [a]);
     expect(store.get(visibleCountAtom)).toBe(1);
 
-    resetDiscarded();
+    resetDiscarded(store);
 
     expect(store.get(visibleIdsAtom)).toEqual([a, b]);
   });
@@ -178,9 +184,9 @@ describe("deletion", () => {
 describe("overrides", () => {
   test("overrideField layers an edit over the stored publication", () => {
     const a = createId();
-    setAll([entry(a, { title: "Dom Casmurro" })]);
+    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
 
-    overrideField(a, "title", "Dom Casmurro (rev.)");
+    overrideField(store, a, "title", "Dom Casmurro (rev.)");
 
     // The merged (visible) value reflects the edit...
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
@@ -198,11 +204,11 @@ describe("overrides", () => {
 
   test("resetOverridden drops pending edits", () => {
     const a = createId();
-    setAll([entry(a, { title: "Dom Casmurro" })]);
-    overrideField(a, "title", "changed");
+    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
+    overrideField(store, a, "title", "changed");
     expect(store.get(overriddenCountAtom)).toBe(1);
 
-    resetOverridden();
+    resetOverridden(store);
 
     expect(store.get(overriddenCountAtom)).toBe(0);
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
@@ -212,12 +218,12 @@ describe("overrides", () => {
 
   test("discardEdit drops one row's pending edits and errors", () => {
     const a = createId();
-    setAll([entry(a, { title: "Dom Casmurro" }, "conflict")]);
-    overrideField(a, "title", "changed");
+    setAll(store, [entry(a, { title: "Dom Casmurro" }, "conflict")]);
+    overrideField(store, a, "title", "changed");
     expect(store.get(overriddenCountAtom)).toBe(1);
     expect(store.get(isValidFamily(a))).toBe(false);
 
-    discardEdit(a);
+    discardEdit(store, a);
 
     expect(store.get(overriddenCountAtom)).toBe(0);
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
@@ -230,11 +236,11 @@ describe("overrides", () => {
 describe("addNew", () => {
   test("commits the typed draft as a real row and clears the draft", () => {
     const a = createId();
-    setAll([entry(a)]);
+    setAll(store, [entry(a)]);
 
     // Type into the always-present draft row, then commit it.
-    overrideField(DRAFT_ID, "title", "A Hora da Estrela");
-    const newId = addNew();
+    overrideField(store, DRAFT_ID, "title", "A Hora da Estrela");
+    const newId = addNew(store);
 
     expect(store.get(publicationIdsAtom)).toEqual([a, newId]);
     expect(store.get(publicationFamily(newId)).title).toBe("A Hora da Estrela");
@@ -244,19 +250,19 @@ describe("addNew", () => {
 
   test("refuses to run before entries are loaded", () => {
     // beforeEach left the id list unset (RESET → undefined).
-    expect(() => addNew()).toThrow();
+    expect(() => addNew(store)).toThrow();
   });
 });
 
 describe("duplicate", () => {
   test("inserts a copy immediately after each selected row", () => {
     const [a, b] = [createId(), createId()];
-    setAll([
+    setAll(store, [
       entry(a, { title: "Dom Casmurro" }),
       entry(b, { title: "Grande Sertão" }),
     ]);
 
-    const [copyId] = duplicate(new Set([a]));
+    const [copyId] = duplicate(store, new Set([a]));
 
     expect(store.get(publicationIdsAtom)).toEqual([a, copyId, b]);
     expect(store.get(publicationFamily(copyId)).title).toBe("Dom Casmurro");
@@ -267,16 +273,16 @@ describe("attribute visibility", () => {
   test("hiding an attribute moves it from visible to hidden", () => {
     expect(store.get(visibleAttributesAtom)).toContain("year");
 
-    setAttributesVisible(["year"], false);
+    setAttributesVisible(store, ["year"], false);
 
     expect(store.get(visibleAttributesAtom)).not.toContain("year");
     expect(store.get(hiddenAttributesAtom)).toContain("year");
   });
 
   test("resetAttributes restores default visibility", () => {
-    setAttributesVisible(["year"], false);
+    setAttributesVisible(store, ["year"], false);
 
-    resetAttributes();
+    resetAttributes(store);
 
     expect(store.get(visibleAttributesAtom)).toContain("year");
   });
@@ -285,7 +291,7 @@ describe("attribute visibility", () => {
 describe("focusNextInvalid", () => {
   test("steps through invalid rows and wraps back to the first", () => {
     const [a, b, c, d] = [createId(), createId(), createId(), createId()];
-    setAll([
+    setAll(store, [
       entry(a),
       entry(b, {}, "conflict"),
       entry(c),
@@ -293,15 +299,15 @@ describe("focusNextInvalid", () => {
     ]);
 
     // Nothing focused yet → first invalid (b).
-    focusNextInvalid();
+    focusNextInvalid(store);
     expect(store.get(focusedRowIdAtom)).toBe(b);
 
     // → next invalid after b (d).
-    focusNextInvalid();
+    focusNextInvalid(store);
     expect(store.get(focusedRowIdAtom)).toBe(d);
 
     // → nothing invalid after d, so wrap around to b.
-    focusNextInvalid();
+    focusNextInvalid(store);
     expect(store.get(focusedRowIdAtom)).toBe(b);
   });
 });
@@ -329,11 +335,11 @@ describe("family lifecycle", () => {
   });
 
   test("a load forgets the publications the previous one held", () => {
-    hydrate([saved(1), saved(2)]);
+    hydrate(store, [saved(1), saved(2)]);
     expect([...knownIds()]).toEqual(expect.arrayContaining([1, 2]));
 
     // A disjoint second load — a different search, say.
-    hydrate([saved(3)]);
+    hydrate(store, [saved(3)]);
 
     // The families hold the current set and nothing else: an id that keeps its
     // atom keeps it for the whole session.
@@ -341,10 +347,10 @@ describe("family lifecycle", () => {
   });
 
   test("a row with unsaved edits survives a load that drops it", () => {
-    hydrate([saved(1)]);
-    overrideField(1, "title", "Being typed");
+    hydrate(store, [saved(1)]);
+    overrideField(store, 1, "title", "Being typed");
 
-    hydrate([saved(2)]);
+    hydrate(store, [saved(2)]);
 
     // Dropping it would discard what the admin is in the middle of writing —
     // a search running behind an open editor must not do that.
@@ -352,7 +358,7 @@ describe("family lifecycle", () => {
   });
 
   test("forgetting a publication drops its per-cell atoms too", () => {
-    hydrate([saved(7, "Dom Casmurro")]);
+    hydrate(store, [saved(7, "Dom Casmurro")]);
     // Touch a cell so its atom is cached.
     store.get(fieldValueFamily({ id: 7, key: "title" }));
 
@@ -369,7 +375,7 @@ describe("family lifecycle", () => {
     // The specs poke families with ids that never enter publicationIdsAtom.
     store.set(publicationFamily(99), saved(99, "Poked"));
 
-    resetAll();
+    resetAll(store);
 
     expect([...knownIds()]).not.toContain(99);
   });

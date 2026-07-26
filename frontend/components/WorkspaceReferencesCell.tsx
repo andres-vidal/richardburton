@@ -1,6 +1,7 @@
 "use client";
 
 import { usePublicationReferences } from "modules/publication/hooks";
+import { usePublicationStore } from "modules/publication/workspace";
 import { overrideReferences } from "modules/publication/store";
 import { FC, MouseEvent, useState } from "react";
 import Button from "./Button";
@@ -30,6 +31,8 @@ const WorkspaceReferencesCell: FC<{
 
   // The cell sits inside the row's onClick (which selects the row); opening the
   // editor must not also select.
+  const store = usePublicationStore();
+
   const openEditor = (event: MouseEvent) => {
     event.stopPropagation();
     setOpen(true);
@@ -66,7 +69,7 @@ const WorkspaceReferencesCell: FC<{
           <h1 className="text-xl font-normal">References</h1>
           <ReferencesEditor
             value={references}
-            onChange={(next) => overrideReferences(rowId, next)}
+            onChange={(next) => overrideReferences(store, rowId, next)}
           />
         </div>
       </Modal>

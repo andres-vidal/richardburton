@@ -8,11 +8,13 @@ import {
   useVisiblePublicationCount,
 } from "modules/publication/hooks";
 import { focusNextInvalid } from "modules/publication/store";
+import { usePublicationStore } from "modules/publication/workspace";
 import { FC } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";
 
 const PublicationErrorCounter: FC = () => {
+  const store = usePublicationStore();
   const publicationCount = useVisiblePublicationCount();
   const validPublicationCount = useValidPublicationCount();
   const invalidPublicationCount = publicationCount - validPublicationCount;
@@ -49,7 +51,7 @@ const PublicationErrorCounter: FC = () => {
         Icon={ErrorCircleIcon}
         label={toString(invalidPublicationCount)}
         aria-label={`${invalidPublicationCount} invalid publications`}
-        onClick={focusNextInvalid}
+        onClick={() => focusNextInvalid(store)}
       />
     </Tooltip>
   );
