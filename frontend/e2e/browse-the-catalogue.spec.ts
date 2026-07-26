@@ -110,3 +110,34 @@ test("a signed-out reader sees publication details read-only, references include
   // …but editing is admin-only.
   await expect(dialog.getByRole("button", { name: "Edit" })).toHaveCount(0);
 });
+
+test("a reader takes a publication's link, and the link stands on its own", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+  // A reader, not an admin: the link is for everyone.
+  await signOut(page);
+
+  await page.context().grantPermissions(["clipboard-write"]);
+
+  const dialog = await openPublicationModal(page, "The Hour of the Star");
+  await dialog.getByRole("button", { name: "Copy link" }).click();
+
+  // The confirmation carries the address it took, so the test can follow it
+  // without reading the clipboard back.
+  const notifications = page.locator("section[aria-label='Notifications']");
+  await expect(notifications).toContainText(
+    /Link copied[\s\S]*\/publications\/\d+/,
+  );
+  const link = (await notifications.innerText()).match(
+    /\/publications\/\d+/,
+  )![0];
+
+  // It is a page, not the index with an overlay: the record is there and the
+  // catalogue behind it is not.
+  await page.goto(link);
+  await expect(page.getByText("The Hour of the Star").first()).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText("Barren Lives")).toHaveCount(0);
+});
