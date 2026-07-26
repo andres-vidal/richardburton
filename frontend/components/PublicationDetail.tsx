@@ -1,20 +1,40 @@
 "use client";
 
-import { Publication, type PublicationKey } from "modules/publication/model";
+import type { WithChanges } from "modules/publication/history";
+import {
+  useIsPublicationValid,
+  usePublicationErrorDescription,
+  usePublicationField,
+  usePublicationFieldError,
+  usePublicationReferences,
+} from "modules/publication/hooks";
+import {
+  Publication,
+  type PublicationHistoryEntry,
+  type PublicationId,
+  type PublicationKey,
+} from "modules/publication/model";
+import {
+  deletePublication,
+  update,
+  validateUpdate,
+} from "modules/publication/remote";
+import {
+  discardEdit,
+  overrideReferences,
+  remember,
+} from "modules/publication/store";
+import { useIsAdmin } from "modules/session";
 import Link from "next/link";
-import { FC, ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { FC, SubmitEvent, useEffect, useState } from "react";
+import Button from "./Button";
+import ConfirmationModal from "./ConfirmationModal";
+import DataInput from "./DataInput";
+import { useModal } from "./Modal";
+import PublicationHistory from "./PublicationHistory";
+import ReferencesEditor from "./ReferencesEditor";
 import Tooltip from "./Tooltip";
-
-/**
- * A publication as a reader sees it: the title and its translators, a sentence
- * placing it, and its sources.
- *
- * Takes the record rather than an id, so whoever renders it decides where it
- * came from — a page reading it on the server, or an overlay opened over the
- * index. Controls go in as `actions` rather than being decided here — copying a link
- * for everyone, editing and deleting for an admin — which keeps this the same
- * view whoever is reading.
- */
 
 const Searchable: FC<{
   label: string;
@@ -101,12 +121,16 @@ const PublicationDescription: FC<{
   );
 };
 
+const SectionHeading: FC<{ children: string }> = ({ children }) => (
+  <h2 className="text-sm font-medium tracking-wide text-gray-500 uppercase">
+    {children}
+  </h2>
+);
+
 const PublicationReferences: FC<{ references: string[] }> = ({ references }) =>
   references.length === 0 ? null : (
     <section className="space-y-2">
-      <h2 className="text-sm font-medium tracking-wide text-gray-500 uppercase">
-        References
-      </h2>
+      <SectionHeading>References</SectionHeading>
       <ul className="space-y-1.5 text-sm text-gray-700">
         {references.map((reference, index) => (
           <li key={index} className="flex gap-2.5 items-baseline">
@@ -121,19 +145,220 @@ const PublicationReferences: FC<{ references: string[] }> = ({ references }) =>
     </section>
   );
 
+/**
+ * The record's mutation log, collapsed. The entries arrive with the record, so
+ * expanding it costs nothing and shows everything at once.
+ */
+const PublicationHistorySection: FC<{
+  entries: WithChanges<PublicationHistoryEntry>[];
+}> = ({ entries }) => (
+  <details className="space-y-2">
+    <summary className="text-sm font-medium tracking-wide text-gray-500 uppercase cursor-pointer select-none">
+      History
+    </summary>
+    <PublicationHistory entries={entries} />
+  </details>
+);
+
+const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
+  id,
+  attribute,
+}) => {
+  const value = usePublicationField(id, attribute);
+  const error = usePublicationFieldError(id, attribute);
+
+  return (
+    <div className="flex flex-col gap-1 text-sm">
+      <span className="text-gray-500">
+        {Publication.ATTRIBUTE_LABELS[attribute]}
+      </span>
+      <DataInput
+        rowId={id}
+        colId={attribute}
+        value={value}
+        error={error}
+        aria-label={Publication.ATTRIBUTE_LABELS[attribute]}
+        bordered
+        autoValidated
+        // A form has room to say what is wrong, in place.
+        errorDisplay="inline"
+        onValidate={() => validateUpdate(id)}
+      />
+    </div>
+  );
+};
+
+const PublicationEditForm: FC<{
+  id: PublicationId;
+  onSaved: () => void;
+  onCancel: () => void;
+}> = ({ id, onSaved, onCancel }) => {
+  const [saving, setSaving] = useState(false);
+  const error = usePublicationErrorDescription(id);
+  const isValid = useIsPublicationValid(id);
+  const references = usePublicationReferences(id);
+
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    const saved = await update(id);
+    setSaving(false);
+    if (saved) onSaved();
+  }
+
+  function handleCancel() {
+    discardEdit(id);
+    onCancel();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 w-full">
+      <SectionHeading>Edit publication</SectionHeading>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {Publication.ATTRIBUTES.map((attribute) => (
+          <EditField key={attribute} id={id} attribute={attribute} />
+        ))}
+      </div>
+      <ReferencesEditor
+        value={references}
+        onChange={(next) => overrideReferences(id, next)}
+      />
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex gap-3 justify-end">
+        <Button
+          label="Cancel"
+          variant="outline"
+          width="fit"
+          size="medium"
+          onClick={handleCancel}
+        />
+        <Button
+          label="Save"
+          type="submit"
+          width="fit"
+          size="medium"
+          loading={saving}
+          // Nothing to gain from a round-trip we know the server will reject.
+          // `saving` is included because Button lets an explicit `disabled`
+          // override its own `loading`-implies-disabled.
+          disabled={!isValid || saving}
+        />
+      </div>
+    </form>
+  );
+};
+
+/**
+ * A publication as a reader sees it: the title and its translators, a sentence
+ * placing it, and its sources — plus, for an admin, its history and the controls
+ * to correct or remove it.
+ *
+ * Takes the record — and the log behind it — rather than an id, so whoever
+ * renders it decides where those came from, and the view is complete the moment
+ * it appears instead of filling in afterwards. Who may do what is settled here
+ * rather than by each caller, so the same publication offers the same
+ * affordances wherever it is read.
+ *
+ * A save asks the server to render again: the heading, the breadcrumb, and the
+ * page title are drawn from the same record by whoever placed this view, and
+ * re-reading is the only way they cannot disagree with the body.
+ */
 const PublicationDetail: FC<{
   publication: Publication;
+  /**
+   * The record's mutation log, read alongside it. Present only for an admin,
+   * who is the only reader allowed it.
+   */
+  history?: WithChanges<PublicationHistoryEntry>[];
   /** Run when a search link is followed — an overlay uses it to close itself. */
   onNavigate?: () => void;
-  /** Controls the caller adds beneath the record — sharing, and admin affordances. */
-  actions?: ReactNode;
-}> = ({ publication, onNavigate, actions }) => (
-  <div className="space-y-6">
-    <PublicationDescription publication={publication} onNavigate={onNavigate} />
-    <PublicationReferences references={publication.references} />
-    {actions}
-  </div>
-);
+  /**
+   * Run once the record is gone. Defaults to leaving for the index, which is
+   * what a page showing only this publication has to do; an overlay closes
+   * instead and leaves the catalogue behind it in place.
+   */
+  onDeleted?: () => void;
+}> = ({ publication, history, onNavigate, onDeleted }) => {
+  const id = publication.id!;
+  const isAdmin = useIsAdmin();
+  const router = useRouter();
+
+  const [editing, setEditing] = useState(false);
+  const deleteConfirmation = useModal();
+  const [deleting, setDeleting] = useState(false);
+
+  // An edit abandoned by closing the view is dropped, not kept: the overlay it
+  // writes to is the same one the row behind it reads around.
+  useEffect(() => (editing ? () => discardEdit(id) : undefined), [editing, id]);
+
+  function startEditing() {
+    // The form edits the store's copy of the record, so a view that read it on
+    // the server has to hand it over before the fields can show anything.
+    remember(publication);
+    setEditing(true);
+  }
+
+  function handleSaved() {
+    setEditing(false);
+    router.refresh();
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    const removed = await deletePublication(id);
+    setDeleting(false);
+    deleteConfirmation.close();
+    if (removed) (onDeleted ?? (() => router.replace("/")))();
+  }
+
+  return (
+    <div className="space-y-6">
+      {editing ? (
+        <PublicationEditForm
+          id={id}
+          onSaved={handleSaved}
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        <>
+          <PublicationDescription
+            publication={publication}
+            onNavigate={onNavigate}
+          />
+          <PublicationReferences references={publication.references} />
+          {history && <PublicationHistorySection entries={history} />}
+          {isAdmin && (
+            <div className="flex gap-3">
+              <Button
+                label="Edit"
+                variant="outline-primary"
+                width="fit"
+                size="medium"
+                onClick={startEditing}
+              />
+              <Button
+                label="Delete"
+                variant="danger"
+                width="fit"
+                size="medium"
+                onClick={() => deleteConfirmation.open()}
+              />
+            </div>
+          )}
+        </>
+      )}
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        title="Delete this publication?"
+        message={`“${publication.title}” (${publication.year}) will be removed from the catalogue, its index, and search results.`}
+        confirmLabel="Delete"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={deleteConfirmation.close}
+      />
+    </div>
+  );
+};
 
 export default PublicationDetail;
 export { PublicationHeading };
