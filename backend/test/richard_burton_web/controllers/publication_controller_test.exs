@@ -43,6 +43,46 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
   end
 
+  describe "GET /publications/:id" do
+    setup(%{conn: conn}) do
+      {:ok, publication} =
+        @publication_attrs
+        |> Publication.Codec.nest()
+        |> Publication.insert("importer@example.com")
+
+      [conn: conn, publication: publication]
+    end
+
+    test "returns one publication, flat, without authentication", meta do
+      expect_auth_verify(0)
+      expect_auth_authorize_admin(0)
+
+      conn = get(meta.conn, publication_path(meta.conn, :show, meta.publication.id))
+
+      assert %{"title" => title, "authors" => authors, "id" => id} =
+               json_response(conn, 200)
+
+      assert title == @publication_attrs["title"]
+      assert authors == @publication_attrs["authors"]
+      assert id == meta.publication.id
+    end
+
+    test "returns 404 for a publication that never existed", meta do
+      conn = get(meta.conn, publication_path(meta.conn, :show, -1))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
+    end
+
+    test "a deleted publication reads as missing, not merely hidden", meta do
+      expect_auth_authorize_admin()
+      delete(meta.conn, publication_path(meta.conn, :delete, meta.publication.id))
+
+      # The same answer the index and the search give: gone from every read
+      # path, so a stale link cannot resurrect a record from the trash.
+      conn = get(meta.conn, publication_path(meta.conn, :show, meta.publication.id))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
+    end
+  end
+
   describe "GET /publications?unreferenced" do
     test "returns only publications that have no references", %{conn: conn} do
       {:ok, with_refs} =
