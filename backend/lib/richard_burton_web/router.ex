@@ -58,6 +58,18 @@ defmodule RichardBurtonWeb.Router do
     end
   end
 
+  # Public, like the index: a reader following a link to one publication sees
+  # what a reader browsing to it sees.
+  #
+  # Declared after the admin scope on purpose. Routes match in declaration
+  # order *across* scopes, so a "/publications/:id" placed with the other public
+  # reads would bind "history" and "deleted" as ids and swallow the admin routes
+  # above — the same trap the comment up there guards against, one level out.
+  scope "/api", RichardBurtonWeb do
+    pipe_through(:api)
+    get("/publications/:id", PublicationController, :show)
+  end
+
   scope "/api", RichardBurtonWeb do
     pipe_through(:authenticate_bearer)
     post("/users", UserController, :create)
