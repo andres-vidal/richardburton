@@ -7,14 +7,7 @@ import hash from "object-hash";
 import { useCallback } from "react";
 import useDebounce from "utils/useDebounce";
 
-import { withChanges } from "./history";
-import type { WithChanges } from "./history";
-import type {
-  DeletedPublicationEntry,
-  FullHistoryEntry,
-  Publication,
-  PublicationHistoryEntry,
-} from "./model";
+import type { Publication, PublicationHistoryEntry } from "./model";
 import {
   PublicationError,
   PublicationId,
@@ -201,46 +194,6 @@ async function deletePublication(id: PublicationId): Promise<boolean> {
 }
 
 /**
- * A publication's mutation log (admin), newest first.
- *
- * Both history calls resolve each entry's changes here, on the way in, so views
- * render a ready list instead of diffing during paint.
- */
-async function history(
-  id: PublicationId,
-): Promise<WithChanges<PublicationHistoryEntry>[]> {
-  return run(async (http) => {
-    const { data } = await http.get<{ entries: PublicationHistoryEntry[] }>(
-      `publications/${id}/history`,
-    );
-    return withChanges(data.entries);
-  });
-}
-
-/** Every recorded change across the catalogue (admin), newest first. */
-async function fullHistory(): Promise<WithChanges<FullHistoryEntry>[]> {
-  return run(async (http) => {
-    const { data } = await http.get<{ entries: FullHistoryEntry[] }>(
-      "publications/history",
-    );
-    return withChanges(data.entries);
-  });
-}
-
-/**
- * The publications that are currently deleted (admin), most recently deleted
- * first — the trash's own state, not the log's record of deletion events.
- */
-async function deleted(): Promise<DeletedPublicationEntry[]> {
-  return run(async (http) => {
-    const { data } = await http.get<{ entries: DeletedPublicationEntry[] }>(
-      "publications/deleted",
-    );
-    return data.entries;
-  });
-}
-
-/**
  * Undo one recorded change (admin), naming the entry rather than describing the
  * result: the server decides which action compensates it and what state that
  * produces. A new entry lands in the log — history is never rewritten — so the
@@ -388,9 +341,6 @@ function usePublicationIndex() {
 
 export {
   bulk,
-  deleted,
-  fullHistory,
-  history,
   index,
   deletePublication,
   restore,

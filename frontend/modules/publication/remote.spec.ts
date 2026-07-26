@@ -8,8 +8,6 @@ import { empty } from "./model";
 import {
   bulk,
   deletePublication,
-  fullHistory,
-  history,
   index,
   restore,
   undo,
@@ -268,55 +266,6 @@ describe("remove", () => {
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({ level: "warning" }),
     );
-  });
-});
-
-describe("history", () => {
-  test("GETs the publication's mutation log", async () => {
-    const entries = [
-      { version: 1, action: "created", actor: "importer@rb.test", diff: null },
-    ];
-    http.get.mockResolvedValue({ data: { entries } });
-
-    const result = await history(7);
-
-    expect(http.get).toHaveBeenCalledWith("publications/7/history");
-    expect(result).toEqual([{ ...entries[0], changes: [] }]);
-  });
-
-  test("resolves each entry's changes from the server's diff", async () => {
-    const entries = [
-      {
-        version: 2,
-        action: "updated",
-        actor: "admin@rb.test",
-        diff: {
-          fields: { title: { from: "Before", to: "After" } },
-          references: null,
-        },
-      },
-    ];
-    http.get.mockResolvedValue({ data: { entries } });
-
-    const [entry] = await history(7);
-
-    expect(entry.changes).toEqual([
-      { kind: "field", label: "Title", from: "Before", to: "After" },
-    ]);
-  });
-});
-
-describe("fullHistory", () => {
-  test("GETs the catalogue-wide feed", async () => {
-    const entries = [
-      { publicationId: 7, version: 1, action: "created", diff: null },
-    ];
-    http.get.mockResolvedValue({ data: { entries } });
-
-    const result = await fullHistory();
-
-    expect(http.get).toHaveBeenCalledWith("publications/history");
-    expect(result).toEqual([{ ...entries[0], changes: [] }]);
   });
 });
 
