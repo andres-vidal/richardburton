@@ -1,13 +1,11 @@
-"use client";
-
 import Breadcrumb from "components/Breadcrumb";
 import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
-import PublicationHistoryFeed from "components/PublicationHistoryFeed";
-import type { WithChanges } from "modules/publication/history";
+import { withChanges } from "modules/publication/history";
 import type { FullHistoryEntry } from "modules/publication/model";
-import { fullHistory, undo } from "modules/publication/remote";
-import { useEffect, useState } from "react";
+
+import { read } from "app/api";
+import HistoryFeed from "./HistoryFeed";
 
 const BREADCRUMB_ITEMS = [
   { label: "Home", href: "/" },
@@ -15,28 +13,14 @@ const BREADCRUMB_ITEMS = [
   { label: "History" },
 ];
 
-export default function PublicationHistoryPage() {
-  const [entries, setEntries] = useState<WithChanges<FullHistoryEntry>[]>();
-
-  useEffect(() => {
-    // `run` already surfaces a notification on failure.
-    fullHistory()
-      .then(setEntries)
-      .catch(() => {});
-  }, []);
-
-  // Name the entry and let the server work out which action compensates it.
-  // On success reload the feed: the undo is itself a new entry, and it may have
-  // changed what else is still undoable. Awaited, not fired and forgotten — the
-  // feed keeps the row spinning until this resolves, so the button never goes
-  // idle over a stale list.
-  async function handleUndo(entry: FullHistoryEntry) {
-    if (await undo(entry.publicationId, entry.version)) {
-      await fullHistory()
-        .then(setEntries)
-        .catch(() => {});
-    }
-  }
+// A server component: the log is this page's whole content, so it is read
+// before the first paint rather than after it. `withChanges` runs here too —
+// turning the server's structural diff into labelled changes is work the
+// browser no longer has to do.
+export default async function PublicationHistoryPage() {
+  const { entries } = await read<{ entries: FullHistoryEntry[] }>(
+    "/publications/history",
+  );
 
   return (
     <Layout
@@ -50,13 +34,7 @@ export default function PublicationHistoryPage() {
         </>
       }
       measure="centered"
-      content={
-        entries === undefined ? (
-          <p className="text-sm text-gray-600">Loading…</p>
-        ) : (
-          <PublicationHistoryFeed entries={entries} onUndo={handleUndo} />
-        )
-      }
+      content={<HistoryFeed entries={withChanges(entries)} />}
     />
   );
 }

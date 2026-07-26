@@ -1,15 +1,10 @@
-"use client";
-
 import Breadcrumb from "components/Breadcrumb";
-import DeletedPublications from "components/DeletedPublications";
 import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
-import type {
-  DeletedPublicationEntry,
-  PublicationId,
-} from "modules/publication/model";
-import { deleted, restore } from "modules/publication/remote";
-import { useEffect, useState } from "react";
+import type { DeletedPublicationEntry } from "modules/publication/model";
+
+import { read } from "app/api";
+import Trash from "./Trash";
 
 const BREADCRUMB_ITEMS = [
   { label: "Home", href: "/" },
@@ -17,26 +12,12 @@ const BREADCRUMB_ITEMS = [
   { label: "Deleted publications" },
 ];
 
-export default function DeletedPublicationsPage() {
-  const [entries, setEntries] = useState<DeletedPublicationEntry[]>();
-
-  useEffect(() => {
-    // `run` already surfaces a notification on failure.
-    deleted()
-      .then(setEntries)
-      .catch(() => {});
-  }, []);
-
-  // Which row is spinning is the list's own state; this only does the work and
-  // drops the row on success. A failed restore — the record was imported again
-  // while it sat here — leaves the list alone, and `run` has already said so.
-  async function handleRestore(id: PublicationId) {
-    if (await restore(id)) {
-      setEntries((current) =>
-        current?.filter(({ publication }) => publication.id !== id),
-      );
-    }
-  }
+// A server component: the trash is this page's whole content, so it arrives
+// with the page instead of a beat later.
+export default async function DeletedPublicationsPage() {
+  const { entries } = await read<{ entries: DeletedPublicationEntry[] }>(
+    "/publications/deleted",
+  );
 
   return (
     <Layout
@@ -50,13 +31,7 @@ export default function DeletedPublicationsPage() {
         </>
       }
       measure="centered"
-      content={
-        entries === undefined ? (
-          <p className="text-sm text-gray-600">Loading…</p>
-        ) : (
-          <DeletedPublications entries={entries} onRestore={handleRestore} />
-        )
-      }
+      content={<Trash entries={entries} />}
     />
   );
 }
