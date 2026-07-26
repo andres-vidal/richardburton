@@ -59,14 +59,14 @@ export const AllSlots: Story = {
 };
 
 /**
- * `measure="centered"` holds the subheader and the content to one column, so a
- * page's breadcrumb and title line up with what they introduce. Without it a
- * narrow page reads as misaligned: the heading sits at the viewport edge while
- * the content floats in the middle.
+ * `measure="aligned"` holds the subheader and the content to one column of
+ * readable width, starting both at the page's gutter — where the header's own
+ * content begins. Without it a narrow page reads as misaligned: the heading sits
+ * at the viewport edge while the content floats in the middle.
  */
-export const CenteredMeasure: Story = {
+export const AlignedMeasure: Story = {
   args: {
-    measure: "centered",
+    measure: "aligned",
     subheader: <div data-testid="subheader">Breadcrumb and title</div>,
     content: <div data-testid="content">Page content</div>,
   },
