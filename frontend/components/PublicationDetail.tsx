@@ -24,6 +24,7 @@ import {
   overrideReferences,
   remember,
 } from "modules/publication/store";
+import { usePublicationStore } from "modules/publication/workspace";
 import { useIsAdmin } from "modules/session";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -164,6 +165,7 @@ const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
   id,
   attribute,
 }) => {
+  const store = usePublicationStore();
   const value = usePublicationField(id, attribute);
   const error = usePublicationFieldError(id, attribute);
 
@@ -182,7 +184,7 @@ const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
         autoValidated
         // A form has room to say what is wrong, in place.
         errorDisplay="inline"
-        onValidate={() => validateUpdate(id)}
+        onValidate={() => validateUpdate(store, id)}
       />
     </div>
   );
@@ -193,6 +195,7 @@ const PublicationEditForm: FC<{
   onSaved: () => void;
   onCancel: () => void;
 }> = ({ id, onSaved, onCancel }) => {
+  const store = usePublicationStore();
   const [saving, setSaving] = useState(false);
   const error = usePublicationErrorDescription(id);
   const isValid = useIsPublicationValid(id);
@@ -201,13 +204,13 @@ const PublicationEditForm: FC<{
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
-    const saved = await update(id);
+    const saved = await update(store, id);
     setSaving(false);
     if (saved) onSaved();
   }
 
   function handleCancel() {
-    discardEdit(id);
+    discardEdit(store, id);
     onCancel();
   }
 
@@ -221,7 +224,7 @@ const PublicationEditForm: FC<{
       </div>
       <ReferencesEditor
         value={references}
-        onChange={(next) => overrideReferences(id, next)}
+        onChange={(next) => overrideReferences(store, id, next)}
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 justify-end">
@@ -280,6 +283,7 @@ const PublicationDetail: FC<{
   onDeleted?: () => void;
 }> = ({ publication, history, onNavigate, onDeleted }) => {
   const id = publication.id!;
+  const store = usePublicationStore();
   const isAdmin = useIsAdmin();
   const router = useRouter();
 
@@ -289,12 +293,15 @@ const PublicationDetail: FC<{
 
   // An edit abandoned by closing the view is dropped, not kept: the overlay it
   // writes to is the same one the row behind it reads around.
-  useEffect(() => (editing ? () => discardEdit(id) : undefined), [editing, id]);
+  useEffect(
+    () => (editing ? () => discardEdit(store, id) : undefined),
+    [editing, id, store],
+  );
 
   function startEditing() {
     // The form edits the store's copy of the record, so a view that read it on
     // the server has to hand it over before the fields can show anything.
-    remember(publication);
+    remember(store, publication);
     setEditing(true);
   }
 
@@ -305,7 +312,7 @@ const PublicationDetail: FC<{
 
   async function handleDelete() {
     setDeleting(true);
-    const removed = await deletePublication(id);
+    const removed = await deletePublication(store, id);
     setDeleting(false);
     deleteConfirmation.close();
     if (removed) (onDeleted ?? (() => router.replace("/")))();

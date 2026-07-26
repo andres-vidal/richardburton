@@ -2,6 +2,7 @@
 
 import TrashIcon from "assets/trash.svg";
 import { setDiscarded } from "modules/publication/store";
+import { usePublicationStore } from "modules/publication/workspace";
 import { FC } from "react";
 import {
   clearSelection,
@@ -13,11 +14,13 @@ import Button from "./Button";
 const PublicationDiscard: FC = () => {
   const selectionSize = useSelectionSize();
 
+  const store = usePublicationStore();
+
   const discardSelected = () => {
-    const selectedIds = [...getSelection()] as number[];
+    const selectedIds = [...getSelection(store)] as number[];
     if (selectedIds.length > 0) {
-      setDiscarded(selectedIds);
-      clearSelection();
+      setDiscarded(store, selectedIds);
+      clearSelection(store);
     }
   };
 

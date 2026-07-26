@@ -2,7 +2,7 @@
 
 import { atom, useAtomValue } from "jotai";
 import { atomFamily } from "jotai-family";
-import { store } from "modules/store";
+import type { Store } from "modules/store";
 
 type SelectableId = string | number;
 
@@ -115,18 +115,18 @@ function reduce(state: SelectionState, event: SelectionEvent): SelectionState {
   return { selection: new Set([id]), type, pivot: id };
 }
 
-// --- Actions (write the shared store, like modules/publication) -------------
+// --- Actions (write the store they are given, like modules/publication) -----
 
-export function select(event: SelectionEvent): void {
+export function select(store: Store, event: SelectionEvent): void {
   store.set(selectionStateAtom, reduce(store.get(selectionStateAtom), event));
 }
 
-export function clearSelection(): void {
+export function clearSelection(store: Store): void {
   store.set(selectionStateAtom, empty());
 }
 
 /** Imperative, non-reactive read of the current selection. */
-export function getSelection(): Set<SelectableId> {
+export function getSelection(store: Store): Set<SelectableId> {
   return store.get(selectionAtom);
 }
 

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
 
@@ -16,7 +17,7 @@ type Story = StoryObj<typeof meta>;
 
 /** Enabled when there are visible publications to export as .csv. */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const button = within(canvasElement).getByRole("button", {
       name: /Download \.csv/,
@@ -29,7 +30,7 @@ export const Default: Story = {
 
 /** Nothing to download — the button is disabled when the list is empty. */
 export const Empty: Story = {
-  beforeEach: () => seed([]),
+  beforeEach: () => seed(store, []),
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).getByRole("button", { name: /Download \.csv/ }),

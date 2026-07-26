@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { resetAll } from "modules/publication/store";
 import { seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
@@ -17,7 +18,7 @@ type Story = StoryObj<typeof meta>;
 
 /** With publications loaded, the toggle shows the row-number control. */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).getByRole("button", { name: "Row Ids" }),
@@ -27,7 +28,7 @@ export const Default: Story = {
 
 /** With nothing loaded, the toggle hides itself entirely. */
 export const Empty: Story = {
-  beforeEach: () => resetAll(),
+  beforeEach: () => resetAll(store),
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).queryByRole("button")).toBeNull();
   },

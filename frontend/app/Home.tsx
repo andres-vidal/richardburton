@@ -19,6 +19,7 @@ import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
 import type { PublicationView } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
+import { usePublicationStore } from "modules/publication/workspace";
 import { usePublicationIndex } from "modules/publication/remote";
 import { resetAll } from "modules/publication/store";
 import { useIsAuthenticated } from "modules/session";
@@ -33,6 +34,7 @@ export default function Home({
    * overlay can open before it arrives. */
   opened?: Promise<PublicationView | null>;
 }) {
+  const store = usePublicationStore();
   const index = usePublicationIndex();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
@@ -40,7 +42,7 @@ export default function Home({
   const searchParams = useSearchParams();
   const search = searchParams?.get("search") ?? undefined;
 
-  useEffect(() => resetAll(), []);
+  useEffect(() => resetAll(store), [store]);
 
   useEffect(() => {
     index({ search });

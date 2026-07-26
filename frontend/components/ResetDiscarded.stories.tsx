@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { useVisiblePublicationIds } from "modules/publication/hooks";
 import { setDiscarded } from "modules/publication/store";
 import { seed } from "modules/publication/fixtures";
@@ -18,7 +19,7 @@ const DiscardControls: FC = () => {
     <button
       className="rounded border border-indigo-600 px-3 py-1 text-sm text-indigo-600 hover:bg-indigo-50 disabled:opacity-40"
       disabled={first === undefined}
-      onClick={() => first !== undefined && setDiscarded([first])}
+      onClick={() => first !== undefined && setDiscarded(store, [first])}
     >
       Discard a row
     </button>
@@ -45,7 +46,7 @@ type Story = StoryObj<typeof meta>;
 
 /** Discard a row → the reset button appears → reset restores it (a full round-trip). */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 

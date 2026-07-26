@@ -7,6 +7,7 @@ import {
   type PublicationKeyType,
 } from "modules/publication/model";
 import { validate } from "modules/publication/remote";
+import { usePublicationStore } from "modules/publication/workspace";
 import { overrideField } from "modules/publication/store";
 import { FC, FocusEvent, HTMLProps, Ref, forwardRef } from "react";
 import TextArrayDataInput from "./TextArrayDataInput";
@@ -80,14 +81,15 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   const Component = COMPONENTS_PER_TYPE[type];
   const placeholder = Publication.ATTRIBUTE_LABELS[colId];
 
-  const validateRow = onValidate ?? (() => validate([rowId]));
+  const store = usePublicationStore();
+  const validateRow = onValidate ?? (() => validate(store, [rowId]));
 
   function doValidate() {
     if (autoValidated) validateRow();
   }
 
   function handleChange(value: string) {
-    overrideField(rowId, colId, value);
+    overrideField(store, rowId, colId, value);
     if (VALIDATES_ON_CHANGE.includes(type)) {
       doValidate();
     }

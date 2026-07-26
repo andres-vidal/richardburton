@@ -1,7 +1,7 @@
 import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
-import { store } from "modules/store";
+import type { Store } from "modules/store";
 import {
   ATTRIBUTES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
@@ -260,7 +260,7 @@ function knownIds(): Set<PublicationId> {
  * publication seen this session. A row with a pending edit is kept regardless:
  * a search running behind an open editor must not discard what is being typed.
  */
-function hydrate(publications: Publication[]): PublicationId[] {
+function hydrate(store: Store, publications: Publication[]): PublicationId[] {
   const ids = publications.map((publication) => publication.id!);
   const arriving = new Set(ids);
 
@@ -283,11 +283,11 @@ function hydrate(publications: Publication[]): PublicationId[] {
  * record (a publication's own page) needs before it can be edited, since the
  * form edits the store's copy.
  */
-function remember(publication: Publication): void {
+function remember(store: Store, publication: Publication): void {
   store.set(publicationFamily(publication.id!), publication);
 }
 
-function setAll(entries: PublicationEntry[]): void {
+function setAll(store: Store, entries: PublicationEntry[]): void {
   store.set(
     publicationIdsAtom,
     entries.map(({ id }) => id),
@@ -298,7 +298,7 @@ function setAll(entries: PublicationEntry[]): void {
   });
 }
 
-function setPublications(entries: PublicationEntry[]): void {
+function setPublications(store: Store, entries: PublicationEntry[]): void {
   store.set(
     publicationIdsAtom,
     entries.map(({ id }) => id),
@@ -308,19 +308,24 @@ function setPublications(entries: PublicationEntry[]): void {
   });
 }
 
-function setErrors(entries: PublicationEntry[]): void {
+function setErrors(store: Store, entries: PublicationEntry[]): void {
   entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
 }
 
-function setDiscarded(ids: PublicationId[], isDeleted = true): void {
+function setDiscarded(
+  store: Store,
+  ids: PublicationId[],
+  isDeleted = true,
+): void {
   ids.forEach((id) => store.set(discardedFamily(id), isDeleted));
 }
 
-function setFocusedRowId(id: PublicationId | undefined): void {
+function setFocusedRowId(store: Store, id: PublicationId | undefined): void {
   store.set(focusedRowIdAtom, id);
 }
 
 function overrideField(
+  store: Store,
   id: PublicationId,
   attribute: PublicationKey,
   value: string,
@@ -331,23 +336,31 @@ function overrideField(
 
 /** Overlay the whole provenance list (references are edited as a unit, not per
  * cell), reusing the same override overlay as the scalar fields. */
-function overrideReferences(id: PublicationId, references: string[]): void {
+function overrideReferences(
+  store: Store,
+  id: PublicationId,
+  references: string[],
+): void {
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, references });
 }
 
 /** Drop a single row's pending edits and errors (cancelling an edit). */
-function discardEdit(id: PublicationId): void {
+function discardEdit(store: Store, id: PublicationId): void {
   store.set(overrideFamily(id), RESET);
   store.set(errorFamily(id), RESET);
 }
 
-function setAttributesVisible(keys: PublicationKey[], isVisible = true): void {
+function setAttributesVisible(
+  store: Store,
+  keys: PublicationKey[],
+  isVisible = true,
+): void {
   keys.forEach((key) => store.set(attributeVisibleFamily(key), isVisible));
 }
 
 /** Register the draft row as a new publication and clear the draft. */
-function addNew(): PublicationId {
+function addNew(store: Store): PublicationId {
   const ids = store.get(publicationIdsAtom);
   if (!ids) throw "Can not add new publications: entries not loaded.";
 
@@ -362,7 +375,10 @@ function addNew(): PublicationId {
 }
 
 /** Duplicate each selected publication, inserting the copy right after it. */
-function duplicate(duplicateIds: Set<PublicationId>): PublicationId[] {
+function duplicate(
+  store: Store,
+  duplicateIds: Set<PublicationId>,
+): PublicationId[] {
   const ids = store.get(publicationIdsAtom);
   if (!ids) throw "Can not duplicate publications: entries not loaded.";
 
@@ -384,7 +400,7 @@ function duplicate(duplicateIds: Set<PublicationId>): PublicationId[] {
   return newIds;
 }
 
-function resetAll(): void {
+function resetAll(store: Store): void {
   // Every id the families know, not just the ones currently listed: a value
   // set directly — as the specs do — would otherwise survive teardown and leak
   // into whatever runs next.
@@ -403,7 +419,7 @@ function resetAll(): void {
   store.set(isIndexLoadingAtom, false);
 }
 
-function resetDiscarded(): void {
+function resetDiscarded(store: Store): void {
   store
     .get(discardedIdsAtom)
     ?.forEach((id) => store.set(discardedFamily(id), RESET));
@@ -414,7 +430,7 @@ function resetDiscarded(): void {
  * delete): remove its id from the index and reset its per-row state. Distinct
  * from the workspace's `setDiscarded`, which only hides rows in memory.
  */
-function removePublication(id: PublicationId): void {
+function removePublication(store: Store, id: PublicationId): void {
   const ids = store.get(publicationIdsAtom);
   if (ids) {
     store.set(
@@ -436,18 +452,18 @@ function removePublication(id: PublicationId): void {
   }
 }
 
-function resetOverridden(): void {
+function resetOverridden(store: Store): void {
   store
     .get(publicationIdsAtom)
     ?.forEach((id) => store.set(overrideFamily(id), RESET));
 }
 
-function resetAttributes(): void {
+function resetAttributes(store: Store): void {
   ATTRIBUTES.forEach((key) => store.set(attributeVisibleFamily(key), RESET));
 }
 
 /** Focus the next invalid row after the currently focused one (wrapping). */
-function focusNextInvalid(): void {
+function focusNextInvalid(store: Store): void {
   const visibleIds = store.get(visibleIdsAtom);
   if (!visibleIds) return;
 
@@ -507,7 +523,6 @@ export {
   setErrors,
   setFocusedRowId,
   setPublications,
-  store,
   storedFieldValueFamily,
   storedReferencesFamily,
   totalCountAtom,

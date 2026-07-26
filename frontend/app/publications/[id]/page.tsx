@@ -3,6 +3,7 @@ import Layout from "components/Layout";
 import PublicationDetail, {
   PublicationHeading,
 } from "components/PublicationDetail";
+import { PublicationStoreProvider } from "modules/publication/workspace";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -38,7 +39,7 @@ export default async function PublicationPage({
 
   return (
     <Layout
-      measure="centered"
+      measure="aligned"
       subheader={
         <>
           <Breadcrumb
@@ -50,7 +51,9 @@ export default async function PublicationPage({
         </>
       }
       content={
-        <PublicationDetail publication={publication} history={history} />
+        <PublicationStoreProvider>
+          <PublicationDetail publication={publication} history={history} />
+        </PublicationStoreProvider>
       }
     />
   );

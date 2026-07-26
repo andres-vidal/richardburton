@@ -1,18 +1,21 @@
 import type { Preview } from "@storybook/nextjs-vite";
-import { Provider } from "jotai";
+import { PublicationStoreProvider } from "modules/publication/workspace";
 import { store } from "modules/store";
 
 import "../styles/globals.css";
 import "./preview.css";
 
 const preview: Preview = {
-  // Every story runs inside the app's Jotai store, so publication components can
-  // be seeded with the store's actions (see modules/publication/fixtures).
+  // Every story runs inside a publication workspace, so components that read or
+  // write publication state work as they do in the app. It is handed one shared
+  // store rather than a fresh one per story, because a story seeds its state in
+  // `beforeEach` — before the tree exists — and has to name the store it seeds
+  // (see modules/publication/fixtures).
   decorators: [
     (Story) => (
-      <Provider store={store}>
+      <PublicationStoreProvider store={store}>
         <Story />
-      </Provider>
+      </PublicationStoreProvider>
     ),
   ],
   parameters: {
