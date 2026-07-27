@@ -39,6 +39,11 @@ updates:
           - "tailwindcss"
           - "@tailwindcss/*"
         update-types: ["minor", "patch"]
+      playwright:
+        patterns:
+          - "playwright"
+          - "@playwright/*"
+        update-types: ["minor", "patch"]
       eslint:
         patterns:
           - "eslint"
@@ -46,3 +51,9 @@ updates:
           - "@eslint/*"
           - "typescript-eslint"
         update-types: ["minor", "patch"]
+    # The Node types describe the runtime this project pins, so their major is
+    # not ours to choose: it follows `.tool-versions`, and a major ahead of it
+    # would have the compiler accept APIs that do not exist when the code runs.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
