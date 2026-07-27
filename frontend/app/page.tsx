@@ -1,4 +1,3 @@
-import { PublicationStoreProvider } from "modules/publication/workspace";
 import { Suspense } from "react";
 import Home from "./Home";
 import { readPublication } from "./publications/read";
@@ -20,9 +19,7 @@ export default async function Page({
 
   return (
     <Suspense>
-      <PublicationStoreProvider>
-        <Home opened={publication ? readPublication(publication) : undefined} />
-      </PublicationStoreProvider>
+      <Home opened={publication ? readPublication(publication) : undefined} />
     </Suspense>
   );
 }
