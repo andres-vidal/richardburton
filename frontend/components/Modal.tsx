@@ -124,6 +124,13 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
                 <Header onClose={onClose} />
                 <motion.dialog
                   open
+                  // Its content can arrive after it opens — a record still being
+                  // read leaves a short "Loading…" in a tall dialog's place — so
+                  // it grows into what it is given instead of jumping.
+                  layout
+                  transition={{
+                    layout: { duration: 0.2, ease: "easeOut" },
+                  }}
                   role="dialog"
                   aria-modal="true"
                   aria-label={label}
