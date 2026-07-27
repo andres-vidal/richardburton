@@ -16,7 +16,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       # Backend toolchain + compile the :e2e app. Playwright's globalSetup then
       # creates/migrates the per-worker databases, and its webServer boots a
@@ -27,7 +27,7 @@ jobs:
           version-file: backend/.tool-versions
       # Hex deps + compiled build, keyed by toolchain and lockfile; the restore
       # key lets a lockfile bump start from the previous build instead of cold.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             backend/deps
@@ -50,7 +50,7 @@ jobs:
           node-version-file: frontend/.tool-versions
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
@@ -73,7 +73,7 @@ jobs:
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: frontend/playwright-report/
