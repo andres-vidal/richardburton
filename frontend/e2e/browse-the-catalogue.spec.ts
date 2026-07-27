@@ -62,8 +62,6 @@ const BULK_CSV =
       `Author ${i};${1900 + i};US;Original ${i};Bulk Title ${i};Translator ${i};Publisher ${i};`,
   ).join("\n") + "\n";
 
-const LAST_TITLE = `Bulk Title ${BULK_SIZE - 1}`;
-
 test("a large index virtualizes: far rows render as they scroll into view", async ({
   page,
 }) => {
@@ -80,15 +78,20 @@ test("a large index virtualizes: far rows render as they scroll into view", asyn
   });
   await submitWorkspace(page, BULK_SIZE);
 
+  // A viewport this many rows cannot fit, so the last row is below the fold
+  // whatever the runner's default happens to be.
+  await page.setViewportSize({ width: 1280, height: 600 });
   await page.goto("/");
   const table = indexTable(page);
   await expectPublicationCount(page, BULK_SIZE);
 
-  // The last row exists but is virtualized: its cells are empty placeholders
-  // until scrolled into view.
-  await expect(table.getByText(LAST_TITLE)).toHaveCount(0);
-  await table.getByRole("row").last().scrollIntoViewIfNeeded();
-  await expect(table.getByText(LAST_TITLE)).toBeVisible();
+  // The row exists but is virtualized: its cells are empty placeholders until it
+  // scrolls into view. Asked of the last row itself rather than of a title,
+  // since which record sorts last is the index's business, not this test's.
+  const lastRow = table.getByRole("row").last();
+  await expect(lastRow).toHaveText("");
+  await lastRow.scrollIntoViewIfNeeded();
+  await expect(lastRow).not.toHaveText("");
 });
 
 test("a signed-out reader sees publication details read-only, references included", async ({
