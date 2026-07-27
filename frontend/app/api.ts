@@ -17,11 +17,21 @@ const api = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
  * uses.
  */
 export async function get<T>(path: string): Promise<T> {
+  return (await getWithHeaders<T>(path)).data;
+}
+
+/**
+ * The same read, with the response headers — some answers are partly in them
+ * (the index reports how many publications exist in `rb-total-count`).
+ */
+export async function getWithHeaders<T>(
+  path: string,
+): Promise<{ data: T; headers: Record<string, string> }> {
   const cookie = (await cookies()).get(SESSION_COOKIE);
 
-  const { data } = await api.get<T>(path, {
+  const { data, headers } = await api.get<T>(path, {
     headers: cookie ? { Cookie: `${cookie.name}=${cookie.value}` } : {},
   });
 
-  return data;
+  return { data, headers: headers as Record<string, string> };
 }

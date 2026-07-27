@@ -39,7 +39,6 @@ const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
 const isValidatingAtom = atom(false);
-const isIndexLoadingAtom = atom(false);
 const keywordsAtom = atom<string[] | undefined>(undefined);
 const areRowIdsVisibleAtom = atom(false);
 const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
@@ -235,6 +234,14 @@ const CELL_FAMILIES = [
   fieldErrorDescriptionFamily,
 ];
 
+/** What a read of the index answers with. */
+type IndexPayload = {
+  entries: Publication[];
+  keywords: string[];
+  /** How many exist in total, not how many matched. `null` when unreported. */
+  total: number | null;
+};
+
 /** Drop every atom these publications own — their values and their cached cells. */
 function forget(ids: Iterable<PublicationId>): void {
   const dropped = new Set(ids);
@@ -289,6 +296,22 @@ function hydrate(store: Store, publications: Publication[]): PublicationId[] {
  */
 function remember(store: Store, publication: Publication): void {
   store.set(publicationFamily(publication.id!), publication);
+}
+
+/**
+ * Take an index payload as the working set: the rows, the keywords the search
+ * matched on, and how many publications exist in total.
+ *
+ * One definition of "these are the results now", wherever they were read.
+ */
+function receiveIndex(
+  store: Store,
+  { entries, keywords, total }: IndexPayload,
+): PublicationId[] {
+  if (total !== null) store.set(totalIndexCountAtom, total);
+  store.set(keywordsAtom, keywords);
+
+  return hydrate(store, entries);
 }
 
 function setAll(store: Store, entries: PublicationEntry[]): void {
@@ -413,7 +436,6 @@ function resetAll(store: Store): void {
   store.set(errorFamily(DRAFT_ID), RESET);
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
-  store.set(isIndexLoadingAtom, false);
 }
 
 function resetDiscarded(store: Store): void {
@@ -494,7 +516,6 @@ export {
   hydrate,
   knownIds,
   hiddenAttributesAtom,
-  isIndexLoadingAtom,
   isValidFamily,
   isValidatingAtom,
   keywordsAtom,
@@ -508,6 +529,7 @@ export {
   publicationIdsAtom,
   publicationOrNullFamily,
   publicationReferencesFamily,
+  receiveIndex,
   remember,
   removePublication,
   resetAll,
@@ -530,3 +552,4 @@ export {
   visibleIdsAtom,
   visiblePublicationFamily,
 };
+export type { IndexPayload };

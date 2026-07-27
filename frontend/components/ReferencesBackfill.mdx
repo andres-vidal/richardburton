@@ -12,10 +12,11 @@ on the right. Reached from the admin panel at `/admin/publications/references`.
 
 ## Composition
 
-- **`ReferencesBackfill`** (default export) — the orchestrator. On mount it loads
-  the reference-less publications (`index({ unreferenced: true })`) into the
-  store, tracks the current position and save state, and wires Save / Skip. It
-  resets the store on unmount, leaving it as it found it.
+- **`ReferencesBackfill`** (default export) — the orchestrator. It takes the
+  `queue` — the reference-less publications, read where the page is rendered —
+  brings the state the wizard edits them through, tracks the current position and
+  save state, and wires Save / Skip. The wizard opens on the first record rather
+  than on a spinner; there is no fetch on mount.
 - **`ReferencesBackfillView`** — the presentational shell. It takes the queue as
   an `ids` prop so its **loading** (`undefined`), **empty** (`[]`), and
   **populated** states can each be rendered and a11y-checked in isolation.
@@ -31,7 +32,9 @@ on the right. Reached from the admin panel at `/admin/publications/references`.
   publication selected. Fully interactive: click through the queue, edit
   references, and Skip / Save advance the position (persistence is the one
   part stubbed out).
-- **Loading** — while the queue is being fetched.
+- **Loading** — the shell's own empty-handed state (`ids: undefined`). The
+  wizard no longer reaches it in the app, since the queue arrives with the page;
+  the story keeps it because the shell still has to render it correctly.
 - **Empty** — nothing left to source ("All caught up").
 
 <Canvas of={ReferencesBackfillStories.Loading} />

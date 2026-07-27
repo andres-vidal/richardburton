@@ -1,5 +1,6 @@
-import { get } from "app/api";
+import { get, getWithHeaders } from "app/api";
 import { getSession } from "app/session";
+import { TOTAL_COUNT_HEADER } from "modules/api";
 import { withChanges, type WithChanges } from "modules/publication/history";
 import type {
   Publication,
@@ -45,3 +46,55 @@ export const readPublication = cache(
     return { publication, history: withChanges(entries) };
   },
 );
+
+/**
+ * A page of the catalogue: the rows, the keywords the search matched on, and how
+ * many publications exist in total — which the index reports in a header rather
+ * than in the body.
+ */
+export type PublicationIndex = {
+  entries: Publication[];
+  keywords: string[];
+  total: number | null;
+};
+
+/**
+ * Read the catalogue for a query, or the whole of it. This is the page's own
+ * content, so it is read where the page is rendered — the reader gets rows in
+ * the first response instead of an empty table and a spinner.
+ */
+export const readIndex = cache(
+  async (search?: string): Promise<PublicationIndex> => {
+    const query = search ? `?search=${encodeURIComponent(search)}` : "";
+    const { data, headers } = await getWithHeaders<{
+      entries: Publication[];
+      keywords?: string[];
+    }>(`/publications${query}`);
+
+    const total = headers[TOTAL_COUNT_HEADER];
+
+    return {
+      entries: data.entries,
+      keywords: data.keywords ?? [],
+      total: total === undefined ? null : parseInt(total),
+    };
+  },
+);
+
+/**
+ * The publications with no sources yet — the queue the backfill wizard steps
+ * through, in the order it will offer them.
+ */
+export const readUnreferenced = cache(async (): Promise<PublicationIndex> => {
+  const { data, headers } = await getWithHeaders<{ entries: Publication[] }>(
+    "/publications?unreferenced",
+  );
+
+  const total = headers[TOTAL_COUNT_HEADER];
+
+  return {
+    entries: data.entries,
+    keywords: [],
+    total: total === undefined ? null : parseInt(total),
+  };
+});

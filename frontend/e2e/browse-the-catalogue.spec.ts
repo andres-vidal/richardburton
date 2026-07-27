@@ -62,6 +62,25 @@ const BULK_CSV =
       `Author ${i};${1900 + i};US;Original ${i};Bulk Title ${i};Translator ${i};Publisher ${i};`,
   ).join("\n") + "\n";
 
+test("the catalogue arrives with the page, not after it", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  await seedCorpus(page);
+
+  // The raw response, before any script has run: the rows a reader asked for are
+  // already in it, and so is the count that goes with them. The index used to
+  // render a skeleton and fetch itself once the page was up.
+  const html = await (await request.get(`${baseURL}/?search=Machado`)).text();
+
+  expect(html).toContain("Dom Casmurro");
+  expect(html).toContain("Epitaph of a Small Winner");
+  expect(html).toContain("Showing results for");
+  // A publication the query excludes is not in it — the server ran the search.
+  expect(html).not.toContain("The Hour of the Star");
+});
+
 test("a large index virtualizes: far rows render as they scroll into view", async ({
   page,
 }) => {
