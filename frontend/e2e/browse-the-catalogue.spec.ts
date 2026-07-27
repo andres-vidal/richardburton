@@ -83,6 +83,38 @@ test("the catalogue arrives with the page, not after it", async ({
   expect(html).not.toContain("The Hour of the Star");
 });
 
+test("opening a publication does not read the catalogue again", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  const payloads: string[] = [];
+  page.on("response", async (response) => {
+    if (response.url().includes("_rsc")) {
+      payloads.push(await response.text().catch(() => ""));
+    }
+  });
+
+  await openPublicationModal(page, "Barren Lives");
+
+  // The overlay is its own route, so what crossed the wire is the record — not
+  // the rows it was opened from. While it was a query on the catalogue's route,
+  // every open re-read and re-sent all of them.
+  expect(payloads.length).toBeGreaterThan(0);
+  const sent = payloads.join("");
+  expect(sent).toContain("Barren Lives");
+  expect(sent).not.toContain("Iraçéma the Honey-Lips");
+
+  // Closing goes back to a catalogue that is still there, without asking again.
+  payloads.length = 0;
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(indexTable(page).getByText("Barren Lives")).toBeVisible();
+  expect(payloads).toHaveLength(0);
+});
+
 test("a large index virtualizes: far rows render as they scroll into view", async ({
   page,
 }) => {

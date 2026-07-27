@@ -6,18 +6,13 @@ import ColumnMenu from "components/ColumnMenu";
 import { ContactModal } from "components/ContactModal";
 import Layout from "components/Layout";
 import { LearnMoreModal } from "components/LearnMoreModal";
-import { useURLQueryModal } from "components/Modal";
 import PublicationDownload from "components/PublicationDownload";
 import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
-import {
-  PUBLICATION_MODAL_KEY,
-  PublicationModal,
-} from "components/PublicationModal";
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
-import type { PublicationIndex, PublicationView } from "app/publications/read";
+import type { PublicationIndex } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
 import { receiveIndex } from "modules/publication/store";
 import {
@@ -26,14 +21,12 @@ import {
 } from "modules/publication/workspace";
 import { useIsAuthenticated } from "modules/session";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 type Props = {
   /** The catalogue for the current query, read on the server. */
   index: PublicationIndex;
-  /** The publication the URL names, read on the server. Unawaited, so the
-   * overlay can open before it arrives. */
-  opened?: Promise<PublicationView | null>;
 };
 
 /**
@@ -42,17 +35,18 @@ type Props = {
  * and write one working set, so the state they share is held here, around all of
  * them, rather than asked of whatever renders this.
  */
-export default function Home({ index, opened }: Props) {
+export default function Home({ index }: Props) {
   return (
     <PublicationStoreProvider
       initialize={(store) => receiveIndex(store, index)}
     >
-      <Catalogue index={index} opened={opened} />
+      <Catalogue index={index} />
     </PublicationStoreProvider>
   );
 }
 
-function Catalogue({ index, opened }: Props) {
+function Catalogue({ index }: Props) {
+  const router = useRouter();
   const store = usePublicationStore();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
@@ -68,10 +62,10 @@ function Catalogue({ index, opened }: Props) {
     receiveIndex(store, index);
   }, [store, index]);
 
-  const modal = useURLQueryModal(PUBLICATION_MODAL_KEY);
-
+  // A row goes to the publication's own address. Followed from here it is
+  // intercepted into an overlay over the catalogue; opened cold it is its page.
   function handleRowClick(id: number) {
-    return () => modal.open(`${id}`);
+    return () => router.push(`/publications/${id}`);
   }
 
   return (
@@ -84,7 +78,6 @@ function Catalogue({ index, opened }: Props) {
           <div className="sm:hidden">
             <PublicationIndexList onItemClick={handleRowClick} />
           </div>
-          <PublicationModal view={opened} />
         </>
       }
       subheader={
