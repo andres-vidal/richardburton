@@ -54,7 +54,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/is-hotkey": "^0.1.10",
     "@types/lodash": "^4.17.24",
-    "@types/node": "^22",
+    "@types/node": "^26",
     "@types/object-hash": "^3.0.6",
     "@types/qs": "^6.15.1",
     "@types/react": "^19.2.17",
