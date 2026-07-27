@@ -71,7 +71,7 @@
     "next-router-mock": "^1.0.5",
     "playwright": "^1.61.1",
     "postcss": "^8.5.19",
-    "prettier": "3.9.5",
+    "prettier": "3.9.6",
     "storybook": "^10.5.2",
     "stylelint": "^17.14.1",
     "stylelint-config-standard": "^40.0.0",
