@@ -15,7 +15,7 @@ import Button from "./Button";
 import { useNotify } from "./Notifications";
 
 // Raw, not camelCased: the client leaves response header names alone (see
-// modules/http). Reading `contentDisposition` was always `undefined`.
+// modules/http).
 const CONTENT_DISPOSITION = "content-disposition";
 
 /** What the file is called when the server does not say. */
@@ -25,9 +25,7 @@ const FALLBACK_FILENAME = "publications.csv";
  * The name the server gave the file, or a sensible one.
  *
  * A header that is missing or unparseable is not a failed download — the bytes
- * are already here — so it must not throw. It used to: the match was asserted
- * non-null, so a header this could not read took the whole download down with
- * it, before the click that saves the file.
+ * are already here — so this must not throw.
  */
 function filenameFrom(disposition: unknown): string {
   const filename =

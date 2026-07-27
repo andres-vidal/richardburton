@@ -9,13 +9,11 @@ import { Modal } from "./Modal";
 import PublicationDetail, { PublicationHeading } from "./PublicationDetail";
 
 /**
- * Where the record will be, at roughly the size it will be.
+ * Where the record will be, in the shape it will take.
  *
  * The dialog is sized by what is in it, and a height the content decides cannot
- * be transitioned — there is no style change to transition, only different
- * content. So rather than animate the growth, there is nothing much to grow
- * from: this stands in the record's shape, and the dialog barely moves when the
- * record replaces it.
+ * be transitioned — so instead of animating the growth there is little to grow
+ * from: the dialog barely moves when the record replaces this.
  */
 const Loading: FC = () => (
   <div role="status" aria-label="Loading" className="p-8 w-full">
@@ -89,12 +87,11 @@ const Opened: FC<{
  *
  * Being its own route rather than a query on the catalogue's is what keeps it
  * cheap: opening it renders this and nothing else, so the rows underneath are
- * neither read again nor sent again. It closes by going back, because that is
- * what opening it did — the address it added is the publication's own, the same
- * one its page has and the same one the copy link hands out.
+ * neither read again nor sent again. The address it adds is the publication's
+ * own — the same one its page has, and the one the copy link hands out.
  *
- * The record streams in: the overlay opens on the click, and the dialog grows
- * into the record when it arrives.
+ * The record streams in, so the overlay opens on the click and holds the
+ * record's place until it lands.
  */
 const PublicationOverlay: FC<{
   view: Promise<PublicationView | null>;

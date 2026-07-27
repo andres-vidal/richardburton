@@ -20,11 +20,10 @@ const PublicationSearch: FC = () => {
   const [search, setSearch] = useState(searchUrlParam);
   const [previousParam, setPreviousParam] = useState(searchUrlParam);
 
-  // The last query this input asked the URL for. What it types travels to the URL
-  // and comes back, and typing does not stop while it is away: by the time
-  // "mach" arrives, the input may read "machado". So it follows the URL only
-  // when *someone else* changed it — a keyword link, the back button, a fresh
-  // arrival — and never when the URL is only catching up with what was typed.
+  // The last query this input asked the URL for. What it types travels to the
+  // URL and comes back, and typing does not stop while it is away — so the input
+  // follows the URL only when *someone else* changed it: a keyword link, the
+  // back button, a fresh arrival.
   const requested = useRef(searchUrlParam);
 
   if (searchUrlParam !== previousParam) {
@@ -42,9 +41,9 @@ const PublicationSearch: FC = () => {
   const navigate = useDebounce((value: string) => {
     requested.current = value;
 
-    // A reader can follow a row while this is still waiting. The query belongs to
-    // the catalogue and they have left it, so let the record they asked for
-    // stand: this would otherwise replace the address of what they just opened.
+    // A reader can follow a row while this is still waiting. The query belongs
+    // to the catalogue and they have left it, so the record they asked for
+    // stands.
     if (window.location.pathname !== pathname) return;
 
     startTransition(() => {

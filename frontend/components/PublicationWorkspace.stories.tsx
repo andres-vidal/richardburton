@@ -119,9 +119,8 @@ export const Selection: Story = {
 };
 
 /**
- * The handle's own content — a row number, an error icon — is part of the handle:
- * clicking it selects the row like clicking around it does. Selecting used to
- * depend on the click *missing* that content.
+ * The handle's own content — a row number, an error icon — is part of the
+ * handle: clicking it selects the row like clicking around it does.
  */
 export const SelectionFromTheHandleContent: Story = {
   beforeEach: () =>
@@ -140,8 +139,7 @@ export const SelectionFromTheHandleContent: Story = {
 
 /**
  * A click that lands in a field belongs to the field. The row hears it too — it
- * hears every click inside it — and must not turn it into a selection, or typing
- * would swap the submit bar for the selection toolbar.
+ * hears every click inside it — and does not turn it into a selection.
  */
 export const TypingDoesNotSelect: Story = {
   beforeEach: () => seed(store),

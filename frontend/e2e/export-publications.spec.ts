@@ -9,9 +9,8 @@ test("an admin exports the corpus as a CSV, references included", async ({
   // The button disables while the count is 0 — wait for the index to load.
   await expect(indexTable(page).getByText("Barren Lives")).toBeVisible();
 
-  // Clicking Download drives the admin-only CSV export endpoint *and* saves what
-  // comes back. Waiting only for the response missed a browser-side crash that
-  // stopped the file from ever being offered.
+  // Clicking Download drives the admin-only CSV export endpoint *and* saves
+  // what comes back — the response alone does not prove a file was offered.
   const [response, download] = await Promise.all([
     page.waitForResponse(
       (r) =>

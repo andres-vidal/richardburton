@@ -36,11 +36,9 @@ field — the row hears it, and ignores it.
 
 That is one question, and "can the text be selected" is another: the table turns
 text selection off while rows are selected, so dragging across them does not
-highlight their content. Both used to be the same `data-selectable` attribute,
-which meant selecting a row depended on the click missing the icon inside the
-handle, and cmd- or shift-clicking a second row could clear the selection instead
-of changing it. `modules/selection`'s `isSelectionGesture` is now the single
-definition, read by both the row that selects and the listener that clears.
+highlight their content. The two are deliberately separate attributes —
+`modules/selection`'s `isSelectionGesture` is the single definition of the
+gesture, read by both the row that selects and the listener that clears.
 
 ## Editing & validation
 

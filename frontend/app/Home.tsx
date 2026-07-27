@@ -53,8 +53,7 @@ function Catalogue({ index }: Props) {
   const count = usePublicationIndexCount() || 0;
 
   // The store opened with the first read (see `initialize`); this carries the
-  // ones after it — a new query, or a re-read after a change. Not a fetch: the
-  // reading is done, and this is the store catching up with it.
+  // ones after it — a new query, or a re-read after a change.
   const received = useRef(index);
 
   useEffect(() => {
@@ -64,11 +63,9 @@ function Catalogue({ index }: Props) {
   }, [store, index]);
 
   // A row goes to the publication's own address, asking for it *over* the
-  // catalogue. Followed from here that is intercepted into an overlay; reloaded,
-  // the address says what it was showing, and the page draws the same thing.
-  // Without the mark it is simply the publication's page — what a shared link is.
-  // The query goes with it, so a reload draws the catalogue the reader was
-  // actually looking at, and closing returns to it.
+  // catalogue — which is what `modal` marks, and what the page reads to draw the
+  // same thing when the address is arrived at directly. The query goes with it,
+  // so that catalogue is the one the reader was looking at.
   function handleRowClick(id: number) {
     const query = new URLSearchParams({ modal: "" });
     if (search) query.set("search", search);
