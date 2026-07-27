@@ -57,3 +57,35 @@ updates:
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+
+  # Elixir. The backend has its own lockfile and its own audit in CI, but nothing
+  # was watching it — every dependency update here has been a manual sweep.
+  - package-ecosystem: "mix"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      phoenix:
+        patterns:
+          - "phoenix"
+          - "phoenix_*"
+        update-types: ["minor", "patch"]
+      ecto:
+        patterns:
+          - "ecto"
+          - "ecto_*"
+          - "postgrex"
+        update-types: ["minor", "patch"]
+
+  # The workflows pin their actions, and those pins go stale silently — checkout
+  # is three majors behind.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types: ["minor", "patch"]
