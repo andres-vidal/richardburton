@@ -13,7 +13,7 @@ jobs:
           key: ${{ secrets.IFRS_SSH_KEY }}
           known_hosts: ${{ secrets.IFRS_SSH_HOST }}
           if_key_exists: fail
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: export TZ=America/Sao_Paulo
@@ -40,7 +40,7 @@ jobs:
           key: ${{ secrets.IFRS_SSH_KEY }}
           known_hosts: ${{ secrets.IFRS_SSH_HOST }}
           if_key_exists: fail
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: export TZ=America/Sao_Paulo
