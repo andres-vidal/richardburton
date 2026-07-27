@@ -3,10 +3,12 @@ import Layout from "components/Layout";
 import PublicationDetail, {
   PublicationHeading,
 } from "components/PublicationDetail";
+import PublicationOverlay from "components/PublicationOverlay";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { readPublication } from "../read";
+import Home from "../../Home";
+import { readIndex, readPublication } from "../read";
 
 async function read(id: string) {
   return (await readPublication(id)) ?? notFound();
@@ -20,18 +22,49 @@ export async function generateMetadata({
   const { publication } = await read((await params).id);
   const { title, authors, originalTitle, originalAuthors, year } = publication;
 
+  // The same record whether or not it is being shown over the catalogue, so one
+  // of the two addresses is the canonical one.
   return {
     title,
     description: `${title} — ${originalTitle} by ${originalAuthors}, translated by ${authors}, ${year}.`,
+    alternates: { canonical: `/publications/${publication.id}` },
   };
 }
 
+/**
+ * A publication at its own address.
+ *
+ * The same address serves two things, and the URL says which: on its own it is
+ * the record's page, and marked `?modal` it is the record shown over the
+ * catalogue — what the reader was looking at when they followed a row. Following
+ * a row is intercepted into an overlay and never reaches here; reloading it does,
+ * and finds the mark, so the reader gets back what they were looking at instead
+ * of losing the catalogue behind them.
+ *
+ * A link shared from the copy button carries no mark: someone opening it cold
+ * has no catalogue to be shown over, and gets the record itself.
+ */
 export default async function PublicationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ modal?: string; search?: string }>;
 }) {
-  const { publication, history } = await read((await params).id);
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const { publication, history } = await read(id);
+
+  if (query.modal !== undefined) {
+    return (
+      <>
+        <Home index={await readIndex(query.search)} />
+        <PublicationOverlay
+          view={Promise.resolve({ publication, history })}
+          closeTo={query.search ? `/?search=${query.search}` : "/"}
+        />
+      </>
+    );
+  }
 
   return (
     <Layout

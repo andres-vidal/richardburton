@@ -32,6 +32,12 @@ const PublicationSearch: FC = () => {
 
   const navigate = useDebounce((value: string) => {
     requested.current = value;
+
+    // A reader can follow a row while this is still waiting. The query belongs to
+    // the catalogue and they have left it, so let the record they asked for
+    // stand: this would otherwise replace the address of what they just opened.
+    if (window.location.pathname !== pathname) return;
+
     startTransition(() => {
       router.replace(
         value ? `${pathname}?search=${encodeURIComponent(value)}` : pathname,

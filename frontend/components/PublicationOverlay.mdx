@@ -9,12 +9,22 @@ import * as PublicationOverlayStories from "./PublicationOverlay.stories";
 A publication shown over the page the reader came from — the catalogue, usually.
 
 It is **its own route**, `/publications/[id]`, intercepted into a slot beside the
-page: following a link from the catalogue opens this, while arriving at the same
+page: following a row from the catalogue opens this, while arriving at the same
 address directly opens the publication's own page. That is what keeps it cheap.
 While it was a query on the catalogue's route, opening it re-rendered the
 catalogue — re-reading and re-sending every row — to show one record; now opening
-it renders only this. It closes by going back, because that is what opening it
-did.
+it renders only this.
+
+A row's link carries `?modal` (and the query it was found under), so the address
+says not just _what_ is being shown but _over what_. Interception only applies to
+navigation inside the app, so a **reload** reaches the page — which finds the
+mark and draws the same thing, and the reader gets back what they were looking
+at. A link from the copy button carries no mark: someone opening it cold has no
+catalogue to be shown over.
+
+Closing goes back, because that is what opening it did — except where there is
+nothing to go back to, which is exactly the reloaded case, and `closeTo` says
+where instead.
 
 The record is **read on the server** for that address and handed over unawaited,
 so the overlay opens on the click and the record streams into it — the dialog
@@ -38,11 +48,17 @@ very address the overlay is at.
 ## Props
 
 - `view` — a promise of the record read for its address, or of `null` when there
-  is nothing there. Unawaited on purpose; the overlay suspends on it.
+  is nothing there. Unawaited on purpose; the overlay suspends on it, showing a
+  placeholder in the record's shape so the dialog barely moves when it lands.
+- `closeTo` — where closing goes when there is no history to go back through (a
+  reader who reloaded). Left out when the overlay was followed from the
+  catalogue.
 
 ## States
 
 - **Default** — the record, as a reader sees it (above).
+- **Streaming** — the read still in flight: the placeholder holds the record's
+  place, within a few pixels of the size it will take.
 - **With history** — an admin's read brings the mutation log with the record.
 - **Missing** — a link to a deleted record says so instead of opening empty.
 

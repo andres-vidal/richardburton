@@ -31,8 +31,16 @@ const Loading: FC = () => (
       </div>
       <div className="space-y-2">
         <div className="w-28 h-3 bg-gray-100 rounded" />
-        <div className="w-4/5 h-4 bg-gray-200 rounded" />
-        <div className="w-3/4 h-4 bg-gray-200 rounded" />
+        <ul className="space-y-1.5">
+          <li className="flex gap-2.5 items-baseline">
+            <span className="size-1.5 rounded-full shrink-0 bg-gray-200" />
+            <span className="w-4/5 h-4 bg-gray-200 rounded" />
+          </li>
+          <li className="flex gap-2.5 items-baseline">
+            <span className="size-1.5 rounded-full shrink-0 bg-gray-200" />
+            <span className="w-3/5 h-4 bg-gray-200 rounded" />
+          </li>
+        </ul>
       </div>
     </div>
   </div>
@@ -88,15 +96,23 @@ const Opened: FC<{
  * The record streams in: the overlay opens on the click, and the dialog grows
  * into the record when it arrives.
  */
-const PublicationOverlay: FC<{ view: Promise<PublicationView | null> }> = ({
-  view,
-}) => {
+const PublicationOverlay: FC<{
+  view: Promise<PublicationView | null>;
+  /**
+   * Where closing goes when there is nothing to go back to — a reader who
+   * reloaded, or arrived at this address directly. Followed from the catalogue,
+   * closing is going back, and this is left out.
+   */
+  closeTo?: string;
+}> = ({ view, closeTo }) => {
   const router = useRouter();
 
+  const close = closeTo ? () => router.push(closeTo) : router.back;
+
   return (
-    <Modal isOpen onClose={router.back} label="Publication details">
+    <Modal isOpen onClose={close} label="Publication details">
       <Suspense fallback={<Loading />}>
-        <Opened view={view} onClose={router.back} />
+        <Opened view={view} onClose={close} />
       </Suspense>
     </Modal>
   );
