@@ -1,0 +1,57 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as SelectStories from "./Select.stories";
+
+<Meta of={SelectStories} />
+
+# Select
+
+A single-value combobox: an input that filters an async list and a dropdown that
+offers what it found. Picking one emits it through `onChange`; the input then
+shows that option's label.
+
+<Canvas of={SelectStories.Default} />
+
+## Props
+
+- `value` — the selected option (`{ id, label }`), or nothing.
+- `onChange` — called with the option the reader picked.
+- `getOptions(search)` — the lookup behind the list. Called with `""` for the
+  unfiltered list and with what has been typed otherwise; it may be debounced by
+  the caller.
+- `error` — marks the field invalid (`aria-invalid`) and colours it.
+- `bordered` — outlined style, applied to the input and its dropdown alike.
+
+## When it asks for options
+
+**When the menu opens, not when the field mounts.** Focusing the input (or
+clicking the chevron) loads the unfiltered list; typing asks for the filtered
+one. This matters where these are dense: a grid of them used to ask for every
+list on screen as it rendered — before anyone had looked at a single field — and
+again on the way out of each one. Nothing is fetched for a field a reader never
+visits.
+
+## Filtering
+
+The typed query lives in state only while the menu is open: closing it drops the
+query and the input reverts to the selected option's label, reset from `isOpen`
+during render rather than mirrored in an effect.
+
+<Canvas of={SelectStories.ClearsFilterOnClose} />
+
+## Keyboard
+
+Typing highlights the first match; **Enter** or **→** selects the highlighted
+option and closes the menu, keeping focus in the input — the combobox pattern.
+Blurring on selection bounced focus through the menu's focus manager, whose
+focus-return reopened an emptied menu over the fresh selection.
+
+<Canvas of={SelectStories.SelectsHighlightedOption} />
+
+## States
+
+- **Default** — empty, closed.
+- **With value** — the selected option's label in the input.
+- **Filter and select** — typing runs the lookup.
+- **Clears filter on close** — the query does not outlive the menu.
+- **With error** — invalid, with the message.

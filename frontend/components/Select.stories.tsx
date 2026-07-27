@@ -33,7 +33,6 @@ const Controlled: FC<ComponentProps<typeof Select>> = ({
 const meta = {
   title: "Components/Select",
   component: Select,
-  tags: ["autodocs"],
   args: {
     value: undefined,
     error: "",

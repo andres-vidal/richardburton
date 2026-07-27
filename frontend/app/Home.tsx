@@ -19,30 +19,40 @@ import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
 import type { PublicationView } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
-import { usePublicationStore } from "modules/publication/workspace";
 import { usePublicationIndex } from "modules/publication/remote";
-import { resetAll } from "modules/publication/store";
+import { PublicationStoreProvider } from "modules/publication/workspace";
 import { useIsAuthenticated } from "modules/session";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
-export default function Home({
-  opened,
-}: {
+type Props = {
   /** The publication the URL names, read on the server. Unawaited, so the
    * overlay can open before it arrives. */
   opened?: Promise<PublicationView | null>;
-}) {
-  const store = usePublicationStore();
+};
+
+/**
+ * The catalogue: the index and everything that acts on it — search, the column
+ * menu, the counter, the export, and the overlay for one publication. They read
+ * and write one working set, so the state they share is held here, around all of
+ * them, rather than asked of whatever renders this.
+ */
+export default function Home(props: Props) {
+  return (
+    <PublicationStoreProvider>
+      <Catalogue {...props} />
+    </PublicationStoreProvider>
+  );
+}
+
+function Catalogue({ opened }: Props) {
   const index = usePublicationIndex();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
 
   const searchParams = useSearchParams();
   const search = searchParams?.get("search") ?? undefined;
-
-  useEffect(() => resetAll(store), [store]);
 
   useEffect(() => {
     index({ search });

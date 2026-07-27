@@ -4,7 +4,6 @@ import Breadcrumb from "components/Breadcrumb";
 import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
 import ReferencesBackfill from "components/ReferencesBackfill";
-import { PublicationStoreProvider } from "modules/publication/workspace";
 
 const BREADCRUMB_ITEMS = [
   { label: "Home", href: "/" },
@@ -24,11 +23,7 @@ export default function ReferencesBackfillPage() {
           />
         </>
       }
-      content={
-        <PublicationStoreProvider>
-          <ReferencesBackfill />
-        </PublicationStoreProvider>
-      }
+      content={<ReferencesBackfill />}
     />
   );
 }

@@ -9,7 +9,10 @@ import {
   useUnreferencedPublicationCount,
 } from "modules/publication/hooks";
 import type { PublicationId } from "modules/publication/model";
-import { usePublicationStore } from "modules/publication/workspace";
+import {
+  PublicationStoreProvider,
+  usePublicationStore,
+} from "modules/publication/workspace";
 import { index, update } from "modules/publication/remote";
 import {
   discardEdit,
@@ -233,7 +236,17 @@ export const ReferencesBackfillView: FC<{
   );
 };
 
-const ReferencesBackfill: FC = () => {
+/**
+ * The wizard reads a queue and edits the records in it, so it brings the state
+ * that holds both — nothing above it has to know that.
+ */
+const ReferencesBackfill: FC = () => (
+  <PublicationStoreProvider>
+    <Backfill />
+  </PublicationStoreProvider>
+);
+
+const Backfill: FC = () => {
   const store = usePublicationStore();
   const [ids, setIds] = useState<PublicationId[]>();
   const [position, setPosition] = useState(0);

@@ -7,7 +7,6 @@ import {
   forwardRef,
   HTMLProps,
   KeyboardEvent,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -48,13 +47,21 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
   const [options, setOptions] = useState<Option[]>([]);
 
   function handleBlur(event: FocusEvent<HTMLInputElement>) {
-    getOptions("").then(setOptions);
     onBlur?.(event);
+  }
+
+  /** The unfiltered list, for a menu that is about to be shown. */
+  function loadOptions() {
+    getOptions("").then(setOptions);
   }
 
   function handleFocus(event: FocusEvent<HTMLInputElement>) {
     setSearch("");
     setIsOpen(true);
+    // Ask when the menu opens, not when the field mounts: a grid of these used
+    // to fetch every list on screen before anyone had looked at one, and again
+    // on the way out of each field.
+    loadOptions();
     onFocus?.(event);
   }
 
@@ -89,11 +96,13 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
   function handleToggleClick() {
     setIsOpen((isOpen) => !isOpen);
     if (!isOpen) {
+      // Focusing an already-focused input fires no focus event, so the menu
+      // asks for its own list here.
       inputRef.current?.focus();
+      loadOptions();
     } else {
       inputRef.current?.blur();
     }
-    getOptions("").then(setOptions);
   }
 
   function handleSelect(option: Option) {
@@ -110,10 +119,6 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
     setWasOpen(isOpen);
     if (!isOpen) setSearch(undefined);
   }
-
-  useEffect(() => {
-    getOptions("").then(setOptions);
-  }, [getOptions]);
 
   return (
     <MenuProvider

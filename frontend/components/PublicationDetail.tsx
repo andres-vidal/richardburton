@@ -24,7 +24,10 @@ import {
   overrideReferences,
   remember,
 } from "modules/publication/store";
-import { usePublicationStore } from "modules/publication/workspace";
+import {
+  PublicationStoreProvider,
+  usePublicationStore,
+} from "modules/publication/workspace";
 import { useIsAdmin } from "modules/session";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -256,7 +259,7 @@ const PublicationEditForm: FC<{
  * page title are drawn from the same record by whoever placed this view, and
  * re-reading is the only way they cannot disagree with the body.
  */
-const PublicationDetail: FC<{
+type PublicationDetailProps = {
   publication: Publication;
   /**
    * The record's mutation log, read alongside it. Present only for an admin,
@@ -271,7 +274,25 @@ const PublicationDetail: FC<{
    * instead and leaves the catalogue behind it in place.
    */
   onDeleted?: () => void;
-}> = ({ publication, history, onNavigate, onDeleted }) => {
+};
+
+/**
+ * Editing needs somewhere to keep what is being typed, so the view brings it:
+ * inside the catalogue's overlay it joins the catalogue's, and the row behind it
+ * changes as this one is saved; on a publication's own page it owns one.
+ */
+const PublicationDetail: FC<PublicationDetailProps> = (props) => (
+  <PublicationStoreProvider>
+    <Detail {...props} />
+  </PublicationStoreProvider>
+);
+
+const Detail: FC<PublicationDetailProps> = ({
+  publication,
+  history,
+  onNavigate,
+  onDeleted,
+}) => {
   const id = publication.id!;
   const store = usePublicationStore();
   const isAdmin = useIsAdmin();
