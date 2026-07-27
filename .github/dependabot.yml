@@ -12,28 +12,37 @@ updates:
     # runtime have to move together: one pull request per family, not per
     # package. Storybook's addons name the core as a peer, so bumping one alone
     # leaves an install that resolves but does not work.
+    #
+    # Majors stay out of the groups and arrive on their own: a family's routine
+    # updates should not wait on a major nobody is ready for, and a major the
+    # toolchain cannot take yet should not hold a patch hostage.
     groups:
       storybook:
         patterns:
           - "storybook"
           - "@storybook/*"
+        update-types: ["minor", "patch"]
       react:
         patterns:
           - "react"
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+        update-types: ["minor", "patch"]
       vitest:
         patterns:
           - "vitest"
           - "@vitest/*"
+        update-types: ["minor", "patch"]
       tailwind:
         patterns:
           - "tailwindcss"
           - "@tailwindcss/*"
+        update-types: ["minor", "patch"]
       eslint:
         patterns:
           - "eslint"
           - "eslint-*"
           - "@eslint/*"
           - "typescript-eslint"
+        update-types: ["minor", "patch"]
