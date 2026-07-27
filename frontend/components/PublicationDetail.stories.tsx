@@ -95,11 +95,16 @@ export const Default: Story = {
   },
 };
 
-/** A record nobody has sourced yet simply omits the section. */
+/**
+ * A record nobody has sourced yet says so. For a catalogue whose worth is its
+ * provenance, an absent source is worth stating — leaving the section out left
+ * the reader unable to tell "no sources" from "no section".
+ */
 export const WithoutReferences: Story = {
   args: { publication: { ...DOM_CASMURRO, references: [] } },
   play: async () => {
-    await expect(screen.queryByText("References")).not.toBeInTheDocument();
+    await expect(screen.getByText("References")).toBeVisible();
+    await expect(screen.getByText(/No sources recorded yet/)).toBeVisible();
   },
 };
 

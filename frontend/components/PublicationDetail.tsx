@@ -131,10 +131,22 @@ const SectionHeading: FC<{ children: string }> = ({ children }) => (
   </h2>
 );
 
-const PublicationReferences: FC<{ references: string[] }> = ({ references }) =>
-  references.length === 0 ? null : (
-    <section className="space-y-2">
-      <SectionHeading>References</SectionHeading>
+/**
+ * Where the record says it comes from.
+ *
+ * A record with no sources says so rather than leaving the section out: for a
+ * catalogue whose worth is its provenance, "nobody has sourced this yet" is
+ * something a reader should be told, and it is what the backfill wizard exists
+ * to answer. The history section states its absence the same way.
+ */
+const PublicationReferences: FC<{ references: string[] }> = ({ references }) => (
+  <section className="space-y-2">
+    <SectionHeading>References</SectionHeading>
+    {references.length === 0 ? (
+      <p className="text-xs text-gray-500">
+        No sources recorded yet — this record has not been backed up by one.
+      </p>
+    ) : (
       <ul className="space-y-1.5 text-sm text-gray-700">
         {references.map((reference, index) => (
           <li key={index} className="flex gap-2.5 items-baseline">
@@ -146,8 +158,9 @@ const PublicationReferences: FC<{ references: string[] }> = ({ references }) =>
           </li>
         ))}
       </ul>
-    </section>
-  );
+    )}
+  </section>
+);
 
 /**
  * The record's mutation log, collapsed. The entries arrive with the record, so
