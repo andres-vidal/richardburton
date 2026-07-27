@@ -124,10 +124,6 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
                 <Header onClose={onClose} />
                 <motion.dialog
                   open
-                  layout
-                  transition={{
-                    layout: { duration: 0.2, ease: "easeOut" },
-                  }}
                   role="dialog"
                   aria-modal="true"
                   aria-label={label}
