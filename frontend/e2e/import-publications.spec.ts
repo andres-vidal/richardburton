@@ -48,8 +48,8 @@ test("an admin bulk-inserts publications with references from the workspace", as
   await handleOf(FIRST.title).click();
   await expect(page.getByRole("button", { name: "Deselect 1" })).toBeVisible();
 
-  // Shift-click extends a contiguous range from it, and cmd-click then toggles a
-  // single row back out. Both used to lose the selection instead of changing it.
+  // Shift-click extends a contiguous range from it, and cmd-click then toggles
+  // a single row back out.
   await handleOf(DUPLICATED.title).click({ modifiers: ["Shift"] });
   await expect(page.getByRole("button", { name: "Deselect 3" })).toBeVisible();
 

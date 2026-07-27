@@ -55,8 +55,8 @@ const PublicationStoreProvider: FC<{
   /**
    * The state this surface starts in, written once before anything renders. A
    * starting state belongs to the store, not to an effect that puts it there
-   * after the first paint — and writing to a store nobody has subscribed to yet
-   * is safe, which is what makes this different from seeding a shared one.
+   * after the first paint; writing to a store nobody has subscribed to yet is
+   * safe.
    */
   initialize?: (store: Store) => void;
   children: ReactNode;

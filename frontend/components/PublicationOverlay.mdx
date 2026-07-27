@@ -10,10 +10,9 @@ A publication shown over the page the reader came from — the catalogue, usuall
 
 It is **its own route**, `/publications/[id]`, intercepted into a slot beside the
 page: following a row from the catalogue opens this, while arriving at the same
-address directly opens the publication's own page. That is what keeps it cheap.
-While it was a query on the catalogue's route, opening it re-rendered the
-catalogue — re-reading and re-sending every row — to show one record; now opening
-it renders only this.
+address directly opens the publication's own page. That is what keeps it cheap:
+opening it renders this and nothing else, so the catalogue underneath is neither
+read again nor sent again.
 
 A row's link carries `?modal` (and the query it was found under), so the address
 says not just _what_ is being shown but _over what_. Interception only applies to

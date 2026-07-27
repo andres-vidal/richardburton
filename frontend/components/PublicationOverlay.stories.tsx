@@ -70,9 +70,8 @@ const ADMIN_VIEW = Promise.resolve({
 });
 
 /**
- * The overlay with a read that takes long enough to see it open before the record
- * lands. The promise is made when this mounts, not when the module loads, or it
- * would have resolved before the story ever ran.
+ * The overlay with a read slow enough to see it open before the record lands.
+ * The promise is made on mount, so each run of the story sees one in flight.
  */
 const StreamingOverlay: FC = () => {
   const [view] = useState(
@@ -122,7 +121,9 @@ export const Streaming: Story = {
     await waitFor(() =>
       expect(screen.getByText(/is a translation of/)).toBeVisible(),
     );
-    console.log("[sizes]", placeholder, height());
+
+    // The record takes its place without moving the dialog.
+    await expect(Math.abs(height() - placeholder)).toBeLessThan(64);
   },
 };
 

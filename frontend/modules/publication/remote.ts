@@ -126,9 +126,8 @@ async function deletePublication(
   store: Store,
   publication: Publication,
 ): Promise<boolean> {
-  // Named by the record, not by what the store happens to hold: the view asking
-  // for this may be reading the publication over a page whose working set it is
-  // not part of — an overlay has a store of its own.
+  // Named by the record, not by what the store holds: a view showing a
+  // publication is not necessarily part of the working set it belongs to.
   const { id, title } = publication;
 
   try {

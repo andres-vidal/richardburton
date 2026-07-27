@@ -96,9 +96,8 @@ export const Default: Story = {
 };
 
 /**
- * A record nobody has sourced yet says so. For a catalogue whose worth is its
- * provenance, an absent source is worth stating — leaving the section out left
- * the reader unable to tell "no sources" from "no section".
+ * A record nobody has sourced yet says so: for a catalogue whose worth is its
+ * provenance, an absent source is worth stating.
  */
 export const WithoutReferences: Story = {
   args: { publication: { ...DOM_CASMURRO, references: [] } },
@@ -121,7 +120,7 @@ export const AsAdmin: Story = {
     await expect(screen.getByRole("button", { name: "Delete" })).toBeVisible();
 
     // The log came with the record: its entries are in the document while the
-    // section is still collapsed, so expanding it fetches nothing.
+    // section is still collapsed.
     await expect(screen.getByText(/Year:/)).toHaveTextContent(
       "Year: 1952 → 1953",
     );

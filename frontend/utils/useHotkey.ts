@@ -4,11 +4,10 @@ import { useEffect } from "react";
 /**
  * Run `handle` when the hotkey is pressed anywhere in the document.
  *
- * `enabled` takes a component out of the running without unmounting it: a
- * key press belongs to whatever is on screen, so a hidden component must not
- * answer for it. Several listeners can match one press, and they all run — so
- * one that should be dormant is not merely useless, it can undo the work of the
- * one that should have acted.
+ * `enabled` takes a component out of the running without unmounting it: a key
+ * press belongs to whatever is on screen. Several listeners can match one press
+ * and all of them run, so a dormant one is not merely useless — it can undo the
+ * work of the one that should have acted.
  */
 function useHotkey(
   hotkey: string | string[],
