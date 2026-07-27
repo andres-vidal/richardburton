@@ -21,7 +21,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       # The Chromium binary is cached by lockfile (which pins the Playwright
       # version); the install below is a no-op download when already present.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}

@@ -27,7 +27,7 @@ jobs:
           version-file: backend/.tool-versions
       # Hex deps + compiled build, keyed by toolchain and lockfile; the restore
       # key lets a lockfile bump start from the previous build instead of cold.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             backend/deps
@@ -50,7 +50,7 @@ jobs:
           node-version-file: frontend/.tool-versions
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
