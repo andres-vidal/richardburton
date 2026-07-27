@@ -124,14 +124,17 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
  */
 async function deletePublication(
   store: Store,
-  id: PublicationId,
+  publication: Publication,
 ): Promise<boolean> {
-  const { title } = store.get(publicationFamily(id));
+  // Named by the record, not by what the store happens to hold: the view asking
+  // for this may be reading the publication over a page whose working set it is
+  // not part of — an overlay has a store of its own.
+  const { id, title } = publication;
 
   try {
     await request((http) => http.delete(`publications/${id}`));
 
-    removePublication(store, id);
+    removePublication(store, id!);
     notify({
       message: "Publication deleted",
       detail: `“${title}” is out of the catalogue. Restore it from Deleted publications.`,

@@ -5,11 +5,11 @@ import {
   Publication,
   type PublicationHistoryEntry,
 } from "modules/publication/model";
-import { resetAll, setAll } from "modules/publication/store";
+import { setAll } from "modules/publication/store";
 import { SessionProvider } from "modules/session";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
-import { PublicationModal } from "./PublicationModal";
+import PublicationOverlay from "./PublicationOverlay";
 
 const ADMIN = { email: "admin@rb.test", role: "admin" as const };
 
@@ -68,26 +68,19 @@ const ADMIN_VIEW = Promise.resolve({
   history: withChanges(LOG),
 });
 
-// A URL-driven modal: it opens when the `?publication=<id>` query is present and
-// shows the record read for that address as a searchable article.
+// A publication shown over the page the reader came from. It is its own route, so
+// it is open whenever it is rendered; the record is read for its address and
+// handed over as a promise.
 const meta = {
-  title: "Publications/Publication modal",
-  component: PublicationModal,
+  title: "Publications/Publication overlay",
+  component: PublicationOverlay,
   args: { view: READER_VIEW },
   parameters: { layout: "fullscreen" },
-} satisfies Meta<typeof PublicationModal>;
+} satisfies Meta<typeof PublicationOverlay>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
-
-/** No `?publication=` query — the modal stays closed. */
-export const Closed: Story = {
-  beforeEach: () => resetAll(store),
-  play: async () => {
-    await expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  },
-};
 
 /**
  * An admin also gets the record's mutation log — and gets it *with* the record:
@@ -98,7 +91,6 @@ export const WithHistory: Story = {
   args: { view: ADMIN_VIEW },
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
   },
   play: async () => {
@@ -117,7 +109,6 @@ export const WithHistory: Story = {
 export const Missing: Story = {
   args: { view: Promise.resolve(null) },
   parameters: {
-    nextjs: { navigation: { query: { publication: "404" } } },
     docs: { story: { inline: false, height: "20rem" } },
   },
   play: async () => {
@@ -133,7 +124,6 @@ export const Missing: Story = {
 export const Default: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     // Full-screen portalled modal — bound it in the docs page.
     docs: { story: { inline: false, height: "30rem" } },
   },
@@ -154,7 +144,6 @@ export const Editing: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
   },
   play: async () => {
@@ -181,7 +170,6 @@ export const EditingReferences: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "40rem" } },
   },
   play: async () => {
@@ -220,7 +208,6 @@ export const EditingWithErrors: Story = {
   beforeEach: () => setAll(store, [{ ...DOM_CASMURRO, errors: "conflict" }]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
   },
   play: async () => {
@@ -244,7 +231,6 @@ export const DeleteConfirmation: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
   },
   play: async () => {
@@ -285,7 +271,6 @@ export const EditingMenuAboveModal: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
   },
