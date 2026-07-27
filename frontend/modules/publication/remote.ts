@@ -2,12 +2,8 @@ import { request } from "app";
 import { AxiosError, AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
 import { RESET } from "jotai/utils";
-import { TOTAL_COUNT_HEADER } from "modules/api";
 import type { Store } from "modules/store";
-import { usePublicationStore } from "./workspace";
 import hash from "object-hash";
-import { useCallback } from "react";
-import useDebounce from "utils/useDebounce";
 
 import type { Publication, PublicationHistoryEntry } from "./model";
 import {
@@ -19,10 +15,7 @@ import {
 import {
   createId,
   errorFamily,
-  hydrate,
-  isIndexLoadingAtom,
   isValidatingAtom,
-  keywordsAtom,
   lastValidatedFamily,
   overrideFamily,
   publicationFamily,
@@ -31,7 +24,6 @@ import {
   resetAll,
   setAll,
   setErrors,
-  totalIndexCountAtom,
   visibleIdsAtom,
   visiblePublicationFamily,
 } from "./store";
@@ -57,48 +49,6 @@ async function run<T>(op: (http: AxiosInstance) => Promise<T>): Promise<T> {
     notify({ message: message as string, level: "warning" });
     throw error;
   }
-}
-
-type IndexResult = { entries: Publication[]; keywords?: string[] };
-
-type IndexOptions = { search?: string; unreferenced?: boolean };
-
-/**
- * Load the publication index into the store and return its ids in order. Filter
- * by `search`, or to only the publications missing references (`unreferenced`) —
- * the queue the references backfill wizard steps through.
- */
-async function index(
-  store: Store,
-  { search, unreferenced }: IndexOptions = {},
-): Promise<PublicationId[]> {
-  return run(async (http) => {
-    const query = search
-      ? `?search=${search}`
-      : unreferenced
-        ? "?unreferenced"
-        : "";
-
-    // Leave the current rows on screen while the new results load — the skeleton
-    // is only for the first load (publicationIdsAtom starts undefined). The
-    // search bar shows a subtle loading bar instead (isIndexLoadingAtom).
-    try {
-      const { data, headers } = await http.get<IndexResult>(
-        `publications${query}`,
-      );
-      const { entries, keywords } = data;
-
-      // Read raw: the client no longer camelCases response headers (see modules/http).
-      if (headers[TOTAL_COUNT_HEADER]) {
-        store.set(totalIndexCountAtom, parseInt(headers[TOTAL_COUNT_HEADER]));
-      }
-      store.set(keywordsAtom, keywords ?? []);
-
-      return hydrate(store, entries);
-    } finally {
-      store.set(isIndexLoadingAtom, false);
-    }
-  });
 }
 
 /** Submit the current (visible) working set. */
@@ -336,30 +286,13 @@ async function upload(store: Store, payload: FormData): Promise<void> {
   });
 }
 
-/** Debounced index, for search-as-you-type, against the workspace's own store. */
-function usePublicationIndex() {
-  const store = usePublicationStore();
-  const debounced = useDebounce(index, 350);
-  // Flag loading immediately (before the debounce) so the search bar's loading
-  // bar spans the whole keystroke-to-results window, not just the fetch.
-  return useCallback(
-    (args?: { search?: string }) => {
-      store.set(isIndexLoadingAtom, true);
-      return debounced(store, args);
-    },
-    [debounced, store],
-  );
-}
-
 export {
   bulk,
-  index,
   deletePublication,
   restore,
   undo,
   update,
   upload,
-  usePublicationIndex,
   validate,
   validateUpdate,
 };

@@ -1,16 +1,20 @@
 "use client";
 
-import { useIsIndexLoading, useKeywords } from "modules/publication/hooks";
+import { useKeywords } from "modules/publication/hooks";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChangeEventHandler, FC, useState } from "react";
+import { ChangeEventHandler, FC, useState, useTransition } from "react";
+import useDebounce from "utils/useDebounce";
+
+/** Long enough that a typist does not query on every letter. */
+const SEARCH_DELAY_MS = 350;
 
 const PublicationSearch: FC = () => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const keywords = useKeywords();
-  const isLoading = useIsIndexLoading();
+  const [isNavigating, startTransition] = useTransition();
 
   const searchUrlParam = searchParams?.get("search") ?? "";
   const [search, setSearch] = useState(searchUrlParam);
@@ -21,14 +25,27 @@ const PublicationSearch: FC = () => {
     if (searchUrlParam) setSearch(searchUrlParam);
   }
 
+  // The query lives in the URL, and the results are read for it where the page is
+  // rendered — so typing navigates rather than fetching. In a transition, so what
+  // is on screen stays until the new rows are ready; debounced, so a typist does
+  // not ask for a page per letter.
+  const navigate = useDebounce(
+    (value: string) =>
+      startTransition(() => {
+        router.replace(
+          value ? `${pathname}?search=${encodeURIComponent(value)}` : pathname,
+        );
+      }),
+    SEARCH_DELAY_MS,
+  );
+
+  // What is typed and what the URL says have not met yet, or they have and the
+  // page is still coming: either way a search is in flight.
+  const isLoading = search !== searchUrlParam || isNavigating;
+
   const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
     setSearch(e.target.value);
-
-    router.replace(
-      e.target.value
-        ? `${pathname}?search=${encodeURIComponent(e.target.value)}`
-        : pathname,
-    );
+    navigate(e.target.value);
   };
 
   return (

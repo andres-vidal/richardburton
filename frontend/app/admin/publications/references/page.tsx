@@ -1,9 +1,8 @@
-"use client";
-
 import Breadcrumb from "components/Breadcrumb";
 import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
 import ReferencesBackfill from "components/ReferencesBackfill";
+import { readUnreferenced } from "app/publications/read";
 
 const BREADCRUMB_ITEMS = [
   { label: "Home", href: "/" },
@@ -11,7 +10,9 @@ const BREADCRUMB_ITEMS = [
   { label: "Backfill references" },
 ];
 
-export default function ReferencesBackfillPage() {
+export default async function ReferencesBackfillPage() {
+  const queue = await readUnreferenced();
+
   return (
     <Layout
       subheader={
@@ -23,7 +24,7 @@ export default function ReferencesBackfillPage() {
           />
         </>
       }
-      content={<ReferencesBackfill />}
+      content={<ReferencesBackfill queue={queue} />}
     />
   );
 }

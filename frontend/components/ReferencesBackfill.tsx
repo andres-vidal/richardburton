@@ -9,11 +9,12 @@ import {
   useUnreferencedPublicationCount,
 } from "modules/publication/hooks";
 import type { PublicationId } from "modules/publication/model";
+import { receiveIndex, type IndexPayload } from "modules/publication/store";
 import {
   PublicationStoreProvider,
   usePublicationStore,
 } from "modules/publication/workspace";
-import { index, update } from "modules/publication/remote";
+import { update } from "modules/publication/remote";
 import {
   discardEdit,
   overrideReferences,
@@ -237,28 +238,28 @@ export const ReferencesBackfillView: FC<{
 };
 
 /**
- * The wizard reads a queue and edits the records in it, so it brings the state
- * that holds both — nothing above it has to know that.
+ * The wizard edits the records it lists, so it brings the state that holds both
+ * — nothing above it has to know that. The queue itself is read where the page
+ * is rendered and handed over: the wizard opens on the first record rather than
+ * on a spinner.
  */
-const ReferencesBackfill: FC = () => (
-  <PublicationStoreProvider>
-    <Backfill />
+const ReferencesBackfill: FC<{ queue: IndexPayload }> = ({ queue }) => (
+  <PublicationStoreProvider initialize={(store) => receiveIndex(store, queue)}>
+    <Backfill queue={queue} />
   </PublicationStoreProvider>
 );
 
-const Backfill: FC = () => {
+const Backfill: FC<{ queue: IndexPayload }> = ({ queue }) => {
   const store = usePublicationStore();
-  const [ids, setIds] = useState<PublicationId[]>();
   const [position, setPosition] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    index(store, { unreferenced: true }).then(setIds);
-    // Leave the store as we found it when the admin walks away.
-    return () => resetAll(store);
-  }, [store]);
+  // The store outlives nothing here, but the atom *caches* are module-level and
+  // do — drop what this queue put in them on the way out.
+  useEffect(() => () => resetAll(store), [store]);
 
-  const currentId = ids?.[position];
+  const ids = queue.entries.map(({ id }) => id!);
+  const currentId = ids[position];
 
   async function handleSave() {
     if (currentId === undefined) return;
