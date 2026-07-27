@@ -318,10 +318,16 @@ const Detail: FC<PublicationDetailProps> = ({
 
   async function handleDelete() {
     setDeleting(true);
-    const removed = await deletePublication(store, id);
+    const removed = await deletePublication(store, publication);
     setDeleting(false);
     deleteConfirmation.close();
-    if (removed) (onDeleted ?? (() => router.replace("/")))();
+
+    if (removed) {
+      // Whatever was showing this record — the catalogue underneath an overlay,
+      // or this page — was drawn before it left. Ask for it again, then leave.
+      router.refresh();
+      (onDeleted ?? (() => router.replace("/")))();
+    }
   }
 
   return (

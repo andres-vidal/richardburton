@@ -1,0 +1,64 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationOverlayStories from "./PublicationOverlay.stories";
+
+<Meta of={PublicationOverlayStories} />
+
+# Publication overlay
+
+A publication shown over the page the reader came from — the catalogue, usually.
+
+It is **its own route**, `/publications/[id]`, intercepted into a slot beside the
+page: following a link from the catalogue opens this, while arriving at the same
+address directly opens the publication's own page. That is what keeps it cheap.
+While it was a query on the catalogue's route, opening it re-rendered the
+catalogue — re-reading and re-sending every row — to show one record; now opening
+it renders only this. It closes by going back, because that is what opening it
+did.
+
+The record is **read on the server** for that address and handed over unawaited,
+so the overlay opens on the click and the record streams into it — the dialog
+grows into the record when it arrives. A link to a publication outside the
+current search opens it all the same; before, the record came from the
+publication store, so such a link rendered an empty dialog.
+
+## What it renders
+
+The publication is laid out as a searchable [`Article`](?path=/docs/components-article--docs):
+the title and translators as the heading, and a prose description whose fields
+(original title, authors, countries, publishers) are `Searchable` links that
+navigate to a filtered index. The view itself is
+[`PublicationDetail`](?path=/docs/publications-publication-detail--docs), the same
+one the publication's own page renders; the overlay adds the heading and a subtle
+[copy link](?path=/docs/components-copy-link--docs) beside it, which hands out the
+very address the overlay is at.
+
+<Canvas of={PublicationOverlayStories.Default} />
+
+## Props
+
+- `view` — a promise of the record read for its address, or of `null` when there
+  is nothing there. Unawaited on purpose; the overlay suspends on it.
+
+## States
+
+- **Default** — the record, as a reader sees it (above).
+- **With history** — an admin's read brings the mutation log with the record.
+- **Missing** — a link to a deleted record says so instead of opening empty.
+
+There is no closed state: a closed overlay is the route not matching, and the
+slot renders nothing.
+
+## Admin actions
+
+For an admin the view gains an action row: **Edit** switches the dialog to an
+inline edit form (`PUT /publications/:id` on save), and **Delete** removes the
+record server-side — guarded by a
+[confirmation](?path=/docs/components-confirmation-modal--docs) that names the
+publication before anything happens. Cancelling the confirmation backs out
+without consequence; confirming closes the dialog and drops the row from the
+index. An admin also gets a collapsed **History** section — the record's
+[mutation log](?path=/docs/publications-publication-history--docs), read together
+with the record rather than fetched on expand.
+
+<Canvas of={PublicationOverlayStories.DeleteConfirmation} />

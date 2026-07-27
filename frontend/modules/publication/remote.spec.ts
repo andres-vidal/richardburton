@@ -148,7 +148,10 @@ describe("remove", () => {
     store.set(totalIndexCountAtom, 288);
     http.delete.mockResolvedValue({});
 
-    const ok = await deletePublication(store, 7);
+    const ok = await deletePublication(store, {
+      ...pub({ title: "Doomed" }),
+      id: 7,
+    });
 
     expect(ok).toBe(true);
     expect(http.delete).toHaveBeenCalledWith("publications/7");
@@ -167,7 +170,10 @@ describe("remove", () => {
     store.set(totalIndexCountAtom, 288);
     http.delete.mockRejectedValue({ response: { status: 404 } });
 
-    const ok = await deletePublication(store, 7);
+    const ok = await deletePublication(store, {
+      ...pub({ title: "Survivor" }),
+      id: 7,
+    });
 
     expect(ok).toBe(false);
     expect(store.get(publicationIdsAtom)).toEqual([7]);

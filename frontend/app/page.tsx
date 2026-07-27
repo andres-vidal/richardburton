@@ -1,28 +1,24 @@
 import { Suspense } from "react";
 import Home from "./Home";
-import { readIndex, readPublication } from "./publications/read";
+import { readIndex } from "./publications/read";
 
 // Server Component shell — the interactive index lives in the client `Home`,
 // Suspense-wrapped because it reads `useSearchParams()` (App Router requires the
 // boundary so static rendering can bail to the client cleanly).
 //
-// Both of the page's reads come from its address. The catalogue is awaited, so
-// the rows are in the first response rather than fetched again once it lands;
-// the publication an overlay would show is handed over unawaited, so the overlay
-// opens on the URL alone and the record streams into it.
+// The catalogue is read here, for the query in the address, so the rows are in
+// the first response rather than fetched again once it lands. A publication
+// shown *over* this page is its own route — see app/@modal.
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ publication?: string; search?: string }>;
+  searchParams: Promise<{ search?: string }>;
 }) {
-  const { publication, search } = await searchParams;
-
-  const opened = publication ? readPublication(publication) : undefined;
-  const index = await readIndex(search);
+  const { search } = await searchParams;
 
   return (
     <Suspense>
-      <Home index={index} opened={opened} />
+      <Home index={await readIndex(search)} />
     </Suspense>
   );
 }
