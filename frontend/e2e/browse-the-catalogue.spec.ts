@@ -115,6 +115,40 @@ test("opening a publication does not read the catalogue again", async ({
   expect(payloads).toHaveLength(0);
 });
 
+test("reloading with a publication open keeps it open, over the search that found it", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+
+  await page
+    .getByRole("textbox", { name: "Search publications" })
+    .fill("Machado");
+  // Wait for the query to actually land — the unfiltered catalogue contains this
+  // title too, so its presence proves nothing until the others are gone.
+  await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
+    0,
+  );
+
+  const dialog = await openPublicationModal(page, "Dom Casmurro");
+  await expect(dialog).toBeVisible();
+
+  // The address says what is being shown, and over what.
+  await page.reload();
+
+  const reopened = page.getByRole("dialog", { name: "Publication details" });
+  await expect(reopened).toBeVisible();
+  await expect(reopened.getByText(/is a translation of/)).toBeVisible();
+
+  // Closing goes back to the search it was opened from, not to the whole
+  // catalogue — even though there is no history left to go back through.
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/\/\?search=Machado$/);
+  await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
+    0,
+  );
+});
+
 test("a large index virtualizes: far rows render as they scroll into view", async ({
   page,
 }) => {

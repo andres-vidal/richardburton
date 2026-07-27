@@ -21,7 +21,7 @@ import {
 } from "modules/publication/workspace";
 import { useIsAuthenticated } from "modules/session";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 type Props = {
@@ -47,6 +47,7 @@ export default function Home({ index }: Props) {
 
 function Catalogue({ index }: Props) {
   const router = useRouter();
+  const search = useSearchParams()?.get("search") ?? undefined;
   const store = usePublicationStore();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
@@ -62,10 +63,17 @@ function Catalogue({ index }: Props) {
     receiveIndex(store, index);
   }, [store, index]);
 
-  // A row goes to the publication's own address. Followed from here it is
-  // intercepted into an overlay over the catalogue; opened cold it is its page.
+  // A row goes to the publication's own address, asking for it *over* the
+  // catalogue. Followed from here that is intercepted into an overlay; reloaded,
+  // the address says what it was showing, and the page draws the same thing.
+  // Without the mark it is simply the publication's page — what a shared link is.
+  // The query goes with it, so a reload draws the catalogue the reader was
+  // actually looking at, and closing returns to it.
   function handleRowClick(id: number) {
-    return () => router.push(`/publications/${id}`);
+    const query = new URLSearchParams({ modal: "" });
+    if (search) query.set("search", search);
+
+    return () => router.push(`/publications/${id}?${query}`);
   }
 
   return (
