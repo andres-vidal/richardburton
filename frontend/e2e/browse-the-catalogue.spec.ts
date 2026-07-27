@@ -69,9 +69,8 @@ test("the catalogue arrives with the page, not after it", async ({
 }) => {
   await seedCorpus(page);
 
-  // The raw response, before any script has run: the rows a reader asked for are
-  // already in it, and so is the count that goes with them. The index used to
-  // render a skeleton and fetch itself once the page was up.
+  // The raw response, before any script has run: the rows a reader asked for
+  // are already in it, and so is the count that goes with them.
   const html = await (await request.get(`${baseURL}/?search=Machado`)).text();
 
   expect(html).toContain("Dom Casmurro");
@@ -98,8 +97,7 @@ test("opening a publication does not read the catalogue again", async ({
   await openPublicationModal(page, "Barren Lives");
 
   // The overlay is its own route, so what crossed the wire is the record — not
-  // the rows it was opened from. While it was a query on the catalogue's route,
-  // every open re-read and re-sent all of them.
+  // the rows it was opened from.
   expect(payloads.length).toBeGreaterThan(0);
   const sent = payloads.join("");
   expect(sent).toContain("Barren Lives");

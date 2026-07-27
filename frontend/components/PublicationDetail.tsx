@@ -91,10 +91,9 @@ const PublicationDescription: FC<{
   publication: Publication;
   onNavigate?: () => void;
 }> = ({ publication: p, onNavigate }) => {
-  // `value` (not `id`): it's the field SearchableList keys on and Searchable
-  // searches by. Naming it `id` left `value` undefined — a duplicate-key warning
-  // and links that searched the human label (e.g. "United States of America")
-  // instead of the raw value ("US").
+  // `value` is what SearchableList keys on and Searchable searches by: the
+  // stored value ("US"), not the label a reader sees ("United States of
+  // America").
   function getSearchableItems(p: Publication, key: PublicationKey) {
     return p[key]
       .split(",")
@@ -135,11 +134,12 @@ const SectionHeading: FC<{ children: string }> = ({ children }) => (
  * Where the record says it comes from.
  *
  * A record with no sources says so rather than leaving the section out: for a
- * catalogue whose worth is its provenance, "nobody has sourced this yet" is
- * something a reader should be told, and it is what the backfill wizard exists
- * to answer. The history section states its absence the same way.
+ * catalogue whose worth is its provenance, an absent source is worth stating.
+ * The history section states its absence the same way.
  */
-const PublicationReferences: FC<{ references: string[] }> = ({ references }) => (
+const PublicationReferences: FC<{ references: string[] }> = ({
+  references,
+}) => (
   <section className="space-y-2">
     <SectionHeading>References</SectionHeading>
     {references.length === 0 ? (

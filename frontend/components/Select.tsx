@@ -58,9 +58,8 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
   function handleFocus(event: FocusEvent<HTMLInputElement>) {
     setSearch("");
     setIsOpen(true);
-    // Ask when the menu opens, not when the field mounts: a grid of these used
-    // to fetch every list on screen before anyone had looked at one, and again
-    // on the way out of each field.
+    // Ask when the menu opens, not when the field mounts: a grid of these would
+    // otherwise fetch every list on screen before anyone looked at one.
     loadOptions();
     onFocus?.(event);
   }

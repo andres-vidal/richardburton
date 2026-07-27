@@ -57,8 +57,8 @@ test("an admin edits a publication's title and references in a corpus", async ({
   await expect(
     dialog.getByRole("heading", { name: "Edit publication" }),
   ).toHaveCount(0);
-  // `exact`: the history section is in the document from the start now, and its
-  // diff names the same reference with a "+ " in front.
+  // `exact`: the history section is in the document too, and its diff names the
+  // same reference with a "+ " in front.
   await expect(
     dialog.getByText("Pontiero, Giovanni. Afterword.", { exact: true }),
   ).toBeVisible();
