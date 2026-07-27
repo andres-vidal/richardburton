@@ -1,4 +1,5 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react";
+import { FC, useState } from "react";
 import { store } from "modules/store";
 import { withChanges } from "modules/publication/history";
 import {
@@ -68,6 +69,22 @@ const ADMIN_VIEW = Promise.resolve({
   history: withChanges(LOG),
 });
 
+/**
+ * The overlay with a read that takes long enough to see it open before the record
+ * lands. The promise is made when this mounts, not when the module loads, or it
+ * would have resolved before the story ever ran.
+ */
+const StreamingOverlay: FC = () => {
+  const [view] = useState(
+    () =>
+      new Promise<{ publication: typeof PUBLICATION }>((resolve) =>
+        setTimeout(() => resolve({ publication: PUBLICATION }), 600),
+      ),
+  );
+
+  return <PublicationOverlay view={view} />;
+};
+
 // A publication shown over the page the reader came from. It is its own route, so
 // it is open whenever it is rendered; the record is read for its address and
 // handed over as a promise.
@@ -81,6 +98,33 @@ const meta = {
 export default meta;
 
 type Story = StoryObj<typeof meta>;
+
+/**
+ * The record is read for the address the overlay is at, so it can arrive after
+ * the overlay is on screen. The overlay opens on the click and holds the
+ * record's place until it lands, at roughly the size it will take.
+ */
+export const Streaming: Story = {
+  render: () => <StreamingOverlay />,
+  parameters: {
+    docs: { story: { inline: false, height: "30rem" } },
+  },
+  play: async ({ canvasElement }) => {
+    const dialog = await waitFor(() =>
+      canvasElement.ownerDocument.querySelector("dialog"),
+    );
+    const height = () => Math.round(dialog!.getBoundingClientRect().height);
+
+    // The placeholder is there first, at the size the record will be.
+    await expect(screen.getByRole("status", { name: "Loading" })).toBeVisible();
+    const placeholder = height();
+
+    await waitFor(() =>
+      expect(screen.getByText(/is a translation of/)).toBeVisible(),
+    );
+    console.log("[sizes]", placeholder, height());
+  },
+};
 
 /**
  * An admin also gets the record's mutation log — and gets it *with* the record:

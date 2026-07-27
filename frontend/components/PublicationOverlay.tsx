@@ -8,8 +8,34 @@ import CopyLink from "./CopyLink";
 import { Modal } from "./Modal";
 import PublicationDetail, { PublicationHeading } from "./PublicationDetail";
 
+/**
+ * Where the record will be, at roughly the size it will be.
+ *
+ * The dialog is sized by what is in it, and a height the content decides cannot
+ * be transitioned — there is no style change to transition, only different
+ * content. So rather than animate the growth, there is nothing much to grow
+ * from: this stands in the record's shape, and the dialog barely moves when the
+ * record replaces it.
+ */
 const Loading: FC = () => (
-  <div className="p-8 w-full text-gray-400">Loading…</div>
+  <div role="status" aria-label="Loading" className="p-8 w-full">
+    <div aria-hidden className="space-y-6 animate-pulse">
+      <div className="flex gap-3 items-center">
+        <div className="w-2/5 h-7 bg-gray-200 rounded" />
+        <div className="w-24 h-5 bg-gray-100 rounded" />
+      </div>
+      <div className="space-y-2">
+        <div className="w-full h-4 bg-gray-200 rounded" />
+        <div className="w-11/12 h-4 bg-gray-200 rounded" />
+        <div className="w-2/3 h-4 bg-gray-200 rounded" />
+      </div>
+      <div className="space-y-2">
+        <div className="w-28 h-3 bg-gray-100 rounded" />
+        <div className="w-4/5 h-4 bg-gray-200 rounded" />
+        <div className="w-3/4 h-4 bg-gray-200 rounded" />
+      </div>
+    </div>
+  </div>
 );
 
 const Missing: FC = () => (
