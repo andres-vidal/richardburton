@@ -13,9 +13,17 @@ the workspace shows.
 ## Data source
 
 The input is **URL-driven**: on change it writes the current text to the
-`search` query param (`router.replace`, shallow), and on mount it hydrates its
-value back from that param, so a shared link reproduces the same search. The
-keyword layer below the input is **state-driven** — it reads the active
+`search` query param (`router.replace`), and on mount it hydrates its value back
+from that param, so a shared link reproduces the same search.
+
+Typing therefore **navigates** rather than fetching: the results for a query are
+read where the page is rendered, so the query living in the URL is all the page
+needs. The navigation runs in a transition — what is on screen stays until the
+new rows are ready — and is debounced, so a typist does not ask for a page per
+letter. "Searching…" shows while what has been typed and what the URL says have
+not met, or the page for it is still coming.
+
+The keyword layer below the input is **state-driven** — it reads the active
 keywords from the publication store (`useKeywords`) and, when any are present,
 renders "Showing results for" followed by each keyword as a link back to that
 single-term search. In stories the store is seeded through the shared fixtures:
@@ -32,8 +40,10 @@ seed(); // load the sample publications before the story renders
 
 - **Empty** — the default: the input renders with its placeholder and no
   keyword line below it.
-- **Typing** — entering text updates the input and the `search` param, which
-  debounces to the index endpoint. See the
+- **Typing** — entering text updates the input and, after a beat, the `search`
+  param the page reads its rows for. See the
   [Typing](?path=/story/publications-publication-search--typing) story.
+- **Searching** — the status line while the typed query and the URL have yet to
+  meet.
 - **Showing results** — when the store reports active keywords, the line under
   the input lists them as links.

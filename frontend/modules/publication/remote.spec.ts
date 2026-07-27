@@ -11,7 +11,6 @@ import { empty } from "./model";
 import {
   bulk,
   deletePublication,
-  index,
   restore,
   undo,
   update,
@@ -22,16 +21,14 @@ import {
 import {
   createId,
   errorFamily,
-  isIndexLoadingAtom,
   isValidatingAtom,
-  keywordsAtom,
   lastValidatedFamily,
   overrideFamily,
   overrideField,
   publicationFamily,
   publicationIdsAtom,
-  setAll,
   totalIndexCountAtom,
+  setAll,
   visiblePublicationFamily,
 } from "./store";
 
@@ -66,97 +63,6 @@ beforeEach(() => {
   // By default, `request(op)` runs the op against our fake http client.
   mockRequest.mockImplementation(((op: (client: AxiosInstance) => unknown) =>
     op(http as unknown as AxiosInstance)) as typeof request);
-});
-
-describe("index", () => {
-  test("loads entries, keywords and the total count", async () => {
-    http.get.mockResolvedValue({
-      data: {
-        entries: [
-          pub({ title: "Dom Casmurro", id: 7 }),
-          pub({ title: "The Hour of the Star", id: 12 }),
-        ],
-        keywords: ["machado"],
-      },
-      headers: { "rb-total-count": "42" },
-    });
-
-    await index(store);
-
-    const ids = store.get(publicationIdsAtom);
-    expect(ids).toEqual([7, 12]);
-    expect(store.get(publicationFamily(ids![0])).title).toBe("Dom Casmurro");
-    expect(store.get(publicationFamily(ids![1])).title).toBe(
-      "The Hour of the Star",
-    );
-    expect(store.get(totalIndexCountAtom)).toBe(42);
-    expect(store.get(keywordsAtom)).toEqual(["machado"]);
-    expect(http.get).toHaveBeenCalledWith("publications");
-  });
-
-  test("appends the search term to the query", async () => {
-    http.get.mockResolvedValue({
-      data: { entries: [], keywords: [] },
-      headers: {},
-    });
-
-    await index(store, { search: "Machado" });
-
-    expect(http.get).toHaveBeenCalledWith("publications?search=Machado");
-  });
-
-  test("keeps the previous rows on screen until the new results arrive", async () => {
-    const [a, b] = [createId(), createId()];
-    setAll(store, [
-      { id: a, publication: pub({ title: "Old A" }), errors: null },
-      { id: b, publication: pub({ title: "Old B" }), errors: null },
-    ]);
-
-    // Defer the response so we can inspect the store mid-fetch.
-    let resolve!: (value: unknown) => void;
-    http.get.mockReturnValue(new Promise((r) => (resolve = r)));
-
-    store.set(isIndexLoadingAtom, true);
-    const pending = index(store, { search: "new" });
-
-    // Mid-fetch: the old ids are still there — no reset-to-undefined, so the
-    // table shows the stale rows instead of blinking the skeleton.
-    expect(store.get(publicationIdsAtom)).toEqual([a, b]);
-
-    resolve({
-      data: { entries: [pub({ title: "New" })], keywords: [] },
-      headers: {},
-    });
-    await pending;
-
-    // The new results replace the old ones, and loading is cleared.
-    const ids = store.get(publicationIdsAtom);
-    expect(ids).toHaveLength(1);
-    expect(store.get(publicationFamily(ids![0])).title).toBe("New");
-    expect(store.get(isIndexLoadingAtom)).toBe(false);
-  });
-});
-
-describe("index(store, { unreferenced })", () => {
-  test("loads the reference-less publications and returns their ids", async () => {
-    http.get.mockResolvedValue({
-      data: {
-        entries: [
-          pub({ title: "Dom Casmurro", id: 7 }),
-          pub({ title: "The Hour of the Star", id: 12 }),
-        ],
-      },
-      headers: {},
-    });
-
-    const ids = await index(store, { unreferenced: true });
-
-    expect(http.get).toHaveBeenCalledWith("publications?unreferenced");
-    expect(ids).toEqual([7, 12]);
-    expect(store.get(publicationIdsAtom)).toEqual([7, 12]);
-    expect(store.get(publicationFamily(7)).title).toBe("Dom Casmurro");
-    expect(store.get(publicationFamily(12)).title).toBe("The Hour of the Star");
-  });
 });
 
 describe("bulk", () => {
@@ -503,7 +409,7 @@ describe("run (error handling)", () => {
   test("notifies with a friendly message and re-throws on failure", async () => {
     mockRequest.mockRejectedValueOnce("conflict");
 
-    await expect(index(store)).rejects.toBe("conflict");
+    await expect(bulk(store)).rejects.toBe("conflict");
 
     expect(mockNotify).toHaveBeenCalledWith({
       message: "A publication with this data already exists",

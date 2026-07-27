@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { seed } from "modules/publication/fixtures";
-import { isIndexLoadingAtom } from "modules/publication/store";
 import { store } from "modules/store";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
@@ -40,16 +39,20 @@ export const FromUrlParam: Story = {
   },
 };
 
-/** While a search is in flight, the keyword line becomes an animated status. */
+/**
+ * While a search is in flight, the keyword line becomes an animated status. The
+ * query lives in the URL and the results are read for it, so "in flight" is what
+ * has been typed not having reached the URL yet.
+ */
 export const Searching: Story = {
-  beforeEach: () => {
-    seed(store);
-    store.set(isIndexLoadingAtom, true);
-  },
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
-    await expect(
-      within(canvasElement).getByText(/Searching the collection/i),
-    ).toBeInTheDocument();
+    const canvas = within(canvasElement);
+    await userEvent.type(canvas.getByRole("textbox"), "mach");
+
+    await waitFor(() =>
+      expect(canvas.getByText(/Searching the collection/i)).toBeInTheDocument(),
+    );
   },
 };
 
