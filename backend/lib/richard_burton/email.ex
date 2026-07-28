@@ -25,9 +25,9 @@ defmodule RichardBurton.Email do
     |> validate_email(:address)
   end
 
-  @doc "Send mail as the platform itself, rather than on someone's behalf."
+  @doc "Send mail as the system itself, rather than on someone's behalf."
   def deliver(to: to, subject: subject, message: message) do
-    from_platform(to: to, subject: subject, message: message) |> send_email(confirmation: false)
+    from_system(to: to, subject: subject, message: message) |> send_email(confirmation: false)
   end
 
   def contact(params) do
@@ -51,7 +51,7 @@ defmodule RichardBurton.Email do
     case Mailer.send(email) do
       {:ok, _} ->
         send_email(
-          from_platform(
+          from_system(
             to: address,
             subject: "Contact Confirmation from Richard & Isabel Burton Platform",
             message: get_confimation_message(email)
@@ -64,9 +64,9 @@ defmodule RichardBurton.Email do
     end
   end
 
-  # Who the platform is when it writes to someone, as opposed to a visitor
+  # Who the system is when it writes to someone, as opposed to a visitor
   # writing to the research team.
-  defp from_platform(to: to, subject: subject, message: message) do
+  defp from_system(to: to, subject: subject, message: message) do
     %{
       name: "Richard & Isabel Burton Platform",
       institution: "IFRS Canoas",
