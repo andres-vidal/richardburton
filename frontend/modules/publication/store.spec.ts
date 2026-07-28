@@ -356,7 +356,7 @@ describe("family lifecycle", () => {
     // Touch a cell so its atom is cached.
     store.get(fieldValueFamily({ id: 7, key: "title" }));
 
-    forget(7);
+    forget([7]);
 
     expect([...knownIds()]).not.toContain(7);
     // The cache is rebuilt on demand, at the initial value rather than the old one.

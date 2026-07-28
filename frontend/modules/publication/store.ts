@@ -177,12 +177,13 @@ function cellFamily<T>(initialize: (field: FieldKey) => Atom<T>) {
   const family = atomFamily((cell: CellKey) => initialize(fieldKey(cell)));
   const read = (field: FieldKey) => family(cellKey(field));
 
-  // Cells are keyed by a string, so forgetting a publication means finding its
-  // cells first. Snapshot the keys before removing — `getParams` iterates the
+  // Cells are keyed by a string, so forgetting publications means finding their
+  // cells first — the whole batch in one pass, since a search drops as many ids
+  // as it keeps. Snapshot the keys before removing: `getParams` iterates the
   // live cache.
-  read.forget = (id: PublicationId) =>
+  read.forget = (ids: Set<PublicationId>) =>
     [...family.getParams()]
-      .filter((cell) => fieldKey(cell).id === id)
+      .filter((cell) => ids.has(fieldKey(cell).id))
       .forEach((cell) => family.remove(cell));
 
   return read;
@@ -234,10 +235,14 @@ const CELL_FAMILIES = [
   fieldErrorDescriptionFamily,
 ];
 
-/** Drop every atom a publication owns — its value and its cached config. */
-function forget(id: PublicationId): void {
-  PUBLICATION_FAMILIES.forEach((family) => family.remove(id));
-  CELL_FAMILIES.forEach((family) => family.forget(id));
+/** Drop every atom these publications own — their values and their cached cells. */
+function forget(ids: Iterable<PublicationId>): void {
+  const dropped = new Set(ids);
+
+  dropped.forEach((id) =>
+    PUBLICATION_FAMILIES.forEach((family) => family.remove(id)),
+  );
+  CELL_FAMILIES.forEach((family) => family.forget(dropped));
 }
 
 /** Every id any family still holds, including ones set without going through
@@ -252,9 +257,7 @@ function knownIds(): Set<PublicationId> {
 
 /**
  * Seed the store with publications the backend has already saved, keyed by
- * their server ids. Used by the index fetch and by a server-rendered page
- * handing over what it read — the one definition of "these rows are now the
- * working set", so both arrive at the same state.
+ * their server ids — the one definition of "these rows are now the working set".
  *
  * Ids that leave the set are forgotten, so searching does not accumulate every
  * publication seen this session. A row with a pending edit is kept regardless:
@@ -264,10 +267,11 @@ function hydrate(publications: Publication[]): PublicationId[] {
   const ids = publications.map((publication) => publication.id!);
   const arriving = new Set(ids);
 
-  [...knownIds()]
-    .filter((id) => id !== DRAFT_ID && !arriving.has(id))
-    .filter((id) => !store.get(overrideFamily(id)))
-    .forEach(forget);
+  forget(
+    [...knownIds()]
+      .filter((id) => id !== DRAFT_ID && !arriving.has(id))
+      .filter((id) => !store.get(overrideFamily(id))),
+  );
 
   store.set(publicationIdsAtom, ids);
   publications.forEach((publication, index) =>
@@ -378,14 +382,17 @@ function resetAll(): void {
   // Every id the families know, not just the ones currently listed: a value
   // set directly — as the specs do — would otherwise survive teardown and leak
   // into whatever runs next.
-  knownIds().forEach((id) => {
+  const known = knownIds();
+
+  known.forEach((id) => {
     store.set(publicationFamily(id), RESET);
     store.set(overrideFamily(id), RESET);
     store.set(errorFamily(id), RESET);
     store.set(discardedFamily(id), RESET);
     store.set(lastValidatedFamily(id), RESET);
-    if (id !== DRAFT_ID) forget(id);
   });
+
+  forget([...known].filter((id) => id !== DRAFT_ID));
   store.set(overrideFamily(DRAFT_ID), RESET);
   store.set(errorFamily(DRAFT_ID), RESET);
   store.set(publicationIdsAtom, RESET);
