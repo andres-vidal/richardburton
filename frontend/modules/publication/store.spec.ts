@@ -377,6 +377,17 @@ describe("family lifecycle", () => {
 
     resetAll(store);
 
-    expect([...knownIds()]).not.toContain(99);
+    expect(store.get(publicationFamily(99))).toBeUndefined();
+  });
+
+  test("one store emptying itself leaves another store's publications alone", () => {
+    const other = createStore();
+    hydrate(other, [saved(1, "Dom Casmurro")]);
+
+    resetAll(store);
+
+    expect(store.get(publicationFamily(1))).toBeUndefined();
+    expect(other.get(publicationFamily(1))).toEqual(saved(1, "Dom Casmurro"));
+    expect(other.get(publicationIdsAtom)).toEqual([1]);
   });
 });

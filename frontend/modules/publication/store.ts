@@ -421,13 +421,20 @@ function duplicate(
   return newIds;
 }
 
+/**
+ * Empty a store, without reaching into any other.
+ *
+ * Values are the store's own, so resetting them is its business alone. The atom
+ * *caches* are not: they are keyed by id and shared by every store, so a surface
+ * emptying itself must not evict from them — another surface may be reading the
+ * same ids right now. `hydrate` prunes them instead, for the store that owns
+ * what is arriving.
+ *
+ * Every id the families know, not just the ones currently listed: a value set
+ * directly — as the specs do — would otherwise survive teardown.
+ */
 function resetAll(store: Store): void {
-  // Every id the families know, not just the ones currently listed: a value
-  // set directly — as the specs do — would otherwise survive teardown and leak
-  // into whatever runs next.
-  const known = knownIds();
-
-  known.forEach((id) => {
+  knownIds().forEach((id) => {
     store.set(publicationFamily(id), RESET);
     store.set(overrideFamily(id), RESET);
     store.set(errorFamily(id), RESET);
@@ -435,9 +442,6 @@ function resetAll(store: Store): void {
     store.set(lastValidatedFamily(id), RESET);
   });
 
-  forget([...known].filter((id) => id !== DRAFT_ID));
-  store.set(overrideFamily(DRAFT_ID), RESET);
-  store.set(errorFamily(DRAFT_ID), RESET);
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
 }
