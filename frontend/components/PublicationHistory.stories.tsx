@@ -177,3 +177,32 @@ export const Empty: Story = {
     ).toBeInTheDocument();
   },
 };
+
+/**
+ * A record whose log opens on an update — loaded into the database rather than
+ * entered through the app, so its first change has no earlier version to be
+ * compared against. The entry says that, rather than listing nothing.
+ */
+export const WithoutABaseline: Story = {
+  args: {
+    entries: withChanges([
+      {
+        version: 1,
+        undoable: false,
+        action: "updated",
+        actor: "curator@rb.test",
+        timestamp: "2026-07-15T11:00:00",
+        snapshot: {
+          ...SNAPSHOT,
+          references: ["Caldwell, Helen. Introduction, 1953."],
+        },
+        diff: null,
+      },
+    ]),
+  },
+  play: async () => {
+    await expect(
+      screen.getByText(/Nothing earlier to compare with/),
+    ).toBeInTheDocument();
+  },
+};

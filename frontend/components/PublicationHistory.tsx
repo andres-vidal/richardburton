@@ -133,6 +133,15 @@ const Entry: FC<{
           by {entry.actor} · {formatTimestamp(entry.timestamp)}
         </p>
       )}
+      {entry.action === "updated" && entry.diff === null && (
+        <p
+          data-variant={variant}
+          className="mt-2 text-xs text-gray-500 italic data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
+        >
+          Nothing earlier to compare with — this is where the record&apos;s log
+          starts.
+        </p>
+      )}
       {entry.changes.length > 0 && (
         <ul
           data-variant={variant}
