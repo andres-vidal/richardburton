@@ -38,3 +38,11 @@ the same entries as full cards, where they _are_ the page's subject.
   the absence is stated rather than hidden.
 
 <Canvas of={PublicationHistoryStories.Empty} />
+
+- **Without a baseline** — a change is described by comparing a record against
+  the entry before it, so a log that opens on an update has nothing to compare
+  against. That happens to records loaded straight into the database rather than
+  entered through the app; `mix rb.backfill_history` gives those a starting
+  point, and the entries already recorded without one say so.
+
+<Canvas of={PublicationHistoryStories.WithoutABaseline} />
