@@ -103,6 +103,11 @@ defmodule RichardBurtonWeb.ConnCase do
     expect(RichardBurton.Auth.RecaptchaMock, :verify, n, fn _ -> :ok end)
   end
 
+  @doc "Stands in for a mail server having a bad day."
+  def refuse_mailer_send(n \\ 1) do
+    expect(RichardBurton.MailerMock, :send, n, fn _ -> {:error, "smtp is down"} end)
+  end
+
   def expect_mailer_send(n \\ 1) do
     expect(RichardBurton.MailerMock, :send, n, fn _ -> {:ok, "Whatever"} end)
   end

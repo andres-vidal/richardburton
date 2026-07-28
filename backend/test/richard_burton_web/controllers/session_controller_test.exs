@@ -10,16 +10,16 @@ defmodule RichardBurtonWeb.SessionControllerTest do
   alias RichardBurton.User
 
   @email "user@example.com"
-  # expect_auth_verify/1 makes the mocked Auth.verify return {:ok, "12345"}.
+  # expect_auth_verify/2 makes the mocked Auth.verify vouch for this subject.
   @subject_id "12345"
 
   describe "POST /sessions" do
     test "verifies the provider token, creates the user, sets rb-session, returns 201", %{
       conn: conn
     } do
-      expect_auth_verify(1)
+      expect_auth_verify(1, @email)
 
-      conn = post(conn, session_path(conn, :create), %{"email" => @email})
+      conn = post(conn, session_path(conn, :create), %{})
 
       assert %{"email" => @email, "role" => "reader"} = json_response(conn, 201)
       assert Session.verify(conn.resp_cookies["rb-session"].value) == {:ok, @subject_id}
@@ -28,13 +28,28 @@ defmodule RichardBurtonWeb.SessionControllerTest do
 
     test "for an existing user, sets rb-session and returns 200 with the user", %{conn: conn} do
       {:ok, _} = User.insert(%{"subject_id" => @subject_id, "email" => @email})
-      expect_auth_verify(1)
+      expect_auth_verify(1, @email)
 
-      conn = post(conn, session_path(conn, :create), %{"email" => @email})
+      conn = post(conn, session_path(conn, :create), %{})
 
       assert %{"email" => @email, "role" => "reader"} = json_response(conn, 200)
       assert Session.verify(conn.resp_cookies["rb-session"].value) == {:ok, @subject_id}
       assert Csrf.verify(conn.resp_cookies["csrf-token"].value) == {:ok, @subject_id}
+    end
+
+    # The address decides which invitation is redeemed and therefore which role
+    # is granted, so the body must not be able to name it.
+    test "keys the account on the provider's address, not the request body", %{conn: conn} do
+      expect_auth_verify(1, @email)
+
+      conn =
+        post(conn, session_path(conn, :create), %{
+          "email" => "someone.else@example.com",
+          "role" => "admin"
+        })
+
+      assert %{"email" => @email, "role" => "reader"} = json_response(conn, 201)
+      assert User.get(@subject_id).email == @email
     end
   end
 
