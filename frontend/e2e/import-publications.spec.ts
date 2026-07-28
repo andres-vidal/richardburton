@@ -70,7 +70,7 @@ test("an admin bulk-inserts publications with references from the workspace", as
 
   // Duplicate the third row, then delete the copy again.
   const duplicatedRows = table.getByRole("row", { name: DUPLICATED.title });
-  await duplicatedRows.getByRole("cell").first().click();
+  await handleOf(DUPLICATED.title).click();
   await expect(page.getByRole("button", { name: "Deselect 1" })).toBeVisible();
   await page.getByRole("button", { name: "Duplicate 1" }).click();
   await expect(duplicatedRows).toHaveCount(2);
