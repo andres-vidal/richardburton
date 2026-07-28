@@ -45,7 +45,7 @@ jobs:
       # Frontend toolchain (with the npm cache) + the Chromium binary Playwright
       # drives — cached by lockfile, which pins the Playwright version; the
       # install is a no-op when the binary is already present.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: frontend/.tool-versions
           cache: npm
