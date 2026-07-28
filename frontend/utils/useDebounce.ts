@@ -19,13 +19,14 @@ function useDebounce<F extends (...args: never[]) => unknown>(
     latest.current = factory;
   });
 
+  const settings = useRef(opts);
+
   return useMemo(
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     () =>
       debounce(
         (...args: Parameters<F>) => latest.current(...args),
         delay,
-        opts,
+        settings.current,
       ),
     [delay],
   ) as unknown as F;
