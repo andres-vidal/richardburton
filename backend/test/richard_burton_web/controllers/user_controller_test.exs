@@ -9,12 +9,6 @@ defmodule RichardBurtonWeb.UserControllerTest do
   alias RichardBurton.Repo
   alias RichardBurton.User
 
-  defp user_fixture(email, role \\ :reader) do
-    {:ok, user} = User.insert(%{"subject_id" => "sub-#{email}", "email" => email})
-    {:ok, user} = if role == :reader, do: {:ok, user}, else: User.set_role(user, role)
-    user
-  end
-
   describe "GET /users" do
     test "lists everyone with access, and what they may do", %{conn: conn} do
       create_session_user()

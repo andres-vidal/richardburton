@@ -1,0 +1,43 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InvitationListStories from "./InvitationList.stories";
+
+<Meta of={InvitationListStories} />
+
+# Invitations
+
+The offers of a role, waiting and taken up. Beside
+[People](?path=/docs/access-people--docs) on the access page.
+
+## Why an invitation exists at all
+
+An admin cannot grant a role to someone who has never signed in: the identity
+provider mints the account, and only on that first sign-in. So the offer waits
+on the address instead, and signing in with it redeems the offer.
+
+That is also why no confirmation link is sent. The provider vouching for the
+address _is_ the confirmation — a link mailed to the same address would prove
+nothing the sign-in has not already proved.
+
+Someone who already has an account is given the role outright, and no invitation
+is recorded; there is nothing left to wait for.
+
+<Canvas of={InvitationListStories.Default} />
+
+## States
+
+- **waiting** — nobody has signed in with that address yet. It can be sent again
+  or withdrawn.
+- **taken up** — someone signed in and the role was applied. It stays listed as
+  the record of how they came to have it, and offers no actions.
+
+An invitation is redeemed once. Withdrawing one that is waiting removes the
+offer; the address can be invited again afterwards.
+
+## When the mail fails
+
+The offer is recorded before the mail is sent, so a mail server having a bad day
+cannot cost someone their role — the invitation stands and is reported as
+unsent, and **Send again** retries it.
+
+<Canvas of={InvitationListStories.Empty} />

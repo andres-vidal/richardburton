@@ -56,6 +56,36 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
       assert %{"outcome" => "unsent"} = json_response(conn, 201)
     end
 
+    # Inviting yourself is a way of changing your own role, so it meets the same
+    # refusal the dashboard's role menu does.
+    test "refuses an admin their own address", %{conn: conn} do
+      me = create_session_user()
+      expect_auth_authorize_admin()
+
+      conn =
+        post(conn, invitation_path(conn, :create), %{
+          "email" => session_user_email(),
+          "role" => "admin"
+        })
+
+      assert %{"error" => "self"} = json_response(conn, 409)
+      assert User.get_by_email(session_user_email()).role == me.role
+    end
+
+    test "refuses a role that is not one", %{conn: conn} do
+      create_session_user()
+      user_fixture("here@example.com")
+      expect_auth_authorize_admin()
+
+      conn =
+        post(conn, invitation_path(conn, :create), %{
+          "email" => "here@example.com",
+          "role" => "wizard"
+        })
+
+      assert %{"error" => "invalid_role"} = json_response(conn, 400)
+    end
+
     test "refuses a second pending invitation for the same address", %{conn: conn} do
       create_session_user()
       expect_auth_authorize_admin(2)

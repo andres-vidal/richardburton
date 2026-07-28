@@ -1,5 +1,6 @@
+import { admits } from "app/api/auth/gate";
 import HTTP from "modules/http";
-import { User } from "modules/users";
+import type { User } from "modules/users";
 import { NextRequest, NextResponse } from "next/server";
 
 const http = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
@@ -60,20 +61,17 @@ export async function GET(
     return finish("/auth/error?error=Verification");
   }
 
-  const email = decodeEmail(idToken);
   const authorization = { headers: { Authorization: `Bearer ${idToken}` } };
 
-  // Exchange the id_token for the app session: POST /sessions upserts the user,
-  // mints the rb-session + csrf-token cookies, and returns the user (with role).
-  // Relay the cookies only once the admin gate passes.
+  // Exchange the id_token for the app session: POST /sessions upserts the user
+  // — keyed on the address the token carries, not on anything sent from here —
+  // mints the rb-session + csrf-token cookies, and returns the user with the
+  // role, including one an invitation was holding for them. Relay the cookies
+  // only once the gate passes.
   let user: User | null = null;
   let sessionCookies: string[] = [];
   try {
-    const response = await http.post<User>(
-      "/sessions",
-      { email },
-      authorization,
-    );
+    const response = await http.post<User>("/sessions", {}, authorization);
     user = response.data;
     const setCookie = response.headers["set-cookie"];
     if (setCookie) {
@@ -83,25 +81,9 @@ export async function GET(
     console.error(e);
   }
 
-  // Admin gate: only admins may sign in.
-  if (!User.administers(user)) {
-    return finish("/auth/error?error=AccessDenied");
-  }
-
-  relayed.push(...sessionCookies);
-  return finish(next);
-}
-
-// Read the email claim from the id_token payload (Phoenix verifies the token).
-function decodeEmail(idToken: string): string | undefined {
-  try {
-    const payload = JSON.parse(
-      Buffer.from(idToken.split(".")[1], "base64url").toString(),
-    );
-    return typeof payload.email === "string" ? payload.email : undefined;
-  } catch {
-    return undefined;
-  }
+  const { location, session } = admits(user, next);
+  if (session) relayed.push(...sessionCookies);
+  return finish(location);
 }
 
 // Reduce `next` to a same-origin relative path, to prevent open redirects.

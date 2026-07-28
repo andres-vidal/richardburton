@@ -28,7 +28,7 @@ import {
   PublicationStoreProvider,
   usePublicationStore,
 } from "modules/publication/workspace";
-import { useIsAdmin } from "modules/session";
+import { useCurates } from "modules/session";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FC, SubmitEvent, useEffect, useState } from "react";
@@ -38,6 +38,7 @@ import DataInput from "./DataInput";
 import { useModal } from "./Modal";
 import PublicationHistory from "./PublicationHistory";
 import ReferencesEditor from "./ReferencesEditor";
+import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
 
 const Searchable: FC<{
@@ -118,13 +119,6 @@ const PublicationDescription: FC<{
     </div>
   );
 };
-
-const SECTION_HEADING =
-  "text-sm font-medium tracking-wide text-gray-500 uppercase";
-
-const SectionHeading: FC<{ children: string }> = ({ children }) => (
-  <h2 className={SECTION_HEADING}>{children}</h2>
-);
 
 /**
  * Where the record says it comes from.
@@ -304,7 +298,7 @@ const Detail: FC<PublicationDetailProps> = ({
 }) => {
   const id = publication.id!;
   const store = usePublicationStore();
-  const isAdmin = useIsAdmin();
+  const curates = useCurates();
   const router = useRouter();
 
   const [editing, setEditing] = useState(false);
@@ -363,7 +357,7 @@ const Detail: FC<PublicationDetailProps> = ({
           />
           <PublicationReferences references={publication.references} />
           {history && <PublicationHistorySection entries={history} />}
-          {isAdmin && (
+          {curates && (
             <div className="flex gap-3">
               <Button
                 label="Edit"

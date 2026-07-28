@@ -25,5 +25,23 @@ defmodule RichardBurtonWeb.DevSessionControllerTest do
 
       assert %{"role" => "admin"} = json_response(conn, 201)
     end
+
+    # Signing in as one role must not demote the other, so each gets its own
+    # subject — which is what lets a journey be both in turn.
+    test "mints a session for the role asked for", %{conn: conn} do
+      conn = post(conn, "/api/dev/session", %{"role" => "contributor"})
+
+      assert %{"email" => "dev-contributor@localhost", "role" => "contributor"} =
+               json_response(conn, 201)
+
+      assert {:ok, subject_id} = Session.verify(conn.resp_cookies["rb-session"].value)
+      assert %User{role: :contributor} = User.get(subject_id)
+    end
+
+    test "refuses to invent a role that is not one", %{conn: conn} do
+      conn = post(conn, "/api/dev/session", %{"role" => "superuser"})
+
+      assert %{"role" => "admin"} = json_response(conn, 201)
+    end
   end
 end

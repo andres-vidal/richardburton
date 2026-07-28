@@ -13,10 +13,21 @@ link to its route with a title and a one-line description.
 ## Data source
 
 Takes no props. The tools are a static `ACTIONS` list in the component — add a
-new admin tool by adding an entry (`href`, `title`, `description`) and it slots
-into the responsive grid. Currently:
+new admin tool by adding an entry (`href`, `title`, `description`, `role`) and
+it slots into the responsive grid. Currently:
 
 - **Add publications** → `/admin/publications/new`
 - **Backfill references** → `/admin/publications/references`
+- **History** → `/admin/publications/history`
+- **Deleted publications** → `/admin/publications/deleted`
+- **Access** → `/admin/users`
 
 <Canvas of={AdminMenuStories.Default} />
+
+## Who sees what
+
+Each entry names the least role that may reach it — the same role its route
+asks for — and the menu shows the ones the reader holds. A card that leads
+somewhere the reader would be turned away from is worse than no card.
+
+<Canvas of={AdminMenuStories.AsAContributor} />

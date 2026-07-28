@@ -30,25 +30,21 @@ defmodule RichardBurtonWeb.UserController do
   """
   def update(conn = %{assigns: %{subject_id: subject_id}}, %{"id" => id, "role" => role}) do
     with user = %User{} <- User.get_by_id(id),
-         :ok <- refuse_self(user, subject_id),
-         {:ok, updated} <- User.set_role(user, cast_role(role)) do
+         {:ok, updated} <- User.set_role(user, role, subject_id) do
       json(conn, updated)
     else
       nil -> conn |> put_status(:not_found) |> json(%{error: :not_found})
       {:error, :last_admin} -> conn |> put_status(:conflict) |> json(%{error: :last_admin})
       {:error, :self} -> conn |> put_status(:conflict) |> json(%{error: :self})
+      {:error, :invalid_role} -> conn |> put_status(:bad_request) |> json(%{error: :invalid_role})
       {:error, errors} -> conn |> put_status(:bad_request) |> json(%{errors: errors})
     end
-  rescue
-    # An unknown role name reaches `String.to_existing_atom/1` as a bad argument.
-    ArgumentError -> conn |> put_status(:bad_request) |> json(%{error: :invalid_role})
   end
 
   @doc "Revoke someone's access, and the sessions signed in as them."
   def delete(conn = %{assigns: %{subject_id: subject_id}}, %{"id" => id}) do
     with user = %User{} <- User.get_by_id(id),
-         :ok <- refuse_self(user, subject_id),
-         {:ok, _deleted} <- User.delete(user) do
+         {:ok, _deleted} <- User.delete(user, subject_id) do
       send_resp(conn, :no_content, "")
     else
       nil -> conn |> put_status(:not_found) |> json(%{error: :not_found})
@@ -56,11 +52,4 @@ defmodule RichardBurtonWeb.UserController do
       {:error, :self} -> conn |> put_status(:conflict) |> json(%{error: :self})
     end
   end
-
-  # Changing your own role or removing your own account is a mistake often
-  # enough, and never necessary: another admin can do either.
-  defp refuse_self(%User{subject_id: subject_id}, subject_id), do: {:error, :self}
-  defp refuse_self(_user, _subject_id), do: :ok
-
-  defp cast_role(role) when is_binary(role), do: String.to_existing_atom(role)
 end

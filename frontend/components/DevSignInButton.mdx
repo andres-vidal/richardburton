@@ -1,0 +1,38 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DevSignInButtonStories from "./DevSignInButton.stories";
+
+<Meta of={DevSignInButtonStories} />
+
+# Dev sign-in
+
+A shortcut past the Google handshake, one button per role. Shown on the sign-in
+page **in development only**.
+
+<Canvas of={DevSignInButtonStories.Default} />
+
+## Why one per role
+
+The roles differ in what they can reach — a contributor keeps the catalogue and
+an admin also decides who may — so being able to be each in turn is the point.
+Each role signs in as its own account, so becoming one does not demote the other.
+
+**Reader** is included, and lands on the pending page rather than the catalogue:
+an account with no privileges attached is a real state, and worth being able to
+see.
+
+## It behaves like the real callback
+
+The route handler behind these buttons makes the same decision the OAuth callback
+makes — where each role is sent, and whether the session cookie is relayed at
+all. A role the gate turns back gets no session here either.
+
+That matters because the E2E journeys sign in this way. A stand-in that were
+kinder than the real thing would let a gate look tested while it was not.
+
+## Kept out of production
+
+Three ways: the button renders only when `NODE_ENV` is `development`, the route
+handler 404s otherwise, and the backend controller behind it lives outside `lib/`
+on a compile path added only for `dev`/`test`/`e2e`, so it is not in a production
+release at all.

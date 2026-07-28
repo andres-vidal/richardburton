@@ -24,6 +24,7 @@ defmodule RichardBurton.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import RichardBurton.DataCase
+      import RichardBurton.Fixtures
     end
   end
 

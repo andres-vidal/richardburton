@@ -31,9 +31,6 @@ defmodule RichardBurtonWeb.Router do
     plug(RichardBurtonWeb.Plugs.Authorize.Recaptcha)
   end
 
-  # Literal paths before "/:id" ones, so "history" and "deleted" never bind as
-  # ids. Routes match in declaration order *across* scopes, which is why this
-  # scope comes before the public one and its "/publications/:id".
   # Who has access is the admin's alone; the catalogue below is any
   # contributor's. Declared first so "/users/:id" never binds a literal path.
   scope "/api", RichardBurtonWeb do
@@ -50,6 +47,9 @@ defmodule RichardBurtonWeb.Router do
     delete("/invitations/:id", InvitationController, :delete)
   end
 
+  # Literal paths before "/:id" ones, so "history" and "deleted" never bind as
+  # ids. Routes match in declaration order *across* scopes, which is why this
+  # scope comes before the public one and its "/publications/:id".
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)
     pipe_through(:authorize_contributor)
@@ -92,7 +92,7 @@ defmodule RichardBurtonWeb.Router do
 
   scope "/api/files", RichardBurtonWeb do
     pipe_through(:files)
-    pipe_through(:authorize_admin)
+    pipe_through(:authorize_contributor)
 
     get("/publications", PublicationController, :export)
   end

@@ -35,10 +35,11 @@ export const readPublication = cache(
 
     if (!publication) return null;
 
-    // The log is admin-only, so asking for it as anyone else would only earn a
-    // 401. Read it alongside the record rather than on a click: a change is part
-    // of what the record *is*, not a detail to go fetch.
-    if (!User.administers(session)) return { publication };
+    // The log belongs to whoever keeps the catalogue, so asking for it as
+    // anyone else would only earn a 401. Read it alongside the record rather
+    // than on a click: a change is part of what the record *is*, not a detail
+    // to go fetch.
+    if (!User.curates(session)) return { publication };
 
     const { entries } = await get<{ entries: PublicationHistoryEntry[] }>(
       `/publications/${id}/history`,

@@ -12,10 +12,11 @@ type ErrorDescription = { title: string; message: string; suggestion?: string };
 
 const ERROR_DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
   AccessDenied: {
-    title: "Access denied",
+    title: "You need an invitation",
     message:
-      "You are not allowed to sign into the app. Currently, only system administrators can access.",
-    suggestion: "Please contact support if you think this could be a mistake.",
+      "Signing in worked, but this address has not been invited, so there is no account for it here.",
+    suggestion:
+      "Ask an administrator to invite this address, then sign in again.",
   },
 
   Verification: {

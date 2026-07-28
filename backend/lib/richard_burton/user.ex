@@ -27,6 +27,19 @@ defmodule RichardBurton.User do
   """
   def roles, do: @roles
 
+  @doc """
+  The role named by `role`, given as a string or an atom.
+
+  Names arrive as strings from request params, the console and the dev
+  provider; only this knows which strings are roles.
+  """
+  def cast_role(role) do
+    case Enum.find(@roles, &(to_string(&1) == to_string(role))) do
+      nil -> {:error, :invalid_role}
+      found -> {:ok, found}
+    end
+  end
+
   @doc "Whether `role` is `required`, or outranks it."
   def at_least?(role, required) when role in @roles and required in @roles do
     Enum.find_index(@roles, &(&1 == role)) >= Enum.find_index(@roles, &(&1 == required))
@@ -73,16 +86,17 @@ defmodule RichardBurton.User do
   end
 
   @doc """
-  Give a user a role.
+  Give a user a role, on behalf of `actor` — the subject id of whoever is
+  asking, or `nil` from the console.
 
   The last admin keeps theirs: a platform with nobody who can grant access can
   only be repaired from the database, so the demotion that would produce it is
   refused rather than confirmed.
   """
-  def set_role(user = %User{}, role) do
-    if last_admin?(user) and role != :admin do
-      {:error, :last_admin}
-    else
+  def set_role(user = %User{}, role, actor \\ nil) do
+    with {:ok, role} <- cast_role(role),
+         :ok <- refuse_self(user, actor),
+         :ok <- refuse_last_admin(user, role) do
       user
       |> role_changeset(%{role: role})
       |> Repo.update()
@@ -98,19 +112,24 @@ defmodule RichardBurton.User do
   signed in as them — otherwise a revoked user keeps the run of the place until
   their cookie happens to expire.
   """
-  def delete(user = %User{}) do
-    if last_admin?(user) do
-      {:error, :last_admin}
-    else
+  def delete(user = %User{}, actor \\ nil) do
+    with :ok <- refuse_self(user, actor),
+         :ok <- refuse_last_admin(user, nil) do
       Repo.transaction(fn ->
         RichardBurton.Auth.Session.revoke_all(user.subject_id)
         Repo.delete!(user)
       end)
-      |> case do
-        {:ok, deleted} -> {:ok, deleted}
-        {:error, reason} -> {:error, reason}
-      end
     end
+  end
+
+  # Changing your own role or removing your own account is a mistake often
+  # enough, and undoable by nobody but another admin, that it is not offered.
+  # Every way in refuses it, not only the one the dashboard uses.
+  defp refuse_self(%User{subject_id: subject_id}, subject_id), do: {:error, :self}
+  defp refuse_self(_user, _actor), do: :ok
+
+  defp refuse_last_admin(user, role) do
+    if last_admin?(user) and role != :admin, do: {:error, :last_admin}, else: :ok
   end
 
   defp last_admin?(%User{role: :admin, id: id}) do

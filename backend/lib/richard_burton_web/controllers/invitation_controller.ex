@@ -30,6 +30,14 @@ defmodule RichardBurtonWeb.InvitationController do
       {:error, :last_admin} ->
         conn |> put_status(:conflict) |> json(%{error: :last_admin})
 
+      # Inviting yourself is a way of changing your own role, and that is
+      # refused wherever it is asked for.
+      {:error, :self} ->
+        conn |> put_status(:conflict) |> json(%{error: :self})
+
+      {:error, :invalid_role} ->
+        conn |> put_status(:bad_request) |> json(%{error: :invalid_role})
+
       # That address is already waiting on an offer.
       {:error, :conflict} ->
         conn |> put_status(:conflict) |> json(%{error: :pending})

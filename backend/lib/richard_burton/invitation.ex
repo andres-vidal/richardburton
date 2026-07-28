@@ -21,7 +21,6 @@ defmodule RichardBurton.Invitation do
 
   alias RichardBurton.Email
   alias RichardBurton.Invitation
-  alias RichardBurton.Mailer
   alias RichardBurton.Repo
   alias RichardBurton.User
   alias RichardBurton.Validation
@@ -29,7 +28,7 @@ defmodule RichardBurton.Invitation do
   @derive {Jason.Encoder, only: [:id, :email, :role, :accepted_at, :inserted_at]}
   schema "invitations" do
     field :email, :string
-    field :role, Ecto.Enum, values: [:reader, :contributor, :admin]
+    field :role, Ecto.Enum, values: User.roles()
     field :accepted_at, :utc_datetime
 
     belongs_to :invited_by, User
@@ -49,8 +48,7 @@ defmodule RichardBurton.Invitation do
 
   @doc "Every invitation, newest first — pending ones and the ones taken up."
   def all do
-    from(i in Invitation, order_by: [desc: i.inserted_at], preload: [:invited_by])
-    |> Repo.all()
+    from(i in Invitation, order_by: [desc: i.inserted_at]) |> Repo.all()
   end
 
   def get(id), do: Repo.get(Invitation, id)
@@ -68,7 +66,7 @@ defmodule RichardBurton.Invitation do
 
     case User.get_by_email(email) do
       nil -> offer(attrs, invited_by)
-      user -> promote(user, attrs)
+      user -> promote(user, attrs, invited_by)
     end
   end
 
@@ -90,11 +88,8 @@ defmodule RichardBurton.Invitation do
         :not_invited
 
       {nil, invitation} ->
-        with {:ok, user} <- User.insert(%{"subject_id" => subject_id, "email" => email}),
-             {:ok, admitted} <- accept(invitation, user) do
-          {:ok, admitted}
-        else
-          {:error, reason} -> {:error, reason}
+        with {:ok, user} <- User.insert(%{"subject_id" => subject_id, "email" => email}) do
+          accept(invitation, user)
         end
 
       {user, nil} ->
@@ -115,10 +110,7 @@ defmodule RichardBurton.Invitation do
 
   @doc "Send a pending invitation's mail again."
   def resend(invitation = %Invitation{accepted_at: nil}) do
-    case notify(invitation) do
-      :ok -> {:ok, invitation}
-      {:error, reason} -> {:error, reason}
-    end
+    with :ok <- notify(invitation), do: {:ok, invitation}
   end
 
   def resend(%Invitation{}), do: {:error, :already_accepted}
@@ -128,25 +120,25 @@ defmodule RichardBurton.Invitation do
 
     case %Invitation{} |> changeset(attrs) |> Repo.insert() do
       {:ok, invitation} ->
-        invitation = Repo.preload(invitation, :invited_by)
-        {notify(invitation), invitation} |> reported()
+        invitation = %{invitation | invited_by: invited_by}
+
+        case notify(invitation) do
+          :ok -> {:ok, {:invited, invitation}}
+          {:error, _reason} -> {:ok, {:unsent, invitation}}
+        end
 
       {:error, changeset} ->
         {:error, Validation.get_errors(changeset)}
     end
   end
 
-  defp promote(user, %{"role" => role}) do
-    case User.set_role(user, cast_role(role)) do
-      {:ok, updated} -> {:ok, {:granted, updated}}
-      {:error, reason} -> {:error, reason}
+  defp promote(user, %{"role" => role}, invited_by) do
+    with {:ok, updated} <- User.set_role(user, role, invited_by && invited_by.subject_id) do
+      {:ok, {:granted, updated}}
     end
   end
 
-  defp promote(_user, _attrs), do: {:error, %{role: "required"}}
-
-  defp reported({:ok, invitation}), do: {:ok, {:invited, invitation}}
-  defp reported({{:error, _reason}, invitation}), do: {:ok, {:unsent, invitation}}
+  defp promote(_user, _attrs, _invited_by), do: {:error, %{role: "required"}}
 
   defp accept(invitation, user) do
     Repo.transaction(fn ->
@@ -160,7 +152,7 @@ defmodule RichardBurton.Invitation do
     end)
   end
 
-  defp pending_for(email) when is_binary(email) do
+  defp pending_for(email) do
     Repo.one(
       from(i in Invitation,
         where: fragment("lower(?)", i.email) == ^String.downcase(email) and is_nil(i.accepted_at)
@@ -168,25 +160,19 @@ defmodule RichardBurton.Invitation do
     )
   end
 
-  defp pending_for(_email), do: nil
-
-  defp cast_role(role) when is_atom(role), do: role
-  defp cast_role(role) when is_binary(role), do: String.to_existing_atom(role)
-
+  # Any failure to send is a failure to send: a refusal from the server, and a
+  # mailer too misconfigured to try, cost the same thing — an invitation nobody
+  # was told about — and neither may cost the invitation itself.
   defp notify(invitation) do
-    %Email{
-      name: "Richard & Isabel Burton Platform",
-      institution: "IFRS Canoas",
-      address: System.get_env("SMTP_FROM"),
+    invitation = Repo.preload(invitation, :invited_by)
+
+    Email.deliver(
+      to: invitation.email,
       subject: "You have been invited to the Richard & Isabel Burton Platform",
-      message: message(invitation),
-      to: invitation.email
-    }
-    |> Mailer.send()
-    |> case do
-      {:ok, _} -> :ok
-      {:error, reason} -> {:error, reason}
-    end
+      message: message(invitation)
+    )
+  rescue
+    error -> {:error, error}
   end
 
   defp message(invitation) do

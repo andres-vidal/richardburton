@@ -22,6 +22,7 @@ defmodule Mix.Tasks.Rb.Invite do
   use Mix.Task
 
   alias RichardBurton.Invitation
+  alias RichardBurton.User
 
   @impl Mix.Task
   def run(args) do
@@ -50,6 +51,9 @@ defmodule Mix.Tasks.Rb.Invite do
 
       {:error, :conflict} ->
         Mix.shell().error("#{email} already has an invitation waiting.")
+
+      {:error, :invalid_role} ->
+        Mix.shell().error("#{role} is not a role. Try #{Enum.join(User.roles(), ", ")}.")
 
       {:error, errors} ->
         Mix.shell().error("Could not invite #{email}: #{inspect(errors)}")

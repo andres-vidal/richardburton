@@ -30,6 +30,16 @@ export function useIsAuthenticated(): boolean {
   return useSession() != null;
 }
 
+/** Whether the reader may decide who has access. */
 export function useIsAdmin(): boolean {
   return User.administers(useSession());
+}
+
+/**
+ * Whether the reader may keep the catalogue — a contributor, or an admin, who
+ * is also one. What the editing affordances hang on: administering is a
+ * separate question, and a narrower one.
+ */
+export function useCurates(): boolean {
+  return User.curates(useSession());
 }

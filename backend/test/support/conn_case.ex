@@ -23,6 +23,7 @@ defmodule RichardBurtonWeb.ConnCase do
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
+      import RichardBurton.Fixtures
       import RichardBurtonWeb.ConnCase
 
       alias RichardBurtonWeb.Router.Helpers, as: Routes

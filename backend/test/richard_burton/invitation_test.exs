@@ -16,19 +16,6 @@ defmodule RichardBurton.InvitationTest do
     expect(RichardBurton.MailerMock, :send, n, fn email -> {:ok, email} end)
   end
 
-  defp user_fixture(email, role \\ :reader) do
-    {:ok, user} = User.insert(%{"subject_id" => "sub-#{email}", "email" => email})
-
-    case role do
-      :reader ->
-        user
-
-      _ ->
-        {:ok, promoted} = User.set_role(user, role)
-        promoted
-    end
-  end
-
   describe "invite/2 for someone who has never signed in" do
     test "records the offer and mails it" do
       expect_mail()
@@ -96,6 +83,22 @@ defmodule RichardBurton.InvitationTest do
                Invitation.invite(%{"email" => "HERE@Example.com", "role" => "admin"})
 
       assert updated.role == :admin
+    end
+
+    test "refuses the inviter their own address" do
+      admin = user_fixture("admin@example.com", :admin)
+
+      assert {:error, :self} =
+               Invitation.invite(%{"email" => "admin@example.com", "role" => "reader"}, admin)
+
+      assert User.get_by_email("admin@example.com").role == :admin
+    end
+
+    test "refuses a role that is not one" do
+      user_fixture("here@example.com")
+
+      assert {:error, :invalid_role} =
+               Invitation.invite(%{"email" => "here@example.com", "role" => "wizard"})
     end
   end
 

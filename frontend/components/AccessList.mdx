@@ -1,0 +1,54 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as AccessListStories from "./AccessList.stories";
+
+<Meta of={AccessListStories} />
+
+# People
+
+Everyone with access, and what they may do. The admin half of
+[the access page](/admin/users), beside
+[Invitations](?path=/docs/access-invitations--docs).
+
+## Roles
+
+Each role admits everything the one before it admits:
+
+- **Reader** — can browse the catalogue, like anyone signed out.
+- **Contributor** — can add and correct publications.
+- **Administrator** — can do that, and decide who else may.
+
+A row says which, in words rather than a bare label: "Contributor" tells you the
+name of the role, not what holding it means. The names live in `modules/users`
+alongside the roles themselves — what the database calls a role is not what a
+person should be shown.
+
+<Canvas of={AccessListStories.Default} />
+
+## Your own row
+
+Shown, but not editable — neither the role nor the revoke control.
+
+Another admin can demote or remove you, so nothing here is unreachable; it just
+cannot be done to yourself in one click. The server refuses it too, so this is
+not the guard, only the part of it you can see. Same for the last admin: the
+platform must not be left with nobody who can grant access, since that is a
+state only the database can undo.
+
+<Canvas of={AccessListStories.YourOwnRow} />
+
+## Changing a role
+
+Picking from the menu applies immediately — there is no save. A change takes
+effect on the person's next request rather than their next sign-in, because the
+server reads the role per request.
+
+The menu is the app's own (`MenuProvider`), not the platform's select, so it
+matches the column and combobox menus elsewhere — and its trigger takes the
+`combobox` role that pairing implies.
+
+Revoking asks first, and takes their sessions with it: someone whose access is
+revoked is signed out, rather than keeping the run of the place until their
+cookie happens to expire.
+
+<Canvas of={AccessListStories.SomeoneElsesRow} />
