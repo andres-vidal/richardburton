@@ -15,14 +15,15 @@ import ResetDiscarded from "components/ResetDiscarded";
 import ResetOverridden from "components/ResetOverridden";
 import RowIdToggle from "components/RowIdToggle";
 import { Publication } from "modules/publication/model";
-import { usePublicationStore } from "modules/publication/workspace";
 import {
   resetAll,
   setAll,
   setAttributesVisible,
 } from "modules/publication/store";
-import ClearSelection from "listeners/ClearSelection";
-import { PublicationStoreProvider } from "modules/publication/workspace";
+import {
+  PublicationStoreProvider,
+  usePublicationStore,
+} from "modules/publication/workspace";
 import type { Store } from "modules/store";
 import { useIsSelectionEmpty } from "modules/selection";
 import { useEffect } from "react";
@@ -62,12 +63,7 @@ function NewPublications() {
           />
         </>
       }
-      content={
-        <>
-          <ClearSelection store={store} />
-          <PublicationWorkspace />
-        </>
-      }
+      content={<PublicationWorkspace />}
       footer={
         <div className="flex space-x-2">
           {isSelectionEmpty ? (

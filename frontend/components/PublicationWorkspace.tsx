@@ -13,6 +13,7 @@ import {
   RowProps,
   SignalColumn,
 } from "components/PublicationIndexTable";
+import ClearSelection from "listeners/ClearSelection";
 import { isElement } from "lodash";
 import {
   useAreRowIdsVisible,
@@ -241,18 +242,21 @@ const PublicationWorkspace: FC = () => {
   };
 
   return (
-    <PublicationIndexTable
-      ExtendedRow={ExtendedRow}
-      ExtendedColumn={ExtendedColumn}
-      ExtendedColumnHeader={ExtendedColumnHeader}
-      ExtendedContent={ExtendedContent}
-      ExtendedSignalColumn={ExtendedSignalColumn}
-      ExtendedTrailingColumn={ExtendedTrailingColumn}
-      ExtraRow={NewPublicationRow}
-      onRowClick={toggleSelection}
-      selectable={isSelectionEmpty}
-      collapsible={false}
-    />
+    <>
+      <ClearSelection store={store} />
+      <PublicationIndexTable
+        ExtendedRow={ExtendedRow}
+        ExtendedColumn={ExtendedColumn}
+        ExtendedColumnHeader={ExtendedColumnHeader}
+        ExtendedContent={ExtendedContent}
+        ExtendedSignalColumn={ExtendedSignalColumn}
+        ExtendedTrailingColumn={ExtendedTrailingColumn}
+        ExtraRow={NewPublicationRow}
+        onRowClick={toggleSelection}
+        selectable={isSelectionEmpty}
+        collapsible={false}
+      />
+    </>
   );
 };
 
