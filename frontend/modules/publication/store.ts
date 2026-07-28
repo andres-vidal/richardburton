@@ -281,6 +281,16 @@ function hydrate(publications: Publication[]): PublicationId[] {
   return ids;
 }
 
+/**
+ * Make one saved publication known to the store without claiming it is the
+ * working set — the counterpart of `forget`, and what a surface showing a single
+ * record (a publication's own page) needs before it can be edited, since the
+ * form edits the store's copy.
+ */
+function remember(publication: Publication): void {
+  store.set(publicationFamily(publication.id!), publication);
+}
+
 function setAll(entries: PublicationEntry[]): void {
   store.set(
     publicationIdsAtom,
@@ -482,6 +492,7 @@ export {
   publicationIdsAtom,
   publicationOrNullFamily,
   publicationReferencesFamily,
+  remember,
   removePublication,
   resetAll,
   resetAttributes,

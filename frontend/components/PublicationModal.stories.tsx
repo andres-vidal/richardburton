@@ -1,5 +1,9 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import { Publication } from "modules/publication/model";
+import type { Decorator, Meta, StoryObj } from "@storybook/react";
+import { withChanges } from "modules/publication/history";
+import {
+  Publication,
+  type PublicationHistoryEntry,
+} from "modules/publication/model";
 import { resetAll, setAll } from "modules/publication/store";
 import { SessionProvider } from "modules/session";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
@@ -8,29 +12,67 @@ import { PublicationModal } from "./PublicationModal";
 
 const ADMIN = { email: "admin@rb.test", role: "admin" as const };
 
-const DOM_CASMURRO = {
+const asAdmin: Decorator = (Story) => (
+  <SessionProvider session={ADMIN}>
+    <Story />
+  </SessionProvider>
+);
+
+const PUBLICATION = {
+  ...Publication.empty(),
   id: 1,
-  publication: {
-    ...Publication.empty(),
-    title: "Dom Casmurro",
-    authors: "Helen Caldwell",
-    originalTitle: "Dom Casmurro",
-    originalAuthors: "Machado de Assis",
-    year: "1953",
-    countries: "US",
-    publishers: "Noonday Press",
-    references: [
-      "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
-    ],
-  },
-  errors: null,
+  title: "Dom Casmurro",
+  authors: "Helen Caldwell",
+  originalTitle: "Dom Casmurro",
+  originalAuthors: "Machado de Assis",
+  year: "1953",
+  countries: "US",
+  publishers: "Noonday Press",
+  references: [
+    "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
+  ],
 };
 
+const DOM_CASMURRO = { id: 1, publication: PUBLICATION, errors: null };
+
+const LOG: PublicationHistoryEntry[] = [
+  {
+    version: 2,
+    undoable: true,
+    action: "updated",
+    actor: "curator@rb.test",
+    timestamp: "2026-07-15T11:00:00",
+    snapshot: { ...PUBLICATION, year: 1953 },
+    diff: {
+      fields: { title: { from: "Dom Casmurro (draft)", to: "Dom Casmurro" } },
+      references: null,
+    },
+  },
+  {
+    version: 1,
+    undoable: false,
+    action: "created",
+    actor: "admin@rb.test",
+    timestamp: "2026-07-01T10:00:00",
+    snapshot: { ...PUBLICATION, title: "Dom Casmurro (draft)", year: 1953 },
+    diff: null,
+  },
+];
+
+// The record the URL names, read on the server and handed over unawaited. A
+// story stands in for that read with a promise of its own.
+const READER_VIEW = Promise.resolve({ publication: PUBLICATION });
+const ADMIN_VIEW = Promise.resolve({
+  publication: PUBLICATION,
+  history: withChanges(LOG),
+});
+
 // A URL-driven modal: it opens when the `?publication=<id>` query is present and
-// renders that publication (read from the store) as a searchable article.
+// shows the record read for that address as a searchable article.
 const meta = {
   title: "Publications/Publication modal",
   component: PublicationModal,
+  args: { view: READER_VIEW },
   parameters: { layout: "fullscreen" },
 } satisfies Meta<typeof PublicationModal>;
 
@@ -43,6 +85,46 @@ export const Closed: Story = {
   beforeEach: () => resetAll(),
   play: async () => {
     await expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  },
+};
+
+/**
+ * An admin also gets the record's mutation log — and gets it *with* the record:
+ * the entries are already in the document while the section is still collapsed,
+ * so opening it fetches nothing.
+ */
+export const WithHistory: Story = {
+  args: { view: ADMIN_VIEW },
+  decorators: [asAdmin],
+  parameters: {
+    nextjs: { navigation: { query: { publication: "1" } } },
+    docs: { story: { inline: false, height: "30rem" } },
+  },
+  play: async () => {
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    await expect(screen.getByText(/Title:/)).toHaveTextContent(
+      "Title: Dom Casmurro (draft) → Dom Casmurro",
+    );
+    await expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+  },
+};
+
+/**
+ * A link to a record that has since been deleted says so, rather than opening
+ * an empty overlay.
+ */
+export const Missing: Story = {
+  args: { view: Promise.resolve(null) },
+  parameters: {
+    nextjs: { navigation: { query: { publication: "404" } } },
+    docs: { story: { inline: false, height: "20rem" } },
+  },
+  play: async () => {
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "This publication is not here" }),
+      ).toBeInTheDocument(),
+    );
   },
 };
 
@@ -69,13 +151,7 @@ export const Default: Story = {
 
 export const Editing: Story = {
   beforeEach: () => setAll([DOM_CASMURRO]),
-  decorators: [
-    (Story) => (
-      <SessionProvider session={ADMIN}>
-        <Story />
-      </SessionProvider>
-    ),
-  ],
+  decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
@@ -102,13 +178,7 @@ export const Editing: Story = {
  */
 export const EditingReferences: Story = {
   beforeEach: () => setAll([DOM_CASMURRO]),
-  decorators: [
-    (Story) => (
-      <SessionProvider session={ADMIN}>
-        <Story />
-      </SessionProvider>
-    ),
-  ],
+  decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "40rem" } },
@@ -147,13 +217,7 @@ export const EditingReferences: Story = {
  */
 export const EditingWithErrors: Story = {
   beforeEach: () => setAll([{ ...DOM_CASMURRO, errors: "conflict" }]),
-  decorators: [
-    (Story) => (
-      <SessionProvider session={ADMIN}>
-        <Story />
-      </SessionProvider>
-    ),
-  ],
+  decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
@@ -177,13 +241,7 @@ export const EditingWithErrors: Story = {
  */
 export const DeleteConfirmation: Story = {
   beforeEach: () => setAll([DOM_CASMURRO]),
-  decorators: [
-    (Story) => (
-      <SessionProvider session={ADMIN}>
-        <Story />
-      </SessionProvider>
-    ),
-  ],
+  decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
@@ -224,13 +282,7 @@ export const DeleteConfirmation: Story = {
  */
 export const EditingMenuAboveModal: Story = {
   beforeEach: () => setAll([DOM_CASMURRO]),
-  decorators: [
-    (Story) => (
-      <SessionProvider session={ADMIN}>
-        <Story />
-      </SessionProvider>
-    ),
-  ],
+  decorators: [asAdmin],
   parameters: {
     nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },

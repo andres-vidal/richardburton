@@ -95,7 +95,10 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
     }
   }
 
-  useHotkey(Key.ESCAPE, onClose);
+  // Only while open: a closed modal that still answers ESC does not just waste a
+  // press — a URL-driven one rewrites the whole query from its own reading of it,
+  // so it would put back the parameter the modal that *is* open just removed.
+  useHotkey(Key.ESCAPE, onClose, isOpen);
 
   const isWiderThanSmall = useMediaQuery({ query: "(min-width: 640px)" });
 

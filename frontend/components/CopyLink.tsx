@@ -3,7 +3,7 @@
 import CopyIcon from "assets/copy.svg";
 import { notify } from "components/Notifications";
 import { FC, useState } from "react";
-import Button from "./Button";
+import Tooltip from "./Tooltip";
 
 /**
  * Copy a link to the current record, absolute so it can be sent to someone
@@ -34,14 +34,21 @@ const CopyLink: FC<{ href: string; label?: string }> = ({
   }
 
   return (
-    <Button
-      label={copied ? "Copied" : label}
-      variant="outline"
-      width="fit"
-      size="medium"
-      Icon={CopyIcon}
-      onClick={handleCopy}
-    />
+    <Tooltip variant="info" message={copied ? "Copied" : label}>
+      <button
+        type="button"
+        aria-label={copied ? "Copied" : label}
+        data-copied={copied}
+        className="
+          flex p-1.5 rounded transition-colors shrink-0 focus-ring
+          text-gray-400 hover:text-indigo-600 hover:bg-indigo-50
+          data-[copied=true]:text-emerald-600
+        "
+        onClick={handleCopy}
+      >
+        <CopyIcon className="w-4 aspect-square" />
+      </button>
+    </Tooltip>
   );
 };
 

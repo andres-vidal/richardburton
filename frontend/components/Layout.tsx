@@ -16,13 +16,13 @@ type Props = {
   leftAside?: ReactNode;
   /**
    * How the page is laid out across the viewport. `full` fills it, which is
-   * what the index and the bulk workspace need from their tables. `centered`
-   * holds the subheader and the content to one column and centres both — the
-   * pairing is the point, so a page's breadcrumb and title line up with what
-   * they introduce instead of drifting to the edge while the content sits in
-   * the middle.
+   * what the index and the bulk workspace need from their tables. `aligned`
+   * holds the subheader and the content to one column of readable width and
+   * starts both at the page's own gutter — so a page's breadcrumb, its title and
+   * what they introduce all begin where the header's content begins, instead of
+   * a narrow column floating in the middle of an empty page.
    */
-  measure?: "full" | "centered";
+  measure?: "full" | "aligned";
 };
 
 const HEADING_TEXT = "Richard & Isabel Burton Platform";
@@ -82,7 +82,7 @@ const Layout: FC<Props> = ({
         </h1>
         <div
           data-measure={measure}
-          className="data-[measure=centered]:mx-auto data-[measure=centered]:w-full data-[measure=centered]:max-w-3xl"
+          className="data-[measure=aligned]:w-full data-[measure=aligned]:max-w-5xl"
         >
           {subheader}
         </div>
@@ -91,7 +91,7 @@ const Layout: FC<Props> = ({
         {leftAside && <aside>{leftAside}</aside>}
         <main
           data-measure={measure}
-          className="relative grow pb-4 data-[measure=centered]:mx-auto data-[measure=centered]:w-full data-[measure=centered]:max-w-3xl"
+          className="relative grow pb-4 data-[measure=aligned]:w-full data-[measure=aligned]:max-w-5xl"
         >
           {content}
         </main>

@@ -57,11 +57,15 @@ test("an admin edits a publication's title and references in a corpus", async ({
   await expect(
     dialog.getByRole("heading", { name: "Edit publication" }),
   ).toHaveCount(0);
+  // `exact`: the history section is in the document from the start now, and its
+  // diff names the same reference with a "+ " in front.
   await expect(
-    dialog.getByText("Pontiero, Giovanni. Afterword."),
+    dialog.getByText("Pontiero, Giovanni. Afterword.", { exact: true }),
   ).toBeVisible();
   await expect(
-    dialog.getByText("Moser, Benjamin. Why This World, 2009."),
+    dialog.getByText("Moser, Benjamin. Why This World, 2009.", {
+      exact: true,
+    }),
   ).toBeVisible();
 
   // The edit landed in the history log: expanding the (admin-only) History
@@ -158,4 +162,58 @@ test("editing a publication into a copy of another is rejected as a conflict", a
     dialog.getByText("A publication with this data already exists"),
   ).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Save" })).toBeDisabled();
+});
+
+test("an admin arrives by link and corrects the publication on its own page", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+
+  // Take the record's address from the index, then arrive the way a link does.
+  await openPublicationModal(page, "Barren Lives");
+  const id = new URL(page.url()).searchParams.get("publication");
+  await page.goto(`/publications/${id}`);
+
+  // The page offers what the overlay offers, with no catalogue behind it.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText("Iraçéma the Honey-Lips")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Edit" }).click();
+  const year = page.getByRole("textbox", { name: "Year", exact: true });
+  await year.fill("1972");
+  await year.blur();
+  await page.getByRole("button", { name: "Save" }).click();
+
+  // The body, the heading and the breadcrumb agree after the save: the page
+  // re-reads the record rather than patching what it already drew.
+  await expect(
+    page.getByRole("heading", { name: "Edit publication" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText(/in 1972 by University of Texas Press/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Breadcrumb" }),
+  ).toContainText("Barren Lives");
+
+  // The mutation log is here too, naming the change just made.
+  await page.getByText("History", { exact: true }).click();
+  await expect(page.getByText("Year: 1965 → 1972")).toBeVisible();
+
+  // Deleting from a page that shows only this record leaves for the index,
+  // since there is nothing left to show.
+  await page.getByRole("button", { name: "Delete" }).click();
+  await page
+    .getByRole("dialog", { name: "Delete this publication?" })
+    .getByRole("button", { name: "Delete" })
+    .click();
+
+  const table = indexTable(page);
+  await expect(table.getByText("Dom Casmurro").first()).toBeVisible();
+  await expect(table.getByText("Barren Lives")).toHaveCount(0);
+
+  // The link now says the record is gone rather than rendering an empty page.
+  const response = await page.goto(`/publications/${id}`);
+  expect(response?.status()).toBe(404);
 });

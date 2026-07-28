@@ -84,7 +84,7 @@ export async function GET(
   }
 
   // Admin gate: only admins may sign in.
-  if (!user || !User.isAdmin(user.role)) {
+  if (!User.administers(user)) {
     return finish("/auth/error?error=AccessDenied");
   }
 

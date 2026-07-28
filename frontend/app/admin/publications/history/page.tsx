@@ -29,7 +29,7 @@ export default async function PublicationHistoryPage() {
           />
         </>
       }
-      measure="centered"
+      measure="aligned"
       content={<PublicationHistoryFeed entries={withChanges(entries)} />}
     />
   );
