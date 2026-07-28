@@ -115,10 +115,11 @@ const PublicationDescription: FC<{
   );
 };
 
+const SECTION_HEADING =
+  "text-sm font-medium tracking-wide text-gray-500 uppercase";
+
 const SectionHeading: FC<{ children: string }> = ({ children }) => (
-  <h2 className="text-sm font-medium tracking-wide text-gray-500 uppercase">
-    {children}
-  </h2>
+  <h2 className={SECTION_HEADING}>{children}</h2>
 );
 
 const PublicationReferences: FC<{ references: string[] }> = ({ references }) =>
@@ -147,7 +148,7 @@ const PublicationHistorySection: FC<{
   entries: WithChanges<PublicationHistoryEntry>[];
 }> = ({ entries }) => (
   <details className="space-y-2">
-    <summary className="text-sm font-medium tracking-wide text-gray-500 uppercase cursor-pointer select-none">
+    <summary className={`${SECTION_HEADING} cursor-pointer select-none`}>
       History
     </summary>
     <PublicationHistory entries={entries} />
