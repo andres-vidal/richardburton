@@ -6,6 +6,7 @@ import type {
   Publication,
   PublicationHistoryEntry,
 } from "modules/publication/model";
+import type { PublicationIndex } from "modules/publication/store";
 import { User } from "modules/users";
 import { cache } from "react";
 
@@ -47,54 +48,34 @@ export const readPublication = cache(
   },
 );
 
-/**
- * A page of the catalogue: the rows, the keywords the search matched on, and how
- * many publications exist in total — which the index reports in a header rather
- * than in the body.
- */
-export type PublicationIndex = {
-  entries: Publication[];
-  keywords: string[];
-  total: number | null;
-};
+export type { PublicationIndex };
+
+async function readCatalogue(query: string): Promise<PublicationIndex> {
+  const { data, headers } = await getWithHeaders<{
+    entries: Publication[];
+    keywords?: string[];
+  }>(`/publications${query}`);
+
+  const total = headers[TOTAL_COUNT_HEADER];
+
+  return {
+    entries: data.entries,
+    keywords: data.keywords ?? [],
+    total: total === undefined ? null : parseInt(total),
+  };
+}
 
 /**
  * Read the catalogue for a query, or the whole of it. This is the page's own
  * content, so it is read where the page is rendered — the reader gets rows in
  * the first response instead of an empty table and a spinner.
  */
-export const readIndex = cache(
-  async (search?: string): Promise<PublicationIndex> => {
-    const query = search ? `?search=${encodeURIComponent(search)}` : "";
-    const { data, headers } = await getWithHeaders<{
-      entries: Publication[];
-      keywords?: string[];
-    }>(`/publications${query}`);
-
-    const total = headers[TOTAL_COUNT_HEADER];
-
-    return {
-      entries: data.entries,
-      keywords: data.keywords ?? [],
-      total: total === undefined ? null : parseInt(total),
-    };
-  },
+export const readIndex = cache((search?: string) =>
+  readCatalogue(search ? `?search=${encodeURIComponent(search)}` : ""),
 );
 
 /**
  * The publications with no sources yet — the queue the backfill wizard steps
  * through, in the order it will offer them.
  */
-export const readUnreferenced = cache(async (): Promise<PublicationIndex> => {
-  const { data, headers } = await getWithHeaders<{ entries: Publication[] }>(
-    "/publications?unreferenced",
-  );
-
-  const total = headers[TOTAL_COUNT_HEADER];
-
-  return {
-    entries: data.entries,
-    keywords: [],
-    total: total === undefined ? null : parseInt(total),
-  };
-});
+export const readUnreferenced = cache(() => readCatalogue("?unreferenced"));
