@@ -84,9 +84,6 @@ const StreamingOverlay: FC = () => {
   return <PublicationOverlay view={view} />;
 };
 
-// A publication shown over the page the reader came from. It is its own route, so
-// it is open whenever it is rendered; the record is read for its address and
-// handed over as a promise.
 const meta = {
   title: "Publications/Publication overlay",
   component: PublicationOverlay,

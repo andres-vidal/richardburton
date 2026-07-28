@@ -95,9 +95,6 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
     }
   }
 
-  // Only the open modal answers Escape: a URL-driven one rewrites the whole
-  // query from its own reading of it, so a closed one listening would put back
-  // the parameter the open one just removed.
   useHotkey(Key.ESCAPE, onClose, isOpen);
 
   const isWiderThanSmall = useMediaQuery({ query: "(min-width: 640px)" });

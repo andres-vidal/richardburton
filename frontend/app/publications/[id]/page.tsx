@@ -22,8 +22,6 @@ export async function generateMetadata({
   const { publication } = await read((await params).id);
   const { title, authors, originalTitle, originalAuthors, year } = publication;
 
-  // The same record whether or not it is being shown over the catalogue, so one
-  // of the two addresses is the canonical one.
   return {
     title,
     description: `${title} — ${originalTitle} by ${originalAuthors}, translated by ${authors}, ${year}.`,

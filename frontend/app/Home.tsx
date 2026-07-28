@@ -54,12 +54,6 @@ function Catalogue({ index }: Props) {
     receiveIndex(store, index);
   }, [store, index]);
 
-  // A row goes to the publication's own address, asking for it *over* the
-  // catalogue. Followed from here that is intercepted into an overlay; reloaded,
-  // the address says what it was showing, and the page draws the same thing.
-  // Without the mark it is simply the publication's page — what a shared link is.
-  // The query goes with it, so a reload draws the catalogue the reader was
-  // actually looking at, and closing returns to it.
   function handleRowClick(id: number) {
     const query = new URLSearchParams({ modal: "" });
     if (search) query.set("search", search);

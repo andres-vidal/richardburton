@@ -124,8 +124,6 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
  */
 async function deletePublication(
   store: Store,
-  // Named by the record, not by what the store holds: a view showing a
-  // publication is not necessarily part of the working set it belongs to.
   { id, title }: { id: PublicationId; title: string },
 ): Promise<boolean> {
   try {

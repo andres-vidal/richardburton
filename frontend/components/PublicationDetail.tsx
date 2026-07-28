@@ -91,9 +91,6 @@ const PublicationDescription: FC<{
   publication: Publication;
   onNavigate?: () => void;
 }> = ({ publication: p, onNavigate }) => {
-  // `value` is what SearchableList keys on and Searchable searches by: the
-  // stored value ("US"), not the label a reader sees ("United States of
-  // America").
   function getSearchableItems(p: Publication, key: PublicationKey) {
     return p[key]
       .split(",")
