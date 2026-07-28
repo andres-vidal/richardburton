@@ -38,6 +38,15 @@ defmodule RichardBurtonWeb.PublicationController do
     |> json(%{entries: results})
   end
 
+  # One publication, flat, the same shape the index lists — so a page that shows
+  # a single record does not have to be handed one by a page that lists many.
+  def show(conn, %{"id" => id}) do
+    case Publication.find(id) do
+      nil -> conn |> put_status(:not_found) |> json(%{error: :not_found})
+      publication -> json(conn, Publication.Codec.flatten(publication))
+    end
+  end
+
   def export(conn, %{"search" => query, "select" => attributes}) do
     attributes = Enum.map(attributes, &String.to_existing_atom/1)
     {:ok, results, _} = Publication.Index.search(query, select: attributes)

@@ -5,6 +5,8 @@ import type {
   DeletedPublicationEntry,
   PublicationId,
 } from "modules/publication/model";
+import { restore } from "modules/publication/remote";
+import { useRouter } from "next/navigation";
 import { FC, useState } from "react";
 import Button from "./Button";
 
@@ -21,18 +23,21 @@ function formatTimestamp(timestamp: string): string {
  * restorable with one click — restoring is not destructive, so no confirmation
  * stands in the way. Restoring fails gracefully when the same record has been
  * imported again in the meantime (the server answers with a conflict).
+ *
+ * A successful restore asks the server to render the list again rather than
+ * editing it here.
  */
 const DeletedPublications: FC<{
   entries: DeletedPublicationEntry[];
-  /** Restores the record; resolve when the list is settled. */
-  onRestore: (id: PublicationId) => Promise<void>;
-}> = ({ entries, onRestore }) => {
+  onRestore?: (id: PublicationId) => Promise<boolean>;
+}> = ({ entries, onRestore = restore }) => {
   const [restoringId, setRestoringId] = useState<PublicationId>();
+  const router = useRouter();
 
   async function handleRestore(id: PublicationId) {
     setRestoringId(id);
     try {
-      await onRestore(id);
+      if (await onRestore(id)) router.refresh();
     } finally {
       setRestoringId(undefined);
     }

@@ -175,7 +175,18 @@ const fieldKey = (cell: CellKey): FieldKey => {
  */
 function cellFamily<T>(initialize: (field: FieldKey) => Atom<T>) {
   const family = atomFamily((cell: CellKey) => initialize(fieldKey(cell)));
-  return (field: FieldKey) => family(cellKey(field));
+  const read = (field: FieldKey) => family(cellKey(field));
+
+  // Cells are keyed by a string, so forgetting publications means finding their
+  // cells first — the whole batch in one pass, since a search drops as many ids
+  // as it keeps. Snapshot the keys before removing: `getParams` iterates the
+  // live cache.
+  read.forget = (ids: Set<PublicationId>) =>
+    [...family.getParams()]
+      .filter((cell) => ids.has(fieldKey(cell).id))
+      .forEach((cell) => family.remove(cell));
+
+  return read;
 }
 
 /** A single cell's value — its own subscription, so editing one cell is cheap. */
@@ -196,7 +207,79 @@ const fieldErrorDescriptionFamily = cellFamily(({ id, key }) =>
   atom((get) => describeError(get(errorFamily(id)), key)),
 );
 
+// --- Family lifecycle -------------------------------------------------------
+
+/**
+ * Every family keyed by a publication id. A family's cache is a `param → atom`
+ * map that lives in this module, so an id that is never removed keeps its atom
+ * for the life of the tab — and a session that searches a few times has typed
+ * every result it ever saw.
+ */
+const PUBLICATION_FAMILIES = [
+  publicationFamily,
+  overrideFamily,
+  errorFamily,
+  discardedFamily,
+  lastValidatedFamily,
+  visiblePublicationFamily,
+  publicationOrNullFamily,
+  publicationReferencesFamily,
+  storedReferencesFamily,
+  isValidFamily,
+  errorDescriptionFamily,
+];
+
+const CELL_FAMILIES = [
+  fieldValueFamily,
+  storedFieldValueFamily,
+  fieldErrorDescriptionFamily,
+];
+
+/** Drop every atom these publications own — their values and their cached cells. */
+function forget(ids: Iterable<PublicationId>): void {
+  const dropped = new Set(ids);
+
+  dropped.forEach((id) =>
+    PUBLICATION_FAMILIES.forEach((family) => family.remove(id)),
+  );
+  CELL_FAMILIES.forEach((family) => family.forget(dropped));
+}
+
+/** Every id any family still holds, including ones set without going through
+ * `publicationIdsAtom` — which is what makes teardown reach them. */
+function knownIds(): Set<PublicationId> {
+  return new Set(
+    PUBLICATION_FAMILIES.flatMap((family) => [...family.getParams()]),
+  );
+}
+
 // --- Actions (imperative; operate on the module `store`) --------------------
+
+/**
+ * Seed the store with publications the backend has already saved, keyed by
+ * their server ids — the one definition of "these rows are now the working set".
+ *
+ * Ids that leave the set are forgotten, so searching does not accumulate every
+ * publication seen this session. A row with a pending edit is kept regardless:
+ * a search running behind an open editor must not discard what is being typed.
+ */
+function hydrate(publications: Publication[]): PublicationId[] {
+  const ids = publications.map((publication) => publication.id!);
+  const arriving = new Set(ids);
+
+  forget(
+    [...knownIds()]
+      .filter((id) => id !== DRAFT_ID && !arriving.has(id))
+      .filter((id) => !store.get(overrideFamily(id))),
+  );
+
+  store.set(publicationIdsAtom, ids);
+  publications.forEach((publication, index) =>
+    store.set(publicationFamily(ids[index]), publication),
+  );
+
+  return ids;
+}
 
 function setAll(entries: PublicationEntry[]): void {
   store.set(
@@ -206,16 +289,6 @@ function setAll(entries: PublicationEntry[]): void {
   entries.forEach(({ id, publication, errors }) => {
     store.set(publicationFamily(id), publication);
     store.set(errorFamily(id), errors);
-  });
-}
-
-function setPublications(entries: PublicationEntry[]): void {
-  store.set(
-    publicationIdsAtom,
-    entries.map(({ id }) => id),
-  );
-  entries.forEach(({ id, publication }) => {
-    store.set(publicationFamily(id), publication);
   });
 }
 
@@ -296,13 +369,20 @@ function duplicate(duplicateIds: Set<PublicationId>): PublicationId[] {
 }
 
 function resetAll(): void {
-  store.get(publicationIdsAtom)?.forEach((id) => {
+  // Every id the families know, not just the ones currently listed: a value
+  // set directly — as the specs do — would otherwise survive teardown and leak
+  // into whatever runs next.
+  const known = knownIds();
+
+  known.forEach((id) => {
     store.set(publicationFamily(id), RESET);
     store.set(overrideFamily(id), RESET);
     store.set(errorFamily(id), RESET);
     store.set(discardedFamily(id), RESET);
     store.set(lastValidatedFamily(id), RESET);
   });
+
+  forget([...known].filter((id) => id !== DRAFT_ID));
   store.set(overrideFamily(DRAFT_ID), RESET);
   store.set(errorFamily(DRAFT_ID), RESET);
   store.set(publicationIdsAtom, RESET);
@@ -384,6 +464,9 @@ export {
   fieldValueFamily,
   focusNextInvalid,
   focusedRowIdAtom,
+  forget,
+  hydrate,
+  knownIds,
   hiddenAttributesAtom,
   isIndexLoadingAtom,
   isValidFamily,
@@ -409,7 +492,6 @@ export {
   setDiscarded,
   setErrors,
   setFocusedRowId,
-  setPublications,
   store,
   storedFieldValueFamily,
   storedReferencesFamily,

@@ -15,6 +15,9 @@ import {
   duplicate,
   fieldValueFamily,
   focusNextInvalid,
+  forget,
+  hydrate,
+  knownIds,
   focusedRowIdAtom,
   hiddenAttributesAtom,
   isValidFamily,
@@ -314,5 +317,60 @@ describe("ids and the draft", () => {
 
   test("the draft row starts empty", () => {
     expect(store.get(visiblePublicationFamily(DRAFT_ID))).toEqual(empty());
+  });
+});
+
+describe("family lifecycle", () => {
+  /** A saved publication, as the index returns them. */
+  const saved = (id: number, title = `Title ${id}`) => ({
+    ...empty(),
+    id,
+    title,
+  });
+
+  test("a load forgets the publications the previous one held", () => {
+    hydrate([saved(1), saved(2)]);
+    expect([...knownIds()]).toEqual(expect.arrayContaining([1, 2]));
+
+    // A disjoint second load — a different search, say.
+    hydrate([saved(3)]);
+
+    // The families hold the current set and nothing else: an id that keeps its
+    // atom keeps it for the whole session.
+    expect([...knownIds()].filter((id) => id !== DRAFT_ID)).toEqual([3]);
+  });
+
+  test("a row with unsaved edits survives a load that drops it", () => {
+    hydrate([saved(1)]);
+    overrideField(1, "title", "Being typed");
+
+    hydrate([saved(2)]);
+
+    // Dropping it would discard what the admin is in the middle of writing —
+    // a search running behind an open editor must not do that.
+    expect(store.get(overrideFamily(1))).toEqual({ title: "Being typed" });
+  });
+
+  test("forgetting a publication drops its per-cell atoms too", () => {
+    hydrate([saved(7, "Dom Casmurro")]);
+    // Touch a cell so its atom is cached.
+    store.get(fieldValueFamily({ id: 7, key: "title" }));
+
+    forget([7]);
+
+    expect([...knownIds()]).not.toContain(7);
+    // The cache is rebuilt on demand, at the initial value rather than the old one.
+    expect(
+      store.get(fieldValueFamily({ id: 7, key: "title" })),
+    ).toBeUndefined();
+  });
+
+  test("teardown reaches ids that were set directly, not just listed ones", () => {
+    // The specs poke families with ids that never enter publicationIdsAtom.
+    store.set(publicationFamily(99), saved(99, "Poked"));
+
+    resetAll();
+
+    expect([...knownIds()]).not.toContain(99);
   });
 });

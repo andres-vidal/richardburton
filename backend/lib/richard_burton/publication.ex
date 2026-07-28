@@ -280,6 +280,20 @@ defmodule RichardBurton.Publication do
     |> preload()
   end
 
+  @doc """
+  One live publication, with its associations, or `nil`.
+
+  A tombstone reads as missing here exactly as it does in the index and the
+  search — a deleted record is gone from every read path, not merely hidden from
+  the list.
+  """
+  def find(id) do
+    case get(id, deleted: false) do
+      nil -> nil
+      publication -> preload(publication)
+    end
+  end
+
   defp get(id, deleted: false) do
     Repo.one(Ecto.Query.from(p in Publication, where: p.id == ^id and is_nil(p.deleted_at)))
   end

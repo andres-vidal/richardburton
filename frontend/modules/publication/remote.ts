@@ -24,6 +24,7 @@ import {
 import {
   createId,
   errorFamily,
+  hydrate,
   isIndexLoadingAtom,
   isValidatingAtom,
   keywordsAtom,
@@ -98,13 +99,7 @@ async function index({ search, unreferenced }: IndexOptions = {}): Promise<
       }
       store.set(keywordsAtom, keywords ?? []);
 
-      const ids = entries.map((entry) => entry.id!);
-      store.set(publicationIdsAtom, ids);
-      entries.forEach((entry, i) =>
-        store.set(publicationFamily(ids[i]), entry),
-      );
-
-      return ids;
+      return hydrate(entries);
     } finally {
       store.set(isIndexLoadingAtom, false);
     }
