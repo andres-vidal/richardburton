@@ -17,12 +17,12 @@ export default async function Page({
 }) {
   const { publication, search } = await searchParams;
 
+  const opened = publication ? readPublication(publication) : undefined;
+  const index = await readIndex(search);
+
   return (
     <Suspense>
-      <Home
-        index={await readIndex(search)}
-        opened={publication ? readPublication(publication) : undefined}
-      />
+      <Home index={index} opened={opened} />
     </Suspense>
   );
 }
