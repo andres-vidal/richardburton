@@ -9,7 +9,7 @@ import {
   useUnreferencedPublicationCount,
 } from "modules/publication/hooks";
 import type { PublicationId } from "modules/publication/model";
-import { receiveIndex, type IndexPayload } from "modules/publication/store";
+import { receiveIndex, type PublicationIndex } from "modules/publication/store";
 import {
   PublicationStoreProvider,
   usePublicationStore,
@@ -237,13 +237,13 @@ export const ReferencesBackfillView: FC<{
   );
 };
 
-const ReferencesBackfill: FC<{ queue: IndexPayload }> = ({ queue }) => (
+const ReferencesBackfill: FC<{ queue: PublicationIndex }> = ({ queue }) => (
   <PublicationStoreProvider initialize={(store) => receiveIndex(store, queue)}>
     <Backfill queue={queue} />
   </PublicationStoreProvider>
 );
 
-const Backfill: FC<{ queue: IndexPayload }> = ({ queue }) => {
+const Backfill: FC<{ queue: PublicationIndex }> = ({ queue }) => {
   const store = usePublicationStore();
   const [position, setPosition] = useState(0);
   const [saving, setSaving] = useState(false);

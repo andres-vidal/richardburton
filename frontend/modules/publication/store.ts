@@ -234,8 +234,12 @@ const CELL_FAMILIES = [
   fieldErrorDescriptionFamily,
 ];
 
-/** What a read of the index answers with. */
-type IndexPayload = {
+/**
+ * A page of the catalogue: the rows, the keywords the search matched on, and how
+ * many publications exist in total — which the index reports in a header rather
+ * than in the body.
+ */
+type PublicationIndex = {
   entries: Publication[];
   keywords: string[];
   /** How many exist in total, not how many matched. `null` when unreported. */
@@ -306,7 +310,7 @@ function remember(store: Store, publication: Publication): void {
  */
 function receiveIndex(
   store: Store,
-  { entries, keywords, total }: IndexPayload,
+  { entries, keywords, total }: PublicationIndex,
 ): PublicationId[] {
   if (total !== null) store.set(totalIndexCountAtom, total);
   store.set(keywordsAtom, keywords);
@@ -552,4 +556,4 @@ export {
   visibleIdsAtom,
   visiblePublicationFamily,
 };
-export type { IndexPayload };
+export type { PublicationIndex };
