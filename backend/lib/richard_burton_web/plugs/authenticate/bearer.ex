@@ -2,8 +2,11 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Bearer do
   @moduledoc """
   Authenticates a request via an identity-provider token in the
   `Authorization: Bearer` header (see `RichardBurton.Auth`) and assigns
-  `:subject_id`. Used by the login endpoints that exchange the provider token
-  for a session.
+  `:subject_id` and `:email`. Used by the login endpoints that exchange the
+  provider token for a session.
+
+  The email is assigned from the verified token, not read from the request, so
+  what the account is keyed on is the provider's word rather than the caller's.
   """
   alias RichardBurton.Auth
 
@@ -13,8 +16,11 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Bearer do
 
   def call(conn, _params) do
     case verify(conn) do
-      {:ok, subject_id} -> assign(conn, :subject_id, subject_id)
-      :error -> halt_unauthorized(conn)
+      {:ok, %{subject_id: subject_id, email: email}} ->
+        conn |> assign(:subject_id, subject_id) |> assign(:email, email)
+
+      :error ->
+        halt_unauthorized(conn)
     end
   end
 
