@@ -84,13 +84,4 @@ function usePublicationStore(): Store {
   return store;
 }
 
-/** A store to seed and then hand to the provider. */
-function createPublicationStore(): Store {
-  return createStore();
-}
-
-export {
-  PublicationStoreProvider,
-  createPublicationStore,
-  usePublicationStore,
-};
+export { PublicationStoreProvider, usePublicationStore };
