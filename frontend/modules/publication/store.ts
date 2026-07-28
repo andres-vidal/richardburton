@@ -292,16 +292,6 @@ function setAll(entries: PublicationEntry[]): void {
   });
 }
 
-function setPublications(entries: PublicationEntry[]): void {
-  store.set(
-    publicationIdsAtom,
-    entries.map(({ id }) => id),
-  );
-  entries.forEach(({ id, publication }) => {
-    store.set(publicationFamily(id), publication);
-  });
-}
-
 function setErrors(entries: PublicationEntry[]): void {
   entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
 }
@@ -502,7 +492,6 @@ export {
   setDiscarded,
   setErrors,
   setFocusedRowId,
-  setPublications,
   store,
   storedFieldValueFamily,
   storedReferencesFamily,
