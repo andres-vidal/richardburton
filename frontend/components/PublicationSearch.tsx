@@ -1,34 +1,49 @@
 "use client";
 
-import { useIsIndexLoading, useKeywords } from "modules/publication/hooks";
+import { useKeywords } from "modules/publication/hooks";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChangeEventHandler, FC, useState } from "react";
+import { ChangeEventHandler, FC, useRef, useState, useTransition } from "react";
+import useDebounce from "utils/useDebounce";
+
+/** Long enough that a typist does not query on every letter. */
+const SEARCH_DELAY_MS = 350;
 
 const PublicationSearch: FC = () => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const keywords = useKeywords();
-  const isLoading = useIsIndexLoading();
+  const [isNavigating, startTransition] = useTransition();
 
   const searchUrlParam = searchParams?.get("search") ?? "";
   const [search, setSearch] = useState(searchUrlParam);
   const [previousParam, setPreviousParam] = useState(searchUrlParam);
 
+  const requested = useRef(searchUrlParam);
+
   if (searchUrlParam !== previousParam) {
     setPreviousParam(searchUrlParam);
-    if (searchUrlParam) setSearch(searchUrlParam);
+    if (searchUrlParam !== requested.current) {
+      requested.current = searchUrlParam;
+      setSearch(searchUrlParam);
+    }
   }
+
+  const navigate = useDebounce((value: string) => {
+    requested.current = value;
+    startTransition(() => {
+      router.replace(
+        value ? `${pathname}?search=${encodeURIComponent(value)}` : pathname,
+      );
+    });
+  }, SEARCH_DELAY_MS);
+
+  const isLoading = search !== searchUrlParam || isNavigating;
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
     setSearch(e.target.value);
-
-    router.replace(
-      e.target.value
-        ? `${pathname}?search=${encodeURIComponent(e.target.value)}`
-        : pathname,
-    );
+    navigate(e.target.value);
   };
 
   return (

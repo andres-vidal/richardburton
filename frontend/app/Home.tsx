@@ -17,40 +17,47 @@ import {
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import SignOutButton from "components/SignOutButton";
-import type { PublicationView } from "app/publications/read";
+import type { PublicationIndex, PublicationView } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
-import { usePublicationIndex } from "modules/publication/remote";
-import { PublicationStoreProvider } from "modules/publication/workspace";
+import { receiveIndex } from "modules/publication/store";
+import {
+  PublicationStoreProvider,
+  usePublicationStore,
+} from "modules/publication/workspace";
 import { useIsAuthenticated } from "modules/session";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 type Props = {
+  /** The catalogue for the current query, read on the server. */
+  index: PublicationIndex;
   /** The publication the URL names, read on the server. Unawaited, so the
    * overlay can open before it arrives. */
   opened?: Promise<PublicationView | null>;
 };
 
-export default function Home(props: Props) {
+export default function Home({ index, opened }: Props) {
   return (
-    <PublicationStoreProvider>
-      <Catalogue {...props} />
+    <PublicationStoreProvider
+      initialize={(store) => receiveIndex(store, index)}
+    >
+      <Catalogue index={index} opened={opened} />
     </PublicationStoreProvider>
   );
 }
 
-function Catalogue({ opened }: Props) {
-  const index = usePublicationIndex();
+function Catalogue({ index, opened }: Props) {
+  const store = usePublicationStore();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
 
-  const searchParams = useSearchParams();
-  const search = searchParams?.get("search") ?? undefined;
+  const received = useRef(index);
 
   useEffect(() => {
-    index({ search });
-  }, [index, search]);
+    if (received.current === index) return;
+    received.current = index;
+    receiveIndex(store, index);
+  }, [store, index]);
 
   const modal = useURLQueryModal(PUBLICATION_MODAL_KEY);
 
