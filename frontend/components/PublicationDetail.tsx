@@ -335,7 +335,10 @@ const Detail: FC<PublicationDetailProps> = ({
 
   async function handleDelete() {
     setDeleting(true);
-    const removed = await deletePublication(store, publication);
+    const removed = await deletePublication(store, {
+      id,
+      title: publication.title,
+    });
     setDeleting(false);
     deleteConfirmation.close();
 

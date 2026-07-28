@@ -124,16 +124,14 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
  */
 async function deletePublication(
   store: Store,
-  publication: Publication,
-): Promise<boolean> {
   // Named by the record, not by what the store holds: a view showing a
   // publication is not necessarily part of the working set it belongs to.
-  const { id, title } = publication;
-
+  { id, title }: { id: PublicationId; title: string },
+): Promise<boolean> {
   try {
     await request((http) => http.delete(`publications/${id}`));
 
-    removePublication(store, id!);
+    removePublication(store, id);
     notify({
       message: "Publication deleted",
       detail: `“${title}” is out of the catalogue. Restore it from Deleted publications.`,
