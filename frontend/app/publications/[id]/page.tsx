@@ -35,7 +35,7 @@ export default async function PublicationPage({
 
   return (
     <Layout
-      measure="centered"
+      measure="aligned"
       subheader={
         <>
           <Breadcrumb
