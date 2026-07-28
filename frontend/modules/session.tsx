@@ -1,7 +1,10 @@
 "use client";
 
+import HTTP from "modules/http";
 import { User } from "modules/users";
 import { createContext, ReactNode, useContext } from "react";
+
+const api = HTTP.client({ baseURL: process.env.NEXT_PUBLIC_API_URL });
 
 // The signed-in user (or null), fetched once server-side in the root layout and
 // provided app-wide — no client fetch, store, or effect. Auth transitions
@@ -28,6 +31,17 @@ export function useSession(): User | null {
 
 export function useIsAuthenticated(): boolean {
   return useSession() != null;
+}
+
+/**
+ * End the session and come back as nobody: the server drops it, then a full
+ * load rebuilds the app from what is left, so nothing signed-in survives in
+ * memory. Failing to reach the server still returns you to the front door —
+ * the cookie is what stands, and it will be refused.
+ */
+export async function signOut() {
+  await api.delete("/sessions").catch(() => undefined);
+  window.location.replace("/");
 }
 
 /** Whether the reader may decide who has access. */

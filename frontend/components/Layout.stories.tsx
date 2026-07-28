@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { SessionProvider } from "modules/session";
 import { expect, within } from "storybook/test";
 
 import Layout from "./Layout";
@@ -37,6 +38,34 @@ export const Default: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Learn More")).toBeInTheDocument();
     await expect(canvas.getByText("Contact Us")).toBeInTheDocument();
+  },
+};
+
+/**
+ * Signed in, the header offers the way out. It is the one control that has to
+ * be on every page, and the header is the only thing every page has.
+ */
+export const SignedIn: Story = {
+  decorators: [
+    (Story) => (
+      <SessionProvider session={{ email: "me@rb.test", role: "admin" }}>
+        <Story />
+      </SessionProvider>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
+  },
+};
+
+/** Signed out, there is nothing to leave. */
+export const SignedOut: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole("button", { name: "Sign out" })).toBeNull();
   },
 };
 

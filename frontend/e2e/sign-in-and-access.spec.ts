@@ -33,6 +33,21 @@ test("an admin signs in and out, and the footer controls follow", async ({
   await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
 });
 
+test("signing out works from a page that is not the index", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/users");
+  await expect(page.getByRole("heading", { name: "Access" })).toBeVisible();
+
+  await signOut(page);
+
+  // Back at the front door, and the page just left is closed to them.
+  await expect(page).toHaveURL("/");
+  await page.goto("/admin/users");
+  await expect(page).toHaveURL("/");
+});
+
 test("a signed-out visitor cannot reach the admin workspace", async ({
   page,
 }) => {

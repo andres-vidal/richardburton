@@ -11,7 +11,6 @@ import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
-import SignOutButton from "components/SignOutButton";
 import type { PublicationIndex } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
 import { receiveIndex } from "modules/publication/store";
@@ -104,7 +103,6 @@ function Catalogue({ index }: Props) {
                   width="fixed"
                 />
               </Link>
-              <SignOutButton />
             </div>
           ) : (
             <div className="hidden sm:block">

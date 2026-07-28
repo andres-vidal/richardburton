@@ -2,6 +2,7 @@
 
 import Dot from "assets/dot.svg";
 import Logo from "assets/logo.svg";
+import { signOut, useIsAuthenticated } from "modules/session";
 import Link from "next/link";
 import { FC, ReactNode, useEffect, useRef } from "react";
 import Anchor from "./Anchor";
@@ -38,6 +39,7 @@ const Layout: FC<Props> = ({
   measure = "full",
 }) => {
   const headerRef = useRef<HTMLElement>(null);
+  const isAuthenticated = useIsAuthenticated();
 
   // Publish the header's height as `--app-header-h` so the table's column headers
   // can pin at its bottom (the end of the searchbar panel), not behind it. A
@@ -77,6 +79,14 @@ const Layout: FC<Props> = ({
               <Anchor query={`${LEARN_MORE_MODAL_KEY}=true`}>Learn More</Anchor>
               <Dot className="size-1" />
               <Anchor query={`${CONTACT_MODAL_KEY}=true`}>Contact Us</Anchor>
+              {/* Leaving is possible from wherever you are, not only from the
+                  page that happens to carry a footer. */}
+              {isAuthenticated && (
+                <>
+                  <Dot className="size-1" />
+                  <Anchor onClick={signOut}>Sign out</Anchor>
+                </>
+              )}
             </div>
           </div>
         </h1>

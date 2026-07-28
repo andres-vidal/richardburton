@@ -1,0 +1,31 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as AnchorStories from "./Anchor.stories";
+
+<Meta of={AnchorStories} />
+
+# Anchor
+
+The header's link: text with an underline that grows in on hover. It sets no
+colour of its own — the underline is `bg-current` — so it takes the colour of
+wherever it sits, which in practice is the indigo banner.
+
+<Canvas of={AnchorStories.Default} />
+
+## Props
+
+- `href` — where it goes. One starting with `http` renders a plain `<a>`;
+  anything else goes through `next/link`.
+- `query` — a query string appended to `href`, which is how the header opens
+  the Learn More and Contact modals.
+- `onClick` — makes it a `<button>` instead.
+
+<Canvas of={AnchorStories.WithQuery} />
+
+## Something to do, not somewhere to go
+
+Signing out is the header's one action, and it should read as part of the same
+row rather than as a control dropped into a banner — so it is this, with an
+`onClick`. Query it by `button`, not `link`.
+
+<Canvas of={AnchorStories.AsAnAction} />
