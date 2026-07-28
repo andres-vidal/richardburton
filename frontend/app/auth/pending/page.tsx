@@ -1,3 +1,4 @@
+import AuthCard from "components/AuthCard";
 import Layout from "components/Layout";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -21,23 +22,22 @@ export default function AccessPendingPage() {
   return (
     <Layout
       content={
-        <div className="flex justify-center items-center py-32 w-full">
-          <div className="space-y-4 max-w-prose text-center">
-            <h1 className="text-2xl font-normal">Your account is ready</h1>
-            <p className="text-gray-700">
-              You have an account here, but it does not reach the catalogue yet.
-            </p>
-            <p className="text-gray-700">
-              An administrator can grant that. Once they do, sign in again and
-              it will be waiting for you.
-            </p>
-            <p className="pt-2">
-              <Link href="/" className="anchor">
-                Browse the catalogue
-              </Link>
-            </p>
-          </div>
-        </div>
+        <AuthCard
+          title="Your account is ready"
+          action={
+            <Link href="/" className="anchor">
+              Browse the catalogue
+            </Link>
+          }
+        >
+          <p className="text-lg">
+            You have an account here, but it does not reach the catalogue yet.
+          </p>
+          <p className="text-sm">
+            An administrator can grant that. Once they do, sign in again and it
+            will be waiting for you.
+          </p>
+        </AuthCard>
       }
     />
   );

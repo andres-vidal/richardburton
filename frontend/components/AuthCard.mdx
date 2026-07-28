@@ -1,0 +1,33 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as AuthCardStories from "./AuthCard.stories";
+
+<Meta of={AuthCardStories} />
+
+# Auth card
+
+The shape the three auth pages share: a square panel centred on an otherwise
+empty page, holding a title, what happened, and the one thing to do about it.
+
+<Canvas of={AuthCardStories.Default} />
+
+## Props
+
+- `title` — the page's `h1`, at the top of the card.
+- `children` — what happened. Convention is a `text-lg` line saying it, and an
+  optional `text-sm` line saying what it means for the reader.
+- `action` — what to do next, at the foot. Optional: some errors leave nothing
+  to try.
+
+## One card, three moments
+
+Signing in, being turned away, and waiting for a role are the same moment seen
+three ways — so they are one shape. Someone who meets the second having just
+seen the first should not have to work out that they are still in the same
+place.
+
+<Canvas of={AuthCardStories.Refused} />
+
+<Canvas of={AuthCardStories.Pending} />
+
+<Canvas of={AuthCardStories.WithoutAnAction} />

@@ -1,3 +1,4 @@
+import AuthCard from "components/AuthCard";
 import Layout from "components/Layout";
 import SignInButton from "components/SignInButton";
 import { SESSION_COOKIE } from "modules/api";
@@ -60,20 +61,15 @@ export default async function AuthErrorPage({
     <Layout
       content={
         description ? (
-          <div className="flex justify-center items-center py-32 w-full">
-            <section className="flex flex-col justify-between p-7 w-96 text-center rounded shadow aspect-square">
-              <h1 className="text-2xl">{description.title}</h1>
-              <div className="space-y-4">
-                <p className="text-lg">{description.message}</p>
-                {description.suggestion && (
-                  <p className="text-sm">{description.suggestion}</p>
-                )}
-              </div>
-              <div className="mx-auto">
-                <SignInButton label="Try again" centered />
-              </div>
-            </section>
-          </div>
+          <AuthCard
+            title={description.title}
+            action={<SignInButton label="Try again" centered />}
+          >
+            <p className="text-lg">{description.message}</p>
+            {description.suggestion && (
+              <p className="text-sm">{description.suggestion}</p>
+            )}
+          </AuthCard>
         ) : null
       }
     />
