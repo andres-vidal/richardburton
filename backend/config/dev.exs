@@ -8,6 +8,17 @@ config :richard_burton,
   # needs CORS credentials to send the rb-session cookie.
   phx_cors_credentials: true
 
+# Mail stays on this machine: what would have been sent is kept in memory and
+# read at http://localhost:4000/dev/mailbox. Inviting a real address from a
+# development database should not put a real message in a real inbox — and an
+# invitation is only worth testing if you can read the one it sends.
+config :richard_burton, mailer_adapter: Swoosh.Adapters.Local
+
+# Who that mail is from. Not a secret, and the mailbox needs an address to
+# show; override in dev.local.exs, along with the adapter, to send for real.
+System.put_env("SMTP_NAME", "Richard & Isabel Burton Platform")
+System.put_env("SMTP_FROM", "no-reply@localhost")
+
 import_config "dev.local.exs"
 
 # Configure your database

@@ -107,6 +107,9 @@ defmodule RichardBurtonWeb.Router do
       pipe_through([:fetch_session, :protect_from_forgery])
 
       live_dashboard("/dashboard", metrics: RichardBurtonWeb.Telemetry)
+
+      # What the local mailer kept instead of sending it.
+      forward("/dev/mailbox", Plug.Swoosh.MailboxPreview)
     end
 
     scope "/api/dev", RichardBurtonWeb do
