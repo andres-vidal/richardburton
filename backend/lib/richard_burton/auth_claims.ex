@@ -21,8 +21,8 @@ defmodule RichardBurton.Auth.Claims do
   def validate(claims, issuer, audience, now) when is_map(claims) do
     with {:ok, subject_id} <- subject(claims),
          {:ok, email} <- verified_email(claims),
-         :ok <- matches(claims, "iss", issuer),
-         :ok <- matches(claims, "aud", audience),
+         :ok <- matches(claims["iss"], issuer),
+         :ok <- matches(claims["aud"], audience),
          :ok <- unexpired(claims, now) do
       {:ok, %{subject_id: subject_id, email: email}}
     end
@@ -39,10 +39,11 @@ defmodule RichardBurton.Auth.Claims do
 
   defp verified_email(_claims), do: :error
 
-  defp matches(_claims, _claim, nil), do: :error
-
-  defp matches(claims = %{}, claim, expected),
-    do: if(claims[claim] == expected, do: :ok, else: :error)
+  # Nothing to match against: an issuer or audience left unconfigured admits
+  # every token, so it admits none.
+  defp matches(_claim, nil), do: :error
+  defp matches(claim, claim), do: :ok
+  defp matches(_claim, _expected), do: :error
 
   # exp is a POSIX timestamp; reject tokens that have reached expiry.
   defp unexpired(%{"exp" => exp}, now) when is_integer(exp) and exp > now, do: :ok
