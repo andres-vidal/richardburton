@@ -15,11 +15,7 @@ import {
   usePublicationStore,
 } from "modules/publication/workspace";
 import { update } from "modules/publication/remote";
-import {
-  discardEdit,
-  overrideReferences,
-  resetAll,
-} from "modules/publication/store";
+import { discardEdit, overrideReferences } from "modules/publication/store";
 import Link from "next/link";
 import { FC, KeyboardEvent, useEffect, useRef, useState } from "react";
 
@@ -247,8 +243,6 @@ const Backfill: FC<{ queue: PublicationIndex }> = ({ queue }) => {
   const store = usePublicationStore();
   const [position, setPosition] = useState(0);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => () => resetAll(store), [store]);
 
   const ids = queue.entries.map(({ id }) => id!);
   const currentId = ids[position];

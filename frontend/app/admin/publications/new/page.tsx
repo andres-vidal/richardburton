@@ -15,18 +15,10 @@ import ResetDiscarded from "components/ResetDiscarded";
 import ResetOverridden from "components/ResetOverridden";
 import RowIdToggle from "components/RowIdToggle";
 import { Publication } from "modules/publication/model";
-import {
-  resetAll,
-  setAll,
-  setAttributesVisible,
-} from "modules/publication/store";
-import {
-  PublicationStoreProvider,
-  usePublicationStore,
-} from "modules/publication/workspace";
+import { setAll, setAttributesVisible } from "modules/publication/store";
+import { PublicationStoreProvider } from "modules/publication/workspace";
 import type { Store } from "modules/store";
 import { useIsSelectionEmpty } from "modules/selection";
-import { useEffect } from "react";
 
 const BREADCRUMB_ITEMS = [
   { label: "Home", href: "/" },
@@ -40,10 +32,7 @@ function startEmpty(store: Store) {
 }
 
 function NewPublications() {
-  const store = usePublicationStore();
   const isSelectionEmpty = useIsSelectionEmpty();
-
-  useEffect(() => () => resetAll(store), [store]);
 
   return (
     <Layout
