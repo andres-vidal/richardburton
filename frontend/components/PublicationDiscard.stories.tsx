@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { seed } from "modules/publication/fixtures";
 import { expect, within } from "storybook/test";
 
@@ -19,7 +20,7 @@ type Story = StoryObj<typeof meta>;
  * still renders and reads "Discard 0" (a safe no-op on click).
  */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).getByRole("button", { name: /Discard 0/ }),

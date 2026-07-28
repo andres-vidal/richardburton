@@ -20,6 +20,11 @@ import {
   setAll,
   setAttributesVisible,
 } from "modules/publication/store";
+import {
+  PublicationStoreProvider,
+  usePublicationStore,
+} from "modules/publication/workspace";
+import type { Store } from "modules/store";
 import { useIsSelectionEmpty } from "modules/selection";
 import { useEffect } from "react";
 
@@ -29,12 +34,16 @@ const BREADCRUMB_ITEMS = [
   { label: "Add publications" },
 ];
 
-export default function NewPublications() {
+function startEmpty(store: Store) {
+  setAll(store, []);
+  setAttributesVisible(store, Publication.ATTRIBUTES);
+}
+
+function NewPublications() {
+  const store = usePublicationStore();
   const isSelectionEmpty = useIsSelectionEmpty();
 
-  useEffect(() => setAll([]), []);
-  useEffect(() => setAttributesVisible(Publication.ATTRIBUTES), []);
-  useEffect(() => resetAll, []);
+  useEffect(() => () => resetAll(store), [store]);
 
   return (
     <Layout
@@ -70,5 +79,13 @@ export default function NewPublications() {
         </div>
       }
     />
+  );
+}
+
+export default function NewPublicationsPage() {
+  return (
+    <PublicationStoreProvider initialize={startEmpty}>
+      <NewPublications />
+    </PublicationStoreProvider>
   );
 }

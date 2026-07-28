@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { seed } from "modules/publication/fixtures";
 import { ComponentProps, FC, useState } from "react";
 import { expect, fn, screen, userEvent, within } from "storybook/test";
@@ -48,7 +49,7 @@ type Story = StoryObj<typeof meta>;
 
 /** A text column renders a plain, editable text cell. */
 export const Default: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   args: { colId: "title", value: "Dom Casmurro" },
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox");
@@ -61,7 +62,7 @@ export const Default: Story = {
 
 /** A numeric column (year) renders the number cell (a styled text input). */
 export const Number: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   args: { colId: "year", value: "1953" },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole("textbox")).toHaveValue(
@@ -76,7 +77,7 @@ export const Number: Story = {
  * grid — so the tinted cell is the signal and hovering gives the detail.
  */
 export const WithError: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   args: { colId: "title", value: "", error: "is required" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -96,7 +97,7 @@ export const WithError: Story = {
  * nobody reads.
  */
 export const InlineError: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   args: {
     colId: "title",
     value: "",
@@ -123,7 +124,7 @@ export const InlineError: Story = {
  * was touched.
  */
 export const ValidatesOnSelection: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   args: {
     colId: "countries",
     value: "",
@@ -152,7 +153,7 @@ export const ValidatesOnSelection: Story = {
  * two-column grid, its neighbour.
  */
 export const ErrorDoesNotShiftLayout: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   args: {
     colId: "title",
     value: "",
@@ -178,7 +179,7 @@ export const ErrorDoesNotShiftLayout: Story = {
  * forwards it to the underlying input, which draws a visible box.
  */
 export const Bordered: Story = {
-  beforeEach: () => seed(),
+  beforeEach: () => seed(store),
   args: { colId: "title", value: "Dom Casmurro", bordered: true },
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox");

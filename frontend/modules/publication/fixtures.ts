@@ -1,4 +1,6 @@
 import { Publication, PublicationError, PublicationKey, empty } from "./model";
+import { clearSelection } from "modules/selection";
+import type { Store } from "modules/store";
 import { createId, resetAll, resetAttributes, setAll } from "./store";
 
 type SeedEntry = Partial<Publication> & { errors?: PublicationError };
@@ -57,15 +59,20 @@ function sampleManyPublications(count: number): Partial<Publication>[] {
 }
 
 /**
- * Reset the store and seed it with the given publications (defaults to
- * samples). Each entry may carry an `errors` value to render an invalid row.
+ * Reset a store and seed it with the given publications (defaults to samples).
+ * Each entry may carry an `errors` value to render an invalid row.
+ *
+ * Takes the store so a story can seed the one it is about to hand its provider,
+ * rather than a shared singleton.
  */
-function seed(entries: SeedEntry[] = SAMPLE_PUBLICATIONS): void {
-  resetAll();
+function seed(store: Store, entries: SeedEntry[] = SAMPLE_PUBLICATIONS): void {
+  resetAll(store);
+  clearSelection(store);
   // Column visibility survives resetAll (it's a UI preference in the app), so
   // reset it here too — otherwise a column hidden in one story stays hidden.
-  resetAttributes();
+  resetAttributes(store);
   setAll(
+    store,
     entries.map(({ errors = null, ...publication }) => ({
       id: createId(),
       publication: { ...empty(), ...publication },

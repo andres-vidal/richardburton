@@ -13,6 +13,7 @@ import {
   RowProps,
   SignalColumn,
 } from "components/PublicationIndexTable";
+import ClearSelection from "listeners/ClearSelection";
 import { isElement } from "lodash";
 import {
   useAreRowIdsVisible,
@@ -24,8 +25,14 @@ import {
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
 import { validate } from "modules/publication/remote";
+import { usePublicationStore } from "modules/publication/workspace";
 import { DRAFT_ID, addNew } from "modules/publication/store";
-import { select, useIsSelected, useIsSelectionEmpty } from "modules/selection";
+import {
+  isSelectionGesture,
+  select,
+  useIsSelected,
+  useIsSelectionEmpty,
+} from "modules/selection";
 import {
   FC,
   KeyboardEventHandler,
@@ -51,7 +58,6 @@ const ExtendedColumn: typeof Column = (props) => {
       invalid={!isValid}
       focused={isFocused}
       selected={isSelected}
-      selectable={true}
     />
   );
 };
@@ -90,7 +96,7 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
       focused={isFocused}
       invalid={!isValid}
       selected={isSelected}
-      selectable
+      selectsRow
     >
       <span
         className="flex items-center text-xs text-gray-400 error:text-red-500"
@@ -147,10 +153,12 @@ const ExtendedRow: FC<RowProps> = (props) => {
 };
 
 const useSubmit = () => {
+  const store = usePublicationStore();
+
   return useCallback(() => {
-    const id = addNew();
-    validate([id]);
-  }, []);
+    const id = addNew(store);
+    validate(store, [id]);
+  }, [store]);
 };
 
 const SubmittableData: typeof Content = ({ rowId, colId }) => {
@@ -214,31 +222,41 @@ const NewPublicationRow: FC = () => {
 };
 
 const PublicationWorkspace: FC = () => {
+  const store = usePublicationStore();
   const ids = useVisiblePublicationIds();
   const isSelectionEmpty = useIsSelectionEmpty();
 
-  const toggleSelection = (id: number) => (event: MouseEvent) =>
-    select({
+  // Only a click on the row's handle selects it. The row hears every click in
+  // it, including the ones that land in a field — those belong to the field, and
+  // selecting on them would fight the person typing.
+  const toggleSelection = (id: number) => (event: MouseEvent) => {
+    if (!isSelectionGesture(event.target)) return;
+
+    select(store, {
       id,
       type: "publication",
       shiftKey: event.shiftKey,
       metaKey: event.metaKey,
       orderedIds: ids,
     });
+  };
 
   return (
-    <PublicationIndexTable
-      ExtendedRow={ExtendedRow}
-      ExtendedColumn={ExtendedColumn}
-      ExtendedColumnHeader={ExtendedColumnHeader}
-      ExtendedContent={ExtendedContent}
-      ExtendedSignalColumn={ExtendedSignalColumn}
-      ExtendedTrailingColumn={ExtendedTrailingColumn}
-      ExtraRow={NewPublicationRow}
-      onRowClick={toggleSelection}
-      selectable={isSelectionEmpty}
-      collapsible={false}
-    />
+    <>
+      <ClearSelection store={store} />
+      <PublicationIndexTable
+        ExtendedRow={ExtendedRow}
+        ExtendedColumn={ExtendedColumn}
+        ExtendedColumnHeader={ExtendedColumnHeader}
+        ExtendedContent={ExtendedContent}
+        ExtendedSignalColumn={ExtendedSignalColumn}
+        ExtendedTrailingColumn={ExtendedTrailingColumn}
+        ExtraRow={NewPublicationRow}
+        onRowClick={toggleSelection}
+        selectable={isSelectionEmpty}
+        collapsible={false}
+      />
+    </>
   );
 };
 

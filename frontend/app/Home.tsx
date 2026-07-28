@@ -20,27 +20,33 @@ import SignOutButton from "components/SignOutButton";
 import type { PublicationView } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
 import { usePublicationIndex } from "modules/publication/remote";
-import { resetAll } from "modules/publication/store";
+import { PublicationStoreProvider } from "modules/publication/workspace";
 import { useIsAuthenticated } from "modules/session";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
-export default function Home({
-  opened,
-}: {
+type Props = {
   /** The publication the URL names, read on the server. Unawaited, so the
    * overlay can open before it arrives. */
   opened?: Promise<PublicationView | null>;
-}) {
+};
+
+export default function Home(props: Props) {
+  return (
+    <PublicationStoreProvider>
+      <Catalogue {...props} />
+    </PublicationStoreProvider>
+  );
+}
+
+function Catalogue({ opened }: Props) {
   const index = usePublicationIndex();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
 
   const searchParams = useSearchParams();
   const search = searchParams?.get("search") ?? undefined;
-
-  useEffect(() => resetAll(), []);
 
   useEffect(() => {
     index({ search });

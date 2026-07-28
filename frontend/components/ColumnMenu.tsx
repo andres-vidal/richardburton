@@ -19,6 +19,7 @@ import {
   useIsAttributeVisible,
 } from "modules/publication/hooks";
 import { Publication, type PublicationKey } from "modules/publication/model";
+import { usePublicationStore } from "modules/publication/workspace";
 import {
   resetAttributes,
   setAttributesVisible,
@@ -34,12 +35,13 @@ const TOGGLEABLE_ATTRIBUTES = Publication.ATTRIBUTES.filter(
 // (`aria-pressed`) so the popover stays a plain focusable group, no menu keyboard
 // model to implement — Tab moves between rows, the checkbox square is decorative.
 const ColumnToggle: FC<{ colId: PublicationKey }> = ({ colId }) => {
+  const store = usePublicationStore();
   const visible = useIsAttributeVisible(colId);
   return (
     <button
       type="button"
       aria-pressed={visible}
-      onClick={() => setAttributesVisible([colId], !visible)}
+      onClick={() => setAttributesVisible(store, [colId], !visible)}
       className="flex gap-2 items-center px-2 py-1.5 text-xs text-left text-gray-700 rounded cursor-pointer hover:text-indigo-700 hover:bg-indigo-100"
     >
       <span
@@ -61,6 +63,7 @@ const ColumnToggle: FC<{ colId: PublicationKey }> = ({ colId }) => {
 // columns. Replaces the in-place collapse-to-strip UI — hidden columns simply don't
 // render, so there's no `grid-template-columns` animation to lag on large lists.
 const ColumnMenu: FC = () => {
+  const store = usePublicationStore();
   const [isOpen, setIsOpen] = useState(false);
   const hiddenCount = useHiddenAttributes().filter(
     (key) => Publication.ATTRIBUTE_IS_TOGGLEABLE[key],
@@ -120,7 +123,7 @@ const ColumnMenu: FC = () => {
               ))}
               <button
                 type="button"
-                onClick={() => resetAttributes()}
+                onClick={() => resetAttributes(store)}
                 className="px-2 py-1.5 mt-1 text-xs text-left text-gray-500 rounded border-t border-gray-200 cursor-pointer hover:text-indigo-700 hover:bg-indigo-100"
               >
                 Show all

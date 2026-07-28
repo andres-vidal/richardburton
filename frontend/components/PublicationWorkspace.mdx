@@ -18,13 +18,29 @@ Each injected piece overrides one part of the read-only table:
 - **`ExtendedContent`** — replaces each read-only cell with a `DataInput` that
   writes edits back to the store and re-validates.
 - **`ExtendedSignalColumn`** — a per-row validity signal: an error icon when
-  invalid, plus the optional row id.
+  invalid, plus the optional row id. It is also the row's **selection handle**
+  (`data-selects-row`).
 - **`ExtendedRow`** — wraps the row in an error `Tooltip` and scrolls it into
   view when focused.
 - **`ExtraRow`** — the always-present **new-publication** row at the bottom.
 
 Because it shares the table's structure, everything from the read-only view —
 column visibility, row virtualization, selection — still applies.
+
+## Selecting rows
+
+A row is selected by its **handle**, the leading signal cell: a plain click
+selects it, shift-click extends a contiguous range from it, and cmd/ctrl-click
+toggles one row. The other cells hold fields, so a click there belongs to the
+field — the row hears it, and ignores it.
+
+That is one question, and "can the text be selected" is another: the table turns
+text selection off while rows are selected, so dragging across them does not
+highlight their content. Both used to be the same `data-selectable` attribute,
+which meant selecting a row depended on the click missing the icon inside the
+handle, and cmd- or shift-clicking a second row could clear the selection instead
+of changing it. `modules/selection`'s `isSelectionGesture` is now the single
+definition, read by both the row that selects and the listener that clears.
 
 ## Editing & validation
 

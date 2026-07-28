@@ -9,6 +9,10 @@ import {
   useUnreferencedPublicationCount,
 } from "modules/publication/hooks";
 import type { PublicationId } from "modules/publication/model";
+import {
+  PublicationStoreProvider,
+  usePublicationStore,
+} from "modules/publication/workspace";
 import { index, update } from "modules/publication/remote";
 import {
   discardEdit,
@@ -128,6 +132,7 @@ export const BackfillStep: FC<{
   onSave: () => void;
   onSkip: () => void;
 }> = ({ id, position, total, saving, onSave, onSkip }) => {
+  const store = usePublicationStore();
   const publication = usePublication(id);
   const references = usePublicationReferences(id);
 
@@ -154,7 +159,7 @@ export const BackfillStep: FC<{
 
       <ReferencesEditor
         value={references}
-        onChange={(next) => overrideReferences(id, next)}
+        onChange={(next) => overrideReferences(store, id, next)}
       />
 
       <div className="flex gap-3 justify-end mt-auto">
@@ -231,29 +236,36 @@ export const ReferencesBackfillView: FC<{
   );
 };
 
-const ReferencesBackfill: FC = () => {
+const ReferencesBackfill: FC = () => (
+  <PublicationStoreProvider>
+    <Backfill />
+  </PublicationStoreProvider>
+);
+
+const Backfill: FC = () => {
+  const store = usePublicationStore();
   const [ids, setIds] = useState<PublicationId[]>();
   const [position, setPosition] = useState(0);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    index({ unreferenced: true }).then(setIds);
+    index(store, { unreferenced: true }).then(setIds);
     // Leave the store as we found it when the admin walks away.
-    return () => resetAll();
-  }, []);
+    return () => resetAll(store);
+  }, [store]);
 
   const currentId = ids?.[position];
 
   async function handleSave() {
     if (currentId === undefined) return;
     setSaving(true);
-    const saved = await update(currentId);
+    const saved = await update(store, currentId);
     setSaving(false);
     if (saved) setPosition((p) => Math.min(p + 1, (ids?.length ?? 1) - 1));
   }
 
   function handleSkip() {
-    if (currentId !== undefined) discardEdit(currentId);
+    if (currentId !== undefined) discardEdit(store, currentId);
     setPosition((p) => Math.min(p + 1, (ids?.length ?? 1) - 1));
   }
 

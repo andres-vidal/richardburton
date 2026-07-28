@@ -7,7 +7,6 @@ import {
   forwardRef,
   HTMLProps,
   KeyboardEvent,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -48,13 +47,18 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
   const [options, setOptions] = useState<Option[]>([]);
 
   function handleBlur(event: FocusEvent<HTMLInputElement>) {
-    getOptions("").then(setOptions);
     onBlur?.(event);
+  }
+
+  /** The unfiltered list, for a menu that is about to be shown. */
+  function loadOptions() {
+    getOptions("").then(setOptions);
   }
 
   function handleFocus(event: FocusEvent<HTMLInputElement>) {
     setSearch("");
     setIsOpen(true);
+    loadOptions();
     onFocus?.(event);
   }
 
@@ -90,10 +94,10 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
     setIsOpen((isOpen) => !isOpen);
     if (!isOpen) {
       inputRef.current?.focus();
+      loadOptions();
     } else {
       inputRef.current?.blur();
     }
-    getOptions("").then(setOptions);
   }
 
   function handleSelect(option: Option) {
@@ -110,10 +114,6 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
     setWasOpen(isOpen);
     if (!isOpen) setSearch(undefined);
   }
-
-  useEffect(() => {
-    getOptions("").then(setOptions);
-  }, [getOptions]);
 
   return (
     <MenuProvider

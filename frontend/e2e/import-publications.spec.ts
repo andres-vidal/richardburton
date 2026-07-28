@@ -18,7 +18,7 @@ import {
 const CSV_ROW =
   "Machado de Assis;1899;BR;Dom Casmurro;Dom Casmurro (CSV);Helen Caldwell;Noonday Press;A source\n";
 
-const [, REFERENCED, DUPLICATED] = PUBLICATIONS;
+const [FIRST, REFERENCED, DUPLICATED] = PUBLICATIONS;
 
 const REFERENCES = [
   "Caldwell, Helen. The Brazilian Othello of Machado de Assis, 1960.",
@@ -40,10 +40,37 @@ test("an admin bulk-inserts publications with references from the workspace", as
   // Attach two sources to the second row through its "Sources" cell.
   await addRowReferences(page, REFERENCED.title, REFERENCES);
 
-  // Selection tools: select the third row (via its signal cell — the row's cells
-  // are inputs), duplicate it, then delete the copy again.
+  // Selection: a row is selected by its leading cell — the handle. The other
+  // cells hold fields, and a click there belongs to the field.
+  const handleOf = (title: string) =>
+    table.getByRole("row", { name: title }).getByRole("cell").first();
+
+  await handleOf(FIRST.title).click();
+  await expect(page.getByRole("button", { name: "Deselect 1" })).toBeVisible();
+
+  // Shift-click extends a contiguous range from it, and cmd-click then toggles a
+  // single row back out. Both used to lose the selection instead of changing it.
+  await handleOf(DUPLICATED.title).click({ modifiers: ["Shift"] });
+  await expect(page.getByRole("button", { name: "Deselect 3" })).toBeVisible();
+
+  await handleOf(REFERENCED.title).click({ modifiers: ["Meta"] });
+  await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
+
+  // Clicking anything that is not a row's handle clears it.
+  await page.getByRole("heading", { name: "Add publications" }).click();
+  await expect(page.getByRole("button", { name: /^Deselect/ })).toHaveCount(0);
+
+  // Clicking into a field is not a selection: it is where you type.
+  const titleCell = table
+    .getByRole("row", { name: FIRST.title })
+    .getByPlaceholder("Title", { exact: true });
+  await titleCell.click();
+  await expect(page.getByRole("button", { name: /^Deselect/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Submit" })).toBeVisible();
+
+  // Duplicate the third row, then delete the copy again.
   const duplicatedRows = table.getByRole("row", { name: DUPLICATED.title });
-  await duplicatedRows.getByRole("cell").first().click();
+  await handleOf(DUPLICATED.title).click();
   await expect(page.getByRole("button", { name: "Deselect 1" })).toBeVisible();
   await page.getByRole("button", { name: "Duplicate 1" }).click();
   await expect(duplicatedRows).toHaveCount(2);

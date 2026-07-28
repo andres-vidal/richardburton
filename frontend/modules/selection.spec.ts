@@ -1,22 +1,30 @@
-import { clearSelection, getSelection, select } from "./selection";
+import { createStore } from "jotai";
+
+import { getSelection, select } from "./selection";
+import type { Store } from "./store";
+
+// A store per test: selection belongs to a workspace, so a spec makes its own.
+let store: Store;
 
 // A stable row order for shift-range selection.
 const orderedIds = [1, 2, 3, 4, 5];
 
-/** Apply a row click to the (shared, module-global) selection store. */
+/** Apply a row click to this test's selection store. */
 function click(
   id: number,
   modifiers: { metaKey?: boolean; shiftKey?: boolean } = {},
 ) {
-  select({ id, type: "publication", orderedIds, ...modifiers });
+  select(store, { id, type: "publication", orderedIds, ...modifiers });
 }
 
 function selected(): number[] {
-  return [...getSelection()].map(Number).sort((a, b) => a - b);
+  return [...getSelection(store)].map(Number).sort((a, b) => a - b);
 }
 
 describe("selection store", () => {
-  beforeEach(() => clearSelection());
+  beforeEach(() => {
+    store = createStore();
+  });
 
   test("a plain click selects only the clicked row", () => {
     click(3);
@@ -53,15 +61,15 @@ describe("selection store", () => {
 
   test("selecting a different entity type restarts the selection", () => {
     click(3);
-    select({ id: 1, type: "other", orderedIds });
+    select(store, { id: 1, type: "other", orderedIds });
     expect(selected()).toEqual([1]);
   });
 
   test("the selection size tracks the store", () => {
-    expect(getSelection().size).toBe(0);
+    expect(getSelection(store).size).toBe(0);
 
     click(2);
     click(3, { metaKey: true });
-    expect(getSelection().size).toBe(2);
+    expect(getSelection(store).size).toBe(2);
   });
 });

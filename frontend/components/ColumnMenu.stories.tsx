@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { store } from "modules/store";
 import { resetAttributes } from "modules/publication/store";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
@@ -7,7 +8,7 @@ import ColumnMenu from "./ColumnMenu";
 const meta = {
   title: "Publications/Column menu",
   component: ColumnMenu,
-  beforeEach: () => resetAttributes(),
+  beforeEach: () => resetAttributes(store),
   decorators: [
     (Story) => (
       <div className="flex justify-center p-8">
