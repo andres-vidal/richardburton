@@ -90,7 +90,7 @@ defmodule RichardBurtonWeb.UserControllerTest do
 
   describe "DELETE /users/:id" do
     test "revokes access, and the sessions signed in as them", %{conn: conn} do
-      create_session_user()
+      me = create_session_user()
       user = user_fixture("leaving@example.com")
       {:ok, _token} = Session.create(user.subject_id)
       expect_auth_authorize_admin()
@@ -99,8 +99,8 @@ defmodule RichardBurtonWeb.UserControllerTest do
 
       assert response(conn, 204)
       assert is_nil(User.get_by_id(user.id))
-      # The session minted in build_conn/0 for the acting admin is the only one left.
-      assert Repo.aggregate(Session, :count) == 1
+      assert is_nil(Repo.get_by(Session, subject_id: user.subject_id))
+      refute is_nil(Repo.get_by(Session, subject_id: me.subject_id))
     end
 
     test "refuses to remove the last admin", %{conn: conn} do

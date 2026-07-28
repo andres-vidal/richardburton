@@ -89,9 +89,9 @@ defmodule RichardBurton.User do
   Give a user a role, on behalf of `actor` — the subject id of whoever is
   asking, or `nil` from the console.
 
-  The last admin keeps theirs: a platform with nobody who can grant access can
-  only be repaired from the database, so the demotion that would produce it is
-  refused rather than confirmed.
+  Two changes are refused: your own role, and the one that would leave the
+  database without an admin. Answers `{:error, :self}` or `{:error, :last_admin}`
+  respectively, and `{:error, :invalid_role}` for a role that is not one.
   """
   def set_role(user = %User{}, role, actor \\ nil) do
     with {:ok, role} <- cast_role(role),
@@ -108,9 +108,13 @@ defmodule RichardBurton.User do
   end
 
   @doc """
-  Revoke a user's access: the account goes, and with it the sessions that were
-  signed in as them — otherwise a revoked user keeps the run of the place until
-  their cookie happens to expire.
+  Revoke a user's access, on behalf of `actor` — the subject id of whoever is
+  asking, or `nil` from the console.
+
+  The account goes, and with it the sessions that were signed in as them —
+  otherwise a revoked user keeps the run of the place until their cookie happens
+  to expire. Removing your own account, or the last admin's, is refused as it is
+  in `set_role/3`.
   """
   def delete(user = %User{}, actor \\ nil) do
     with :ok <- refuse_self(user, actor),
@@ -128,6 +132,9 @@ defmodule RichardBurton.User do
   defp refuse_self(%User{subject_id: subject_id}, subject_id), do: {:error, :self}
   defp refuse_self(_user, _actor), do: :ok
 
+  # The last admin keeps the role: with nobody left who can grant access, the
+  # database is the only way back, so the demotion is refused rather than
+  # confirmed.
   defp refuse_last_admin(user, role) do
     if last_admin?(user) and role != :admin, do: {:error, :last_admin}, else: :ok
   end

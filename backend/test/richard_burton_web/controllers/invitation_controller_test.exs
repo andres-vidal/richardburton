@@ -131,15 +131,8 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     end
   end
 
-  describe "DELETE /invitations/:id and POST /invitations/:id/resend" do
-    setup do
-      expect_mailer_send()
-
-      {:ok, {:invited, invitation}} =
-        Invitation.invite(%{"email" => "x@example.com", "role" => "reader"})
-
-      [invitation: invitation]
-    end
+  describe "DELETE /invitations/:id" do
+    setup [:pending_invitation]
 
     test "withdraws a pending invitation", %{conn: conn, invitation: invitation} do
       create_session_user()
@@ -150,6 +143,19 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
       assert response(conn, 204)
       assert is_nil(Invitation.get(invitation.id))
     end
+
+    test "is not found for an unknown invitation", %{conn: conn} do
+      create_session_user()
+      expect_auth_authorize_admin()
+
+      conn = delete(conn, invitation_path(conn, :delete, 0))
+
+      assert %{"error" => "not_found"} = json_response(conn, 404)
+    end
+  end
+
+  describe "POST /invitations/:id/resend" do
+    setup [:pending_invitation]
 
     test "sends a pending invitation again", %{conn: conn, invitation: invitation} do
       create_session_user()
@@ -165,9 +171,18 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
       create_session_user()
       expect_auth_authorize_admin()
 
-      conn = delete(conn, invitation_path(conn, :delete, 0))
+      conn = post(conn, invitation_path(conn, :resend, 0))
 
       assert %{"error" => "not_found"} = json_response(conn, 404)
     end
+  end
+
+  defp pending_invitation(_context) do
+    expect_mailer_send()
+
+    {:ok, {:invited, invitation}} =
+      Invitation.invite(%{"email" => "x@example.com", "role" => "reader"})
+
+    [invitation: invitation]
   end
 end
