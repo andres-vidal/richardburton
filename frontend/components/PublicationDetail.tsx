@@ -200,11 +200,6 @@ const PublicationEditForm: FC<{
     if (saved) onSaved();
   }
 
-  function handleCancel() {
-    discardEdit(id);
-    onCancel();
-  }
-
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5 w-full">
       <SectionHeading>Edit publication</SectionHeading>
@@ -224,7 +219,7 @@ const PublicationEditForm: FC<{
           variant="outline"
           width="fit"
           size="medium"
-          onClick={handleCancel}
+          onClick={onCancel}
         />
         <Button
           label="Save"
