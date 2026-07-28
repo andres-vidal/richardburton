@@ -59,15 +59,17 @@ defmodule RichardBurtonWeb.ConnCase do
     %{"csv" => uploaded_file_fixture(path)}
   end
 
-  def expect_auth_verify(n \\ 1) do
-    expect(RichardBurton.AuthMock, :verify, n, fn _ -> {:ok, "12345"} end)
-  end
-
   # The subject and email behind the test session minted in build_conn/0. In
   # production, sign-in always creates the user row; admin-mutation tests call
   # create_session_user/0 so actor resolution finds it here too.
   @session_subject_id "12345"
   @session_user_email "admin@richardburton.test"
+
+  def expect_auth_verify(n \\ 1, email \\ @session_user_email) do
+    expect(RichardBurton.AuthMock, :verify, n, fn _ ->
+      {:ok, %{subject_id: @session_subject_id, email: email}}
+    end)
+  end
 
   def session_user_email, do: @session_user_email
 
@@ -82,9 +84,19 @@ defmodule RichardBurtonWeb.ConnCase do
   end
 
   def expect_auth_authorize_admin(n \\ 1) do
-    # Admin routes authenticate via the rb-session cookie (Auth.Session, not the
-    # mock); only the role check goes through Auth.authorize.
-    expect(RichardBurton.AuthMock, :authorize, n, fn _, :admin -> :ok end)
+    # Privileged routes authenticate via the rb-session cookie (Auth.Session,
+    # not the mock); only the role check goes through Auth.authorize. Routes ask
+    # for the least they need — the catalogue for a contributor, access for an
+    # admin — and this stands in for someone who is both.
+    expect(RichardBurton.AuthMock, :authorize, n, fn _, role
+                                                     when role in [:contributor, :admin] ->
+      :ok
+    end)
+  end
+
+  @doc "Stands in for someone the route's role is out of reach of."
+  def refuse_auth_authorize(role, n \\ 1) do
+    expect(RichardBurton.AuthMock, :authorize, n, fn _, ^role -> :error end)
   end
 
   def expect_auth_recaptcha_verify(n \\ 1) do

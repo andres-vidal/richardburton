@@ -13,10 +13,18 @@ defmodule RichardBurtonWeb.Router do
     plug(RichardBurtonWeb.Plugs.Authenticate.Bearer)
   end
 
+  # Keeping the catalogue: a contributor, or an admin, who is also one.
+  pipeline :authorize_contributor do
+    plug(RichardBurtonWeb.Plugs.Authenticate.Cookie)
+    plug(RichardBurtonWeb.Plugs.VerifyCsrf)
+    plug(RichardBurtonWeb.Plugs.Authorize, role: :contributor)
+  end
+
+  # Deciding who may keep it: an admin alone.
   pipeline :authorize_admin do
     plug(RichardBurtonWeb.Plugs.Authenticate.Cookie)
     plug(RichardBurtonWeb.Plugs.VerifyCsrf)
-    plug(RichardBurtonWeb.Plugs.Authorize.Admin)
+    plug(RichardBurtonWeb.Plugs.Authorize, role: :admin)
   end
 
   pipeline :authorize_recaptcha do
@@ -26,9 +34,25 @@ defmodule RichardBurtonWeb.Router do
   # Literal paths before "/:id" ones, so "history" and "deleted" never bind as
   # ids. Routes match in declaration order *across* scopes, which is why this
   # scope comes before the public one and its "/publications/:id".
+  # Who has access is the admin's alone; the catalogue below is any
+  # contributor's. Declared first so "/users/:id" never binds a literal path.
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)
     pipe_through(:authorize_admin)
+
+    get("/users", UserController, :index)
+    patch("/users/:id", UserController, :update)
+    delete("/users/:id", UserController, :delete)
+
+    get("/invitations", InvitationController, :index)
+    post("/invitations", InvitationController, :create)
+    post("/invitations/:id/resend", InvitationController, :resend)
+    delete("/invitations/:id", InvitationController, :delete)
+  end
+
+  scope "/api", RichardBurtonWeb do
+    pipe_through(:api)
+    pipe_through(:authorize_contributor)
 
     get("/authors", AuthorController, :index)
     get("/publishers", PublisherController, :index)
@@ -63,7 +87,6 @@ defmodule RichardBurtonWeb.Router do
 
   scope "/api", RichardBurtonWeb do
     pipe_through(:authenticate_bearer)
-    post("/users", UserController, :create)
     post("/sessions", SessionController, :create)
   end
 
