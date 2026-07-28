@@ -248,8 +248,6 @@ const Backfill: FC<{ queue: PublicationIndex }> = ({ queue }) => {
   const [position, setPosition] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  // The store outlives nothing here, but the atom *caches* are module-level and
-  // do — drop what this queue put in them on the way out.
   useEffect(() => () => resetAll(store), [store]);
 
   const ids = queue.entries.map(({ id }) => id!);

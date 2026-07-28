@@ -51,9 +51,6 @@ function Catalogue({ index, opened }: Props) {
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
 
-  // The store opened with the first read (see `initialize`); this carries the
-  // ones after it — a new query, or a re-read after a change. Not a fetch: the
-  // reading is done, and this is the store catching up with it.
   const received = useRef(index);
 
   useEffect(() => {
