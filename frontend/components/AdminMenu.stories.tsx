@@ -6,13 +6,16 @@ import { expect, within } from "storybook/test";
 
 import AdminMenu from "./AdminMenu";
 
-const signedInAs = (role: UserRole) => (Story: () => ReactElement) => (
-  <SessionProvider session={{ email: "me@rb.test", role }}>
-    <div className="p-8 min-h-screen bg-white">
-      <Story />
-    </div>
-  </SessionProvider>
-);
+const signedInAs = (role: UserRole) =>
+  function SignedIn(Story: () => ReactElement) {
+    return (
+      <SessionProvider session={{ email: "me@rb.test", role }}>
+        <div className="p-8 min-h-screen bg-white">
+          <Story />
+        </div>
+      </SessionProvider>
+    );
+  };
 
 // The admin hub: a card per admin tool. Linked from the home footer so admin
 // actions live on one page instead of cluttering the footer.
