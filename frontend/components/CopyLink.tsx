@@ -6,12 +6,9 @@ import { FC, useState } from "react";
 import Button from "./Button";
 
 /**
- * Copy a link to the current record.
- *
- * Takes a path and copies it absolute, because a link is for sending to someone
- * else and a relative one is no use to them. Meant for places where the address
- * is not already on screen — inside an overlay, the browser's URL bar is still
- * showing the page underneath, so there is nothing for a reader to select.
+ * Copy a link to the current record, absolute so it can be sent to someone
+ * else. For places where the address is not on screen — inside an overlay, the
+ * URL bar still shows the page underneath.
  */
 const CopyLink: FC<{ href: string; label?: string }> = ({
   href,
@@ -24,8 +21,6 @@ const CopyLink: FC<{ href: string; label?: string }> = ({
 
     try {
       await navigator.clipboard.writeText(url);
-      // Confirm on the button itself as well as in a notification: the hand is
-      // already there, and the eye with it.
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       notify({ message: "Link copied", detail: url, level: "success" });

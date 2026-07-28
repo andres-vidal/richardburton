@@ -24,14 +24,11 @@ function formatTimestamp(timestamp: string): string {
  * stands in the way. Restoring fails gracefully when the same record has been
  * imported again in the meantime (the server answers with a conflict).
  *
- * The client half of the trash page, which reads the list on the server. A
- * successful restore asks the server to render again rather than editing the
- * list here: a *failed* restore must leave it exactly as it was, and re-reading
- * is the only account of that which cannot drift.
+ * A successful restore asks the server to render the list again rather than
+ * editing it here.
  */
 const DeletedPublications: FC<{
   entries: DeletedPublicationEntry[];
-  /** The restore call. Defaults to the real one; stories pass their own. */
   onRestore?: (id: PublicationId) => Promise<boolean>;
 }> = ({ entries, onRestore = restore }) => {
   const [restoringId, setRestoringId] = useState<PublicationId>();

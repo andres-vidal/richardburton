@@ -203,9 +203,6 @@ const PublicationModal: FC = () => {
                   onNavigate={modal.close}
                   actions={
                     <>
-                      {/* Everyone, not just admins: the URL bar is still
-                          showing the index underneath, so this is the only
-                          place the publication's own address appears. */}
                       <CopyLink href={`/publications/${publicationId}`} />
                       {isAdmin && (
                         <>

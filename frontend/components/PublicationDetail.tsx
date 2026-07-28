@@ -8,12 +8,6 @@ import Tooltip from "./Tooltip";
 /**
  * A publication as a reader sees it: the title and its translators, a sentence
  * placing it, and its sources.
- *
- * Takes the record rather than an id, so whoever renders it decides where it
- * came from — a page reading it on the server, or an overlay opened over the
- * index. Controls go in as `actions` rather than being decided here — copying a link
- * for everyone, editing and deleting for an admin — which keeps this the same
- * view whoever is reading.
  */
 
 const Searchable: FC<{
@@ -67,10 +61,6 @@ const PublicationDescription: FC<{
   publication: Publication;
   onNavigate?: () => void;
 }> = ({ publication: p, onNavigate }) => {
-  // `value` (not `id`): it's the field SearchableList keys on and Searchable
-  // searches by. Naming it `id` left `value` undefined — a duplicate-key warning
-  // and links that searched the human label (e.g. "United States of America")
-  // instead of the raw value ("US").
   function getSearchableItems(p: Publication, key: PublicationKey) {
     return p[key]
       .split(",")
@@ -88,8 +78,6 @@ const PublicationDescription: FC<{
     />
   );
 
-  // A <div>, not a <p>: SearchableList renders a <ul>, which is invalid (and a
-  // hydration error) nested inside a paragraph.
   return (
     <div>
       <Searchable label={p.title} onNavigate={onNavigate} /> is a translation of{" "}

@@ -41,7 +41,6 @@ type Filter = { actions: PublicationHistoryAction[]; query: string };
  */
 const PublicationHistoryFeed: FC<{
   entries: FeedEntry[];
-  /** The undo call. Defaults to the real one; stories pass their own. */
   onUndo?: (entry: FeedEntry) => Promise<boolean>;
 }> = ({
   entries,
