@@ -3,6 +3,7 @@
 import { Provider, createStore } from "jotai";
 import type { Store } from "modules/store";
 import { createContext, FC, ReactNode, useContext, useState } from "react";
+import invariant from "tiny-invariant";
 
 const PublicationStoreContext = createContext<Store | null>(null);
 
@@ -75,11 +76,10 @@ const PublicationStoreProvider: FC<{
 function usePublicationStore(): Store {
   const store = useContext(PublicationStoreContext);
 
-  if (!store) {
-    throw new Error(
-      "No publication store: render this inside <PublicationStoreProvider>.",
-    );
-  }
+  invariant(
+    store,
+    "No publication store: render this inside <PublicationStoreProvider>.",
+  );
 
   return store;
 }
