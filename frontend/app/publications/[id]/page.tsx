@@ -52,19 +52,25 @@ export default async function PublicationPage({
   searchParams: Promise<{ modal?: string; search?: string }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const { publication, history } = await read(id);
 
   if (query.modal !== undefined) {
+    const [view, index] = await Promise.all([
+      read(id),
+      readIndex(query.search),
+    ]);
+
     return (
       <>
-        <Home index={await readIndex(query.search)} />
+        <Home index={index} />
         <PublicationOverlay
-          view={Promise.resolve({ publication, history })}
+          view={Promise.resolve(view)}
           closeTo={query.search ? `/?search=${query.search}` : "/"}
         />
       </>
     );
   }
+
+  const { publication, history } = await read(id);
 
   return (
     <Layout
