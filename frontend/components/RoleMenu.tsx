@@ -46,7 +46,7 @@ const RoleMenu: FC<{
         variant="outline"
         alignment="left"
         width="fixed"
-        size="small"
+        size="field"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
       />

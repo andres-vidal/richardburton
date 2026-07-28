@@ -58,7 +58,7 @@ const Entry: FC<{ user: UserRecord; isSelf: boolean }> = ({ user, isSelf }) => {
         label="Revoke"
         variant="danger"
         width="fit"
-        size="small"
+        size="field"
         loading={working}
         disabled={working || isSelf}
         onClick={() => confirmation.open()}

@@ -66,7 +66,7 @@ const InviteForm: FC = () => {
         label="Invite"
         type="submit"
         width="fit"
-        size="medium"
+        size="field"
         loading={inviting}
         disabled={inviting || email.trim() === ""}
       />

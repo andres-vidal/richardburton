@@ -33,6 +33,19 @@ import Button from "components/Button";
 
 <Canvas of={ButtonStories.Variants} />
 
+## Sizes
+
+`small` (the default) suits dense surfaces like toolbars and table rows;
+`medium` suits forms, where the actions want more presence.
+
+<Canvas of={ButtonStories.Sizes} />
+
+`field` is the height of a bordered `TextInput`. A button standing in a row of
+inputs — the Invite button beside an address, a role menu's trigger beside it —
+has to be a field's size, or the row reads as broken.
+
+<Canvas of={ButtonStories.BesideAField} />
+
 ## Width & alignment
 
 `width` sets the footprint — `full` stretches to its container, `fixed` is a set

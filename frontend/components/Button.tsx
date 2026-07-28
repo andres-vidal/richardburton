@@ -32,8 +32,13 @@ type Props = Omit<HTMLProps<HTMLButtonElement>, "size"> & {
   Icon?: FC<{ className: string }> | ReactNode;
   alignment?: "center" | "left";
   width?: "full" | "fixed" | "fit";
-  /** `small` suits dense surfaces (toolbars, table rows); `medium` suits forms. */
-  size?: "small" | "medium";
+  /**
+   * `small` suits dense surfaces (toolbars, table rows); `medium` suits forms.
+   * `field` is the height of a bordered `TextInput`, for a button standing in
+   * a row of inputs — a control that is a field's neighbour has to be a field's
+   * size, or the row reads as broken.
+   */
+  size?: "small" | "field" | "medium";
   labelSrOnly?: boolean;
   type?: "button" | "submit" | "reset";
   loading?: boolean;
@@ -84,6 +89,7 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
         flex transition-colors items-center rounded font-base group gap-2 whitespace-nowrap
         border border-transparent focus-ring
         data-[size=small]:py-1.5 data-[size=small]:px-2 data-[size=small]:text-xs
+        data-[size=field]:py-1.5 data-[size=field]:px-2.5 data-[size=field]:text-sm
         data-[size=medium]:py-2 data-[size=medium]:px-4 data-[size=medium]:text-sm
         data-[loading=false]:disabled:bg-gray-100 data-[loading=false]:disabled:text-gray-300 data-[loading=false]:disabled:border-gray-200 data-[loading=false]:disabled:hover:bg-gray-100
         data-[variant=primary]:text-white data-[variant=primary]:bg-indigo-600 data-[variant=primary]:hover:bg-indigo-700 data-[variant=primary]:loading:bg-indigo-700
