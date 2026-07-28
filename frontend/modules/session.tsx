@@ -31,6 +31,5 @@ export function useIsAuthenticated(): boolean {
 }
 
 export function useIsAdmin(): boolean {
-  const session = useSession();
-  return session != null && User.isAdmin(session.role);
+  return User.administers(useSession());
 }

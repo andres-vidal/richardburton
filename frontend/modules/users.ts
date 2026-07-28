@@ -5,6 +5,8 @@ interface UserModule {
   isAdmin(role: UserRole): role is "admin";
   isReader(role: UserRole): role is "reader";
   isContributor(role: UserRole): role is "contributor";
+  /** Whether a session — possibly none at all — may administer the catalogue. */
+  administers(session: User | null | undefined): boolean;
 }
 
 // Pure, server-safe user helpers — usable from route handlers / Server
@@ -21,6 +23,10 @@ const User: UserModule = {
 
   isContributor(role): role is "contributor" {
     return role === "contributor";
+  },
+
+  administers(session) {
+    return session != null && User.isAdmin(session.role);
   },
 };
 

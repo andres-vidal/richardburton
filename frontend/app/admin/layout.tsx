@@ -12,7 +12,7 @@ export default async function AdminLayout({
   children: ReactNode;
 }) {
   const session = await getSession();
-  if (!session || !User.isAdmin(session.role)) redirect("/");
+  if (!User.administers(session)) redirect("/");
 
   return children;
 }
