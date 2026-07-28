@@ -23,9 +23,6 @@ export type PublicationView = {
  * Read a publication as the signed-in user, or `null` when there is nothing to
  * show — the record never existed, or has been deleted. Callers decide what that
  * means: a page answers 404, an overlay says the link is stale.
- *
- * `cache` memoises for the lifetime of the render, so a page, its metadata, and
- * its heading asking the same question cost one round trip.
  */
 export const readPublication = cache(
   async (id: string): Promise<PublicationView | null> => {
