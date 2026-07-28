@@ -58,9 +58,6 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
   function handleFocus(event: FocusEvent<HTMLInputElement>) {
     setSearch("");
     setIsOpen(true);
-    // Ask when the menu opens, not when the field mounts: a grid of these used
-    // to fetch every list on screen before anyone had looked at one, and again
-    // on the way out of each field.
     loadOptions();
     onFocus?.(event);
   }
@@ -96,8 +93,6 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
   function handleToggleClick() {
     setIsOpen((isOpen) => !isOpen);
     if (!isOpen) {
-      // Focusing an already-focused input fires no focus event, so the menu
-      // asks for its own list here.
       inputRef.current?.focus();
       loadOptions();
     } else {

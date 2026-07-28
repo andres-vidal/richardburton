@@ -276,11 +276,6 @@ type PublicationDetailProps = {
   onDeleted?: () => void;
 };
 
-/**
- * Editing needs somewhere to keep what is being typed, so the view brings it:
- * inside the catalogue's overlay it joins the catalogue's, and the row behind it
- * changes as this one is saved; on a publication's own page it owns one.
- */
 const PublicationDetail: FC<PublicationDetailProps> = (props) => (
   <PublicationStoreProvider>
     <Detail {...props} />

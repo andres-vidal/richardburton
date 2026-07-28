@@ -14,10 +14,6 @@ import { FC, useEffect } from "react";
 const ClearSelection: FC<{ store: Store }> = ({ store }) => {
   useEffect(() => {
     const handle = (event: MouseEvent) => {
-      // `closest`, via the shared gesture test: the handle has content of its
-      // own (a row number, an error icon), and a click that landed on *that*
-      // is still a click on the handle. Testing the exact target made selecting
-      // depend on missing the icon.
       if (!isSelectionGesture(event.target)) clearSelection(store);
     };
 

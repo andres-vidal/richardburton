@@ -32,12 +32,6 @@ type Props = {
   opened?: Promise<PublicationView | null>;
 };
 
-/**
- * The catalogue: the index and everything that acts on it — search, the column
- * menu, the counter, the export, and the overlay for one publication. They read
- * and write one working set, so the state they share is held here, around all of
- * them, rather than asked of whatever renders this.
- */
 export default function Home(props: Props) {
   return (
     <PublicationStoreProvider>

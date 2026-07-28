@@ -14,8 +14,6 @@ import { FC, useRef } from "react";
 import Button from "./Button";
 import { useNotify } from "./Notifications";
 
-// Raw, not camelCased: the client leaves response header names alone (see
-// modules/http). Reading `contentDisposition` was always `undefined`.
 const CONTENT_DISPOSITION = "content-disposition";
 
 /** What the file is called when the server does not say. */
@@ -75,8 +73,6 @@ const PublicationDownload: FC = () => {
         anchor.current.click();
       });
     } catch {
-      // Only a request that failed says so — a file that arrived and saved is a
-      // success whatever its header said.
       notify({
         message: "Could not download the .csv",
         detail: "Nothing was saved. Check your connection and try again.",

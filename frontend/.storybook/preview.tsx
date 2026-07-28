@@ -6,11 +6,6 @@ import "../styles/globals.css";
 import "./preview.css";
 
 const preview: Preview = {
-  // Every story runs inside a publication workspace, so components that read or
-  // write publication state work as they do in the app. It is handed one shared
-  // store rather than a fresh one per story, because a story seeds its state in
-  // `beforeEach` — before the tree exists — and has to name the store it seeds
-  // (see modules/publication/fixtures).
   decorators: [
     (Story) => (
       <PublicationStoreProvider store={store}>

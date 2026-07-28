@@ -236,10 +236,6 @@ export const ReferencesBackfillView: FC<{
   );
 };
 
-/**
- * The wizard reads a queue and edits the records in it, so it brings the state
- * that holds both — nothing above it has to know that.
- */
 const ReferencesBackfill: FC = () => (
   <PublicationStoreProvider>
     <Backfill />

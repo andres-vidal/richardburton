@@ -34,11 +34,6 @@ const BREADCRUMB_ITEMS = [
   { label: "Add publications" },
 ];
 
-/**
- * How this workspace starts: an empty working set — so the draft row is there to
- * type into rather than a loading skeleton — with every column shown, since a
- * contributor is filling all of them.
- */
 function startEmpty(store: Store) {
   setAll(store, []);
   setAttributesVisible(store, Publication.ATTRIBUTES);
@@ -48,8 +43,6 @@ function NewPublications() {
   const store = usePublicationStore();
   const isSelectionEmpty = useIsSelectionEmpty();
 
-  // The store goes with this page, but the atom *caches* are module-level and
-  // outlive it — so drop what this workspace put in them on the way out.
   useEffect(() => () => resetAll(store), [store]);
 
   return (
