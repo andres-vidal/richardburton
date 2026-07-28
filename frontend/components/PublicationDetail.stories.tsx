@@ -95,11 +95,15 @@ export const Default: Story = {
   },
 };
 
-/** A record nobody has sourced yet simply omits the section. */
+/**
+ * A record nobody has sourced yet says so: for a catalogue whose worth is its
+ * provenance, an absent source is worth stating.
+ */
 export const WithoutReferences: Story = {
   args: { publication: { ...DOM_CASMURRO, references: [] } },
   play: async () => {
-    await expect(screen.queryByText("References")).not.toBeInTheDocument();
+    await expect(screen.getByText("References")).toBeVisible();
+    await expect(screen.getByText(/No sources recorded yet/)).toBeVisible();
   },
 };
 
@@ -116,7 +120,7 @@ export const AsAdmin: Story = {
     await expect(screen.getByRole("button", { name: "Delete" })).toBeVisible();
 
     // The log came with the record: its entries are in the document while the
-    // section is still collapsed, so expanding it fetches nothing.
+    // section is still collapsed.
     await expect(screen.getByText(/Year:/)).toHaveTextContent(
       "Year: 1952 → 1953",
     );

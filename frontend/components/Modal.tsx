@@ -95,9 +95,6 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
     }
   }
 
-  // Only while open: a closed modal that still answers ESC does not just waste a
-  // press — a URL-driven one rewrites the whole query from its own reading of it,
-  // so it would put back the parameter the modal that *is* open just removed.
   useHotkey(Key.ESCAPE, onClose, isOpen);
 
   const isWiderThanSmall = useMediaQuery({ query: "(min-width: 640px)" });
@@ -124,10 +121,6 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
                 <Header onClose={onClose} />
                 <motion.dialog
                   open
-                  layout
-                  transition={{
-                    layout: { duration: 0.2, ease: "easeOut" },
-                  }}
                   role="dialog"
                   aria-modal="true"
                   aria-label={label}

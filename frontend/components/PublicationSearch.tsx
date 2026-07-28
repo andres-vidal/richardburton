@@ -32,6 +32,9 @@ const PublicationSearch: FC = () => {
 
   const navigate = useDebounce((value: string) => {
     requested.current = value;
+
+    if (window.location.pathname !== pathname) return;
+
     startTransition(() => {
       router.replace(
         value ? `${pathname}?search=${encodeURIComponent(value)}` : pathname,

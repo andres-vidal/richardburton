@@ -1,15 +1,16 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react";
+import { FC, useState } from "react";
 import { store } from "modules/store";
 import { withChanges } from "modules/publication/history";
 import {
   Publication,
   type PublicationHistoryEntry,
 } from "modules/publication/model";
-import { resetAll, setAll } from "modules/publication/store";
+import { setAll } from "modules/publication/store";
 import { SessionProvider } from "modules/session";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
-import { PublicationModal } from "./PublicationModal";
+import PublicationOverlay from "./PublicationOverlay";
 
 const ADMIN = { email: "admin@rb.test", role: "admin" as const };
 
@@ -68,24 +69,58 @@ const ADMIN_VIEW = Promise.resolve({
   history: withChanges(LOG),
 });
 
-// A URL-driven modal: it opens when the `?publication=<id>` query is present and
-// shows the record read for that address as a searchable article.
+/**
+ * The overlay with a read slow enough to see it open before the record lands.
+ * The promise is made on mount, so each run of the story sees one in flight.
+ */
+const StreamingOverlay: FC = () => {
+  const [view] = useState(
+    () =>
+      new Promise<{ publication: typeof PUBLICATION }>((resolve) =>
+        setTimeout(() => resolve({ publication: PUBLICATION }), 600),
+      ),
+  );
+
+  return <PublicationOverlay view={view} />;
+};
+
 const meta = {
-  title: "Publications/Publication modal",
-  component: PublicationModal,
+  title: "Publications/Publication overlay",
+  component: PublicationOverlay,
   args: { view: READER_VIEW },
   parameters: { layout: "fullscreen" },
-} satisfies Meta<typeof PublicationModal>;
+} satisfies Meta<typeof PublicationOverlay>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** No `?publication=` query — the modal stays closed. */
-export const Closed: Story = {
-  beforeEach: () => resetAll(store),
-  play: async () => {
-    await expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+/**
+ * The record is read for the address the overlay is at, so it can arrive after
+ * the overlay is on screen. The overlay opens on the click and holds the
+ * record's place until it lands, at roughly the size it will take.
+ */
+export const Streaming: Story = {
+  render: () => <StreamingOverlay />,
+  parameters: {
+    docs: { story: { inline: false, height: "30rem" } },
+  },
+  play: async ({ canvasElement }) => {
+    const dialog = await waitFor(() =>
+      canvasElement.ownerDocument.querySelector("dialog"),
+    );
+    const height = () => Math.round(dialog!.getBoundingClientRect().height);
+
+    // The placeholder is there first, at the size the record will be.
+    await expect(screen.getByRole("status", { name: "Loading" })).toBeVisible();
+    const placeholder = height();
+
+    await waitFor(() =>
+      expect(screen.getByText(/is a translation of/)).toBeVisible(),
+    );
+
+    // The record takes its place without moving the dialog.
+    await expect(Math.abs(height() - placeholder)).toBeLessThan(64);
   },
 };
 
@@ -98,7 +133,6 @@ export const WithHistory: Story = {
   args: { view: ADMIN_VIEW },
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
   },
   play: async () => {
@@ -117,7 +151,6 @@ export const WithHistory: Story = {
 export const Missing: Story = {
   args: { view: Promise.resolve(null) },
   parameters: {
-    nextjs: { navigation: { query: { publication: "404" } } },
     docs: { story: { inline: false, height: "20rem" } },
   },
   play: async () => {
@@ -133,7 +166,6 @@ export const Missing: Story = {
 export const Default: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     // Full-screen portalled modal — bound it in the docs page.
     docs: { story: { inline: false, height: "30rem" } },
   },
@@ -154,7 +186,6 @@ export const Editing: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
   },
   play: async () => {
@@ -181,7 +212,6 @@ export const EditingReferences: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "40rem" } },
   },
   play: async () => {
@@ -220,7 +250,6 @@ export const EditingWithErrors: Story = {
   beforeEach: () => setAll(store, [{ ...DOM_CASMURRO, errors: "conflict" }]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
   },
   play: async () => {
@@ -244,7 +273,6 @@ export const DeleteConfirmation: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
   },
   play: async () => {
@@ -285,7 +313,6 @@ export const EditingMenuAboveModal: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
-    nextjs: { navigation: { query: { publication: "1" } } },
     docs: { story: { inline: false, height: "30rem" } },
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
   },

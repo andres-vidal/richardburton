@@ -124,10 +124,8 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
  */
 async function deletePublication(
   store: Store,
-  id: PublicationId,
+  { id, title }: { id: PublicationId; title: string },
 ): Promise<boolean> {
-  const { title } = store.get(publicationFamily(id));
-
   try {
     await request((http) => http.delete(`publications/${id}`));
 

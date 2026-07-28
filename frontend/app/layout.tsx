@@ -52,15 +52,21 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({
   children,
+  modal,
 }: {
   children: ReactNode;
+  /** What is shown *over* the page — a publication followed from the catalogue. */
+  modal: ReactNode;
 }) {
   const session = await getSession();
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <Providers session={session}>{children}</Providers>
+        <Providers session={session}>
+          {children}
+          {modal}
+        </Providers>
       </body>
     </html>
   );

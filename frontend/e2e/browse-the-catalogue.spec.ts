@@ -69,9 +69,8 @@ test("the catalogue arrives with the page, not after it", async ({
 }) => {
   await seedCorpus(page);
 
-  // The raw response, before any script has run: the rows a reader asked for are
-  // already in it, and so is the count that goes with them. The index used to
-  // render a skeleton and fetch itself once the page was up.
+  // The raw response, before any script has run: the rows a reader asked for
+  // are already in it, and so is the count that goes with them.
   const html = await (await request.get(`${baseURL}/?search=Machado`)).text();
 
   expect(html).toContain("Dom Casmurro");
@@ -79,6 +78,71 @@ test("the catalogue arrives with the page, not after it", async ({
   expect(html).toContain("Showing results for");
   // A publication the query excludes is not in it — the server ran the search.
   expect(html).not.toContain("The Hour of the Star");
+});
+
+test("opening a publication does not read the catalogue again", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  const payloads: string[] = [];
+  page.on("response", async (response) => {
+    if (response.url().includes("_rsc")) {
+      payloads.push(await response.text().catch(() => ""));
+    }
+  });
+
+  await openPublicationModal(page, "Barren Lives");
+
+  // The overlay is its own route, so what crossed the wire is the record — not
+  // the rows it was opened from.
+  expect(payloads.length).toBeGreaterThan(0);
+  const sent = payloads.join("");
+  expect(sent).toContain("Barren Lives");
+  expect(sent).not.toContain("Iraçéma the Honey-Lips");
+
+  // Closing goes back to a catalogue that is still there, without asking again.
+  payloads.length = 0;
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(indexTable(page).getByText("Barren Lives")).toBeVisible();
+  expect(payloads).toHaveLength(0);
+});
+
+test("reloading with a publication open keeps it open, over the search that found it", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+
+  await page
+    .getByRole("textbox", { name: "Search publications" })
+    .fill("Machado");
+  // Wait for the query to actually land — the unfiltered catalogue contains this
+  // title too, so its presence proves nothing until the others are gone.
+  await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
+    0,
+  );
+
+  const dialog = await openPublicationModal(page, "Dom Casmurro");
+  await expect(dialog).toBeVisible();
+
+  // The address says what is being shown, and over what.
+  await page.reload();
+
+  const reopened = page.getByRole("dialog", { name: "Publication details" });
+  await expect(reopened).toBeVisible();
+  await expect(reopened.getByText(/is a translation of/)).toBeVisible();
+
+  // Closing goes back to the search it was opened from, not to the whole
+  // catalogue — even though there is no history left to go back through.
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/\/\?search=Machado$/);
+  await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
+    0,
+  );
 });
 
 test("a large index virtualizes: far rows render as they scroll into view", async ({

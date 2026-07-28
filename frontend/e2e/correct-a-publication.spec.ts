@@ -57,8 +57,8 @@ test("an admin edits a publication's title and references in a corpus", async ({
   await expect(
     dialog.getByRole("heading", { name: "Edit publication" }),
   ).toHaveCount(0);
-  // `exact`: the history section is in the document from the start now, and its
-  // diff names the same reference with a "+ " in front.
+  // `exact`: the history section is in the document too, and its diff names the
+  // same reference with a "+ " in front.
   await expect(
     dialog.getByText("Pontiero, Giovanni. Afterword.", { exact: true }),
   ).toBeVisible();
@@ -170,10 +170,12 @@ test("an admin arrives by link and corrects the publication on its own page", as
   await seedCorpus(page);
   await page.goto("/");
 
-  // Take the record's address from the index, then arrive the way a link does.
+  // Following a row *is* going to the record's address — the overlay is that
+  // address intercepted. Arriving at it cold gives the page instead.
   await openPublicationModal(page, "Barren Lives");
-  const id = new URL(page.url()).searchParams.get("publication");
-  await page.goto(`/publications/${id}`);
+  const address = new URL(page.url()).pathname;
+  expect(address).toMatch(/^\/publications\/\d+$/);
+  await page.goto(address);
 
   // The page offers what the overlay offers, with no catalogue behind it.
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -214,6 +216,6 @@ test("an admin arrives by link and corrects the publication on its own page", as
   await expect(table.getByText("Barren Lives")).toHaveCount(0);
 
   // The link now says the record is gone rather than rendering an empty page.
-  const response = await page.goto(`/publications/${id}`);
+  const response = await page.goto(address);
   expect(response?.status()).toBe(404);
 });

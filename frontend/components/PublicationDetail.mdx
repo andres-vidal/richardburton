@@ -14,9 +14,7 @@ by the stored code (`US`, not "United States of America").
 It takes the **record**, not an id. That is the point of it: whoever renders
 this decides where the publication came from — a page that read it on the
 server, or an overlay opened over the index — and the view itself does not
-fetch. Before this existed, the detail view could only show a publication the
-index had already loaded, so a link naming a record outside the current search
-rendered an empty dialog.
+fetch.
 
 An admin also gets the publication's mutation log and the controls to correct or
 remove it. Who may do what is settled here rather than by each caller, so the
@@ -36,7 +34,7 @@ same publication offers the same affordances wherever it is read.
 ## States
 
 - **Default** — a fully sourced record, read by anyone.
-- **Without references** — the section is omitted rather than shown empty.
+- **Without references** — the section states the absence rather than hiding.
 - **As admin** — the history section and the edit/delete controls.
 - **Editing** — the form the Edit control opens, in place.
 - **Delete confirmation** — the guard in front of the destructive action.

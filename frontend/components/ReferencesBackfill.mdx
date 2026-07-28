@@ -33,8 +33,8 @@ on the right. Reached from the admin panel at `/admin/publications/references`.
   references, and Skip / Save advance the position (persistence is the one
   part stubbed out).
 - **Loading** — the shell's own empty-handed state (`ids: undefined`). The
-  wizard no longer reaches it in the app, since the queue arrives with the page;
-  the story keeps it because the shell still has to render it correctly.
+  wizard does not reach it in the app, since the queue arrives with the page, but
+  the shell still has to render it correctly.
 - **Empty** — nothing left to source ("All caught up").
 
 <Canvas of={ReferencesBackfillStories.Loading} />
