@@ -73,19 +73,36 @@ defmodule RichardBurton.Invitation do
   end
 
   @doc """
-  Take up the invitation waiting for a user's address, if one is.
+  Admit a signed-in identity, if it is one this platform knows.
 
-  Called as an account is created, so a person invited before they had one
-  arrives already holding what they were offered.
+  An account is made only for someone who was invited. Anyone may hold a Google
+  account, so a sign-in that created one regardless would mean the set of people
+  with accounts is decided by whoever tries — and revoking an account would mean
+  nothing, since signing in again would make another. Being invited is what
+  admits you; the invitation is taken up in the same breath, so the role is
+  already in hand.
+
+  Someone who has been here before is admitted on the strength of their account.
   """
-  def claim(user = %User{}) do
-    case pending_for(user.email) do
-      nil ->
-        user
+  def admit(subject_id, email) when is_binary(subject_id) and is_binary(email) do
+    case {User.get(subject_id), pending_for(email)} do
+      {nil, nil} ->
+        :not_invited
 
-      invitation ->
-        {:ok, user} = accept(invitation, user)
-        user
+      {nil, invitation} ->
+        with {:ok, user} <- User.insert(%{"subject_id" => subject_id, "email" => email}),
+             {:ok, admitted} <- accept(invitation, user) do
+          {:ok, admitted}
+        else
+          {:error, reason} -> {:error, reason}
+        end
+
+      {user, nil} ->
+        {:ok, user}
+
+      # Invited again while they already had an account: honour the offer.
+      {user, invitation} ->
+        accept(invitation, user)
     end
   end
 

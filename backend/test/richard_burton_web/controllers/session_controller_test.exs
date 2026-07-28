@@ -6,6 +6,7 @@ defmodule RichardBurtonWeb.SessionControllerTest do
 
   alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
+  alias RichardBurton.Invitation
   alias RichardBurton.Repo
   alias RichardBurton.User
 
@@ -14,19 +15,30 @@ defmodule RichardBurtonWeb.SessionControllerTest do
   @subject_id "12345"
 
   describe "POST /sessions" do
-    test "verifies the provider token, creates the user, sets rb-session, returns 201", %{
-      conn: conn
-    } do
+    test "makes the account for an invited address, with the role offered", %{conn: conn} do
+      expect_mailer_send()
+      {:ok, _} = Invitation.invite(%{"email" => @email, "role" => "contributor"})
       expect_auth_verify(1, @email)
 
       conn = post(conn, session_path(conn, :create), %{})
 
-      assert %{"email" => @email, "role" => "reader"} = json_response(conn, 201)
+      assert %{"email" => @email, "role" => "contributor"} = json_response(conn, 200)
       assert Session.verify(conn.resp_cookies["rb-session"].value) == {:ok, @subject_id}
       assert Csrf.verify(conn.resp_cookies["csrf-token"].value) == {:ok, @subject_id}
     end
 
-    test "for an existing user, sets rb-session and returns 200 with the user", %{conn: conn} do
+    # Anyone may hold a Google account; being invited is what makes one here.
+    test "refuses an address nobody invited, and makes no account", %{conn: conn} do
+      expect_auth_verify(1, @email)
+
+      conn = post(conn, session_path(conn, :create), %{})
+
+      assert %{"error" => "not_invited"} = json_response(conn, 403)
+      assert is_nil(User.get(@subject_id))
+      assert is_nil(conn.resp_cookies["rb-session"])
+    end
+
+    test "for an existing user, sets rb-session and returns the user", %{conn: conn} do
       {:ok, _} = User.insert(%{"subject_id" => @subject_id, "email" => @email})
       expect_auth_verify(1, @email)
 
@@ -40,6 +52,8 @@ defmodule RichardBurtonWeb.SessionControllerTest do
     # The address decides which invitation is redeemed and therefore which role
     # is granted, so the body must not be able to name it.
     test "keys the account on the provider's address, not the request body", %{conn: conn} do
+      expect_mailer_send()
+      {:ok, _} = Invitation.invite(%{"email" => @email, "role" => "reader"})
       expect_auth_verify(1, @email)
 
       conn =
@@ -48,7 +62,7 @@ defmodule RichardBurtonWeb.SessionControllerTest do
           "role" => "admin"
         })
 
-      assert %{"email" => @email, "role" => "reader"} = json_response(conn, 201)
+      assert %{"email" => @email, "role" => "reader"} = json_response(conn, 200)
       assert User.get(@subject_id).email == @email
     end
   end

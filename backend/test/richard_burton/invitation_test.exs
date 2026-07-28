@@ -99,17 +99,17 @@ defmodule RichardBurton.InvitationTest do
     end
   end
 
-  describe "claim/1" do
-    test "hands over the role that was waiting, and closes the invitation" do
+  describe "admit/2" do
+    test "makes the account, with the role that was waiting, and closes the offer" do
       expect_mail()
 
       {:ok, {:invited, invitation}} =
         Invitation.invite(%{"email" => "invited@example.com", "role" => "contributor"})
 
-      user = user_fixture("invited@example.com")
-      claimed = Invitation.claim(user)
+      assert {:ok, user} = Invitation.admit("sub-1", "invited@example.com")
 
-      assert claimed.role == :contributor
+      assert user.role == :contributor
+      assert user.email == "invited@example.com"
       refute is_nil(Invitation.get(invitation.id).accepted_at)
     end
 
@@ -117,15 +117,23 @@ defmodule RichardBurton.InvitationTest do
       expect_mail()
       {:ok, _} = Invitation.invite(%{"email" => "Invited@Example.com", "role" => "admin"})
 
-      claimed = Invitation.claim(user_fixture("invited@example.com"))
-
-      assert claimed.role == :admin
+      assert {:ok, user} = Invitation.admit("sub-1", "invited@example.com")
+      assert user.role == :admin
     end
 
-    test "leaves an uninvited user as they are" do
-      user = user_fixture("uninvited@example.com")
+    # Anyone may hold a Google account. If signing in made one here regardless,
+    # who has an account would be decided by whoever tries — and revoking one
+    # would mean nothing, since the next sign-in would make another.
+    test "refuses someone who was never invited, and makes no account for them" do
+      assert Invitation.admit("sub-stranger", "stranger@example.com") == :not_invited
+      assert is_nil(User.get("sub-stranger"))
+    end
 
-      assert Invitation.claim(user).role == :reader
+    test "admits someone who has been here before on their account alone" do
+      user = user_fixture("known@example.com", :contributor)
+
+      assert {:ok, admitted} = Invitation.admit(user.subject_id, user.email)
+      assert admitted.role == :contributor
     end
 
     # Redeeming it once is the point: the offer is spent, so it cannot hand the
@@ -134,12 +142,26 @@ defmodule RichardBurton.InvitationTest do
       expect_mail()
       {:ok, _} = Invitation.invite(%{"email" => "once@example.com", "role" => "contributor"})
 
-      user = user_fixture("once@example.com")
-      assert Invitation.claim(user).role == :contributor
+      {:ok, user} = Invitation.admit("sub-1", "once@example.com")
+      assert user.role == :contributor
 
-      {:ok, demoted} = User.set_role(user, :reader)
+      {:ok, _demoted} = User.set_role(user, :reader)
 
-      assert Invitation.claim(demoted).role == :reader
+      assert {:ok, again} = Invitation.admit("sub-1", "once@example.com")
+      assert again.role == :reader
+    end
+
+    # An offer can outlive the address having no account: the dev provider and
+    # the seeds make accounts without going through here. The next sign-in
+    # should hand over what was waiting rather than step past it.
+    test "honours an offer that was waiting when the account arrived another way" do
+      expect_mail()
+      {:ok, _} = Invitation.invite(%{"email" => "here@example.com", "role" => "admin"})
+
+      user = user_fixture("here@example.com")
+
+      assert {:ok, admitted} = Invitation.admit(user.subject_id, user.email)
+      assert admitted.role == :admin
     end
   end
 
@@ -160,7 +182,7 @@ defmodule RichardBurton.InvitationTest do
       {:ok, {:invited, invitation}} =
         Invitation.invite(%{"email" => "y@example.com", "role" => "reader"})
 
-      Invitation.claim(user_fixture("y@example.com"))
+      {:ok, _} = Invitation.admit("sub-y", "y@example.com")
 
       accepted = Invitation.get(invitation.id)
 

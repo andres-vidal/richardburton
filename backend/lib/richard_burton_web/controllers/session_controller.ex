@@ -16,16 +16,14 @@ defmodule RichardBurtonWeb.SessionController do
   alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
   alias RichardBurton.Invitation
-  alias RichardBurton.User
 
   def create(conn = %{assigns: %{subject_id: subject_id, email: email}}, _attrs) do
-    case User.insert(%{"subject_id" => subject_id, "email" => email}) do
+    case Invitation.admit(subject_id, email) do
       {:ok, user} ->
-        user = Invitation.claim(user)
-        conn |> put_session_cookie(subject_id) |> put_status(:created) |> json(user)
+        conn |> put_session_cookie(subject_id) |> put_status(:ok) |> json(user)
 
-      {:error, :conflict} ->
-        conn |> put_session_cookie(subject_id) |> put_status(:ok) |> json(User.get(subject_id))
+      :not_invited ->
+        conn |> put_status(:forbidden) |> json(%{error: :not_invited})
 
       {:error, _} ->
         conn |> put_status(:bad_request) |> json(nil)
