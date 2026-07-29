@@ -18,6 +18,7 @@ const ACTIONS: PublicationHistoryAction[] = [
   "updated",
   "deleted",
   "restored",
+  "merged",
 ];
 
 type Filter = { actions: PublicationHistoryAction[]; query: string };

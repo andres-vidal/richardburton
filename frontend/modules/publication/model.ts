@@ -30,7 +30,8 @@ type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: number };
 type PublicationId = NonNullable<Publication["id"]>;
 type PublicationKeyType = "array" | "text" | "enum" | "enumArray" | "number";
-type PublicationHistoryAction = "created" | "updated" | "deleted" | "restored";
+type PublicationHistoryAction =
+  "created" | "updated" | "deleted" | "restored" | "merged";
 
 type SnapshotDiff = {
   fields: Partial<Record<PublicationKey, { from: unknown; to: unknown }>>;
@@ -130,6 +131,41 @@ function empty(): Publication {
   };
 }
 
+/**
+ * What one record would look like with others folded into it: the survivor's
+ * own fields, the countries and publishers of all of them, and every source
+ * none of the others already gave.
+ *
+ * A preview, so an admin sees the outcome before asking for it. The server
+ * reconciles a merge itself and stays the authority on what it produces; the
+ * rules are simple enough to say twice, and saying them here is what lets the
+ * dialog show the result rather than describe it.
+ */
+function merged(winner: Publication, losers: Publication[]): Publication {
+  const all = [winner, ...losers];
+
+  const union = (attribute: "countries" | "publishers") =>
+    Array.from(
+      new Set(
+        all.flatMap((p) =>
+          p[attribute]
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean),
+        ),
+      ),
+    )
+      .sort()
+      .join(", ");
+
+  return {
+    ...winner,
+    countries: union("countries"),
+    publishers: union("publishers"),
+    references: Array.from(new Set(all.flatMap((p) => p.references))),
+  };
+}
+
 function describeValue(value: string, attribute: PublicationKey): string {
   if (attribute === "countries") {
     const country = COUNTRIES[value];
@@ -221,6 +257,7 @@ const Publication = {
   describeError,
   describeValue,
   empty,
+  merged,
 };
 
 export {
@@ -235,6 +272,7 @@ export {
   describeError,
   describeValue,
   empty,
+  merged,
   Publication,
 };
 export type {

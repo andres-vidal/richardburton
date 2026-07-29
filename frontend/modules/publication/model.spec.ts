@@ -6,7 +6,9 @@ import {
   describeError,
   describeValue,
   empty,
+  merged,
 } from "./model";
+import type { Publication } from "./model";
 
 describe("empty", () => {
   test("returns a publication with every attribute blank", () => {
@@ -122,5 +124,63 @@ describe("autocomplete", () => {
 
   test("resolves to an empty list for attributes without suggestions", async () => {
     await expect(autocomplete("anything", "year")).resolves.toEqual([]);
+  });
+});
+
+describe("merged", () => {
+  const publication = (fields: Partial<Publication>): Publication => ({
+    ...empty(),
+    ...fields,
+  });
+
+  test("keeps the survivor's own identity", () => {
+    const winner = publication({ id: 1, title: "Iracema", year: "1886" });
+    const loser = publication({ id: 2, title: "Iraçéma", year: "1922" });
+
+    const result = merged(winner, [loser]);
+
+    expect(result.id).toBe(1);
+    expect(result.title).toBe("Iracema");
+    expect(result.year).toBe("1886");
+  });
+
+  test("unions the countries and publishers of all of them", () => {
+    const winner = publication({
+      countries: "GB",
+      publishers: "Bickers & Son",
+    });
+    const losers = [
+      publication({ countries: "US, GB", publishers: "Noonday Press" }),
+      publication({ countries: "BR", publishers: "Bickers & Son" }),
+    ];
+
+    const result = merged(winner, losers);
+
+    expect(result.countries).toBe("BR, GB, US");
+    expect(result.publishers).toBe("Bickers & Son, Noonday Press");
+  });
+
+  test("takes every source none of the others already gave", () => {
+    const winner = publication({ references: ["Alves, 1990"] });
+    const losers = [
+      publication({ references: ["Alves, 1990", "Costa, 2001"] }),
+      publication({ references: ["Dias, 2011"] }),
+    ];
+
+    expect(merged(winner, losers).references).toEqual([
+      "Alves, 1990",
+      "Costa, 2001",
+      "Dias, 2011",
+    ]);
+  });
+
+  test("merging nothing in leaves the record as it stands", () => {
+    const winner = publication({
+      countries: "GB, US",
+      publishers: "Bickers & Son",
+      references: ["Alves, 1990"],
+    });
+
+    expect(merged(winner, [])).toEqual(winner);
   });
 });

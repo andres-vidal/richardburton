@@ -43,6 +43,7 @@ const ActionBadge: FC<{
       group-data-[action=updated]:bg-amber-100 group-data-[action=updated]:text-amber-800
       group-data-[action=deleted]:bg-red-100 group-data-[action=deleted]:text-red-700
       group-data-[action=restored]:bg-emerald-100 group-data-[action=restored]:text-emerald-700
+      group-data-[action=merged]:bg-sky-100 group-data-[action=merged]:text-sky-700
     "
   >
     {action}

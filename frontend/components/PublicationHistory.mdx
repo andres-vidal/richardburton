@@ -7,7 +7,7 @@ import * as PublicationHistoryStories from "./PublicationHistory.stories";
 # Publication history
 
 A publication's mutation log, newest first: each entry names the action
-(created / updated / deleted / restored), the acting user, and the date, and
+(created / updated / deleted / restored / merged), the acting user, and the date, and
 **updates state exactly what changed**: scalar fields as `old → new`, and
 references as the precise entries added (+) and removed (−) — or a reorder, when
 the same entries merely moved.
