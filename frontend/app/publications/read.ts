@@ -51,6 +51,8 @@ async function readDatabase(query: string): Promise<PublicationIndex> {
   const { data, headers } = await getWithHeaders<{
     entries: Publication[];
     keywords?: string[];
+    matching?: number;
+    perPage?: number;
   }>(`/publications${query}`);
 
   const total = headers[TOTAL_COUNT_HEADER];
@@ -59,16 +61,24 @@ async function readDatabase(query: string): Promise<PublicationIndex> {
     entries: data.entries,
     keywords: data.keywords ?? [],
     total: total === undefined ? null : parseInt(total),
+    matching: data.matching ?? data.entries.length,
+    perPage: data.perPage ?? data.entries.length,
   };
 }
 
 /**
- * Read the database for a query, or the whole of it. This is the page's own
- * content, so it is read where the page is rendered — the reader gets rows in
- * the first response instead of an empty table and a spinner.
+ * Read a page of the database, for a query or for all of it. This is the page's
+ * own content, so it is read where the page is rendered — the reader gets rows
+ * in the first response instead of an empty table and a spinner.
  */
-export const readIndex = cache((search?: string) =>
-  readDatabase(search ? `?search=${encodeURIComponent(search)}` : ""),
+export const readIndex = cache((search?: string, page?: number) =>
+  readDatabase(
+    "?" +
+      new URLSearchParams({
+        ...(search ? { search } : {}),
+        ...(page && page > 1 ? { page: String(page) } : {}),
+      }).toString(),
+  ),
 );
 
 /**

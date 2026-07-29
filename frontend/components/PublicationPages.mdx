@@ -1,0 +1,32 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationPagesStories from "./PublicationPages.stories";
+
+<Meta of={PublicationPagesStories} />
+
+# Publication pages
+
+Which page of the results is being read, and the way to the ones either side.
+
+<Canvas of={PublicationPagesStories.Default} />
+
+## A page is a place
+
+The page is in the address, so it can be linked, reloaded and gone back to, and
+moving between pages is a navigation like the search is: the rows arrive with
+it rather than after it. Page one has no number in the address, since it is
+where a query starts.
+
+<Canvas of={PublicationPagesStories.GoingToTheNextPage} />
+
+## Where the numbers come from
+
+The server says how many publications answered the query and how many a page
+holds. Both are read from the store rather than known here, so the size of a
+page is settled in one place and cannot drift.
+
+## Nothing to page
+
+Results that fit on one page render nothing at all: there is nowhere to go.
+
+<Canvas of={PublicationPagesStories.OnlyOnePage} />
