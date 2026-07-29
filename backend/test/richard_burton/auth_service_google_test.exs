@@ -46,7 +46,9 @@ defmodule RichardBurton.Auth.GoogleTest do
         "iss" => @issuer,
         "aud" => @audience,
         "sub" => "google-subject-42",
-        "exp" => System.system_time(:second) + 3600
+        "exp" => System.system_time(:second) + 3600,
+        "email" => "google-user@example.com",
+        "email_verified" => true
       },
       overrides
     )
@@ -111,10 +113,17 @@ defmodule RichardBurton.Auth.GoogleTest do
       %{private_key: private_key}
     end
 
-    test "returns {:ok, subject} for a properly signed, valid token", %{private_key: pk} do
+    test "returns the identity for a properly signed, valid token", %{private_key: pk} do
       token = sign(pk, valid_claims(%{}))
 
-      assert Google.verify(token, StubKeyStore) == {:ok, "google-subject-42"}
+      assert Google.verify(token, StubKeyStore) ==
+               {:ok, %{subject_id: "google-subject-42", email: "google-user@example.com"}}
+    end
+
+    test "returns :error when Google will not vouch for the email", %{private_key: pk} do
+      token = sign(pk, valid_claims(%{"email_verified" => false}))
+
+      assert Google.verify(token, StubKeyStore) == :error
     end
 
     test "returns :error for an expired token", %{private_key: pk} do

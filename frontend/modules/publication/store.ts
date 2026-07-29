@@ -235,7 +235,7 @@ const CELL_FAMILIES = [
 ];
 
 /**
- * A page of the catalogue: the rows, the keywords the search matched on, and how
+ * A page of the database: the rows, the keywords the search matched on, and how
  * many publications exist in total — which the index reports in a header rather
  * than in the body.
  */

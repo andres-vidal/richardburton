@@ -1,9 +1,13 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-/** Sign in as admin via the dev-only credentials provider (no Google). */
-export async function signInAsAdmin(page: Page) {
+/**
+ * Sign in via the dev-only credentials provider (no Google), a role that may edit
+ * publications. The provider mints a subject per role, so signing in as
+ * one does not demote the other.
+ */
+async function signInAs(page: Page, role: "Administrator" | "Contributor") {
   await page.goto("/auth/sign-in");
-  await page.getByRole("button", { name: "Dev admin sign-in" }).click();
+  await page.getByRole("button", { name: role, exact: true }).click();
   // The route handler redirects to "/"; the footer then shows authed controls.
   // Generous timeout: this is the suite's longest cross-stack chain (two server
   // hops + a full SSR reload), and the busiest tail-latency spot on CI.
@@ -11,6 +15,15 @@ export async function signInAsAdmin(page: Page) {
     timeout: 30_000,
   });
 }
+
+export const signInAsAdmin = (page: Page) => signInAs(page, "Administrator");
+
+/**
+ * Everything an admin can do with the database, and nothing to do with who
+ * else may.
+ */
+export const signInAsContributor = (page: Page) =>
+  signInAs(page, "Contributor");
 
 export type PublicationInput = {
   title: string;

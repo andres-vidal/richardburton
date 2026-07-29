@@ -1,0 +1,24 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as SectionHeadingStories from "./SectionHeading.stories";
+
+<Meta of={SectionHeadingStories} />
+
+# Section heading
+
+What a part of a page or a dialog is called. Small, uppercase and grey, so a
+page of several sections reads as one thing rather than as a stack of headings
+competing with the content under them.
+
+<Canvas of={SectionHeadingStories.Default} />
+
+## Props
+
+`children` — the heading text. Renders an `h2`, which is what a section under a
+page's `h1` is.
+
+## The class list on its own
+
+`SECTION_HEADING` is exported for the places where the heading is not an `h2` —
+a `<summary>` that opens a collapsible section, for one, which has to stay a
+`summary` to keep its behaviour.

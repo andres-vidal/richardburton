@@ -17,20 +17,39 @@ defmodule RichardBurtonWeb.UserController do
     end
   end
 
+  @doc "Everyone with access, and what they may do."
+  def index(conn, _params) do
+    json(conn, User.all())
+  end
+
   @doc """
-  Upserts the user for the verified provider subject (assigned by the bearer
-  plug). Login itself goes through `POST /sessions`; this endpoint is kept for
-  the planned admin user-management dashboard (see roadmap 12).
+  Change what a user may do.
+
+  The last admin cannot be demoted: the platform would be left with nobody who
+  can grant access, and no way back except the database.
   """
-  def create(conn = %{assigns: %{subject_id: subject_id}}, attrs) do
-    case User.insert(Map.put(attrs, "subject_id", subject_id)) do
-      {:ok, user} -> conn |> put_status(:created) |> json(user)
-      {:error, :conflict} -> conn |> put_status(:conflict) |> json(User.get(subject_id))
-      {:error, _} -> conn |> put_status(:bad_request) |> json(nil)
+  def update(conn = %{assigns: %{subject_id: subject_id}}, %{"id" => id, "role" => role}) do
+    with user = %User{} <- User.get_by_id(id),
+         {:ok, updated} <- User.set_role(user, role, subject_id) do
+      json(conn, updated)
+    else
+      nil -> conn |> put_status(:not_found) |> json(%{error: :not_found})
+      {:error, :last_admin} -> conn |> put_status(:conflict) |> json(%{error: :last_admin})
+      {:error, :self} -> conn |> put_status(:conflict) |> json(%{error: :self})
+      {:error, :invalid_role} -> conn |> put_status(:bad_request) |> json(%{error: :invalid_role})
+      {:error, errors} -> conn |> put_status(:bad_request) |> json(%{errors: errors})
     end
   end
 
-  def create(conn) do
-    conn |> put_status(:unauthorized) |> json("Unauthorized")
+  @doc "Revoke someone's access, and the sessions signed in as them."
+  def delete(conn = %{assigns: %{subject_id: subject_id}}, %{"id" => id}) do
+    with user = %User{} <- User.get_by_id(id),
+         {:ok, _deleted} <- User.delete(user, subject_id) do
+      send_resp(conn, :no_content, "")
+    else
+      nil -> conn |> put_status(:not_found) |> json(%{error: :not_found})
+      {:error, :last_admin} -> conn |> put_status(:conflict) |> json(%{error: :last_admin})
+      {:error, :self} -> conn |> put_status(:conflict) |> json(%{error: :self})
+    end
   end
 end

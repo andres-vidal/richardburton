@@ -3,23 +3,27 @@ defmodule RichardBurtonWeb.SessionController do
   Exchanges a verified identity-provider token for the app's own session cookie.
 
   The `Authenticate` plug has already verified the incoming provider token and
-  assigned `:subject_id`; this action upserts the user and sets the `rb-session`
-  cookie so subsequent requests authenticate without forwarding the provider
-  token.
+  assigned the identity it vouches for; this action upserts the user and sets
+  the `rb-session` cookie so subsequent requests authenticate without forwarding
+  the provider token.
+
+  The account is keyed on the assigned subject and email — never on the request
+  body, which the caller controls and which an invitation would otherwise let
+  them turn into a role.
   """
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
-  alias RichardBurton.User
+  alias RichardBurton.Invitation
 
-  def create(conn = %{assigns: %{subject_id: subject_id}}, attrs) do
-    case User.insert(Map.put(attrs, "subject_id", subject_id)) do
+  def create(conn = %{assigns: %{subject_id: subject_id, email: email}}, _attrs) do
+    case Invitation.admit(subject_id, email) do
       {:ok, user} ->
-        conn |> put_session_cookie(subject_id) |> put_status(:created) |> json(user)
+        conn |> put_session_cookie(subject_id) |> put_status(:ok) |> json(user)
 
-      {:error, :conflict} ->
-        conn |> put_session_cookie(subject_id) |> put_status(:ok) |> json(User.get(subject_id))
+      :not_invited ->
+        conn |> put_status(:forbidden) |> json(%{error: :not_invited})
 
       {:error, _} ->
         conn |> put_status(:bad_request) |> json(nil)

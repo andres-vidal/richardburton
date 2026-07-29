@@ -1,0 +1,30 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as AnchorStories from "./Anchor.stories";
+
+<Meta of={AnchorStories} />
+
+# Anchor
+
+A link as text with an underline that grows in on hover. It sets no colour of
+its own — the underline is `bg-current` — so it takes the colour of wherever it
+sits.
+
+<Canvas of={AnchorStories.Default} />
+
+## Props
+
+- `href` — where it goes. One starting with `http` renders a plain `<a>`;
+  anything else goes through `next/link`.
+- `query` — a query string appended to `href`, for a link that opens something
+  on the same page.
+- `onClick` — makes it a `<button>` instead.
+
+<Canvas of={AnchorStories.WithQuery} />
+
+## Something to do, not somewhere to go
+
+Given an `onClick` it renders a `<button>` with the same treatment, so an action
+sitting among links reads as one of them. Query it by `button`, not `link`.
+
+<Canvas of={AnchorStories.AsAnAction} />

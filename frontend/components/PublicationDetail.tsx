@@ -28,7 +28,7 @@ import {
   PublicationStoreProvider,
   usePublicationStore,
 } from "modules/publication/workspace";
-import { useIsAdmin } from "modules/session";
+import { useCanEditPublications } from "modules/session";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FC, SubmitEvent, useEffect, useState } from "react";
@@ -38,6 +38,7 @@ import DataInput from "./DataInput";
 import { useModal } from "./Modal";
 import PublicationHistory from "./PublicationHistory";
 import ReferencesEditor from "./ReferencesEditor";
+import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
 
 const Searchable: FC<{
@@ -119,18 +120,11 @@ const PublicationDescription: FC<{
   );
 };
 
-const SECTION_HEADING =
-  "text-sm font-medium tracking-wide text-gray-500 uppercase";
-
-const SectionHeading: FC<{ children: string }> = ({ children }) => (
-  <h2 className={SECTION_HEADING}>{children}</h2>
-);
-
 /**
  * Where the record says it comes from.
  *
  * A record with no sources says so rather than leaving the section out: for a
- * catalogue whose worth is its provenance, an absent source is worth stating.
+ * database whose worth is its provenance, an absent source is worth stating.
  * The history section states its absence the same way.
  */
 const PublicationReferences: FC<{ references: string[] }> = ({
@@ -285,7 +279,7 @@ type PublicationDetailProps = {
   /**
    * Run once the record is gone. Defaults to leaving for the index, which is
    * what a page showing only this publication has to do; an overlay closes
-   * instead and leaves the catalogue behind it in place.
+   * instead and leaves the database behind it in place.
    */
   onDeleted?: () => void;
 };
@@ -304,7 +298,7 @@ const Detail: FC<PublicationDetailProps> = ({
 }) => {
   const id = publication.id!;
   const store = usePublicationStore();
-  const isAdmin = useIsAdmin();
+  const canEdit = useCanEditPublications();
   const router = useRouter();
 
   const [editing, setEditing] = useState(false);
@@ -340,7 +334,7 @@ const Detail: FC<PublicationDetailProps> = ({
     deleteConfirmation.close();
 
     if (removed) {
-      // Whatever was showing this record — the catalogue underneath an overlay,
+      // Whatever was showing this record — the database underneath an overlay,
       // or this page — was drawn before it left. Ask for it again, then leave.
       router.refresh();
       (onDeleted ?? (() => router.replace("/")))();
@@ -363,7 +357,7 @@ const Detail: FC<PublicationDetailProps> = ({
           />
           <PublicationReferences references={publication.references} />
           {history && <PublicationHistorySection entries={history} />}
-          {isAdmin && (
+          {canEdit && (
             <div className="flex gap-3">
               <Button
                 label="Edit"
@@ -386,7 +380,7 @@ const Detail: FC<PublicationDetailProps> = ({
       <ConfirmationModal
         isOpen={deleteConfirmation.isOpen}
         title="Delete this publication?"
-        message={`“${publication.title}” (${publication.year}) will be removed from the catalogue, its index, and search results.`}
+        message={`“${publication.title}” (${publication.year}) will be removed from the database, its index, and search results.`}
         confirmLabel="Delete"
         loading={deleting}
         onConfirm={handleDelete}

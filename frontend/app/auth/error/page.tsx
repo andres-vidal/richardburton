@@ -1,3 +1,4 @@
+import AuthCard from "components/AuthCard";
 import Layout from "components/Layout";
 import SignInButton from "components/SignInButton";
 import { SESSION_COOKIE } from "modules/api";
@@ -12,10 +13,11 @@ type ErrorDescription = { title: string; message: string; suggestion?: string };
 
 const ERROR_DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
   AccessDenied: {
-    title: "Access denied",
+    title: "You need an invitation",
     message:
-      "You are not allowed to sign into the app. Currently, only system administrators can access.",
-    suggestion: "Please contact support if you think this could be a mistake.",
+      "Signing in worked, but this address has not been invited, so no account has been created.",
+    suggestion:
+      "Ask an administrator to invite this address, then sign in again.",
   },
 
   Verification: {
@@ -59,20 +61,15 @@ export default async function AuthErrorPage({
     <Layout
       content={
         description ? (
-          <div className="flex justify-center items-center py-32 w-full">
-            <section className="flex flex-col justify-between p-7 w-96 text-center rounded shadow aspect-square">
-              <h1 className="text-2xl">{description.title}</h1>
-              <div className="space-y-4">
-                <p className="text-lg">{description.message}</p>
-                {description.suggestion && (
-                  <p className="text-sm">{description.suggestion}</p>
-                )}
-              </div>
-              <div className="mx-auto">
-                <SignInButton label="Try again" centered />
-              </div>
-            </section>
-          </div>
+          <AuthCard
+            title={description.title}
+            action={<SignInButton label="Try again" centered />}
+          >
+            <p className="text-lg">{description.message}</p>
+            {description.suggestion && (
+              <p className="text-sm">{description.suggestion}</p>
+            )}
+          </AuthCard>
         ) : null
       }
     />

@@ -13,14 +13,38 @@ defmodule RichardBurtonWeb.Router do
     plug(RichardBurtonWeb.Plugs.Authenticate.Bearer)
   end
 
+  # Keeping the database: a contributor, or an admin, who is also one.
+  pipeline :authorize_contributor do
+    plug(RichardBurtonWeb.Plugs.Authenticate.Cookie)
+    plug(RichardBurtonWeb.Plugs.VerifyCsrf)
+    plug(RichardBurtonWeb.Plugs.Authorize, role: :contributor)
+  end
+
+  # Deciding who may keep it: an admin alone.
   pipeline :authorize_admin do
     plug(RichardBurtonWeb.Plugs.Authenticate.Cookie)
     plug(RichardBurtonWeb.Plugs.VerifyCsrf)
-    plug(RichardBurtonWeb.Plugs.Authorize.Admin)
+    plug(RichardBurtonWeb.Plugs.Authorize, role: :admin)
   end
 
   pipeline :authorize_recaptcha do
     plug(RichardBurtonWeb.Plugs.Authorize.Recaptcha)
+  end
+
+  # Who has access is the admin's alone; the database below is any
+  # contributor's. Declared first so "/users/:id" never binds a literal path.
+  scope "/api", RichardBurtonWeb do
+    pipe_through(:api)
+    pipe_through(:authorize_admin)
+
+    get("/users", UserController, :index)
+    patch("/users/:id", UserController, :update)
+    delete("/users/:id", UserController, :delete)
+
+    get("/invitations", InvitationController, :index)
+    post("/invitations", InvitationController, :create)
+    post("/invitations/:id/resend", InvitationController, :resend)
+    delete("/invitations/:id", InvitationController, :delete)
   end
 
   # Literal paths before "/:id" ones, so "history" and "deleted" never bind as
@@ -28,7 +52,7 @@ defmodule RichardBurtonWeb.Router do
   # scope comes before the public one and its "/publications/:id".
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)
-    pipe_through(:authorize_admin)
+    pipe_through(:authorize_contributor)
 
     get("/authors", AuthorController, :index)
     get("/publishers", PublisherController, :index)
@@ -63,13 +87,12 @@ defmodule RichardBurtonWeb.Router do
 
   scope "/api", RichardBurtonWeb do
     pipe_through(:authenticate_bearer)
-    post("/users", UserController, :create)
     post("/sessions", SessionController, :create)
   end
 
   scope "/api/files", RichardBurtonWeb do
     pipe_through(:files)
-    pipe_through(:authorize_admin)
+    pipe_through(:authorize_contributor)
 
     get("/publications", PublicationController, :export)
   end
@@ -84,6 +107,9 @@ defmodule RichardBurtonWeb.Router do
       pipe_through([:fetch_session, :protect_from_forgery])
 
       live_dashboard("/dashboard", metrics: RichardBurtonWeb.Telemetry)
+
+      # What the local mailer kept instead of sending it.
+      forward("/dev/mailbox", Plug.Swoosh.MailboxPreview)
     end
 
     scope "/api/dev", RichardBurtonWeb do

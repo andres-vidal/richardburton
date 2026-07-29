@@ -89,7 +89,7 @@ defmodule RichardBurton.Publication.History do
     |> annotate()
   end
 
-  @doc "Every recorded mutation across the catalogue, newest first, each diffed."
+  @doc "Every recorded mutation across the database, newest first, each diffed."
   def all do
     from(h in History, order_by: [desc: h.id]) |> Repo.all() |> annotate()
   end
@@ -100,7 +100,7 @@ defmodule RichardBurton.Publication.History do
 
   Entries come newest first, so a version's predecessor is the next element of
   its stream and the head is the first. Grouping by publication is what lets one
-  pass serve both the per-record log and the catalogue-wide feed, where streams
+  pass serve both the per-record log and the database-wide feed, where streams
   interleave and the row above an entry usually belongs to a different
   publication. Pairing by position within the stream, rather than looking up
   `version - 1`, also holds if the version sequence ever has a gap.

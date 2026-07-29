@@ -1,0 +1,32 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as AuthCardStories from "./AuthCard.stories";
+
+<Meta of={AuthCardStories} />
+
+# Auth card
+
+A square panel centred on an otherwise empty page, holding a title, what
+happened, and the one thing to do about it.
+
+<Canvas of={AuthCardStories.Default} />
+
+## Props
+
+- `title` — the page's `h1`, at the top of the card.
+- `children` — what happened. Convention is a `text-lg` line saying it, and an
+  optional `text-sm` line saying what it means for the reader.
+- `action` — what to do next, at the foot. Optional.
+
+## A second line
+
+The card holds its shape whether the body is one line or two: the title stays
+at the top, the action at the foot, and the body between them.
+
+<Canvas of={AuthCardStories.WithASecondLine} />
+
+## Without an action
+
+Nothing to do next leaves the foot empty rather than changing the layout.
+
+<Canvas of={AuthCardStories.WithoutAnAction} />

@@ -25,6 +25,11 @@ defmodule RichardBurton.Email do
     |> validate_email(:address)
   end
 
+  @doc "Send mail as the system itself, rather than on someone's behalf."
+  def deliver(to: to, subject: subject, message: message) do
+    from_system(to: to, subject: subject, message: message) |> send_email(confirmation: false)
+  end
+
   def contact(params) do
     case changeset = Email.changeset(%Email{}, params) do
       %Ecto.Changeset{valid?: true} ->
@@ -46,20 +51,30 @@ defmodule RichardBurton.Email do
     case Mailer.send(email) do
       {:ok, _} ->
         send_email(
-          %{
-            name: "Richard & Isabel Burton Platform",
-            institution: "IFRS Canoas",
-            address: System.get_env("SMTP_FROM"),
+          from_system(
+            to: address,
             subject: "Contact Confirmation from Richard & Isabel Burton Platform",
-            message: get_confimation_message(email),
-            to: address
-          },
+            message: get_confimation_message(email)
+          ),
           confirmation: false
         )
 
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  # Who the system is when it writes to someone, as opposed to a visitor
+  # writing to the research team.
+  defp from_system(to: to, subject: subject, message: message) do
+    %{
+      name: "Richard & Isabel Burton Platform",
+      institution: "IFRS Canoas",
+      address: System.get_env("SMTP_FROM"),
+      subject: subject,
+      message: message,
+      to: to
+    }
   end
 
   defp get_confimation_message(email) do

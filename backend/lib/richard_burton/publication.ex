@@ -225,7 +225,7 @@ defmodule RichardBurton.Publication do
     |> then(&update(id, &1, actor))
   end
 
-  @doc "Bring a soft-deleted publication back into the catalogue."
+  @doc "Bring a soft-deleted publication back into the database."
   def restore(id, actor \\ History.system_actor()) do
     case get(id, deleted: true) do
       nil -> {:error, :not_found}

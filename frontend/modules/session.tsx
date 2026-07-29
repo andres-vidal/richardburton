@@ -1,7 +1,10 @@
 "use client";
 
+import HTTP from "modules/http";
 import { User } from "modules/users";
 import { createContext, ReactNode, useContext } from "react";
+
+const api = HTTP.client({ baseURL: process.env.NEXT_PUBLIC_API_URL });
 
 // The signed-in user (or null), fetched once server-side in the root layout and
 // provided app-wide — no client fetch, store, or effect. Auth transitions
@@ -30,6 +33,22 @@ export function useIsAuthenticated(): boolean {
   return useSession() != null;
 }
 
-export function useIsAdmin(): boolean {
-  return User.administers(useSession());
+/**
+ * End the session and come back as nobody: the server drops it, then a full
+ * load rebuilds the app from what is left, so nothing signed-in survives in
+ * memory. Failing to reach the server still returns you to the front door —
+ * the cookie is what stands, and it will be refused.
+ */
+export async function signOut() {
+  await api.delete("/sessions").catch(() => undefined);
+  window.location.replace("/");
+}
+
+/**
+ * Whether the reader may add and correct publications — a contributor, or an
+ * admin, who is also one. What the editing affordances hang on; deciding who
+ * has access is a separate, narrower question.
+ */
+export function useCanEditPublications(): boolean {
+  return User.canEditPublications(useSession());
 }

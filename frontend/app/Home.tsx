@@ -11,7 +11,6 @@ import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
-import SignOutButton from "components/SignOutButton";
 import type { PublicationIndex } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
 import { receiveIndex } from "modules/publication/store";
@@ -25,7 +24,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 type Props = {
-  /** The catalogue for the current query, read on the server. */
+  /** The database for the current query, read on the server. */
   index: PublicationIndex;
 };
 
@@ -34,12 +33,12 @@ export default function Home({ index }: Props) {
     <PublicationStoreProvider
       initialize={(store) => receiveIndex(store, index)}
     >
-      <Catalogue index={index} />
+      <Database index={index} />
     </PublicationStoreProvider>
   );
 }
 
-function Catalogue({ index }: Props) {
+function Database({ index }: Props) {
   const router = useRouter();
   const search = useSearchParams()?.get("search") ?? undefined;
   const store = usePublicationStore();
@@ -104,7 +103,6 @@ function Catalogue({ index }: Props) {
                   width="fixed"
                 />
               </Link>
-              <SignOutButton />
             </div>
           ) : (
             <div className="hidden sm:block">

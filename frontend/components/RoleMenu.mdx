@@ -1,0 +1,46 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as RoleMenuStories from "./RoleMenu.stories";
+
+<Meta of={RoleMenuStories} />
+
+# Role menu
+
+Picks a role. Used by [Invite someone](?path=/docs/access-invite-someone--docs)
+for the role to offer, and by [People](?path=/docs/access-people--docs) once per
+row for the role someone holds.
+
+It is the app's own menu — `MenuProvider`, the same one behind the column menu
+and the comboboxes — rather than the platform's `<select>`, so the access page
+looks and behaves like the rest of the app.
+
+<Canvas of={RoleMenuStories.Default} />
+
+## What it is made of
+
+`MenuProvider` supplies the listbox, keyboard navigation and dismissal, but not
+what opens it — its interactions are `useRole`, `useDismiss` and
+`useListNavigation`, with no `useClick`. So the trigger owns `isOpen` and says
+so on click, exactly as `Select` does.
+
+Pairing a trigger with a listbox gives the trigger the **`combobox`** role, which
+is what to query it by — not `button`.
+
+Each option carries the role as its id and the role's name as its label, so what
+is picked stays the stored value while what is read is "Administrator", not
+`admin`.
+
+<Canvas of={RoleMenuStories.Open} />
+
+## Choosing what is already chosen
+
+Reports nothing. Picking the role someone already holds is not a change, and
+firing one would mean a request, a notification and a re-render for nothing.
+
+<Canvas of={RoleMenuStories.ChoosingTheSameRole} />
+
+## Disabled
+
+Your own row, and any row with a request in flight.
+
+<Canvas of={RoleMenuStories.Disabled} />

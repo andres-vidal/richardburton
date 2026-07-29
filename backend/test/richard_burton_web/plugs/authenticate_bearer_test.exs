@@ -15,8 +15,10 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.BearerTest do
 
   defp call(conn), do: Bearer.call(conn, Bearer.init([]))
 
-  test "assigns the subject id when the bearer token verifies" do
-    expect(RichardBurton.AuthMock, :verify, fn "good-token" -> {:ok, "subject-1"} end)
+  test "assigns the identity the provider vouches for when the bearer token verifies" do
+    expect(RichardBurton.AuthMock, :verify, fn "good-token" ->
+      {:ok, %{subject_id: "subject-1", email: "reader@example.com"}}
+    end)
 
     conn =
       conn(:post, "/")
@@ -24,6 +26,9 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.BearerTest do
       |> call()
 
     assert conn.assigns.subject_id == "subject-1"
+    # Carried through so the account is keyed on the provider's address rather
+    # than one the caller could put in the body.
+    assert conn.assigns.email == "reader@example.com"
     refute conn.halted
   end
 

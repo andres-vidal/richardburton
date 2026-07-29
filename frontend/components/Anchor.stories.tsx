@@ -1,12 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { expect, within } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 
 import Anchor from "./Anchor";
 
 const meta = {
   title: "Components/Anchor",
   component: Anchor,
-  tags: ["autodocs"],
   args: { href: "/publications", children: "Browse publications" },
   // Anchor sets no color of its own (its underline uses `bg-current`); it's only
   // used in the indigo header, so show it there — white text, hover-grow underline.
@@ -41,6 +40,19 @@ export const External: Story = {
     const canvas = within(canvasElement);
     const link = canvas.getByRole("link", { name: "Visit example" });
     await expect(link).toHaveAttribute("href", "https://example.com");
+  },
+};
+
+/**
+ * Given something to do rather than somewhere to go, it is a button — same
+ * treatment, so the header's one action sits in the row with the links.
+ */
+export const AsAnAction: Story = {
+  args: { href: undefined, onClick: fn(), children: "Sign out" },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Sign out" }));
+    await expect(args.onClick).toHaveBeenCalled();
   },
 };
 

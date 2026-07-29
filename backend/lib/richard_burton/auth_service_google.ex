@@ -15,7 +15,7 @@ defmodule RichardBurton.Auth.Google do
   alias RichardBurton.User
 
   @impl true
-  @spec verify(token :: String.t()) :: {:ok, String.t()} | :error
+  @spec verify(token :: String.t()) :: {:ok, Claims.identity()} | :error
   # `key_store` is injectable (defaulting to the running `KeyStore`) so tests can
   # supply a stub holding a known signing key and exercise the full signature +
   # claims pipeline.
@@ -36,7 +36,7 @@ defmodule RichardBurton.Auth.Google do
   @spec authorize(subject_id :: String.t(), role :: atom()) :: :ok | :error
   def authorize(subject_id, role) do
     case User.get(subject_id) do
-      %{role: ^role} -> :ok
+      %{role: held} -> if User.at_least?(held, role), do: :ok, else: :error
       _ -> :error
     end
   end

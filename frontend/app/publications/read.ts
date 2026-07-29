@@ -35,10 +35,7 @@ export const readPublication = cache(
 
     if (!publication) return null;
 
-    // The log is admin-only, so asking for it as anyone else would only earn a
-    // 401. Read it alongside the record rather than on a click: a change is part
-    // of what the record *is*, not a detail to go fetch.
-    if (!User.administers(session)) return { publication };
+    if (!User.canEditPublications(session)) return { publication };
 
     const { entries } = await get<{ entries: PublicationHistoryEntry[] }>(
       `/publications/${id}/history`,
@@ -50,7 +47,7 @@ export const readPublication = cache(
 
 export type { PublicationIndex };
 
-async function readCatalogue(query: string): Promise<PublicationIndex> {
+async function readDatabase(query: string): Promise<PublicationIndex> {
   const { data, headers } = await getWithHeaders<{
     entries: Publication[];
     keywords?: string[];
@@ -66,16 +63,16 @@ async function readCatalogue(query: string): Promise<PublicationIndex> {
 }
 
 /**
- * Read the catalogue for a query, or the whole of it. This is the page's own
+ * Read the database for a query, or the whole of it. This is the page's own
  * content, so it is read where the page is rendered — the reader gets rows in
  * the first response instead of an empty table and a spinner.
  */
 export const readIndex = cache((search?: string) =>
-  readCatalogue(search ? `?search=${encodeURIComponent(search)}` : ""),
+  readDatabase(search ? `?search=${encodeURIComponent(search)}` : ""),
 );
 
 /**
  * The publications with no sources yet — the queue the backfill wizard steps
  * through, in the order it will offer them.
  */
-export const readUnreferenced = cache(() => readCatalogue("?unreferenced"));
+export const readUnreferenced = cache(() => readDatabase("?unreferenced"));

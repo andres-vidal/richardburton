@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import Button from "./Button";
+import TextInput from "./TextInput";
 
 /** A tiny self-contained icon so these stories don't depend on app SVG assets. */
 const PlusIcon = ({ className }: { className: string }) => (
@@ -74,19 +75,22 @@ export const Variants: Story = {
 
 /**
  * `size`: `small` (the default) suits dense surfaces like toolbars and table
- * rows; `medium` suits forms, where the actions want more presence.
+ * rows; `field` matches a bordered `TextInput`, for a button standing in a row
+ * of inputs; `medium` suits forms, where the actions want more presence.
  */
 export const Sizes: Story = {
   args: { width: "fit" },
   render: (args) => (
     <div className="flex flex-wrap gap-3 items-center">
       <Button {...args} size="small" label="Small" />
+      <Button {...args} size="field" label="Field" />
       <Button {...args} size="medium" label="Medium" />
     </div>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const small = canvas.getByRole("button", { name: "Small" });
+    const field = canvas.getByRole("button", { name: "Field" });
     const medium = canvas.getByRole("button", { name: "Medium" });
 
     // Roomier type and a taller hit target, not just wider padding.
@@ -94,6 +98,36 @@ export const Sizes: Story = {
       parseFloat(getComputedStyle(small).fontSize),
     );
     await expect(medium.offsetHeight).toBeGreaterThan(small.offsetHeight);
+    await expect(field.offsetHeight).toBeGreaterThan(small.offsetHeight);
+    await expect(field.offsetHeight).toBeLessThan(medium.offsetHeight);
+  },
+};
+
+/**
+ * A button beside a bordered `TextInput` has to be the input's height, or the
+ * row reads as broken. `field` is that height.
+ */
+export const BesideAField: Story = {
+  args: { width: "fit", size: "field", label: "Invite", variant: "primary" },
+  render: (args) => (
+    <div className="flex gap-3 items-end">
+      <TextInput
+        bordered
+        aria-label="Email address"
+        value="someone@example.com"
+        onChange={() => {}}
+      />
+      <Button {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const button = canvas.getByRole("button", { name: "Invite" });
+    const input = canvas.getByDisplayValue("someone@example.com");
+
+    await expect(button.offsetHeight).toBe(
+      input.parentElement?.offsetHeight ?? 0,
+    );
   },
 };
 

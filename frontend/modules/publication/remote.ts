@@ -118,7 +118,7 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
 }
 
 /**
- * Delete a publication from the catalogue (admin). The server soft-deletes —
+ * Delete a publication from the database (admin). The server soft-deletes —
  * the record leaves the index and search but stays restorable, and the change
  * lands in the publication history. Returns whether it succeeded.
  */
@@ -132,7 +132,7 @@ async function deletePublication(
     removePublication(store, id);
     notify({
       message: "Publication deleted",
-      detail: `“${title}” is out of the catalogue. Restore it from Deleted publications.`,
+      detail: `“${title}” is out of the database. Restore it from Deleted publications.`,
       level: "success",
     });
     return true;
@@ -178,7 +178,7 @@ async function undo(
 }
 
 /**
- * Bring a deleted publication back into the catalogue (admin). Returns whether
+ * Bring a deleted publication back into the database (admin). Returns whether
  * it succeeded; a conflict means the same record was imported again while this
  * one sat in the trash.
  */
@@ -188,7 +188,7 @@ async function restore(id: PublicationId): Promise<boolean> {
 
     notify({
       message: "Publication restored",
-      detail: "It is back in the catalogue and in search results.",
+      detail: "It is back in the database and in search results.",
       level: "success",
     });
     return true;

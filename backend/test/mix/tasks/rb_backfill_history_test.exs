@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Rb.BackfillHistoryTest do
     }
   }
 
-  # A publication in the state the original corpus is in: in the catalogue,
+  # A publication in the state the original corpus is in: in the database,
   # loaded straight into the database, with nothing in the log. The history table
   # is append-only, so this is written the way such a record arrived rather than
   # by clearing one that was recorded properly.

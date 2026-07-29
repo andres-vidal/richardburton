@@ -10,7 +10,7 @@ const meta = {
     level: "success",
     message: "Publication deleted",
     detail:
-      "“Dom Casmurro” is out of the catalogue. Restore it from Deleted publications.",
+      "“Dom Casmurro” is out of the database. Restore it from Deleted publications.",
     onDismiss: fn(),
   },
   parameters: { layout: "centered" },
@@ -43,7 +43,7 @@ export const MessageOnly: Story = {
     const card = within(canvasElement).getByRole("status");
 
     await expect(card).toHaveTextContent("Publication restored");
-    await expect(card.textContent).not.toContain("catalogue");
+    await expect(card.textContent).not.toContain("database");
   },
 };
 

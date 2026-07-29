@@ -5,18 +5,11 @@ import type {
   DeletedPublicationEntry,
   PublicationId,
 } from "modules/publication/model";
+import { formatDate } from "modules/dates";
 import { restore } from "modules/publication/remote";
 import { useRouter } from "next/navigation";
 import { FC, useState } from "react";
 import Button from "./Button";
-
-function formatTimestamp(timestamp: string): string {
-  return new Date(timestamp).toLocaleDateString("en", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 /**
  * The trash: soft-deleted publications, most recently deleted first, each
@@ -65,7 +58,7 @@ const DeletedPublications: FC<{
                   {publication.publishers}
                 </span>
                 <span className="text-xs text-gray-500">
-                  Deleted {formatTimestamp(deletedAt)}
+                  Deleted {formatDate(deletedAt)}
                 </span>
               </div>
               <Button

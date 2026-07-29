@@ -1,0 +1,41 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InviteFormStories from "./InviteForm.stories";
+
+<Meta of={InviteFormStories} />
+
+# Invite someone
+
+An address and a role. It heads the access page, above
+[People](?path=/docs/access-people--docs) and
+[Invitations](?path=/docs/access-invitations--docs).
+
+<Canvas of={InviteFormStories.Default} />
+
+## Any address
+
+The form does not ask whether the person already has an account, because it does
+not need to: the server grants the role outright if they do, and records an offer
+against the address if they do not. Both are reported afterwards — "Access
+granted" or "Invitation sent" — so the admin learns which happened without
+having to know beforehand.
+
+**Contributor** leads the role list: granting someone the run of the database
+is the common case, and making another admin is not.
+
+**Reader** is offered too, and means something particular now that an account is
+made only for someone invited: it keeps an account without any privileges
+attached to it. Somebody parked rather than turned away — they sign in, land on
+the pending page, and can be raised later without being invited again.
+
+## States
+
+- **Nothing typed** — there is nothing to send, so the button is inert.
+- **An address typed** — the button arms.
+
+<Canvas of={InviteFormStories.NothingTyped} />
+
+<Canvas of={InviteFormStories.AddressTyped} />
+
+An address that is already waiting on an offer is refused, and says so; the
+existing invitation is listed below, where it can be sent again or withdrawn.

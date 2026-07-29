@@ -1,6 +1,7 @@
 defmodule RichardBurton.Auth.ClaimsTest do
   @moduledoc """
-  Tests for OIDC ID token claim validation (issuer, audience, subject, expiry).
+  Tests for OIDC ID token claim validation (issuer, audience, subject, expiry,
+  and the verified email a role is granted to).
   """
   use ExUnit.Case, async: true
 
@@ -16,14 +17,30 @@ defmodule RichardBurton.Auth.ClaimsTest do
         "iss" => @iss,
         "aud" => @aud,
         "sub" => "subject-123",
-        "exp" => @now + 3600
+        "exp" => @now + 3600,
+        "email" => "reader@example.com",
+        "email_verified" => true
       },
       overrides
     )
   end
 
-  test "returns the subject id when every claim is valid" do
-    assert Claims.validate(claims(), @iss, @aud, @now) == {:ok, "subject-123"}
+  test "returns the identity when every claim is valid" do
+    assert Claims.validate(claims(), @iss, @aud, @now) ==
+             {:ok, %{subject_id: "subject-123", email: "reader@example.com"}}
+  end
+
+  # A role is granted to an address, so an address the provider will not vouch
+  # for is one this cannot act on.
+  test "rejects an unverified email" do
+    assert Claims.validate(claims(%{"email_verified" => false}), @iss, @aud, @now) == :error
+    assert Claims.validate(claims(%{"email_verified" => "true"}), @iss, @aud, @now) == :error
+    assert Claims.validate(Map.delete(claims(), "email_verified"), @iss, @aud, @now) == :error
+  end
+
+  test "rejects a missing or blank email" do
+    assert Claims.validate(Map.delete(claims(), "email"), @iss, @aud, @now) == :error
+    assert Claims.validate(claims(%{"email" => ""}), @iss, @aud, @now) == :error
   end
 
   test "rejects an expired token" do

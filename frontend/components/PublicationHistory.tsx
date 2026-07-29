@@ -1,19 +1,12 @@
 "use client";
 
+import { formatDate } from "modules/dates";
 import type { WithChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { FC, useState } from "react";
 import Button from "./Button";
 
 type HistoryEntry = WithChanges<PublicationHistoryEntry>;
-
-function formatTimestamp(timestamp: string): string {
-  return new Date(timestamp).toLocaleDateString("en", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 /**
  * How an entry is chromed: `card` for the standalone admin feed, `plain` for
@@ -107,7 +100,7 @@ const Entry: FC<{
               by {entry.actor}
             </span>
             <span className="ml-auto text-gray-500 whitespace-nowrap shrink-0">
-              {formatTimestamp(entry.timestamp)}
+              {formatDate(entry.timestamp)}
             </span>
           </>
         )}
@@ -130,7 +123,7 @@ const Entry: FC<{
           data-variant={variant}
           className="mt-0.5 text-gray-500 wrap-break-words data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
         >
-          by {entry.actor} · {formatTimestamp(entry.timestamp)}
+          by {entry.actor} · {formatDate(entry.timestamp)}
         </p>
       )}
       {entry.action === "updated" && entry.diff === null && (

@@ -14,7 +14,10 @@ const asdf = `${process.env.HOME}/.asdf/shims`;
 // workers — hence a frontend per worker (kept small; scale via E2E_WORKERS).
 const stacks = Array.from({ length: WORKERS }, (_, i) => [
   {
-    command: `export PATH="${asdf}:$PATH" && cd ../backend && MIX_ENV=e2e E2E_WORKER=${i} PHX_CONSUMER_URL=http://localhost:${frontendPort(i)} mix phx.server`,
+    // SMTP_FROM/SMTP_NAME are read at send time, so the invitation journey needs
+    // them even though :e2e delivers to Swoosh's test adapter rather than a
+    // server — without a sender address the mailer refuses to build the message.
+    command: `export PATH="${asdf}:$PATH" && cd ../backend && MIX_ENV=e2e E2E_WORKER=${i} PHX_CONSUMER_URL=http://localhost:${frontendPort(i)} SMTP_FROM=no-reply@richardburton.test SMTP_NAME="Richard & Isabel Burton Platform" mix phx.server`,
     port: backendPort(i),
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

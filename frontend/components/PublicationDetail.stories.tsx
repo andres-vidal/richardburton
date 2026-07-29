@@ -96,7 +96,7 @@ export const Default: Story = {
 };
 
 /**
- * A record nobody has sourced yet says so: for a catalogue whose worth is its
+ * A record nobody has sourced yet says so: for a database whose worth is its
  * provenance, an absent source is worth stating.
  */
 export const WithoutReferences: Story = {
