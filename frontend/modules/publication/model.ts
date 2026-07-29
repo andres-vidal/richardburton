@@ -15,9 +15,16 @@ type Publication = {
   // The server PK: a real id on persisted rows (index/search), null on
   // unsaved/working rows. Read-only: never cast from client input.
   id: number | null;
+  // A snippet of the sources that answered a search, when they are what did.
+  // Present only on search results, and only for the rows the sources answered.
+  sourceMatch?: string;
 };
 
-type PublicationKey = keyof Omit<Publication, "id" | "references">;
+type PublicationKey = keyof Omit<
+  Publication,
+  "id" | "references" | "sourceMatch"
+>;
+
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: number };

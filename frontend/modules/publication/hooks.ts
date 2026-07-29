@@ -19,6 +19,7 @@ import {
   overrideFamily,
   publicationOrNullFamily,
   publicationReferencesFamily,
+  publicationSourceMatchFamily,
   storedFieldValueFamily,
   storedReferencesFamily,
   totalCountAtom,
@@ -71,6 +72,10 @@ function usePublicationStoredField<K extends PublicationKey>(
   key: K,
 ) {
   return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
+}
+
+function usePublicationSourceMatch(id: PublicationId) {
+  return useAtomValue(publicationSourceMatchFamily(id));
 }
 
 function usePublicationReferences(id: PublicationId) {
@@ -181,6 +186,7 @@ export {
   usePublicationIndexCount,
   usePublicationOverride,
   usePublicationReferences,
+  usePublicationSourceMatch,
   usePublicationStoredField,
   useStoredPublicationReferences,
   useTotalPublicationCount,

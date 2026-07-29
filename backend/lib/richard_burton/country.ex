@@ -36,6 +36,24 @@ defmodule RichardBurton.Country do
     |> unique_constraint(:code)
   end
 
+  @doc """
+  The codes a word could be naming, so a country can be searched for by the name
+  a reader sees rather than the code the record stores.
+
+  A partial word counts: "braz" names Brazil while it is still being typed.
+  """
+  def codes_named(word) when is_binary(word) do
+    folded = word |> String.downcase() |> String.trim()
+
+    if String.length(folded) < 2 do
+      []
+    else
+      Countries.all()
+      |> Enum.filter(&String.starts_with?(String.downcase(&1.name), folded))
+      |> Enum.map(& &1.alpha2)
+    end
+  end
+
   def validate_code(changeset) do
     validate_change(changeset, :code, fn :code, code ->
       if Countries.exists?(:alpha2, code) do
