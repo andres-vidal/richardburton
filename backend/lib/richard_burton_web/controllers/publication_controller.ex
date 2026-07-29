@@ -162,6 +162,31 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_status(status) |> json(body)
   end
 
+  # The clusters of records that look like the same publication entered twice,
+  # likeliest first — what the duplicate review steps through.
+  def duplicates(conn, _params) do
+    entries =
+      Enum.map(
+        Publication.Duplicates.clusters(),
+        &%{publications: &1.publications, score: &1.score}
+      )
+
+    json(conn, %{entries: entries, threshold: Publication.Duplicates.threshold()})
+  end
+
+  # Remember that these are not the same record twice, so the review stops
+  # asking. Naming fewer than two says nothing there is to remember.
+  def distinguish(conn, %{"publications" => ids = [_, _ | _]}) do
+    case Publication.Duplicates.tell_apart(ids, actor(conn)) do
+      {:ok, _count} -> send_resp(conn, :no_content, "")
+      {:error, reason} -> conn |> put_status(:bad_request) |> json(%{error: reason})
+    end
+  end
+
+  def distinguish(conn, _params) do
+    conn |> put_status(:bad_request) |> json(%{error: :not_enough})
+  end
+
   # Collapse publications into this one. The losers are named in the body, so
   # the address stays the surviving record's own.
   def merge(conn, %{"id" => id, "losers" => losers = [_ | _]}) do
