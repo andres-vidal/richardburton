@@ -41,29 +41,23 @@ import ReferencesEditor from "./ReferencesEditor";
 import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
 
-const Searchable: FC<{
-  label: string;
-  value?: string;
-  onNavigate?: () => void;
-}> = ({ value, label, onNavigate }) => (
-  <Link
-    href={`/?search=${value || label}`}
-    className="anchor"
-    onClick={onNavigate}
-  >
+const Searchable: FC<{ label: string; value?: string }> = ({
+  value,
+  label,
+}) => (
+  <Link href={`/?search=${value || label}`} className="anchor">
     {label}
   </Link>
 );
 
 const SearchableList: FC<{
   items: { label: string; value?: string }[];
-  onNavigate?: () => void;
-}> = ({ items, onNavigate }) => (
+}> = ({ items }) => (
   <ul className="contents">
     {items.map((item, index) => (
       <li key={item.value} className="contents">
         {index != 0 && index === items.length - 1 && " and "}
-        <Searchable {...item} onNavigate={onNavigate} />
+        <Searchable {...item} />
         {index < items.length - 2 && ", "}
         {index === items.length - 1 && " "}
       </li>
@@ -88,10 +82,9 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
   </div>
 );
 
-const PublicationDescription: FC<{
-  publication: Publication;
-  onNavigate?: () => void;
-}> = ({ publication: p, onNavigate }) => {
+const PublicationDescription: FC<{ publication: Publication }> = ({
+  publication: p,
+}) => {
   function getSearchableItems(p: Publication, key: PublicationKey) {
     return p[key]
       .split(",")
@@ -103,18 +96,14 @@ const PublicationDescription: FC<{
   }
 
   const list = (key: PublicationKey) => (
-    <SearchableList
-      items={getSearchableItems(p, key)}
-      onNavigate={onNavigate}
-    />
+    <SearchableList items={getSearchableItems(p, key)} />
   );
 
   return (
     <div>
-      <Searchable label={p.title} onNavigate={onNavigate} /> is a translation of{" "}
-      <Searchable label={p.originalTitle} onNavigate={onNavigate} />, by{" "}
-      {list("originalAuthors")}. It was written by {list("authors")} and
-      published in {list("countries")}
+      <Searchable label={p.title} /> is a translation of{" "}
+      <Searchable label={p.originalTitle} />, by {list("originalAuthors")}. It
+      was written by {list("authors")} and published in {list("countries")}
       in {p.year} by {list("publishers")}.
     </div>
   );
@@ -274,8 +263,6 @@ type PublicationDetailProps = {
    * who is the only reader allowed it.
    */
   history?: WithChanges<PublicationHistoryEntry>[];
-  /** Run when a search link is followed — an overlay uses it to close itself. */
-  onNavigate?: () => void;
   /**
    * Run once the record is gone. Defaults to leaving for the index, which is
    * what a page showing only this publication has to do; an overlay closes
@@ -293,7 +280,6 @@ const PublicationDetail: FC<PublicationDetailProps> = (props) => (
 const Detail: FC<PublicationDetailProps> = ({
   publication,
   history,
-  onNavigate,
   onDeleted,
 }) => {
   const id = publication.id!;
@@ -351,10 +337,7 @@ const Detail: FC<PublicationDetailProps> = ({
         />
       ) : (
         <>
-          <PublicationDescription
-            publication={publication}
-            onNavigate={onNavigate}
-          />
+          <PublicationDescription publication={publication} />
           <PublicationReferences references={publication.references} />
           {history && <PublicationHistorySection entries={history} />}
           {canEdit && (

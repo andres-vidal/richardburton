@@ -1,7 +1,7 @@
 "use client";
 
 import type { PublicationView } from "app/publications/read";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { FC, Suspense, use } from "react";
 import { Article } from "./Article";
 import CopyLink from "./CopyLink";
@@ -74,7 +74,6 @@ const Opened: FC<{
         <PublicationDetail
           publication={opened.publication}
           history={opened.history}
-          onNavigate={onClose}
           onDeleted={onClose}
         />
       }
@@ -103,16 +102,20 @@ const PublicationOverlay: FC<{
   closeTo?: string;
 }> = ({ view, closeTo }) => {
   const router = useRouter();
+  const pathname = usePathname();
 
   const close = closeTo ? () => router.push(closeTo) : router.back;
 
-  return (
+  // A parallel slot keeps what it was showing when the route around it changes,
+  // so leaving by a link inside the overlay would otherwise carry the overlay
+  // along. The address is what says whether a publication is being read.
+  return pathname.startsWith("/publications/") ? (
     <Modal isOpen onClose={close} label="Publication details">
       <Suspense fallback={<Loading />}>
         <Opened view={view} onClose={close} />
       </Suspense>
     </Modal>
-  );
+  ) : null;
 };
 
 export default PublicationOverlay;
