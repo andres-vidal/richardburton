@@ -4,11 +4,7 @@ import { FC, PropsWithChildren } from "react";
 interface Props extends PropsWithChildren {
   query?: string;
   href?: string;
-  /**
-   * Makes it a button. The header holds one thing that acts rather than
-   * navigates — signing out — and it belongs in the same row as the rest,
-   * reading the same way.
-   */
+  /** Makes it a button, so an action sitting among links reads as one of them. */
   onClick?: () => void;
 }
 

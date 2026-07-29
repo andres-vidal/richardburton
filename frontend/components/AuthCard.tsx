@@ -1,13 +1,8 @@
 import { FC, ReactNode } from "react";
 
 /**
- * The card the auth pages are: a title, what happened, and the one thing to do
- * about it, in a square panel centred on an otherwise empty page.
- *
- * Signing in, being turned away and waiting for a role are the same moment seen
- * three ways, so they are one shape — a person meeting the second having just
- * seen the first should not have to work out that they are still in the same
- * place.
+ * A square panel centred on an otherwise empty page: a title, what happened,
+ * and the one thing to do about it.
  */
 const AuthCard: FC<{
   title: string;
