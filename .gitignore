@@ -73,3 +73,7 @@ rel/
 credentials.md
 .claude
 /CLAUDE.md
+# IFRS GitLab deploy repos, cloned locally for reference — never part of this repo
+/ifrs-frontend/
+/ifrs-backend/
+/ifrs-deploy/
