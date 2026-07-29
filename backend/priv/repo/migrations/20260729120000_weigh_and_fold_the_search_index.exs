@@ -2,13 +2,14 @@ defmodule RichardBurton.Repo.Migrations.WeighAndFoldTheSearchIndex do
   use Ecto.Migration
 
   @moduledoc """
-  Three things the index could not do: tell a title from a year, find a word
-  written with its accents when it was asked for without them, and answer for a
-  publication's sources at all.
+  Improves the search index in three ways:
 
-  Fields carry weights now, `rb_search` folds accents on both sides of a search,
-  and the references join the document at the lowest weight — searchable, but
-  never outranking what the record itself says.
+    - fields carry weights, so a match on the title outranks a match on the year;
+    - the `rb_search` configuration folds accents, so a word is found whether or
+      not the search typed its accents;
+    - a publication's references join the search document at the lowest weight,
+      so a search can match on them without their outranking the record's own
+      fields.
   """
 
   def up do

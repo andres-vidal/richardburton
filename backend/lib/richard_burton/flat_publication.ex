@@ -27,7 +27,8 @@ defmodule RichardBurton.FlatPublication do
   # and the bulk CSV import doesn't carry it.
   @writable_attributes [:references | @required_attributes]
 
-  # A snippet of the sources that answered a search, when they are what did.
+  # A highlighted snippet of the references, set only when a search matched on
+  # them rather than on the record's own fields.
   @readable_attributes [:id, :source_match | @writable_attributes]
 
   @derive {Jason.Encoder, only: @readable_attributes}

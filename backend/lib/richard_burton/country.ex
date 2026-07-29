@@ -37,13 +37,14 @@ defmodule RichardBurton.Country do
   end
 
   @doc """
-  The codes a term names, so a country can be searched for by the name a reader
-  sees rather than the code the record stores.
+  The country codes whose name is exactly this term, so a reader can search by
+  the name they see rather than the code the record stores.
 
-  The whole name, exactly: a code is two letters, and two letters are a word in
-  their own right in the languages this database holds. "UM" is the United
-  States Minor Outlying Islands and also "um" in half the Portuguese titles
-  here, so a code is only ever asked for when a country was actually named.
+  The match is on the whole name, not a prefix or a word of it. A code is two
+  letters, and a two-letter word is common in the languages here: "UM" is the
+  code for the United States Minor Outlying Islands and also the Portuguese
+  "um" in countless titles. Requiring the exact, full name keeps a stray "um"
+  from pulling in that country.
   """
   def codes_named(term) when is_binary(term) do
     named = term |> String.trim() |> String.downcase()
@@ -53,9 +54,9 @@ defmodule RichardBurton.Country do
     |> Enum.map(& &1.alpha2)
   end
 
-  # The official name and the ones people actually write: "United Kingdom" for
-  # a country officially of Great Britain and Northern Ireland, "Brasil" for
-  # the one this database is mostly about.
+  # A country's official name plus the names people actually write for it:
+  # "United Kingdom" for the country officially named after Great Britain and
+  # Northern Ireland, "Brasil" for the one this database is mostly about.
   defp names_of(country) do
     [country.name | Map.get(country, :unofficial_names) || []]
     |> Enum.filter(&is_binary/1)

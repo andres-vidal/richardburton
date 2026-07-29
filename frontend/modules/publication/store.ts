@@ -126,8 +126,8 @@ const publicationReferencesFamily = atomFamily((id: PublicationId) =>
   atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
 );
 
-/** The snippet of a publication's sources that answered the current search,
- * present only when the sources are what answered it. */
+/** A highlighted snippet of a publication's references, present only when the
+ * current search matched on them rather than on the record's own fields. */
 const publicationSourceMatchFamily = atomFamily((id: PublicationId) =>
   atom<string | undefined>((get) => get(publicationFamily(id))?.sourceMatch),
 );

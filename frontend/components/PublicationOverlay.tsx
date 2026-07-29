@@ -106,9 +106,10 @@ const PublicationOverlay: FC<{
 
   const close = closeTo ? () => router.push(closeTo) : router.back;
 
-  // A parallel slot keeps what it was showing when the route around it changes,
-  // so leaving by a link inside the overlay would otherwise carry the overlay
-  // along. The address is what says whether a publication is being read.
+  // A parallel route slot keeps rendering its last content even after the URL
+  // navigates away, so a link inside the overlay would leave the overlay open
+  // over the new page. Gate on the URL instead: show it only while the path is
+  // still a publication's.
   return pathname.startsWith("/publications/") ? (
     <Modal isOpen onClose={close} label="Publication details">
       <Suspense fallback={<Loading />}>
