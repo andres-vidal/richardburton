@@ -384,14 +384,39 @@ defmodule RichardBurton.Publication do
     end
   end
 
-  @doc "The soft-deleted publications, most recently deleted first."
+  @doc """
+  The publications someone deleted, most recently deleted first.
+
+  A record absorbed by a merge is out of the database the same way, but nobody
+  deleted it and there is no putting it back: restoring one would recreate the
+  duplicate the merge collapsed, with the survivor still holding what it took.
+  """
   def all_deleted do
-    Ecto.Query.from(p in Publication,
-      where: not is_nil(p.deleted_at),
-      order_by: [desc: p.deleted_at]
+    deleted =
+      Ecto.Query.from(p in Publication,
+        where: not is_nil(p.deleted_at),
+        order_by: [desc: p.deleted_at]
+      )
+      |> Repo.all()
+
+    absorbed = merged_away(Enum.map(deleted, & &1.id))
+
+    deleted
+    |> Enum.reject(&MapSet.member?(absorbed, &1.id))
+    |> preload()
+  end
+
+  # Of the given publications, those whose last recorded act was a merge.
+  defp merged_away(ids) do
+    Ecto.Query.from(h in History,
+      where: h.publication_id in ^ids,
+      distinct: h.publication_id,
+      order_by: [asc: h.publication_id, desc: h.version],
+      select: {h.publication_id, h.action}
     )
     |> Repo.all()
-    |> preload()
+    |> Enum.filter(fn {_id, action} -> action == "merged" end)
+    |> MapSet.new(fn {id, _action} -> id end)
   end
 
   @doc """

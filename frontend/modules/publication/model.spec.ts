@@ -35,11 +35,24 @@ describe("describeValue", () => {
     );
   });
 
+  test("maps every code of a list — what a merged record holds", () => {
+    const [first, second] = Object.keys(COUNTRIES);
+
+    expect(describeValue(`${first}, ${second}`, "countries")).toBe(
+      `${COUNTRIES[first].label}, ${COUNTRIES[second].label}`,
+    );
+  });
+
   test("returns an unknown country code unchanged", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     expect(describeValue("__nope__", "countries")).toBe("__nope__");
     expect(warn).toHaveBeenCalled();
+
+    // One unknown code in a list does not cost the others their labels.
+    expect(describeValue(`${knownCode}, __nope__`, "countries")).toBe(
+      `${COUNTRIES[knownCode].label}, __nope__`,
+    );
 
     warn.mockRestore();
   });
