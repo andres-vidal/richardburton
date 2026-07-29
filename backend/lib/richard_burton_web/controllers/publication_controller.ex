@@ -5,15 +5,15 @@ defmodule RichardBurtonWeb.PublicationController do
   alias RichardBurton.Publication
   alias RichardBurton.User
 
-  def index(conn, %{"search" => query}) do
-    {:ok, results, keywords} = Publication.Index.search(query)
+  def index(conn, params = %{"search" => query}) do
+    {:ok, results, keywords, matching} = Publication.Index.search_page(query, page(params))
 
     conn
     |> put_resp_header(
       Publication.Index.count_header(),
       Integer.to_string(Publication.Index.count())
     )
-    |> json(%{entries: results, keywords: keywords})
+    |> json(%{entries: results, keywords: keywords, matching: matching})
   end
 
   def index(conn, %{"unreferenced" => _}) do
@@ -27,15 +27,23 @@ defmodule RichardBurtonWeb.PublicationController do
     |> json(%{entries: results})
   end
 
-  def index(conn, _params) do
-    {:ok, results} = Publication.Index.all()
+  def index(conn, params) do
+    {:ok, results, matching} = Publication.Index.all_page(page(params))
 
     conn
     |> put_resp_header(
       Publication.Index.count_header(),
       Integer.to_string(Publication.Index.count())
     )
-    |> json(%{entries: results})
+    |> json(%{entries: results, matching: matching})
+  end
+
+  # A page nobody asked for is the first one, and so is one that is not a number.
+  defp page(params) do
+    case Integer.parse(Map.get(params, "page", "1")) do
+      {page, _rest} when page > 0 -> page
+      _ -> 1
+    end
   end
 
   # One publication, flat, the same shape the index lists — so a page that shows

@@ -41,3 +41,6 @@ config :logger, level: :warning
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
+
+# A page small enough that a fixture can reach the end of one.
+config :richard_burton, publications_per_page: 5
