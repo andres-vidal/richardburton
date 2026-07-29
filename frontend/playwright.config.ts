@@ -30,7 +30,6 @@ const stacks = Array.from({ length: WORKERS }, (_, i) => [
     env: {
       NEXT_PUBLIC_API_URL: `http://localhost:${backendPort(i)}/api`,
       NEXT_INTERNAL_API_URL: `http://localhost:${backendPort(i)}/api`,
-      NEXT_PUBLIC_FILES_URL: `http://localhost:${backendPort(i)}/files`,
       // A private build dir per worker so parallel `next dev`s don't share `.next`.
       E2E_DIST_DIR: `.next-e2e-${i}`,
       // Provided here so the harness doesn't depend on a local .env (absent in CI).
