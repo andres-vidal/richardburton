@@ -23,7 +23,7 @@ const ACTIONS: PublicationHistoryAction[] = [
 type Filter = { actions: PublicationHistoryAction[]; query: string };
 
 /**
- * Every recorded change across the catalogue, newest first, each entry naming
+ * Every recorded change across the database, newest first, each entry naming
  * its publication. Entries arrive with their changes already resolved — the
  * server diffs each version against its own record's previous one, never the
  * feed's previous row — so filters cannot affect what a diff says: they only

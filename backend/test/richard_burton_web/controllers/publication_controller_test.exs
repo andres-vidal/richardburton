@@ -248,7 +248,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
   end
 
-  describe "GET /publications/history (catalogue-wide)" do
+  describe "GET /publications/history (database-wide)" do
     test "returns every recorded change, newest first, tagged with its publication", %{
       conn: conn
     } do

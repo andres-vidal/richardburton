@@ -24,7 +24,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 type Props = {
-  /** The catalogue for the current query, read on the server. */
+  /** The database for the current query, read on the server. */
   index: PublicationIndex;
 };
 
@@ -33,12 +33,12 @@ export default function Home({ index }: Props) {
     <PublicationStoreProvider
       initialize={(store) => receiveIndex(store, index)}
     >
-      <Catalogue index={index} />
+      <Database index={index} />
     </PublicationStoreProvider>
   );
 }
 
-function Catalogue({ index }: Props) {
+function Database({ index }: Props) {
   const router = useRouter();
   const search = useSearchParams()?.get("search") ?? undefined;
   const store = usePublicationStore();

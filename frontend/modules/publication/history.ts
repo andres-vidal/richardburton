@@ -32,7 +32,7 @@ function keyOf(entry: FullHistoryEntry): string {
 /**
  * Turn the server's structural diff into something renderable: field keys
  * become labels, raw values become strings, and the whole thing takes the
- * catalogue's own attribute order rather than whatever order the payload
+ * database's own attribute order rather than whatever order the payload
  * happened to arrive in. References come last, as the one change that is a list
  * rather than a value.
  *

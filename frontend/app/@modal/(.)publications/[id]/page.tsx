@@ -6,9 +6,9 @@ import { readPublication } from "../../../publications/read";
  * A publication read over whatever the reader was looking at.
  *
  * The same address as its own page — this intercepts it when the reader is
- * already in the app, so following a link from the catalogue opens an overlay
+ * already in the app, so following a link from the database opens an overlay
  * while arriving at the address directly opens the page. Being its own route
- * segment, opening it renders *this* and leaves the catalogue underneath alone:
+ * segment, opening it renders *this* and leaves the database underneath alone:
  * the rows are not read again, and not sent again.
  *
  * The read is handed over unawaited, so the overlay opens on the click and the

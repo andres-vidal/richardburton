@@ -62,7 +62,7 @@ const BULK_CSV =
       `Author ${i};${1900 + i};US;Original ${i};Bulk Title ${i};Translator ${i};Publisher ${i};`,
   ).join("\n") + "\n";
 
-test("the catalogue arrives with the page, not after it", async ({
+test("the database arrives with the page, not after it", async ({
   page,
   request,
   baseURL,
@@ -80,7 +80,7 @@ test("the catalogue arrives with the page, not after it", async ({
   expect(html).not.toContain("The Hour of the Star");
 });
 
-test("opening a publication does not read the catalogue again", async ({
+test("opening a publication does not read the database again", async ({
   page,
 }) => {
   await seedCorpus(page);
@@ -103,7 +103,7 @@ test("opening a publication does not read the catalogue again", async ({
   expect(sent).toContain("Barren Lives");
   expect(sent).not.toContain("Iraçéma the Honey-Lips");
 
-  // Closing goes back to a catalogue that is still there, without asking again.
+  // Closing goes back to a database that is still there, without asking again.
   payloads.length = 0;
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -120,7 +120,7 @@ test("reloading with a publication open keeps it open, over the search that foun
   await page
     .getByRole("textbox", { name: "Search publications" })
     .fill("Machado");
-  // Wait for the query to actually land — the unfiltered catalogue contains this
+  // Wait for the query to actually land — the unfiltered database contains this
   // title too, so its presence proves nothing until the others are gone.
   await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
     0,
@@ -137,7 +137,7 @@ test("reloading with a publication open keeps it open, over the search that foun
   await expect(reopened.getByText(/is a translation of/)).toBeVisible();
 
   // Closing goes back to the search it was opened from, not to the whole
-  // catalogue — even though there is no history left to go back through.
+  // database — even though there is no history left to go back through.
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/\/\?search=Machado$/);
   await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
@@ -218,7 +218,7 @@ test("a reader takes a publication's link, and the link stands on its own", asyn
   )![0];
 
   // It is a page, not the index with an overlay: the record is there and the
-  // catalogue behind it is not.
+  // database behind it is not.
   await page.goto(link);
   await expect(page.getByText("The Hour of the Star").first()).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);

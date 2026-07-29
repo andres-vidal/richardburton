@@ -47,7 +47,7 @@ const meta = {
     isOpen: true,
     title: "Delete this publication?",
     message:
-      "“Dom Casmurro” (1953) will be removed from the catalogue, its index, and search results.",
+      "“Dom Casmurro” (1953) will be removed from the database, its index, and search results.",
     confirmLabel: "Delete",
     onConfirm: fn(),
     onCancel: fn(),

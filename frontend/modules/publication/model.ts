@@ -40,7 +40,7 @@ type PublicationHistoryEntry = {
   undoable: boolean;
 };
 
-// The catalogue-wide feed tags each entry with the publication it belongs to.
+// The database-wide feed tags each entry with the publication it belongs to.
 type FullHistoryEntry = PublicationHistoryEntry & { publicationId: number };
 
 // A publication that is *currently* deleted — the trash's state, distinct from

@@ -15,7 +15,7 @@ const ERROR_DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
   AccessDenied: {
     title: "You need an invitation",
     message:
-      "Signing in worked, but this address has not been invited, so there is no account for it here.",
+      "Signing in worked, but this address has not been invited, so no account has been created.",
     suggestion:
       "Ask an administrator to invite this address, then sign in again.",
   },

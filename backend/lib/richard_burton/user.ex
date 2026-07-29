@@ -23,7 +23,7 @@ defmodule RichardBurton.User do
 
   @doc """
   The roles, least privileged first. A role admits everything the ones before it
-  admit: a contributor keeps the catalogue, an admin also decides who may.
+  admit: a contributor adds and corrects publications, an admin also decides who may.
   """
   def roles, do: @roles
 

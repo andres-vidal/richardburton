@@ -59,7 +59,7 @@ export const Default: Story = {
   },
 };
 
-/** The catalogue is a contributor's; deciding who may work on it is not. */
+/** The database is a contributor's; deciding who may work on it is not. */
 export const AsAContributor: Story = {
   decorators: [signedInAs("contributor")],
   play: async ({ canvasElement }) => {

@@ -142,7 +142,7 @@ defmodule RichardBurtonWeb.PublicationController do
     json(conn, %{entries: id |> Publication.History.of() |> Enum.map(&serialize_history/1)})
   end
 
-  # Every recorded change across the catalogue, newest first — the admin feed.
+  # Every recorded change across the database, newest first — the admin feed.
   def history(conn, _params) do
     json(conn, %{entries: Publication.History.all() |> Enum.map(&serialize_history/1)})
   end

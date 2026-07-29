@@ -33,21 +33,21 @@ const ACTIONS: {
     href: "/admin/publications/history",
     title: "History",
     description:
-      "Every change to the catalogue — who created, edited, deleted, or restored what, and when.",
+      "Every change to the database — who created, edited, deleted, or restored what, and when.",
     role: "contributor",
   },
   {
     href: "/admin/publications/deleted",
     title: "Deleted publications",
     description:
-      "The records currently deleted from the catalogue, restorable exactly as they were.",
+      "The records currently deleted from the database, restorable exactly as they were.",
     role: "contributor",
   },
   {
     href: "/admin/users",
     title: "Access",
     description:
-      "Who can work on the catalogue, what they may do, and who has been invited.",
+      "Who can work on the database, what they may do, and who has been invited.",
     role: "admin",
   },
 ];

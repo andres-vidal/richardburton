@@ -85,12 +85,12 @@ test("an admin cannot change or revoke their own access", async ({ page }) => {
   ).toHaveText("Administrator");
 });
 
-test("a contributor keeps the catalogue but cannot say who may", async ({
+test("a contributor edits publications but cannot say who may", async ({
   page,
 }) => {
   await signInAsContributor(page);
 
-  // The catalogue is theirs: the admin hub and its editing tools are reachable.
+  // The database is theirs: the admin hub and its editing tools are reachable.
   await page.goto("/admin");
   await expect(
     page.getByRole("link", { name: /Add publications/ }),
@@ -117,9 +117,7 @@ test("someone with an account but no role is told access is pending, not denied"
   await expect(
     page.getByRole("heading", { name: "Your account is ready" }),
   ).toBeVisible();
-  await expect(
-    page.getByText(/does not reach the catalogue yet/),
-  ).toBeVisible();
+  await expect(page.getByText(/Your role is Reader/)).toBeVisible();
 
   // Turned back at the gate, so no session came with it.
   await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);

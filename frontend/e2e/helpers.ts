@@ -1,8 +1,8 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 /**
- * Sign in via the dev-only credentials provider (no Google), as a role that
- * reaches the catalogue. The provider mints a subject per role, so signing in as
+ * Sign in via the dev-only credentials provider (no Google), a role that may edit
+ * publications. The provider mints a subject per role, so signing in as
  * one does not demote the other.
  */
 async function signInAs(page: Page, role: "Administrator" | "Contributor") {
@@ -19,7 +19,7 @@ async function signInAs(page: Page, role: "Administrator" | "Contributor") {
 export const signInAsAdmin = (page: Page) => signInAs(page, "Administrator");
 
 /**
- * Everything an admin can do with the catalogue, and nothing to do with who
+ * Everything an admin can do with the database, and nothing to do with who
  * else may.
  */
 export const signInAsContributor = (page: Page) =>

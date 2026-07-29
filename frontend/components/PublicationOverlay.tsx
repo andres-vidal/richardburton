@@ -48,7 +48,7 @@ const Missing: FC = () => (
   <div className="p-8 w-full space-y-2">
     <h1 className="text-2xl font-normal">This publication is not here</h1>
     <p className="text-gray-700">
-      It has been removed from the catalogue, or the link names a record that
+      It has been removed from the database, or the link names a record that
       never existed.
     </p>
   </div>
@@ -85,7 +85,7 @@ const Opened: FC<{
 /**
  * A publication read over the page the reader came from.
  *
- * Being its own route rather than a query on the catalogue's is what keeps it
+ * Being its own route rather than a query on the database's is what keeps it
  * cheap: opening it renders this and nothing else, so the rows underneath are
  * neither read again nor sent again. The address it adds is the publication's
  * own — the same one its page has, and the one the copy link hands out.
@@ -97,7 +97,7 @@ const PublicationOverlay: FC<{
   view: Promise<PublicationView | null>;
   /**
    * Where closing goes when there is nothing to go back to — a reader who
-   * reloaded, or arrived at this address directly. Followed from the catalogue,
+   * reloaded, or arrived at this address directly. Followed from the database,
    * closing is going back, and this is left out.
    */
   closeTo?: string;

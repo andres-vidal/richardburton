@@ -87,7 +87,7 @@ defmodule RichardBurtonWeb.ConnCase do
   def expect_auth_authorize_admin(n \\ 1) do
     # Privileged routes authenticate via the rb-session cookie (Auth.Session,
     # not the mock); only the role check goes through Auth.authorize. Routes ask
-    # for the least they need — the catalogue for a contributor, access for an
+    # for the least they need — the database for a contributor, access for an
     # admin — and this stands in for someone who is both.
     expect(RichardBurton.AuthMock, :authorize, n, fn _, role
                                                      when role in [:contributor, :admin] ->

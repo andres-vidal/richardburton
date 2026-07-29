@@ -46,7 +46,7 @@ describe("presentChanges", () => {
     ).toEqual([{ kind: "field", label: "Year", from: "1953", to: "1954" }]);
   });
 
-  test("orders fields by the catalogue's attributes, not the payload", () => {
+  test("orders fields by the database's attributes, not the payload", () => {
     // Deliberately reversed relative to ATTRIBUTES: the wire is a map, so its
     // order means nothing and this module imposes the app's own.
     const labels = presentChanges({

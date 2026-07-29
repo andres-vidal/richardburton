@@ -55,7 +55,7 @@ export default async function RootLayout({
   modal,
 }: {
   children: ReactNode;
-  /** What is shown *over* the page — a publication followed from the catalogue. */
+  /** What is shown *over* the page — a publication followed from the database. */
   modal: ReactNode;
 }) {
   const session = await getSession();

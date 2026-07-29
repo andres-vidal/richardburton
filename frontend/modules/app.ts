@@ -22,7 +22,7 @@ async function request<T = void>(
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
         if (error.response.status === 409) {
-          // A conflict that says which one keeps its reason; the catalogue's
+          // A conflict that says which one keeps its reason; the database's
           // only conflict is the composite key, which says "conflict".
           throw (
             (error.response.data as { error?: string } | undefined)?.error ??

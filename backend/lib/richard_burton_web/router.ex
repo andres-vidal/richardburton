@@ -13,7 +13,7 @@ defmodule RichardBurtonWeb.Router do
     plug(RichardBurtonWeb.Plugs.Authenticate.Bearer)
   end
 
-  # Keeping the catalogue: a contributor, or an admin, who is also one.
+  # Keeping the database: a contributor, or an admin, who is also one.
   pipeline :authorize_contributor do
     plug(RichardBurtonWeb.Plugs.Authenticate.Cookie)
     plug(RichardBurtonWeb.Plugs.VerifyCsrf)
@@ -31,7 +31,7 @@ defmodule RichardBurtonWeb.Router do
     plug(RichardBurtonWeb.Plugs.Authorize.Recaptcha)
   end
 
-  # Who has access is the admin's alone; the catalogue below is any
+  # Who has access is the admin's alone; the database below is any
   # contributor's. Declared first so "/users/:id" never binds a literal path.
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)

@@ -36,7 +36,7 @@ const OwnPublicationStore: FC<{
  *
  * It **joins** an existing store rather than shadowing it. That is what lets a
  * publication's view be both things at once: on its own page it owns the state
- * it edits, and in the overlay over the catalogue it edits the catalogue's, so
+ * it edits, and in the overlay over the database it edits the database's, so
  * the row behind it changes with it. Two surfaces that are *not* nested get a
  * store each, and cannot see each other's edits.
  *

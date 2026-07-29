@@ -177,7 +177,7 @@ test("an admin arrives by link and corrects the publication on its own page", as
   expect(address).toMatch(/^\/publications\/\d+$/);
   await page.goto(address);
 
-  // The page offers what the overlay offers, with no catalogue behind it.
+  // The page offers what the overlay offers, with no database behind it.
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("Iraçéma the Honey-Lips")).toHaveCount(0);
 

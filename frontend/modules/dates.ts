@@ -1,5 +1,5 @@
 /**
- * A timestamp as the catalogue shows dates: the day, not the hour. Everything
+ * A timestamp as the database shows dates: the day, not the hour. Everything
  * the app dates — history entries, the trash, who joined when — reads the same
  * way.
  */
