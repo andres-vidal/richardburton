@@ -101,6 +101,25 @@ defmodule RichardBurton.CountryTest do
     end
   end
 
+  describe "names_for/1" do
+    test "carries the official name and the ISO translations" do
+      names = Country.names_for("US")
+
+      assert "United States of America" in names
+      assert "Estados Unidos" in names
+    end
+
+    test "carries the curated abbreviations the ISO data lacks" do
+      assert "USA" in Country.names_for("US")
+      assert "EUA" in Country.names_for("US")
+      assert "UK" in Country.names_for("GB")
+    end
+
+    test "an unknown code has no names" do
+      assert [] == Country.names_for("XX")
+    end
+  end
+
   describe "validate_countries/1" do
     test "when countries is valid alpha2 code, is valid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
@@ -208,6 +227,14 @@ defmodule RichardBurton.CountryTest do
 
       assert preexistent_country == country
       assert [country] == Country.all()
+    end
+
+    test "stores the names the country is searchable by" do
+      country = Country.maybe_insert!(@valid_attrs)
+
+      assert "United Kingdom" in country.names
+      assert "Reino Unido" in country.names
+      assert "UK" in country.names
     end
   end
 

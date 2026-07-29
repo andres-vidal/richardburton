@@ -13,7 +13,6 @@ defmodule RichardBurton.Publication.Index do
 
   import Ecto.Query
 
-  alias RichardBurton.Country
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication.Index.SearchDocument
   alias RichardBurton.Publication.Index.SearchKeyword
@@ -270,26 +269,12 @@ defmodule RichardBurton.Publication.Index do
   defp spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
 
   # `:*` makes each word a prefix, so a word still being typed matches every
-  # word that starts with it, and a complete word matches itself.
+  # word that starts with it, and a complete word matches itself. A country name
+  # is matched the same way as any other word: its names are folded into the
+  # document at index time, so "United Kingdom" reaches the record that stores
+  # the code "GB" with no special handling here.
   defp written_query(words) do
-    words
-    |> Enum.map_join(" & ", &"(#{lexeme(&1)}:*)")
-    |> or_the_country_named(Enum.join(words, " "))
-  end
-
-  # A record stores a country as its code (US, GB), not its name, so a term
-  # that names a country also searches for that code. The whole term is matched
-  # against country names, not word by word: "United Kingdom" split into words
-  # would search for "kingdom", which no record holds.
-  #
-  # The code is added only where a country was actually named. A two-letter
-  # code is itself a word in these languages, so searching for "NO"
-  # unconditionally would match every Portuguese title containing "no".
-  defp or_the_country_named(query, term) do
-    case Country.codes_named(term) do
-      [] -> query
-      codes -> "(#{query}) | (#{Enum.map_join(codes, " | ", &"#{lexeme(&1)}:C")})"
-    end
+    Enum.map_join(words, " & ", &"(#{lexeme(&1)}:*)")
   end
 
   # Nothing matched as typed, so each word is matched against the indexed words

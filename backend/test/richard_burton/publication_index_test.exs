@@ -411,21 +411,6 @@ defmodule RichardBurton.Publication.IndexTest do
       )
     end
 
-    test "retrieves publications by country" do
-      term = "GB"
-      keyword = String.downcase(term)
-      expected_countries = ["GB"]
-
-      assert {:ok, publications, [^keyword]} = Publication.Index.search(term)
-
-      assert_search_results(
-        publications,
-        expect: [
-          countries: expected_countries
-        ]
-      )
-    end
-
     test "retrieves publications by author" do
       term = "Brakel"
       keyword = String.downcase(term)
@@ -630,35 +615,56 @@ defmodule RichardBurton.Publication.IndexTest do
   end
 
   describe "search/1 by country" do
-    test "a country's name finds what the record holds as a code" do
+    test "a country's name finds the records that store its code" do
       assert {:ok, publications, _} = Publication.Index.search("Brazil")
 
-      # The word itself still matches wherever it is written, so this asks only
-      # that the code was reached too.
       assert Enum.any?(publications, &String.contains?(&1.countries, "BR"))
     end
 
-    test "a name made of several words asks for the code as a whole" do
+    test "a multi-word name finds the country" do
       assert {:ok, publications, _} = Publication.Index.search("United Kingdom")
 
       refute Enum.empty?(publications)
-      assert Enum.all?(publications, &String.contains?(&1.countries, "GB"))
+      assert Enum.any?(publications, &String.contains?(&1.countries, "GB"))
     end
 
-    # "UM" is the United States Minor Outlying Islands, and also the first word
-    # of half the Portuguese titles here.
-    test "a word that merely starts a country's name asks for no code" do
-      assert {:ok, publications, _} = Publication.Index.search("United")
+    test "an alternate or translated name finds the country too" do
+      assert {:ok, uk, _} = Publication.Index.search("Reino Unido")
+      assert Enum.any?(uk, &String.contains?(&1.countries, "GB"))
 
-      refute Enum.any?(publications, &String.contains?(&1.original_title, "Um "))
+      assert {:ok, us, _} = Publication.Index.search("USA")
+      assert Enum.any?(us, &String.contains?(&1.countries, "US"))
     end
 
-    test "the code still works" do
-      assert {:ok, publications, _} = Publication.Index.search("BR")
+    test "a quoted name finds the country, which the literal path could not do before" do
+      assert {:ok, publications, _} = Publication.Index.search(~s("United Kingdom"))
 
-      # Two letters are also the start of other words, which a term still being
-      # typed should reach, so this asks only that the code was among them.
-      assert Enum.any?(publications, &String.contains?(&1.countries, "BR"))
+      assert Enum.any?(publications, &String.contains?(&1.countries, "GB"))
+    end
+
+    # A country code doubles as a common word (pt "um" is UM, "no" is NO).
+    # Indexing names rather than codes keeps such a word in a record's title
+    # from dragging in an unrelated country.
+    test "a country whose code spells a common word is not pulled by that word" do
+      {:ok, bait} =
+        %{
+          "title" => "A Certain Captain",
+          "original_title" => "Um Homem no Mundo",
+          "original_authors" => "Autor Teste",
+          "authors" => "Test Translator",
+          "year" => "1970",
+          "countries" => "BR",
+          "publishers" => "Editora Teste"
+        }
+        |> Publication.Codec.nest()
+        |> Publication.insert()
+
+      Publication.Index.Refresher.refresh()
+
+      for term <- ["Norway", "United"] do
+        assert {:ok, results, _} = Publication.Index.search(term)
+        refute Enum.any?(results, &(&1.id == bait.id))
+      end
     end
   end
 
