@@ -72,9 +72,25 @@ defmodule RichardBurton.Publication.Index do
     |> Enum.map(&Map.get(&1, :word))
   end
 
+  @doc """
+  The indexed words a search term is asking about.
+
+  A term is matched a word at a time. Both matches this rests on compare a
+  single word: a prefix is one, and trigram similarity to a whole phrase falls
+  away as the phrase grows, so a title asked for in full would resolve to
+  nothing at all. A word that names no keyword contributes none rather than
+  emptying the search.
+  """
   def search_keywords(term) when is_binary(term) do
-    case search_keywords(term, :prefix) do
-      [] -> search_keywords(term, :fuzzy)
+    term
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.flat_map(&keywords_naming/1)
+    |> Enum.uniq()
+  end
+
+  defp keywords_naming(word) do
+    case search_keywords(word, :prefix) do
+      [] -> search_keywords(word, :fuzzy)
       keywords when is_list(keywords) -> keywords
     end
   end
@@ -83,31 +99,60 @@ defmodule RichardBurton.Publication.Index do
     search(term, select: [])
   end
 
+  @doc """
+  The publications a term is asking for, and the indexed words it resolved to.
+
+  Every word narrows: a publication has to answer all of them, so a title asked
+  for in full returns the publication it names rather than everything sharing a
+  word with it. A word is answered by any of the keywords it names, which is
+  what lets a half-typed one stand for what it starts.
+
+  Words are read as written first. Only when that finds nothing does the whole
+  term go fuzzy, where a word naming nothing is dropped rather than emptying
+  the search: a typo should cost its own word, not the others.
+  """
   def search(term, select: attributes) when is_binary(term) do
-    case search_keywords(term) do
-      [] ->
-        {:ok, [], []}
+    words = String.split(term, ~r/\s+/, trim: true)
 
-      keywords when is_list(keywords) ->
-        joint_keywords = Enum.join(keywords, " OR ")
-
-        query =
-          from(p in FlatPublication,
-            join: d in SearchDocument,
-            on: d.id == p.id,
-            where: fragment("document @@ websearch_to_tsquery('simple', ?)", ^joint_keywords),
-            order_by:
-              {:desc,
-               fragment(
-                 "ts_rank_cd(document, websearch_to_tsquery('simple', ?), 4)",
-                 ^joint_keywords
-               )}
-          )
-          |> maybe_select(attributes)
-
-        results = Repo.all(query)
-
-        {:ok, results, keywords}
+    case narrow(words, :prefix, attributes) do
+      {[], _keywords} -> found(narrow(words, :fuzzy, attributes))
+      results -> found(results)
     end
+  end
+
+  defp found({results, keywords}), do: {:ok, results, keywords}
+
+  defp narrow(words, strategy, attributes) do
+    words
+    |> Enum.map(&search_keywords(&1, strategy))
+    |> answers(strategy)
+    |> case do
+      [] -> {[], []}
+      groups -> {Repo.all(matching(groups, attributes)), Enum.uniq(List.flatten(groups))}
+    end
+  end
+
+  # Read as written, a word that names nothing means the term is not in the
+  # index as typed, and the whole term is better off going fuzzy.
+  defp answers(groups, :prefix), do: if(Enum.any?(groups, &(&1 == [])), do: [], else: groups)
+  defp answers(groups, :fuzzy), do: Enum.reject(groups, &(&1 == []))
+
+  defp matching(groups, attributes) do
+    ranked = groups |> List.flatten() |> Enum.uniq() |> Enum.join(" OR ")
+
+    groups
+    |> Enum.reduce(
+      from(p in FlatPublication,
+        join: d in SearchDocument,
+        on: d.id == p.id,
+        order_by:
+          {:desc, fragment("ts_rank_cd(document, websearch_to_tsquery('simple', ?), 4)", ^ranked)}
+      ),
+      fn group, query ->
+        joint = Enum.join(group, " OR ")
+        where(query, fragment("document @@ websearch_to_tsquery('simple', ?)", ^joint))
+      end
+    )
+    |> maybe_select(attributes)
   end
 end
