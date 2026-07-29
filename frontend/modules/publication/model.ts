@@ -168,16 +168,17 @@ function merged(winner: Publication, losers: Publication[]): Publication {
 
 function describeValue(value: string, attribute: PublicationKey): string {
   if (attribute === "countries") {
-    const country = COUNTRIES[value];
-    if (country) {
-      return value
-        .split(",")
-        .map((v) => COUNTRIES[v.trim()].label)
-        .join(", ");
-    } else {
-      console.warn("Unknown country code: ", value);
-      return value;
-    }
+    // One code or a list of them: a record published in several places names
+    // them all in the one field.
+    return value
+      .split(",")
+      .map((code) => {
+        const country = COUNTRIES[code.trim()];
+        if (country) return country.label;
+        console.warn("Unknown country code: ", code.trim());
+        return code.trim();
+      })
+      .join(", ");
   }
   return value;
 }

@@ -719,6 +719,18 @@ defmodule RichardBurton.PublicationTest do
       assert {:error, :conflict} = Publication.undo(loser.id, entry.version)
     end
 
+    test "a record a merge absorbed is not in the trash to be restored" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      refute Enum.any?(Publication.all_deleted(), &(&1.id == loser.id))
+
+      # A record that is deleted after being merged into is there, though: the
+      # trash lists what someone deleted, whatever happened to it before.
+      {:ok, _} = Publication.delete(winner.id)
+      assert Enum.any?(Publication.all_deleted(), &(&1.id == winner.id))
+    end
+
     test "the winner's own change is recorded as an update" do
       {winner, loser} = merge_pair()
 
