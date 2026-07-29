@@ -21,6 +21,11 @@ const preview: Preview = {
     // makes @storybook/nextjs-vite mount the App Router mocks (useRouter/
     // usePathname/useSearchParams) instead of the Pages Router ones.
     nextjs: { appDirectory: true },
+    // Every docs canvas gets its own iframe. A story that portals — a modal, a
+    // menu — renders into the document it is mounted in, and inline canvases
+    // share that document with Storybook itself, so an open dialog covers the
+    // docs page instead of the story it belongs to.
+    docs: { story: { inline: false, height: "460px" } },
     // Run axe-core on every story via @storybook/addon-a11y. "todo" surfaces
     // violations in the a11y panel + as non-failing notes in the test run; flip
     // to "error" to make accessibility violations fail the suite.

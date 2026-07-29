@@ -43,6 +43,21 @@ export const Open: Story = {
   },
 };
 
+/** Choosing another role reports it, and the trigger takes its name. */
+export const ChoosingAnotherRole: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ args }) => {
+    await userEvent.click(screen.getByRole("combobox", { name: "Role" }));
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Administrator" }),
+    );
+
+    await expect(args.onChange).toHaveBeenCalledWith("admin");
+  },
+};
+
 /** Choosing the role already held changes nothing, so nothing is reported. */
 export const ChoosingTheSameRole: Story = {
   parameters: {

@@ -14,7 +14,7 @@ Everyone with access, and what they may do. The admin half of
 
 Each role admits everything the one before it admits:
 
-- **Reader** — can browse the catalogue, like anyone signed out.
+- **Reader** — can browse the database, like anyone signed out.
 - **Contributor** — can add and correct publications.
 - **Administrator** — can do that, and decide who else may.
 
@@ -47,8 +47,12 @@ The menu is the app's own (`MenuProvider`), not the platform's select, so it
 matches the column and combobox menus elsewhere — and its trigger takes the
 `combobox` role that pairing implies.
 
+<Canvas of={AccessListStories.ChangingSomeoneElsesRole} />
+
+## Revoking
+
 Revoking asks first, and takes their sessions with it: someone whose access is
 revoked is signed out, rather than keeping the run of the place until their
 cookie happens to expire.
 
-<Canvas of={AccessListStories.SomeoneElsesRow} />
+<Canvas of={AccessListStories.RevokingAsksFirst} />

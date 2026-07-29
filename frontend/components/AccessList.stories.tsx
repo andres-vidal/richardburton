@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { SessionProvider } from "modules/session";
 import type { UserRecord } from "modules/users";
-import { expect, screen } from "storybook/test";
+import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
 import AccessList from "./AccessList";
 
@@ -71,11 +71,46 @@ export const YourOwnRow: Story = {
   },
 };
 
-/** Someone else's row can be changed or revoked. */
-export const SomeoneElsesRow: Story = {
+/** Someone else's row offers the roles, one of which they already hold. */
+export const ChangingSomeoneElsesRole: Story = {
+  parameters: {
+    // Floating UI's focus guards (tabindex=0 + aria-hidden) trip axe's
+    // aria-hidden-focus rule as a false positive; silence just that rule for the
+    // story that leaves the menu open, as MenuProvider's own stories do.
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
   play: async () => {
-    await expect(
-      screen.getByLabelText("Role for curator@rb.test"),
-    ).toBeEnabled();
+    const menu = screen.getByLabelText("Role for curator@rb.test");
+    await expect(menu).toBeEnabled();
+
+    await userEvent.click(menu);
+
+    const options = await screen.findAllByRole("option");
+    await expect(options.map((option) => option.textContent)).toEqual([
+      "Reader",
+      "Contributor",
+      "Administrator",
+    ]);
+  },
+};
+
+/**
+ * Revoking asks first, and names who it is about — the row it was clicked from
+ * is not visible once a dialog is over it.
+ */
+export const RevokingAsksFirst: Story = {
+  play: async () => {
+    const [, theirs] = screen.getAllByRole("button", { name: "Revoke" });
+    await userEvent.click(theirs);
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Revoke this access?",
+    });
+    await expect(dialog).toHaveTextContent("curator@rb.test");
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   },
 };
