@@ -44,3 +44,7 @@ config :richard_burton, RichardBurtonWeb.Endpoint,
 
 config :logger, level: :warning
 config :phoenix, :plug_init_mode, :runtime
+
+# Bigger than the seeded corpus, so a journey that is not about paging never
+# meets a page boundary; the one that is about paging seeds past it.
+config :richard_burton, publications_per_page: 20

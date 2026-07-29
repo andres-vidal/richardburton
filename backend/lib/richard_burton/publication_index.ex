@@ -1,14 +1,6 @@
 defmodule RichardBurton.Publication.Index do
   @moduledoc """
-  Full-text search over the publication index.
-
-  A search runs in one of two modes. A plain term is split into words, each
-  word is matched on its own (as a prefix, or fuzzily if nothing matches as
-  typed), and the words are combined with AND so each one narrows the result.
-  A term that quotes a phrase or negates a word is instead passed to Postgres
-  verbatim, exactly as written. Either way the match runs against a `tsvector`
-  built with accents folded, so a term is folded the same way before it is
-  compared.
+  Interface with the searchable publication index
   """
 
   import Ecto.Query
@@ -21,6 +13,11 @@ defmodule RichardBurton.Publication.Index do
 
   # The response header carrying the index's total publication count.
   @count_header "rb-total-count"
+
+  # How many publications a page holds. Big enough that most readers never ask
+  # for a second one, small enough that the first arrives at once. Smaller under
+  # test, so a page boundary is something a fixture can reach.
+  @per_page Application.compile_env(:richard_burton, :publications_per_page, 50)
 
   @doc "Name of the response header carrying the index's total count."
   @spec count_header() :: String.t()
@@ -84,14 +81,13 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  The indexed words a search term matches.
+  The indexed words a search term is asking about.
 
-  The term is split into words and each word is matched on its own, because
-  both kinds of match only work word by word: a prefix is the start of a single
-  word, and trigram similarity between a word and a whole phrase drops toward
-  zero as the phrase grows. Matching a full title as one string would find
-  nothing. A word that matches no indexed word is simply left out, so one
-  unmatched word does not make the whole search return empty.
+  A term is matched a word at a time. Both matches this rests on compare a
+  single word: a prefix is one, and trigram similarity to a whole phrase falls
+  away as the phrase grows, so a title asked for in full would resolve to
+  nothing at all. A word that names no keyword contributes none rather than
+  emptying the search.
   """
   def search_keywords(term) when is_binary(term) do
     term
@@ -112,79 +108,102 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  The publications a term matches, and the indexed words it matched on.
+  Every publication a term asks for, and the indexed words it resolved to.
 
-  The term's words are combined with AND, so each word narrows the result: a
-  publication must match every word. That is why searching a full title returns
-  just that title, not everything that shares a word with it. For a single
-  word, matching any of the indexed words it could be is enough, so a half-typed
-  word matches everything it might still become.
+  Every word narrows: a publication has to answer all of them, so a title asked
+  for in full returns the publication it names rather than everything sharing a
+  word with it. A word is answered by any of the keywords it names, which is
+  what lets a half-typed one stand for what it starts.
 
-  The words are tried as typed first. Only if that matches nothing is the term
-  retried fuzzily, and there a word that matches nothing is dropped instead of
-  emptying the result — a typo costs only its own word, not the rest.
+  Words are read as written first. Only when that finds nothing does the whole
+  term go fuzzy, where a word naming nothing is dropped rather than emptying
+  the search: a typo should cost its own word, not the others.
+
+  Unbounded, for the caller that needs all of it at once — the CSV export is a
+  download of the database, not a page of it. Reading for a page goes through
+  `page/2`.
   """
   def search(term, select: attributes) when is_binary(term) do
+    case answering(term) do
+      :none -> {:ok, [], []}
+      {ask, keywords} -> {:ok, Repo.all(asking(ask, attributes)), keywords}
+    end
+  end
+
+  @doc """
+  One page of what a term asks for, the words it resolved to, and how many it
+  asks for in all.
+
+  Whether a term is answered at all is the same question as how many answer it,
+  so the ladder is walked once, by counting: the page is drawn from wherever it
+  stopped.
+  """
+  def search_page(term, page) when is_binary(term) do
+    case answering(term) do
+      :none ->
+        {:ok, [], [], 0}
+
+      {ask, keywords} ->
+        {:ok, Repo.all(asking(ask, []) |> paged(page)), keywords, count_asking(ask)}
+    end
+  end
+
+  @doc """
+  One page of the whole database, ordered as it is listed, and how many
+  publications there are to page through.
+  """
+  def all_page(page) do
+    query = from(fp in FlatPublication, order_by: [asc: fp.title, asc: fp.id])
+
+    {:ok, Repo.all(paged(query, page)), count()}
+  end
+
+  @doc "How many publications a page holds."
+  def per_page, do: @per_page
+
+  # Page one is the first page, and so is anything before it.
+  defp paged(query, page) do
+    from(q in query, limit: @per_page, offset: ^(max(page - 1, 0) * @per_page))
+  end
+
+  # What a term is asking for: the query that answers it and the words it
+  # resolved to, or `:none` when nothing in the index answers at all.
+  #
+  # A term that quotes a phrase or excludes a word is saying precisely what it
+  # wants, so it is handed to Postgres as written and never widened: no
+  # prefixes, and nothing fuzzy to put back what the reader just excluded.
+  defp answering(term) do
     if spelled_out?(term) do
-      found(exactly(term, attributes))
+      {{:spelled_out, term}, []}
     else
       words = String.split(term, ~r/\s+/, trim: true)
+      as_written = {:parsed, written_query(words)}
 
-      case as_written(words, attributes) do
-        {[], _keywords} -> found(fuzzily(words, attributes))
-        results -> found(results)
+      if count_asking(as_written) > 0 do
+        {as_written, words |> Enum.flat_map(&search_keywords(&1, :prefix)) |> Enum.uniq()}
+      else
+        fuzzily(words)
       end
     end
   end
 
-  defp found({results, keywords}), do: {:ok, results, keywords}
-
-  # A term that quotes a phrase or negates a word (-word) is stating exactly
-  # what it wants, so it is passed to Postgres as written and never widened:
-  # no prefix matching, and no fuzzy pass that could add back a word the reader
-  # just excluded.
   defp spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
 
-  defp exactly(term, attributes) do
-    query =
-      from(p in FlatPublication,
-        join: d in SearchDocument,
-        on: d.id == p.id,
-        where: fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term),
-        order_by: [
-          desc: fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term),
-          asc: p.title,
-          asc: p.id
-        ]
-      )
-      |> maybe_select(attributes)
-      |> source_match(attributes, :spelled_out, term)
-
-    {Repo.all(query), []}
+  # Each word stands for what it starts, so a word still being typed matches
+  # what it will be, and a finished one matches itself.
+  defp written_query(words) do
+    words
+    |> Enum.map_join(" & ", &"(#{lexeme(&1)}:*)")
+    |> or_the_country_named(Enum.join(words, " "))
   end
 
-  # `:*` makes each word a prefix, so a word still being typed matches every
-  # word that starts with it, and a complete word matches itself.
-  defp as_written(words, attributes) do
-    query =
-      words
-      |> Enum.map_join(" & ", &"(#{lexeme(&1)}:*)")
-      |> or_the_country_named(Enum.join(words, " "))
-
-    case Repo.all(matching(query, attributes)) do
-      [] -> {[], []}
-      results -> {results, Enum.flat_map(words, &search_keywords(&1, :prefix)) |> Enum.uniq()}
-    end
-  end
-
-  # A record stores a country as its code (US, GB), not its name, so a term
-  # that names a country also searches for that code. The whole term is matched
-  # against country names, not word by word: "United Kingdom" split into words
-  # would search for "kingdom", which no record holds.
+  # A term naming a country asks for its code, which is what the record holds.
+  # The term as a whole, because a name of several words would otherwise ask for
+  # words no record has: nothing is published in a "kingdom".
   #
-  # The code is added only where a country was actually named. A two-letter
-  # code is itself a word in these languages, so searching for "NO"
-  # unconditionally would match every Portuguese title containing "no".
+  # The code is asked for where a country is written and nowhere else: two
+  # letters are a word of their own in the languages here, and "NO" would
+  # otherwise answer for every Portuguese title carrying "no".
   defp or_the_country_named(query, term) do
     case Country.codes_named(term) do
       [] -> query
@@ -192,22 +211,22 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  # Nothing matched as typed, so each word is matched against the indexed words
-  # it resembles. A word that resembles none is dropped: a typo should cost its
-  # own word, not the whole term.
-  defp fuzzily(words, attributes) do
+  # Nothing was written the way the index holds it, so each word asks for the
+  # keywords it resembles. One that resembles none is dropped: a typo should
+  # cost its own word rather than the whole term.
+  defp fuzzily(words) do
     words
     |> Enum.map(&search_keywords(&1, :fuzzy))
     |> Enum.reject(&(&1 == []))
     |> case do
       [] ->
-        {[], []}
+        :none
 
       groups ->
         query =
           Enum.map_join(groups, " & ", &"(#{Enum.map_join(&1, " | ", fn w -> lexeme(w) end)})")
 
-        {Repo.all(matching(query, attributes)), Enum.uniq(List.flatten(groups))}
+        {{:parsed, query}, groups |> List.flatten() |> Enum.uniq()}
     end
   end
 
@@ -215,9 +234,9 @@ defmodule RichardBurton.Publication.Index do
   # the word rather than as syntax.
   defp lexeme(word), do: "'" <> String.replace(word, "'", "''") <> "'"
 
-  # Order by rank, then title, then id. Rows of equal rank must sort the same
-  # way every time, or paging through the results would repeat or skip some.
-  defp matching(query, attributes) do
+  # Rank first, then the title, then the id: equally relevant rows have to come
+  # back in the same order every time, or a page of them is not a page.
+  defp asking({:parsed, query}, attributes) do
     from(p in FlatPublication,
       join: d in SearchDocument,
       on: d.id == p.id,
@@ -232,9 +251,46 @@ defmodule RichardBurton.Publication.Index do
     |> source_match(attributes, :parsed, query)
   end
 
-  # A publication can match on its references, which the index does not display.
-  # When it does, build a highlighted snippet of the matching source so the
-  # reader can see why the row is here; the matched words are wrapped in [[ ]].
+  defp asking({:spelled_out, term}, attributes) do
+    from(p in FlatPublication,
+      join: d in SearchDocument,
+      on: d.id == p.id,
+      where: fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term),
+      order_by: [
+        desc: fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term),
+        asc: p.title,
+        asc: p.id
+      ]
+    )
+    |> maybe_select(attributes)
+    |> source_match(attributes, :spelled_out, term)
+  end
+
+  defp count_asking({:parsed, query}) do
+    Repo.one(
+      from(p in FlatPublication,
+        join: d in SearchDocument,
+        on: d.id == p.id,
+        where: fragment("document @@ to_tsquery('rb_search', ?)", ^query),
+        select: count(p.id)
+      )
+    )
+  end
+
+  defp count_asking({:spelled_out, term}) do
+    Repo.one(
+      from(p in FlatPublication,
+        join: d in SearchDocument,
+        on: d.id == p.id,
+        where: fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term),
+        select: count(p.id)
+      )
+    )
+  end
+
+  # Why a row is here, when the answer is nowhere on it: a publication can match
+  # on its sources, which the index does not show. Only then is there a snippet,
+  # and the words that answered are wrapped for the reader to pick out.
   defp source_match(query, [], :parsed, term) do
     select_merge(query, [p], %{
       source_match:

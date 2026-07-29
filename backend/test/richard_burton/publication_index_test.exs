@@ -546,6 +546,58 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
+  describe "all_page/1 and search_page/2" do
+    test "a page holds no more than a page, and says how many there are" do
+      {:ok, first, total} = Publication.Index.all_page(1)
+
+      assert total == length(@publications)
+      assert total > Publication.Index.per_page(), "the fixture has to outgrow a page"
+      assert length(first) == Publication.Index.per_page()
+    end
+
+    test "the pages together are the whole database, each publication once" do
+      {:ok, _first, total} = Publication.Index.all_page(1)
+      pages = ceil(total / Publication.Index.per_page())
+
+      ids =
+        Enum.flat_map(1..pages, fn page ->
+          {:ok, publications, ^total} = Publication.Index.all_page(page)
+          Enum.map(publications, & &1.id)
+        end)
+
+      assert Enum.uniq(ids) == ids
+      assert length(ids) == total
+    end
+
+    test "a page beyond the last is empty, and still says how many there are" do
+      {:ok, publications, total} = Publication.Index.all_page(99)
+
+      assert publications == []
+      assert total == length(@publications)
+    end
+
+    test "a search reports how many answered, not how many it returned" do
+      {:ok, publications, _keywords, matching} =
+        Publication.Index.search_page("Verissimo", 1)
+
+      assert matching > 0
+      assert length(publications) <= matching
+      assert length(publications) <= Publication.Index.per_page()
+    end
+
+    test "a search nothing answers reports none" do
+      assert {:ok, [], [], 0} = Publication.Index.search_page("zzzzqqqq", 1)
+    end
+
+    test "the fuzzy ladder still runs for a page" do
+      {:ok, publications, keywords, matching} = Publication.Index.search_page("Maries", 1)
+
+      assert "marias" in keywords
+      assert matching > 0
+      refute Enum.empty?(publications)
+    end
+  end
+
   describe "search/1 by country" do
     test "a country's name finds what the record holds as a code" do
       assert {:ok, publications, _} = Publication.Index.search("Brazil")
