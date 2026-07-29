@@ -1,5 +1,6 @@
 "use client";
 
+import ChevronDownIcon from "assets/chevron-down.svg";
 import { ROLE_LABELS, ROLES, type UserRole } from "modules/users";
 import { FC, useState } from "react";
 import Button from "./Button";
@@ -10,7 +11,10 @@ import MenuProvider from "./MenuProvider";
 const OPTIONS = ROLES.map((role) => ({ id: role, label: ROLE_LABELS[role] }));
 
 /**
- * Pick a role, in the app's own menu rather than the platform's select.
+ * Pick a role, from a list short enough and fixed enough that there is nothing
+ * to search — which is why this is `MenuProvider` and not `Select`, whose whole
+ * surface is a typeahead over options fetched per keystroke. It carries the
+ * chevron the app's other menus carry, so it reads as one of them.
  *
  * The trigger owns whether the menu is open — `MenuProvider` handles the
  * listbox, keyboard navigation and dismissal, but not what opens it, so a
@@ -49,6 +53,13 @@ const RoleMenu: FC<{
         size="field"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
+        right={
+          <ChevronDownIcon
+            aria-hidden
+            data-open={isOpen}
+            className="ml-auto w-4 h-4 text-gray-400 transition-transform data-[open=true]:rotate-180"
+          />
+        }
       />
     </MenuProvider>
   );

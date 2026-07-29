@@ -30,6 +30,8 @@ type Props = Omit<HTMLProps<HTMLButtonElement>, "size"> & {
   label: string;
   variant?: "primary" | "secondary" | "outline" | "outline-primary" | "danger";
   Icon?: FC<{ className: string }> | ReactNode;
+  /** Rendered after the label — a chevron on a menu trigger, say. */
+  right?: ReactNode;
   alignment?: "center" | "left";
   width?: "full" | "fixed" | "fit";
   /**
@@ -50,6 +52,7 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
     onClick,
     variant = "primary",
     Icon,
+    right,
     alignment = "center",
     width = "full",
     size = "small",
@@ -126,6 +129,8 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       >
         {label}
       </span>
+
+      {right}
     </button>
   );
 });
