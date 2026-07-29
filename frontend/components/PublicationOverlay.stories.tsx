@@ -88,7 +88,12 @@ const meta = {
   title: "Publications/Publication overlay",
   component: PublicationOverlay,
   args: { view: READER_VIEW },
-  parameters: { layout: "fullscreen" },
+  // The overlay shows a publication only while the address is one; the mocked
+  // router would otherwise put these stories on the index.
+  parameters: {
+    layout: "fullscreen",
+    nextjs: { navigation: { pathname: "/publications/1" } },
+  },
 } satisfies Meta<typeof PublicationOverlay>;
 
 export default meta;

@@ -224,3 +224,24 @@ test("a reader takes a publication's link, and the link stands on its own", asyn
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("Barren Lives")).toHaveCount(0);
 });
+
+test("a search link in an open publication takes the reader to that search", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+
+  // Three of the corpus share this author, so the search has to narrow the
+  // index rather than leave it whole.
+  const dialog = await openPublicationModal(page, "Dom Casmurro");
+  await dialog.getByRole("link", { name: "Machado de Assis" }).first().click();
+
+  await expect(page).toHaveURL(
+    /\?search=Machado\+de\+Assis|\?search=Machado%20de%20Assis/,
+  );
+  await expect(dialog).toHaveCount(0);
+
+  const rows = indexTable(page).getByRole("row");
+  await expect(rows.filter({ hasText: "Dom Casmurro" }).first()).toBeVisible();
+  await expect(rows.filter({ hasText: "The Hour of the Star" })).toHaveCount(0);
+});

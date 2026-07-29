@@ -38,7 +38,7 @@ defmodule RichardBurton.Repo.Migrations.SoftDeletePublications do
     execute(flat_publications_sql(live_only: true))
 
     create table(:publication_history) do
-      # No FK: the log is independent of the catalogue tables' lifecycle.
+      # No FK: the log is independent of the publication tables' lifecycle.
       add(:publication_id, :bigint, null: false)
       add(:version, :integer, null: false)
       add(:action, :string, null: false)

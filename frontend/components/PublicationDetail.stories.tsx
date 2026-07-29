@@ -4,7 +4,7 @@ import { withChanges } from "modules/publication/history";
 import { empty, type PublicationHistoryEntry } from "modules/publication/model";
 import { resetAll } from "modules/publication/store";
 import { SessionProvider } from "modules/session";
-import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
+import { expect, screen, userEvent, waitFor } from "storybook/test";
 
 import PublicationDetail from "./PublicationDetail";
 
@@ -178,13 +178,13 @@ export const DeleteConfirmation: Story = {
 };
 
 /**
- * Following a search link tells the caller — an overlay uses it to close
- * itself, a page ignores it.
+ * Every value in the description is a link to a search for it, so a reader can
+ * leave for everything else by the same translator, publisher or country.
  */
-export const NotifiesOnNavigate: Story = {
-  args: { onNavigate: fn() },
-  play: async ({ args }) => {
-    await userEvent.click(screen.getByRole("link", { name: "Helen Caldwell" }));
-    await expect(args.onNavigate).toHaveBeenCalled();
+export const SearchLinks: Story = {
+  play: async () => {
+    await expect(
+      screen.getByRole("link", { name: "Helen Caldwell" }),
+    ).toHaveAttribute("href", "/?search=Helen Caldwell");
   },
 };
