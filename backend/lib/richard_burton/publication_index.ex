@@ -156,7 +156,10 @@ defmodule RichardBurton.Publication.Index do
   # what it will be, and a finished one matches itself. A word that names a
   # country stands for its code too, which is what the record holds.
   defp as_written(words, attributes) do
-    query = Enum.map_join(words, " & ", &"(#{alternatives(&1)})")
+    query =
+      words
+      |> Enum.map_join(" & ", &"(#{alternatives(&1)})")
+      |> or_the_country_named(Enum.join(words, " "))
 
     case Repo.all(matching(query, attributes)) do
       [] -> {[], []}
@@ -167,6 +170,16 @@ defmodule RichardBurton.Publication.Index do
   defp alternatives(word) do
     ["#{lexeme(word)}:*" | Enum.map(Country.codes_named(word), &lexeme/1)]
     |> Enum.join(" | ")
+  end
+
+  # Most country names are one word, but the ones that are not would otherwise
+  # ask for words no record holds: nothing is published in a "kingdom". A term
+  # naming a country asks for its code as a whole, whatever it is made of.
+  defp or_the_country_named(query, term) do
+    case Country.codes_named(term) do
+      [] -> query
+      codes -> "(#{query}) | (#{Enum.map_join(codes, " | ", &lexeme/1)})"
+    end
   end
 
   # Nothing was written the way the index holds it, so each word asks for the

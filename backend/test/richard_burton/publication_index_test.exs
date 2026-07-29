@@ -535,6 +535,47 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
+  describe "search/1 by country" do
+    test "a country's name finds what the record holds as a code" do
+      assert {:ok, publications, _} = Publication.Index.search("Brazil")
+
+      # The word itself still matches wherever it is written, so this asks only
+      # that the code was reached too.
+      assert Enum.any?(publications, &String.contains?(&1.countries, "BR"))
+    end
+
+    test "a name made of several words asks for the code as a whole" do
+      assert {:ok, publications, _} = Publication.Index.search("United Kingdom")
+
+      refute Enum.empty?(publications)
+      assert Enum.all?(publications, &String.contains?(&1.countries, "GB"))
+    end
+
+    test "the code still works" do
+      assert {:ok, publications, _} = Publication.Index.search("BR")
+
+      # Two letters are also the start of other words, which a term still being
+      # typed should reach, so this asks only that the code was among them.
+      assert Enum.any?(publications, &String.contains?(&1.countries, "BR"))
+    end
+  end
+
+  describe "search/1 spelled out" do
+    test "a quoted phrase is asked for as written" do
+      assert {:ok, publications, _} = Publication.Index.search(~s("Civil Servant"))
+
+      assert Enum.all?(publications, &(&1.title == "Diary of a Civil Servant"))
+    end
+
+    test "a word can be excluded" do
+      {:ok, all, _} = Publication.Index.search("Verissimo")
+      {:ok, fewer, _} = Publication.Index.search("Verissimo -Noite")
+
+      assert length(fewer) < length(all)
+      refute Enum.any?(fewer, &(&1.original_title == "Noite"))
+    end
+  end
+
   describe "search/1 with accents" do
     test "a term written without them finds the words that carry them" do
       {:ok, folded, _} = Publication.Index.search("Angustia")
