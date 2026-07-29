@@ -528,7 +528,7 @@ defmodule RichardBurton.Publication.IndexTest do
   end
 
   describe "search/1 with a composite term present in the dataset" do
-    test "retrieves publications matching any of the words" do
+    test "retrieves publications answering every word" do
       term = "Marie Barrett"
       split_term = String.split(term, " ")
       keywords = Enum.map(split_term, &String.downcase/1)
@@ -541,6 +541,36 @@ defmodule RichardBurton.Publication.IndexTest do
           authors: ["Linton Lemos Barrett", "Marie Barrett"]
         ]
       )
+    end
+  end
+
+  describe "search/1 with a whole title as the term" do
+    # A title is what the publication's own link searches for.
+    test "returns the publication the title belongs to, and not the rest" do
+      assert {:ok, publications, keywords} =
+               Publication.Index.search("Diary of a Civil Servant")
+
+      assert "diary" in keywords
+      assert "servant" in keywords
+
+      assert Enum.all?(publications, &(&1.title == "Diary of a Civil Servant"))
+    end
+
+    test "each word narrows what the one before it found" do
+      {:ok, one_word, _} = Publication.Index.search("Diary")
+      {:ok, three_words, _} = Publication.Index.search("Diary Civil Servant")
+
+      assert length(three_words) <= length(one_word)
+      assert Enum.any?(three_words, &(&1.title == "Diary of a Civil Servant"))
+    end
+
+    test "a word naming nothing does not empty the search" do
+      assert {:ok, publications, keywords} =
+               Publication.Index.search("Diary zzzzqqq Servant")
+
+      assert "diary" in keywords
+
+      assert Enum.any?(publications, &(&1.title == "Diary of a Civil Servant"))
     end
   end
 
