@@ -57,8 +57,10 @@ defmodule RichardBurton.Publication.Index do
     select(query, [fp], map(fp, ^attributes))
   end
 
+  # The index holds words with their accents folded away, so a term is folded
+  # the same way before it is compared to them.
   def search_keywords(term, :prefix) do
-    from(w in SearchKeyword, where: ilike(w.word, ^"#{term}%"))
+    from(w in SearchKeyword, where: ilike(w.word, fragment("unaccent(?)", ^"#{term}%")))
     |> Repo.all()
     |> Enum.map(&Map.get(&1, :word))
   end
@@ -66,7 +68,7 @@ defmodule RichardBurton.Publication.Index do
   def search_keywords(term, :fuzzy) do
     from(
       w in SearchKeyword,
-      where: fragment("similarity((?), (?)) > 0.3", w.word, ^term)
+      where: fragment("similarity((?), unaccent(?)) > 0.3", w.word, ^term)
     )
     |> Repo.all()
     |> Enum.map(&Map.get(&1, :word))
@@ -114,44 +116,52 @@ defmodule RichardBurton.Publication.Index do
   def search(term, select: attributes) when is_binary(term) do
     words = String.split(term, ~r/\s+/, trim: true)
 
-    case narrow(words, :prefix, attributes) do
-      {[], _keywords} -> found(narrow(words, :fuzzy, attributes))
+    case as_written(words, attributes) do
+      {[], _keywords} -> found(fuzzily(words, attributes))
       results -> found(results)
     end
   end
 
   defp found({results, keywords}), do: {:ok, results, keywords}
 
-  defp narrow(words, strategy, attributes) do
-    words
-    |> Enum.map(&search_keywords(&1, strategy))
-    |> answers(strategy)
-    |> case do
+  # Each word stands for what it starts, so a word still being typed matches
+  # what it will be, and a finished one matches itself.
+  defp as_written(words, attributes) do
+    case Repo.all(matching(Enum.map_join(words, " & ", &"#{lexeme(&1)}:*"), attributes)) do
       [] -> {[], []}
-      groups -> {Repo.all(matching(groups, attributes)), Enum.uniq(List.flatten(groups))}
+      results -> {results, Enum.flat_map(words, &search_keywords(&1, :prefix)) |> Enum.uniq()}
     end
   end
 
-  # Read as written, a word that names nothing means the term is not in the
-  # index as typed, and the whole term is better off going fuzzy.
-  defp answers(groups, :prefix), do: if(Enum.any?(groups, &(&1 == [])), do: [], else: groups)
-  defp answers(groups, :fuzzy), do: Enum.reject(groups, &(&1 == []))
+  # Nothing was written the way the index holds it, so each word asks for the
+  # keywords it resembles. One that resembles none is dropped: a typo should
+  # cost its own word rather than the whole term.
+  defp fuzzily(words, attributes) do
+    words
+    |> Enum.map(&search_keywords(&1, :fuzzy))
+    |> Enum.reject(&(&1 == []))
+    |> case do
+      [] ->
+        {[], []}
 
-  defp matching(groups, attributes) do
-    ranked = groups |> List.flatten() |> Enum.uniq() |> Enum.join(" OR ")
+      groups ->
+        query =
+          Enum.map_join(groups, " & ", &"(#{Enum.map_join(&1, " | ", fn w -> lexeme(w) end)})")
 
-    groups
-    |> Enum.reduce(
-      from(p in FlatPublication,
-        join: d in SearchDocument,
-        on: d.id == p.id,
-        order_by:
-          {:desc, fragment("ts_rank_cd(document, websearch_to_tsquery('simple', ?), 4)", ^ranked)}
-      ),
-      fn group, query ->
-        joint = Enum.join(group, " OR ")
-        where(query, fragment("document @@ websearch_to_tsquery('simple', ?)", ^joint))
-      end
+        {Repo.all(matching(query, attributes)), Enum.uniq(List.flatten(groups))}
+    end
+  end
+
+  # A word as a tsquery lexeme: quoted, so punctuation in it is read as part of
+  # the word rather than as syntax.
+  defp lexeme(word), do: "'" <> String.replace(word, "'", "''") <> "'"
+
+  defp matching(query, attributes) do
+    from(p in FlatPublication,
+      join: d in SearchDocument,
+      on: d.id == p.id,
+      where: fragment("document @@ to_tsquery('rb_search', ?)", ^query),
+      order_by: {:desc, fragment("ts_rank_cd(document, to_tsquery('rb_search', ?), 4)", ^query)}
     )
     |> maybe_select(attributes)
   end

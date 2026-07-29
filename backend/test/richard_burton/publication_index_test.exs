@@ -499,14 +499,19 @@ defmodule RichardBurton.Publication.IndexTest do
     test "does a prefix search" do
       term = "Mari"
 
-      assert {:ok, publications, ["marie", "marias"]} = Publication.Index.search(term)
+      assert {:ok, publications, keywords} = Publication.Index.search(term)
+
+      # "Mário" is held with its accent folded away, so a term written without
+      # one reaches it.
+      assert Enum.sort(keywords) == ["marias", "marie", "mario"]
 
       assert_search_results(
         publications,
         expect: [
           title: "The Three Marias",
           authors: "Marie Barrett",
-          original_title: "As três Marias"
+          original_title: "As três Marias",
+          original_authors: "Mário de Andrade"
         ]
       )
     end
@@ -514,16 +519,51 @@ defmodule RichardBurton.Publication.IndexTest do
     test "does a fuzzy search" do
       term = "Maries"
 
-      assert {:ok, publications, ["marie", "marias"]} = Publication.Index.search(term)
+      assert {:ok, publications, keywords} = Publication.Index.search(term)
+
+      assert Enum.sort(keywords) == ["marias", "marie", "mario"]
 
       assert_search_results(
         publications,
         expect: [
           title: "The Three Marias",
           authors: "Marie Barrett",
-          original_title: "As três Marias"
+          original_title: "As três Marias",
+          original_authors: "Mário de Andrade"
         ]
       )
+    end
+  end
+
+  describe "search/1 with accents" do
+    test "a term written without them finds the words that carry them" do
+      {:ok, folded, _} = Publication.Index.search("Angustia")
+      {:ok, written, _} = Publication.Index.search("Angústia")
+
+      assert_search_results(folded, expect: [original_title: "Angústia"])
+      assert Enum.map(folded, & &1.id) == Enum.map(written, & &1.id)
+    end
+
+    test "a term written with them finds what is held without" do
+      assert {:ok, publications, _} = Publication.Index.search("Frãulein")
+
+      assert_search_results(publications, expect: [title: "Fraulein"])
+    end
+  end
+
+  describe "search/1 over a publication's sources" do
+    test "finds a publication by a word only its references carry" do
+      assert {:ok, publications, _} = Publication.Index.search("Berkeley")
+
+      assert_search_results(publications,
+        expect: [title: "Posthumous Reminiscences of Brás Cubas"]
+      )
+    end
+
+    test "a title outranks a passing mention in someone else's sources" do
+      assert {:ok, [first | _], _} = Publication.Index.search("Three Marias")
+
+      assert first.title == "The Three Marias"
     end
   end
 
