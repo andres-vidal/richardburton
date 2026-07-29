@@ -8,6 +8,8 @@ import {
   indexTable,
   expectPublicationCount,
   CORPUS_SIZE,
+  PAGED_CSV,
+  PAGED_SIZE,
 } from "./helpers";
 
 // Browse / search / columns against a seeded corpus, all through the UI.
@@ -259,4 +261,40 @@ test("a row answered by its sources says so", async ({ page }) => {
 
   await expect(row.locator("mark")).toHaveText("Afterword");
   await expect(row).toContainText("Pontiero");
+});
+
+test("the database is read a page at a time, and a page is a place", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/publications/new");
+  await page.locator("#upload-csv").setInputFiles({
+    name: "paged.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(PAGED_CSV),
+  });
+  await submitWorkspace(page, PAGED_SIZE);
+
+  await page.goto("/");
+  const rows = indexTable(page).getByRole("row");
+
+  // A page holds what the server says it holds, not the whole database.
+  await expect(page.getByText("Page 1 of 2")).toBeVisible();
+  await expect(rows.filter({ hasText: "Paged Work 00" })).toHaveCount(1);
+  await expect(rows.filter({ hasText: "Paged Work 24" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+
+  await expect(page).toHaveURL(/[?&]page=2/);
+  await expect(page.getByText("Page 2 of 2")).toBeVisible();
+  await expect(rows.filter({ hasText: "Paged Work 24" })).toHaveCount(1);
+  await expect(rows.filter({ hasText: "Paged Work 00" })).toHaveCount(0);
+
+  // A page is a place: reloading its address shows the same page.
+  await page.reload();
+  await expect(page.getByText("Page 2 of 2")).toBeVisible();
+  await expect(rows.filter({ hasText: "Paged Work 24" })).toHaveCount(1);
+
+  // The whole database is still counted, however much of it is on the page.
+  await expectPublicationCount(page, PAGED_SIZE);
 });

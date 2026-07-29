@@ -250,6 +250,19 @@ export const CORPUS_CSV = CORPUS_ROWS.join("\n") + "\n";
 export const CORPUS_SIZE = CORPUS_ROWS.length; // 7
 export const CORPUS_UNREFERENCED = 4; // rows with an empty references column
 
+/** A page holds 20 under `:e2e` (see config/e2e.exs), so this is two of them
+ * and a bit: enough to have a first page, a last one, and a boundary between. */
+export const PAGED_SIZE = 25;
+
+/** A corpus that outgrows a page. Each row is its own work, so no two collide
+ * on the composite key, and the titles sort predictably for the assertions. */
+export const PAGED_CSV =
+  Array.from(
+    { length: PAGED_SIZE },
+    (_, i) =>
+      `Paged Author ${i};19${10 + i};US;Original ${String(i).padStart(2, "0")};Paged Work ${String(i).padStart(2, "0")};Paged Translator ${i};Paged Press;`,
+  ).join("\n") + "\n";
+
 /** Seed the corpus by bulk-importing it through the admin CSV upload + submit. */
 export async function seedCorpus(page: Page) {
   await signInAsAdmin(page);

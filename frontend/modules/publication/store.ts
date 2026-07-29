@@ -35,6 +35,13 @@ function createId(): PublicationId {
 // --- Base atoms -------------------------------------------------------------
 
 const totalIndexCountAtom = atom<number | null>(null);
+
+/** How many publications answered the current query, across every page. */
+const matchingCountAtom = atom<number>(0);
+
+/** How many a page holds, as the server counts them. */
+const perPageAtom = atom<number>(0);
+
 const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
@@ -250,6 +257,10 @@ type PublicationIndex = {
   keywords: string[];
   /** How many exist in total, not how many matched. `null` when unreported. */
   total: number | null;
+  /** How many answered this query, across every page of it. */
+  matching: number;
+  /** How many a page holds, as the server counts them. */
+  perPage: number;
 };
 
 /** Drop every atom these publications own — their values and their cached cells. */
@@ -316,10 +327,12 @@ function remember(store: Store, publication: Publication): void {
  */
 function receiveIndex(
   store: Store,
-  { entries, keywords, total }: PublicationIndex,
+  { entries, keywords, total, matching, perPage }: PublicationIndex,
 ): PublicationId[] {
   if (total !== null) store.set(totalIndexCountAtom, total);
   store.set(keywordsAtom, keywords);
+  store.set(matchingCountAtom, matching);
+  store.set(perPageAtom, perPage);
 
   return hydrate(store, entries);
 }
@@ -559,6 +572,8 @@ export {
   storedFieldValueFamily,
   storedReferencesFamily,
   totalCountAtom,
+  matchingCountAtom,
+  perPageAtom,
   totalIndexCountAtom,
   unreferencedCountAtom,
   validCountAtom,

@@ -13,7 +13,12 @@ defmodule RichardBurtonWeb.PublicationController do
       Publication.Index.count_header(),
       Integer.to_string(Publication.Index.count())
     )
-    |> json(%{entries: results, keywords: keywords, matching: matching})
+    |> json(%{
+      entries: results,
+      keywords: keywords,
+      matching: matching,
+      per_page: Publication.Index.per_page()
+    })
   end
 
   def index(conn, %{"unreferenced" => _}) do
@@ -35,7 +40,7 @@ defmodule RichardBurtonWeb.PublicationController do
       Publication.Index.count_header(),
       Integer.to_string(Publication.Index.count())
     )
-    |> json(%{entries: results, matching: matching})
+    |> json(%{entries: results, matching: matching, per_page: Publication.Index.per_page()})
   end
 
   # A page nobody asked for is the first one, and so is one that is not a number.

@@ -23,6 +23,8 @@ import {
   storedFieldValueFamily,
   storedReferencesFamily,
   totalCountAtom,
+  matchingCountAtom,
+  perPageAtom,
   totalIndexCountAtom,
   unreferencedCountAtom,
   validCountAtom,
@@ -140,6 +142,16 @@ function usePublicationIndexCount() {
   return useAtomValue(totalIndexCountAtom);
 }
 
+/** How many publications answered the current query, across every page. */
+function useMatchingCount() {
+  return useAtomValue(matchingCountAtom);
+}
+
+/** How many a page holds, as the server counts them. */
+function usePerPage() {
+  return useAtomValue(perPageAtom);
+}
+
 function useIsValidating() {
   return useAtomValue(isValidatingAtom);
 }
@@ -183,6 +195,8 @@ export {
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
+  useMatchingCount,
+  usePerPage,
   usePublicationIndexCount,
   usePublicationOverride,
   usePublicationReferences,

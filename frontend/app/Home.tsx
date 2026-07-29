@@ -9,6 +9,7 @@ import { LearnMoreModal } from "components/LearnMoreModal";
 import PublicationDownload from "components/PublicationDownload";
 import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
+import PublicationPages from "components/PublicationPages";
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import type { PublicationIndex } from "app/publications/read";
@@ -90,29 +91,35 @@ function Database({ index }: Props) {
         </div>
       }
       footer={
-        <div className="flex flex-col justify-center gap-2 sm:justify-start sm:flex-row sm:items-start">
-          {isAuthenticated ? (
-            <div className="flex gap-2">
-              <PublicationDownload />
-              <Link href="/admin">
-                <Button
-                  label="Admin"
-                  variant="outline"
-                  Icon={DashboardIcon}
-                  alignment="left"
-                  width="fixed"
-                />
-              </Link>
-            </div>
-          ) : (
-            <div className="hidden sm:block">
-              <SignInButton />
-            </div>
-          )}
+        <>
+          {/* Above the rest of the footer, and inside it: the page controls sit
+              at the foot of the results, where the footer would otherwise
+              cover them. */}
+          <PublicationPages />
+          <div className="flex flex-col justify-center gap-2 sm:justify-start sm:flex-row sm:items-start">
+            {isAuthenticated ? (
+              <div className="flex gap-2">
+                <PublicationDownload />
+                <Link href="/admin">
+                  <Button
+                    label="Admin"
+                    variant="outline"
+                    Icon={DashboardIcon}
+                    alignment="left"
+                    width="fixed"
+                  />
+                </Link>
+              </div>
+            ) : (
+              <div className="hidden sm:block">
+                <SignInButton />
+              </div>
+            )}
 
-          <ContactModal />
-          <LearnMoreModal />
-        </div>
+            <ContactModal />
+            <LearnMoreModal />
+          </div>
+        </>
       }
     />
   );
