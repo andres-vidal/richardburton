@@ -219,4 +219,62 @@ defmodule RichardBurton.OriginalBookTest do
       assert is_nil(linked_fingerprint(changeset))
     end
   end
+
+  describe "search/1" do
+    setup [:search_fixture]
+
+    test "finds a book by the start of its title" do
+      assert ["Dom Casmurro"] = titles(OriginalBook.search("Dom Cas"))
+    end
+
+    test "finds a book by the start of an author's name" do
+      # The book is entered as a unit, so knowing either half is enough to
+      # find it.
+      assert ["Dom Casmurro", "Manuel de Moraes", "Memórias Póstumas"] =
+               titles(OriginalBook.search("Machado"))
+    end
+
+    test "answers each book once, however many of its authors match" do
+      assert ["Manuel de Moraes"] = titles(OriginalBook.search("J. M."))
+    end
+
+    test "falls back to similar spellings when nothing starts that way" do
+      assert [] == OriginalBook.search("Machada", :prefix)
+
+      assert ["Dom Casmurro", "Manuel de Moraes", "Memórias Póstumas"] =
+               titles(OriginalBook.search("Machada"))
+    end
+
+    test "carries the authors of every book it finds" do
+      assert [book] = OriginalBook.search("Dom Cas")
+      assert Author.flatten(book.authors) == "Machado de Assis"
+    end
+
+    defp titles(books), do: Enum.map(books, & &1.title)
+
+    defp search_fixture(_context) do
+      OriginalBook.maybe_insert!(%{
+        "title" => "Dom Casmurro",
+        "authors" => [%{"name" => "Machado de Assis"}]
+      })
+
+      OriginalBook.maybe_insert!(%{
+        "title" => "Memórias Póstumas",
+        "authors" => [%{"name" => "Machado de Assis"}]
+      })
+
+      # Two of its authors answer to "J. M.", so a search for that would find
+      # this book twice if the rows were not deduplicated.
+      OriginalBook.maybe_insert!(%{
+        "title" => "Manuel de Moraes",
+        "authors" => [
+          %{"name" => "Machado de Assis"},
+          %{"name" => "J. M. Pereira da Silva"},
+          %{"name" => "J. M. Velho da Silva"}
+        ]
+      })
+
+      :ok
+    end
+  end
 end
