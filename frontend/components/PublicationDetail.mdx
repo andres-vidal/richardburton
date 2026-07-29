@@ -16,9 +16,9 @@ this decides where the publication came from — a page that read it on the
 server, or an overlay opened over the index — and the view itself does not
 fetch.
 
-An admin also gets the publication's mutation log and the controls to correct or
-remove it. Who may do what is settled here rather than by each caller, so the
-same publication offers the same affordances wherever it is read.
+An admin also gets the publication's mutation log and the controls to correct,
+merge or remove it. Who may do what is settled here rather than by each caller,
+so the same publication offers the same affordances wherever it is read.
 
 <Canvas of={PublicationDetailStories.Default} />
 
@@ -35,9 +35,12 @@ same publication offers the same affordances wherever it is read.
 
 - **Default** — a fully sourced record, read by anyone.
 - **Without references** — the section states the absence rather than hiding.
-- **As admin** — the history section and the edit/delete controls.
+- **As admin** — the history section and the edit/merge/delete controls.
 - **Editing** — the form the Edit control opens, in place.
 - **Delete confirmation** — the guard in front of the destructive action.
+- **Merging** — the
+  [merge dialog](?path=/docs/publications-publication-merge--docs), opened over
+  the record that survives it.
 - **Notifies on navigate** — following a link tells the caller.
 
 <Canvas of={PublicationDetailStories.WithoutReferences} />
