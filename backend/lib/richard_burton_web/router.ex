@@ -56,6 +56,7 @@ defmodule RichardBurtonWeb.Router do
 
     get("/authors", AuthorController, :index)
     get("/publishers", PublisherController, :index)
+    get("/original-books", OriginalBookController, :index)
 
     scope "/publications" do
       post("/bulk", PublicationController, :create_all)

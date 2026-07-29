@@ -8,8 +8,11 @@ import * as DataInputStories from "./DataInput.stories";
 
 The editable table cell used across the publication workspace. It is a
 **dispatcher**: given a cell's `rowId` and `colId`, it looks up the column's
-attribute type (`text`, `number`, `array`, `enum`, or `enumArray`) and renders
-the matching concrete editor — one of the `Text*DataInput` variants below.
+attribute type (`text`, `number`, `array`, `enum`, `enumArray`, or `book`) and
+renders the matching concrete editor — one of the `Text*DataInput` variants
+below, or the
+[original book field](?path=/docs/publications-original-book-data-input--docs),
+which is the only `book` column and fills its neighbour as well as itself.
 
 ## Data flow
 
