@@ -162,6 +162,32 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_status(status) |> json(body)
   end
 
+  # Collapse publications into this one. The losers are named in the body, so
+  # the address stays the surviving record's own.
+  def merge(conn, %{"id" => id, "losers" => losers = [_ | _]}) do
+    case Publication.merge(id, losers, actor(conn)) do
+      {:ok, publication} ->
+        json(conn, Publication.Codec.flatten(publication))
+
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: :not_found})
+
+      {:error, :self} ->
+        conn |> put_status(:bad_request) |> json(%{error: :self})
+
+      # The merged record would be a publication that already exists.
+      {:error, :conflict} ->
+        conn |> put_status(:conflict) |> json(%{error: :conflict})
+
+      {:error, errors} ->
+        conn |> put_status(:bad_request) |> json(%{errors: errors})
+    end
+  end
+
+  def merge(conn, _params) do
+    conn |> put_status(:bad_request) |> json(%{error: :losers_required})
+  end
+
   def delete(conn, %{"id" => id}) do
     case Publication.delete(id, actor(conn)) do
       {:ok, _publication} ->

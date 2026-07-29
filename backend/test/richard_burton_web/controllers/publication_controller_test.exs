@@ -462,6 +462,82 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
   end
 
+  describe "POST /publications/:id/merge" do
+    setup do
+      winner = insert_publication(@publication_attrs)
+
+      loser =
+        insert_publication(%{
+          @publication_attrs
+          | "countries" => "US",
+            "publishers" => "Noonday Press"
+        })
+
+      [winner: winner, loser: loser]
+    end
+
+    test "collapses the losers into the addressed publication", meta do
+      expect_auth_authorize_admin()
+
+      result =
+        meta.conn
+        |> post(publication_path(meta.conn, :merge, meta.winner.id), %{
+          "losers" => [meta.loser.id]
+        })
+        |> json_response(200)
+
+      assert result["id"] == meta.winner.id
+      assert result["countries"] == "GB, US"
+      assert result["publishers"] == "Bickers & Son, Noonday Press"
+
+      # Only the survivor is left in the index.
+      conn = get(build_conn(), publication_path(meta.conn, :index))
+      assert %{"entries" => [entry]} = json_response(conn, 200)
+      assert entry["id"] == meta.winner.id
+    end
+
+    test "records the merge in both publications' histories", meta do
+      expect_auth_authorize_admin(2)
+
+      meta.conn
+      |> post(publication_path(meta.conn, :merge, meta.winner.id), %{"losers" => [meta.loser.id]})
+      |> json_response(200)
+
+      conn = get(meta.conn, publication_path(meta.conn, :history, meta.loser.id))
+      assert %{"entries" => [entry | _]} = json_response(conn, 200)
+      assert entry["action"] == "merged"
+      assert entry["actor"] == session_user_email()
+      refute entry["undoable"]
+    end
+
+    test "merging a publication into itself is a bad request", meta do
+      expect_auth_authorize_admin()
+
+      conn =
+        post(meta.conn, publication_path(meta.conn, :merge, meta.winner.id), %{
+          "losers" => [meta.winner.id]
+        })
+
+      assert json_response(conn, 400) == %{"error" => "self"}
+    end
+
+    test "merging an unknown publication is not found", meta do
+      expect_auth_authorize_admin()
+
+      conn =
+        post(meta.conn, publication_path(meta.conn, :merge, -1), %{"losers" => [meta.loser.id]})
+
+      assert json_response(conn, 404) == %{"error" => "not_found"}
+    end
+
+    test "naming no losers is a bad request", meta do
+      expect_auth_authorize_admin()
+
+      conn = post(meta.conn, publication_path(meta.conn, :merge, meta.winner.id), %{})
+      assert json_response(conn, 400) == %{"error" => "losers_required"}
+    end
+  end
+
   describe "POST /publications/bulk" do
     test "returns 201 and the created publications when all the publications are valid", meta do
       expect_auth_authorize_admin()
