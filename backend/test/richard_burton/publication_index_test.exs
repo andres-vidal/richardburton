@@ -159,6 +159,17 @@ defmodule RichardBurton.Publication.IndexTest do
       year: 1967
     },
     %FlatPublication{
+      authors: "Johnny Lorenz",
+      countries: "CA",
+      countries_fingerprint: "4B650E5C4785025DEE7BD65E3C5C527356717D7A1C0BFEF5B4ADA8CA1E9CBE17",
+      original_authors: "Clarice Lispector",
+      original_title: "Um sopro de vida: pulsações",
+      publishers: "New Directions",
+      publishers_fingerprint: "A092A747DE2B957ADC822F5FEE63B2078F4CEE237438789BBF9A6D10F9F104E2",
+      title: "A Breath of Life (Pulsations)",
+      year: 2012
+    },
+    %FlatPublication{
       authors: "Margaret Richardson Hollingsworth",
       countries: "US",
       countries_fingerprint: "9B202ECBC6D45C6D8901D989A918878397A3EB9D00E8F48022FC051B19D21A1D",
@@ -549,6 +560,14 @@ defmodule RichardBurton.Publication.IndexTest do
 
       refute Enum.empty?(publications)
       assert Enum.all?(publications, &String.contains?(&1.countries, "GB"))
+    end
+
+    # "UM" is the United States Minor Outlying Islands, and also the first word
+    # of half the Portuguese titles here.
+    test "a word that merely starts a country's name asks for no code" do
+      assert {:ok, publications, _} = Publication.Index.search("United")
+
+      refute Enum.any?(publications, &String.contains?(&1.original_title, "Um "))
     end
 
     test "the code still works" do

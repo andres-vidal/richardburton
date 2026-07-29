@@ -37,21 +37,29 @@ defmodule RichardBurton.Country do
   end
 
   @doc """
-  The codes a word could be naming, so a country can be searched for by the name
-  a reader sees rather than the code the record stores.
+  The codes a term names, so a country can be searched for by the name a reader
+  sees rather than the code the record stores.
 
-  A partial word counts: "braz" names Brazil while it is still being typed.
+  The whole name, exactly: a code is two letters, and two letters are a word in
+  their own right in the languages this database holds. "UM" is the United
+  States Minor Outlying Islands and also "um" in half the Portuguese titles
+  here, so a code is only ever asked for when a country was actually named.
   """
-  def codes_named(word) when is_binary(word) do
-    folded = word |> String.downcase() |> String.trim()
+  def codes_named(term) when is_binary(term) do
+    named = term |> String.trim() |> String.downcase()
 
-    if String.length(folded) < 2 do
-      []
-    else
-      Countries.all()
-      |> Enum.filter(&String.starts_with?(String.downcase(&1.name), folded))
-      |> Enum.map(& &1.alpha2)
-    end
+    Countries.all()
+    |> Enum.filter(&(named in names_of(&1)))
+    |> Enum.map(& &1.alpha2)
+  end
+
+  # The official name and the ones people actually write: "United Kingdom" for
+  # a country officially of Great Britain and Northern Ireland, "Brasil" for
+  # the one this database is mostly about.
+  defp names_of(country) do
+    [country.name | Map.get(country, :unofficial_names) || []]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.downcase/1)
   end
 
   def validate_code(changeset) do
