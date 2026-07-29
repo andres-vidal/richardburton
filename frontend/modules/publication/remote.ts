@@ -289,6 +289,32 @@ async function merge(
 }
 
 /**
+ * Record that these publications are not the same record twice (admin), so the
+ * duplicate review stops offering them. Returns whether it succeeded.
+ */
+async function distinguish(ids: PublicationId[]): Promise<boolean> {
+  try {
+    await request((http) =>
+      http.post("publications/duplicates/distinguish", { publications: ids }),
+    );
+
+    notify({
+      message: "Kept apart",
+      detail: "These will not be offered as duplicates again.",
+      level: "success",
+    });
+    return true;
+  } catch {
+    notify({
+      message: "Could not keep them apart",
+      detail: "Nothing changed. Check your connection and try again.",
+      level: "warning",
+    });
+    return false;
+  }
+}
+
+/**
  * Live-validate a single publication's pending edits, excluding it from the
  * conflict check so an in-place edit doesn't collide with itself.
  */
@@ -369,6 +395,7 @@ async function upload(store: Store, payload: FormData): Promise<void> {
 export {
   bulk,
   deletePublication,
+  distinguish,
   loadDetails,
   merge,
   restore,
