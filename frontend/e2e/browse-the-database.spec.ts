@@ -245,3 +245,18 @@ test("a search link in an open publication takes the reader to that search", asy
   await expect(rows.filter({ hasText: "Dom Casmurro" }).first()).toBeVisible();
   await expect(rows.filter({ hasText: "The Hour of the Star" })).toHaveCount(0);
 });
+
+test("a row answered by its sources says so", async ({ page }) => {
+  await seedCorpus(page);
+  // "Afterword" is in one publication's references and nowhere else in the
+  // corpus, so the row it returns has nothing on it explaining why.
+  await page.goto("/?search=Afterword");
+
+  const row = indexTable(page)
+    .getByRole("row")
+    .filter({ hasText: "The Hour of the Star" })
+    .first();
+
+  await expect(row.locator("mark")).toHaveText("Afterword");
+  await expect(row).toContainText("Pontiero");
+});

@@ -2,6 +2,7 @@
 
 import {
   useHiddenAttributes,
+  usePublicationSourceMatch,
   usePublicationStoredField,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
@@ -95,6 +96,30 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
   );
 };
 
+/**
+ * Why a row is here when the answer is nowhere on it: a search can be answered
+ * by a publication's sources, which the index does not show. The words that
+ * answered arrive wrapped in `[[ ]]`, so the snippet reads as a sentence with
+ * them picked out rather than as markup.
+ */
+const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
+  const snippet = usePublicationSourceMatch(rowId);
+
+  return snippet ? (
+    <span className="block text-xs text-gray-500 truncate">
+      {snippet.split(/\[\[|\]\]/).map((part, index) =>
+        index % 2 === 0 ? (
+          part
+        ) : (
+          <mark key={index} className="text-gray-700 bg-amber-100">
+            {part}
+          </mark>
+        ),
+      )}
+    </span>
+  ) : null;
+};
+
 const Content: FC<{
   rowId: RowId;
   colId: ColId;
@@ -106,6 +131,7 @@ const Content: FC<{
   return (
     <div className="px-2 py-1 truncate">
       {Publication.describeValue(value, colId)}
+      {colId === "title" && <SourceMatch rowId={rowId} />}
     </div>
   );
 };

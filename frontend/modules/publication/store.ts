@@ -126,6 +126,12 @@ const publicationReferencesFamily = atomFamily((id: PublicationId) =>
   atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
 );
 
+/** The snippet of a publication's sources that answered the current search,
+ * present only when the sources are what answered it. */
+const publicationSourceMatchFamily = atomFamily((id: PublicationId) =>
+  atom<string | undefined>((get) => get(publicationFamily(id))?.sourceMatch),
+);
+
 /** A publication's *persisted* provenance list — ignores in-progress drafts,
  * the same stored-vs-visible distinction as `storedFieldValueFamily`. */
 const storedReferencesFamily = atomFamily((id: PublicationId) =>
@@ -537,6 +543,7 @@ export {
   publicationIdsAtom,
   publicationOrNullFamily,
   publicationReferencesFamily,
+  publicationSourceMatchFamily,
   receiveIndex,
   remember,
   removePublication,
