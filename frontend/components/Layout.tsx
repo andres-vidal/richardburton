@@ -79,8 +79,6 @@ const Layout: FC<Props> = ({
               <Anchor query={`${LEARN_MORE_MODAL_KEY}=true`}>Learn More</Anchor>
               <Dot className="size-1" />
               <Anchor query={`${CONTACT_MODAL_KEY}=true`}>Contact Us</Anchor>
-              {/* Leaving is possible from wherever you are, not only from the
-                  page that happens to carry a footer. */}
               {isAuthenticated && (
                 <>
                   <Dot className="size-1" />

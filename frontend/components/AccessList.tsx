@@ -15,10 +15,11 @@ import ConfirmationModal from "./ConfirmationModal";
 import { useModal } from "./Modal";
 import RoleMenu from "./RoleMenu";
 
-const Entry: FC<{ user: UserRecord; isSelf: boolean }> = ({ user, isSelf }) => {
+const Entry: FC<{ user: UserRecord }> = ({ user }) => {
   const router = useRouter();
   const confirmation = useModal();
   const [working, setWorking] = useState(false);
+  const isSelf = user.email === useSession()?.email;
 
   async function change(role: UserRole) {
     setWorking(true);
@@ -85,20 +86,12 @@ const Entry: FC<{ user: UserRecord; isSelf: boolean }> = ({ user, isSelf }) => {
  * between a considered decision and a slip that locks you out. The server
  * refuses it too; this only saves the round trip.
  */
-const AccessList: FC<{ users: UserRecord[] }> = ({ users }) => {
-  const session = useSession();
-
-  return (
-    <ul className="flex flex-col gap-2">
-      {users.map((user) => (
-        <Entry
-          key={user.email}
-          user={user}
-          isSelf={user.email === session?.email}
-        />
-      ))}
-    </ul>
-  );
-};
+const AccessList: FC<{ users: UserRecord[] }> = ({ users }) => (
+  <ul className="flex flex-col gap-2">
+    {users.map((user) => (
+      <Entry key={user.email} user={user} />
+    ))}
+  </ul>
+);
 
 export default AccessList;

@@ -53,13 +53,7 @@ const InviteForm: FC = () => {
 
       <div className="flex flex-col gap-1 text-sm">
         <span className="text-gray-500">Role</span>
-        <RoleMenu
-          // Named apart from the per-person menus below, which are also
-          // "role": on a page full of them, "Role" alone says nothing.
-          label="Role to invite as"
-          value={role}
-          onChange={setRole}
-        />
+        <RoleMenu label="Role to invite as" value={role} onChange={setRole} />
       </div>
 
       <Button
