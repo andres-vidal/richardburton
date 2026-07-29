@@ -14,7 +14,7 @@ type UserRecord = User & {
 
 /**
  * The roles, least privileged first. A role admits everything the ones before
- * it admit: a contributor keeps the catalogue, an admin also decides who may.
+ * it admit: a contributor adds and corrects publications, an admin also decides who may.
  */
 const ROLES: UserRole[] = ["reader", "contributor", "admin"];
 
@@ -33,7 +33,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 
 /** What a role admits, said to whoever is handing it out. */
 const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
-  reader: "Can browse the catalogue, like anyone else.",
+  reader: "Can browse the database, like anyone else.",
   contributor: "Can add and correct publications.",
   admin: "Can do that, and decide who else may.",
 };
@@ -52,9 +52,9 @@ interface UserModule {
   /** Whether a session — possibly none at all — holds `required`, or outranks it. */
   holds(session: User | null | undefined, required: UserRole): boolean;
   /** Whether a session — possibly none at all — may decide who has access. */
-  administers(session: User | null | undefined): boolean;
-  /** Whether a session — possibly none at all — may keep the catalogue. */
-  curates(session: User | null | undefined): boolean;
+  canManageAccess(session: User | null | undefined): boolean;
+  /** Whether a session — possibly none at all — may add and correct publications. */
+  canEditPublications(session: User | null | undefined): boolean;
 }
 
 // Pure, server-safe user helpers — usable from route handlers / Server
@@ -67,11 +67,11 @@ const User: UserModule = {
     );
   },
 
-  administers(session) {
+  canManageAccess(session) {
     return User.holds(session, "admin");
   },
 
-  curates(session) {
+  canEditPublications(session) {
     return User.holds(session, "contributor");
   },
 };

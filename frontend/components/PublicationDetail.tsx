@@ -28,7 +28,7 @@ import {
   PublicationStoreProvider,
   usePublicationStore,
 } from "modules/publication/workspace";
-import { useCurates } from "modules/session";
+import { useCanEditPublications } from "modules/session";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FC, SubmitEvent, useEffect, useState } from "react";
@@ -124,7 +124,7 @@ const PublicationDescription: FC<{
  * Where the record says it comes from.
  *
  * A record with no sources says so rather than leaving the section out: for a
- * catalogue whose worth is its provenance, an absent source is worth stating.
+ * database whose worth is its provenance, an absent source is worth stating.
  * The history section states its absence the same way.
  */
 const PublicationReferences: FC<{ references: string[] }> = ({
@@ -279,7 +279,7 @@ type PublicationDetailProps = {
   /**
    * Run once the record is gone. Defaults to leaving for the index, which is
    * what a page showing only this publication has to do; an overlay closes
-   * instead and leaves the catalogue behind it in place.
+   * instead and leaves the database behind it in place.
    */
   onDeleted?: () => void;
 };
@@ -298,7 +298,7 @@ const Detail: FC<PublicationDetailProps> = ({
 }) => {
   const id = publication.id!;
   const store = usePublicationStore();
-  const curates = useCurates();
+  const canEdit = useCanEditPublications();
   const router = useRouter();
 
   const [editing, setEditing] = useState(false);
@@ -334,7 +334,7 @@ const Detail: FC<PublicationDetailProps> = ({
     deleteConfirmation.close();
 
     if (removed) {
-      // Whatever was showing this record — the catalogue underneath an overlay,
+      // Whatever was showing this record — the database underneath an overlay,
       // or this page — was drawn before it left. Ask for it again, then leave.
       router.refresh();
       (onDeleted ?? (() => router.replace("/")))();
@@ -357,7 +357,7 @@ const Detail: FC<PublicationDetailProps> = ({
           />
           <PublicationReferences references={publication.references} />
           {history && <PublicationHistorySection entries={history} />}
-          {curates && (
+          {canEdit && (
             <div className="flex gap-3">
               <Button
                 label="Edit"
@@ -380,7 +380,7 @@ const Detail: FC<PublicationDetailProps> = ({
       <ConfirmationModal
         isOpen={deleteConfirmation.isOpen}
         title="Delete this publication?"
-        message={`“${publication.title}” (${publication.year}) will be removed from the catalogue, its index, and search results.`}
+        message={`“${publication.title}” (${publication.year}) will be removed from the database, its index, and search results.`}
         confirmLabel="Delete"
         loading={deleting}
         onConfirm={handleDelete}

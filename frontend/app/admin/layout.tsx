@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ReactNode } from "react";
 import { getSession } from "../session";
 
-// Server-side guard for every /admin route: whoever cannot keep the catalogue
+// Server-side guard for every /admin route: whoever cannot edit publications
 // is bounced back to the public index before any admin UI renders. Deciding who
 // has access is narrower still, and gated again under /admin/users. The backend
 // independently rejects unauthorized mutations — this keeps the pages
@@ -14,7 +14,7 @@ export default async function AdminLayout({
   children: ReactNode;
 }) {
   const session = await getSession();
-  if (!User.curates(session)) redirect("/");
+  if (!User.canEditPublications(session)) redirect("/");
 
   return children;
 }

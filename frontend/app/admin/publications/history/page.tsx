@@ -25,7 +25,7 @@ export default async function PublicationHistoryPage() {
           <Breadcrumb items={BREADCRUMB_ITEMS} />
           <PageHeader
             title="History"
-            description="Every change to the catalogue — who did what, and when. Any change still reconcilable with the current state can be undone."
+            description="Every change to the database — who did what, and when. Any change still reconcilable with the current state can be undone."
           />
         </>
       }

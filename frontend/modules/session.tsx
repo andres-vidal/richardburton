@@ -44,16 +44,11 @@ export async function signOut() {
   window.location.replace("/");
 }
 
-/** Whether the reader may decide who has access. */
-export function useIsAdmin(): boolean {
-  return User.administers(useSession());
-}
-
 /**
- * Whether the reader may keep the catalogue — a contributor, or an admin, who
- * is also one. What the editing affordances hang on: administering is a
- * separate question, and a narrower one.
+ * Whether the reader may add and correct publications — a contributor, or an
+ * admin, who is also one. What the editing affordances hang on; deciding who
+ * has access is a separate, narrower question.
  */
-export function useCurates(): boolean {
-  return User.curates(useSession());
+export function useCanEditPublications(): boolean {
+  return User.canEditPublications(useSession());
 }

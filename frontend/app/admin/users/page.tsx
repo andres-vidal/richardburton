@@ -20,7 +20,7 @@ const BREADCRUMB_ITEMS = [
 // The admin layout admits any contributor, since the rest of it is theirs.
 // Deciding who has access is not, so this page asks the narrower question again.
 export default async function AccessPage() {
-  if (!User.administers(await getSession())) redirect("/admin");
+  if (!User.canManageAccess(await getSession())) redirect("/admin");
 
   const [users, invitations] = await Promise.all([
     readUsers(),
@@ -34,7 +34,7 @@ export default async function AccessPage() {
           <Breadcrumb items={BREADCRUMB_ITEMS} />
           <PageHeader
             title="Access"
-            description="Who can work on the catalogue, and what they may do."
+            description="Who can work on the database, and what they may do."
           />
         </>
       }

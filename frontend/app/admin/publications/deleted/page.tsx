@@ -24,7 +24,7 @@ export default async function DeletedPublicationsPage() {
           <Breadcrumb items={BREADCRUMB_ITEMS} />
           <PageHeader
             title="Deleted publications"
-            description="Records removed from the catalogue. Restoring brings one back exactly as it was."
+            description="Records removed from the database. Restoring brings one back exactly as it was."
           />
         </>
       }
