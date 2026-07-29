@@ -153,12 +153,11 @@ defmodule RichardBurton.Publication.Index do
   end
 
   # Each word stands for what it starts, so a word still being typed matches
-  # what it will be, and a finished one matches itself. A word that names a
-  # country stands for its code too, which is what the record holds.
+  # what it will be, and a finished one matches itself.
   defp as_written(words, attributes) do
     query =
       words
-      |> Enum.map_join(" & ", &"(#{alternatives(&1)})")
+      |> Enum.map_join(" & ", &"(#{lexeme(&1)}:*)")
       |> or_the_country_named(Enum.join(words, " "))
 
     case Repo.all(matching(query, attributes)) do
@@ -167,18 +166,17 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  defp alternatives(word) do
-    ["#{lexeme(word)}:*" | Enum.map(Country.codes_named(word), &lexeme/1)]
-    |> Enum.join(" | ")
-  end
-
-  # Most country names are one word, but the ones that are not would otherwise
-  # ask for words no record holds: nothing is published in a "kingdom". A term
-  # naming a country asks for its code as a whole, whatever it is made of.
+  # A term naming a country asks for its code, which is what the record holds.
+  # The term as a whole, because a name of several words would otherwise ask for
+  # words no record has: nothing is published in a "kingdom".
+  #
+  # The code is asked for where a country is written and nowhere else: two
+  # letters are a word of their own in the languages here, and "NO" would
+  # otherwise answer for every Portuguese title carrying "no".
   defp or_the_country_named(query, term) do
     case Country.codes_named(term) do
       [] -> query
-      codes -> "(#{query}) | (#{Enum.map_join(codes, " | ", &lexeme/1)})"
+      codes -> "(#{query}) | (#{Enum.map_join(codes, " | ", &"#{lexeme(&1)}:C")})"
     end
   end
 
