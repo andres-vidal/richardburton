@@ -97,10 +97,10 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
 };
 
 /**
- * Why a row is here when the answer is nowhere on it: a search can be answered
- * by a publication's sources, which the index does not show. The words that
- * answered arrive wrapped in `[[ ]]`, so the snippet reads as a sentence with
- * them picked out rather than as markup.
+ * A search can match a publication on its references, which the table does not
+ * show — so the row looks unexplained. This renders a snippet of the matching
+ * reference, with the matched words (arriving wrapped in `[[ ]]`) highlighted,
+ * so the reader can see why the row is here.
  */
 const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
   const snippet = usePublicationSourceMatch(rowId);
