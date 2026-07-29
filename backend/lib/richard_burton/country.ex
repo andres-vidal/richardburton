@@ -10,9 +10,21 @@ defmodule RichardBurton.Country do
   alias RichardBurton.Publication
   alias RichardBurton.Fingerprint
 
+  # Names people search a country by, beyond the ones the ISO data carries:
+  # abbreviations readers type that are not in the official or unofficial names.
+  @extra_names %{
+    "US" => ["USA", "EUA"],
+    "GB" => ["UK"]
+  }
+
   @derive {Jason.Encoder, only: [:code]}
   schema "countries" do
     field(:code, :string)
+
+    # The names this country is searchable by, folded into the search index. Not
+    # user input: derived from the code, so the reader can search "Reino Unido"
+    # or "USA" and reach the record that stores "GB" or "US".
+    field(:names, {:array, :string}, default: [])
 
     many_to_many(:publications, Publication, join_through: "publication_countries")
 
@@ -37,31 +49,37 @@ defmodule RichardBurton.Country do
   end
 
   @doc """
-  The country codes whose name is exactly this term, so a reader can search by
-  the name they see rather than the code the record stores.
-
-  The match is on the whole name, not a prefix or a word of it. A code is two
-  letters, and a two-letter word is common in the languages here: "UM" is the
-  code for the United States Minor Outlying Islands and also the Portuguese
-  "um" in countless titles. Requiring the exact, full name keeps a stray "um"
-  from pulling in that country.
+  Every name a country is searchable by: its official name, the unofficial and
+  translated names the ISO data carries (which is where "Reino Unido" and
+  "Estados Unidos" come from), and a curated supplement of abbreviations the
+  data lacks. Deduplicated, in no particular order — the search index folds them
+  in, it does not display them.
   """
-  def codes_named(term) when is_binary(term) do
-    named = term |> String.trim() |> String.downcase()
+  def names_for(code) do
+    iso =
+      if Countries.exists?(:alpha2, code) do
+        country = Countries.get(code)
+        [country.name | Map.get(country, :unofficial_names) || []]
+      else
+        []
+      end
 
-    Countries.all()
-    |> Enum.filter(&(named in names_of(&1)))
-    |> Enum.map(& &1.alpha2)
-  end
-
-  # A country's official name plus the names people actually write for it:
-  # "United Kingdom" for the country officially named after Great Britain and
-  # Northern Ireland, "Brasil" for the one this database is mostly about.
-  defp names_of(country) do
-    [country.name | Map.get(country, :unofficial_names) || []]
+    (iso ++ Map.get(@extra_names, code, []))
     |> Enum.filter(&is_binary/1)
-    |> Enum.map(&String.downcase/1)
+    |> Enum.uniq()
   end
+
+  # Derived index data, not editor input, so it is set where a country is
+  # persisted rather than in the changeset — a changeset also shapes the codec's
+  # nested form, which has no business carrying it.
+  defp put_names(changeset = %Ecto.Changeset{valid?: true}) do
+    case get_field(changeset, :code) do
+      nil -> changeset
+      code -> put_change(changeset, :names, names_for(code))
+    end
+  end
+
+  defp put_names(changeset), do: changeset
 
   def validate_code(changeset) do
     validate_change(changeset, :code, fn :code, code ->
@@ -116,6 +134,7 @@ defmodule RichardBurton.Country do
   def maybe_insert!(attrs) do
     %__MODULE__{}
     |> changeset(attrs)
+    |> put_names()
     |> Repo.maybe_insert!([:code])
   end
 
