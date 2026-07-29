@@ -638,4 +638,136 @@ defmodule RichardBurton.PublicationTest do
       assert {:error, :not_found} = Publication.restore(-1)
     end
   end
+
+  describe "merge/3" do
+    # Two records of the same work, each holding something the other lacks.
+    defp merge_pair do
+      winner =
+        insert_publication(
+          @valid_attrs
+          |> Map.put("countries", [%{"code" => "GB"}])
+          |> Map.put("references", [%{"content" => "A source", "position" => 0}])
+        )
+
+      loser =
+        insert_publication(
+          @valid_attrs
+          |> Map.put("title", "Manuel de Moraes: Another Printing")
+          |> Map.put("countries", [%{"code" => "US"}])
+          |> Map.put("publishers", [%{"name" => "Noonday Press"}])
+          |> Map.put("references", [%{"content" => "Another source", "position" => 0}])
+        )
+
+      {winner, loser}
+    end
+
+    test "the winner keeps what names it and gains what the loser held" do
+      {winner, loser} = merge_pair()
+
+      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
+
+      assert merged.id == winner.id
+      assert merged.title == winner.title
+
+      assert ["GB", "US"] == merged.countries |> Enum.map(& &1.code) |> Enum.sort()
+
+      assert ["Bickers & Son", "Noonday Press"] ==
+               merged.publishers |> Enum.map(& &1.name) |> Enum.sort()
+
+      assert ["A source", "Another source"] ==
+               merged.references |> Enum.map(& &1.content) |> Enum.sort()
+    end
+
+    test "a source both of them recorded is recorded once" do
+      winner =
+        insert_publication(
+          Map.put(@valid_attrs, "references", [%{"content" => "A source", "position" => 0}])
+        )
+
+      loser =
+        insert_publication(
+          @valid_attrs
+          |> Map.put("title", "Manuel de Moraes: Another Printing")
+          |> Map.put("references", [%{"content" => "A source", "position" => 0}])
+        )
+
+      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
+
+      assert ["A source"] == Enum.map(merged.references, & &1.content)
+    end
+
+    test "the losers leave the database, and the winner stays in it" do
+      {winner, loser} = merge_pair()
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      assert [%{id: live}] = Repo.all(FlatPublication)
+      assert live == winner.id
+      assert %Publication{deleted_at: %DateTime{}} = Repo.get(Publication, loser.id)
+    end
+
+    test "the log says a loser was merged, not deleted, and will not undo it" do
+      {winner, loser} = merge_pair()
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id], "someone@example.com")
+
+      assert [entry | _] = Publication.History.of(loser.id)
+      assert entry.action == "merged"
+      assert entry.actor == "someone@example.com"
+      refute entry.undoable
+
+      assert {:error, :conflict} = Publication.undo(loser.id, entry.version)
+    end
+
+    test "the winner's own change is recorded as an update" do
+      {winner, loser} = merge_pair()
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      assert [entry | _] = Publication.History.of(winner.id)
+      assert entry.action == "updated"
+    end
+
+    test "refuses to merge a publication into itself" do
+      {winner, _loser} = merge_pair()
+
+      assert {:error, :self} = Publication.merge(winner.id, [winner.id])
+    end
+
+    test "refuses when a publication is not here" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.delete(loser.id)
+
+      assert {:error, :not_found} = Publication.merge(winner.id, [loser.id])
+      assert {:error, :not_found} = Publication.merge(-1, [winner.id])
+    end
+
+    test "takes no merge that names nothing to merge in" do
+      {winner, _loser} = merge_pair()
+
+      assert_raise FunctionClauseError, fn -> Publication.merge(winner.id, []) end
+    end
+
+    test "surfaces a collision with a third publication rather than crashing" do
+      {winner, loser} = merge_pair()
+
+      # A third record already holds what the merged one would: the same title
+      # and year, and the countries and publishers the merge would union.
+      third =
+        insert_publication(
+          @valid_attrs
+          |> Map.put("countries", [%{"code" => "GB"}, %{"code" => "US"}])
+          |> Map.put("publishers", [
+            %{"name" => "Bickers & Son"},
+            %{"name" => "Noonday Press"}
+          ])
+        )
+
+      assert {:error, :conflict} = Publication.merge(winner.id, [loser.id])
+
+      # Nothing moved: the loser is still here and the third is untouched.
+      assert is_nil(Repo.get(Publication, loser.id).deleted_at)
+      assert %Publication{} = Repo.get(Publication, third.id)
+    end
+  end
 end

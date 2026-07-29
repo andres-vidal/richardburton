@@ -21,7 +21,7 @@ defmodule RichardBurton.Publication.History do
   alias RichardBurton.Publication.History
   alias RichardBurton.Repo
 
-  @actions ["created", "updated", "deleted", "restored"]
+  @actions ["created", "updated", "deleted", "restored", "merged"]
 
   # Mutations outside a request (seeds, mix tasks) are attributed to "system".
   @system_actor "system"
@@ -70,7 +70,7 @@ defmodule RichardBurton.Publication.History do
   turns any residual race into a loud error instead of silent corruption.
   """
   def record(action, publication = %Publication{}, actor)
-      when action in [:created, :updated, :deleted, :restored] do
+      when action in [:created, :updated, :deleted, :restored, :merged] do
     %History{}
     |> changeset(%{
       publication_id: publication.id,
@@ -159,10 +159,16 @@ defmodule RichardBurton.Publication.History do
       those fields and leaves later edits to others alone;
     - never an older delete (a later restore already negated it) nor an older
       import or restore (compensating those would discard the edits that
-      followed).
+      followed);
+    - never a merge, at any age: putting the record back would leave what it
+      brought with the publication it was merged into, and there would be two
+      of everything again. Undoing a merge means taking one apart, which is a
+      different thing from compensating a change.
   """
   def undoable?(entry, previous, head) do
     cond do
+      entry.action == "merged" -> false
+      head.action == "merged" -> false
       entry.version == head.version -> true
       entry.action != "updated" -> false
       head.action == "deleted" -> false

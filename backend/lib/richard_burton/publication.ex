@@ -225,6 +225,120 @@ defmodule RichardBurton.Publication do
     |> then(&update(id, &1, actor))
   end
 
+  @doc """
+  Collapse publications into one.
+
+  The winner keeps its identity and everything that names it — title, year, the
+  work it translates, who wrote and translated it. What the losers add is what
+  a record can hold more of: their countries and publishers join the winner's,
+  and their sources are appended to its own. A source already recorded is not
+  recorded twice; elsewhere a publication may list the same line twice, but a
+  merge saying it twice is the merge showing, not the record meaning it.
+
+  The losers are then soft-deleted and recorded as merged, which is not the
+  same as deleted and is not undoable: putting one back would leave what it
+  brought with the winner as well, and there would be two of everything again.
+
+  Answers `{:error, :conflict}` when the merged record would collide with a
+  third publication, `{:error, :not_found}` when any of them is not here, and
+  `{:error, :self}` when a publication is asked to merge into itself.
+  """
+  def merge(winner_id, loser_ids = [_ | _], actor \\ History.system_actor()) do
+    with {:ok, winner, losers} <- assemble(winner_id, loser_ids),
+         {:ok, merged} <- merge_and_record(winner, losers, actor) do
+      # One signal per operation, after commit (the new-write-path rule).
+      Index.Refresher.refresh()
+      {:ok, merged}
+    end
+  end
+
+  defp assemble(winner_id, loser_ids) do
+    loser_ids = loser_ids |> Enum.map(&to_string/1) |> Enum.uniq()
+
+    if to_string(winner_id) in loser_ids,
+      do: {:error, :self},
+      else: gathered([winner_id | loser_ids])
+  end
+
+  defp gathered(ids) do
+    publications = Enum.map(ids, &get(&1, deleted: false))
+
+    if Enum.any?(publications, &is_nil/1) do
+      {:error, :not_found}
+    else
+      [winner | losers] = Enum.map(publications, &preload/1)
+      {:ok, winner, losers}
+    end
+  end
+
+  defp merge_and_record(winner, losers, actor) do
+    attrs = reconciled(winner, losers)
+
+    Repo.transaction(fn ->
+      winner
+      |> changeset(attrs)
+      |> link_assocs()
+      |> Repo.update()
+      |> case do
+        {:ok, updated} -> absorbing(updated, losers, actor)
+        {:error, changeset} -> Repo.rollback(rejection(changeset))
+      end
+    end)
+  end
+
+  defp absorbing(winner, losers, actor) do
+    winner = preload(winner)
+    History.record(:updated, winner, actor)
+    Enum.each(losers, &absorb(&1, actor))
+    winner
+  end
+
+  # The merged record would be one that already exists: the composite key is
+  # reported against the title.
+  defp rejection(changeset = %{errors: errors}) do
+    if Keyword.has_key?(errors, :title),
+      do: :conflict,
+      else: Validation.get_errors(changeset)
+  end
+
+  # A loser leaves the database the way a deleted publication does — the row,
+  # its sources and its history all survive — but the log says why.
+  defp absorb(loser, actor) do
+    loser
+    |> change(deleted_at: DateTime.utc_now(:second))
+    |> Repo.update()
+    |> case do
+      {:ok, _} -> History.record(:merged, loser, actor)
+      {:error, changeset} -> Repo.rollback(Validation.get_errors(changeset))
+    end
+  end
+
+  # What the merged record holds: the winner's own fields, the countries and
+  # publishers of all of them, and every source none of the others already said.
+  defp reconciled(winner, losers) do
+    flat = Enum.map([winner | losers], &Codec.flatten/1)
+    [kept | _] = flat
+
+    kept
+    |> Map.from_struct()
+    |> Map.drop([:__meta__, :id])
+    |> Map.merge(%{
+      countries: joined(flat, :countries),
+      publishers: joined(flat, :publishers),
+      references: flat |> Enum.flat_map(& &1.references) |> Enum.uniq()
+    })
+    |> Codec.nest()
+  end
+
+  defp joined(flat, field) do
+    flat
+    |> Enum.flat_map(&String.split(Map.get(&1, field) || "", ",", trim: true))
+    |> Enum.map(&String.trim/1)
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.join(", ")
+  end
+
   @doc "Bring a soft-deleted publication back into the database."
   def restore(id, actor \\ History.system_actor()) do
     case get(id, deleted: true) do
