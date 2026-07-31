@@ -1,0 +1,37 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationScrollStories from "./PublicationScroll.stories";
+
+<Meta of={PublicationScrollStories} />
+
+# Publication scroll
+
+Grows the index as the reader nears the foot of it. The first page arrives with
+the page, server-rendered; each further page is fetched in the browser when a
+sentinel below the last row scrolls into view, and appended to what is already
+loaded.
+
+<Canvas of={PublicationScrollStories.LoadingMore} />
+
+## How it works
+
+- The store knows how many records matched the query (`matchingCountAtom`) and
+  how many a page holds (`perPageAtom`); when fewer are loaded than matched,
+  there is more to fetch and the sentinel renders.
+- A generous `rootMargin` on the observer starts the fetch before the foot is
+  actually reached, so the rows are usually there by the time the reader
+  arrives.
+- Only one page is fetched at a time — a scroll that lingers at the foot does
+  not ask for the same page twice.
+- A page is no longer a place: the address carries only the search, so returning
+  to a row means scrolling back to it rather than linking a page number.
+
+The fetch-and-append itself is covered by the E2E suite, against a real server;
+these stories show only the two visual states.
+
+## States
+
+Once every record is loaded there is nothing left to fetch, and the sentinel is
+gone entirely.
+
+<Canvas of={PublicationScrollStories.AllLoaded} />

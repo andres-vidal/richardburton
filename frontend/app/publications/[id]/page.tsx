@@ -47,14 +47,14 @@ export default async function PublicationPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ modal?: string; search?: string; page?: string }>;
+  searchParams: Promise<{ modal?: string; search?: string }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
 
   if (query.modal !== undefined) {
     const [view, index] = await Promise.all([
       read(id),
-      readIndex(query.search, Number(query.page) || 1),
+      readIndex(query.search),
     ]);
 
     return (

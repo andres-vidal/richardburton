@@ -12,13 +12,13 @@ import { readIndex } from "./publications/read";
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string }>;
+  searchParams: Promise<{ search?: string }>;
 }) {
-  const { search, page } = await searchParams;
+  const { search } = await searchParams;
 
   return (
     <Suspense>
-      <Home index={await readIndex(search, Number(page) || 1)} />
+      <Home index={await readIndex(search)} />
     </Suspense>
   );
 }
