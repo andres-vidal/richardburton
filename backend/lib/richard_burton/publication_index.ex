@@ -1,6 +1,14 @@
 defmodule RichardBurton.Publication.Index do
   @moduledoc """
-  Interface with the searchable publication index
+  Full-text search over the publication index.
+
+  A search runs in one of two modes. A plain term is split into words, each
+  word is matched on its own (as a prefix, or fuzzily if nothing matches as
+  typed), and the words are combined with AND so each one narrows the result.
+  A term that quotes a phrase or negates a word is instead passed to Postgres
+  verbatim, exactly as written. Either way the match runs against a `tsvector`
+  built with accents folded, so a term is folded the same way before it is
+  compared.
   """
 
   import Ecto.Query
@@ -81,13 +89,14 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  The indexed words a search term is asking about.
+  The indexed words a search term matches.
 
-  A term is matched a word at a time. Both matches this rests on compare a
-  single word: a prefix is one, and trigram similarity to a whole phrase falls
-  away as the phrase grows, so a title asked for in full would resolve to
-  nothing at all. A word that names no keyword contributes none rather than
-  emptying the search.
+  The term is split into words and each word is matched on its own, because
+  both kinds of match only work word by word: a prefix is the start of a single
+  word, and trigram similarity between a word and a whole phrase drops toward
+  zero as the phrase grows. Matching a full title as one string would find
+  nothing. A word that matches no indexed word is simply left out, so one
+  unmatched word does not make the whole search return empty.
   """
   def search_keywords(term) when is_binary(term) do
     term
@@ -108,20 +117,19 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  Every publication a term asks for, and the indexed words it resolved to.
+  The publications a term matches, and the indexed words it matched on.
 
-  Every word narrows: a publication has to answer all of them, so a title asked
-  for in full returns the publication it names rather than everything sharing a
-  word with it. A word is answered by any of the keywords it names, which is
-  what lets a half-typed one stand for what it starts.
-
-  Words are read as written first. Only when that finds nothing does the whole
-  term go fuzzy, where a word naming nothing is dropped rather than emptying
-  the search: a typo should cost its own word, not the others.
+  The term's words are combined with AND, so each word narrows the result: a
+  publication must match every word. That is why searching a full title returns
+  just that title, not everything that shares a word with it. For a single word,
+  matching any of the indexed words it could be is enough, so a half-typed word
+  matches everything it might still become. The words are tried as typed first,
+  and only if that matches nothing is the term retried fuzzily, dropping a word
+  that matches nothing rather than emptying the result.
 
   Unbounded, for the caller that needs all of it at once — the CSV export is a
   download of the database, not a page of it. Reading for a page goes through
-  `page/2`.
+  `search_page/2` and `all_page/1`.
   """
   def search(term, select: attributes) when is_binary(term) do
     case answering(term) do
@@ -169,9 +177,10 @@ defmodule RichardBurton.Publication.Index do
   # What a term is asking for: the query that answers it and the words it
   # resolved to, or `:none` when nothing in the index answers at all.
   #
-  # A term that quotes a phrase or excludes a word is saying precisely what it
-  # wants, so it is handed to Postgres as written and never widened: no
-  # prefixes, and nothing fuzzy to put back what the reader just excluded.
+  # A term that quotes a phrase or negates a word (-word) is stating exactly
+  # what it wants, so it is passed to Postgres as written and never widened: no
+  # prefix matching, and no fuzzy pass that could add back a word the reader
+  # just excluded.
   defp answering(term) do
     if spelled_out?(term) do
       {{:spelled_out, term}, []}
@@ -189,21 +198,22 @@ defmodule RichardBurton.Publication.Index do
 
   defp spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
 
-  # Each word stands for what it starts, so a word still being typed matches
-  # what it will be, and a finished one matches itself.
+  # `:*` makes each word a prefix, so a word still being typed matches every
+  # word that starts with it, and a complete word matches itself.
   defp written_query(words) do
     words
     |> Enum.map_join(" & ", &"(#{lexeme(&1)}:*)")
     |> or_the_country_named(Enum.join(words, " "))
   end
 
-  # A term naming a country asks for its code, which is what the record holds.
-  # The term as a whole, because a name of several words would otherwise ask for
-  # words no record has: nothing is published in a "kingdom".
+  # A record stores a country as its code (US, GB), not its name, so a term
+  # that names a country also searches for that code. The whole term is matched
+  # against country names, not word by word: "United Kingdom" split into words
+  # would search for "kingdom", which no record holds.
   #
-  # The code is asked for where a country is written and nowhere else: two
-  # letters are a word of their own in the languages here, and "NO" would
-  # otherwise answer for every Portuguese title carrying "no".
+  # The code is added only where a country was actually named. A two-letter
+  # code is itself a word in these languages, so searching for "NO"
+  # unconditionally would match every Portuguese title containing "no".
   defp or_the_country_named(query, term) do
     case Country.codes_named(term) do
       [] -> query
@@ -211,9 +221,9 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  # Nothing was written the way the index holds it, so each word asks for the
-  # keywords it resembles. One that resembles none is dropped: a typo should
-  # cost its own word rather than the whole term.
+  # Nothing matched as typed, so each word is matched against the indexed words
+  # it resembles. A word that resembles none is dropped: a typo should cost its
+  # own word, not the whole term.
   defp fuzzily(words) do
     words
     |> Enum.map(&search_keywords(&1, :fuzzy))
@@ -234,8 +244,8 @@ defmodule RichardBurton.Publication.Index do
   # the word rather than as syntax.
   defp lexeme(word), do: "'" <> String.replace(word, "'", "''") <> "'"
 
-  # Rank first, then the title, then the id: equally relevant rows have to come
-  # back in the same order every time, or a page of them is not a page.
+  # Order by rank, then title, then id. Rows of equal rank must sort the same
+  # way every time, or paging through the results would repeat or skip some.
   defp asking({:parsed, query}, attributes) do
     from(p in FlatPublication,
       join: d in SearchDocument,
@@ -288,9 +298,9 @@ defmodule RichardBurton.Publication.Index do
     )
   end
 
-  # Why a row is here, when the answer is nowhere on it: a publication can match
-  # on its sources, which the index does not show. Only then is there a snippet,
-  # and the words that answered are wrapped for the reader to pick out.
+  # A publication can match on its references, which the index does not display.
+  # When it does, build a highlighted snippet of the matching source so the
+  # reader can see why the row is here; the matched words are wrapped in [[ ]].
   defp source_match(query, [], :parsed, term) do
     select_merge(query, [p], %{
       source_match:
