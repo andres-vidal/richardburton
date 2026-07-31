@@ -10,6 +10,7 @@ import {
 import {
   DRAFT_ID,
   addNew,
+  appendIndex,
   createId,
   discardedCountAtom,
   discardEdit,
@@ -389,5 +390,33 @@ describe("family lifecycle", () => {
     expect(store.get(publicationFamily(1))).toBeUndefined();
     expect(other.get(publicationFamily(1))).toEqual(saved(1, "Dom Casmurro"));
     expect(other.get(publicationIdsAtom)).toEqual([1]);
+  });
+});
+
+describe("appendIndex", () => {
+  const saved = (id: number, title = `Title ${id}`) => ({
+    ...empty(),
+    id,
+    title,
+  });
+
+  test("grows the working set, keeping the rows already loaded", () => {
+    hydrate(store, [saved(1), saved(2)]);
+    appendIndex(store, [saved(3, "C"), saved(4, "D")]);
+
+    expect(store.get(publicationIdsAtom)).toEqual([1, 2, 3, 4]);
+    expect(store.get(publicationFamily(3))?.title).toBe("C");
+  });
+
+  test("skips an id already loaded, so a record shifting across the boundary is not doubled", () => {
+    hydrate(store, [saved(1), saved(2)]);
+    appendIndex(store, [saved(2), saved(3)]);
+
+    expect(store.get(publicationIdsAtom)).toEqual([1, 2, 3]);
+  });
+
+  test("appends onto an empty set", () => {
+    appendIndex(store, [saved(1)]);
+    expect(store.get(publicationIdsAtom)).toEqual([1]);
   });
 });

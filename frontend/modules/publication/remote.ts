@@ -51,6 +51,31 @@ async function run<T>(op: (http: AxiosInstance) => Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * Read one page of the index from the browser, for infinite scroll. The first
+ * page is server-rendered; this fetches the rest as the reader reaches the foot
+ * of the list. Failure yields no rows rather than interrupting — the scroll
+ * simply doesn't grow.
+ */
+async function loadPage(
+  search: string | undefined,
+  page: number,
+): Promise<Publication[]> {
+  const params = new URLSearchParams({
+    ...(search ? { search } : {}),
+    page: String(page),
+  });
+
+  try {
+    const { data } = await request((http) =>
+      http.get<{ entries: Publication[] }>(`publications?${params.toString()}`),
+    );
+    return data.entries;
+  } catch {
+    return [];
+  }
+}
+
 /** Submit the current (visible) working set. */
 async function bulk(store: Store): Promise<Publication[]> {
   return run(async (http) => {
@@ -287,6 +312,7 @@ async function upload(store: Store, payload: FormData): Promise<void> {
 export {
   bulk,
   deletePublication,
+  loadPage,
   restore,
   undo,
   update,

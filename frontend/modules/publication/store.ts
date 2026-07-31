@@ -42,6 +42,10 @@ const matchingCountAtom = atom<number>(0);
 /** How many a page holds, as the server counts them. */
 const perPageAtom = atom<number>(0);
 
+/** Whether a further page is being fetched — one flight at a time, so a scroll
+ * that lingers at the foot does not ask for the same page twice. */
+const isLoadingMoreAtom = atom<boolean>(false);
+
 const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
@@ -337,6 +341,23 @@ function receiveIndex(
   return hydrate(store, entries);
 }
 
+/**
+ * Add a further page of results to the working set, keeping the ones already
+ * loaded — infinite scroll grows the list rather than replacing it. An id
+ * already present is skipped, so a record that shifts across the page boundary
+ * (a deletion between fetches) is never doubled.
+ */
+function appendIndex(store: Store, entries: Publication[]): void {
+  const loaded = store.get(publicationIdsAtom) ?? [];
+  const present = new Set(loaded);
+  const fresh = entries.filter((publication) => !present.has(publication.id!));
+
+  fresh.forEach((publication) =>
+    store.set(publicationFamily(publication.id!), publication),
+  );
+  store.set(publicationIdsAtom, [...loaded, ...fresh.map(({ id }) => id!)]);
+}
+
 function setAll(store: Store, entries: PublicationEntry[]): void {
   store.set(
     publicationIdsAtom,
@@ -541,8 +562,10 @@ export {
   focusedRowIdAtom,
   forget,
   hydrate,
+  appendIndex,
   knownIds,
   hiddenAttributesAtom,
+  isLoadingMoreAtom,
   isValidFamily,
   isValidatingAtom,
   keywordsAtom,

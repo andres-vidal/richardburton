@@ -9,7 +9,7 @@ import { LearnMoreModal } from "components/LearnMoreModal";
 import PublicationDownload from "components/PublicationDownload";
 import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
-import PublicationPages from "components/PublicationPages";
+import PublicationScroll from "components/PublicationScroll";
 import PublicationSearch from "components/PublicationSearch";
 import SignInButton from "components/SignInButton";
 import type { PublicationIndex } from "app/publications/read";
@@ -71,6 +71,7 @@ function Database({ index }: Props) {
           <div className="sm:hidden">
             <PublicationIndexList onItemClick={handleRowClick} />
           </div>
+          <PublicationScroll />
         </>
       }
       subheader={
@@ -92,10 +93,6 @@ function Database({ index }: Props) {
       }
       footer={
         <>
-          {/* Above the rest of the footer, and inside it: the page controls sit
-              at the foot of the results, where the footer would otherwise
-              cover them. */}
-          <PublicationPages />
           <div className="flex flex-col justify-center gap-2 sm:justify-start sm:flex-row sm:items-start">
             {isAuthenticated ? (
               <div className="flex gap-2">

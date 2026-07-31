@@ -24,7 +24,6 @@ import {
   storedReferencesFamily,
   totalCountAtom,
   matchingCountAtom,
-  perPageAtom,
   totalIndexCountAtom,
   unreferencedCountAtom,
   validCountAtom,
@@ -147,11 +146,6 @@ function useMatchingCount() {
   return useAtomValue(matchingCountAtom);
 }
 
-/** How many a page holds, as the server counts them. */
-function usePerPage() {
-  return useAtomValue(perPageAtom);
-}
-
 function useIsValidating() {
   return useAtomValue(isValidatingAtom);
 }
@@ -196,7 +190,6 @@ export {
   usePublicationField,
   usePublicationFieldError,
   useMatchingCount,
-  usePerPage,
   usePublicationIndexCount,
   usePublicationOverride,
   usePublicationReferences,

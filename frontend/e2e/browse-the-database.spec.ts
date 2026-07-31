@@ -52,11 +52,11 @@ test("browse the corpus, search, and toggle a column", async ({ page }) => {
   );
 });
 
-// Enough distinct publications to far overflow the viewport (~18 visible rows),
-// imported in one shot; titles carry the index so a far-away row is addressable.
-// Kept moderate on purpose: the backend validates rows sequentially, so seeding
-// cost scales linearly and CI runners are slow.
-const BULK_SIZE = 30;
+// A full page of distinct publications — enough to overflow a short viewport so
+// the last rows sit below the fold, but no more than a page, so this exercises
+// virtualization without also tripping the scroll-to-load-more (its own test).
+// Titles carry the index so a far-away row is addressable.
+const BULK_SIZE = 20;
 const BULK_CSV =
   Array.from(
     { length: BULK_SIZE },
@@ -165,7 +165,7 @@ test("a large index virtualizes: far rows render as they scroll into view", asyn
 
   // A viewport this many rows cannot fit, so the last row is below the fold
   // whatever the runner's default happens to be.
-  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.setViewportSize({ width: 1280, height: 400 });
   await page.goto("/");
   const table = indexTable(page);
   await expectPublicationCount(page, BULK_SIZE);
@@ -263,7 +263,7 @@ test("a row answered by its sources says so", async ({ page }) => {
   await expect(row).toContainText("Pontiero");
 });
 
-test("the database is read a page at a time, and a page is a place", async ({
+test("the database grows as the reader scrolls to its foot", async ({
   page,
 }) => {
   await signInAsAdmin(page);
@@ -278,23 +278,29 @@ test("the database is read a page at a time, and a page is a place", async ({
   await page.goto("/");
   const rows = indexTable(page).getByRole("row");
 
-  // A page holds what the server says it holds, not the whole database.
-  await expect(page.getByText("Page 1 of 2")).toBeVisible();
+  // The first page arrives with the page; the last record — beyond it — is not
+  // loaded yet.
   await expect(rows.filter({ hasText: "Paged Work 00" })).toHaveCount(1);
   await expect(rows.filter({ hasText: "Paged Work 24" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Next", exact: true }).click();
+  // No page controls: the reader scrolls rather than steps.
+  await expect(
+    page.getByRole("button", { name: "Next", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText(/Page \d+ of \d+/)).toHaveCount(0);
 
-  await expect(page).toHaveURL(/[?&]page=2/);
-  await expect(page.getByText("Page 2 of 2")).toBeVisible();
-  await expect(rows.filter({ hasText: "Paged Work 24" })).toHaveCount(1);
-  await expect(rows.filter({ hasText: "Paged Work 00" })).toHaveCount(0);
+  // Reaching the foot fetches the next page and appends it — the list grows.
+  await expect(async () => {
+    await page.mouse.move(600, 400);
+    await page.mouse.wheel(0, 8000);
+    await expect(rows.filter({ hasText: "Paged Work 24" })).toHaveCount(1, {
+      timeout: 800,
+    });
+  }).toPass({ timeout: 15000 });
 
-  // A page is a place: reloading its address shows the same page.
-  await page.reload();
-  await expect(page.getByText("Page 2 of 2")).toBeVisible();
-  await expect(rows.filter({ hasText: "Paged Work 24" })).toHaveCount(1);
+  // It grew rather than turned the page — the address never named a page.
+  await expect(page).not.toHaveURL(/[?&]page=/);
 
-  // The whole database is still counted, however much of it is on the page.
+  // The whole database is counted, however much of it has scrolled into view.
   await expectPublicationCount(page, PAGED_SIZE);
 });
