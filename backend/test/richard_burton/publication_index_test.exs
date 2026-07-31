@@ -684,6 +684,47 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
+  describe "search/1 with or" do
+    defp ids(publications), do: MapSet.new(publications, & &1.id)
+
+    test "matches either alternative" do
+      {:ok, verissimo, _} = Publication.Index.search("Verissimo")
+      {:ok, assis, _} = Publication.Index.search("Assis")
+      {:ok, either, _} = Publication.Index.search("Verissimo or Assis")
+
+      refute MapSet.equal?(ids(verissimo), ids(assis))
+      assert ids(either) == MapSet.union(ids(verissimo), ids(assis))
+    end
+
+    test "the operator is case-insensitive" do
+      {:ok, lower, _} = Publication.Index.search("Verissimo or Assis")
+      {:ok, upper, _} = Publication.Index.search("Verissimo OR Assis")
+
+      assert Enum.map(lower, & &1.id) == Enum.map(upper, & &1.id)
+    end
+
+    test "words within an alternative still narrow it" do
+      {:ok, verissimo, _} = Publication.Index.search("Verissimo")
+      {:ok, erico, _} = Publication.Index.search("Erico Verissimo")
+      {:ok, machado, _} = Publication.Index.search("Machado")
+      {:ok, either, _} = Publication.Index.search("Erico Verissimo or Machado")
+
+      # "Erico Verissimo" is narrowed by both its words to a subset of what
+      # "Verissimo" alone matches, and the whole term adds the second alternative.
+      refute Enum.empty?(erico)
+      assert MapSet.subset?(ids(erico), ids(verissimo))
+      assert ids(either) == MapSet.union(ids(erico), ids(machado))
+    end
+
+    test "a fully misspelled term falls back to fuzzy per alternative" do
+      {:ok, fuzzy, _} = Publication.Index.search("Verissimoo or Machadoo")
+
+      refute Enum.empty?(fuzzy)
+      assert Enum.any?(fuzzy, &String.contains?(&1.original_authors, "Verissimo"))
+      assert Enum.any?(fuzzy, &String.contains?(&1.original_authors, "Machado"))
+    end
+  end
+
   describe "search/1 with accents" do
     test "a term written without them finds the words that carry them" do
       {:ok, folded, _} = Publication.Index.search("Angustia")
