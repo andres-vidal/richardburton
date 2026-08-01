@@ -168,10 +168,19 @@ test("reloading with a publication open keeps it open, over the search that foun
   // Closing goes back to the search it was opened from, not to the whole
   // database — even though there is no history left to go back through. Right
   // after a reload the dialog paints before its key handler has hydrated, so the
-  // first Escape can land on nothing; retry until the close registers.
+  // first Escape can land on nothing. Retry only while the address still names
+  // the record: the dialog outlives its own closing animation, and an Escape
+  // reaching it after the address has changed would step back past the search.
   await expect(async () => {
-    await page.keyboard.press("Escape");
-    await expect(page).toHaveURL(/\/\?search=Machado$/);
+    if (page.url().includes("/publications/")) {
+      await page.keyboard.press("Escape");
+      // Let the press settle before judging it: going back is asynchronous, and
+      // pressing again while it lands would step past the search too.
+      await page
+        .waitForURL(/\/\?search=Machado$/, { timeout: 2000 })
+        .catch(() => {});
+    }
+    expect(page.url()).toMatch(/\/\?search=Machado$/);
   }).toPass();
   await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
     0,
@@ -292,6 +301,45 @@ test("a row answered by its sources says so", async ({ page }) => {
 
   await expect(row.locator("mark")).toHaveText("Afterword");
   await expect(row).toContainText("Pontiero");
+});
+
+test("what a search matched is picked out, in the index and in the record", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/?search=Machado");
+
+  const row = indexTable(page)
+    .getByRole("row")
+    .filter({ hasText: "Dom Casmurro" })
+    .first();
+
+  // The author answered the query, so the row says so where it says the author
+  // — not only rows matched on their sources carry a mark.
+  await expect(row.locator("mark").first()).toHaveText("Machado");
+
+  // A word the query did not match is left alone.
+  await expect(row.locator("mark").filter({ hasText: "Casmurro" })).toHaveCount(
+    0,
+  );
+
+  // Opening the record keeps the marks: the search is still what brought the
+  // reader here, so the record shows which of it answered.
+  const dialog = await openPublicationModal(page, "Dom Casmurro");
+  await expect(dialog.locator("mark").first()).toHaveText("Machado");
+});
+
+test("a search without accents picks out the word that carries them", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  // The index folds accents away, so this finds the record; the mark has to
+  // land on the accented word as it is actually written.
+  await page.goto("/?search=Iracema");
+
+  await expect(
+    indexTable(page).locator("mark").filter({ hasText: "Iraçéma" }).first(),
+  ).toBeVisible();
 });
 
 test("the database grows as the reader scrolls to its foot", async ({
