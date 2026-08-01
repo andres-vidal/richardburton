@@ -89,6 +89,17 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       # The ordering was handed back once; a later stretch is only the rows.
       refute Map.has_key?(body, "order")
     end
+
+    test "a search nothing answers is an empty page, not an error", meta do
+      body =
+        meta.conn
+        |> get("#{publication_path(meta.conn, :index)}?search=zzzznomatchqqq")
+        |> json_response(200)
+
+      assert body["entries"] == []
+      assert body["order"] == []
+      assert body["keywords"] == []
+    end
   end
 
   describe "GET /publications/:id" do

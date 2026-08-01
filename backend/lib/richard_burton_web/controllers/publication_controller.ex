@@ -28,7 +28,7 @@ defmodule RichardBurtonWeb.PublicationController do
   def index(conn, %{"search" => query}) do
     case Publication.Index.search_order(query) do
       :none ->
-        conn |> put_total() |> json(first_page([], [], keywords: []))
+        conn |> put_total() |> json(first_page([], nil, keywords: []))
 
       {order, keywords} ->
         conn |> put_total() |> json(first_page(order, query, keywords: keywords))
