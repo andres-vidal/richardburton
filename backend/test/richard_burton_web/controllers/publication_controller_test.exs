@@ -51,6 +51,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> Publication.insert("importer@example.com")
       end
 
+      # A direct seed stands in for a bulk insert; the index reads a materialized
+      # view, so signal the refresh the real write path would.
+      Publication.Index.Refresher.refresh()
+
       [conn: conn, per_page: Publication.Index.per_page()]
     end
 
@@ -144,6 +148,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         %{@publication_attrs | "title" => "Unsourced Title"}
         |> Publication.Codec.nest()
         |> Publication.insert()
+
+      Publication.Index.Refresher.refresh()
 
       entries =
         conn
@@ -947,6 +953,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> Publication.Codec.nest()
         |> Publication.insert()
 
+      Publication.Index.Refresher.refresh()
+
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
       expected_data =
@@ -1068,6 +1076,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         @publication_attrs
         |> Publication.Codec.nest()
         |> Publication.insert()
+
+      Publication.Index.Refresher.refresh()
 
       attributes = [:title, :original_title, :authors]
       select = Enum.map_join(attributes, "&", &"select[]=#{&1}")

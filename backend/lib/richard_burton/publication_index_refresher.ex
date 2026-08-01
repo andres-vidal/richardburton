@@ -1,8 +1,9 @@
 defmodule RichardBurton.Publication.Index.Refresher do
   @moduledoc """
-  Owns search-index maintenance: write paths call `refresh/0` once per logical
-  operation (a bulk insert, an update), and the refresher rebuilds the
-  `search_documents` and `search_keywords` materialized views.
+  Owns the read model: write paths call `refresh/0` once per logical operation
+  (a bulk insert, an update), and the refresher rebuilds the `flat_publications`,
+  `search_documents` and `search_keywords` materialized views — the flattened
+  rows the index lists, and the search documents and keywords stacked on them.
 
   The strategy comes from `config :richard_burton, :search_index_refresh`:
 
@@ -80,12 +81,16 @@ defmodule RichardBurton.Publication.Index.Refresher do
     {:noreply, %{state | timer: nil}}
   end
 
+  # flat_publications feeds search_documents feeds search_keywords, so each is
+  # rebuilt before the one that reads it.
   defp rebuild(:blocking) do
+    Repo.query!("REFRESH MATERIALIZED VIEW flat_publications", [], timeout: :infinity)
     Repo.query!("REFRESH MATERIALIZED VIEW search_documents", [], timeout: :infinity)
     Repo.query!("REFRESH MATERIALIZED VIEW search_keywords", [], timeout: :infinity)
   end
 
   defp rebuild(:concurrent) do
+    Repo.query!("REFRESH MATERIALIZED VIEW CONCURRENTLY flat_publications", [], timeout: :infinity)
     Repo.query!("REFRESH MATERIALIZED VIEW CONCURRENTLY search_documents", [], timeout: :infinity)
     Repo.query!("REFRESH MATERIALIZED VIEW CONCURRENTLY search_keywords", [], timeout: :infinity)
   end

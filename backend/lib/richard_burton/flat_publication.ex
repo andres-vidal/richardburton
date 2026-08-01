@@ -7,6 +7,7 @@ defmodule RichardBurton.FlatPublication do
   import Ecto.Query
 
   alias RichardBurton.FlatPublication
+  alias RichardBurton.Publication
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
@@ -85,8 +86,12 @@ defmodule RichardBurton.FlatPublication do
         &{&1, get_field(changeset, &1)}
       )
 
+    # The conflict check runs on the write path and must see the live database,
+    # not the materialized read model, or a duplicate inserted since the last
+    # refresh would slip past it. The composite key is native to the publications
+    # table — the same columns the partial unique index guards — so ask there.
     conflict =
-      from(fp in FlatPublication, where: ^where)
+      from(p in Publication, where: ^where, where: is_nil(p.deleted_at))
       |> exclude_self(exclude_id)
       |> Repo.exists?()
 
