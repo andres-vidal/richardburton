@@ -28,11 +28,25 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** Every record is loaded, so there is nothing to fetch and no sentinel at all. */
+export const AllLoaded: Story = {
+  beforeEach: () => {
+    hydrate(store, page(1, 31));
+    store.set(orderAtom, order(30));
+    store.set(perPageAtom, 50);
+    store.set(drawnCountAtom, 30);
+    store.set(isLoadingMoreAtom, false);
+  },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector("[aria-live]")).toBeNull();
+  },
+};
+
 /**
- * A page is loaded and more remain, so a sentinel sits at the foot of the list;
- * reaching it fetches the next page. While that page is in flight it says so.
- * (The fetch-on-scroll itself is exercised by the E2E suite, against a real
- * server.)
+ * A frozen snapshot of the in-flight state: a page is loaded, more remain, and
+ * the next is being fetched, so the spinner shows. It stays spinning by design —
+ * there is no real request behind it here; the fetch-on-scroll is exercised by
+ * the E2E suite, against a real server.
  */
 export const LoadingMore: Story = {
   beforeEach: () => {
@@ -47,19 +61,5 @@ export const LoadingMore: Story = {
     await expect(
       within(canvasElement).getByText("Loading more…"),
     ).toBeVisible();
-  },
-};
-
-/** Every record is loaded, so there is nothing to fetch and no sentinel at all. */
-export const AllLoaded: Story = {
-  beforeEach: () => {
-    hydrate(store, page(1, 31));
-    store.set(orderAtom, order(30));
-    store.set(perPageAtom, 50);
-    store.set(drawnCountAtom, 30);
-    store.set(isLoadingMoreAtom, false);
-  },
-  play: async ({ canvasElement }) => {
-    await expect(canvasElement.querySelector("[aria-live]")).toBeNull();
   },
 };
