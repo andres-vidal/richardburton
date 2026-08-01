@@ -556,12 +556,10 @@ defmodule RichardBurton.Publication.IndexTest do
 
     test "a page draws no more than a page from the ordering" do
       order = Publication.Index.all_order()
-
-      assert length(order) > Publication.Index.per_page(),
-             "the fixture has to outgrow a page"
-
       first = Publication.Index.details(Enum.take(order, Publication.Index.per_page()))
+
       assert length(first) == Publication.Index.per_page()
+      assert length(first) < length(order)
     end
 
     test "paging the ordering by id yields the whole database, once, in that order" do

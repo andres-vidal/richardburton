@@ -23,8 +23,7 @@ defmodule RichardBurton.Publication.Index do
   @count_header "rb-total-count"
 
   # How many publications a page holds. Big enough that most readers never ask
-  # for a second one, small enough that the first arrives at once. Smaller under
-  # test, so a page boundary is something a fixture can reach.
+  # for a second one, small enough that the first arrives at once.
   @per_page Application.compile_env(:richard_burton, :publications_per_page, 50)
 
   @doc "Name of the response header carrying the index's total count."
@@ -44,11 +43,10 @@ defmodule RichardBurton.Publication.Index do
     {:ok, results}
   end
 
-  # The registered total is counted from the same rows the index lists, so the
-  # number the reader is shown cannot disagree with the list behind it, and no
-  # other representation of a publication leaks into the figure. Cheap now that
-  # the flat publication is materialized — a scan of a stored table, not the
-  # ten-way join it once stood for.
+  # The registered total is counted from the same rows the index lists, so it
+  # shares the same indexing delay as the search. This is on purpose, so the
+  # count matches the number of items the client would get if it fetched the
+  # full list at this exact point in time.
   def count() do
     Repo.aggregate(FlatPublication, :count, :id)
   end
@@ -193,7 +191,7 @@ defmodule RichardBurton.Publication.Index do
 
       {ask, _keywords} ->
         from(fp in FlatPublication, where: fp.id in ^ids)
-        |> with_source_match(ask)
+        |> source_match([], ask)
         |> Repo.all()
         |> in_order(ids)
     end
@@ -211,41 +209,33 @@ defmodule RichardBurton.Publication.Index do
 
   # The publications a search matches, in the order they are to be read: by rank,
   # then title, then id. Rows of equal rank must sort the same way every time, or
-  # paging through the results would repeat or skip some.
-  defp ranked({:parsed, query}) do
+  # paging through the results would repeat or skip some. The two search modes
+  # differ only in which tsquery function reads the term, so that difference is
+  # all that `matches/1` and `ranking/1` carry.
+  defp ranked(ask) do
     from(p in FlatPublication,
       join: d in SearchDocument,
       on: d.id == p.id,
-      where: fragment("document @@ to_tsquery('rb_search', ?)", ^query),
-      order_by: [
-        desc: fragment("ts_rank_cd(document, to_tsquery('rb_search', ?), 4)", ^query),
-        asc: p.title,
-        asc: p.id
-      ]
+      where: ^matches(ask),
+      order_by: ^[desc: ranking(ask), asc: :title, asc: :id]
     )
   end
 
-  defp ranked({:spelled_out, term}) do
-    from(p in FlatPublication,
-      join: d in SearchDocument,
-      on: d.id == p.id,
-      where: fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term),
-      order_by: [
-        desc: fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term),
-        asc: p.title,
-        asc: p.id
-      ]
-    )
-  end
+  defp matches({:parsed, query}),
+    do: dynamic(fragment("document @@ to_tsquery('rb_search', ?)", ^query))
+
+  defp matches({:spelled_out, term}),
+    do: dynamic(fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term))
+
+  defp ranking({:parsed, query}),
+    do: dynamic(fragment("ts_rank_cd(document, to_tsquery('rb_search', ?), 4)", ^query))
+
+  defp ranking({:spelled_out, term}),
+    do: dynamic(fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term))
 
   # The ids a search matches, in reading order — the ordering the reader pages
   # through by id.
   defp order_ids(ask), do: ask |> ranked() |> select([p], p.id) |> Repo.all()
-
-  defp with_source_match(query, {:parsed, q}), do: source_match(query, [], :parsed, q)
-
-  defp with_source_match(query, {:spelled_out, term}),
-    do: source_match(query, [], :spelled_out, term)
 
   # What a term is asking for: the query that answers it and the words it
   # resolved to, or `:none` when nothing in the index answers at all.
@@ -320,18 +310,11 @@ defmodule RichardBurton.Publication.Index do
   # The full rows a search matches, in reading order — the same ranking as
   # `order_ids/1`, selected whole (or to the asked attributes) for the export
   # that takes the results all at once rather than a page at a time.
-  defp asking({:parsed, query} = ask, attributes) do
+  defp asking(ask, attributes) do
     ask
     |> ranked()
     |> maybe_select(attributes)
-    |> source_match(attributes, :parsed, query)
-  end
-
-  defp asking({:spelled_out, term} = ask, attributes) do
-    ask
-    |> ranked()
-    |> maybe_select(attributes)
-    |> source_match(attributes, :spelled_out, term)
+    |> source_match(attributes, ask)
   end
 
   # Only the as-written path is counted, to decide whether it answered before
@@ -350,7 +333,8 @@ defmodule RichardBurton.Publication.Index do
   # A publication can match on its references, which the index does not display.
   # When it does, build a highlighted snippet of the matching source so the
   # reader can see why the row is here; the matched words are wrapped in [[ ]].
-  defp source_match(query, [], :parsed, term) do
+  # Only whole-row reads carry it — a column-narrowed export asks for no snippet.
+  defp source_match(query, [], {:parsed, term}) do
     select_merge(query, [p], %{
       source_match:
         fragment(
@@ -363,7 +347,7 @@ defmodule RichardBurton.Publication.Index do
     })
   end
 
-  defp source_match(query, [], :spelled_out, term) do
+  defp source_match(query, [], {:spelled_out, term}) do
     select_merge(query, [p], %{
       source_match:
         fragment(
@@ -376,5 +360,5 @@ defmodule RichardBurton.Publication.Index do
     })
   end
 
-  defp source_match(query, _attributes, _kind, _term), do: query
+  defp source_match(query, _attributes, _ask), do: query
 end
