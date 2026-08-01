@@ -50,7 +50,11 @@ const PublicationScroll: FC = () => {
 
     store.set(isLoadingMoreAtom, true);
     try {
-      const entries = await loadDetails(next, search, store.get(keywordsAtom) ?? []);
+      const entries = await loadDetails(
+        next,
+        search,
+        store.get(keywordsAtom) ?? [],
+      );
       // A new query may have answered while this was in flight, replacing the
       // ordering these rows belong to; they are stale, so drop them.
       if (store.get(orderAtom) !== order) return;

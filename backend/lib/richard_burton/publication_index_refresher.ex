@@ -83,16 +83,15 @@ defmodule RichardBurton.Publication.Index.Refresher do
 
   # flat_publications feeds search_documents feeds search_keywords, so each is
   # rebuilt before the one that reads it.
-  defp rebuild(:blocking) do
-    Repo.query!("REFRESH MATERIALIZED VIEW flat_publications", [], timeout: :infinity)
-    Repo.query!("REFRESH MATERIALIZED VIEW search_documents", [], timeout: :infinity)
-    Repo.query!("REFRESH MATERIALIZED VIEW search_keywords", [], timeout: :infinity)
-  end
+  @views ~w[flat_publications search_documents search_keywords]
 
-  defp rebuild(:concurrent) do
-    Repo.query!("REFRESH MATERIALIZED VIEW CONCURRENTLY flat_publications", [], timeout: :infinity)
-    Repo.query!("REFRESH MATERIALIZED VIEW CONCURRENTLY search_documents", [], timeout: :infinity)
-    Repo.query!("REFRESH MATERIALIZED VIEW CONCURRENTLY search_keywords", [], timeout: :infinity)
+  defp rebuild(:blocking), do: refresh_views("")
+  defp rebuild(:concurrent), do: refresh_views("CONCURRENTLY ")
+
+  defp refresh_views(concurrently) do
+    Enum.each(@views, fn view ->
+      Repo.query!("REFRESH MATERIALIZED VIEW #{concurrently}#{view}", [], timeout: :infinity)
+    end)
   end
 
   defp strategy do

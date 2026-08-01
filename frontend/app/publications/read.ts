@@ -85,4 +85,6 @@ export const readIndex = cache((search?: string) =>
  * The publications with no sources yet — the queue the backfill wizard steps
  * through, in the order it will offer them.
  */
-export const readUnreferenced = cache(() => readDatabase({ unreferenced: true }));
+export const readUnreferenced = cache(() =>
+  readDatabase({ unreferenced: true }),
+);
