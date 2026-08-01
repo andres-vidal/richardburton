@@ -52,6 +52,25 @@ test("browse the corpus, search, and toggle a column", async ({ page }) => {
   );
 });
 
+test("a search that matches nothing shows the empty state, not an error", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+
+  await page
+    .getByRole("textbox", { name: "Search publications" })
+    .fill("zzzznomatchqqq");
+
+  // The corpus leaves the view and the empty state stands in — the query simply
+  // answered nothing, which is a page to show, not a server error. (Both the
+  // table and the list render it; one is hidden by breakpoint.)
+  await expect(
+    page.getByText("No results found, try another query.").first(),
+  ).toBeVisible();
+  await expect(indexTable(page).getByText("Dom Casmurro")).toHaveCount(0);
+});
+
 // A full page of distinct publications — enough to overflow a short viewport so
 // the last rows sit below the fold, but no more than a page, so this exercises
 // virtualization without also tripping the scroll-to-load-more (its own test).
