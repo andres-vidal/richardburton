@@ -1,13 +1,13 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { loadPage } from "modules/publication/remote";
+import { loadDetails } from "modules/publication/remote";
 import {
   appendIndex,
+  drawnCountAtom,
   isLoadingMoreAtom,
-  matchingCountAtom,
+  orderAtom,
   perPageAtom,
-  publicationIdsAtom,
 } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useSearchParams } from "next/navigation";
@@ -15,24 +15,26 @@ import { FC, useCallback, useEffect, useRef } from "react";
 import useVisible from "utils/useVisible";
 
 /**
- * Grows the list as the reader nears the foot of it. The first page arrives with
- * the page, server-rendered; each further page is fetched here when a sentinel
- * below the last row comes into view, and appended to what is already loaded.
+ * Grows the list as the reader nears the foot of it. The first response hands
+ * back the whole ordering — the ids of every match, in reading order — and the
+ * first page of them in full. Each further page is fetched here when a sentinel
+ * below the last row comes into view: the next stretch of that frozen ordering,
+ * asked for by id and appended to what is already loaded.
  *
- * A page is no longer a place — the reader scrolls rather than steps — so the
- * address carries only the search, and returning to a row means scrolling back
- * to it.
+ * Because the ordering is fixed, paging cannot drift as the database changes
+ * underneath; and a page is no longer a place — the reader scrolls rather than
+ * steps — so the address carries only the search, and returning to a row means
+ * scrolling back to it.
  */
 const PublicationScroll: FC = () => {
   const store = usePublicationStore();
   const search = useSearchParams()?.get("search") ?? undefined;
 
-  const loaded = useAtomValue(publicationIdsAtom)?.length ?? 0;
-  const matching = useAtomValue(matchingCountAtom);
-  const perPage = useAtomValue(perPageAtom);
+  const drawn = useAtomValue(drawnCountAtom);
+  const total = useAtomValue(orderAtom).length;
   const loading = useAtomValue(isLoadingMoreAtom);
 
-  const more = perPage > 0 && loaded < matching;
+  const more = drawn < total;
 
   const sentinel = useRef<HTMLDivElement>(null);
   // Reach for the next page before the foot is in view, so the rows are usually
@@ -40,17 +42,30 @@ const PublicationScroll: FC = () => {
   const nearingEnd = useVisible(sentinel, "800px");
 
   const loadMore = useCallback(async () => {
-    // Read the live counts, not the render's: a lingering sentinel must not ask
-    // for a page already in flight, nor for one past the end.
+    // Read the live values, not the render's: a lingering sentinel must not ask
+    // for a stretch already in flight, nor for one past the end.
     if (store.get(isLoadingMoreAtom)) return;
 
-    const have = store.get(publicationIdsAtom)?.length ?? 0;
+    const order = store.get(orderAtom);
+    const from = store.get(drawnCountAtom);
     const size = store.get(perPageAtom);
-    if (size <= 0 || have >= store.get(matchingCountAtom)) return;
+    const next = order.slice(from, from + size);
+    if (size <= 0 || next.length === 0) return;
 
     store.set(isLoadingMoreAtom, true);
     try {
-      appendIndex(store, await loadPage(search, Math.floor(have / size) + 1));
+      const entries = await loadDetails(next, search);
+      // A new query may have answered while this was in flight, replacing the
+      // ordering these rows belong to; they are stale, so drop them.
+      if (store.get(orderAtom) !== order) return;
+
+      appendIndex(store, entries);
+      // Advance past the whole stretch, so a removed id is stepped over rather
+      // than blocking the ones behind it. A failed fetch throws before this and
+      // leaves the cursor where it was, to be retried.
+      store.set(drawnCountAtom, from + next.length);
+    } catch {
+      // The list simply does not grow; the sentinel stays and tries again.
     } finally {
       store.set(isLoadingMoreAtom, false);
     }

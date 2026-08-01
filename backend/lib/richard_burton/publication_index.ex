@@ -128,8 +128,8 @@ defmodule RichardBurton.Publication.Index do
   that matches nothing rather than emptying the result.
 
   Unbounded, for the caller that needs all of it at once — the CSV export is a
-  download of the database, not a page of it. Reading for a page goes through
-  `search_page/2` and `all_page/1`.
+  download of the database, not a page of it. A reader takes it a page at a time
+  through `search_order/1` and `details/2` instead.
   """
   def search(term, select: attributes) when is_binary(term) do
     case answering(term) do
@@ -139,40 +139,108 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  One page of what a term asks for, the words it resolved to, and how many it
-  asks for in all.
+  The whole ordering a search resolves to — the ids of every publication it
+  matches, in the order they are to be read — and the words it matched on, or
+  `:none` when nothing in the index answers at all.
 
-  Whether a term is answered at all is the same question as how many answer it,
-  so the ladder is walked once, by counting: the page is drawn from wherever it
-  stopped.
+  The order is settled here, once. A reader then pages through it by id (see
+  `details/2`) and sees a stable list, because the order was fixed the moment
+  the search ran: rows cannot shift, skip or repeat as the database changes
+  underneath the scroll.
   """
-  def search_page(term, page) when is_binary(term) do
+  def search_order(term) when is_binary(term) do
     case answering(term) do
-      :none ->
-        {:ok, [], [], 0}
-
-      {ask, keywords} ->
-        {:ok, Repo.all(asking(ask, []) |> paged(page)), keywords, count_asking(ask)}
+      :none -> :none
+      {ask, keywords} -> {order_ids(ask), keywords}
     end
   end
 
   @doc """
-  One page of the whole database, ordered as it is listed, and how many
-  publications there are to page through.
+  The ids of the whole database, in the order it is listed — by title, then id.
+  The counterpart of `search_order/1` for a reader browsing rather than searching.
   """
-  def all_page(page) do
-    query = from(fp in FlatPublication, order_by: [asc: fp.title, asc: fp.id])
+  def all_order do
+    from(fp in FlatPublication, order_by: [asc: fp.title, asc: fp.id], select: fp.id)
+    |> Repo.all()
+  end
 
-    {:ok, Repo.all(paged(query, page)), count()}
+  @doc """
+  The full rows for the given ids, in that order — one stretch of an ordering
+  `search_order/1` or `all_order/0` handed back. A `nil` term is a plain
+  listing; a term is carried so a row matched only by its references still says
+  which.
+
+  An id no longer in the database is simply left out, which is how a deletion
+  since the order was fixed shows up: a gap, never a shifted or repeated row.
+  """
+  def details(ids, term \\ nil)
+
+  def details(ids, nil) when is_list(ids) do
+    from(fp in FlatPublication, where: fp.id in ^ids)
+    |> Repo.all()
+    |> in_order(ids)
+  end
+
+  def details(ids, term) when is_list(ids) and is_binary(term) do
+    case answering(term) do
+      :none ->
+        details(ids, nil)
+
+      {ask, _keywords} ->
+        from(fp in FlatPublication, where: fp.id in ^ids)
+        |> with_source_match(ask)
+        |> Repo.all()
+        |> in_order(ids)
+    end
   end
 
   @doc "How many publications a page holds."
   def per_page, do: @per_page
 
-  # Page one is the first page, and so is anything before it.
-  defp paged(query, page) do
-    from(q in query, limit: @per_page, offset: ^(max(page - 1, 0) * @per_page))
+  # The database returns rows in whatever order it likes; the caller asked for a
+  # particular one, so put them back into it and drop any that have since left.
+  defp in_order(rows, ids) do
+    by_id = Map.new(rows, &{&1.id, &1})
+    ids |> Enum.map(&Map.get(by_id, &1)) |> Enum.reject(&is_nil/1)
   end
+
+  # The publications a search matches, in the order they are to be read: by rank,
+  # then title, then id. Rows of equal rank must sort the same way every time, or
+  # paging through the results would repeat or skip some.
+  defp ranked({:parsed, query}) do
+    from(p in FlatPublication,
+      join: d in SearchDocument,
+      on: d.id == p.id,
+      where: fragment("document @@ to_tsquery('rb_search', ?)", ^query),
+      order_by: [
+        desc: fragment("ts_rank_cd(document, to_tsquery('rb_search', ?), 4)", ^query),
+        asc: p.title,
+        asc: p.id
+      ]
+    )
+  end
+
+  defp ranked({:spelled_out, term}) do
+    from(p in FlatPublication,
+      join: d in SearchDocument,
+      on: d.id == p.id,
+      where: fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term),
+      order_by: [
+        desc: fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term),
+        asc: p.title,
+        asc: p.id
+      ]
+    )
+  end
+
+  # The ids a search matches, in reading order — the ordering the reader pages
+  # through by id.
+  defp order_ids(ask), do: ask |> ranked() |> select([p], p.id) |> Repo.all()
+
+  defp with_source_match(query, {:parsed, q}), do: source_match(query, [], :parsed, q)
+
+  defp with_source_match(query, {:spelled_out, term}),
+    do: source_match(query, [], :spelled_out, term)
 
   # What a term is asking for: the query that answers it and the words it
   # resolved to, or `:none` when nothing in the index answers at all.
@@ -244,55 +312,31 @@ defmodule RichardBurton.Publication.Index do
   # the word rather than as syntax.
   defp lexeme(word), do: "'" <> String.replace(word, "'", "''") <> "'"
 
-  # Order by rank, then title, then id. Rows of equal rank must sort the same
-  # way every time, or paging through the results would repeat or skip some.
-  defp asking({:parsed, query}, attributes) do
-    from(p in FlatPublication,
-      join: d in SearchDocument,
-      on: d.id == p.id,
-      where: fragment("document @@ to_tsquery('rb_search', ?)", ^query),
-      order_by: [
-        desc: fragment("ts_rank_cd(document, to_tsquery('rb_search', ?), 4)", ^query),
-        asc: p.title,
-        asc: p.id
-      ]
-    )
+  # The full rows a search matches, in reading order — the same ranking as
+  # `order_ids/1`, selected whole (or to the asked attributes) for the export
+  # that takes the results all at once rather than a page at a time.
+  defp asking({:parsed, query} = ask, attributes) do
+    ask
+    |> ranked()
     |> maybe_select(attributes)
     |> source_match(attributes, :parsed, query)
   end
 
-  defp asking({:spelled_out, term}, attributes) do
-    from(p in FlatPublication,
-      join: d in SearchDocument,
-      on: d.id == p.id,
-      where: fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term),
-      order_by: [
-        desc: fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term),
-        asc: p.title,
-        asc: p.id
-      ]
-    )
+  defp asking({:spelled_out, term} = ask, attributes) do
+    ask
+    |> ranked()
     |> maybe_select(attributes)
     |> source_match(attributes, :spelled_out, term)
   end
 
+  # Only the as-written path is counted, to decide whether it answered before
+  # falling back to fuzzy; a spelled-out term is handed to Postgres as-is.
   defp count_asking({:parsed, query}) do
     Repo.one(
       from(p in FlatPublication,
         join: d in SearchDocument,
         on: d.id == p.id,
         where: fragment("document @@ to_tsquery('rb_search', ?)", ^query),
-        select: count(p.id)
-      )
-    )
-  end
-
-  defp count_asking({:spelled_out, term}) do
-    Repo.one(
-      from(p in FlatPublication,
-        join: d in SearchDocument,
-        on: d.id == p.id,
-        where: fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term),
         select: count(p.id)
       )
     )

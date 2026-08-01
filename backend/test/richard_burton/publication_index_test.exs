@@ -546,55 +546,88 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
-  describe "all_page/1 and search_page/2" do
-    test "a page holds no more than a page, and says how many there are" do
-      {:ok, first, total} = Publication.Index.all_page(1)
+  describe "all_order/0, search_order/1 and details/2" do
+    test "the ordering lists the whole database, each publication once" do
+      order = Publication.Index.all_order()
 
-      assert total == length(@publications)
-      assert total > Publication.Index.per_page(), "the fixture has to outgrow a page"
+      assert length(order) == length(@publications)
+      assert Enum.uniq(order) == order
+    end
+
+    test "a page draws no more than a page from the ordering" do
+      order = Publication.Index.all_order()
+
+      assert length(order) > Publication.Index.per_page(),
+             "the fixture has to outgrow a page"
+
+      first = Publication.Index.details(Enum.take(order, Publication.Index.per_page()))
       assert length(first) == Publication.Index.per_page()
     end
 
-    test "the pages together are the whole database, each publication once" do
-      {:ok, _first, total} = Publication.Index.all_page(1)
-      pages = ceil(total / Publication.Index.per_page())
+    test "paging the ordering by id yields the whole database, once, in that order" do
+      order = Publication.Index.all_order()
 
       ids =
-        Enum.flat_map(1..pages, fn page ->
-          {:ok, publications, ^total} = Publication.Index.all_page(page)
-          Enum.map(publications, & &1.id)
+        order
+        |> Enum.chunk_every(Publication.Index.per_page())
+        |> Enum.flat_map(fn chunk ->
+          chunk |> Publication.Index.details() |> Enum.map(& &1.id)
         end)
 
-      assert Enum.uniq(ids) == ids
-      assert length(ids) == total
+      assert ids == order
     end
 
-    test "a page beyond the last is empty, and still says how many there are" do
-      {:ok, publications, total} = Publication.Index.all_page(99)
+    test "an id no longer in the database is left out, not shifted or repeated" do
+      order = Publication.Index.all_order()
 
-      assert publications == []
-      assert total == length(@publications)
+      # A missing id in the middle simply vanishes; the ones around it keep their
+      # places, which is how a deletion since the order froze reads as a gap.
+      with_hole = List.insert_at(order, div(length(order), 2), -1)
+
+      assert Enum.map(Publication.Index.details(with_hole), & &1.id) == order
     end
 
-    test "a search reports how many answered, not how many it returned" do
-      {:ok, publications, _keywords, matching} =
-        Publication.Index.search_page("Verissimo", 1)
+    test "a search settles an ordering, and the words it matched on" do
+      {order, keywords} = Publication.Index.search_order("Verissimo")
 
-      assert matching > 0
-      assert length(publications) <= matching
-      assert length(publications) <= Publication.Index.per_page()
+      assert order != []
+      refute Enum.empty?(keywords)
+
+      page =
+        order
+        |> Enum.take(Publication.Index.per_page())
+        |> Publication.Index.details("Verissimo")
+
+      assert length(page) <= Publication.Index.per_page()
+      assert Enum.map(page, & &1.id) == Enum.take(order, length(page))
     end
 
-    test "a search nothing answers reports none" do
-      assert {:ok, [], [], 0} = Publication.Index.search_page("zzzzqqqq", 1)
+    test "a search nothing answers settles no ordering" do
+      assert Publication.Index.search_order("zzzzqqqq") == :none
     end
 
-    test "the fuzzy ladder still runs for a page" do
-      {:ok, publications, keywords, matching} = Publication.Index.search_page("Maries", 1)
+    test "the fuzzy ladder still settles an ordering" do
+      {order, keywords} = Publication.Index.search_order("Maries")
 
       assert "marias" in keywords
-      assert matching > 0
-      refute Enum.empty?(publications)
+      assert order != []
+    end
+
+    test "a page carries the reference match that answered a row" do
+      {order, _keywords} = Publication.Index.search_order("Berkeley")
+      page = Publication.Index.details(order, "Berkeley")
+
+      row = Enum.find(page, &(&1.title == "Posthumous Reminiscences of Brás Cubas"))
+      assert row.source_match =~ "Berkeley"
+    end
+
+    test "a plain listing carries no reference match" do
+      [row | _] =
+        Publication.Index.all_order()
+        |> Enum.take(1)
+        |> Publication.Index.details()
+
+      assert row.source_match == nil
     end
   end
 

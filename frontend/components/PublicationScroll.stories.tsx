@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { empty } from "modules/publication/model";
 import {
+  drawnCountAtom,
   hydrate,
   isLoadingMoreAtom,
-  matchingCountAtom,
+  orderAtom,
   perPageAtom,
 } from "modules/publication/store";
 import { store } from "modules/store";
@@ -13,6 +14,8 @@ import PublicationScroll from "./PublicationScroll";
 
 const page = (from: number, to: number) =>
   Array.from({ length: to - from }, (_, i) => ({ ...empty(), id: from + i }));
+
+const order = (count: number) => Array.from({ length: count }, (_, i) => i + 1);
 
 const meta = {
   title: "Publications/Publication scroll",
@@ -34,8 +37,9 @@ type Story = StoryObj<typeof meta>;
 export const LoadingMore: Story = {
   beforeEach: () => {
     hydrate(store, page(1, 51));
-    store.set(matchingCountAtom, 120);
+    store.set(orderAtom, order(120));
     store.set(perPageAtom, 50);
+    store.set(drawnCountAtom, 50);
     store.set(isLoadingMoreAtom, true);
     return () => store.set(isLoadingMoreAtom, false);
   },
@@ -50,8 +54,9 @@ export const LoadingMore: Story = {
 export const AllLoaded: Story = {
   beforeEach: () => {
     hydrate(store, page(1, 31));
-    store.set(matchingCountAtom, 30);
+    store.set(orderAtom, order(30));
     store.set(perPageAtom, 50);
+    store.set(drawnCountAtom, 30);
     store.set(isLoadingMoreAtom, false);
   },
   play: async ({ canvasElement }) => {
