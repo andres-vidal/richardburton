@@ -1,11 +1,8 @@
 "use client";
 
-import { useMatchingCount } from "modules/publication/hooks";
 import { FC } from "react";
 
 const EmptySearchResults: FC = () => {
-  const matching = useMatchingCount();
-
   return (
     <div className="flex items-center justify-center w-full h-full">
       <div className="flex flex-col items-center justify-center group">
@@ -34,11 +31,7 @@ const EmptySearchResults: FC = () => {
           />
         </svg>
         <span className="text-xl text-gray-600 group-hover:text-indigo-600">
-          {/* Nothing here is not the same as nothing anywhere: a page past the
-              last one is empty, and the query that filled the others is fine. */}
-          {matching > 0
-            ? "There is nothing on this page."
-            : "No results found, try another query."}
+          No results found, try another query.
         </span>
       </div>
     </div>
