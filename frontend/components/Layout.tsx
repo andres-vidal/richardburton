@@ -64,7 +64,7 @@ const Layout: FC<Props> = ({
   return (
     <div className="flex flex-col min-h-screen">
       <header ref={headerRef} className="sticky top-0 z-30 bg-gray-100">
-        <h1 className="select-none py-1.5 mr-[calc(-1*var(--floating-ui-scrollbar-width,0px))] text-center text-white bg-indigo-600 flex items-center justify-center">
+        <h1 className="select-none py-1.5 text-center text-white bg-indigo-600 flex items-center justify-center">
           <div className="flex flex-col items-center justify-center shrink transition-colors md:flex-row md:gap-4 shadow-white">
             <Link href="/" className="px-3 py-0.5 rounded hover:bg-indigo-500">
               <span className="inline-flex items-center gap-3 py-1 pr-5 text-lg font-medium md:pr-0">
