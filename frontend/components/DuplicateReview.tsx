@@ -193,7 +193,7 @@ export const DuplicateStep: FC<{
             key={publication.id}
             publication={publication}
             kept={publication.id === keptId}
-            onKeep={() => setKeptId(publication.id)}
+            onKeep={() => setKeptId(publication.id!)}
           />
         ))}
       </div>
