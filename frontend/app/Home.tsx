@@ -92,31 +92,29 @@ function Database({ index }: Props) {
         </div>
       }
       footer={
-        <>
-          <div className="flex flex-col justify-center gap-2 sm:justify-start sm:flex-row sm:items-start">
-            {isAuthenticated ? (
-              <div className="flex gap-2">
-                <PublicationDownload />
-                <Link href="/admin">
-                  <Button
-                    label="Admin"
-                    variant="outline"
-                    Icon={DashboardIcon}
-                    alignment="left"
-                    width="fixed"
-                  />
-                </Link>
-              </div>
-            ) : (
-              <div className="hidden sm:block">
-                <SignInButton />
-              </div>
-            )}
+        <div className="flex flex-col justify-center gap-2 sm:justify-start sm:flex-row sm:items-start">
+          {isAuthenticated ? (
+            <div className="flex gap-2">
+              <PublicationDownload />
+              <Link href="/admin">
+                <Button
+                  label="Admin"
+                  variant="outline"
+                  Icon={DashboardIcon}
+                  alignment="left"
+                  width="fixed"
+                />
+              </Link>
+            </div>
+          ) : (
+            <div className="hidden sm:block">
+              <SignInButton />
+            </div>
+          )}
 
-            <ContactModal />
-            <LearnMoreModal />
-          </div>
-        </>
+          <ContactModal />
+          <LearnMoreModal />
+        </div>
       }
     />
   );
