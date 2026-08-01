@@ -24,6 +24,10 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
   defp insert(attrs) do
     {:ok, publication} = Publication.insert(Util.deep_merge_maps(@base, attrs))
+    # Duplicates are read from the flattened publications, which are
+    # materialized; a single insert doesn't signal the refresher, so stand in for
+    # the caller that would.
+    Publication.Index.Refresher.refresh()
     publication
   end
 

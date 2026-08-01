@@ -1395,6 +1395,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
   defp insert_publication(attrs) do
     {:ok, publication} = attrs |> Publication.Codec.nest() |> Publication.insert()
+    # The index and the duplicate report read the materialized flat publications;
+    # a single insert doesn't signal the refresher, so stand in for the caller
+    # that would.
+    Publication.Index.Refresher.refresh()
     publication
   end
 end
