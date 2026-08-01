@@ -15,6 +15,7 @@ defmodule RichardBurton.Publication.Index do
 
   alias RichardBurton.Country
   alias RichardBurton.FlatPublication
+  alias RichardBurton.Publication
   alias RichardBurton.Publication.Index.SearchDocument
   alias RichardBurton.Publication.Index.SearchKeyword
   alias RichardBurton.Repo
@@ -44,8 +45,14 @@ defmodule RichardBurton.Publication.Index do
     {:ok, results}
   end
 
+  # Each listed publication is one row of the flat view, but counting them
+  # through it would build that whole ten-way join and its aggregations only to
+  # size the result — a hundred milliseconds to learn a number. The live base
+  # rows are the same set: a publication is listable exactly when it still holds
+  # the associations validation requires, which the view joins are what enforce.
+  # Counting those rows is a single indexed tally.
   def count() do
-    Repo.aggregate(FlatPublication, :count, :id)
+    Repo.aggregate(from(p in Publication, where: is_nil(p.deleted_at)), :count, :id)
   end
 
   @doc """
