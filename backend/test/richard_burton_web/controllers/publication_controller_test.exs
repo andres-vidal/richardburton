@@ -79,10 +79,11 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> Map.get("order")
 
       rest = Enum.drop(order, meta.per_page)
+      ids_query = Enum.map_join(rest, "&", &"ids[]=#{&1}")
 
       body =
         meta.conn
-        |> get("#{publication_path(meta.conn, :index)}?ids=#{Enum.join(rest, ",")}")
+        |> get("#{publication_path(meta.conn, :index)}?#{ids_query}")
         |> json_response(200)
 
       assert Enum.map(body["entries"], & &1["id"]) == rest

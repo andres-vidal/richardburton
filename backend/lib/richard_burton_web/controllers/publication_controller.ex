@@ -7,12 +7,19 @@ defmodule RichardBurtonWeb.PublicationController do
 
   # A later page of a search or listing already begun: the reader has scrolled,
   # and asks for the next stretch of the ordering the first response handed back.
-  # The search rides along so a row matched by its references still says so.
+  # The search and the words it matched on ride along so a row matched by its
+  # references still says so, without the search being resolved again.
   #
   # The total was reported with the first page and does not change under the
   # reader; a later stretch is only the rows, so it does not pay to count again.
   def index(conn, %{"ids" => ids} = params) do
-    entries = Publication.Index.details(parse_ids(ids), Map.get(params, "search"))
+    entries =
+      Publication.Index.details(
+        parse_ids(ids),
+        Map.get(params, "search"),
+        parse_keywords(Map.get(params, "keywords"))
+      )
+
     json(conn, %{entries: entries})
   end
 
@@ -22,28 +29,28 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   # The first response to a query hands back the whole ordering — the ids of
-  # every match, in the order they are to be read — and the first page of them
-  # in full. The reader scrolls the rest in by that frozen ordering, so the
-  # paging cannot drift as the database changes underneath it.
+  # every match, in the order they are to be read — the words it matched on, and
+  # the first page of them in full. The reader scrolls the rest in by that frozen
+  # ordering, so the paging cannot drift as the database changes underneath it.
   def index(conn, %{"search" => query}) do
     case Publication.Index.search_order(query) do
       :none ->
-        conn |> put_total() |> json(first_page([], nil, keywords: []))
+        conn |> put_total() |> json(first_page([], nil, []))
 
       {order, keywords} ->
-        conn |> put_total() |> json(first_page(order, query, keywords: keywords))
+        conn |> put_total() |> json(first_page(order, query, keywords))
     end
   end
 
   def index(conn, _params) do
-    conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil))
+    conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil, []))
   end
 
-  defp first_page(order, search, extra \\ []) do
+  defp first_page(order, search, keywords) do
     per_page = Publication.Index.per_page()
-    entries = Publication.Index.details(Enum.take(order, per_page), search)
+    entries = Publication.Index.details(Enum.take(order, per_page), search, keywords)
 
-    Enum.into(extra, %{entries: entries, order: order, per_page: per_page})
+    %{entries: entries, order: order, per_page: per_page, keywords: keywords}
   end
 
   defp put_total(conn) do
@@ -54,16 +61,18 @@ defmodule RichardBurtonWeb.PublicationController do
     )
   end
 
-  defp parse_ids(csv) do
-    csv
-    |> String.split(",", trim: true)
-    |> Enum.flat_map(fn part ->
-      case Integer.parse(part) do
-        {id, ""} -> [id]
-        _ -> []
-      end
-    end)
+  defp parse_ids(ids) when is_list(ids), do: Enum.flat_map(ids, &parse_id/1)
+  defp parse_ids(_), do: []
+
+  defp parse_id(id) do
+    case Integer.parse(to_string(id)) do
+      {id, ""} -> [id]
+      _ -> []
+    end
   end
+
+  defp parse_keywords(keywords) when is_list(keywords), do: keywords
+  defp parse_keywords(_), do: []
 
   # One publication, flat, the same shape the index lists — so a page that shows
   # a single record does not have to be handed one by a page that lists many.

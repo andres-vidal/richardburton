@@ -132,12 +132,12 @@ defmodule RichardBurton.Publication.Index do
 
   Unbounded, for the caller that needs all of it at once — the CSV export is a
   download of the database, not a page of it. A reader takes it a page at a time
-  through `search_order/1` and `details/2` instead.
+  through `search_order/1` and `details/3` instead.
   """
   def search(term, select: attributes) when is_binary(term) do
-    case answering(term) do
+    case answered(term, fn ask -> Repo.all(asking(ask, attributes)) end) do
       :none -> {:ok, [], []}
-      {ask, keywords} -> {:ok, Repo.all(asking(ask, attributes)), keywords}
+      {results, keywords} -> {:ok, results, keywords}
     end
   end
 
@@ -147,15 +147,12 @@ defmodule RichardBurton.Publication.Index do
   `:none` when nothing in the index answers at all.
 
   The order is settled here, once. A reader then pages through it by id (see
-  `details/2`) and sees a stable list, because the order was fixed the moment
+  `details/3`) and sees a stable list, because the order was fixed the moment
   the search ran: rows cannot shift, skip or repeat as the database changes
   underneath the scroll.
   """
   def search_order(term) when is_binary(term) do
-    case answering(term) do
-      :none -> :none
-      {ask, keywords} -> {order_ids(ask), keywords}
-    end
+    answered(term, &order_ids/1)
   end
 
   @doc """
@@ -170,31 +167,26 @@ defmodule RichardBurton.Publication.Index do
   @doc """
   The full rows for the given ids, in that order — one stretch of an ordering
   `search_order/1` or `all_order/0` handed back. A `nil` term is a plain
-  listing; a term is carried so a row matched only by its references still says
-  which.
+  listing; a term and the words it matched on (as `search_order/1` returned
+  them) are carried so a row matched only by its references still shows which —
+  and shows it without resolving the term over again.
 
   An id no longer in the database is simply left out, which is how a deletion
   since the order was fixed shows up: a gap, never a shifted or repeated row.
   """
-  def details(ids, term \\ nil)
+  def details(ids, term \\ nil, keywords \\ [])
 
-  def details(ids, nil) when is_list(ids) do
+  def details(ids, nil, _keywords) when is_list(ids) do
     from(fp in FlatPublication, where: fp.id in ^ids)
     |> Repo.all()
     |> in_order(ids)
   end
 
-  def details(ids, term) when is_list(ids) and is_binary(term) do
-    case answering(term) do
-      :none ->
-        details(ids, nil)
-
-      {ask, _keywords} ->
-        from(fp in FlatPublication, where: fp.id in ^ids)
-        |> source_match([], ask)
-        |> Repo.all()
-        |> in_order(ids)
-    end
+  def details(ids, term, keywords) when is_list(ids) and is_binary(term) do
+    from(fp in FlatPublication, where: fp.id in ^ids)
+    |> source_match([], source_ask(term, keywords))
+    |> Repo.all()
+    |> in_order(ids)
   end
 
   @doc "How many publications a page holds."
@@ -237,27 +229,39 @@ defmodule RichardBurton.Publication.Index do
   # through by id.
   defp order_ids(ask), do: ask |> ranked() |> select([p], p.id) |> Repo.all()
 
-  # What a term is asking for: the query that answers it and the words it
-  # resolved to, or `:none` when nothing in the index answers at all.
+  # Run a term against the index with `run`, and hand back what it found along
+  # with the words it matched on — or `:none` when nothing in the index answers.
   #
-  # A term that quotes a phrase or negates a word (-word) is stating exactly
-  # what it wants, so it is passed to Postgres as written and never widened: no
-  # prefix matching, and no fuzzy pass that could add back a word the reader
-  # just excluded.
-  defp answering(term) do
+  # The term as written is tried first; only if that finds nothing is the term
+  # retried fuzzily. Whatever `run` returns for the as-written query, when it is
+  # not empty, is the answer — so the matching query runs once, not once to count
+  # and again to fetch.
+  #
+  # A term that quotes a phrase or negates a word (-word) is stating exactly what
+  # it wants, so it is passed to Postgres as written and never widened: no prefix
+  # matching, and no fuzzy pass that could add back a word it just excluded.
+  defp answered(term, run) do
     if spelled_out?(term) do
-      {{:spelled_out, term}, []}
+      {run.({:spelled_out, term}), []}
     else
       words = String.split(term, ~r/\s+/, trim: true)
-      as_written = {:parsed, written_query(words)}
 
-      if count_asking(as_written) > 0 do
-        {as_written, words |> Enum.flat_map(&search_keywords(&1, :prefix)) |> Enum.uniq()}
-      else
-        fuzzily(words)
+      case run.({:parsed, written_query(words)}) do
+        [] -> fuzzy_answered(words, run)
+        results -> {results, prefix_keywords(words)}
       end
     end
   end
+
+  defp fuzzy_answered(words, run) do
+    case fuzzily(words) do
+      :none -> :none
+      {ask, keywords} -> {run.(ask), keywords}
+    end
+  end
+
+  defp prefix_keywords(words),
+    do: words |> Enum.flat_map(&search_keywords(&1, :prefix)) |> Enum.uniq()
 
   defp spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
 
@@ -317,17 +321,16 @@ defmodule RichardBurton.Publication.Index do
     |> source_match(attributes, ask)
   end
 
-  # Only the as-written path is counted, to decide whether it answered before
-  # falling back to fuzzy; a spelled-out term is handed to Postgres as-is.
-  defp count_asking({:parsed, query}) do
-    Repo.one(
-      from(p in FlatPublication,
-        join: d in SearchDocument,
-        on: d.id == p.id,
-        where: fragment("document @@ to_tsquery('rb_search', ?)", ^query),
-        select: count(p.id)
-      )
-    )
+  # The query to highlight a row's references with — built from the words the
+  # search resolved to, which came back with the ids, so a page reads them from
+  # the client rather than resolving the term over again. A spelled-out term
+  # carries no keywords and is highlighted exactly as it was written.
+  defp source_ask(term, keywords) do
+    if spelled_out?(term) do
+      {:spelled_out, term}
+    else
+      {:parsed, Enum.map_join(keywords, " | ", &lexeme/1)}
+    end
   end
 
   # A publication can match on its references, which the index does not display.
