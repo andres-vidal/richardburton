@@ -554,6 +554,10 @@ defmodule RichardBurton.PublicationTest do
   describe "delete/2" do
     test "soft-deletes: the flat view hides the publication but the row survives" do
       publication = insert_publication()
+      # The flat view is materialized; a bare insert doesn't signal a refresh
+      # (bulk callers do, once), so ask for one before reading it. Delete signals
+      # its own, so the tombstone drops out without a second nudge.
+      Publication.Index.Refresher.refresh()
       assert [_] = Repo.all(FlatPublication)
 
       assert {:ok, %Publication{}} = Publication.delete(publication.id)
@@ -585,6 +589,7 @@ defmodule RichardBurton.PublicationTest do
 
       assert {:ok, reimported} = Publication.insert(@valid_attrs)
       assert reimported.id != publication.id
+      Publication.Index.Refresher.refresh()
 
       # Exactly one live row; the tombstone stays underneath.
       assert [%{id: live_id}] = Repo.all(FlatPublication)

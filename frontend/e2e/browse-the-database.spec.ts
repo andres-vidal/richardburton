@@ -139,9 +139,13 @@ test("reloading with a publication open keeps it open, over the search that foun
   await expect(reopened.getByText(/is a translation of/)).toBeVisible();
 
   // Closing goes back to the search it was opened from, not to the whole
-  // database — even though there is no history left to go back through.
-  await page.keyboard.press("Escape");
-  await expect(page).toHaveURL(/\/\?search=Machado$/);
+  // database — even though there is no history left to go back through. Right
+  // after a reload the dialog paints before its key handler has hydrated, so the
+  // first Escape can land on nothing; retry until the close registers.
+  await expect(async () => {
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(/\/\?search=Machado$/);
+  }).toPass();
   await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
     0,
   );
