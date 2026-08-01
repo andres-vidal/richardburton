@@ -612,8 +612,8 @@ defmodule RichardBurton.Publication.IndexTest do
     end
 
     test "a page carries the reference match that answered a row" do
-      {order, _keywords} = Publication.Index.search_order("Berkeley")
-      page = Publication.Index.details(order, "Berkeley")
+      {order, keywords} = Publication.Index.search_order("Berkeley")
+      page = Publication.Index.details(order, "Berkeley", keywords)
 
       row = Enum.find(page, &(&1.title == "Posthumous Reminiscences of Brás Cubas"))
       assert row.source_match =~ "Berkeley"
