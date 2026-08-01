@@ -48,13 +48,15 @@ export const readPublication = cache(
 
 export type { PublicationIndex };
 
-async function readDatabase(query: string): Promise<PublicationIndex> {
+async function readDatabase(
+  params: Record<string, unknown>,
+): Promise<PublicationIndex> {
   const { data, headers } = await getWithHeaders<{
     entries: Publication[];
     keywords?: string[];
     order?: PublicationId[];
     perPage?: number;
-  }>(`/publications${query}`);
+  }>("/publications", params);
 
   const total = headers[TOTAL_COUNT_HEADER];
 
@@ -76,11 +78,11 @@ async function readDatabase(query: string): Promise<PublicationIndex> {
  * rest of the pages are fetched in the browser as the reader scrolls.
  */
 export const readIndex = cache((search?: string) =>
-  readDatabase(search ? `?search=${encodeURIComponent(search)}` : ""),
+  readDatabase(search ? { search } : {}),
 );
 
 /**
  * The publications with no sources yet — the queue the backfill wizard steps
  * through, in the order it will offer them.
  */
-export const readUnreferenced = cache(() => readDatabase("?unreferenced"));
+export const readUnreferenced = cache(() => readDatabase({ unreferenced: true }));

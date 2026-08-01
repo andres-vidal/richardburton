@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import axiosCaseConverter from "axios-case-converter";
 import { CSRF_HEADER } from "modules/api";
+import qs from "qs";
 
 type HttpClientOptions = AxiosRequestConfig;
 type HttpClient = AxiosInstance;
@@ -24,7 +25,15 @@ const HTTP: HttpModule = {
     // and Phoenix's rb-session is never relayed to the browser (sign-in appears to
     // do nothing — you land back signed-out).
     const instance = axiosCaseConverter(
-      axios.create({ withCredentials: true, ...options }),
+      axios.create({
+        withCredentials: true,
+        // A `params` object is serialized once, here: array values repeat with
+        // brackets (`ids[]=1&ids[]=2`), which Plug reads back as a list — so
+        // callers hand over `{ ids, keywords }` instead of building query strings.
+        paramsSerializer: (params) =>
+          qs.stringify(params, { arrayFormat: "brackets" }),
+        ...options,
+      }),
       { ignoreHeaders: true },
     );
 

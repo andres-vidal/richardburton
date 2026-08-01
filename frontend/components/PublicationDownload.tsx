@@ -9,7 +9,6 @@ import {
   useVisiblePublicationCount,
 } from "modules/publication/hooks";
 import { useSearchParams } from "next/navigation";
-import qs from "qs";
 import { FC, useRef } from "react";
 import Button from "./Button";
 import { useNotify } from "./Notifications";
@@ -58,15 +57,10 @@ const PublicationDownload: FC = () => {
       await request(async (http) => {
         if (!anchor.current) return;
 
-        const query = qs.stringify(
-          { search, select },
-          { encode: false, arrayFormat: "brackets" },
-        );
-
-        const { data, headers } = await http.get(
-          `files/publications?${query}`,
-          { responseType: "blob" },
-        );
+        const { data, headers } = await http.get("files/publications", {
+          params: { search, select },
+          responseType: "blob",
+        });
 
         anchor.current.href = URL.createObjectURL(data);
         anchor.current.download = filenameFrom(headers[CONTENT_DISPOSITION]);

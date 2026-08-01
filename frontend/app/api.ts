@@ -16,8 +16,11 @@ const api = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
  * Responses come back camelCased, since this is the same client the browser
  * uses.
  */
-export async function get<T>(path: string): Promise<T> {
-  return (await getWithHeaders<T>(path)).data;
+export async function get<T>(
+  path: string,
+  params?: Record<string, unknown>,
+): Promise<T> {
+  return (await getWithHeaders<T>(path, params)).data;
 }
 
 /**
@@ -26,10 +29,12 @@ export async function get<T>(path: string): Promise<T> {
  */
 export async function getWithHeaders<T>(
   path: string,
+  params?: Record<string, unknown>,
 ): Promise<{ data: T; headers: Record<string, string> }> {
   const cookie = (await cookies()).get(SESSION_COOKIE);
 
   const { data, headers } = await api.get<T>(path, {
+    params,
     headers: cookie ? { Cookie: `${cookie.name}=${cookie.value}` } : {},
   });
 
