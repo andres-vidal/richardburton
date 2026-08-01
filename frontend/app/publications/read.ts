@@ -5,6 +5,7 @@ import { withChanges, type WithChanges } from "modules/publication/history";
 import type {
   Publication,
   PublicationHistoryEntry,
+  PublicationId,
 } from "modules/publication/model";
 import type { PublicationIndex } from "modules/publication/store";
 import { User } from "modules/users";
@@ -51,7 +52,7 @@ async function readDatabase(query: string): Promise<PublicationIndex> {
   const { data, headers } = await getWithHeaders<{
     entries: Publication[];
     keywords?: string[];
-    matching?: number;
+    order?: PublicationId[];
     perPage?: number;
   }>(`/publications${query}`);
 
@@ -61,7 +62,9 @@ async function readDatabase(query: string): Promise<PublicationIndex> {
     entries: data.entries,
     keywords: data.keywords ?? [],
     total: total === undefined ? null : parseInt(total),
-    matching: data.matching ?? data.entries.length,
+    // An endpoint that does not page (the backfill queue) hands back no
+    // ordering; the rows it returned stand as the whole of it.
+    order: data.order ?? data.entries.map((entry) => entry.id!),
     perPage: data.perPage ?? data.entries.length,
   };
 }

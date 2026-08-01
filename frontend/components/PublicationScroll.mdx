@@ -6,23 +6,28 @@ import * as PublicationScrollStories from "./PublicationScroll.stories";
 
 # Publication scroll
 
-Grows the index as the reader nears the foot of it. The first page arrives with
-the page, server-rendered; each further page is fetched in the browser when a
-sentinel below the last row scrolls into view, and appended to what is already
-loaded.
+Grows the index as the reader nears the foot of it. The first response hands
+back the whole ordering — the ids of every match, in reading order — and the
+first page of them in full. Each further page is fetched in the browser when a
+sentinel below the last row scrolls into view: the next stretch of that ordering,
+asked for by id and appended to what is already loaded.
 
 <Canvas of={PublicationScrollStories.LoadingMore} />
 
 ## How it works
 
-- The store knows how many records matched the query (`matchingCountAtom`) and
-  how many a page holds (`perPageAtom`); when fewer are loaded than matched,
-  there is more to fetch and the sentinel renders.
+- The store holds the ordering the query answered with (`orderAtom`) and how far
+  into it has been drawn (`drawnCountAtom`); while less than the whole has been
+  drawn, there is more to fetch and the sentinel renders.
+- The ordering is frozen when the query is answered, so each fetch asks for the
+  next stretch of it by id. Paging is fixed against that ordering rather than an
+  offset, so it cannot drift as the database changes underneath — and a record
+  removed since simply comes back absent and is stepped over.
 - A generous `rootMargin` on the observer starts the fetch before the foot is
   actually reached, so the rows are usually there by the time the reader
   arrives.
 - Only one page is fetched at a time — a scroll that lingers at the foot does
-  not ask for the same page twice.
+  not ask for the same stretch twice.
 - A page is no longer a place: the address carries only the search, so returning
   to a row means scrolling back to it rather than linking a page number.
 

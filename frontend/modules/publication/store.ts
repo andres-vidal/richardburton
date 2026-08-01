@@ -36,11 +36,25 @@ function createId(): PublicationId {
 
 const totalIndexCountAtom = atom<number | null>(null);
 
-/** How many publications answered the current query, across every page. */
-const matchingCountAtom = atom<number>(0);
+/**
+ * The ordering a query answered with: the ids of every match, in the order they
+ * are to be read. Frozen when the query is first answered, so scrolling through
+ * it cannot drift as the database changes underneath — a record inserted or
+ * removed afterwards does not shift which rows a later page draws.
+ */
+const orderAtom = atom<PublicationId[]>([]);
+
+/** How many publications answered the current query — the length of its
+ * ordering, across every page. */
+const matchingCountAtom = atom((get) => get(orderAtom).length);
 
 /** How many a page holds, as the server counts them. */
 const perPageAtom = atom<number>(0);
+
+/** How far into the ordering the reader has drawn, by position — advanced a
+ * page's worth at a time, whatever number of rows actually came back, so a
+ * record removed since the ordering froze is stepped over rather than retried. */
+const drawnCountAtom = atom<number>(0);
 
 /** Whether a further page is being fetched — one flight at a time, so a scroll
  * that lingers at the foot does not ask for the same page twice. */
@@ -261,8 +275,9 @@ type PublicationIndex = {
   keywords: string[];
   /** How many exist in total, not how many matched. `null` when unreported. */
   total: number | null;
-  /** How many answered this query, across every page of it. */
-  matching: number;
+  /** The ids of every match, in reading order — the ordering the reader scrolls
+   * through, frozen when the query was answered. */
+  order: PublicationId[];
   /** How many a page holds, as the server counts them. */
   perPage: number;
 };
@@ -331,12 +346,14 @@ function remember(store: Store, publication: Publication): void {
  */
 function receiveIndex(
   store: Store,
-  { entries, keywords, total, matching, perPage }: PublicationIndex,
+  { entries, keywords, total, order, perPage }: PublicationIndex,
 ): PublicationId[] {
   if (total !== null) store.set(totalIndexCountAtom, total);
   store.set(keywordsAtom, keywords);
-  store.set(matchingCountAtom, matching);
+  store.set(orderAtom, order);
   store.set(perPageAtom, perPage);
+  // The first page has drawn as far into the ordering as it holds rows.
+  store.set(drawnCountAtom, Math.min(order.length, perPage || entries.length));
 
   return hydrate(store, entries);
 }
@@ -553,6 +570,7 @@ export {
   createId,
   discardedCountAtom,
   discardEdit,
+  drawnCountAtom,
   duplicate,
   errorDescriptionFamily,
   errorFamily,
@@ -575,6 +593,7 @@ export {
   overrideFamily,
   overrideField,
   overrideReferences,
+  orderAtom,
   publicationFamily,
   publicationIdsAtom,
   publicationOrNullFamily,

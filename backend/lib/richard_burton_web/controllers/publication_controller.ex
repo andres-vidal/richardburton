@@ -5,50 +5,64 @@ defmodule RichardBurtonWeb.PublicationController do
   alias RichardBurton.Publication
   alias RichardBurton.User
 
-  def index(conn, params = %{"search" => query}) do
-    {:ok, results, keywords, matching} = Publication.Index.search_page(query, page(params))
-
-    conn
-    |> put_resp_header(
-      Publication.Index.count_header(),
-      Integer.to_string(Publication.Index.count())
-    )
-    |> json(%{
-      entries: results,
-      keywords: keywords,
-      matching: matching,
-      per_page: Publication.Index.per_page()
-    })
+  # A later page of a search or listing already begun: the reader has scrolled,
+  # and asks for the next stretch of the ordering the first response handed back.
+  # The search rides along so a row matched by its references still says so.
+  #
+  # The total was reported with the first page and does not change under the
+  # reader; a later stretch is only the rows, so it does not pay to count again.
+  def index(conn, %{"ids" => ids} = params) do
+    entries = Publication.Index.details(parse_ids(ids), Map.get(params, "search"))
+    json(conn, %{entries: entries})
   end
 
   def index(conn, %{"unreferenced" => _}) do
     {:ok, results} = Publication.Index.without_references()
-
-    conn
-    |> put_resp_header(
-      Publication.Index.count_header(),
-      Integer.to_string(Publication.Index.count())
-    )
-    |> json(%{entries: results})
+    conn |> put_total() |> json(%{entries: results})
   end
 
-  def index(conn, params) do
-    {:ok, results, matching} = Publication.Index.all_page(page(params))
+  # The first response to a query hands back the whole ordering — the ids of
+  # every match, in the order they are to be read — and the first page of them
+  # in full. The reader scrolls the rest in by that frozen ordering, so the
+  # paging cannot drift as the database changes underneath it.
+  def index(conn, %{"search" => query}) do
+    case Publication.Index.search_order(query) do
+      :none ->
+        conn |> put_total() |> json(first_page([], [], keywords: []))
 
-    conn
-    |> put_resp_header(
-      Publication.Index.count_header(),
-      Integer.to_string(Publication.Index.count())
-    )
-    |> json(%{entries: results, matching: matching, per_page: Publication.Index.per_page()})
-  end
-
-  # A page nobody asked for is the first one, and so is one that is not a number.
-  defp page(params) do
-    case Integer.parse(Map.get(params, "page", "1")) do
-      {page, _rest} when page > 0 -> page
-      _ -> 1
+      {order, keywords} ->
+        conn |> put_total() |> json(first_page(order, query, keywords: keywords))
     end
+  end
+
+  def index(conn, _params) do
+    conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil))
+  end
+
+  defp first_page(order, search, extra \\ []) do
+    per_page = Publication.Index.per_page()
+    entries = Publication.Index.details(Enum.take(order, per_page), search)
+
+    Enum.into(extra, %{entries: entries, order: order, per_page: per_page})
+  end
+
+  defp put_total(conn) do
+    put_resp_header(
+      conn,
+      Publication.Index.count_header(),
+      Integer.to_string(Publication.Index.count())
+    )
+  end
+
+  defp parse_ids(csv) do
+    csv
+    |> String.split(",", trim: true)
+    |> Enum.flat_map(fn part ->
+      case Integer.parse(part) do
+        {id, ""} -> [id]
+        _ -> []
+      end
+    end)
   end
 
   # One publication, flat, the same shape the index lists — so a page that shows

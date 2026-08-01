@@ -43,6 +43,50 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
   end
 
+  describe "GET /publications (paged)" do
+    setup %{conn: conn} do
+      for i <- 1..7 do
+        %{@publication_attrs | "title" => "Paged #{String.pad_leading("#{i}", 2, "0")}"}
+        |> Publication.Codec.nest()
+        |> Publication.insert("importer@example.com")
+      end
+
+      [conn: conn, per_page: Publication.Index.per_page()]
+    end
+
+    test "hands back the whole ordering and the first page of it", meta do
+      body =
+        meta.conn
+        |> get(publication_path(meta.conn, :index))
+        |> json_response(200)
+
+      assert length(body["order"]) == 7
+      assert body["per_page"] == meta.per_page
+      assert length(body["entries"]) == meta.per_page
+      # The first page is the head of the ordering, in that order.
+      assert Enum.map(body["entries"], & &1["id"]) == Enum.take(body["order"], meta.per_page)
+    end
+
+    test "a later stretch is fetched by id, just the rows, in the order asked", meta do
+      order =
+        meta.conn
+        |> get(publication_path(meta.conn, :index))
+        |> json_response(200)
+        |> Map.get("order")
+
+      rest = Enum.drop(order, meta.per_page)
+
+      body =
+        meta.conn
+        |> get("#{publication_path(meta.conn, :index)}?ids=#{Enum.join(rest, ",")}")
+        |> json_response(200)
+
+      assert Enum.map(body["entries"], & &1["id"]) == rest
+      # The ordering was handed back once; a later stretch is only the rows.
+      refute Map.has_key?(body, "order")
+    end
+  end
+
   describe "GET /publications/:id" do
     setup(%{conn: conn}) do
       {:ok, publication} =

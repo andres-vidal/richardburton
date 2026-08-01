@@ -52,28 +52,25 @@ async function run<T>(op: (http: AxiosInstance) => Promise<T>): Promise<T> {
 }
 
 /**
- * Read one page of the index from the browser, for infinite scroll. The first
- * page is server-rendered; this fetches the rest as the reader reaches the foot
- * of the list. Failure yields no rows rather than interrupting — the scroll
- * simply doesn't grow.
+ * Read the details of a named stretch of the index from the browser, for
+ * infinite scroll. The first page is server-rendered; as the reader nears the
+ * foot, the next stretch of the frozen ordering is asked for by id. The search
+ * rides along so a row matched on its references still says why. Ids that no
+ * longer resolve (removed since the ordering froze) simply come back absent.
  */
-async function loadPage(
+async function loadDetails(
+  ids: PublicationId[],
   search: string | undefined,
-  page: number,
 ): Promise<Publication[]> {
   const params = new URLSearchParams({
+    ids: ids.join(","),
     ...(search ? { search } : {}),
-    page: String(page),
   });
 
-  try {
-    const { data } = await request((http) =>
-      http.get<{ entries: Publication[] }>(`publications?${params.toString()}`),
-    );
-    return data.entries;
-  } catch {
-    return [];
-  }
+  const { data } = await request((http) =>
+    http.get<{ entries: Publication[] }>(`publications?${params.toString()}`),
+  );
+  return data.entries;
 }
 
 /** Submit the current (visible) working set. */
@@ -312,7 +309,7 @@ async function upload(store: Store, payload: FormData): Promise<void> {
 export {
   bulk,
   deletePublication,
-  loadPage,
+  loadDetails,
   restore,
   undo,
   update,
