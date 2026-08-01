@@ -135,9 +135,9 @@ defmodule RichardBurton.Publication.Index do
   through `search_order/1` and `details/3` instead.
   """
   def search(term, select: attributes) when is_binary(term) do
-    case answered(term, fn ask -> Repo.all(asking(ask, attributes)) end) do
+    case answering(term) do
       :none -> {:ok, [], []}
-      {results, keywords} -> {:ok, results, keywords}
+      {ask, keywords, _ids} -> {:ok, Repo.all(asking(ask, attributes)), keywords}
     end
   end
 
@@ -152,7 +152,10 @@ defmodule RichardBurton.Publication.Index do
   underneath the scroll.
   """
   def search_order(term) when is_binary(term) do
-    answered(term, &order_ids/1)
+    case answering(term) do
+      :none -> :none
+      {_ask, keywords, ids} -> {ids, keywords}
+    end
   end
 
   @doc """
@@ -229,34 +232,35 @@ defmodule RichardBurton.Publication.Index do
   # through by id.
   defp order_ids(ask), do: ask |> ranked() |> select([p], p.id) |> Repo.all()
 
-  # Run a term against the index with `run`, and hand back what it found along
-  # with the words it matched on — or `:none` when nothing in the index answers.
+  # What a term is asking for: the query that answers it, the words it resolved
+  # to, and the ids it matched — or `:none` when nothing in the index answers.
   #
-  # The term as written is tried first; only if that finds nothing is the term
-  # retried fuzzily. Whatever `run` returns for the as-written query, when it is
-  # not empty, is the answer — so the matching query runs once, not once to count
-  # and again to fetch.
+  # Deciding whether the term answers as written means running it, so what it
+  # matched comes back with the answer rather than being asked for again. Only if
+  # it matched nothing is the term retried fuzzily.
   #
   # A term that quotes a phrase or negates a word (-word) is stating exactly what
   # it wants, so it is passed to Postgres as written and never widened: no prefix
   # matching, and no fuzzy pass that could add back a word it just excluded.
-  defp answered(term, run) do
+  defp answering(term) do
     if spelled_out?(term) do
-      {run.({:spelled_out, term}), []}
+      ask = {:spelled_out, term}
+      {ask, [], order_ids(ask)}
     else
       words = String.split(term, ~r/\s+/, trim: true)
+      as_written = {:parsed, written_query(words)}
 
-      case run.({:parsed, written_query(words)}) do
-        [] -> fuzzy_answered(words, run)
-        results -> {results, prefix_keywords(words)}
+      case order_ids(as_written) do
+        [] -> fuzzily_answering(words)
+        ids -> {as_written, prefix_keywords(words), ids}
       end
     end
   end
 
-  defp fuzzy_answered(words, run) do
+  defp fuzzily_answering(words) do
     case fuzzily(words) do
       :none -> :none
-      {ask, keywords} -> {run.(ask), keywords}
+      {ask, keywords} -> {ask, keywords, order_ids(ask)}
     end
   end
 
