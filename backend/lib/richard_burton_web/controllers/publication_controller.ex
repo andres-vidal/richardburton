@@ -12,7 +12,7 @@ defmodule RichardBurtonWeb.PublicationController do
   #
   # The total was reported with the first page and does not change under the
   # reader; a later stretch is only the rows, so it does not pay to count again.
-  def index(conn, %{"ids" => ids} = params) do
+  def index(conn, params = %{"ids" => ids}) do
     entries =
       Publication.Index.details(
         parse_ids(ids),
