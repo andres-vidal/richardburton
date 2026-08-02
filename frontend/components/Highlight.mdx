@@ -1,0 +1,49 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as HighlightStories from "./Highlight.stories";
+
+<Meta of={HighlightStories} />
+
+# Highlight
+
+Marks the parts of a publication the current search matched, so a reader can see
+what the query caught rather than inferring it. Used wherever a publication is
+shown while a search is on — the rows of the index, and a record open over them.
+
+<Canvas of={HighlightStories.Matched} />
+
+## Props
+
+- `children` — the text to render. A plain string; the component returns it as a
+  mix of text and `<mark>` runs.
+
+## How it works
+
+- The words to mark come from the store (`useKeywords`), which holds the indexed
+  words the search resolved to — the server returns them with the results.
+  Because the server has already widened a half-typed term into the words it
+  matched, typing `mach` marks `Machado`.
+- Matching is done on a folded copy of the text — accents removed, lowercased,
+  the same folding the index applies — and the marks are mapped back onto the
+  original characters, so `Angústia` is marked by a search for `angustia`
+  without the accents being lost from what is displayed.
+
+<Canvas of={HighlightStories.Accented} />
+
+- A word is marked only when it matches a keyword **whole**: the keywords are
+  themselves whole indexed words, so `casmurro` does not mark `Casmurros`.
+- Every occurrence is marked, and several keywords can match in one string.
+
+<Canvas of={HighlightStories.ManyMatches} />
+
+## Outside a search
+
+With no search there are no keywords, nothing is marked, and the text renders
+untouched — which is also what a publication's own page shows, since it is
+opened without a query behind it.
+
+<Canvas of={HighlightStories.Unsearched} />
+
+A search that quotes a phrase or negates a word is passed to Postgres verbatim
+and resolves to no keywords, so it marks nothing; the row still explains itself
+through the reference snippet when it matched on its sources.

@@ -6,6 +6,7 @@ import {
 } from "modules/publication/hooks";
 import { FC, MouseEvent } from "react";
 import { EmptySearchResults } from "./EmptySearchResults";
+import Highlight from "./Highlight";
 import { ListSkeleton } from "./ListSkeleton";
 
 const PublicationItem: FC<{ id: number }> = ({ id }) => {
@@ -16,18 +17,28 @@ const PublicationItem: FC<{ id: number }> = ({ id }) => {
       <div className="flex justify-between mr-1 border border-gray-200 rounded-lg overflow-clip">
         <div className="p-2 space-y-4">
           <div>
-            <span className="font-normal">{publication.title}</span>
+            <span className="font-normal">
+              <Highlight>{publication.title}</Highlight>
+            </span>
             <br className="sm:hidden" />
-            <span className="whitespace-nowrap"> ({publication.authors})</span>
+            <span className="whitespace-nowrap">
+              {" "}
+              (<Highlight>{publication.authors}</Highlight>)
+            </span>
           </div>
           <div className="text-sm text-indigo-600">
             Translation of{" "}
-            <span className="font-normal">{publication.originalTitle}</span> by{" "}
+            <span className="font-normal">
+              <Highlight>{publication.originalTitle}</Highlight>
+            </span>{" "}
+            by{" "}
             <span className="font-normal whitespace-nowrap">
-              {publication.originalAuthors}
+              <Highlight>{publication.originalAuthors}</Highlight>
             </span>
             , published by{" "}
-            <span className="font-normal">{publication.publishers}</span>
+            <span className="font-normal">
+              <Highlight>{publication.publishers}</Highlight>
+            </span>
           </div>
         </div>
 
