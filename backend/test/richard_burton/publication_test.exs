@@ -786,6 +786,29 @@ defmodule RichardBurton.PublicationTest do
       assert again.action == "merged"
     end
 
+    test "a merge recorded before it was one act is inert, not half-undoable" do
+      {_winner, loser} = merge_pair()
+
+      # The shape the log had when a merge marked each record separately: the
+      # one that left carried the mark, and the mark named nothing.
+      loser
+      |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second))
+      |> Repo.update!()
+
+      History.record(:merged, Publication.preload(loser), "someone@example.com")
+
+      [entry | _] = History.of(loser.id)
+      assert entry.action == "merged"
+
+      # Nothing to give back, so nothing to undo — rather than an undo that
+      # reverts a record and returns none of what it was merged into.
+      refute entry.undoable
+      assert {:error, :conflict} = Publication.undo(loser.id, entry.version)
+
+      # And it stays out of the trash, as it always did.
+      refute Enum.any?(Publication.all_deleted(), &(&1.id == loser.id))
+    end
+
     test "a record given back by an un-merge is out of hiding, and in the index" do
       {winner, loser} = merge_pair()
       {:ok, _} = Publication.merge(winner.id, [loser.id])

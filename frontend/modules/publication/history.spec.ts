@@ -1,5 +1,5 @@
 import type { FullHistoryEntry, SnapshotDiff } from "./model";
-import { keyOf, presentChanges, withChanges } from "./history";
+import { keyOf, presentAbsorbed, presentChanges, withChanges } from "./history";
 
 function snapshot(
   fields: Partial<FullHistoryEntry["snapshot"]> = {},
@@ -106,5 +106,59 @@ describe("withChanges", () => {
 describe("keyOf", () => {
   test("identifies an entry by publication and version", () => {
     expect(keyOf(entry(7, 3, "updated"))).toBe("7:3");
+  });
+});
+
+describe("presentAbsorbed", () => {
+  const absorbing = (
+    action: FullHistoryEntry["action"],
+    absorbed: FullHistoryEntry["absorbed"],
+  ) => ({ ...entry(1, 2, action), absorbed });
+
+  test("spells out a record a merge took in, field by field", () => {
+    const [change] = presentAbsorbed(
+      absorbing("merged", {
+        "9": snapshot({ title: "A British Printing" }),
+      }),
+    );
+
+    expect(change).toMatchObject({ kind: "absorbed", direction: "in" });
+    if (change.kind !== "absorbed")
+      throw new Error("expected an absorbed change");
+
+    const [record] = change.records;
+    expect(record.title).toBe("A British Printing");
+    // Every field it held, so the log says what became of the data — not only
+    // that something was taken in.
+    expect(record.fields.map((field) => field.label)).toContain("Translators");
+    expect(record.fields.map((field) => field.label)).toContain("Year");
+    expect(record.fields.map((field) => field.label)).not.toContain("Title");
+  });
+
+  test("an un-merge gives them back", () => {
+    const [change] = presentAbsorbed(
+      absorbing("unmerged", { "9": snapshot() }),
+    );
+
+    expect(change).toMatchObject({ kind: "absorbed", direction: "back" });
+  });
+
+  test("an entry that moved no records adds nothing", () => {
+    expect(presentAbsorbed(entry(1, 2, "updated"))).toEqual([]);
+    expect(presentAbsorbed(absorbing("merged", {}))).toEqual([]);
+  });
+
+  test("the whole record travels with the entry, sources included", () => {
+    const [change] = presentAbsorbed(
+      absorbing("merged", {
+        "9": snapshot({ references: ["Sousa, J. Bibliografia, 1955."] }),
+      }),
+    );
+
+    if (change.kind !== "absorbed")
+      throw new Error("expected an absorbed change");
+    expect(change.records[0].references).toEqual([
+      "Sousa, J. Bibliografia, 1955.",
+    ]);
   });
 });
