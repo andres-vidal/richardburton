@@ -20,51 +20,40 @@ defmodule RichardBurton.Publication.Index.Term do
   @type filter :: %{field: atom, value: String.t(), exact: boolean, negated: boolean}
   @type alternative :: %{words: [String.t()], filters: [filter]}
 
-  # Every name an operator answers to: the labels the interface shows, the names
-  # the database uses, and Portuguese.
+  # Every name an operator answers to, in English and in Portuguese.
   #
-  # `author` names the writer of the book, and so does `authors` — even though
-  # the column called `authors` holds the translators. That is the database's
-  # word for them, and it has no business reaching the person typing: a reader
-  # asking for an author means whoever wrote the thing, and asks for the person
-  # who rendered it by name, as `translator`.
+  # Each is singular, because asking for more than one of something is asking
+  # the same operator twice — `author:machado author:assis` wants both — and a
+  # plural spelling would only be a second way to say the same thing.
+  #
+  # `author` names whoever wrote the book, though the column holding the
+  # translators is the one called `authors`. That is the database's word for
+  # them, and it has no business reaching the person typing: the one who
+  # rendered a book is asked for as `translator`.
   @fields %{
     "title" => :title,
     "titulo" => :title,
     "título" => :title,
     "original" => :original_title,
-    "original_title" => :original_title,
     "original-title" => :original_title,
-    "titulo_original" => :original_title,
+    "original_title" => :original_title,
     "titulo-original" => :original_title,
+    "titulo_original" => :original_title,
     "translator" => :authors,
-    "translators" => :authors,
     "tradutor" => :authors,
-    "tradutores" => :authors,
     "author" => :original_authors,
-    "authors" => :original_authors,
-    "original_author" => :original_authors,
-    "original-author" => :original_authors,
-    "original_authors" => :original_authors,
     "autor" => :original_authors,
-    "autores" => :original_authors,
+    "original-author" => :original_authors,
+    "original_author" => :original_authors,
     "country" => :countries,
-    "countries" => :countries,
     "pais" => :countries,
     "país" => :countries,
-    "paises" => :countries,
-    "países" => :countries,
     "publisher" => :publishers,
-    "publishers" => :publishers,
     "editora" => :publishers,
-    "editoras" => :publishers,
     "year" => :year,
     "ano" => :year,
     "source" => :references,
-    "sources" => :references,
-    "references" => :references,
-    "fonte" => :references,
-    "fontes" => :references
+    "fonte" => :references
   }
 
   # A token runs until a space, except that a quoted or bracketed stretch is

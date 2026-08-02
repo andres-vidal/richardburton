@@ -68,17 +68,11 @@ defmodule RichardBurton.Publication.Index.TermTest do
       end
     end
 
-    test "answers to the names the database uses" do
-      for {name, field} <- [
-            {"original_title", :original_title},
-            {"original_authors", :original_authors},
-            {"countries", :countries},
-            {"publishers", :publishers},
-            {"references", :references}
-          ] do
-        assert [%{filters: [%{field: ^field}]}] = Term.parse("#{name}:x"),
-               "expected #{name}: to name #{field}"
-      end
+    test "asking for more than one is asking twice, not a plural name" do
+      # `author:machado author:assis` wants both; a plural spelling would only
+      # be a second way to say the same thing.
+      assert [%{words: ["authors:machado"], filters: []}] = Term.parse("authors:machado")
+      assert [%{filters: [_, _]}] = Term.parse("author:machado author:assis")
     end
 
     test "answers in Portuguese" do
@@ -107,7 +101,7 @@ defmodule RichardBurton.Publication.Index.TermTest do
       # The column named `authors` holds the translators; that is the database's
       # word, and a reader asking for an author means the writer.
       assert [%{filters: [%{field: :original_authors}]}] = Term.parse("author:machado")
-      assert [%{filters: [%{field: :original_authors}]}] = Term.parse("authors:machado")
+      assert [%{filters: [%{field: :original_authors}]}] = Term.parse("autor:machado")
       assert [%{filters: [%{field: :authors}]}] = Term.parse("translator:caldwell")
     end
 
