@@ -225,6 +225,74 @@ defmodule RichardBurton.Publication do
     |> then(&update(id, &1, actor))
   end
 
+  # Taking a merge apart: the record that survived gives back what it absorbed
+  # and the records that left come back, in one transaction and under one entry
+  # — the same shape as the merge, which is what makes an un-merge undoable in
+  # its turn.
+  defp compensate(entry = %{action: "merged", publication_id: id}, previous, head, actor) do
+    unmerge(entry, previous, head, id, actor)
+  end
+
+  # And undoing an un-merge is the merge again, by the same route.
+  defp compensate(%{action: "unmerged", publication_id: id} = entry, _previous, _head, actor) do
+    merge(id, History.absorbed_ids(entry), actor)
+  end
+
+  defp unmerge(entry, previous, head, winner_id, actor) do
+    restored_ids = History.absorbed_ids(entry)
+
+    Repo.transaction(fn ->
+      with {:ok, restored} <- restore_absorbed(restored_ids),
+           {:ok, winner} <- revert_winner(winner_id, entry, previous, head) do
+        History.record(:unmerged, preload(winner), actor, restored)
+        preload(winner)
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+    |> tap(fn
+      {:ok, _} -> Index.Refresher.refresh()
+      _ -> :ok
+    end)
+  end
+
+  # The rows never left, so putting them back is lifting the tombstone. A key
+  # taken by something else in the meantime is the same conflict a restore hits.
+  defp restore_absorbed(ids) do
+    Enum.reduce_while(ids, {:ok, []}, fn id, {:ok, restored} ->
+      case get(id, deleted: true) do
+        nil ->
+          {:halt, {:error, :not_found}}
+
+        publication ->
+          publication
+          |> change(deleted_at: nil)
+          |> Repo.update()
+          |> case do
+            {:ok, back} -> {:cont, {:ok, [preload(back) | restored]}}
+            {:error, _} -> {:halt, {:error, :conflict}}
+          end
+      end
+    end)
+  end
+
+  # The winner returns to what it held before it absorbed anything — the same
+  # revert an undone update performs, over the fields the merge changed.
+  defp revert_winner(_id, _entry, nil, _head), do: {:error, :conflict}
+
+  defp revert_winner(id, entry, previous, head) do
+    entry
+    |> History.reverted_snapshot(previous, head)
+    |> Codec.nest()
+    |> then(&(id |> get(deleted: false) |> preload() |> changeset(&1)))
+    |> link_assocs()
+    |> Repo.update()
+    |> case do
+      {:ok, winner} -> {:ok, winner}
+      {:error, changeset} -> {:error, rejection(changeset)}
+    end
+  end
+
   @doc """
   Collapse publications into one.
 
@@ -286,10 +354,14 @@ defmodule RichardBurton.Publication do
     end)
   end
 
+  # One act, one entry: the record that survives holds it, and names the ones
+  # that did not. The losers get no entry of their own — nothing happened *to*
+  # them that the merge does not already say, and an entry each would be a
+  # merge that has to be undone in pieces.
   defp absorbing(winner, losers, actor) do
     winner = preload(winner)
-    History.record(:updated, winner, actor)
-    Enum.each(losers, &absorb(&1, actor))
+    Enum.each(losers, &absorb/1)
+    History.record(:merged, winner, actor, Enum.map(losers, &preload/1))
     winner
   end
 
@@ -302,13 +374,14 @@ defmodule RichardBurton.Publication do
   end
 
   # A loser leaves the database the way a deleted publication does — the row,
-  # its sources and its history all survive — but the log says why.
-  defp absorb(loser, actor) do
+  # its sources and its history all survive. Why it left is on the merge entry,
+  # which is also what brings it back.
+  defp absorb(loser) do
     loser
     |> change(deleted_at: DateTime.utc_now(:second))
     |> Repo.update()
     |> case do
-      {:ok, _} -> History.record(:merged, loser, actor)
+      {:ok, _} -> :ok
       {:error, changeset} -> Repo.rollback(Validation.get_errors(changeset))
     end
   end
@@ -407,16 +480,29 @@ defmodule RichardBurton.Publication do
   end
 
   # Of the given publications, those whose last recorded act was a merge.
+  # A record inside another one is not in the trash: nobody deleted it, and it
+  # comes back by taking the merge apart, not by being restored on its own. The
+  # merge entries name what they hold, newest last, so a later un-merge undoes
+  # an earlier merge's claim on a record.
   defp merged_away(ids) do
+    wanted = MapSet.new(ids)
+
     Ecto.Query.from(h in History,
-      where: h.publication_id in ^ids,
-      distinct: h.publication_id,
-      order_by: [asc: h.publication_id, desc: h.version],
-      select: {h.publication_id, h.action}
+      where: h.action in ["merged", "unmerged"],
+      order_by: [asc: h.id],
+      select: {h.action, h.absorbed}
     )
     |> Repo.all()
-    |> Enum.filter(fn {_id, action} -> action == "merged" end)
-    |> MapSet.new(fn {id, _action} -> id end)
+    |> Enum.reduce(MapSet.new(), fn {action, absorbed}, held ->
+      absorbed
+      |> Kernel.||(%{})
+      |> Map.keys()
+      |> Enum.map(&String.to_integer/1)
+      |> Enum.filter(&MapSet.member?(wanted, &1))
+      |> Enum.reduce(held, fn id, held ->
+        if action == "merged", do: MapSet.put(held, id), else: MapSet.delete(held, id)
+      end)
+    end)
   end
 
   @doc """

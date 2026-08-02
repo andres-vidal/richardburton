@@ -264,6 +264,9 @@ defmodule RichardBurtonWeb.PublicationController do
       snapshot: entry.snapshot,
       diff: entry.diff,
       undoable: entry.undoable,
+      # The records this entry took in, or gave back — what makes a merge one
+      # thing in the log rather than a change to each of them.
+      absorbed: entry.absorbed,
       timestamp: entry.inserted_at
     }
   end

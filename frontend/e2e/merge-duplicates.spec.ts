@@ -129,12 +129,11 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
     await expect(merged.getByRole("link", { name: value })).toBeVisible();
   }
 
-  // The log tells the survivor's side of it as an ordinary update, and the
-  // merge itself is not on offer to undo.
+  // The record's own log carries the merge, on the record that survived it.
   await merged.getByText("History").click();
-  await expect(
-    merged.locator('li[data-action="updated"]').first(),
-  ).toBeVisible();
+  const mergeEntry = merged.locator('li[data-action="merged"]').first();
+  await expect(mergeEntry).toBeVisible();
+  await expect(mergeEntry).toContainText("Took in");
   await page.keyboard.press("Escape");
 
   // Search agrees the duplicates are gone: the title finds one row, and the
@@ -150,19 +149,35 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
   ).toHaveCount(1);
   await search.clear();
 
-  // The feed keeps both merges, attributed and refusing to be undone.
+  // The feed carries the merge as one entry, however many records it took in,
+  // and says which they were.
   await page.goto("/admin/publications/history");
   const mergedEntries = page.locator('li[data-action="merged"]');
-  await expect(mergedEntries).toHaveCount(2);
+  await expect(mergedEntries).toHaveCount(1);
   await expect(mergedEntries.first()).toContainText(CANONICAL);
-  await expect(
-    mergedEntries.first().getByRole("button", { name: "Undo" }),
-  ).toHaveCount(0);
+  await expect(mergedEntries.first()).toContainText("Took in");
 
-  // And the trash stays empty: nobody deleted those records, a merge absorbed
-  // them, and there is no putting one back.
+  // The trash stays empty: nobody deleted those records, a merge absorbed them,
+  // and they come back by taking the merge apart rather than being restored.
   await page.goto("/admin/publications/deleted");
   await expect(
     page.getByText("no publication is currently deleted"),
   ).toBeVisible();
+
+  // One act, so one thing to undo — and undoing it gives back everything the
+  // merge took, at once.
+  await page.goto("/admin/publications/history");
+  await mergedEntries.first().getByRole("button", { name: "Undo" }).click();
+
+  await expect(page.locator('li[data-action="unmerged"]').first()).toContainText(
+    "Gave back",
+  );
+
+  // The records that left are in the database again, and the survivor has
+  // given up what it had absorbed.
+  await page.goto("/");
+  await expectPublicationCount(page, CORPUS_SIZE + 2);
+  await expect(
+    indexTable(page).getByRole("row").filter({ hasText: CANONICAL }),
+  ).toHaveCount(3);
 });

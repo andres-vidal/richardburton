@@ -706,17 +706,32 @@ defmodule RichardBurton.PublicationTest do
       assert %Publication{deleted_at: %DateTime{}} = Repo.get(Publication, loser.id)
     end
 
-    test "the log says a loser was merged, not deleted, and will not undo it" do
+    test "the merge is one entry, on the record that survived it" do
       {winner, loser} = merge_pair()
 
       {:ok, _} = Publication.merge(winner.id, [loser.id], "someone@example.com")
 
-      assert [entry | _] = Publication.History.of(loser.id)
+      assert [entry | _] = Publication.History.of(winner.id)
       assert entry.action == "merged"
       assert entry.actor == "someone@example.com"
-      refute entry.undoable
+      assert Publication.History.absorbed_ids(entry) == [loser.id]
+    end
 
-      assert {:error, :conflict} = Publication.undo(loser.id, entry.version)
+    test "a loser's own log gains nothing, and offers no undo while it is held" do
+      {winner, loser} = merge_pair()
+      before = Publication.History.of(loser.id)
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      # Nothing happened *to* the loser that the merge does not already say.
+      assert Enum.map(Publication.History.of(loser.id), & &1.version) ==
+               Enum.map(before, & &1.version)
+
+      # And nothing in its log can be undone while another record holds it —
+      # the merge holds it, and the merge is what gives it back.
+      assert Enum.all?(Publication.History.all(), fn entry ->
+               entry.publication_id != loser.id or not entry.undoable
+             end)
     end
 
     test "a record a merge absorbed is not in the trash to be restored" do
@@ -731,13 +746,57 @@ defmodule RichardBurton.PublicationTest do
       assert Enum.any?(Publication.all_deleted(), &(&1.id == winner.id))
     end
 
-    test "the winner's own change is recorded as an update" do
+    test "undoing a merge takes the whole thing back, under one entry" do
       {winner, loser} = merge_pair()
+
+      countries_before =
+        Publication.find(winner.id) |> Publication.Codec.flatten() |> Map.get(:countries)
 
       {:ok, _} = Publication.merge(winner.id, [loser.id])
 
-      assert [entry | _] = Publication.History.of(winner.id)
-      assert entry.action == "updated"
+      [merge | _] = Publication.History.of(winner.id)
+      assert merge.undoable
+
+      assert {:ok, _} = Publication.undo(winner.id, merge.version)
+
+      # The record that left is back, and live.
+      assert %Publication{deleted_at: nil} = Repo.get(Publication, loser.id)
+
+      # The one that survived gave up what it had absorbed.
+      assert Publication.find(winner.id) |> Publication.Codec.flatten() |> Map.get(:countries) ==
+               countries_before
+
+      # And the un-merge is one entry, naming what it gave back.
+      assert [undone | _] = Publication.History.of(winner.id)
+      assert undone.action == "unmerged"
+      assert Publication.History.absorbed_ids(undone) == [loser.id]
+    end
+
+    test "an un-merge is itself undoable, which merges them again" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+      [merge | _] = Publication.History.of(winner.id)
+      {:ok, _} = Publication.undo(winner.id, merge.version)
+
+      [undone | _] = Publication.History.of(winner.id)
+      assert undone.undoable
+
+      assert {:ok, _} = Publication.undo(winner.id, undone.version)
+
+      assert %Publication{deleted_at: %DateTime{}} = Repo.get(Publication, loser.id)
+      assert [again | _] = Publication.History.of(winner.id)
+      assert again.action == "merged"
+    end
+
+    test "a record given back by an un-merge is out of hiding, and in the index" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+      [merge | _] = Publication.History.of(winner.id)
+      {:ok, _} = Publication.undo(winner.id, merge.version)
+
+      # Not in the trash — nobody deleted it — but listed again.
+      refute Enum.any?(Publication.all_deleted(), &(&1.id == loser.id))
+      assert Enum.any?(Repo.all(FlatPublication), &(&1.id == loser.id))
     end
 
     test "refuses to merge a publication into itself" do

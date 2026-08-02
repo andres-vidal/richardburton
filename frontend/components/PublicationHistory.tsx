@@ -44,11 +44,22 @@ const ActionBadge: FC<{
       group-data-[action=deleted]:bg-red-100 group-data-[action=deleted]:text-red-700
       group-data-[action=restored]:bg-emerald-100 group-data-[action=restored]:text-emerald-700
       group-data-[action=merged]:bg-sky-100 group-data-[action=merged]:text-sky-700
+      group-data-[action=unmerged]:bg-sky-100 group-data-[action=unmerged]:text-sky-700
     "
   >
     {action}
   </span>
 );
+
+/**
+ * The records a merge took in, or an un-merge gave back, named as a reader
+ * would know them. A merge is one act over several publications; this is the
+ * entry saying which, since they are no longer listed on their own.
+ */
+const absorbedTitles = (entry: HistoryEntry): string[] =>
+  Object.values(entry.absorbed ?? {}).map(
+    (publication) => publication.title || "an untitled record",
+  );
 
 const Entry: FC<{
   entry: HistoryEntry;
@@ -125,6 +136,15 @@ const Entry: FC<{
           className="mt-0.5 text-gray-500 wrap-break-words data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
         >
           by {entry.actor} · {formatDate(entry.timestamp)}
+        </p>
+      )}
+      {absorbedTitles(entry).length > 0 && (
+        <p
+          data-variant={variant}
+          className="mt-2 text-xs text-gray-600 data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
+        >
+          {entry.action === "merged" ? "Took in " : "Gave back "}
+          {absorbedTitles(entry).join(", ")}
         </p>
       )}
       {entry.action === "updated" && entry.diff === null && (

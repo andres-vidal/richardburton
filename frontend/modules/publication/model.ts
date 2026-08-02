@@ -31,7 +31,7 @@ type PublicationEntry = ValidationResult & { id: number };
 type PublicationId = NonNullable<Publication["id"]>;
 type PublicationKeyType = "array" | "text" | "enum" | "enumArray" | "number";
 type PublicationHistoryAction =
-  "created" | "updated" | "deleted" | "restored" | "merged";
+  "created" | "updated" | "deleted" | "restored" | "merged" | "unmerged";
 
 type SnapshotDiff = {
   fields: Partial<Record<PublicationKey, { from: unknown; to: unknown }>>;
@@ -46,6 +46,12 @@ type PublicationHistoryEntry = {
   snapshot: Omit<Publication, "id" | "year"> & { year: number };
   diff: SnapshotDiff | null;
   undoable: boolean;
+  /**
+   * The publications this entry took in (a merge) or gave back (an un-merge),
+   * keyed by id — a merge is one act over several records, and this is what
+   * says which. Absent on entries that change one record only.
+   */
+  absorbed?: Record<string, Publication> | null;
 };
 
 // The database-wide feed tags each entry with the publication it belongs to.
