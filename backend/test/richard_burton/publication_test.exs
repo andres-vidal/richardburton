@@ -227,7 +227,12 @@ defmodule RichardBurton.PublicationTest do
           Map.put(@valid_attrs, "year", 1890)
         ])
 
-      assert Publication.preload(publications) == Publication.all()
+      # `Publication.all/0` asks for no order, so the database is free to return
+      # the rows in any: what this asserts is which publications now exist, not
+      # the order they came back in.
+      by_id = &Enum.sort_by(&1, fn publication -> publication.id end)
+
+      assert by_id.(Publication.preload(publications)) == by_id.(Publication.all())
     end
 
     test "when invalid publications are provided, rolls back and returns the first error" do
