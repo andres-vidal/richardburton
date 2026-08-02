@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.3">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Publication.History — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-NHQLCD6Y.css" />
+
+    <script defer src="dist/sidebar_items-BD3BCBC7.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-Y2MUTVIN.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Publication.<wbr />History</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Append-only log of publication mutations: one immutable row per change, with
+the action, a flattened snapshot of the record after it, the acting user, and
+a per-publication version so each record's history reads as an ordered
+stream.</p><p>Immutability is enforced by the database — a guard trigger rejects UPDATE and
+DELETE on the table (see the soft-delete migration) — and completeness by
+chokepoint: every mutation flows through the <code class="inline">Publication</code> context functions,
+which call <a href="#record/3"><code class="inline">record/3</code></a> inside the mutating transaction, so a change and its
+history row commit or roll back together.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#all/0" data-no-tooltip="" translate="no">all()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Every recorded mutation across the database, newest first, each diffed.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#annotate/1" data-no-tooltip="" translate="no">annotate(entries)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Populate each entry's derived fields: what it changed relative to the previous
+version of <em>its own</em> record, and whether it can still be undone.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#of/1" data-no-tooltip="" translate="no">of(publication_id)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The ordered history of one publication, newest first, each entry diffed.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#record/3" data-no-tooltip="" translate="no">record(action, publication, actor)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Append one history row for a mutation, inside the caller's transaction.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#reverted_snapshot/3" data-no-tooltip="" translate="no">reverted_snapshot(entry, previous, head)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The state undoing an update produces: the record as it stands now, with
+exactly the fields that update changed put back to their pre-change values.
+For a record's latest update that equals its previous snapshot; for an older
+one, later changes to other fields survive.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#snapshot/1" data-no-tooltip="" translate="no">snapshot(publication)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The flattened state stored with a history entry: the record as it stands,
+with its associations collapsed to the flat fields the client speaks in.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#system_actor/0" data-no-tooltip="" translate="no">system_actor()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Actor attributed to mutations that happen outside a request.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#undoable?/3" data-no-tooltip="" translate="no">undoable?(entry, previous, head)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Whether undoing this entry would yield &quot;as if it had never happened, with
+everything after it preserved&quot;</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="all/0">
+
+  <div class="detail-header">
+    <a href="#all/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">all()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Every recorded mutation across the database, newest first, each diffed.</p>
+  </section>
+</section>
+<section class="detail" id="annotate/1">
+
+  <div class="detail-header">
+    <a href="#annotate/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">annotate(entries)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Populate each entry's derived fields: what it changed relative to the previous
+version of <em>its own</em> record, and whether it can still be undone.</p><p>Entries come newest first, so a version's predecessor is the next element of
+its stream and the head is the first. Grouping by publication is what lets one
+pass serve both the per-record log and the database-wide feed, where streams
+interleave and the row above an entry usually belongs to a different
+publication. Pairing by position within the stream, rather than looking up
+<code class="inline">version - 1</code>, also holds if the version sequence ever has a gap.</p><p>Both answers need the whole stream, which is why they are computed here rather
+than asked of one entry at a time.</p><h2 id="annotate/1-examples" class="section-heading"><a href="#annotate/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples</span></h2><p>An update over its import — newest first, as the queries return them:</p><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">alias</span><span class="w"> </span><span class="nc">RichardBurton.Publication.History</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="6999714995-1">[</span><span class="n">update</span><span class="p">,</span><span class="w"> </span><span class="kn">import</span><span class="p" data-group-id="6999714995-1">]</span><span class="w"> </span><span class="o">=</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="nc">History</span><span class="o">.</span><span class="n">annotate</span><span class="p" data-group-id="6999714995-2">(</span><span class="p" data-group-id="6999714995-3">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="6999714995-4">%</span><span class="nc" data-group-id="6999714995-4">History</span><span class="p" data-group-id="6999714995-4">{</span><span class="ss">publication_id</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">version</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="ss">action</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;updated&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">snapshot</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="6999714995-5">%{</span><span class="s">&quot;title&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s">&quot;New&quot;</span><span class="p" data-group-id="6999714995-5">}</span><span class="p" data-group-id="6999714995-4">}</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="6999714995-6">%</span><span class="nc" data-group-id="6999714995-6">History</span><span class="p" data-group-id="6999714995-6">{</span><span class="ss">publication_id</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">version</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">action</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;created&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">snapshot</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="6999714995-7">%{</span><span class="s">&quot;title&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s">&quot;Old&quot;</span><span class="p" data-group-id="6999714995-7">}</span><span class="p" data-group-id="6999714995-6">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="p" data-group-id="6999714995-3">]</span><span class="p" data-group-id="6999714995-2">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">update</span><span class="o">.</span><span class="n">diff</span><span class="o">.</span><span class="n">fields</span><span class="w">
+</span><span class="p" data-group-id="6999714995-8">%{</span><span class="s">&quot;title&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="6999714995-9">%{</span><span class="ss">from</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Old&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">to</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;New&quot;</span><span class="p" data-group-id="6999714995-9">}</span><span class="p" data-group-id="6999714995-8">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="6999714995-10">{</span><span class="n">update</span><span class="o">.</span><span class="n">undoable</span><span class="p">,</span><span class="w"> </span><span class="kn">import</span><span class="o">.</span><span class="n">diff</span><span class="p">,</span><span class="w"> </span><span class="kn">import</span><span class="o">.</span><span class="n">undoable</span><span class="p" data-group-id="6999714995-10">}</span><span class="w">
+</span><span class="p" data-group-id="6999714995-11">{</span><span class="no">true</span><span class="p">,</span><span class="w"> </span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="no">false</span><span class="p" data-group-id="6999714995-11">}</span></code></pre><p>The head is always undoable; the import has nothing before it to diff against,
+and undoing it is not this entry's to offer once a later version exists.</p>
+  </section>
+</section>
+<section class="detail" id="of/1">
+
+  <div class="detail-header">
+    <a href="#of/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">of(publication_id)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>The ordered history of one publication, newest first, each entry diffed.</p>
+  </section>
+</section>
+<section class="detail" id="record/3">
+
+  <div class="detail-header">
+    <a href="#record/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">record(action, publication, actor)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Append one history row for a mutation, inside the caller's transaction.</p><p>Concurrent mutations of the same publication serialize on its row lock, so
+the max-version read is stable; the unique index on (publication_id, version)
+turns any residual race into a loud error instead of silent corruption.</p>
+  </section>
+</section>
+<section class="detail" id="reverted_snapshot/3">
+
+  <div class="detail-header">
+    <a href="#reverted_snapshot/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">reverted_snapshot(entry, previous, head)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>The state undoing an update produces: the record as it stands now, with
+exactly the fields that update changed put back to their pre-change values.
+For a record's latest update that equals its previous snapshot; for an older
+one, later changes to other fields survive.</p>
+  </section>
+</section>
+<section class="detail" id="snapshot/1">
+
+  <div class="detail-header">
+    <a href="#snapshot/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">snapshot(publication)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>The flattened state stored with a history entry: the record as it stands,
+with its associations collapsed to the flat fields the client speaks in.</p><p>Comparing two of these is how callers tell an edit that changed something
+from one that did not — the changeset cannot answer that, because references
+are replaced wholesale on every save and so always look dirty.</p><h2 id="snapshot/1-examples" class="section-heading"><a href="#snapshot/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples</span></h2><p>Associations arrive flattened, as they are stored:</p><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">alias</span><span class="w"> </span><span class="nc">RichardBurton</span><span class="o">.</span><span class="p" data-group-id="5638567454-1">{</span><span class="nc">Author</span><span class="p">,</span><span class="w"> </span><span class="nc">Country</span><span class="p">,</span><span class="w"> </span><span class="nc">OriginalBook</span><span class="p">,</span><span class="w"> </span><span class="nc">Publication</span><span class="p">,</span><span class="w"> </span><span class="nc">Publisher</span><span class="p">,</span><span class="w"> </span><span class="nc">TranslatedBook</span><span class="p" data-group-id="5638567454-1">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">publication</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="5638567454-2">%</span><span class="nc" data-group-id="5638567454-2">Publication</span><span class="p" data-group-id="5638567454-2">{</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">title</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Dom Casmurro&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">year</span><span class="p">:</span><span class="w"> </span><span class="mi">1953</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">countries</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5638567454-3">[</span><span class="p" data-group-id="5638567454-4">%</span><span class="nc" data-group-id="5638567454-4">Country</span><span class="p" data-group-id="5638567454-4">{</span><span class="ss">code</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;US&quot;</span><span class="p" data-group-id="5638567454-4">}</span><span class="p" data-group-id="5638567454-3">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">publishers</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5638567454-5">[</span><span class="p" data-group-id="5638567454-6">%</span><span class="nc" data-group-id="5638567454-6">Publisher</span><span class="p" data-group-id="5638567454-6">{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Noonday Press&quot;</span><span class="p" data-group-id="5638567454-6">}</span><span class="p" data-group-id="5638567454-5">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">references</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5638567454-7">[</span><span class="p" data-group-id="5638567454-7">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">translated_book</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5638567454-8">%</span><span class="nc" data-group-id="5638567454-8">TranslatedBook</span><span class="p" data-group-id="5638567454-8">{</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="ss">authors</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5638567454-9">[</span><span class="p" data-group-id="5638567454-10">%</span><span class="nc" data-group-id="5638567454-10">Author</span><span class="p" data-group-id="5638567454-10">{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Helen Caldwell&quot;</span><span class="p" data-group-id="5638567454-10">}</span><span class="p" data-group-id="5638567454-9">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="ss">original_book</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5638567454-11">%</span><span class="nc" data-group-id="5638567454-11">OriginalBook</span><span class="p" data-group-id="5638567454-11">{</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="ss">title</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Dom Casmurro&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="ss">authors</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5638567454-12">[</span><span class="p" data-group-id="5638567454-13">%</span><span class="nc" data-group-id="5638567454-13">Author</span><span class="p" data-group-id="5638567454-13">{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Machado de Assis&quot;</span><span class="p" data-group-id="5638567454-13">}</span><span class="p" data-group-id="5638567454-12">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="5638567454-11">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="p" data-group-id="5638567454-8">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="p" data-group-id="5638567454-2">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">snapshot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Publication.History</span><span class="o">.</span><span class="n">snapshot</span><span class="p" data-group-id="5638567454-14">(</span><span class="n">publication</span><span class="p" data-group-id="5638567454-14">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="5638567454-15">{</span><span class="n">snapshot</span><span class="p" data-group-id="5638567454-16">[</span><span class="ss">:title</span><span class="p" data-group-id="5638567454-16">]</span><span class="p">,</span><span class="w"> </span><span class="n">snapshot</span><span class="p" data-group-id="5638567454-17">[</span><span class="ss">:authors</span><span class="p" data-group-id="5638567454-17">]</span><span class="p">,</span><span class="w"> </span><span class="n">snapshot</span><span class="p" data-group-id="5638567454-18">[</span><span class="ss">:countries</span><span class="p" data-group-id="5638567454-18">]</span><span class="p" data-group-id="5638567454-15">}</span><span class="w">
+</span><span class="p" data-group-id="5638567454-19">{</span><span class="s">&quot;Dom Casmurro&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Helen Caldwell&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;US&quot;</span><span class="p" data-group-id="5638567454-19">}</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="system_actor/0">
+
+  <div class="detail-header">
+    <a href="#system_actor/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">system_actor()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Actor attributed to mutations that happen outside a request.</p>
+  </section>
+</section>
+<section class="detail" id="undoable?/3">
+
+  <div class="detail-header">
+    <a href="#undoable?/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">undoable?(entry, previous, head)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Whether undoing this entry would yield &quot;as if it had never happened, with
+everything after it preserved&quot;:</p><ul><li>a record's latest entry, always — the compensating action applies
+directly: restore a delete, delete an import or a restore, revert an
+update;</li><li>an older <em>update</em>, only while the record is live and every field it
+changed still holds the value it set — the revert then touches exactly
+those fields and leaves later edits to others alone;</li><li>never an older delete (a later restore already negated it) nor an older
+import or restore (compensating those would discard the edits that
+followed).</li></ul>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.3) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
