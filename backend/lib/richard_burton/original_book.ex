@@ -4,6 +4,7 @@ defmodule RichardBurton.OriginalBook do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Ecto.Query
   import RichardBurton.Validation
 
   alias RichardBurton.Author
@@ -58,6 +59,53 @@ defmodule RichardBurton.OriginalBook do
 
   def all() do
     OriginalBook |> Repo.all() |> preload
+  end
+
+  @doc """
+  The original books a term names, by their title or by one of their authors.
+
+  A book is entered as a unit — a title and who wrote it — and looking it up
+  should work from whichever half the person typing happens to know. Prefixes
+  first, so what someone is part-way through typing wins; only when nothing
+  starts that way does the search fall back to similar spellings.
+  """
+  def search(term) when is_binary(term) do
+    case search(term, :prefix) do
+      [] -> search(term, :fuzzy)
+      books -> books
+    end
+  end
+
+  def search(term, :prefix) when is_binary(term) do
+    matching(
+      dynamic(
+        [b, a],
+        ilike(b.title, ^"#{term}%") or ilike(a.name, ^"#{term}%")
+      )
+    )
+  end
+
+  def search(term, :fuzzy) when is_binary(term) do
+    matching(
+      dynamic(
+        [b, a],
+        fragment("similarity((?), (?)) > 0.3", b.title, ^term) or
+          fragment("similarity((?), (?)) > 0.3", a.name, ^term)
+      )
+    )
+  end
+
+  # A book joined to its authors matches once per author, so the rows are
+  # deduplicated before they are counted as answers.
+  defp matching(condition) do
+    from(b in OriginalBook,
+      join: a in assoc(b, :authors),
+      where: ^condition,
+      distinct: true,
+      order_by: [asc: b.title]
+    )
+    |> Repo.all()
+    |> preload()
   end
 
   def preload(data) do

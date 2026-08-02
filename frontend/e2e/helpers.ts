@@ -39,7 +39,11 @@ export type PublicationInput = {
  * comma always commits the raw typed text, while Enter prefers the highlighted
  * autocomplete option — whose debounced fetch can race the keystrokes and
  * commit a stale suggestion from a previous fill. */
-async function commitMulti(scope: Locator, placeholder: string, value: string) {
+export async function commitMulti(
+  scope: Locator,
+  placeholder: string,
+  value: string,
+) {
   const input = scope.getByPlaceholder(placeholder, { exact: true });
   await input.click();
   await input.pressSequentially(value);
@@ -51,7 +55,7 @@ async function commitMulti(scope: Locator, placeholder: string, value: string) {
  * raw-text commit — the stored value is the option object — so let the async
  * autocomplete settle (it highlights the match) before Enter commits it.
  */
-async function selectEnumOption(
+export async function selectEnumOption(
   scope: Locator,
   placeholder: string,
   name: string,
@@ -68,7 +72,7 @@ async function selectEnumOption(
  * here to stay unambiguous once the grid holds several rows. CSS-based (not
  * getByRole) on purpose: it keeps resolving mid-fill no matter what an open
  * popup's focus manager does to the a11y tree. */
-function draftRow(page: Page) {
+export function draftRow(page: Page) {
   return page
     .locator('[role="row"]')
     .filter({ has: page.locator('button[aria-label="Add publication"]') });

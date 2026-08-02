@@ -10,6 +10,7 @@ import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { overrideField } from "modules/publication/store";
 import { FC, FocusEvent, HTMLProps, Ref, forwardRef } from "react";
+import OriginalBookDataInput from "./OriginalBookDataInput";
 import TextArrayDataInput from "./TextArrayDataInput";
 import TextDataInput from "./TextDataInput";
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
@@ -23,6 +24,7 @@ const COMPONENTS_PER_TYPE: Record<PublicationKeyType, FC<Props>> = {
   enumArray: TextEnumArrayDataInput,
   number: TextNumberDataInput,
   array: TextArrayDataInput,
+  book: OriginalBookDataInput,
 };
 
 /**

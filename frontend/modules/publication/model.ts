@@ -1,6 +1,7 @@
 import { isString } from "lodash";
 import { Author } from "modules/author";
 import { COUNTRIES, Country } from "modules/country";
+import { OriginalBook, type OriginalBookValue } from "modules/original-book";
 import { Publisher } from "modules/publisher";
 
 type Publication = {
@@ -29,7 +30,8 @@ type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: number };
 type PublicationId = NonNullable<Publication["id"]>;
-type PublicationKeyType = "array" | "text" | "enum" | "enumArray" | "number";
+type PublicationKeyType =
+  "array" | "text" | "enum" | "enumArray" | "number" | "book";
 type PublicationHistoryAction = "created" | "updated" | "deleted" | "restored";
 
 type SnapshotDiff = {
@@ -77,7 +79,7 @@ const ATTRIBUTE_LABELS: Record<PublicationKey, string> = {
 const ATTRIBUTE_TYPES: Record<PublicationKey, PublicationKeyType> = {
   authors: "array",
   originalAuthors: "array",
-  originalTitle: "text",
+  originalTitle: "book",
   countries: "enumArray",
   publishers: "array",
   title: "text",
@@ -183,6 +185,10 @@ function autocomplete(
   attribute: "originalAuthors",
 ): Promise<Author[]>;
 function autocomplete(value: string, attribute: "authors"): Promise<Author[]>;
+function autocomplete(
+  value: string,
+  attribute: "originalTitle",
+): Promise<OriginalBookValue[]>;
 function autocomplete(value: string, attribute: "publishers"): Promise<[]>;
 function autocomplete(value: string, attribute: string): Promise<[]>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -193,6 +199,11 @@ function autocomplete(value: string, attribute: string): Promise<any> {
       return Author.REMOTE.search(value);
     case "publishers":
       return Publisher.REMOTE.search(value);
+
+    // The original book is one entity, so it is suggested as one: a term finds
+    // it by its title or by an author, and the suggestion carries both.
+    case "originalTitle":
+      return OriginalBook.REMOTE.search(value);
 
     case "countries": {
       const all = Object.values(COUNTRIES);
