@@ -7,7 +7,9 @@ defmodule RichardBurton.Publication.Index.Term do
   that name a single field. `title:casmurro` asks of the title alone;
   `year:1950-1960` asks for a span of years; a leading `-` excludes rather than
   requires; `title:"dom casmurro"` asks for those words in that order; and
-  `title:(dom casmurro)` asks for both of them, in any.
+  `title:(dom casmurro)` asks for both of them, in any. An operator's value is
+  matched as a free word is — from the start of a word, and fuzzily when
+  nothing matches as typed — except when quoted, which asks for it as written.
 
   Operators answer to three vocabularies — the labels the interface uses, the
   names the database uses, and Portuguese — because the reader of a database of

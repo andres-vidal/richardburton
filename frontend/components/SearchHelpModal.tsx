@@ -78,7 +78,8 @@ const SearchHelp: FC = () => (
           Accents may be omitted or included; this returns <em>Angústia</em>.
         </Row>
         <Row type="casmuro">
-          Minor misspellings are tolerated when no exact match is found.
+          Minor misspellings are tolerated when no exact match is found, here
+          and within an operator alike.
         </Row>
         <Row type="mach">
           An incomplete word matches any word beginning with it, such as{" "}
@@ -112,7 +113,8 @@ const SearchHelp: FC = () => (
           Quotation marks match the words in the order given.
         </Row>
         <Row type="title:(dom casmurro)">
-          Parentheses match all the words, in any order.
+          Parentheses match all the words, in any order — and, like any other
+          word, allowing for a misspelling.
         </Row>
         <Row type="-country:US">
           A leading minus sign excludes matching records.

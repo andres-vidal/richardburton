@@ -858,6 +858,17 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.all?(results, &(&1.year == 1956))
     end
 
+    test "a misspelled value is forgiven, as a free word is" do
+      assert Enum.all?(found("title:nigth"), &(&1.title == "Night"))
+      refute Enum.empty?(found("title:nigth"))
+
+      # Inside a bracketed value too, word by word.
+      refute Enum.empty?(found("title:(nigth)"))
+
+      # And what resembles nothing still answers nothing.
+      assert found("title:zzzzqqqx") == []
+    end
+
     test "a half-typed value still finds the word it could become" do
       assert Enum.all?(found("translator:barr"), &(String.downcase(&1.authors) =~ "barr"))
       refute Enum.empty?(found("translator:barr"))
