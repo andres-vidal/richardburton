@@ -496,18 +496,20 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert entry["id"] == meta.winner.id
     end
 
-    test "records the merge in both publications' histories", meta do
+    test "records the merge as one entry, on the record that survived it", meta do
       expect_auth_authorize_admin(2)
 
       meta.conn
       |> post(publication_path(meta.conn, :merge, meta.winner.id), %{"losers" => [meta.loser.id]})
       |> json_response(200)
 
-      conn = get(meta.conn, publication_path(meta.conn, :history, meta.loser.id))
+      conn = get(meta.conn, publication_path(meta.conn, :history, meta.winner.id))
       assert %{"entries" => [entry | _]} = json_response(conn, 200)
       assert entry["action"] == "merged"
       assert entry["actor"] == session_user_email()
-      refute entry["undoable"]
+      # One act, so one thing to undo — and it says what it took in.
+      assert entry["undoable"]
+      assert Map.keys(entry["absorbed"]) == ["#{meta.loser.id}"]
     end
 
     test "merging a publication into itself is a bad request", meta do
