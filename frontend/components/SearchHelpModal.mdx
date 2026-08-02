@@ -1,0 +1,54 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as SearchHelpStories from "./SearchHelpModal.stories";
+
+<Meta of={SearchHelpStories} />
+
+# Search help
+
+What the search can do, written for the person searching. The search does a
+good deal that a text box cannot advertise — it forgives accents and
+misspellings, it narrows on every word, and it takes operators — and none of
+that is worth anything to a reader who never finds out. This is where they find
+out.
+
+<Canvas of={SearchHelpStories.Open} />
+
+## What it covers
+
+- **Spelling and accents** — accents may be omitted or included, minor
+  misspellings are tolerated, and an incomplete word matches what it could
+  become. These come first because they are the tolerances a reader is most
+  likely to give up without.
+- **Searching a single field** — `title:`, `author:` (the author of the
+  original work), `translator:`, `publisher:`, `country:`, `original:` and
+  `source:`, and `year:` for a single year or a range.
+- **Refining a search** — quotation marks for words in the order given,
+  parentheses for words of one field in any order, a leading minus to exclude,
+  and a repeated operator to require both.
+- **Broadening a search** — `:or`, the one operator that widens rather than
+  narrows.
+
+## In Portuguese
+
+Every operator answers in Portuguese, and the help says so rather than leaving
+it to be discovered — this is a database of Brazilian literature, and its
+readers should not have to reach for English to ask it something.
+
+<Canvas of={SearchHelpStories.InPortuguese} />
+
+## How it opens
+
+Through the address (`?search-help`), like the platform's other modals, and
+from a quiet link beside the search box. Opening it keeps whatever is being
+searched, so a reader can read how to narrow a query and return to the query
+they were narrowing.
+
+<Canvas of={SearchHelpStories.Closed} />
+
+## What it deliberately does not say
+
+Nothing here is about how the search works underneath — no mention of indexes,
+ranking or prefixes as machinery. Every line is a thing a reader might want and
+the shortest way to ask for it. When an operator changes, this is the copy that
+has to change with it.
