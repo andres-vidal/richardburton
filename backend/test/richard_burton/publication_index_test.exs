@@ -684,21 +684,21 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
-  describe "search/1 with or" do
+  describe "search/1 with :or" do
     defp ids(publications), do: MapSet.new(publications, & &1.id)
 
     test "matches either alternative" do
       {:ok, verissimo, _} = Publication.Index.search("Verissimo")
       {:ok, assis, _} = Publication.Index.search("Assis")
-      {:ok, either, _} = Publication.Index.search("Verissimo or Assis")
+      {:ok, either, _} = Publication.Index.search("Verissimo :or Assis")
 
       refute MapSet.equal?(ids(verissimo), ids(assis))
       assert ids(either) == MapSet.union(ids(verissimo), ids(assis))
     end
 
     test "the operator is case-insensitive" do
-      {:ok, lower, _} = Publication.Index.search("Verissimo or Assis")
-      {:ok, upper, _} = Publication.Index.search("Verissimo OR Assis")
+      {:ok, lower, _} = Publication.Index.search("Verissimo :or Assis")
+      {:ok, upper, _} = Publication.Index.search("Verissimo :OR Assis")
 
       assert Enum.map(lower, & &1.id) == Enum.map(upper, & &1.id)
     end
@@ -707,7 +707,7 @@ defmodule RichardBurton.Publication.IndexTest do
       {:ok, verissimo, _} = Publication.Index.search("Verissimo")
       {:ok, erico, _} = Publication.Index.search("Erico Verissimo")
       {:ok, machado, _} = Publication.Index.search("Machado")
-      {:ok, either, _} = Publication.Index.search("Erico Verissimo or Machado")
+      {:ok, either, _} = Publication.Index.search("Erico Verissimo :or Machado")
 
       # "Erico Verissimo" is narrowed by both its words to a subset of what
       # "Verissimo" alone matches, and the whole term adds the second alternative.
@@ -717,11 +717,30 @@ defmodule RichardBurton.Publication.IndexTest do
     end
 
     test "a fully misspelled term falls back to fuzzy per alternative" do
-      {:ok, fuzzy, _} = Publication.Index.search("Verissimoo or Machadoo")
+      {:ok, fuzzy, _} = Publication.Index.search("Verissimoo :or Machadoo")
 
       refute Enum.empty?(fuzzy)
       assert Enum.any?(fuzzy, &String.contains?(&1.original_authors, "Verissimo"))
       assert Enum.any?(fuzzy, &String.contains?(&1.original_authors, "Machado"))
+    end
+
+    test "the operator answers to Portuguese too" do
+      {:ok, english, _} = Publication.Index.search("Verissimo :or Assis")
+      {:ok, portuguese, _} = Publication.Index.search("Verissimo :ou Assis")
+
+      refute Enum.empty?(portuguese)
+      assert ids(english) == ids(portuguese)
+    end
+
+    test "a bare `or` is a word to search for, not an operator" do
+      # Which is the point of the colon: a title may well contain "or", and a
+      # reader typing it means the word. So it narrows like any other word —
+      # here to nothing, no record carrying all three — rather than widening.
+      {:ok, widened, _} = Publication.Index.search("Verissimo :or Assis")
+      {:ok, literal, _} = Publication.Index.search("Verissimo or Assis")
+
+      assert literal == []
+      refute Enum.empty?(widened)
     end
   end
 

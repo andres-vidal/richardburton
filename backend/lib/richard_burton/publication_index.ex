@@ -2,7 +2,7 @@ defmodule RichardBurton.Publication.Index do
   @moduledoc """
   Full-text search over the publication index.
 
-  A search runs in one of two modes. A plain term is split on the word `or` into
+  A search runs in one of two modes. A plain term is split on `:or` (or `:ou`) into
   alternatives, any of which may match; within an alternative the words are
   matched each on its own (as a prefix, or fuzzily if nothing matches as typed)
   and combined with AND, so each word narrows the result. A term that quotes a
@@ -121,7 +121,7 @@ defmodule RichardBurton.Publication.Index do
   @doc """
   The publications a term matches, and the indexed words it matched on.
 
-  The term is split on the word `or` into alternatives, and a publication
+  The term is split on `:or` (or `:ou`) into alternatives, and a publication
   matches if it satisfies any of them. Within an alternative the words are
   combined with AND, so each word narrows: a publication must match every word
   of the alternative. That is why searching a full title returns just that
@@ -265,12 +265,17 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  # Split a term into the alternatives the word `or` separates, each a list of
-  # words. "one two or three" becomes [["one", "two"], ["three"]]. A term with
-  # no `or` is one alternative, so the AND-narrowing path is unchanged.
+  # Split a term into the alternatives `:or` separates, each a list of words.
+  # "one two :or three" becomes [["one", "two"], ["three"]]. A term with no
+  # `:or` is one alternative, so the AND-narrowing path is unchanged.
+  #
+  # The operator wears a colon so that it cannot be mistaken for a word being
+  # searched for — a title like "Love or Death" is about the word, not the
+  # operator — and it answers to `:ou` as well, since a reader searching a
+  # Brazilian database should not have to reach for English to widen a query.
   defp or_split(term) do
     term
-    |> String.split(~r/\s+or\s+/i, trim: true)
+    |> String.split(~r/\s+:(or|ou)\s+/i, trim: true)
     |> Enum.map(&String.split(&1, ~r/\s+/, trim: true))
     |> Enum.reject(&(&1 == []))
   end
