@@ -38,12 +38,18 @@ type SnapshotDiff = {
   references: { added: string[]; removed: string[]; reordered: boolean } | null;
 };
 
+/**
+ * A publication as the log keeps it: the record's own fields, without the
+ * surrogate id, and with the year as the number it is stored as.
+ */
+type PublicationSnapshot = Omit<Publication, "id" | "year"> & { year: number };
+
 type PublicationHistoryEntry = {
   version: number;
   action: PublicationHistoryAction;
   actor: string;
   timestamp: string;
-  snapshot: Omit<Publication, "id" | "year"> & { year: number };
+  snapshot: PublicationSnapshot;
   diff: SnapshotDiff | null;
   undoable: boolean;
   /**
@@ -51,7 +57,7 @@ type PublicationHistoryEntry = {
    * keyed by id — a merge is one act over several records, and this is what
    * says which. Absent on entries that change one record only.
    */
-  absorbed?: Record<string, Publication> | null;
+  absorbed?: Record<string, PublicationSnapshot> | null;
 };
 
 // The database-wide feed tags each entry with the publication it belongs to.

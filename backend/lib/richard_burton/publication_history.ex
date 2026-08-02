@@ -211,6 +211,10 @@ defmodule RichardBurton.Publication.History do
   """
   def undoable?(entry, previous, head) do
     cond do
+      # An entry from before a merge was one act names nothing to give back, so
+      # there is nothing here to undo — the record it holds is reachable only
+      # through the merge that has it, and that merge was never written down.
+      entry.action in ["merged", "unmerged"] and absorbed_ids(entry) == [] -> false
       entry.action in ["merged", "unmerged"] -> entry.version == head.version
       entry.version == head.version -> true
       entry.action != "updated" -> false
@@ -253,7 +257,15 @@ defmodule RichardBurton.Publication.History do
   # What a reader should *see* is the frontend's business; keeping the wire
   # structural means one payload serves any presentation, in any language.
   defp diff(nil, _entry), do: nil
-  defp diff(previous, entry = %History{action: "updated"}), do: compare(previous, entry)
+
+  # A merge and an un-merge change the surviving record's own fields as surely
+  # as an edit does, so they are diffed the same way — what it gained, against
+  # what it gave back. Together with the records the entry names, that is the
+  # whole of what the act did to the data.
+  defp diff(previous, entry = %History{action: action})
+       when action in ["updated", "merged", "unmerged"],
+       do: compare(previous, entry)
+
   defp diff(_previous, _entry), do: nil
 
   defp compare(%History{snapshot: previous}, %History{snapshot: current}) do

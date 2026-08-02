@@ -485,6 +485,24 @@ defmodule RichardBurton.Publication do
   # merge entries name what they hold, newest last, so a later un-merge undoes
   # an earlier merge's claim on a record.
   defp merged_away(ids) do
+    MapSet.union(absorbed_by_a_merge(ids), marked_merged_itself(ids))
+  end
+
+  # Before a merge was one act, the record that left carried the mark itself.
+  # Those records are still inside another one, and still not in the trash.
+  defp marked_merged_itself(ids) do
+    Ecto.Query.from(h in History,
+      where: h.publication_id in ^ids,
+      distinct: h.publication_id,
+      order_by: [asc: h.publication_id, desc: h.version],
+      select: {h.publication_id, h.action}
+    )
+    |> Repo.all()
+    |> Enum.filter(fn {_id, action} -> action == "merged" end)
+    |> MapSet.new(fn {id, _action} -> id end)
+  end
+
+  defp absorbed_by_a_merge(ids) do
     wanted = MapSet.new(ids)
 
     Ecto.Query.from(h in History,
