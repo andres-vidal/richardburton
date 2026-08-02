@@ -240,8 +240,8 @@ defmodule RichardBurton.Publication.Index do
     |> Enum.reduce(fn predicate, acc -> dynamic(^acc or ^predicate) end)
   end
 
-  defp alternative_predicate(%{query: query, filters: filters}) do
-    [words_predicate(query) | Enum.map(filters, &filter_predicate/1)]
+  defp alternative_predicate(%{query: query, filters: filters, mode: mode}) do
+    [words_predicate(query) | Enum.map(filters, &filter_predicate(&1, mode))]
     |> Enum.reject(&is_nil/1)
     |> case do
       # Only operators nothing could be made of: the alternative asks nothing,
@@ -259,15 +259,20 @@ defmodule RichardBurton.Publication.Index do
   # An operator asks of one field rather than of the whole document, so it is
   # matched against that field's own text. A quoted value is a phrase, taken in
   # order; anything else matches from the start of a word, as free text does.
-  defp filter_predicate(%{field: :year, value: value, negated: negated}) do
+  defp filter_predicate(%{field: :year, value: value, negated: negated}, _mode) do
     case Term.span(value) do
       :none -> nil
       {from, to} -> negate(year_predicate(from, to), negated)
     end
   end
 
-  defp filter_predicate(%{field: field, value: value, exact: exact, negated: negated}) do
-    negate(text_predicate(field, value, exact), negated)
+  defp filter_predicate(%{field: field, value: value, exact: exact, negated: negated}, mode) do
+    case value_query(value, exact, mode) do
+      # Nothing in the index resembles what was asked of this field, so nothing
+      # can satisfy it — the same answer the free words give.
+      :none -> negate(dynamic(false), negated)
+      query -> negate(text_predicate(field, query), negated)
+    end
   end
 
   defp negate(predicate, false), do: predicate
@@ -279,34 +284,46 @@ defmodule RichardBurton.Publication.Index do
 
   # References are a list, so they are matched as the text of the whole list —
   # the same thing the search document folds them in as.
-  defp text_predicate(:references, value, exact) do
+  defp text_predicate(:references, query) do
     dynamic(
       [p],
-      fragment(
-        "to_tsvector('rb_search', array_to_string(?, ' ')) @@ ?",
-        p.references,
-        ^value_query(value, exact)
-      )
+      fragment("to_tsvector('rb_search', array_to_string(?, ' ')) @@ ?", p.references, ^query)
     )
   end
 
-  defp text_predicate(field, value, exact) do
+  defp text_predicate(field, query) do
     dynamic(
       [p],
-      fragment(
-        "to_tsvector('rb_search', coalesce(?::text, '')) @@ ?",
-        field(p, ^field),
-        ^value_query(value, exact)
-      )
+      fragment("to_tsvector('rb_search', coalesce(?::text, '')) @@ ?", field(p, ^field), ^query)
     )
   end
 
-  defp value_query(value, true),
+  # A quoted value is a phrase, whatever the mode: it was asked for as written.
+  defp value_query(value, true, _mode),
     do: dynamic(fragment("phraseto_tsquery('rb_search', ?)", ^value))
 
-  defp value_query(value, false) do
+  defp value_query(value, false, :prefix) do
     query = value |> String.split(~r/\s+/, trim: true) |> and_prefixes()
     dynamic(fragment("to_tsquery('rb_search', ?)", ^query))
+  end
+
+  # An operator's value is forgiven a misspelling exactly as a free word is:
+  # each of its words stands for the indexed words it resembles.
+  defp value_query(value, false, :fuzzy) do
+    value
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.map(&search_keywords(&1, :fuzzy))
+    |> case do
+      [] ->
+        :none
+
+      groups ->
+        if Enum.any?(groups, &(&1 == [])) do
+          :none
+        else
+          dynamic(fragment("to_tsquery('rb_search', ?)", ^and_fuzzy(groups)))
+        end
+    end
   end
 
   defp ranking({:spelled_out, term}),
@@ -379,7 +396,11 @@ defmodule RichardBurton.Publication.Index do
   defp asked(alternatives, mode) do
     {:alternatives,
      Enum.map(alternatives, fn alternative ->
-       %{query: words_query(alternative.words, mode), filters: alternative.filters}
+       %{
+         query: words_query(alternative.words, mode),
+         filters: alternative.filters,
+         mode: mode
+       }
      end)}
   end
 
