@@ -744,6 +744,113 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
+  describe "search/1 with field operators" do
+    defp found(term) do
+      {:ok, publications, _} = Publication.Index.search(term)
+      publications
+    end
+
+    test "a field operator asks of that field alone" do
+      results = found("title:night")
+
+      refute Enum.empty?(results)
+      assert Enum.all?(results, &(String.downcase(&1.title) =~ "night"))
+    end
+
+    test "the same word asked of another field answers differently" do
+      by_title = found("title:noite")
+      by_original = found("original:noite")
+
+      assert Enum.empty?(by_title)
+      refute Enum.empty?(by_original)
+      assert Enum.all?(by_original, &(String.downcase(&1.original_title) =~ "noite"))
+    end
+
+    test "a translator and an original author are told apart" do
+      translators = found("translator:barrett")
+      authors = found("autor:verissimo")
+
+      refute Enum.empty?(translators)
+      assert Enum.all?(translators, &(String.downcase(&1.authors) =~ "barrett"))
+
+      refute Enum.empty?(authors)
+      assert Enum.all?(authors, &(String.downcase(&1.original_authors) =~ "verissimo"))
+    end
+
+    test "a publisher and a country can be asked for" do
+      assert Enum.all?(
+               found("publisher:macmillan"),
+               &(String.downcase(&1.publishers) =~ "macmillan")
+             )
+
+      assert Enum.all?(found("country:GB"), &(&1.countries =~ "GB"))
+      refute Enum.empty?(found("editora:macmillan"))
+      refute Enum.empty?(found("pais:GB"))
+    end
+
+    test "a year is a year, and a span is a span" do
+      assert Enum.all?(found("year:1956"), &(&1.year == 1956))
+      assert Enum.all?(found("year:1950-1960"), &(&1.year >= 1950 and &1.year <= 1960))
+      assert Enum.all?(found("ano:2000-"), &(&1.year >= 2000))
+      assert Enum.all?(found("year:-1950"), &(&1.year <= 1950))
+
+      refute Enum.empty?(found("year:1950-1960"))
+    end
+
+    test "a minus excludes what it names" do
+      all = found("translator:barrett")
+      without = found("translator:barrett -country:US")
+
+      refute Enum.empty?(without)
+      assert length(without) < length(all)
+      refute Enum.any?(without, &(&1.countries =~ "US"))
+    end
+
+    test "a quoted value is a phrase, not a set of words" do
+      assert Enum.all?(found(~s(title:"time and the wind")), &(&1.title == "Time and the Wind"))
+      # The same words in another order are not that phrase.
+      assert found(~s(title:"wind and the time")) == []
+    end
+
+    test "operators narrow the free words beside them" do
+      loose = found("night")
+      narrowed = found("night country:US")
+
+      refute Enum.empty?(narrowed)
+      assert length(narrowed) < length(loose)
+      assert Enum.all?(narrowed, &(&1.countries =~ "US"))
+    end
+
+    test "operators belong to their own alternative" do
+      either = found("country:BR :or country:CA")
+
+      refute Enum.empty?(either)
+      assert Enum.all?(either, &(&1.countries =~ "BR" or &1.countries =~ "CA"))
+      assert Enum.any?(either, &(&1.countries =~ "BR"))
+      assert Enum.any?(either, &(&1.countries =~ "CA"))
+    end
+
+    test "an operator alone answers without any words to look for" do
+      results = found("year:1956")
+
+      refute Enum.empty?(results)
+      assert Enum.all?(results, &(&1.year == 1956))
+    end
+
+    test "a half-typed value still finds the word it could become" do
+      assert Enum.all?(found("translator:barr"), &(String.downcase(&1.authors) =~ "barr"))
+      refute Enum.empty?(found("translator:barr"))
+    end
+
+    test "a prefix that names no field is not an operator" do
+      # A colon someone typed is not a failed query: the term is looked for as
+      # text, and answers as any text does — including the fuzzy ladder, which
+      # is why a word buried in it can still find something.
+      assert found("nosuchfield:zzzzqqqqx") == []
+      refute Enum.empty?(found("nosuchfield:barrett"))
+    end
+  end
+
   describe "search/1 with accents" do
     test "a term written without them finds the words that carry them" do
       {:ok, folded, _} = Publication.Index.search("Angustia")
