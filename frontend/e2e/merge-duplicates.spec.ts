@@ -169,9 +169,9 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
   await page.goto("/admin/publications/history");
   await mergedEntries.first().getByRole("button", { name: "Undo" }).click();
 
-  await expect(page.locator('li[data-action="unmerged"]').first()).toContainText(
-    "Gave back",
-  );
+  await expect(
+    page.locator('li[data-action="unmerged"]').first(),
+  ).toContainText("Gave back");
 
   // The records that left are in the database again, and the survivor has
   // given up what it had absorbed.

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { empty, type Publication } from "modules/publication/model";
-import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
+import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationMerge from "./PublicationMerge";
 
@@ -107,12 +107,16 @@ export const Previewing: Story = {
     );
     await userEvent.click(screen.getAllByRole("button", { name: "Add" })[0]);
 
-    // The country and publisher it brings are the gain; the survivor's own stay.
-    await expect(await screen.findByText("Result")).toBeVisible();
-    await expect(screen.getByText("GB")).toBeVisible();
-    await expect(screen.getByText("W. H. Allen")).toBeVisible();
+    // The country and publisher it brings are the gain; the survivor's own
+    // stay. Asked of the result itself, since the records on offer now show
+    // every field they hold and would answer to the same text.
+    const result = within(
+      await screen.findByRole("region", { name: "Result" }),
+    );
+    await expect(result.getByText("GB")).toBeVisible();
+    await expect(result.getByText("W. H. Allen")).toBeVisible();
     await expect(
-      screen.getByText("Gledson, John. Deceptive Realism, 1984."),
+      result.getByText("Gledson, John. Deceptive Realism, 1984."),
     ).toBeVisible();
 
     await expect(
