@@ -23,15 +23,51 @@ type Props = {
   find?: (term: string) => Promise<Publication[]>;
 };
 
-/** One publication as a line: enough of it to tell two near-identical records apart. */
+// Everything but the two the heading already carries.
+const DETAILED = Publication.ATTRIBUTES.filter(
+  (key) => key !== "title" && key !== "year",
+);
+
+/**
+ * One publication in full.
+ *
+ * A merge is irreversible in the reader's mind long before it is in the
+ * database — the question it asks is whether two records are the same book, and
+ * that is decided on the details that near-identical records differ in. So
+ * nothing here is summarised away or truncated: every field the record holds,
+ * and every source, is on the page while the choice is being made.
+ */
 const Summary: FC<{ publication: Publication }> = ({ publication: p }) => (
   <div className="min-w-0">
-    <p className="text-sm truncate">
+    <p className="text-sm">
       {p.title} <span className="text-gray-600">({p.year})</span>
     </p>
-    <p className="text-xs text-gray-600 truncate">
-      {Publication.describeValue(p.countries, "countries")} · {p.publishers}
-    </p>
+    <dl className="mt-0.5 text-xs text-gray-600">
+      {DETAILED.map((key) => {
+        const value = Publication.describeValue(p[key] as string, key);
+
+        return value ? (
+          <div key={key} className="flex gap-1">
+            <dt className="text-gray-600 shrink-0">
+              {Publication.ATTRIBUTE_LABELS[key]}:
+            </dt>
+            <dd className="wrap-break-words">{value}</dd>
+          </div>
+        ) : null;
+      })}
+      {p.references?.length > 0 && (
+        <div className="flex gap-1">
+          <dt className="text-gray-600 shrink-0">Sources:</dt>
+          <dd className="wrap-break-words">
+            <ul>
+              {p.references.map((reference) => (
+                <li key={reference}>{reference}</li>
+              ))}
+            </ul>
+          </dd>
+        </div>
+      )}
+    </dl>
   </div>
 );
 
@@ -89,7 +125,7 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
   const references = gained(winner.references, result.references);
 
   return (
-    <section className="space-y-2">
+    <section aria-label="Result" className="space-y-2">
       <SectionHeading>Result</SectionHeading>
       <div className="space-y-1.5">
         <Gained
@@ -189,8 +225,11 @@ const PublicationMerge: FC<Props> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} label="Merge publications">
-      <div className="flex flex-col gap-5 p-8 w-full max-h-[80vh] overflow-y-auto">
-        <div className="space-y-1">
+      {/* The frame holds still: searching swaps what is listed, and a dialog
+          that grew and shrank under the reader as results arrived moved the
+          controls out from under the pointer. Only the results scroll. */}
+      <div className="flex flex-col gap-5 p-8 w-full h-full sm:h-[70vh]">
+        <div className="space-y-1 shrink-0">
           <h1 className="text-2xl font-normal">Merge into this publication</h1>
           <p className="text-sm text-gray-500">
             “{publication.title}” ({publication.year}) keeps its place. The
@@ -198,16 +237,16 @@ const PublicationMerge: FC<Props> = ({
           </p>
         </div>
 
-        <section className="space-y-2">
+        <section className="space-y-2 shrink-0">
           <SectionHeading>Find the duplicates</SectionHeading>
           <input
-            className="w-full py-2 px-3 bg-white rounded border border-gray-300 transition-colors outline-none placeholder:text-sm focus:bg-gray-100 hover:bg-gray-100"
+            className="w-full py-2 px-3 bg-white rounded border border-gray-300 transition-colors outline-none placeholder:text-sm focus:bg-gray-100 hover:bg-gray-100 shrink-0"
             placeholder="Search by title, author, publisher or country"
             aria-label="Search for publications to merge"
             value={term}
             onChange={handleTerm}
           />
-          <div aria-live="polite">
+          <div aria-live="polite" className="shrink-0">
             {searching ? (
               <p className="text-xs text-gray-500">Searching…</p>
             ) : (
@@ -219,11 +258,17 @@ const PublicationMerge: FC<Props> = ({
               )
             )}
           </div>
+        </section>
+
+        {/* One scroll region for everything the search changes, so the frame
+            around it — the heading, the box being typed into, the buttons —
+            never moves. */}
+        <div className="flex overflow-y-auto flex-col gap-5 pr-1 min-h-0 grow">
           <ul className="space-y-1">
             {offered.map((candidate) => (
               <li
                 key={candidate.id}
-                className="flex gap-3 justify-between items-center py-1.5 px-3 rounded border border-gray-200"
+                className="flex gap-3 justify-between items-start py-1.5 px-3 rounded border border-gray-200"
               >
                 <Summary publication={candidate} />
                 <Button
@@ -236,36 +281,38 @@ const PublicationMerge: FC<Props> = ({
               </li>
             ))}
           </ul>
-        </section>
 
-        {chosen.length > 0 && (
-          <section className="space-y-2">
-            <SectionHeading>Merging in</SectionHeading>
-            <ul className="space-y-1">
-              {chosen.map((picked) => (
-                <li
-                  key={picked.id}
-                  className="flex gap-3 justify-between items-center py-1.5 px-3 rounded border border-indigo-200 bg-indigo-50"
-                >
-                  <Summary publication={picked} />
-                  <Button
-                    label="Remove"
-                    variant="outline"
-                    width="fit"
-                    size="small"
-                    onClick={() =>
-                      setChosen(chosen.filter((p) => p.id !== picked.id))
-                    }
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+          {chosen.length > 0 && (
+            <section className="space-y-2">
+              <SectionHeading>Merging in</SectionHeading>
+              <ul className="space-y-1">
+                {chosen.map((picked) => (
+                  <li
+                    key={picked.id}
+                    className="flex gap-3 justify-between items-start py-1.5 px-3 rounded border border-indigo-200 bg-indigo-50"
+                  >
+                    <Summary publication={picked} />
+                    <Button
+                      label="Remove"
+                      variant="outline"
+                      width="fit"
+                      size="small"
+                      onClick={() =>
+                        setChosen(chosen.filter((p) => p.id !== picked.id))
+                      }
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-        {chosen.length > 0 && <Preview winner={publication} losers={chosen} />}
+          {chosen.length > 0 && (
+            <Preview winner={publication} losers={chosen} />
+          )}
+        </div>
 
-        <div className="flex gap-3 justify-end">
+        <div className="flex gap-3 justify-end shrink-0">
           <Button
             label="Cancel"
             variant="outline"
