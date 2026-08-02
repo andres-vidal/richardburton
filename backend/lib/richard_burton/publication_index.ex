@@ -2,13 +2,25 @@ defmodule RichardBurton.Publication.Index do
   @moduledoc """
   Full-text search over the publication index.
 
-  A search runs in one of two modes. A plain term is split on `:or` (or `:ou`) into
-  alternatives, any of which may match; within an alternative the words are
-  matched each on its own (as a prefix, or fuzzily if nothing matches as typed)
-  and combined with AND, so each word narrows the result. A term that quotes a
-  phrase or negates a word is instead passed to Postgres verbatim, exactly as
-  written. Either way the match runs against a `tsvector` built with accents
-  folded, so a term is folded the same way before it is compared.
+  A term is read as the alternatives `:or` (or `:ou`) separates, any of which
+  may match. An alternative is free words — matched each on its own, as a
+  prefix or fuzzily if nothing matches as typed, and combined with AND so each
+  one narrows — together with the operators that name a single field:
+
+      title:casmurro            the title alone
+      autor:machado             the writer, in Portuguese
+      year:1950-1960            a span of years
+      -country:US               everything but
+      title:"dom casmurro"      the phrase, in that order
+
+  An alternative is satisfied by its words and its operators together. A term
+  with no operator that quotes a phrase or negates a word is passed to Postgres
+  verbatim instead, exactly as written.
+
+  Either way the match runs against a `tsvector` built with accents folded, so a
+  term is folded the same way before it is compared. See
+  `RichardBurton.Publication.Index.Term` for the operators and the words that
+  name them.
   """
 
   import Ecto.Query
@@ -16,6 +28,7 @@ defmodule RichardBurton.Publication.Index do
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication.Index.SearchDocument
   alias RichardBurton.Publication.Index.SearchKeyword
+  alias RichardBurton.Publication.Index.Term
   alias RichardBurton.Repo
 
   # The response header carrying the index's total publication count.
@@ -217,17 +230,119 @@ defmodule RichardBurton.Publication.Index do
     )
   end
 
-  defp matches({:parsed, query}),
-    do: dynamic(fragment("document @@ to_tsquery('rb_search', ?)", ^query))
-
   defp matches({:spelled_out, term}),
     do: dynamic(fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term))
 
-  defp ranking({:parsed, query}),
-    do: dynamic(fragment("ts_rank_cd(document, to_tsquery('rb_search', ?), 4)", ^query))
+  # Any alternative will do, and each is its words and its operators together.
+  defp matches({:alternatives, alternatives}) do
+    alternatives
+    |> Enum.map(&alternative_predicate/1)
+    |> Enum.reduce(fn predicate, acc -> dynamic(^acc or ^predicate) end)
+  end
+
+  defp alternative_predicate(%{query: query, filters: filters, mode: mode}) do
+    [words_predicate(query) | Enum.map(filters, &filter_predicate(&1, mode))]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      # Only operators nothing could be made of: the alternative asks nothing,
+      # rather than silently asking for everything.
+      [] -> dynamic(false)
+      predicates -> Enum.reduce(predicates, fn predicate, acc -> dynamic(^acc and ^predicate) end)
+    end
+  end
+
+  defp words_predicate(nil), do: nil
+
+  defp words_predicate(query),
+    do: dynamic(fragment("document @@ to_tsquery('rb_search', ?)", ^query))
+
+  # An operator asks of one field rather than of the whole document, so it is
+  # matched against that field's own text. A quoted value is a phrase, taken in
+  # order; anything else matches from the start of a word, as free text does.
+  defp filter_predicate(%{field: :year, value: value, negated: negated}, _mode) do
+    case Term.span(value) do
+      :none -> nil
+      {from, to} -> negate(year_predicate(from, to), negated)
+    end
+  end
+
+  defp filter_predicate(%{field: field, value: value, exact: exact, negated: negated}, mode) do
+    case value_query(value, exact, mode) do
+      # Nothing in the index resembles what was asked of this field, so nothing
+      # can satisfy it — the same answer the free words give.
+      :none -> negate(dynamic(false), negated)
+      query -> negate(text_predicate(field, query), negated)
+    end
+  end
+
+  defp negate(predicate, false), do: predicate
+  defp negate(predicate, true), do: dynamic(not (^predicate))
+
+  defp year_predicate(nil, to), do: dynamic([p], p.year <= ^to)
+  defp year_predicate(from, nil), do: dynamic([p], p.year >= ^from)
+  defp year_predicate(from, to), do: dynamic([p], p.year >= ^from and p.year <= ^to)
+
+  # References are a list, so they are matched as the text of the whole list —
+  # the same thing the search document folds them in as.
+  defp text_predicate(:references, query) do
+    dynamic(
+      [p],
+      fragment("to_tsvector('rb_search', array_to_string(?, ' ')) @@ ?", p.references, ^query)
+    )
+  end
+
+  defp text_predicate(field, query) do
+    dynamic(
+      [p],
+      fragment("to_tsvector('rb_search', coalesce(?::text, '')) @@ ?", field(p, ^field), ^query)
+    )
+  end
+
+  # A quoted value is a phrase, whatever the mode: it was asked for as written.
+  defp value_query(value, true, _mode),
+    do: dynamic(fragment("phraseto_tsquery('rb_search', ?)", ^value))
+
+  defp value_query(value, false, :prefix) do
+    query = value |> String.split(~r/\s+/, trim: true) |> and_prefixes()
+    dynamic(fragment("to_tsquery('rb_search', ?)", ^query))
+  end
+
+  # An operator's value is forgiven a misspelling exactly as a free word is:
+  # each of its words stands for the indexed words it resembles.
+  defp value_query(value, false, :fuzzy) do
+    value
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.map(&search_keywords(&1, :fuzzy))
+    |> case do
+      [] ->
+        :none
+
+      groups ->
+        if Enum.any?(groups, &(&1 == [])) do
+          :none
+        else
+          dynamic(fragment("to_tsquery('rb_search', ?)", ^and_fuzzy(groups)))
+        end
+    end
+  end
 
   defp ranking({:spelled_out, term}),
     do: dynamic(fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term))
+
+  # Rank on the words asked for, whichever alternative they came from; an
+  # alternative made only of operators has nothing to rank by and adds nothing.
+  defp ranking({:alternatives, alternatives}) do
+    alternatives
+    |> Enum.map(& &1.query)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> dynamic(0.0)
+      queries -> ranking_by(Enum.map_join(queries, " | ", &"(#{&1})"))
+    end
+  end
+
+  defp ranking_by(query),
+    do: dynamic(fragment("ts_rank_cd(document, to_tsquery('rb_search', ?), 4)", ^query))
 
   # The ids a search matches, in reading order — the ordering the reader pages
   # through by id.
@@ -244,19 +359,29 @@ defmodule RichardBurton.Publication.Index do
   # it wants, so it is passed to Postgres as written and never widened: no prefix
   # matching, and no fuzzy pass that could add back a word it just excluded.
   defp answering(term) do
-    if spelled_out?(term) do
-      ask = {:spelled_out, term}
-      {ask, [], order_ids(ask)}
-    else
-      alternatives = or_split(term)
-      as_written = {:parsed, written_query(alternatives)}
+    alternatives = Term.parse(term)
 
-      case order_ids(as_written) do
-        [] -> fuzzily_answering(alternatives)
-        ids -> {as_written, prefix_keywords(alternatives), ids}
-      end
+    cond do
+      alternatives == [] ->
+        :none
+
+      # A term that only quotes or excludes, with no operator in it, is still
+      # handed to Postgres as written — the path that has always served it.
+      plain?(alternatives) and spelled_out?(term) ->
+        ask = {:spelled_out, term}
+        {ask, [], order_ids(ask)}
+
+      true ->
+        as_written = asked(alternatives, :prefix)
+
+        case order_ids(as_written) do
+          [] -> fuzzily_answering(alternatives)
+          ids -> {as_written, prefix_keywords(alternatives), ids}
+        end
     end
   end
+
+  defp plain?(alternatives), do: Enum.all?(alternatives, &(&1.filters == []))
 
   defp fuzzily_answering(alternatives) do
     case fuzzily(alternatives) do
@@ -265,39 +390,38 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  # Split a term into the alternatives `:or` separates, each a list of words.
-  # "one two :or three" becomes [["one", "two"], ["three"]]. A term with no
-  # `:or` is one alternative, so the AND-narrowing path is unchanged.
-  #
-  # The operator wears a colon so that it cannot be mistaken for a word being
-  # searched for — a title like "Love or Death" is about the word, not the
-  # operator — and it answers to `:ou` as well, since a reader searching a
-  # Brazilian database should not have to reach for English to widen a query.
-  defp or_split(term) do
-    term
-    |> String.split(~r/\s+:(or|ou)\s+/i, trim: true)
-    |> Enum.map(&String.split(&1, ~r/\s+/, trim: true))
-    |> Enum.reject(&(&1 == []))
+  # What the search asks of the database: for each alternative, the words to
+  # look for anywhere in the record and the operators that narrow it. An
+  # alternative is satisfied by both together, and any alternative will do.
+  defp asked(alternatives, mode) do
+    {:alternatives,
+     Enum.map(alternatives, fn alternative ->
+       %{
+         query: words_query(alternative.words, mode),
+         filters: alternative.filters,
+         mode: mode
+       }
+     end)}
+  end
+
+  defp words_query([], _mode), do: nil
+  defp words_query(words, :prefix), do: and_prefixes(words)
+
+  defp words_query(words, :fuzzy) do
+    case fuzzy_words(words) do
+      [] -> nil
+      groups -> and_fuzzy(groups)
+    end
   end
 
   defp prefix_keywords(alternatives),
     do:
       alternatives
-      |> List.flatten()
+      |> Enum.flat_map(& &1.words)
       |> Enum.flat_map(&search_keywords(&1, :prefix))
       |> Enum.uniq()
 
   defp spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
-
-  # `:*` makes each word a prefix, so a word still being typed matches every
-  # word that starts with it, and a complete word matches itself. A country name
-  # is matched the same way as any other word: its names are folded into the
-  # document at index time, so "United Kingdom" reaches the record that stores
-  # the code "GB" with no special handling here. Alternatives are OR-ed, their
-  # words AND-ed.
-  defp written_query(alternatives) do
-    Enum.map_join(alternatives, " | ", &"(#{and_prefixes(&1)})")
-  end
 
   defp and_prefixes(words), do: Enum.map_join(words, " & ", &"(#{lexeme(&1)}:*)")
 
@@ -306,17 +430,22 @@ defmodule RichardBurton.Publication.Index do
   # own word, not the whole alternative. An alternative left with no words is
   # dropped whole.
   defp fuzzily(alternatives) do
-    alternatives
-    |> Enum.map(&fuzzy_words/1)
-    |> Enum.reject(&(&1 == []))
-    |> case do
-      [] ->
-        :none
+    {:alternatives, asked} = ask = asked(alternatives, :fuzzy)
 
-      alternatives ->
-        query = Enum.map_join(alternatives, " | ", &"(#{and_fuzzy(&1)})")
-        {{:parsed, query}, alternatives |> List.flatten() |> Enum.uniq()}
+    # Nothing resembled anything and no operator narrowed anything: the term
+    # names nothing this database holds.
+    if Enum.all?(asked, &(&1.query == nil and &1.filters == [])) do
+      :none
+    else
+      {ask, fuzzy_keywords(alternatives)}
     end
+  end
+
+  defp fuzzy_keywords(alternatives) do
+    alternatives
+    |> Enum.flat_map(& &1.words)
+    |> Enum.flat_map(&search_keywords(&1, :fuzzy))
+    |> Enum.uniq()
   end
 
   # One alternative's words resolved to the keywords they resemble, dropping any
