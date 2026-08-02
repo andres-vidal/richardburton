@@ -221,6 +221,30 @@ test("a reader narrows a search with operators, in either language", async ({
   await expect(rows.filter({ hasText: "Barren Lives" })).toHaveCount(0);
 });
 
+test("a reader can find out how to search, without losing the search", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/?search=Machado");
+
+  await page.getByRole("button", { name: "How to search" }).click();
+
+  const help = page.getByRole("dialog", { name: "How to search" });
+  await expect(help).toBeVisible();
+  // The things a text box cannot advertise, and the operators it takes.
+  await expect(help).toContainText("Accents may be omitted");
+  await expect(help).toContainText("title:iracema");
+  await expect(help).toContainText("autor:");
+
+  // Reading the help does not throw away what was being searched.
+  await page.keyboard.press("Escape");
+  await expect(help).toHaveCount(0);
+  await expect(page).toHaveURL(/\?search=Machado/);
+  await expect(
+    indexTable(page).getByRole("row").filter({ hasText: "Machado de Assis" }),
+  ).toHaveCount(3);
+});
+
 test("a large index virtualizes: far rows render as they scroll into view", async ({
   page,
 }) => {
