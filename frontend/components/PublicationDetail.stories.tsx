@@ -4,7 +4,7 @@ import { withChanges } from "modules/publication/history";
 import { empty, type PublicationHistoryEntry } from "modules/publication/model";
 import { resetAll } from "modules/publication/store";
 import { SessionProvider } from "modules/session";
-import { expect, screen, userEvent, waitFor } from "storybook/test";
+import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationDetail from "./PublicationDetail";
 
@@ -210,5 +210,20 @@ export const Merging: Story = {
         screen.queryByRole("dialog", { name: "Merge publications" }),
       ).not.toBeInTheDocument(),
     );
+  },
+};
+
+/**
+ * The sentence's punctuation sits against the name before it. A space there is
+ * somewhere the line may break, and a full stop that wraps onto the next line
+ * reads as a mistake in the record rather than as the end of a sentence.
+ */
+export const PunctuationStaysPut: Story = {
+  play: async ({ canvasElement }) => {
+    const sentence =
+      await within(canvasElement).findByText(/is a translation of/);
+
+    await expect(sentence).toHaveTextContent(/Machado de Assis\. It was/);
+    await expect(sentence.textContent).not.toMatch(/\s\./);
   },
 };
