@@ -124,6 +124,9 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
                   role="dialog"
                   aria-modal="true"
                   aria-label={label}
+                  // The dialog scrolls when its content outgrows it, and a
+                  // region that scrolls has to be reachable by keyboard.
+                  tabIndex={0}
                   className={`
                   mb-5 sm:rounded-lg bg-white text-gray-900 shadow-lg scrollbar-thin scrollbar-thumb-indigo-600
                   overflow-y-auto overflow-x-clip
