@@ -6,8 +6,8 @@ defmodule RichardBurton.Publication.Index.Term do
   things picked out of it: the alternatives `:or` separates, and the operators
   that name a single field. `title:casmurro` asks of the title alone;
   `year:1950-1960` asks for a span of years; a leading `-` excludes rather than
-  requires; and a quoted value is taken as written rather than as the start of a
-  word.
+  requires; `title:"dom casmurro"` asks for those words in that order; and
+  `title:(dom casmurro)` asks for both of them, in any.
 
   Operators answer to three vocabularies — the labels the interface uses, the
   names the database uses, and Portuguese — because the reader of a database of
@@ -20,10 +20,14 @@ defmodule RichardBurton.Publication.Index.Term do
   @type filter :: %{field: atom, value: String.t(), exact: boolean, negated: boolean}
   @type alternative :: %{words: [String.t()], filters: [filter]}
 
-  # Every name an operator answers to. Reader labels first, then the schema's
-  # own, then Portuguese. `author` is deliberately absent: this database calls
-  # the writer of the book the original author and the person who rendered it
-  # the translator, and a bare "author" would have to guess between them.
+  # Every name an operator answers to: the labels the interface shows, the names
+  # the database uses, and Portuguese.
+  #
+  # `author` names the writer of the book, and so does `authors` — even though
+  # the column called `authors` holds the translators. That is the database's
+  # word for them, and it has no business reaching the person typing: a reader
+  # asking for an author means whoever wrote the thing, and asks for the person
+  # who rendered it by name, as `translator`.
   @fields %{
     "title" => :title,
     "titulo" => :title,
@@ -35,9 +39,10 @@ defmodule RichardBurton.Publication.Index.Term do
     "titulo-original" => :original_title,
     "translator" => :authors,
     "translators" => :authors,
-    "authors" => :authors,
     "tradutor" => :authors,
     "tradutores" => :authors,
+    "author" => :original_authors,
+    "authors" => :original_authors,
     "original_author" => :original_authors,
     "original-author" => :original_authors,
     "original_authors" => :original_authors,
@@ -62,9 +67,10 @@ defmodule RichardBurton.Publication.Index.Term do
     "fontes" => :references
   }
 
-  # A token runs until a space, except that a quoted stretch is part of it and
-  # may hold spaces — so `title:"dom casmurro"` is one token, not two.
-  @token ~r/(?:[^\s"]+|"[^"]*")+/
+  # A token runs until a space, except that a quoted or bracketed stretch is
+  # part of it and may hold spaces — so `title:"dom casmurro"` and
+  # `title:(dom casmurro)` are each one token, not two.
+  @token ~r/(?:[^\s"()]+|"[^"]*"|\([^)]*\))+/
   @operator ~r/^(?<negated>-?)(?<field>[^\s:"]+):(?<value>.*)$/s
   @alternator ~r/^:(or|ou)$/i
 
@@ -117,10 +123,19 @@ defmodule RichardBurton.Publication.Index.Term do
 
   defp known?(field), do: Map.has_key?(@fields, String.downcase(field))
 
-  defp quoted?(value), do: String.starts_with?(value, ~s(")) and String.ends_with?(value, ~s("))
+  defp quoted?(value), do: wrapped?(value, ~s("), ~s("))
+
+  # Several words asked of one field, in any order: `title:(dom casmurro)`.
+  # Quoting would ask for them in that order, which is a different question.
+  defp grouped?(value), do: wrapped?(value, "(", ")")
+
+  defp wrapped?(value, opening, closing),
+    do:
+      String.length(value) >= 2 and String.starts_with?(value, opening) and
+        String.ends_with?(value, closing)
 
   defp unquoted(value) do
-    if quoted?(value) and String.length(value) >= 2,
+    if quoted?(value) or grouped?(value),
       do: String.slice(value, 1..-2//1),
       else: value
   end

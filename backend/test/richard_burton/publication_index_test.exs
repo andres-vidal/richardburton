@@ -812,6 +812,27 @@ defmodule RichardBurton.Publication.IndexTest do
       assert found(~s(title:"wind and the time")) == []
     end
 
+    test "several words can be asked of one field, in any order" do
+      grouped = found("title:(time wind)")
+
+      refute Enum.empty?(grouped)
+      assert Enum.all?(grouped, &(&1.title == "Time and the Wind"))
+      # Order does not matter, unlike a quoted phrase.
+      assert Enum.map(found("title:(wind time)"), & &1.id) == Enum.map(grouped, & &1.id)
+      assert found(~s(title:"wind time")) == []
+    end
+
+    test "an author is the writer, and a translator the one who rendered it" do
+      writers = found("author:verissimo")
+      renderers = found("translator:barrett")
+
+      refute Enum.empty?(writers)
+      assert Enum.all?(writers, &(String.downcase(&1.original_authors) =~ "verissimo"))
+
+      refute Enum.empty?(renderers)
+      assert Enum.all?(renderers, &(String.downcase(&1.authors) =~ "barrett"))
+    end
+
     test "operators narrow the free words beside them" do
       loose = found("night")
       narrowed = found("night country:US")
