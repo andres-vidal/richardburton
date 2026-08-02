@@ -71,7 +71,6 @@ defmodule RichardBurton.Publication.Index.TermTest do
     test "answers to the names the database uses" do
       for {name, field} <- [
             {"original_title", :original_title},
-            {"authors", :authors},
             {"original_authors", :original_authors},
             {"countries", :countries},
             {"publishers", :publishers},
@@ -102,6 +101,19 @@ defmodule RichardBurton.Publication.Index.TermTest do
     test "the name is read whatever its case" do
       assert [%{filters: [%{field: :title}]}] = Term.parse("Title:casmurro")
       assert [%{filters: [%{field: :title}]}] = Term.parse("TÍTULO:casmurro")
+    end
+
+    test "an author is whoever wrote the book, whatever the column is called" do
+      # The column named `authors` holds the translators; that is the database's
+      # word, and a reader asking for an author means the writer.
+      assert [%{filters: [%{field: :original_authors}]}] = Term.parse("author:machado")
+      assert [%{filters: [%{field: :original_authors}]}] = Term.parse("authors:machado")
+      assert [%{filters: [%{field: :authors}]}] = Term.parse("translator:caldwell")
+    end
+
+    test "a bracketed value asks for several words of one field, in any order" do
+      assert [%{filters: [filter]}] = Term.parse("title:(dom casmurro)")
+      assert %{field: :title, value: "dom casmurro", exact: false} = filter
     end
 
     test "a prefix it does not know is not an operator" do
