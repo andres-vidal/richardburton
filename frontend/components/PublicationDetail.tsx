@@ -59,7 +59,6 @@ const SearchableList: FC<{
         {index != 0 && index === items.length - 1 && " and "}
         <Searchable {...item} />
         {index < items.length - 2 && ", "}
-        {index === items.length - 1 && " "}
       </li>
     ))}
   </ul>
@@ -103,8 +102,8 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
     <div>
       <Searchable label={p.title} /> is a translation of{" "}
       <Searchable label={p.originalTitle} />, by {list("originalAuthors")}. It
-      was written by {list("authors")} and published in {list("countries")}
-      in {p.year} by {list("publishers")}.
+      was written by {list("authors")} and published in {list("countries")} in{" "}
+      {p.year} by {list("publishers")}.
     </div>
   );
 };
