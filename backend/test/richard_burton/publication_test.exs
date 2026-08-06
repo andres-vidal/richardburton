@@ -638,4 +638,230 @@ defmodule RichardBurton.PublicationTest do
       assert {:error, :not_found} = Publication.restore(-1)
     end
   end
+
+  describe "merge/3" do
+    # Two records of the same work, each holding something the other lacks.
+    defp merge_pair do
+      winner =
+        insert_publication(
+          @valid_attrs
+          |> Map.put("countries", [%{"code" => "GB"}])
+          |> Map.put("references", [%{"content" => "A source", "position" => 0}])
+        )
+
+      loser =
+        insert_publication(
+          @valid_attrs
+          |> Map.put("title", "Manuel de Moraes: Another Printing")
+          |> Map.put("countries", [%{"code" => "US"}])
+          |> Map.put("publishers", [%{"name" => "Noonday Press"}])
+          |> Map.put("references", [%{"content" => "Another source", "position" => 0}])
+        )
+
+      {winner, loser}
+    end
+
+    test "the winner keeps what names it and gains what the loser held" do
+      {winner, loser} = merge_pair()
+
+      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
+
+      assert merged.id == winner.id
+      assert merged.title == winner.title
+
+      assert ["GB", "US"] == merged.countries |> Enum.map(& &1.code) |> Enum.sort()
+
+      assert ["Bickers & Son", "Noonday Press"] ==
+               merged.publishers |> Enum.map(& &1.name) |> Enum.sort()
+
+      assert ["A source", "Another source"] ==
+               merged.references |> Enum.map(& &1.content) |> Enum.sort()
+    end
+
+    test "a source both of them recorded is recorded once" do
+      winner =
+        insert_publication(
+          Map.put(@valid_attrs, "references", [%{"content" => "A source", "position" => 0}])
+        )
+
+      loser =
+        insert_publication(
+          @valid_attrs
+          |> Map.put("title", "Manuel de Moraes: Another Printing")
+          |> Map.put("references", [%{"content" => "A source", "position" => 0}])
+        )
+
+      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
+
+      assert ["A source"] == Enum.map(merged.references, & &1.content)
+    end
+
+    test "the losers leave the database, and the winner stays in it" do
+      {winner, loser} = merge_pair()
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      assert [%{id: live}] = Repo.all(FlatPublication)
+      assert live == winner.id
+      assert %Publication{deleted_at: %DateTime{}} = Repo.get(Publication, loser.id)
+    end
+
+    test "the merge is one entry, on the record that survived it" do
+      {winner, loser} = merge_pair()
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id], "someone@example.com")
+
+      assert [entry | _] = Publication.History.of(winner.id)
+      assert entry.action == "merged"
+      assert entry.actor == "someone@example.com"
+      assert Publication.History.absorbed_ids(entry) == [loser.id]
+    end
+
+    test "a loser's own log gains nothing, and offers no undo while it is held" do
+      {winner, loser} = merge_pair()
+      before = Publication.History.of(loser.id)
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      # Nothing happened *to* the loser that the merge does not already say.
+      assert Enum.map(Publication.History.of(loser.id), & &1.version) ==
+               Enum.map(before, & &1.version)
+
+      # And nothing in its log can be undone while another record holds it —
+      # the merge holds it, and the merge is what gives it back.
+      assert Enum.all?(Publication.History.all(), fn entry ->
+               entry.publication_id != loser.id or not entry.undoable
+             end)
+    end
+
+    test "a record a merge absorbed is not in the trash to be restored" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      refute Enum.any?(Publication.all_deleted(), &(&1.id == loser.id))
+
+      # A record that is deleted after being merged into is there, though: the
+      # trash lists what someone deleted, whatever happened to it before.
+      {:ok, _} = Publication.delete(winner.id)
+      assert Enum.any?(Publication.all_deleted(), &(&1.id == winner.id))
+    end
+
+    test "undoing a merge takes the whole thing back, under one entry" do
+      {winner, loser} = merge_pair()
+
+      countries_before =
+        Publication.find(winner.id) |> Publication.Codec.flatten() |> Map.get(:countries)
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      [merge | _] = Publication.History.of(winner.id)
+      assert merge.undoable
+
+      assert {:ok, _} = Publication.undo(winner.id, merge.version)
+
+      # The record that left is back, and live.
+      assert %Publication{deleted_at: nil} = Repo.get(Publication, loser.id)
+
+      # The one that survived gave up what it had absorbed.
+      assert Publication.find(winner.id) |> Publication.Codec.flatten() |> Map.get(:countries) ==
+               countries_before
+
+      # And the un-merge is one entry, naming what it gave back.
+      assert [undone | _] = Publication.History.of(winner.id)
+      assert undone.action == "unmerged"
+      assert Publication.History.absorbed_ids(undone) == [loser.id]
+    end
+
+    test "an un-merge is itself undoable, which merges them again" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+      [merge | _] = Publication.History.of(winner.id)
+      {:ok, _} = Publication.undo(winner.id, merge.version)
+
+      [undone | _] = Publication.History.of(winner.id)
+      assert undone.undoable
+
+      assert {:ok, _} = Publication.undo(winner.id, undone.version)
+
+      assert %Publication{deleted_at: %DateTime{}} = Repo.get(Publication, loser.id)
+      assert [again | _] = Publication.History.of(winner.id)
+      assert again.action == "merged"
+    end
+
+    test "a merge recorded before it was one act is inert, not half-undoable" do
+      {_winner, loser} = merge_pair()
+
+      # The shape the log had when a merge marked each record separately: the
+      # one that left carried the mark, and the mark named nothing.
+      loser
+      |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second))
+      |> Repo.update!()
+
+      History.record(:merged, Publication.preload(loser), "someone@example.com")
+
+      [entry | _] = History.of(loser.id)
+      assert entry.action == "merged"
+
+      # Nothing to give back, so nothing to undo — rather than an undo that
+      # reverts a record and returns none of what it was merged into.
+      refute entry.undoable
+      assert {:error, :conflict} = Publication.undo(loser.id, entry.version)
+
+      # And it stays out of the trash, as it always did.
+      refute Enum.any?(Publication.all_deleted(), &(&1.id == loser.id))
+    end
+
+    test "a record given back by an un-merge is out of hiding, and in the index" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+      [merge | _] = Publication.History.of(winner.id)
+      {:ok, _} = Publication.undo(winner.id, merge.version)
+
+      # Not in the trash — nobody deleted it — but listed again.
+      refute Enum.any?(Publication.all_deleted(), &(&1.id == loser.id))
+      assert Enum.any?(Repo.all(FlatPublication), &(&1.id == loser.id))
+    end
+
+    test "refuses to merge a publication into itself" do
+      {winner, _loser} = merge_pair()
+
+      assert {:error, :self} = Publication.merge(winner.id, [winner.id])
+    end
+
+    test "refuses when a publication is not here" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.delete(loser.id)
+
+      assert {:error, :not_found} = Publication.merge(winner.id, [loser.id])
+      assert {:error, :not_found} = Publication.merge(-1, [winner.id])
+    end
+
+    test "takes no merge that names nothing to merge in" do
+      {winner, _loser} = merge_pair()
+
+      assert_raise FunctionClauseError, fn -> Publication.merge(winner.id, []) end
+    end
+
+    test "surfaces a collision with a third publication rather than crashing" do
+      {winner, loser} = merge_pair()
+
+      # A third record already holds what the merged one would: the same title
+      # and year, and the countries and publishers the merge would union.
+      third =
+        insert_publication(
+          @valid_attrs
+          |> Map.put("countries", [%{"code" => "GB"}, %{"code" => "US"}])
+          |> Map.put("publishers", [
+            %{"name" => "Bickers & Son"},
+            %{"name" => "Noonday Press"}
+          ])
+        )
+
+      assert {:error, :conflict} = Publication.merge(winner.id, [loser.id])
+
+      # Nothing moved: the loser is still here and the third is untouched.
+      assert is_nil(Repo.get(Publication, loser.id).deleted_at)
+      assert %Publication{} = Repo.get(Publication, third.id)
+    end
+  end
 end

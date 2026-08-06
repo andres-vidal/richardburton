@@ -43,6 +43,8 @@ const ActionBadge: FC<{
       group-data-[action=updated]:bg-amber-100 group-data-[action=updated]:text-amber-800
       group-data-[action=deleted]:bg-red-100 group-data-[action=deleted]:text-red-700
       group-data-[action=restored]:bg-emerald-100 group-data-[action=restored]:text-emerald-700
+      group-data-[action=merged]:bg-sky-100 group-data-[action=merged]:text-sky-700
+      group-data-[action=unmerged]:bg-sky-100 group-data-[action=unmerged]:text-sky-700
     "
   >
     {action}
@@ -146,7 +148,7 @@ const Entry: FC<{
                 {change.label}: <s className="text-gray-500">{change.from}</s> →{" "}
                 <span className="text-gray-700">{change.to}</span>
               </li>
-            ) : (
+            ) : change.kind === "references" ? (
               <li key="references" className="text-xs text-gray-600">
                 References:{change.reordered ? " reordered" : null}
                 <ul className="space-y-0.5">
@@ -158,6 +160,34 @@ const Entry: FC<{
                   {change.added.map((reference) => (
                     <li key={`+ ${reference}`} className="text-emerald-700">
                       + {reference}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ) : (
+              <li key="absorbed" className="mt-1 text-xs text-gray-600">
+                {change.direction === "in" ? "Took in" : "Gave back"}
+                <ul className="mt-1 space-y-1.5">
+                  {change.records.map((record) => (
+                    <li
+                      key={record.id}
+                      className="pl-2 border-l-2 border-sky-200"
+                    >
+                      <span className="font-medium text-gray-700">
+                        {record.title}
+                      </span>
+                      <ul className="space-y-0.5">
+                        {record.fields.map((field) => (
+                          <li key={field.label} className="text-gray-500">
+                            {field.label}: {field.value}
+                          </li>
+                        ))}
+                        {record.references.map((reference) => (
+                          <li key={reference} className="text-gray-500">
+                            Reference: {reference}
+                          </li>
+                        ))}
+                      </ul>
                     </li>
                   ))}
                 </ul>
