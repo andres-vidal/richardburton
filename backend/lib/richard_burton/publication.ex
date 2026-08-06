@@ -234,7 +234,7 @@ defmodule RichardBurton.Publication do
   end
 
   # And undoing an un-merge is the merge again, by the same route.
-  defp compensate(%{action: "unmerged", publication_id: id} = entry, _previous, _head, actor) do
+  defp compensate(entry = %{action: "unmerged", publication_id: id}, _previous, _head, actor) do
     merge(id, History.absorbed_ids(entry), actor)
   end
 
@@ -260,20 +260,28 @@ defmodule RichardBurton.Publication do
   # taken by something else in the meantime is the same conflict a restore hits.
   defp restore_absorbed(ids) do
     Enum.reduce_while(ids, {:ok, []}, fn id, {:ok, restored} ->
-      case get(id, deleted: true) do
-        nil ->
-          {:halt, {:error, :not_found}}
-
-        publication ->
-          publication
-          |> change(deleted_at: nil)
-          |> Repo.update()
-          |> case do
-            {:ok, back} -> {:cont, {:ok, [preload(back) | restored]}}
-            {:error, _} -> {:halt, {:error, :conflict}}
-          end
+      case lift_tombstone(id) do
+        {:ok, back} -> {:cont, {:ok, [back | restored]}}
+        {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
+  end
+
+  defp lift_tombstone(id) do
+    case get(id, deleted: true) do
+      nil -> {:error, :not_found}
+      publication -> undelete(publication)
+    end
+  end
+
+  defp undelete(publication) do
+    publication
+    |> change(deleted_at: nil)
+    |> Repo.update()
+    |> case do
+      {:ok, back} -> {:ok, preload(back)}
+      {:error, _} -> {:error, :conflict}
+    end
   end
 
   # The winner returns to what it held before it absorbed anything — the same
@@ -511,17 +519,20 @@ defmodule RichardBurton.Publication do
       select: {h.action, h.absorbed}
     )
     |> Repo.all()
-    |> Enum.reduce(MapSet.new(), fn {action, absorbed}, held ->
-      absorbed
-      |> Kernel.||(%{})
-      |> Map.keys()
-      |> Enum.map(&String.to_integer/1)
-      |> Enum.filter(&MapSet.member?(wanted, &1))
-      |> Enum.reduce(held, fn id, held ->
-        if action == "merged", do: MapSet.put(held, id), else: MapSet.delete(held, id)
-      end)
-    end)
+    |> Enum.reduce(MapSet.new(), &hold_or_release(&1, &2, wanted))
   end
+
+  defp hold_or_release({action, absorbed}, held, wanted) do
+    absorbed
+    |> Kernel.||(%{})
+    |> Map.keys()
+    |> Enum.map(&String.to_integer/1)
+    |> Enum.filter(&MapSet.member?(wanted, &1))
+    |> Enum.reduce(held, &hold(&2, &1, action))
+  end
+
+  defp hold(held, id, "merged"), do: MapSet.put(held, id)
+  defp hold(held, id, "unmerged"), do: MapSet.delete(held, id)
 
   @doc """
   One live publication, with its associations, or `nil`.
