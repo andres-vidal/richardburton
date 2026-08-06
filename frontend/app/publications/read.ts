@@ -88,3 +88,30 @@ export const readIndex = cache((search?: string) =>
 export const readUnreferenced = cache(() =>
   readDatabase({ unreferenced: true }),
 );
+
+/** A set of records that look like one publication entered more than once. */
+export type DuplicateCluster = {
+  publications: Publication[];
+  /** How alike the closest two of them are, between 0 and 1. */
+  score: number;
+};
+
+export type DuplicateReport = {
+  clusters: DuplicateCluster[];
+  /** The likeness the server is currently asking about, for the reader's sake. */
+  threshold: number;
+};
+
+/**
+ * The clusters the duplicate review steps through, likeliest first. Read where
+ * the page is rendered, like the rest of the admin views, so the reviewer has
+ * the first question in the first response.
+ */
+export const readDuplicates = cache(async (): Promise<DuplicateReport> => {
+  const { entries, threshold } = await get<{
+    entries: DuplicateCluster[];
+    threshold: number;
+  }>("/publications/duplicates");
+
+  return { clusters: entries, threshold };
+});

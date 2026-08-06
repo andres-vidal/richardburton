@@ -30,6 +30,13 @@ const ACTIONS: {
     role: "contributor",
   },
   {
+    href: "/admin/publications/duplicates",
+    title: "Review duplicates",
+    description:
+      "Records that look like the same publication entered twice — merge them, or say they are different.",
+    role: "contributor",
+  },
+  {
     href: "/admin/publications/history",
     title: "History",
     description:

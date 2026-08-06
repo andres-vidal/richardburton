@@ -462,6 +462,78 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
   end
 
+  describe "GET /publications/duplicates" do
+    test "offers the records that look like one publication entered twice", meta do
+      expect_auth_authorize_admin()
+      insert_publication(@publication_attrs)
+      insert_publication(%{@publication_attrs | "title" => "Iraçéma the Honey-Lips"})
+
+      assert %{"entries" => [entry], "threshold" => threshold} =
+               meta.conn
+               |> get(publication_path(meta.conn, :duplicates))
+               |> json_response(200)
+
+      assert is_float(threshold)
+      assert 2 == length(entry["publications"])
+      assert entry["score"] > threshold
+    end
+
+    test "a database with nothing alike in it has nothing to review", meta do
+      expect_auth_authorize_admin()
+      insert_publication(@publication_attrs)
+
+      assert %{"entries" => []} =
+               meta.conn
+               |> get(publication_path(meta.conn, :duplicates))
+               |> json_response(200)
+    end
+  end
+
+  describe "POST /publications/duplicates/distinguish" do
+    test "remembers the records told apart, so they are not offered again", meta do
+      expect_auth_authorize_admin(3)
+      one = insert_publication(@publication_attrs)
+
+      other =
+        insert_publication(%{@publication_attrs | "title" => "Iraçéma the Honey-Lips"})
+
+      conn =
+        post(meta.conn, publication_path(meta.conn, :distinguish), %{
+          "publications" => [one.id, other.id]
+        })
+
+      assert response(conn, 204)
+
+      assert %{"entries" => []} =
+               meta.conn
+               |> get(publication_path(meta.conn, :duplicates))
+               |> json_response(200)
+
+      # Saying it again changes nothing, and does not fail.
+      conn =
+        post(meta.conn, publication_path(meta.conn, :distinguish), %{
+          "publications" => [other.id, one.id]
+        })
+
+      assert response(conn, 204)
+    end
+
+    test "naming fewer than two is nothing to tell apart", meta do
+      expect_auth_authorize_admin(2)
+      one = insert_publication(@publication_attrs)
+
+      conn =
+        post(meta.conn, publication_path(meta.conn, :distinguish), %{
+          "publications" => [one.id]
+        })
+
+      assert json_response(conn, 400) == %{"error" => "not_enough"}
+
+      conn = post(meta.conn, publication_path(meta.conn, :distinguish), %{})
+      assert json_response(conn, 400) == %{"error" => "not_enough"}
+    end
+  end
+
   describe "POST /publications/:id/merge" do
     setup do
       winner = insert_publication(@publication_attrs)
@@ -1325,6 +1397,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
   defp insert_publication(attrs) do
     {:ok, publication} = attrs |> Publication.Codec.nest() |> Publication.insert()
+    # The index and the duplicate report read the materialized flat publications;
+    # a single insert doesn't signal the refresher, so stand in for the caller
+    # that would.
+    Publication.Index.Refresher.refresh()
     publication
   end
 end

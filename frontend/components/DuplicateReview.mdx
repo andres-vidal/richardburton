@@ -1,0 +1,45 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DuplicateReviewStories from "./DuplicateReview.stories";
+
+<Meta of={DuplicateReviewStories} />
+
+# Duplicate review
+
+Steps through the records that look like one publication entered more than once
+— the ones the composite key cannot catch, because a typo, a dropped accent or a
+translator's initials make them technically distinct.
+
+The queue on the left is one question per cluster, likeliest first; the pane on
+the right is the evidence, side by side, because that is all there is to go on.
+
+<Canvas of={DuplicateReviewStories.Default} />
+
+## The three answers
+
+- **Merge into the one kept** — they are one publication. The record chosen to
+  keep survives and gains what the others hold; the rest leave the database. See
+  [publication merge](?path=/docs/publications-publication-merge--docs) for what
+  a merge does and why it cannot be undone.
+- **Not duplicates** — they are different publications. The answer is
+  remembered, so the pair is never offered again; without that the tail never
+  clears.
+- **Skip** — not now. Nothing is recorded and the cluster comes back.
+
+<Canvas of={DuplicateReviewStories.KeepingTheOther} />
+
+## Usage
+
+`DuplicateReview` reads nothing: the page reads the clusters on the server and
+hands them over, and the exported `DuplicateReviewView` is the presentational
+shell the stories drive.
+
+Which record survives is the reviewer's choice. It opens on the one entered
+first, since the others came along after it — a proposal, not a judgement about
+which is right.
+
+## States
+
+<Canvas of={DuplicateReviewStories.NothingToReconcile} />
+
+<Canvas of={DuplicateReviewStories.Answering} />
