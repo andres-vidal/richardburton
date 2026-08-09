@@ -29,20 +29,46 @@ updates:
           - "@types/react"
           - "@types/react-dom"
         update-types: ["minor", "patch"]
+      # `eslint-config-next` carries Next's version, not ESLint's, and is
+      # released from the same repository. It has to follow `next` — grouped
+      # with ESLint it would be offered a Next the application is not on.
+      next:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+        update-types: ["minor", "patch"]
       vitest:
         patterns:
           - "vitest"
           - "@vitest/*"
         update-types: ["minor", "patch"]
+      # The Vite plugins name a Vite major as their peer, so they are only ever
+      # correct against the Vite beside them.
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+        update-types: ["minor", "patch"]
       tailwind:
         patterns:
           - "tailwindcss"
           - "@tailwindcss/*"
+          - "tailwind-scrollbar"
         update-types: ["minor", "patch"]
       playwright:
         patterns:
           - "playwright"
           - "@playwright/*"
+        update-types: ["minor", "patch"]
+      jotai:
+        patterns:
+          - "jotai"
+          - "jotai-*"
+        update-types: ["minor", "patch"]
+      stylelint:
+        patterns:
+          - "stylelint"
+          - "stylelint-config-*"
         update-types: ["minor", "patch"]
       eslint:
         patterns:
@@ -50,6 +76,8 @@ updates:
           - "eslint-*"
           - "@eslint/*"
           - "typescript-eslint"
+        exclude-patterns:
+          - "eslint-config-next"
         update-types: ["minor", "patch"]
     # The Node types describe the runtime this project pins, so their major is
     # not ours to choose: it follows `.tool-versions`, and a major ahead of it
@@ -76,6 +104,19 @@ updates:
           - "ecto"
           - "ecto_*"
           - "postgrex"
+        update-types: ["minor", "patch"]
+      # Both halves of the Plug stack, and both telemetry collectors, are
+      # released from one repository each and are only tested against their
+      # own sibling.
+      plug:
+        patterns:
+          - "plug"
+          - "plug_cowboy"
+        update-types: ["minor", "patch"]
+      telemetry:
+        patterns:
+          - "telemetry"
+          - "telemetry_*"
         update-types: ["minor", "patch"]
 
   # The workflows pin their actions, and those pins go stale silently — checkout
