@@ -26,7 +26,7 @@
     "i18n-iso-countries": "^7.14.0",
     "is-hotkey": "^0.2.0",
     "jotai": "^2.20.2",
-    "jotai-family": "^1.0.2",
+    "jotai-family": "^1.1.0",
     "lodash": "^4.18.1",
     "next": "^16.2.12",
     "object-hash": "^3.0.0",
