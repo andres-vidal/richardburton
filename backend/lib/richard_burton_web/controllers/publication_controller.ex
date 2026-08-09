@@ -164,7 +164,7 @@ defmodule RichardBurtonWeb.PublicationController do
 
   # Collapse publications into this one. The losers are named in the body, so
   # the address stays the surviving record's own.
-  def merge(conn, %{"id" => id, "losers" => losers = [_ | _]}) do
+  def merge(conn, %{"id" => id, "losers" => losers}) when is_list(losers) do
     case Publication.merge(id, losers, actor(conn)) do
       {:ok, publication} ->
         json(conn, Publication.Codec.flatten(publication))
@@ -172,8 +172,8 @@ defmodule RichardBurtonWeb.PublicationController do
       {:error, :not_found} ->
         conn |> put_status(:not_found) |> json(%{error: :not_found})
 
-      {:error, :self} ->
-        conn |> put_status(:bad_request) |> json(%{error: :self})
+      {:error, reason} when reason in [:self, :no_losers] ->
+        conn |> put_status(:bad_request) |> json(%{error: reason})
 
       # The merged record would be a publication that already exists.
       {:error, :conflict} ->
@@ -252,6 +252,10 @@ defmodule RichardBurtonWeb.PublicationController do
       # The same record was imported again while this one sat in the trash.
       {:error, :conflict} ->
         conn |> put_status(:conflict) |> json(%{error: :conflict})
+
+      # Held inside another record: an un-merge gives it back, a restore cannot.
+      {:error, :absorbed} ->
+        conn |> put_status(:conflict) |> json(%{error: :absorbed})
     end
   end
 
@@ -266,7 +270,7 @@ defmodule RichardBurtonWeb.PublicationController do
       undoable: entry.undoable,
       # The records this entry took in, or gave back — what makes a merge one
       # thing in the log rather than a change to each of them.
-      absorbed: entry.absorbed,
+      absorbed: Publication.History.absorbed_records(entry),
       timestamp: entry.inserted_at
     }
   end

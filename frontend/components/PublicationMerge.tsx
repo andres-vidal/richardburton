@@ -100,12 +100,6 @@ const Gained: FC<{ label: string; kept: string[]; gained: string[] }> = ({
   </div>
 );
 
-const items = (value: string) =>
-  value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
 /**
  * What the merge produces, before it is asked for: the survivor's countries,
  * publishers and sources with everything the others bring marked as gained.
@@ -117,34 +111,34 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
   losers,
 }) => {
   const result = Publication.merged(winner, losers);
-  const gained = (before: string[], after: string[]) =>
-    after.filter((value) => !before.includes(value));
 
-  const countries = gained(items(winner.countries), items(result.countries));
-  const publishers = gained(items(winner.publishers), items(result.publishers));
-  const references = gained(winner.references, result.references);
+  const rows = [
+    {
+      label: "Countries",
+      kept: Publication.items(winner.countries),
+      all: Publication.items(result.countries),
+    },
+    {
+      label: "Publishers",
+      kept: Publication.items(winner.publishers),
+      all: Publication.items(result.publishers),
+    },
+    { label: "References", kept: winner.references, all: result.references },
+  ].map(({ label, kept, all }) => ({
+    label,
+    kept,
+    gained: all.filter((value) => !kept.includes(value)),
+  }));
 
   return (
     <section aria-label="Result" className="space-y-2">
       <SectionHeading>Result</SectionHeading>
       <div className="space-y-1.5">
-        <Gained
-          label="Countries"
-          kept={items(winner.countries)}
-          gained={countries}
-        />
-        <Gained
-          label="Publishers"
-          kept={items(winner.publishers)}
-          gained={publishers}
-        />
-        <Gained
-          label="References"
-          kept={winner.references}
-          gained={references}
-        />
+        {rows.map((row) => (
+          <Gained key={row.label} {...row} />
+        ))}
       </div>
-      {countries.length + publishers.length + references.length === 0 && (
+      {rows.every((row) => row.gained.length === 0) && (
         <p className="text-xs text-gray-500">
           Nothing new to take — “{winner.title}” already says everything the
           others do. Merging still removes them.
@@ -283,32 +277,32 @@ const PublicationMerge: FC<Props> = ({
           </ul>
 
           {chosen.length > 0 && (
-            <section className="space-y-2">
-              <SectionHeading>Merging in</SectionHeading>
-              <ul className="space-y-1">
-                {chosen.map((picked) => (
-                  <li
-                    key={picked.id}
-                    className="flex gap-3 justify-between items-start py-1.5 px-3 rounded border border-indigo-200 bg-indigo-50"
-                  >
-                    <Summary publication={picked} />
-                    <Button
-                      label="Remove"
-                      variant="outline"
-                      width="fit"
-                      size="small"
-                      onClick={() =>
-                        setChosen(chosen.filter((p) => p.id !== picked.id))
-                      }
-                    />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+            <>
+              <section className="space-y-2">
+                <SectionHeading>Merging in</SectionHeading>
+                <ul className="space-y-1">
+                  {chosen.map((picked) => (
+                    <li
+                      key={picked.id}
+                      className="flex gap-3 justify-between items-start py-1.5 px-3 rounded border border-indigo-200 bg-indigo-50"
+                    >
+                      <Summary publication={picked} />
+                      <Button
+                        label="Remove"
+                        variant="outline"
+                        width="fit"
+                        size="small"
+                        onClick={() =>
+                          setChosen(chosen.filter((p) => p.id !== picked.id))
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
 
-          {chosen.length > 0 && (
-            <Preview winner={publication} losers={chosen} />
+              <Preview winner={publication} losers={chosen} />
+            </>
           )}
         </div>
 

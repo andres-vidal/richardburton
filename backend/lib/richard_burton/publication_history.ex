@@ -102,6 +102,22 @@ defmodule RichardBurton.Publication.History do
   def absorbed_ids(%History{absorbed: absorbed}),
     do: absorbed |> Map.keys() |> Enum.map(&String.to_integer/1)
 
+  @doc """
+  The publications an entry took in, or gave back, in a stable order.
+
+  Publications, not the map the log keys by id: keying is how a restore
+  addresses them, and a reader has no use for it beyond telling two records
+  with the same title apart — which the id each one carries already does.
+  """
+  def absorbed_records(%History{absorbed: nil}), do: []
+
+  def absorbed_records(%History{absorbed: absorbed}) do
+    absorbed
+    |> Map.values()
+    |> Enum.map(&Map.drop(&1, @derived -- ["id"]))
+    |> Enum.sort_by(& &1["id"])
+  end
+
   @doc "The ordered history of one publication, newest first, each entry diffed."
   def of(publication_id) do
     from(h in History, where: h.publication_id == ^publication_id, order_by: [desc: h.version])
@@ -158,7 +174,7 @@ defmodule RichardBurton.Publication.History do
       |> Map.new()
 
     heads = Map.new(streams, fn {id, [head | _]} -> {id, head} end)
-    absorbed = absorbed_now(entries)
+    absorbed = absorbed()
 
     Enum.map(entries, fn entry ->
       previous = Map.get(previous, {entry.publication_id, entry.version})
@@ -172,20 +188,33 @@ defmodule RichardBurton.Publication.History do
     end)
   end
 
-  # The publications that are inside another record right now. A merged record's
-  # own history is still here, but nothing in it can be undone while it is
-  # absorbed — it is the merge that holds it, and the merge that gives it back.
-  # Entries arrive newest first, so the first one naming a record decides.
-  defp absorbed_now(entries) do
-    entries
-    |> Enum.filter(&(&1.action in ["merged", "unmerged"]))
-    |> Enum.reverse()
-    |> Enum.reduce(MapSet.new(), fn entry, absorbed ->
-      ids = absorbed_ids(entry)
+  @doc """
+  The publications that are inside another record right now.
 
-      case entry.action do
-        "merged" -> Enum.reduce(ids, absorbed, &MapSet.put(&2, &1))
-        "unmerged" -> Enum.reduce(ids, absorbed, &MapSet.delete(&2, &1))
+  A merged record's own history is still here, but nothing in it can be undone
+  while it is absorbed — it is the merge that holds it, and the merge that gives
+  it back. The answer is the whole log's, not one stream's: the entry that holds
+  a record sits on the winner, so asking a loser's own history would never find
+  it.
+
+  Only the ids are read back: an entry's `absorbed` map carries a whole snapshot
+  per record, and none of it is needed to answer which ones are held.
+  """
+  def absorbed do
+    from(h in History,
+      where: h.action in ["merged", "unmerged"],
+      order_by: [asc: h.id],
+      select:
+        {h.action,
+         fragment("ARRAY(SELECT jsonb_object_keys(coalesce(?, '{}'::jsonb)))", h.absorbed)}
+    )
+    |> Repo.all()
+    |> Enum.reduce(MapSet.new(), fn {action, ids}, absorbed ->
+      ids = MapSet.new(ids, &String.to_integer/1)
+
+      case action do
+        "merged" -> MapSet.union(absorbed, ids)
+        "unmerged" -> MapSet.difference(absorbed, ids)
       end
     end)
   end
@@ -203,19 +232,14 @@ defmodule RichardBurton.Publication.History do
     - never an older delete (a later restore already negated it) nor an older
       import or restore (compensating those would discard the edits that
       followed);
-    - a merge or an un-merge, only as the latest entry — each is one act over
-      several records, so compensating it means taking the whole thing back:
-      the record that survived gives up what it absorbed, and the records that
-      left come back. An older one is not offered, for the same reason an older
-      import is not: what followed it was written against the merged record.
+    - a merge or an un-merge, only as the latest entry, by that same rule —
+      each is one act over several records, so compensating it means taking the
+      whole thing back: the record that survived gives up what it absorbed, and
+      the records that left come back. What followed an older one was written
+      against the merged record.
   """
   def undoable?(entry, previous, head) do
     cond do
-      # An entry from before a merge was one act names nothing to give back, so
-      # there is nothing here to undo — the record it holds is reachable only
-      # through the merge that has it, and that merge was never written down.
-      entry.action in ["merged", "unmerged"] and absorbed_ids(entry) == [] -> false
-      entry.action in ["merged", "unmerged"] -> entry.version == head.version
       entry.version == head.version -> true
       entry.action != "updated" -> false
       head.action == "deleted" -> false

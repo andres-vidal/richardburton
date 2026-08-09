@@ -87,13 +87,10 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
   function getSearchableItems(p: Publication, key: PublicationKey) {
-    return p[key]
-      .split(",")
-      .map((value) => value.trim())
-      .map((value) => ({
-        value,
-        label: Publication.describeValue(value, key),
-      }));
+    return Publication.items(p[key]).map((value) => ({
+      value,
+      label: Publication.describeValue(value, key),
+    }));
   }
 
   const list = (key: PublicationKey) => (

@@ -117,9 +117,9 @@ describe("presentAbsorbed", () => {
 
   test("spells out a record a merge took in, field by field", () => {
     const [change] = presentAbsorbed(
-      absorbing("merged", {
-        "9": snapshot({ title: "A British Printing" }),
-      }),
+      absorbing("merged", [
+        { id: 9, ...snapshot({ title: "A British Printing" }) },
+      ]),
     );
 
     expect(change).toMatchObject({ kind: "absorbed", direction: "in" });
@@ -137,7 +137,7 @@ describe("presentAbsorbed", () => {
 
   test("an un-merge gives them back", () => {
     const [change] = presentAbsorbed(
-      absorbing("unmerged", { "9": snapshot() }),
+      absorbing("unmerged", [{ id: 9, ...snapshot() }]),
     );
 
     expect(change).toMatchObject({ kind: "absorbed", direction: "back" });
@@ -145,14 +145,17 @@ describe("presentAbsorbed", () => {
 
   test("an entry that moved no records adds nothing", () => {
     expect(presentAbsorbed(entry(1, 2, "updated"))).toEqual([]);
-    expect(presentAbsorbed(absorbing("merged", {}))).toEqual([]);
+    expect(presentAbsorbed(absorbing("merged", []))).toEqual([]);
   });
 
   test("the whole record travels with the entry, sources included", () => {
     const [change] = presentAbsorbed(
-      absorbing("merged", {
-        "9": snapshot({ references: ["Sousa, J. Bibliografia, 1955."] }),
-      }),
+      absorbing("merged", [
+        {
+          id: 9,
+          ...snapshot({ references: ["Sousa, J. Bibliografia, 1955."] }),
+        },
+      ]),
     );
 
     if (change.kind !== "absorbed")

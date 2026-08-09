@@ -6,20 +6,13 @@ import type {
   FullHistoryEntry,
   PublicationHistoryAction,
 } from "modules/publication/model";
+import { HISTORY_ACTIONS } from "modules/publication/model";
 import { useRouter } from "next/navigation";
 import { FC, useState } from "react";
 import { undo } from "modules/publication/remote";
 import { Entry, UNDO_DISABLED } from "./PublicationHistory";
 
 type FeedEntry = WithChanges<FullHistoryEntry>;
-
-const ACTIONS: PublicationHistoryAction[] = [
-  "created",
-  "updated",
-  "deleted",
-  "restored",
-  "merged",
-];
 
 type Filter = { actions: PublicationHistoryAction[]; query: string };
 
@@ -84,7 +77,7 @@ const PublicationHistoryFeed: FC<{
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
-        {ACTIONS.map((action) => (
+        {HISTORY_ACTIONS.map((action) => (
           <button
             key={action}
             type="button"

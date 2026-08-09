@@ -22,7 +22,7 @@ type ReferencesChange = {
 /** One record a merge took in, or an un-merge gave back, in full. */
 type AbsorbedRecord = {
   /** The record's own id — two records a merge took in may well share a title. */
-  id: string;
+  id: number;
   title: string;
   fields: { label: string; value: string }[];
   references: string[];
@@ -87,11 +87,11 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
  * rather than only what happened to the survivor.
  */
 function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
-  const absorbed = Object.entries(entry.absorbed ?? {});
+  const absorbed = entry.absorbed ?? [];
   if (absorbed.length === 0) return [];
 
-  const records = absorbed.map(([id, publication]) => ({
-    id,
+  const records = absorbed.map((publication) => ({
+    id: publication.id,
     title: publication.title || "an untitled record",
     fields: Publication.ATTRIBUTES.filter((key) => key !== "title")
       .map((key) => ({
@@ -125,4 +125,4 @@ function withChanges<T extends PublicationHistoryEntry>(
 }
 
 export { keyOf, presentAbsorbed, presentChanges, withChanges };
-export type { AbsorbedRecord, Change, WithChanges };
+export type { Change, WithChanges };

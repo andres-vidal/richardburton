@@ -507,9 +507,12 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert %{"entries" => [entry | _]} = json_response(conn, 200)
       assert entry["action"] == "merged"
       assert entry["actor"] == session_user_email()
-      # One act, so one thing to undo — and it says what it took in.
+      # One act, so one thing to undo — and it says what it took in, whole.
       assert entry["undoable"]
-      assert Map.keys(entry["absorbed"]) == ["#{meta.loser.id}"]
+      assert [absorbed] = entry["absorbed"]
+      assert absorbed["id"] == meta.loser.id
+      assert absorbed["title"] == meta.loser.title
+      refute Map.has_key?(absorbed, "countries_fingerprint")
     end
 
     test "merging a publication into itself is a bad request", meta do
@@ -537,6 +540,24 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       conn = post(meta.conn, publication_path(meta.conn, :merge, meta.winner.id), %{})
       assert json_response(conn, 400) == %{"error" => "losers_required"}
+    end
+
+    test "a record it took in cannot be restored out of it", meta do
+      expect_auth_authorize_admin(3)
+
+      meta.conn
+      |> post(publication_path(meta.conn, :merge, meta.winner.id), %{
+        "losers" => [meta.loser.id]
+      })
+      |> json_response(200)
+
+      # The trash never offers it, and asking for it directly is refused all
+      # the same — a restore would undo half of the merge.
+      conn = get(meta.conn, publication_path(meta.conn, :index_deleted))
+      assert %{"entries" => []} = json_response(conn, 200)
+
+      conn = post(meta.conn, publication_path(meta.conn, :restore, meta.loser.id))
+      assert json_response(conn, 409) == %{"error" => "absorbed"}
     end
   end
 

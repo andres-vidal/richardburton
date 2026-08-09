@@ -229,8 +229,8 @@ defmodule RichardBurton.Publication do
   # and the records that left come back, in one transaction and under one entry
   # — the same shape as the merge, which is what makes an un-merge undoable in
   # its turn.
-  defp compensate(entry = %{action: "merged", publication_id: id}, previous, head, actor) do
-    unmerge(entry, previous, head, id, actor)
+  defp compensate(entry = %{action: "merged"}, previous, head, actor) do
+    unmerge(entry, previous, head, actor)
   end
 
   # And undoing an un-merge is the merge again, by the same route.
@@ -238,14 +238,13 @@ defmodule RichardBurton.Publication do
     merge(id, History.absorbed_ids(entry), actor)
   end
 
-  defp unmerge(entry, previous, head, winner_id, actor) do
-    restored_ids = History.absorbed_ids(entry)
-
+  defp unmerge(entry, previous, head, actor) do
     Repo.transaction(fn ->
-      with {:ok, restored} <- restore_absorbed(restored_ids),
-           {:ok, winner} <- revert_winner(winner_id, entry, previous, head) do
-        History.record(:unmerged, preload(winner), actor, restored)
-        preload(winner)
+      with {:ok, restored} <- restore_absorbed(History.absorbed_ids(entry)),
+           {:ok, winner} <- revert_winner(entry, previous, head) do
+        winner = preload(winner)
+        History.record(:unmerged, winner, actor, restored)
+        winner
       else
         {:error, reason} -> Repo.rollback(reason)
       end
@@ -259,36 +258,34 @@ defmodule RichardBurton.Publication do
   # The rows never left, so putting them back is lifting the tombstone. A key
   # taken by something else in the meantime is the same conflict a restore hits.
   defp restore_absorbed(ids) do
-    Enum.reduce_while(ids, {:ok, []}, fn id, {:ok, restored} ->
-      case lift_tombstone(id) do
-        {:ok, back} -> {:cont, {:ok, [back | restored]}}
-        {:error, reason} -> {:halt, {:error, reason}}
+    tombstoned =
+      Ecto.Query.from(p in Publication, where: p.id in ^ids and not is_nil(p.deleted_at))
+      |> Repo.all()
+
+    if length(tombstoned) == length(ids),
+      do: lift_tombstones(tombstoned),
+      else: {:error, :not_found}
+  end
+
+  defp lift_tombstones(publications) do
+    publications
+    |> Enum.reduce_while({:ok, []}, fn publication, {:ok, lifted} ->
+      case publication |> tombstone(nil) |> Repo.update() do
+        {:ok, back} -> {:cont, {:ok, [back | lifted]}}
+        {:error, _} -> {:halt, {:error, :conflict}}
       end
     end)
-  end
-
-  defp lift_tombstone(id) do
-    case get(id, deleted: true) do
-      nil -> {:error, :not_found}
-      publication -> undelete(publication)
-    end
-  end
-
-  defp undelete(publication) do
-    publication
-    |> change(deleted_at: nil)
-    |> Repo.update()
     |> case do
-      {:ok, back} -> {:ok, preload(back)}
-      {:error, _} -> {:error, :conflict}
+      {:ok, lifted} -> {:ok, preload(lifted)}
+      error -> error
     end
   end
 
   # The winner returns to what it held before it absorbed anything — the same
   # revert an undone update performs, over the fields the merge changed.
-  defp revert_winner(_id, _entry, nil, _head), do: {:error, :conflict}
+  defp revert_winner(_entry, nil, _head), do: {:error, :conflict}
 
-  defp revert_winner(id, entry, previous, head) do
+  defp revert_winner(entry = %{publication_id: id}, previous, head) do
     entry
     |> History.reverted_snapshot(previous, head)
     |> Codec.nest()
@@ -311,15 +308,20 @@ defmodule RichardBurton.Publication do
   recorded twice; elsewhere a publication may list the same line twice, but a
   merge saying it twice is the merge showing, not the record meaning it.
 
-  The losers are then soft-deleted and recorded as merged, which is not the
-  same as deleted and is not undoable: putting one back would leave what it
-  brought with the winner as well, and there would be two of everything again.
+  The losers are then soft-deleted, and the whole act is recorded as one entry
+  on the winner naming what it took in — which is what lets it be undone as one
+  act too, by `undo/3`.
 
   Answers `{:error, :conflict}` when the merged record would collide with a
-  third publication, `{:error, :not_found}` when any of them is not here, and
-  `{:error, :self}` when a publication is asked to merge into itself.
+  third publication, `{:error, :not_found}` when any of them is not here,
+  `{:error, :self}` when a publication is asked to merge into itself, and
+  `{:error, :no_losers}` when nothing was named to merge in.
   """
-  def merge(winner_id, loser_ids = [_ | _], actor \\ History.system_actor()) do
+  def merge(winner_id, loser_ids, actor \\ History.system_actor())
+
+  def merge(_winner_id, [], _actor), do: {:error, :no_losers}
+
+  def merge(winner_id, loser_ids, actor) do
     with {:ok, winner, losers} <- assemble(winner_id, loser_ids),
          {:ok, merged} <- merge_and_record(winner, losers, actor) do
       # One signal per operation, after commit (the new-write-path rule).
@@ -336,13 +338,21 @@ defmodule RichardBurton.Publication do
       else: gathered([winner_id | loser_ids])
   end
 
+  # Read in one go and put back in the order asked, since the first id names
+  # the winner.
   defp gathered(ids) do
-    publications = Enum.map(ids, &get(&1, deleted: false))
+    by_id =
+      Ecto.Query.from(p in Publication, where: p.id in ^ids and is_nil(p.deleted_at))
+      |> Repo.all()
+      |> preload()
+      |> Map.new(&{to_string(&1.id), &1})
+
+    publications = Enum.map(ids, &Map.get(by_id, to_string(&1)))
 
     if Enum.any?(publications, &is_nil/1) do
       {:error, :not_found}
     else
-      [winner | losers] = Enum.map(publications, &preload/1)
+      [winner | losers] = publications
       {:ok, winner, losers}
     end
   end
@@ -369,7 +379,7 @@ defmodule RichardBurton.Publication do
   defp absorbing(winner, losers, actor) do
     winner = preload(winner)
     Enum.each(losers, &absorb/1)
-    History.record(:merged, winner, actor, Enum.map(losers, &preload/1))
+    History.record(:merged, winner, actor, losers)
     winner
   end
 
@@ -386,7 +396,7 @@ defmodule RichardBurton.Publication do
   # which is also what brings it back.
   defp absorb(loser) do
     loser
-    |> change(deleted_at: DateTime.utc_now(:second))
+    |> tombstone(DateTime.utc_now(:second))
     |> Repo.update()
     |> case do
       {:ok, _} -> :ok
@@ -394,15 +404,32 @@ defmodule RichardBurton.Publication do
     end
   end
 
+  # Stamping or clearing `deleted_at` moves the record in or out of the partial
+  # composite-key index — if the same record was written meanwhile, coming back
+  # is a conflict, not a crash.
+  defp tombstone(publication, deleted_at) do
+    publication
+    |> change(deleted_at: deleted_at)
+    |> unique_constraint(
+      [
+        :title,
+        :year,
+        :publishers_fingerprint,
+        :countries_fingerprint,
+        :translated_book_fingerprint
+      ],
+      name: "publications_composite_key"
+    )
+  end
+
   # What the merged record holds: the winner's own fields, the countries and
   # publishers of all of them, and every source none of the others already said.
   defp reconciled(winner, losers) do
-    flat = Enum.map([winner | losers], &Codec.flatten/1)
+    flat = Enum.map([winner | losers], &History.snapshot/1)
     [kept | _] = flat
 
     kept
-    |> Map.from_struct()
-    |> Map.drop([:__meta__, :id])
+    |> Map.delete(:id)
     |> Map.merge(%{
       countries: joined(flat, :countries),
       publishers: joined(flat, :publishers),
@@ -420,11 +447,28 @@ defmodule RichardBurton.Publication do
     |> Enum.join(", ")
   end
 
-  @doc "Bring a soft-deleted publication back into the database."
+  @doc """
+  Bring a soft-deleted publication back into the database.
+
+  Only one that someone deleted. A record absorbed by a merge is out of the
+  database the same way, but it is not in the trash and does not come back on
+  its own: `{:error, :absorbed}` says to take the merge apart instead.
+  """
   def restore(id, actor \\ History.system_actor()) do
-    case get(id, deleted: true) do
-      nil -> {:error, :not_found}
-      publication -> stamp_deleted(publication, nil, :restored, actor)
+    with {:ok, publication} <- deleted_on_its_own(id) do
+      stamp_deleted(publication, nil, :restored, actor)
+    end
+  end
+
+  # Putting an absorbed record back would recreate the duplicate the merge
+  # collapsed, with the survivor still holding everything it took from it.
+  defp deleted_on_its_own(id) do
+    publication = get(id, deleted: true)
+
+    cond do
+      is_nil(publication) -> {:error, :not_found}
+      MapSet.member?(History.absorbed(), publication.id) -> {:error, :absorbed}
+      true -> {:ok, publication}
     end
   end
 
@@ -434,19 +478,7 @@ defmodule RichardBurton.Publication do
     result =
       Repo.transaction(fn ->
         publication
-        |> change(deleted_at: deleted_at)
-        # Restoring re-enters the partial composite-key index — if the same
-        # record was re-imported meanwhile, that's a conflict, not a crash.
-        |> unique_constraint(
-          [
-            :title,
-            :year,
-            :publishers_fingerprint,
-            :countries_fingerprint,
-            :translated_book_fingerprint
-          ],
-          name: "publications_composite_key"
-        )
+        |> tombstone(deleted_at)
         |> Repo.update()
         |> case do
           {:ok, _} -> History.record(action, publication, actor)
@@ -480,59 +512,14 @@ defmodule RichardBurton.Publication do
       )
       |> Repo.all()
 
-    absorbed = merged_away(Enum.map(deleted, & &1.id))
+    # A record inside another one is not in the trash: nobody deleted it, and it
+    # comes back by taking the merge apart, not by being restored on its own.
+    absorbed = History.absorbed()
 
     deleted
     |> Enum.reject(&MapSet.member?(absorbed, &1.id))
     |> preload()
   end
-
-  # Of the given publications, those whose last recorded act was a merge.
-  # A record inside another one is not in the trash: nobody deleted it, and it
-  # comes back by taking the merge apart, not by being restored on its own. The
-  # merge entries name what they hold, newest last, so a later un-merge undoes
-  # an earlier merge's claim on a record.
-  defp merged_away(ids) do
-    MapSet.union(absorbed_by_a_merge(ids), marked_merged_itself(ids))
-  end
-
-  # Before a merge was one act, the record that left carried the mark itself.
-  # Those records are still inside another one, and still not in the trash.
-  defp marked_merged_itself(ids) do
-    Ecto.Query.from(h in History,
-      where: h.publication_id in ^ids,
-      distinct: h.publication_id,
-      order_by: [asc: h.publication_id, desc: h.version],
-      select: {h.publication_id, h.action}
-    )
-    |> Repo.all()
-    |> Enum.filter(fn {_id, action} -> action == "merged" end)
-    |> MapSet.new(fn {id, _action} -> id end)
-  end
-
-  defp absorbed_by_a_merge(ids) do
-    wanted = MapSet.new(ids)
-
-    Ecto.Query.from(h in History,
-      where: h.action in ["merged", "unmerged"],
-      order_by: [asc: h.id],
-      select: {h.action, h.absorbed}
-    )
-    |> Repo.all()
-    |> Enum.reduce(MapSet.new(), &hold_or_release(&1, &2, wanted))
-  end
-
-  defp hold_or_release({action, absorbed}, held, wanted) do
-    absorbed
-    |> Kernel.||(%{})
-    |> Map.keys()
-    |> Enum.map(&String.to_integer/1)
-    |> Enum.filter(&MapSet.member?(wanted, &1))
-    |> Enum.reduce(held, &hold(&2, &1, action))
-  end
-
-  defp hold(held, id, "merged"), do: MapSet.put(held, id)
-  defp hold(held, id, "unmerged"), do: MapSet.delete(held, id)
 
   @doc """
   One live publication, with its associations, or `nil`.

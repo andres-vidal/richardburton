@@ -788,27 +788,26 @@ defmodule RichardBurton.PublicationTest do
       assert again.action == "merged"
     end
 
-    test "a merge recorded before it was one act is inert, not half-undoable" do
-      {_winner, loser} = merge_pair()
+    test "a record held inside another one has nothing of its own to undo" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
 
-      # The shape the log had when a merge marked each record separately: the
-      # one that left carried the mark, and the mark named nothing.
-      loser
-      |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second))
-      |> Repo.update!()
-
-      History.record(:merged, Publication.preload(loser), "someone@example.com")
-
+      # The merge lives on the winner, so the loser's own stream never names it
+      # — asking that stream must still answer that it is held.
       [entry | _] = History.of(loser.id)
-      assert entry.action == "merged"
-
-      # Nothing to give back, so nothing to undo — rather than an undo that
-      # reverts a record and returns none of what it was merged into.
       refute entry.undoable
       assert {:error, :conflict} = Publication.undo(loser.id, entry.version)
+    end
 
-      # And it stays out of the trash, as it always did.
-      refute Enum.any?(Publication.all_deleted(), &(&1.id == loser.id))
+    test "a record inside another one is not restored on its own" do
+      {winner, loser} = merge_pair()
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      # Putting it back would recreate the duplicate while the winner keeps
+      # everything it took, so the trash is not the way back — the un-merge is.
+      assert {:error, :absorbed} = Publication.restore(loser.id)
+      assert %Publication{deleted_at: %DateTime{}} = Repo.get(Publication, loser.id)
+      refute Enum.any?(History.of(loser.id), &(&1.action == "restored"))
     end
 
     test "a record given back by an un-merge is out of hiding, and in the index" do
@@ -839,7 +838,7 @@ defmodule RichardBurton.PublicationTest do
     test "takes no merge that names nothing to merge in" do
       {winner, _loser} = merge_pair()
 
-      assert_raise FunctionClauseError, fn -> Publication.merge(winner.id, []) end
+      assert {:error, :no_losers} = Publication.merge(winner.id, [])
     end
 
     test "surfaces a collision with a third publication rather than crashing" do
