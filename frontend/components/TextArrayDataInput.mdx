@@ -15,6 +15,11 @@ The multi-value cell editor for free-text lists such as `authors`,
 
 The stored `value` is the list of values themselves. Each renders as a
 removable pill, and the selection goes back through `onChange` as a list.
+
+A comma ends a value, so a name that contains one — `"Cassel, McBride & Co."` —
+is written in quotes, the same way the CSV says it. While a quote is open the
+comma is just a character, and the quotes come off when the value commits.
+
 Typing queries `Publication.autocomplete`
 (debounced) to suggest matching entries. Because that autocomplete hits the
 network on keystroke, the stories stay render-only and never type into the

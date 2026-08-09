@@ -34,7 +34,7 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
         value={value}
         onChange={(next) => onChange?.(next)}
         getOptions={getOptions}
-        emptyMessage="No match — press , to add it anyway"
+        emptyMessage={`No match — press , to add it anyway, or "quote it" to keep a comma`}
       />
     );
   },
