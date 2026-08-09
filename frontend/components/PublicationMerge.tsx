@@ -219,9 +219,6 @@ const PublicationMerge: FC<Props> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} label="Merge publications">
-      {/* The frame holds still: searching swaps what is listed, and a dialog
-          that grew and shrank under the reader as results arrived moved the
-          controls out from under the pointer. Only the results scroll. */}
       <div className="flex flex-col gap-5 p-8 w-full h-full sm:h-[70vh]">
         <div className="space-y-1 shrink-0">
           <h1 className="text-2xl font-normal">Merge into this publication</h1>
@@ -254,9 +251,6 @@ const PublicationMerge: FC<Props> = ({
           </div>
         </section>
 
-        {/* One scroll region for everything the search changes, so the frame
-            around it — the heading, the box being typed into, the buttons —
-            never moves. */}
         <div className="flex overflow-y-auto flex-col gap-5 pr-1 min-h-0 grow">
           <ul className="space-y-1">
             {offered.map((candidate) => (

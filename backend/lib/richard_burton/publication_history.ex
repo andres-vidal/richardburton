@@ -103,11 +103,10 @@ defmodule RichardBurton.Publication.History do
     do: absorbed |> Map.keys() |> Enum.map(&String.to_integer/1)
 
   @doc """
-  The publications an entry took in, or gave back, in a stable order.
+  The publications an entry took in, or gave back, ordered by id.
 
-  Publications, not the map the log keys by id: keying is how a restore
-  addresses them, and a reader has no use for it beyond telling two records
-  with the same title apart — which the id each one carries already does.
+  Each one carries its own id and none of the fingerprints: those are the
+  server's bookkeeping, not part of the record being shown.
   """
   def absorbed_records(%History{absorbed: nil}), do: []
 
