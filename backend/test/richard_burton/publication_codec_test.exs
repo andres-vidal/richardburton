@@ -66,6 +66,28 @@ defmodule RichardBurton.Publication.CodecTest do
     end
   end
 
+  describe "from_csv/1 when a value holds the separator" do
+    test "a quoted value is one value, not the two it looks like" do
+      {:ok, [row]} =
+        Publication.Codec.from_csv("test/fixtures/data_correct_with_quoted_values.csv")
+
+      assert row["publishers"] == ["Cassel, McBride & Co.", "Penguin"]
+    end
+
+    test "a value holding the separator is written back quoted" do
+      [_headers, line] =
+        Publication.Codec.to_csv([
+          %{
+            "publishers" => ["Cassel, McBride & Co.", "Penguin"],
+            "title" => "A Brazilian Tenement"
+          }
+        ])
+
+      # Doubled by the encoder, since the quotes are the file's own.
+      assert line =~ ~s("""Cassel, McBride & Co."", Penguin")
+    end
+  end
+
   describe "from_csv/1 when the provided csv is incorrect" do
     test "because it has malformed separators, does its best effort" do
       input = "test/fixtures/data_incorrect_malformed_separators.csv"

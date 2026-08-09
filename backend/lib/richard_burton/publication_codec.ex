@@ -84,6 +84,15 @@ defmodule RichardBurton.Publication.Codec do
     end)
   end
 
+  # A comma can be part of a name rather than a break between two — a publisher
+  # called "Cassel, McBride & Co." is one value. Quoting it says so, and is the
+  # only way the file can: the column separator is a semicolon, so a comma has
+  # no other reading available to it.
+  defp split_cell(content, ",") when is_binary(content) do
+    content |> outside_quotes() |> Enum.map(&unwrap/1) |> Enum.reject(&(&1 == ""))
+  end
+
+  # A line break cannot occur inside a source, so references need no such escape.
   defp split_cell(content, separator) when is_binary(content) do
     content
     |> String.split(separator)
@@ -93,15 +102,48 @@ defmodule RichardBurton.Publication.Codec do
 
   defp split_cell(_absent, _separator), do: []
 
+  defp outside_quotes(content) do
+    {values, last, _} =
+      content
+      |> String.graphemes()
+      |> Enum.reduce({[], "", false}, fn
+        "\"", {values, current, quoted?} -> {values, current <> "\"", not quoted?}
+        ",", {values, current, false} -> {[current | values], "", false}
+        char, {values, current, quoted?} -> {values, current <> char, quoted?}
+      end)
+
+    Enum.reverse([last | values])
+  end
+
+  defp unwrap(value) do
+    trimmed = String.trim(value)
+
+    if String.length(trimmed) > 1 and String.starts_with?(trimmed, "\"") and
+         String.ends_with?(trimmed, "\"") do
+      trimmed |> String.slice(1..-2//1) |> String.trim()
+    else
+      trimmed
+    end
+  end
+
   # Only a cell that is there is joined: a `select`-limited export leaves some
   # columns out, and they must not reappear empty.
   defp join_list_cells(row) do
-    Enum.reduce(@csv_lists, row, fn {column, {_, separator}}, row ->
+    Enum.reduce(@csv_lists, row, fn {column, {split, separator}}, row ->
       case Map.get(row, column) do
-        values when is_list(values) -> Map.put(row, column, Enum.join(values, separator))
-        _ -> row
+        values when is_list(values) ->
+          Map.put(row, column, Enum.map_join(values, separator, &quoted_if_split(&1, split)))
+
+        _ ->
+          row
       end
     end)
+  end
+
+  # A value holding the separator goes out quoted, so reading the file back
+  # gives one value again rather than the two it would otherwise look like.
+  defp quoted_if_split(value, separator) do
+    if String.contains?(value, separator), do: ~s("#{value}"), else: value
   end
 
   def from_csv!(path) do
