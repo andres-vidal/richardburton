@@ -2,11 +2,11 @@
 
 import { Publication } from "modules/publication/model";
 import pDebounce from "p-debounce";
-import { FC, forwardRef, useCallback, useMemo } from "react";
-import { DataInputProps } from "./DataInput";
+import { FC, forwardRef, useCallback } from "react";
+import { ListDataInputProps } from "./DataInput";
 import Multicombobox from "./Multicombobox";
 
-export default forwardRef<HTMLDivElement, DataInputProps>(
+export default forwardRef<HTMLDivElement, ListDataInputProps>(
   function TextArrayDataInput(
     {
       rowId: _rowId,
@@ -18,15 +18,6 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
     },
     ref,
   ) {
-    const items = useMemo(
-      () => (value === "" ? [] : value.split(",")),
-      [value],
-    );
-
-    function handleChange(value: string[]) {
-      onChange?.(value.join(","));
-    }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const getOptions = useCallback(
       pDebounce(
@@ -40,11 +31,11 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
       <Multicombobox<string>
         {...props}
         forwardedRef={ref}
-        value={items}
-        onChange={handleChange}
+        value={value}
+        onChange={(next) => onChange?.(next)}
         getOptions={getOptions}
         emptyMessage="No match — press , to add it anyway"
       />
     );
   },
-) as FC<DataInputProps>;
+) as FC<ListDataInputProps>;

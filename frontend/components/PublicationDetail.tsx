@@ -13,6 +13,7 @@ import {
   type PublicationHistoryEntry,
   type PublicationId,
   type PublicationKey,
+  type PublicationListKey,
 } from "modules/publication/model";
 import {
   deletePublication,
@@ -76,7 +77,7 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
     </Tooltip>
     <Tooltip variant="info" message="Who translated this publication">
       <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl whitespace-nowrap">
-        ({publication.authors})
+        ({Publication.describe(publication.authors, "authors")})
       </span>
     </Tooltip>
   </div>
@@ -85,14 +86,14 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
 const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
-  function getSearchableItems(p: Publication, key: PublicationKey) {
-    return Publication.items(p[key]).map((value) => ({
+  function getSearchableItems(p: Publication, key: PublicationListKey) {
+    return p[key].map((value) => ({
       value,
       label: Publication.describeValue(value, key),
     }));
   }
 
-  const list = (key: PublicationKey) => (
+  const list = (key: PublicationListKey) => (
     <SearchableList items={getSearchableItems(p, key)} />
   );
 

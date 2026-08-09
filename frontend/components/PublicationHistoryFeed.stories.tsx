@@ -7,23 +7,23 @@ import PublicationHistoryFeed from "./PublicationHistoryFeed";
 
 const DOM_CASMURRO: FullHistoryEntry["snapshot"] = {
   title: "Dom Casmurro",
-  authors: "Helen Caldwell",
+  authors: ["Helen Caldwell"],
   originalTitle: "Dom Casmurro",
-  originalAuthors: "Machado de Assis",
+  originalAuthors: ["Machado de Assis"],
   year: 1953,
-  countries: "US",
-  publishers: "Noonday Press",
+  countries: ["US"],
+  publishers: ["Noonday Press"],
   references: [],
 };
 
 const IRACEMA: FullHistoryEntry["snapshot"] = {
   title: "Iraçéma the Honey-Lips",
-  authors: "Isabel Burton",
+  authors: ["Isabel Burton"],
   originalTitle: "Iracema",
-  originalAuthors: "José de Alencar",
+  originalAuthors: ["José de Alencar"],
   year: 1886,
-  countries: "GB",
-  publishers: "Bickers & Son",
+  countries: ["GB"],
+  publishers: ["Bickers & Son"],
   references: [],
 };
 

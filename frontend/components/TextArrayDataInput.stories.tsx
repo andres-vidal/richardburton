@@ -4,7 +4,7 @@ import { expect, fn, userEvent, within } from "storybook/test";
 
 import TextArrayDataInput from "./TextArrayDataInput";
 
-// The comma-separated `value` is controlled: hold it in state so pill
+// The `value` list is controlled: hold it in state so pill
 // add/remove sticks on screen.
 const Controlled: FC<ComponentProps<typeof TextArrayDataInput>> = ({
   value: initial,
@@ -25,7 +25,7 @@ const Controlled: FC<ComponentProps<typeof TextArrayDataInput>> = ({
 };
 
 // A Multicombobox for free-text list cells (authors, originalAuthors,
-// publishers). The comma-separated `value` renders as removable pills. Its
+// publishers). Each value in `value` renders as a removable pill. Its
 // autocomplete calls the network on keystroke, so these stories never type
 // into the field — but pill removal is purely local and live.
 const meta = {
@@ -34,7 +34,7 @@ const meta = {
   args: {
     rowId: 1,
     colId: "authors",
-    value: "",
+    value: [],
     error: "",
     onChange: fn(),
     "aria-label": "Authors",
@@ -63,10 +63,10 @@ export const Default: Story = {
   },
 };
 
-/** A populated cell renders one removable pill per comma-separated value —
+/** A populated cell renders one removable pill per value —
  * and removing one takes it off the screen. */
 export const WithValues: Story = {
-  args: { value: "Helen Caldwell,Benjamin Moser" },
+  args: { value: ["Helen Caldwell", "Benjamin Moser"] },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Helen Caldwell")).toBeInTheDocument();
@@ -76,7 +76,7 @@ export const WithValues: Story = {
       canvas.getByRole("button", { name: "Remove Helen Caldwell" }),
     );
     await expect(canvas.queryByText("Helen Caldwell")).not.toBeInTheDocument();
-    await expect(args.onChange).toHaveBeenCalledWith("Benjamin Moser");
+    await expect(args.onChange).toHaveBeenCalledWith(["Benjamin Moser"]);
   },
 };
 

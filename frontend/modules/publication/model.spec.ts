@@ -14,8 +14,14 @@ describe("empty", () => {
   test("returns a publication with every attribute blank", () => {
     const publication = empty();
 
-    // Every model attribute is present and empty — the shape editing relies on.
-    ATTRIBUTES.forEach((key) => expect(publication[key]).toBe(""));
+    // Every model attribute is present and empty — the shape editing relies
+    // on. A multi-valued one is empty by holding nothing.
+    ATTRIBUTES.forEach((key) => {
+      const value = publication[key];
+      expect(Array.isArray(value) ? value : [value].filter(Boolean)).toEqual(
+        [],
+      );
+    });
     // Plus a null id (no server PK yet) and an empty provenance list. References
     // are a list outside the scalar ATTRIBUTES, so they're checked separately.
     expect(publication.id).toBeNull();

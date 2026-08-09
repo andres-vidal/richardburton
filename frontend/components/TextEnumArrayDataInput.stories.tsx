@@ -4,7 +4,7 @@ import { expect, fn, userEvent, within } from "storybook/test";
 
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
 
-// The comma-separated codes are controlled: hold them in state so pill
+// The list of codes is controlled: hold it in state so pill
 // add/remove sticks on screen.
 const Controlled: FC<ComponentProps<typeof TextEnumArrayDataInput>> = ({
   value: initial,
@@ -24,7 +24,7 @@ const Controlled: FC<ComponentProps<typeof TextEnumArrayDataInput>> = ({
   );
 };
 
-// A Multicombobox for the `countries` cell. The comma-separated `value` holds
+// A Multicombobox for the `countries` cell. The `value` list holds
 // ISO country codes; each renders as a pill labelled by its country name (via
 // Publication.describeValue). Country autocomplete resolves locally, but these
 // stories avoid depending on the dropdown — pill removal is local and live.
@@ -34,7 +34,7 @@ const meta = {
   args: {
     rowId: 1,
     colId: "countries",
-    value: "",
+    value: [],
     error: "",
     onChange: fn(),
     "aria-label": "Countries",
@@ -66,7 +66,7 @@ export const Default: Story = {
 /** A selected country code renders as a pill labelled by its country name —
  * and removing it takes it off the screen. */
 export const WithValues: Story = {
-  args: { value: "US" },
+  args: { value: ["US"] },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
@@ -79,7 +79,7 @@ export const WithValues: Story = {
     await expect(
       canvas.queryByText("United States of America"),
     ).not.toBeInTheDocument();
-    await expect(args.onChange).toHaveBeenCalledWith("");
+    await expect(args.onChange).toHaveBeenCalledWith([]);
   },
 };
 

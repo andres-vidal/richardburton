@@ -13,9 +13,9 @@ The multi-value cell editor for free-text lists such as `authors`,
 
 ## Data flow
 
-The stored `value` is a comma-separated string. The component splits it into
-items rendered as removable pills, and joins the selection back with commas
-before re-emitting it through `onChange`. Typing queries `Publication.autocomplete`
+The stored `value` is the list of values themselves. Each renders as a
+removable pill, and the selection goes back through `onChange` as a list.
+Typing queries `Publication.autocomplete`
 (debounced) to suggest matching entries. Because that autocomplete hits the
 network on keystroke, the stories stay render-only and never type into the
 field.

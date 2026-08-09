@@ -127,7 +127,7 @@ export const ValidatesOnSelection: Story = {
   beforeEach: () => seed(store),
   args: {
     colId: "countries",
-    value: "",
+    value: [],
     autoValidated: true,
     onValidate: fn(),
     bordered: true,

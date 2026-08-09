@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import TextArrayDataInput from "./TextArrayDataInput";
 
-// The array cell editor (authors, publishers, …) adapts a comma-separated string
+// The array cell editor (authors, publishers, …) adapts the list of values
 // to and from the pill-based Multicombobox: it splits `value` into one pill per
 // item and joins the pills back on change. Typing runs the network autocomplete,
 // so these specs drive the non-network paths — render and pill removal.
@@ -14,11 +14,11 @@ describe("TextArrayDataInput", () => {
     "aria-label": "Authors",
   } as const;
 
-  test("renders one pill per comma-separated value", () => {
+  test("renders one pill per value", () => {
     render(
       <TextArrayDataInput
         {...props}
-        value="Helen Caldwell,Benjamin Moser"
+        value={["Helen Caldwell", "Benjamin Moser"]}
         onChange={vi.fn()}
       />,
     );
@@ -28,18 +28,18 @@ describe("TextArrayDataInput", () => {
   });
 
   test("renders no pills for an empty value", () => {
-    render(<TextArrayDataInput {...props} value="" onChange={vi.fn()} />);
+    render(<TextArrayDataInput {...props} value={[]} onChange={vi.fn()} />);
 
     expect(screen.getByRole("combobox")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
   });
 
-  test("removing a pill emits the remaining values re-joined", () => {
+  test("removing a pill emits the values that remain", () => {
     const onChange = vi.fn();
     render(
       <TextArrayDataInput
         {...props}
-        value="Helen Caldwell,Benjamin Moser"
+        value={["Helen Caldwell", "Benjamin Moser"]}
         onChange={onChange}
       />,
     );
@@ -48,6 +48,6 @@ describe("TextArrayDataInput", () => {
       screen.getByRole("button", { name: "Remove Helen Caldwell" }),
     );
 
-    expect(onChange).toHaveBeenCalledWith("Benjamin Moser");
+    expect(onChange).toHaveBeenCalledWith(["Benjamin Moser"]);
   });
 });

@@ -3,10 +3,10 @@
 import { Publication } from "modules/publication/model";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useMemo } from "react";
-import { DataInputProps } from "./DataInput";
+import { ScalarDataInputProps } from "./DataInput";
 import Select, { SelectOption } from "./Select";
 
-export default forwardRef<HTMLInputElement, DataInputProps>(
+export default forwardRef<HTMLInputElement, ScalarDataInputProps>(
   function TextEnumDataInput(
     {
       rowId: _rowId,
@@ -49,4 +49,4 @@ export default forwardRef<HTMLInputElement, DataInputProps>(
       />
     );
   },
-) as FC<DataInputProps>;
+) as FC<ScalarDataInputProps>;

@@ -402,11 +402,11 @@ function setFocusedRowId(store: Store, id: PublicationId | undefined): void {
   store.set(focusedRowIdAtom, id);
 }
 
-function overrideField(
+function overrideField<K extends PublicationKey>(
   store: Store,
   id: PublicationId,
-  attribute: PublicationKey,
-  value: string,
+  attribute: K,
+  value: Publication[K],
 ): void {
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
