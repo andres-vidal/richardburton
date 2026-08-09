@@ -28,6 +28,11 @@ defmodule RichardBurton.FlatPublication do
   # and the bulk CSV import doesn't carry it.
   @writable_attributes [:references | @required_attributes]
 
+  # The attributes that hold several values. An empty list is not "blank" to
+  # `validate_required/2`, so saying a record has no countries at all takes a
+  # length of its own.
+  @multivalued_attributes [:countries, :publishers, :authors, :original_authors]
+
   # A highlighted snippet of the references, set only when a search matched on
   # them rather than on the record's own fields.
   @readable_attributes [:id, :source_match | @writable_attributes]
@@ -36,11 +41,11 @@ defmodule RichardBurton.FlatPublication do
   schema "flat_publications" do
     field(:title, :string)
     field(:year, :integer)
-    field(:countries, :string)
-    field(:authors, :string)
-    field(:publishers, :string)
+    field(:countries, {:array, :string})
+    field(:authors, {:array, :string})
+    field(:publishers, {:array, :string})
     field(:original_title, :string)
-    field(:original_authors, :string)
+    field(:original_authors, {:array, :string})
     field(:references, {:array, :string})
 
     field(:countries_fingerprint, :string)
@@ -55,10 +60,15 @@ defmodule RichardBurton.FlatPublication do
     flat_publication
     |> cast(attrs, @writable_attributes)
     |> validate_required(@required_attributes)
+    |> validate_any_values()
     |> Country.validate_countries()
     |> Country.link_fingerprint()
     |> Publisher.link_fingerprint()
     |> TranslatedBook.link_fingerprint()
+  end
+
+  defp validate_any_values(changeset) do
+    Enum.reduce(@multivalued_attributes, changeset, &validate_length(&2, &1, min: 1))
   end
 
   def all() do

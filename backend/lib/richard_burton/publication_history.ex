@@ -347,7 +347,7 @@ defmodule RichardBurton.Publication.History do
       ...> }
       iex> snapshot = Publication.History.snapshot(publication)
       iex> {snapshot[:title], snapshot[:authors], snapshot[:countries]}
-      {"Dom Casmurro", "Helen Caldwell", "US"}
+      {"Dom Casmurro", ["Helen Caldwell"], ["US"]}
   """
   def snapshot(publication = %Publication{}) do
     publication
