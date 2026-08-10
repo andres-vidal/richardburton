@@ -19,7 +19,28 @@ type ReferencesChange = {
   reordered: boolean;
 };
 
-type Change = FieldChange | ReferencesChange;
+/** One record a merge took in, or an un-merge gave back, in full. */
+type AbsorbedRecord = {
+  /** The record's own id — two records a merge took in may well share a title. */
+  id: number;
+  title: string;
+  fields: { label: string; value: string }[];
+  references: string[];
+};
+
+/**
+ * The records that changed hands. A merge is one act over several
+ * publications, and the entry's diff can only speak for the one that survived
+ * it — this is the other side: everything the records that left were holding,
+ * which is what a reader needs to judge what the merge did to the data.
+ */
+type AbsorbedChange = {
+  kind: "absorbed";
+  direction: "in" | "back";
+  records: AbsorbedRecord[];
+};
+
+type Change = FieldChange | ReferencesChange | AbsorbedChange;
 
 /** An entry carrying the changes its action made — what the views render. */
 type WithChanges<T> = T & { changes: Change[] };
@@ -57,6 +78,40 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
 }
 
 /**
+ * The records an entry took in or gave back, spelled out in full.
+ *
+ * A merge's own diff says what the surviving record gained; it cannot say what
+ * the records that left were holding, and they are no longer anywhere to be
+ * looked up. So the entry carries them, and this renders each one whole — every
+ * field it had, and its sources — so the log answers what happened to the data
+ * rather than only what happened to the survivor.
+ */
+function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
+  const absorbed = entry.absorbed ?? [];
+  if (absorbed.length === 0) return [];
+
+  const records = absorbed.map((publication) => ({
+    id: publication.id,
+    title: publication.title || "an untitled record",
+    fields: Publication.ATTRIBUTES.filter((key) => key !== "title")
+      .map((key) => ({
+        label: Publication.ATTRIBUTE_LABELS[key],
+        value: String(publication[key] ?? ""),
+      }))
+      .filter(({ value }) => value !== ""),
+    references: publication.references ?? [],
+  }));
+
+  return [
+    {
+      kind: "absorbed",
+      direction: entry.action === "merged" ? "in" : "back",
+      records,
+    },
+  ];
+}
+
+/**
  * Each entry paired with its rendered changes — resolved once, when the log is
  * fetched, so no view recomputes a diff while painting.
  */
@@ -65,9 +120,9 @@ function withChanges<T extends PublicationHistoryEntry>(
 ): WithChanges<T>[] {
   return entries.map((entry) => ({
     ...entry,
-    changes: presentChanges(entry.diff),
+    changes: [...presentChanges(entry.diff), ...presentAbsorbed(entry)],
   }));
 }
 
-export { keyOf, presentChanges, withChanges };
+export { keyOf, presentAbsorbed, presentChanges, withChanges };
 export type { Change, WithChanges };

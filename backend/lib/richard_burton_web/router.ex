@@ -65,6 +65,7 @@ defmodule RichardBurtonWeb.Router do
       put("/:id", PublicationController, :update)
       delete("/:id", PublicationController, :delete)
       post("/:id/validate", PublicationController, :validate)
+      post("/:id/merge", PublicationController, :merge)
       post("/:id/restore", PublicationController, :restore)
       get("/:id/history", PublicationController, :history)
       post("/:id/history/:version/undo", PublicationController, :undo)

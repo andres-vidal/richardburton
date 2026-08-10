@@ -21,7 +21,7 @@ defmodule RichardBurton.Publication.History do
   alias RichardBurton.Publication.History
   alias RichardBurton.Repo
 
-  @actions ["created", "updated", "deleted", "restored"]
+  @actions ["created", "updated", "deleted", "restored", "merged", "unmerged"]
 
   # Mutations outside a request (seeds, mix tasks) are attributed to "system".
   @system_actor "system"
@@ -42,6 +42,12 @@ defmodule RichardBurton.Publication.History do
     field(:snapshot, :map)
     field(:actor, :string)
 
+    # The publications this entry took in, or gave back: each one's id against
+    # the state it was in. A merge and an un-merge change several records at
+    # once, and this is what makes them one entry rather than several — the
+    # record that survives holds the entry, and names the ones that did not.
+    field(:absorbed, :map)
+
     # What this version changed relative to the previous one.
     field(:diff, :map, virtual: true)
     # Whether this version can still be undone
@@ -53,7 +59,7 @@ defmodule RichardBurton.Publication.History do
   @doc false
   def changeset(history, attrs) do
     history
-    |> cast(attrs, [:publication_id, :version, :action, :snapshot, :actor])
+    |> cast(attrs, [:publication_id, :version, :action, :snapshot, :actor, :absorbed])
     |> validate_required([:publication_id, :version, :action, :snapshot, :actor])
     |> validate_inclusion(:action, @actions)
     |> unique_constraint([:publication_id, :version])
@@ -69,17 +75,46 @@ defmodule RichardBurton.Publication.History do
   the max-version read is stable; the unique index on (publication_id, version)
   turns any residual race into a loud error instead of silent corruption.
   """
-  def record(action, publication = %Publication{}, actor)
-      when action in [:created, :updated, :deleted, :restored] do
+  def record(action, publication = %Publication{}, actor, absorbed \\ [])
+      when action in [:created, :updated, :deleted, :restored, :merged, :unmerged] do
     %History{}
     |> changeset(%{
       publication_id: publication.id,
       version: next_version(publication.id),
       action: to_string(action),
       snapshot: snapshot(publication),
-      actor: actor
+      actor: actor,
+      absorbed: absorbed_snapshots(absorbed)
     })
     |> Repo.insert!()
+  end
+
+  # The records an entry took in or gave back, against the state they were in.
+  # Keyed by id, since that is what putting one back needs to name.
+  defp absorbed_snapshots([]), do: nil
+
+  defp absorbed_snapshots(publications),
+    do: Map.new(publications, &{to_string(&1.id), snapshot(&1)})
+
+  @doc "The ids of the publications an entry took in, or gave back."
+  def absorbed_ids(%History{absorbed: nil}), do: []
+
+  def absorbed_ids(%History{absorbed: absorbed}),
+    do: absorbed |> Map.keys() |> Enum.map(&String.to_integer/1)
+
+  @doc """
+  The publications an entry took in, or gave back, ordered by id.
+
+  Each one carries its own id and none of the fingerprints: those are the
+  server's bookkeeping, not part of the record being shown.
+  """
+  def absorbed_records(%History{absorbed: nil}), do: []
+
+  def absorbed_records(%History{absorbed: absorbed}) do
+    absorbed
+    |> Map.values()
+    |> Enum.map(&Map.drop(&1, @derived -- ["id"]))
+    |> Enum.sort_by(& &1["id"])
   end
 
   @doc "The ordered history of one publication, newest first, each entry diffed."
@@ -138,12 +173,48 @@ defmodule RichardBurton.Publication.History do
       |> Map.new()
 
     heads = Map.new(streams, fn {id, [head | _]} -> {id, head} end)
+    absorbed = absorbed()
 
     Enum.map(entries, fn entry ->
       previous = Map.get(previous, {entry.publication_id, entry.version})
       head = Map.fetch!(heads, entry.publication_id)
 
-      %{entry | diff: diff(previous, entry), undoable: undoable?(entry, previous, head)}
+      undoable =
+        not MapSet.member?(absorbed, entry.publication_id) and
+          undoable?(entry, previous, head)
+
+      %{entry | diff: diff(previous, entry), undoable: undoable}
+    end)
+  end
+
+  @doc """
+  The publications that are inside another record right now.
+
+  A merged record's own history is still here, but nothing in it can be undone
+  while it is absorbed — it is the merge that holds it, and the merge that gives
+  it back. The answer is the whole log's, not one stream's: the entry that holds
+  a record sits on the winner, so asking a loser's own history would never find
+  it.
+
+  Only the ids are read back: an entry's `absorbed` map carries a whole snapshot
+  per record, and none of it is needed to answer which ones are held.
+  """
+  def absorbed do
+    from(h in History,
+      where: h.action in ["merged", "unmerged"],
+      order_by: [asc: h.id],
+      select:
+        {h.action,
+         fragment("ARRAY(SELECT jsonb_object_keys(coalesce(?, '{}'::jsonb)))", h.absorbed)}
+    )
+    |> Repo.all()
+    |> Enum.reduce(MapSet.new(), fn {action, ids}, absorbed ->
+      ids = MapSet.new(ids, &String.to_integer/1)
+
+      case action do
+        "merged" -> MapSet.union(absorbed, ids)
+        "unmerged" -> MapSet.difference(absorbed, ids)
+      end
     end)
   end
 
@@ -159,7 +230,12 @@ defmodule RichardBurton.Publication.History do
       those fields and leaves later edits to others alone;
     - never an older delete (a later restore already negated it) nor an older
       import or restore (compensating those would discard the edits that
-      followed).
+      followed);
+    - a merge or an un-merge, only as the latest entry, by that same rule —
+      each is one act over several records, so compensating it means taking the
+      whole thing back: the record that survived gives up what it absorbed, and
+      the records that left come back. What followed an older one was written
+      against the merged record.
   """
   def undoable?(entry, previous, head) do
     cond do
@@ -204,7 +280,15 @@ defmodule RichardBurton.Publication.History do
   # What a reader should *see* is the frontend's business; keeping the wire
   # structural means one payload serves any presentation, in any language.
   defp diff(nil, _entry), do: nil
-  defp diff(previous, entry = %History{action: "updated"}), do: compare(previous, entry)
+
+  # A merge and an un-merge change the surviving record's own fields as surely
+  # as an edit does, so they are diffed the same way — what it gained, against
+  # what it gave back. Together with the records the entry names, that is the
+  # whole of what the act did to the data.
+  defp diff(previous, entry = %History{action: action})
+       when action in ["updated", "merged", "unmerged"],
+       do: compare(previous, entry)
+
   defp diff(_previous, _entry), do: nil
 
   defp compare(%History{snapshot: previous}, %History{snapshot: current}) do

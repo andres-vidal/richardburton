@@ -162,6 +162,32 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_status(status) |> json(body)
   end
 
+  # Collapse publications into this one. The losers are named in the body, so
+  # the address stays the surviving record's own.
+  def merge(conn, %{"id" => id, "losers" => losers}) when is_list(losers) do
+    case Publication.merge(id, losers, actor(conn)) do
+      {:ok, publication} ->
+        json(conn, Publication.Codec.flatten(publication))
+
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: :not_found})
+
+      {:error, reason} when reason in [:self, :no_losers] ->
+        conn |> put_status(:bad_request) |> json(%{error: reason})
+
+      # The merged record would be a publication that already exists.
+      {:error, :conflict} ->
+        conn |> put_status(:conflict) |> json(%{error: :conflict})
+
+      {:error, errors} ->
+        conn |> put_status(:bad_request) |> json(%{errors: errors})
+    end
+  end
+
+  def merge(conn, _params) do
+    conn |> put_status(:bad_request) |> json(%{error: :losers_required})
+  end
+
   def delete(conn, %{"id" => id}) do
     case Publication.delete(id, actor(conn)) do
       {:ok, _publication} ->
@@ -226,6 +252,10 @@ defmodule RichardBurtonWeb.PublicationController do
       # The same record was imported again while this one sat in the trash.
       {:error, :conflict} ->
         conn |> put_status(:conflict) |> json(%{error: :conflict})
+
+      # Held inside another record: an un-merge gives it back, a restore cannot.
+      {:error, :absorbed} ->
+        conn |> put_status(:conflict) |> json(%{error: :absorbed})
     end
   end
 
@@ -238,6 +268,9 @@ defmodule RichardBurtonWeb.PublicationController do
       snapshot: entry.snapshot,
       diff: entry.diff,
       undoable: entry.undoable,
+      # The records this entry took in, or gave back — what makes a merge one
+      # thing in the log rather than a change to each of them.
+      absorbed: Publication.History.absorbed_records(entry),
       timestamp: entry.inserted_at
     }
   end

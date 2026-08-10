@@ -30,21 +30,50 @@ type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: number };
 type PublicationId = NonNullable<Publication["id"]>;
 type PublicationKeyType = "array" | "text" | "enum" | "enumArray" | "number";
-type PublicationHistoryAction = "created" | "updated" | "deleted" | "restored";
+/** Every act the log records, in the order a reader meets them. */
+const HISTORY_ACTIONS = [
+  "created",
+  "updated",
+  "deleted",
+  "restored",
+  "merged",
+  "unmerged",
+] as const;
+
+type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
 
 type SnapshotDiff = {
   fields: Partial<Record<PublicationKey, { from: unknown; to: unknown }>>;
   references: { added: string[]; removed: string[]; reordered: boolean } | null;
 };
 
+/**
+ * A publication as the log keeps it: the record's own fields, without the
+ * surrogate id, and with the year as the number it is stored as.
+ */
+type PublicationSnapshot = Omit<Publication, "id" | "year"> & { year: number };
+
+/**
+ * A publication a merge took in, or an un-merge gave back. Identified, unlike
+ * a snapshot: an entry names several of these at once, and two records that
+ * were merged may well share a title.
+ */
+type AbsorbedPublication = PublicationSnapshot & { id: number };
+
 type PublicationHistoryEntry = {
   version: number;
   action: PublicationHistoryAction;
   actor: string;
   timestamp: string;
-  snapshot: Omit<Publication, "id" | "year"> & { year: number };
+  snapshot: PublicationSnapshot;
   diff: SnapshotDiff | null;
   undoable: boolean;
+  /**
+   * The publications this entry took in (a merge) or gave back (an un-merge) —
+   * a merge is one act over several records, and this is what says which.
+   * Absent on entries that change one record only.
+   */
+  absorbed?: AbsorbedPublication[] | null;
 };
 
 // The database-wide feed tags each entry with the publication it belongs to.
@@ -130,18 +159,57 @@ function empty(): Publication {
   };
 }
 
+/**
+ * The individual values behind a multi-valued attribute. Countries, publishers
+ * and the like are held as one comma-joined string; this is the one place that
+ * knows it, so every reader of them counts and compares the same things.
+ */
+function items(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+/**
+ * What one record would look like with others folded into it: the survivor's
+ * own fields, the countries and publishers of all of them, and every source
+ * none of the others already gave.
+ *
+ * A preview, so an admin sees the outcome before asking for it. The server
+ * reconciles a merge itself and stays the authority on what it produces; the
+ * rules are simple enough to say twice, and saying them here is what lets the
+ * dialog show the result rather than describe it.
+ */
+function merged(winner: Publication, losers: Publication[]): Publication {
+  const all = [winner, ...losers];
+
+  const union = (attribute: "countries" | "publishers") =>
+    Array.from(new Set(all.flatMap((p) => items(p[attribute]))))
+      .sort()
+      .join(", ");
+
+  return {
+    ...winner,
+    countries: union("countries"),
+    publishers: union("publishers"),
+    references: Array.from(new Set(all.flatMap((p) => p.references))),
+  };
+}
+
 function describeValue(value: string, attribute: PublicationKey): string {
   if (attribute === "countries") {
-    const country = COUNTRIES[value];
-    if (country) {
-      return value
-        .split(",")
-        .map((v) => COUNTRIES[v.trim()].label)
-        .join(", ");
-    } else {
-      console.warn("Unknown country code: ", value);
-      return value;
-    }
+    // One code or a list of them: a record published in several places names
+    // them all in the one field.
+    return value
+      .split(",")
+      .map((code) => {
+        const country = COUNTRIES[code.trim()];
+        if (country) return country.label;
+        console.warn("Unknown country code: ", code.trim());
+        return code.trim();
+      })
+      .join(", ");
   }
   return value;
 }
@@ -221,6 +289,8 @@ const Publication = {
   describeError,
   describeValue,
   empty,
+  items,
+  merged,
 };
 
 export {
@@ -235,9 +305,13 @@ export {
   describeError,
   describeValue,
   empty,
+  HISTORY_ACTIONS,
+  items,
+  merged,
   Publication,
 };
 export type {
+  AbsorbedPublication,
   DeletedPublicationEntry,
   FullHistoryEntry,
   PublicationEntry,

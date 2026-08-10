@@ -1,0 +1,55 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationMergeStories from "./PublicationMerge.stories";
+
+<Meta of={PublicationMergeStories} />
+
+# Publication merge
+
+Collapses duplicates of a publication into it. The record the dialog is opened
+from is the one that survives: it keeps its identity, its address and its own
+fields, and gains the countries, publishers and sources the others hold. The
+records folded in leave the database, recorded as merged rather than deleted.
+
+<Canvas of={PublicationMergeStories.Previewing} />
+
+## Usage
+
+Controlled by the caller, like every dialog here: pair `isOpen` with
+`useModal()`, close it on `onClose`, and re-read the record on `onMerged` — the
+publication the caller is showing has changed.
+
+```tsx
+<PublicationMerge
+  publication={publication}
+  isOpen={mergeDialog.isOpen}
+  onClose={mergeDialog.close}
+  onMerged={() => {
+    mergeDialog.close();
+    router.refresh();
+  }}
+/>
+```
+
+`find` says how candidates are looked up, and defaults to searching the
+database. A caller that already knows the duplicates passes its own.
+
+## Why it previews
+
+A merge cannot be undone: putting a record back would leave what it brought
+with the survivor, and there would be two of everything again. So the dialog
+shows the outcome instead of describing it — everything gained is marked before
+the question is asked, and a merge that takes nothing says so.
+
+<Canvas of={PublicationMergeStories.NothingGained} />
+
+## States
+
+Nothing picked yet — the dialog names what survives and refuses to merge.
+
+<Canvas of={PublicationMergeStories.Default} />
+
+Searching offers every other record it finds, never the survivor itself and
+never one already picked.
+
+<Canvas of={PublicationMergeStories.Searching} />

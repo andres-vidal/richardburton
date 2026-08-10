@@ -37,6 +37,7 @@ import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
 import { useModal } from "./Modal";
 import PublicationHistory from "./PublicationHistory";
+import PublicationMerge from "./PublicationMerge";
 import ReferencesEditor from "./ReferencesEditor";
 import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
@@ -86,13 +87,10 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
   function getSearchableItems(p: Publication, key: PublicationKey) {
-    return p[key]
-      .split(",")
-      .map((value) => value.trim())
-      .map((value) => ({
-        value,
-        label: Publication.describeValue(value, key),
-      }));
+    return Publication.items(p[key]).map((value) => ({
+      value,
+      label: Publication.describeValue(value, key),
+    }));
   }
 
   const list = (key: PublicationKey) => (
@@ -290,6 +288,7 @@ const Detail: FC<PublicationDetailProps> = ({
   const [editing, setEditing] = useState(false);
   const deleteConfirmation = useModal();
   const [deleting, setDeleting] = useState(false);
+  const mergeDialog = useModal();
 
   // An edit abandoned by closing the view is dropped, not kept: the overlay it
   // writes to is the same one the row behind it reads around.
@@ -350,6 +349,13 @@ const Detail: FC<PublicationDetailProps> = ({
                 onClick={startEditing}
               />
               <Button
+                label="Merge"
+                variant="outline"
+                width="fit"
+                size="medium"
+                onClick={() => mergeDialog.open()}
+              />
+              <Button
                 label="Delete"
                 variant="danger"
                 width="fit"
@@ -360,6 +366,15 @@ const Detail: FC<PublicationDetailProps> = ({
           )}
         </>
       )}
+      <PublicationMerge
+        publication={publication}
+        isOpen={mergeDialog.isOpen}
+        onClose={mergeDialog.close}
+        onMerged={() => {
+          mergeDialog.close();
+          router.refresh();
+        }}
+      />
       <ConfirmationModal
         isOpen={deleteConfirmation.isOpen}
         title="Delete this publication?"

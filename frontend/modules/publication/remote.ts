@@ -232,6 +232,63 @@ async function restore(id: PublicationId): Promise<boolean> {
 }
 
 /**
+ * The publications a term finds, for a view that has to look one up while it is
+ * open — the merge dialog searching for the duplicates of a record it is
+ * showing. A failed search finds nothing rather than interrupting: the dialog
+ * says so where the results would be.
+ */
+async function search(term: string): Promise<Publication[]> {
+  try {
+    const { data } = await request((http) =>
+      http.get<{ entries: Publication[] }>("publications", {
+        params: { search: term },
+      }),
+    );
+    return data.entries;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Collapse publications into one (admin). The survivor keeps its identity and
+ * gains what the others hold; they leave the database recorded as merged.
+ * Returns whether it succeeded — a conflict means the merged record would be
+ * one that already exists.
+ */
+async function merge(
+  store: Store,
+  { winner, losers }: { winner: Publication; losers: Publication[] },
+): Promise<boolean> {
+  const ids = losers.map((loser) => loser.id!);
+
+  try {
+    await request((http) =>
+      http.post(`publications/${winner.id}/merge`, { losers: ids }),
+    );
+
+    ids.forEach((id) => removePublication(store, id));
+    notify({
+      message: `Merged ${ids.length === 1 ? "1 publication" : `${ids.length} publications`}`,
+      detail: `“${winner.title}” now holds what they said.`,
+      level: "success",
+    });
+    return true;
+  } catch (error) {
+    notify({
+      message: isConflict(error)
+        ? "Could not merge — the result already exists"
+        : "Could not merge the publications",
+      detail: isConflict(error)
+        ? "Another publication already holds what the merged record would. Merge that one instead."
+        : "Nothing changed. Check your connection and try again.",
+      level: "warning",
+    });
+    return false;
+  }
+}
+
+/**
  * Live-validate a single publication's pending edits, excluding it from the
  * conflict check so an in-place edit doesn't collide with itself.
  */
@@ -313,7 +370,9 @@ export {
   bulk,
   deletePublication,
   loadDetails,
+  merge,
   restore,
+  search,
   undo,
   update,
   upload,

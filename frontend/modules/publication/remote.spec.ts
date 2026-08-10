@@ -11,7 +11,9 @@ import { empty } from "./model";
 import {
   bulk,
   deletePublication,
+  merge,
   restore,
+  search,
   undo,
   update,
   upload,
@@ -240,6 +242,67 @@ describe("restore", () => {
       expect.objectContaining({
         level: "warning",
         detail: expect.stringContaining("imported again while deleted"),
+      }),
+    );
+  });
+});
+
+describe("search", () => {
+  test("asks the index for the term and answers with its entries", async () => {
+    const entries = [pub({ title: "Iracema" })];
+    http.get.mockResolvedValue({ data: { entries } });
+
+    const found = await search("iracema");
+
+    expect(http.get).toHaveBeenCalledWith("publications", {
+      params: { search: "iracema" },
+    });
+    expect(found).toBe(entries);
+  });
+
+  test("a failed search finds nothing rather than interrupting", async () => {
+    http.get.mockRejectedValue(new Error("offline"));
+
+    expect(await search("iracema")).toEqual([]);
+    // The view showing the search says so where the results would be.
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+});
+
+describe("merge", () => {
+  const winner = { ...pub({ title: "Iracema" }), id: 1 };
+  const losers = [
+    { ...pub({ title: "Iracema" }), id: 2 },
+    { ...pub({ title: "Iracema" }), id: 3 },
+  ];
+
+  test("names the losers in the body and drops them from the index", async () => {
+    losers.forEach((loser) => store.set(publicationFamily(loser.id), loser));
+    store.set(publicationIdsAtom, [1, 2, 3]);
+    http.post.mockResolvedValue({});
+
+    const ok = await merge(store, { winner, losers });
+
+    expect(ok).toBe(true);
+    expect(http.post).toHaveBeenCalledWith("publications/1/merge", {
+      losers: [2, 3],
+    });
+    expect(store.get(publicationIdsAtom)).toEqual([1]);
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "success" }),
+    );
+  });
+
+  test("a 409 explains the merged record would already exist", async () => {
+    http.post.mockRejectedValue({ response: { status: 409 } });
+
+    const ok = await merge(store, { winner, losers });
+
+    expect(ok).toBe(false);
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: "warning",
+        detail: expect.stringContaining("already holds"),
       }),
     );
   });

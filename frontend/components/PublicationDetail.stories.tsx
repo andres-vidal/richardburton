@@ -117,6 +117,7 @@ export const AsAdmin: Story = {
   decorators: [asAdmin],
   play: async () => {
     await expect(screen.getByRole("button", { name: "Edit" })).toBeVisible();
+    await expect(screen.getByRole("button", { name: "Merge" })).toBeVisible();
     await expect(screen.getByRole("button", { name: "Delete" })).toBeVisible();
 
     // The log came with the record: its entries are in the document while the
@@ -186,5 +187,28 @@ export const SearchLinks: Story = {
     await expect(
       screen.getByRole("link", { name: "Helen Caldwell" }),
     ).toHaveAttribute("href", "/?search=Helen Caldwell");
+  },
+};
+
+/**
+ * Duplicates are collapsed from the record that survives them: the control
+ * opens the merge dialog over it, already knowing what keeps its place.
+ */
+export const Merging: Story = {
+  decorators: [asAdmin],
+  play: async () => {
+    await userEvent.click(screen.getByRole("button", { name: "Merge" }));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Merge publications",
+    });
+    await expect(dialog).toHaveTextContent(/Dom Casmurro/);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Merge publications" }),
+      ).not.toBeInTheDocument(),
+    );
   },
 };
