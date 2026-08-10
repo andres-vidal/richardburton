@@ -116,7 +116,7 @@ export const Suggesting: Story = {
     await waitFor(async () =>
       expect(
         await screen.findByRole("option", {
-          name: "Dom Casmurro — Machado de Assis",
+          name: "Dom Casmurro Machado de Assis",
         }),
       ).toBeVisible(),
     );
@@ -148,7 +148,7 @@ export const FillsBothFields: Story = {
 
     await userEvent.click(
       await screen.findByRole("option", {
-        name: "Manuel de Moraes — Machado de Assis, J. M. Pereira da Silva",
+        name: "Manuel de Moraes Machado de Assis, J. M. Pereira da Silva",
       }),
     );
 

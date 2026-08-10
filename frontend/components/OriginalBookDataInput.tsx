@@ -10,8 +10,11 @@ import { DataInputProps } from "./DataInput";
 import MenuProvider from "./MenuProvider";
 import TextInput from "./TextInput";
 
-/** What a book is offered as: the title, and who wrote it. */
-const describe = (book: OriginalBookValue) => `${book.title} — ${book.authors}`;
+/**
+ * What tells one offered book from another. Two books can share a title, and
+ * two can share their authors, so neither half identifies one on its own.
+ */
+const identify = (book: OriginalBookValue) => `${book.title} — ${book.authors}`;
 
 /**
  * The original title, offering the books already in the database.
@@ -62,7 +65,7 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
     }
 
     function handleSelect(option: { id: string; label: string }) {
-      const book = books.find((candidate) => describe(candidate) === option.id);
+      const book = books.find((candidate) => identify(candidate) === option.id);
       if (!book) return;
 
       // The other half of the book, written straight to its own field — the
@@ -75,8 +78,9 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
     return (
       <MenuProvider
         options={books.map((book) => ({
-          id: describe(book),
-          label: describe(book),
+          id: identify(book),
+          label: book.title,
+          description: book.authors,
         }))}
         isOpen={isOpen}
         activeIndex={activeIndex}
