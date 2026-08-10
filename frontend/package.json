@@ -22,7 +22,7 @@
     "arctic": "^3.7.0",
     "axios": "^1.19.0",
     "axios-case-converter": "^2.0.1",
-    "framer-motion": "^12.43.0",
+    "framer-motion": "^13.0.0",
     "i18n-iso-countries": "^7.14.0",
     "is-hotkey": "^0.2.0",
     "jotai": "^2.20.2",
