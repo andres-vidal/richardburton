@@ -15,12 +15,16 @@ import {
   useRole,
 } from "@floating-ui/react";
 import { isString } from "lodash";
-import { cloneElement, ReactElement, Ref, useMemo, useRef } from "react";
+import { cloneElement, FC, ReactElement, Ref, useMemo, useRef } from "react";
 import { mergeRefs } from "react-merge-refs";
 import Menu from "./Menu";
 import MenuItem from "./MenuItem";
 
-type Option = { id: string; label: string };
+/**
+ * An option, and optionally what qualifies it — a second line under the label,
+ * set quieter, for when the label alone does not tell two entries apart.
+ */
+type Option = { id: string; label: string; description?: string };
 
 type Props<OptionType extends Option | string> = {
   children: ReactElement;
@@ -34,6 +38,18 @@ type Props<OptionType extends Option | string> = {
   /** Shown in place of the list when there is nothing to offer. */
   emptyMessage?: string;
 };
+
+const OptionContent: FC<{ option: Option | string }> = ({ option }) =>
+  isString(option) ? (
+    <>{option}</>
+  ) : option.description ? (
+    <span className="flex flex-col">
+      <span>{option.label}</span>
+      <span className="text-xs text-gray-600">{option.description}</span>
+    </span>
+  ) : (
+    <>{option.label}</>
+  );
 
 const MenuProvider = <OptionType extends Option | string>({
   children,
@@ -140,7 +156,7 @@ const MenuProvider = <OptionType extends Option | string>({
                       },
                     })}
                   >
-                    {isString(option) ? option : option.label}
+                    <OptionContent option={option} />
                   </MenuItem>
                 ))
               )}

@@ -1,0 +1,46 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as OriginalBookDataInputStories from "./OriginalBookDataInput.stories";
+
+<Meta of={OriginalBookDataInputStories} />
+
+# Original book data input
+
+The original-title cell, offering the books already in the database. It is the
+field [`DataInput`](?path=/docs/publications-data-input--docs) picks for the
+`book` attribute type, which only `originalTitle` has.
+
+<Canvas of={OriginalBookDataInputStories.Suggesting} />
+
+## Why a whole book
+
+The original book is one entity — a title and its authors — and the publication's
+composite key is built from both. Entering them field by field is how the same
+book drifts into near-duplicates ("Machado de Assis" one day, "M. de Assis" the
+next), and a drifted book spawns a duplicate _publication_.
+
+So a suggestion carries the whole book and fills both fields at once, and a
+term finds a book by either half of it: the title, or one of its authors.
+
+<Canvas of={OriginalBookDataInputStories.FoundByItsAuthor} />
+
+## Usage
+
+Rendered by the dispatcher, never directly — it reads `rowId` to write the
+authors of the book that was picked into that row's own field, and takes its
+placeholder and `bordered` from whoever placed it.
+
+Free text stands: a book nobody has entered yet is typed, and the field keeps
+what it is given. A lookup that fails offers nothing rather than interrupting.
+
+<Canvas of={OriginalBookDataInputStories.FreeTextStands} />
+
+## States
+
+- **Suggesting** — a term offers whole books, title and authors.
+- **Found by its author** — the same search, reached from the other half.
+- **Fills both fields** — picking one writes the title here and the authors
+  there.
+- **Free text stands** — an unknown book is simply typed.
+
+<Canvas of={OriginalBookDataInputStories.FillsBothFields} />
