@@ -77,21 +77,23 @@ defmodule RichardBurton.OriginalBook do
   end
 
   def search(term, :prefix) when is_binary(term) do
-    matching(
-      dynamic(
-        [b, a],
-        ilike(b.title, ^"#{term}%") or ilike(a.name, ^"#{term}%")
-      )
-    )
+    matching(dynamic(^starts_with(:book, :title, term) or ^starts_with(:author, :name, term)))
   end
 
   def search(term, :fuzzy) when is_binary(term) do
-    matching(
-      dynamic(
-        [b, a],
-        fragment("similarity((?), (?)) > 0.3", b.title, ^term) or
-          fragment("similarity((?), (?)) > 0.3", a.name, ^term)
-      )
+    matching(dynamic(^similar_to(:book, :title, term) or ^similar_to(:author, :name, term)))
+  end
+
+  defp starts_with(binding, field, term) do
+    dynamic(ilike(field(as(^binding), ^field), ^"#{term}%"))
+  end
+
+  # How much of a name a misspelling has to share to still answer for it.
+  @similarity 0.3
+
+  defp similar_to(binding, field, term) do
+    dynamic(
+      fragment("similarity((?), (?)) > ?", field(as(^binding), ^field), ^term, ^@similarity)
     )
   end
 
@@ -99,13 +101,31 @@ defmodule RichardBurton.OriginalBook do
   # deduplicated before they are counted as answers.
   defp matching(condition) do
     from(b in OriginalBook,
+      as: :book,
       join: a in assoc(b, :authors),
+      as: :author,
       where: ^condition,
       distinct: true,
       order_by: [asc: b.title]
     )
     |> Repo.all()
     |> preload()
+  end
+
+  @doc ~S"""
+  Flatten a book to the shape a form speaks of it in: a title, and its authors
+  as the one comma-separated string the field holds.
+
+  ## Examples
+
+    iex> RichardBurton.OriginalBook.flatten(%RichardBurton.OriginalBook{
+    ...>   title: "Dom Casmurro",
+    ...>   authors: [%RichardBurton.Author{name: "Machado de Assis"}]
+    ...> })
+    %{title: "Dom Casmurro", authors: "Machado de Assis"}
+  """
+  def flatten(book = %OriginalBook{}) do
+    %{title: book.title, authors: Author.flatten(book.authors)}
   end
 
   def preload(data) do
