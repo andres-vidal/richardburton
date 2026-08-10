@@ -113,8 +113,8 @@ defmodule RichardBurton.OriginalBook do
   end
 
   @doc ~S"""
-  Flatten a book to the shape a form speaks of it in: a title, and its authors
-  as the one comma-separated string the field holds.
+  Flatten a book to the shape a form speaks of it in: a title, and the authors
+  it was written by.
 
   ## Examples
 
@@ -122,7 +122,7 @@ defmodule RichardBurton.OriginalBook do
     ...>   title: "Dom Casmurro",
     ...>   authors: [%RichardBurton.Author{name: "Machado de Assis"}]
     ...> })
-    %{title: "Dom Casmurro", authors: "Machado de Assis"}
+    %{title: "Dom Casmurro", authors: ["Machado de Assis"]}
   """
   def flatten(book = %OriginalBook{}) do
     %{title: book.title, authors: Author.flatten(book.authors)}

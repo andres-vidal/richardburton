@@ -30,16 +30,16 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
   describe "GET /original-books" do
     setup [:search_fixture]
 
-    test "returns every book, its authors as the one string the field holds",
+    test "returns every book, with the authors each one holds",
          %{conn: conn} do
       expect_auth_authorize_admin()
 
       assert [
-               %{"title" => "Dom Casmurro", "authors" => "Machado de Assis"},
-               %{"title" => "Iracema", "authors" => "José de Alencar"},
+               %{"title" => "Dom Casmurro", "authors" => ["Machado de Assis"]},
+               %{"title" => "Iracema", "authors" => ["José de Alencar"]},
                %{
                  "title" => "Manuel de Moraes",
-                 "authors" => "Machado de Assis, J. M. Pereira da Silva"
+                 "authors" => ["Machado de Assis", "J. M. Pereira da Silva"]
                }
              ] = conn |> get(original_book_path(conn, :index)) |> json_response(200)
     end

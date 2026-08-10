@@ -247,7 +247,7 @@ defmodule RichardBurton.OriginalBookTest do
 
     test "carries the authors of every book it finds" do
       assert [book] = OriginalBook.search("Dom Cas")
-      assert Author.flatten(book.authors) == "Machado de Assis"
+      assert Author.flatten(book.authors) == ["Machado de Assis"]
     end
 
     defp titles(books), do: Enum.map(books, & &1.title)
