@@ -1,4 +1,4 @@
-defmodule RichardBurton.Repo.Migrations.RememberPublicationsToldApart do
+defmodule RichardBurton.Repo.Migrations.RememberPublicationsRuledApart do
   use Ecto.Migration
 
   @moduledoc """

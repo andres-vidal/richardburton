@@ -133,13 +133,13 @@ defmodule RichardBurton.Publication.DuplicatesTest do
       assert [] == Duplicates.clusters()
     end
 
-    test "a pair told apart is no longer asked about" do
+    test "a pair ruled apart is no longer asked about" do
       one = insert(%{})
       other = insert(%{"title" => "Dom Casmuro"})
 
       assert [_] = Duplicates.clusters()
 
-      {:ok, 1} = Duplicates.tell_apart([one.id, other.id], "admin@example.com")
+      {:ok, 1} = Duplicates.rule_apart([one.id, other.id], "admin@example.com")
 
       assert [] == Duplicates.clusters()
     end
@@ -153,15 +153,15 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
       # The two ends are alike only through the middle; ruling out one edge
       # leaves the other pair to be asked about on its own.
-      {:ok, _} = Duplicates.tell_apart([middle.id, left.id], "admin@example.com")
-      {:ok, _} = Duplicates.tell_apart([left.id, right.id], "admin@example.com")
+      {:ok, _} = Duplicates.rule_apart([middle.id, left.id], "admin@example.com")
+      {:ok, _} = Duplicates.rule_apart([left.id, right.id], "admin@example.com")
 
       assert [%{publications: remaining}] = Duplicates.clusters()
       assert [middle.id, right.id] == remaining |> Enum.map(& &1.id) |> Enum.sort()
     end
   end
 
-  describe "tell_apart/2" do
+  describe "rule_apart/2" do
     test "remembers every pair among the records it was given" do
       [a, b, c] = [
         insert(%{}),
@@ -169,21 +169,21 @@ defmodule RichardBurton.Publication.DuplicatesTest do
         insert(%{"title" => "Dom C"})
       ]
 
-      assert {:ok, 3} = Duplicates.tell_apart([a.id, b.id, c.id], "admin@example.com")
+      assert {:ok, 3} = Duplicates.rule_apart([a.id, b.id, c.id], "admin@example.com")
     end
 
     test "saying the same thing twice remembers it once" do
       a = insert(%{})
       b = insert(%{"title" => "Dom Casmuro"})
 
-      assert {:ok, 1} = Duplicates.tell_apart([a.id, b.id], "admin@example.com")
-      assert {:ok, 0} = Duplicates.tell_apart([b.id, a.id], "someone.else@example.com")
+      assert {:ok, 1} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
+      assert {:ok, 0} = Duplicates.rule_apart([b.id, a.id], "someone.else@example.com")
     end
 
-    test "one record on its own is nothing to tell apart" do
+    test "one record on its own is nothing to rule apart" do
       a = insert(%{})
 
-      assert {:error, :not_enough} = Duplicates.tell_apart([a.id], "admin@example.com")
+      assert {:error, :not_enough} = Duplicates.rule_apart([a.id], "admin@example.com")
     end
   end
 
@@ -192,21 +192,21 @@ defmodule RichardBurton.Publication.DuplicatesTest do
       a = insert(%{})
       b = insert(%{"title" => "Dom Casmuro"})
 
-      {:ok, _} = Duplicates.tell_apart([a.id, b.id], "admin@example.com")
+      {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
       assert [] == Duplicates.clusters()
 
       assert {:ok, 1} = Duplicates.reconsider([a.id, b.id])
       assert [_] = Duplicates.clusters()
     end
 
-    test "forgets every pair among the records, as telling apart recorded them" do
+    test "forgets every pair among the records, as ruling apart recorded them" do
       [a, b, c] = [
         insert(%{}),
         insert(%{"title" => "Dom Casmuro"}),
         insert(%{"title" => "Dom C"})
       ]
 
-      {:ok, 3} = Duplicates.tell_apart([a.id, b.id, c.id], "admin@example.com")
+      {:ok, 3} = Duplicates.rule_apart([a.id, b.id, c.id], "admin@example.com")
 
       assert {:ok, 3} = Duplicates.reconsider([a.id, b.id, c.id])
     end
@@ -219,25 +219,25 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
   end
 
-  describe "told_apart/0" do
+  describe "ruled_apart/0" do
     test "says which records were ruled apart, and by whom" do
       a = insert(%{})
       b = insert(%{"title" => "Dom Casmuro"})
-      {:ok, _} = Duplicates.tell_apart([a.id, b.id], "admin@example.com")
+      {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
 
-      assert [%{publications: [_, _], actor: "admin@example.com"}] = Duplicates.told_apart()
+      assert [%{publications: [_, _], actor: "admin@example.com"}] = Duplicates.ruled_apart()
     end
 
     test "leaves out a pair one of whose records is gone" do
       a = insert(%{})
       b = insert(%{"title" => "Dom Casmuro"})
-      {:ok, _} = Duplicates.tell_apart([a.id, b.id], "admin@example.com")
+      {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
 
       {:ok, _} = Publication.delete(b.id)
       Publication.Index.Refresher.refresh()
 
       # Nothing left to ask about, so nothing to offer taking back.
-      assert [] == Duplicates.told_apart()
+      assert [] == Duplicates.ruled_apart()
     end
   end
 
@@ -246,7 +246,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
       a = insert(%{})
       b = insert(%{"title" => "Dom Casmuro"})
 
-      {:ok, _} = Duplicates.tell_apart([a.id, b.id], "admin@example.com")
+      {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
       {:ok, _} = Publication.merge(a.id, [b.id], "admin@example.com")
       Publication.Index.Refresher.refresh()
 

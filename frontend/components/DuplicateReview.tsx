@@ -25,9 +25,19 @@ const name = (cluster: DuplicateCluster) =>
  */
 export const DuplicateQueue: FC<{
   clusters: DuplicateCluster[];
+  distinctions: Distinction[];
   position: number;
+  selected: number | null;
   onSelect: (position: number) => void;
-}> = ({ clusters, position, onSelect }) => {
+  onSelectRuledApart: (position: number) => void;
+}> = ({
+  clusters,
+  distinctions,
+  position,
+  selected,
+  onSelect,
+  onSelectRuledApart,
+}) => {
   const move = (event: KeyboardEvent, next: number) => {
     event.preventDefault();
     onSelect(Math.max(0, Math.min(next, clusters.length - 1)));
@@ -64,11 +74,40 @@ export const DuplicateQueue: FC<{
             key={cluster.publications.map((p) => p.id).join("-")}
             id={optionId(index)}
             cluster={cluster}
-            active={index === position}
+            active={selected === null && index === position}
             onSelect={() => onSelect(index)}
           />
         ))}
       </ul>
+      {distinctions.length > 0 && (
+        <div className="flex flex-col border-t border-gray-200 max-h-64 shrink-0">
+          <div className="flex gap-2 justify-between items-baseline px-3 py-2">
+            <span className="text-xs font-semibold tracking-wide text-gray-600 uppercase">
+              Ruled apart
+            </span>
+            <span className="px-1.5 py-0.5 text-xs font-medium text-gray-700 rounded-full bg-gray-100 tabular-nums">
+              {distinctions.length}
+            </span>
+          </div>
+          <ul
+            aria-label="Records ruled apart"
+            className="overflow-y-auto p-2 space-y-0.5 min-h-0 scrollbar scrollbar-thin scrollbar-thumb-indigo-600"
+          >
+            {distinctions.map((distinction, index) => (
+              <li key={distinction.publications.map((p) => p.id).join("-")}>
+                <button
+                  type="button"
+                  onClick={() => onSelectRuledApart(index)}
+                  data-active={selected === index}
+                  className="px-3 py-2 w-full text-sm text-left rounded transition-colors cursor-pointer truncate hover:bg-gray-100 data-[active=true]:bg-indigo-100 data-[active=true]:text-indigo-900 focus-ring"
+                >
+                  {distinction.publications[0]?.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
@@ -104,24 +143,32 @@ const QueueOption: FC<{
 };
 
 /** One record of the cluster, with the choice to keep it. */
+/**
+ * One record's evidence. `onKeep` is what makes it a choice — without it the
+ * card is the same evidence with nothing to decide, which is what a decision
+ * already made looks like.
+ */
 const Candidate: FC<{
   publication: Publication;
-  kept: boolean;
-  onKeep: () => void;
-}> = ({ publication: p, kept, onKeep }) => (
+  kept?: boolean;
+  onKeep?: () => void;
+}> = ({ publication: p, kept = false, onKeep }) => (
   <label
     data-kept={kept}
-    className="flex flex-col gap-2 p-4 rounded-lg border cursor-pointer transition-colors data-[kept=true]:border-indigo-400 data-[kept=true]:bg-indigo-50 data-[kept=false]:border-gray-200 data-[kept=false]:hover:bg-gray-50"
+    data-choosable={Boolean(onKeep)}
+    className="flex flex-col gap-2 p-4 rounded-lg border transition-colors data-[choosable=true]:cursor-pointer data-[kept=true]:border-indigo-400 data-[kept=true]:bg-indigo-50 data-[kept=false]:border-gray-200 data-[choosable=true]:data-[kept=false]:hover:bg-gray-50"
   >
     <div className="flex gap-3 items-start">
-      <input
-        type="radio"
-        name="survivor"
-        checked={kept}
-        onChange={onKeep}
-        className="mt-1 accent-indigo-600"
-        aria-label={`Keep ${p.title}`}
-      />
+      {onKeep && (
+        <input
+          type="radio"
+          name="survivor"
+          checked={kept}
+          onChange={onKeep}
+          className="mt-1 accent-indigo-600"
+          aria-label={`Keep ${p.title}`}
+        />
+      )}
       <div className="min-w-0">
         <p className="text-sm font-medium">
           {p.title}{" "}
@@ -229,50 +276,47 @@ export const DuplicateStep: FC<{
 };
 
 /**
- * What has already been ruled apart, and the way back.
+ * A decision already made, opened like any other question — the same evidence
+ * side by side, and the way out of it.
  *
- * A decision nobody can see is a decision nobody can take back, and this one is
- * easy to make by accident: it is one click, it is silent, and afterwards the
- * pair never surfaces again. Collapsed, because it is the exception rather than
- * the work.
+ * It sits in the review rather than beside it because it is the same work: a
+ * reviewer who misread a cluster finds it where they answered it, not in a
+ * separate place they have to know about.
  */
-export const SetAside: FC<{
-  distinctions: Distinction[];
+export const RuledApartStep: FC<{
+  distinction: Distinction;
   busy: boolean;
-  onReconsider: (distinction: Distinction) => void;
-}> = ({ distinctions, busy, onReconsider }) => (
-  <details className="my-4">
-    <summary className="text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none focus-ring">
-      Ruled apart ({distinctions.length})
-    </summary>
-    <ul className="mt-2 space-y-1">
-      {distinctions.map((distinction) => (
-        <li
-          key={distinction.publications.map((p) => p.id).join("-")}
-          className="flex gap-3 justify-between items-baseline py-1.5 px-3 rounded border border-gray-200"
-        >
-          <div className="min-w-0">
-            <p className="text-sm">
-              {distinction.publications
-                .map((p) => `${p.title} (${p.year})`)
-                .join("  ·  ")}
-            </p>
-            <p className="text-xs text-gray-600">
-              Told apart by {distinction.actor}
-            </p>
-          </div>
-          <Button
-            label="Reconsider"
-            variant="outline"
-            width="fit"
-            size="small"
-            disabled={busy}
-            onClick={() => onReconsider(distinction)}
-          />
-        </li>
+  onReconsider: () => void;
+}> = ({ distinction, busy, onReconsider }) => (
+  <div className="flex flex-col gap-6 p-8 w-full min-h-full">
+    <div className="flex gap-4 justify-between items-baseline pb-4 border-b border-gray-200">
+      <div>
+        <h2 className="text-xl">{distinction.publications[0]?.title}</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Ruled apart by {distinction.actor}. These are not offered as possible
+          duplicates while that stands.
+        </p>
+      </div>
+    </div>
+
+    <div className="grid gap-4 sm:grid-cols-2">
+      {distinction.publications.map((publication) => (
+        <Candidate key={publication.id} publication={publication} />
       ))}
-    </ul>
-  </details>
+    </div>
+
+    <div className="flex justify-end mt-auto">
+      <Button
+        label="Put back among the questions"
+        variant="outline-primary"
+        width="fit"
+        size="medium"
+        loading={busy}
+        disabled={busy}
+        onClick={onReconsider}
+      />
+    </div>
+  </div>
 );
 
 /** Presentational shell, so the empty and populated states render in isolation. */
@@ -280,8 +324,11 @@ export const DuplicateReviewView: FC<{
   clusters: DuplicateCluster[];
   distinctions: Distinction[];
   position: number;
+  /** Which ruled-apart pair is open, or `null` while a question is. */
+  selected: number | null;
   busy: boolean;
   onSelect: (position: number) => void;
+  onSelectRuledApart: (position: number) => void;
   onMerge: (winner: Publication) => void;
   onDistinguish: () => void;
   onReconsider: (distinction: Distinction) => void;
@@ -290,32 +337,54 @@ export const DuplicateReviewView: FC<{
   clusters,
   distinctions,
   position,
+  selected,
   busy,
   onSelect,
+  onSelectRuledApart,
   onMerge,
   onDistinguish,
   onReconsider,
   onSkip,
-}) => (
-  <>
-    {clusters.length === 0 ? (
-      <div className="flex flex-col gap-4 items-center py-16 text-center">
-        <h1 className="text-2xl font-normal">Nothing to reconcile</h1>
-        <p className="text-gray-600">
-          No two records look like the same publication.
-        </p>
-        <Link href="/" className="anchor">
-          Back to the index
-        </Link>
-      </div>
-    ) : (
-      <div className="flex overflow-hidden my-4 rounded-lg border border-gray-200 h-[calc(100dvh-15.5rem)]">
-        <DuplicateQueue
-          clusters={clusters}
-          position={position}
-          onSelect={onSelect}
-        />
-        <div className="overflow-y-auto flex-1">
+}) => {
+  const ruledApart = selected === null ? null : distinctions[selected];
+
+  return clusters.length === 0 && distinctions.length === 0 ? (
+    <div className="flex flex-col gap-4 items-center py-16 text-center">
+      <h1 className="text-2xl font-normal">Nothing to reconcile</h1>
+      <p className="text-gray-600">
+        No two records look like the same publication.
+      </p>
+      <Link href="/" className="anchor">
+        Back to the index
+      </Link>
+    </div>
+  ) : (
+    <div className="flex overflow-hidden my-4 rounded-lg border border-gray-200 h-[calc(100dvh-15.5rem)]">
+      <DuplicateQueue
+        clusters={clusters}
+        distinctions={distinctions}
+        position={position}
+        selected={selected}
+        onSelect={onSelect}
+        onSelectRuledApart={onSelectRuledApart}
+      />
+      <div className="overflow-y-auto flex-1">
+        {ruledApart ? (
+          <RuledApartStep
+            key={ruledApart.publications.map((p) => p.id).join("-")}
+            distinction={ruledApart}
+            busy={busy}
+            onReconsider={() => onReconsider(ruledApart)}
+          />
+        ) : clusters.length === 0 ? (
+          <div className="flex flex-col gap-3 justify-center items-center p-8 h-full text-center">
+            <h2 className="text-xl">Every question answered</h2>
+            <p className="text-sm text-gray-600">
+              No two records are left looking alike. What was ruled apart is on
+              the left, and can be put back among the questions.
+            </p>
+          </div>
+        ) : (
           <DuplicateStep
             // Key by the cluster's members so each question gets a fresh choice.
             key={clusters[position].publications.map((p) => p.id).join("-")}
@@ -327,18 +396,11 @@ export const DuplicateReviewView: FC<{
             onDistinguish={onDistinguish}
             onSkip={onSkip}
           />
-        </div>
+        )}
       </div>
-    )}
-    {distinctions.length > 0 && (
-      <SetAside
-        distinctions={distinctions}
-        busy={busy}
-        onReconsider={onReconsider}
-      />
-    )}
-  </>
-);
+    </div>
+  );
+};
 
 const DuplicateReview: FC<{
   clusters: DuplicateCluster[];
@@ -357,6 +419,7 @@ const Review: FC<{
   const router = useRouter();
 
   const [position, setPosition] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   // An answered cluster is gone when the page is read again; until then the
@@ -404,6 +467,7 @@ const Review: FC<{
     if (back) {
       setAnswered([]);
       setPosition(0);
+      setSelected(null);
       router.refresh();
     }
   }
@@ -417,8 +481,14 @@ const Review: FC<{
       clusters={remaining}
       distinctions={distinctions}
       position={Math.min(position, Math.max(remaining.length - 1, 0))}
+      selected={selected}
       busy={busy}
-      onSelect={setPosition}
+      onSelect={(next) => {
+        // Opening a question closes whatever decision was being looked at.
+        setSelected(null);
+        setPosition(next);
+      }}
+      onSelectRuledApart={setSelected}
       onMerge={handleMerge}
       onDistinguish={handleDistinguish}
       onReconsider={handleReconsider}

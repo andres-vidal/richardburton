@@ -64,13 +64,23 @@ const RULED_APART: Distinction[] = [
 const Stepping = (
   args: Omit<
     Parameters<typeof DuplicateReviewView>[0],
-    "position" | "onSelect"
+    "position" | "selected" | "onSelect" | "onSelectRuledApart"
   >,
 ) => {
   const [position, setPosition] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
 
   return (
-    <DuplicateReviewView {...args} position={position} onSelect={setPosition} />
+    <DuplicateReviewView
+      {...args}
+      position={position}
+      selected={selected}
+      onSelect={(next) => {
+        setSelected(null);
+        setPosition(next);
+      }}
+      onSelectRuledApart={setSelected}
+    />
   );
 };
 
@@ -82,8 +92,10 @@ const meta = {
     clusters: CLUSTERS,
     distinctions: [],
     position: 0,
+    selected: null,
     busy: false,
     onSelect: fn(),
+    onSelectRuledApart: fn(),
     onMerge: fn(),
     onDistinguish: fn(),
     onReconsider: fn(),
@@ -204,17 +216,21 @@ export const RuledApart: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // Collapsed: the count is on the summary, the pair is not on screen yet.
-    const summary = canvas.getByText("Ruled apart (1)");
-    await expect(summary).toBeVisible();
+    // It sits in the rail beside the questions, not somewhere else.
+    const rail = canvas.getByRole("list", { name: "Records ruled apart" });
+    await userEvent.click(
+      within(rail).getByRole("button", { name: /Iracema/ }),
+    );
 
-    await userEvent.click(summary);
-
+    // The same evidence a question shows, with nothing left to choose.
     await expect(
-      canvas.getByText(/Told apart by curator@rb.test/),
+      canvas.getByText(/Ruled apart by curator@rb.test/),
     ).toBeVisible();
-    await userEvent.click(canvas.getByRole("button", { name: "Reconsider" }));
+    await expect(canvas.queryByRole("radio")).not.toBeInTheDocument();
 
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Put back among the questions" }),
+    );
     await expect(args.onReconsider).toHaveBeenCalledWith(RULED_APART[0]);
   },
 };
@@ -223,7 +239,9 @@ export const RuledApart: Story = {
 export const NothingRuledApart: Story = {
   play: async ({ canvasElement }) => {
     await expect(
-      within(canvasElement).queryByText(/Ruled apart/),
+      within(canvasElement).queryByRole("list", {
+        name: "Records ruled apart",
+      }),
     ).not.toBeInTheDocument();
   },
 };

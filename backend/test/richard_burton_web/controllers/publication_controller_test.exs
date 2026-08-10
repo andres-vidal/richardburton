@@ -490,7 +490,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   end
 
   describe "POST /publications/duplicates/distinguish" do
-    test "remembers the records told apart, so they are not offered again", meta do
+    test "remembers the records ruled apart, so they are not offered again", meta do
       expect_auth_authorize_admin(3)
       one = insert_publication(@publication_attrs)
 
@@ -518,7 +518,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert response(conn, 204)
     end
 
-    test "naming fewer than two is nothing to tell apart", meta do
+    test "naming fewer than two is nothing to rule apart", meta do
       expect_auth_authorize_admin(2)
       one = insert_publication(@publication_attrs)
 

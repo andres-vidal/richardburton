@@ -177,7 +177,7 @@ defmodule RichardBurtonWeb.PublicationController do
   # Remember that these are not the same record twice, so the review stops
   # asking. Naming fewer than two says nothing there is to remember.
   def distinguish(conn, %{"publications" => ids = [_, _ | _]}) do
-    case Publication.Duplicates.tell_apart(ids, actor(conn)) do
+    case Publication.Duplicates.rule_apart(ids, actor(conn)) do
       {:ok, _count} -> send_resp(conn, :no_content, "")
       {:error, reason} -> conn |> put_status(:bad_request) |> json(%{error: reason})
     end
@@ -189,7 +189,7 @@ defmodule RichardBurtonWeb.PublicationController do
 
   # What has been ruled apart, so a reviewer can see a decision and take it back.
   def distinctions(conn, _params) do
-    json(conn, %{entries: Publication.Duplicates.told_apart()})
+    json(conn, %{entries: Publication.Duplicates.ruled_apart()})
   end
 
   # Put a pair back among the questions. Naming fewer than two says nothing

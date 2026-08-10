@@ -75,7 +75,7 @@ defmodule RichardBurton.Publication.Duplicates do
 
   A cluster is a set of records joined by likeness: if A looks like B and B looks
   like C, all three are one question, because merging them is one act. Pairs
-  already told apart are not edges, so ruling one out can split a cluster rather
+  already ruled apart are not edges, so ruling one out can split a cluster rather
   than merely shrinking it.
   """
   def clusters do
@@ -89,10 +89,10 @@ defmodule RichardBurton.Publication.Duplicates do
 
   @doc """
   Record that these publications are not the same record twice, so the reviewer
-  is not asked about them again. Every pair among them is told apart: the answer
+  is not asked about them again. Every pair among them is ruled apart: the answer
   is about the cluster the reviewer was shown.
   """
-  def tell_apart(ids, actor) when is_list(ids) do
+  def rule_apart(ids, actor) when is_list(ids) do
     pairs = for a <- ids, b <- ids, a < b, do: {a, b}
 
     entries =
@@ -110,7 +110,7 @@ defmodule RichardBurton.Publication.Duplicates do
         {:error, :not_enough}
 
       entries ->
-        # A pair already told apart stays as it was recorded, by whoever said so
+        # A pair already ruled apart stays as it was recorded, by whoever said so
         # first.
         {count, _} =
           Repo.insert_all(Distinction, entries,
@@ -126,7 +126,7 @@ defmodule RichardBurton.Publication.Duplicates do
   Take back a decision to tell records apart, so the review asks about them
   again.
 
-  Every pair among the ids is forgotten, matching how `tell_apart/2` records
+  Every pair among the ids is forgotten, matching how `rule_apart/2` records
   them: the answer was about the cluster, so taking it back is too.
   """
   def reconsider(ids) when is_list(ids) do
@@ -140,7 +140,7 @@ defmodule RichardBurton.Publication.Duplicates do
   A decision that cannot be seen cannot be taken back, and this is what a
   reviewer looks at to find one worth reconsidering.
   """
-  def told_apart do
+  def ruled_apart do
     from(d in Distinction, order_by: [desc: d.id])
     |> Repo.all()
     |> Enum.map(
@@ -163,7 +163,7 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   # Every pair of live publications alike enough to ask about, minus the pairs
-  # already told apart. The corpus is small enough to compare wholesale; a much
+  # already ruled apart. The corpus is small enough to compare wholesale; a much
   # larger one would need blocking on a cheap key first.
   defp candidate_pairs do
     threshold = threshold()

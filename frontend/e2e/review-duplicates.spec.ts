@@ -76,14 +76,15 @@ test("an admin reviews the duplicates the composite key cannot catch, merging on
   // Gledson's is nowhere in the question.
   await expect(page.getByText("Bloomsbury")).toHaveCount(0);
 
-  // Saying they are different records the answer and empties the queue.
+  // Saying they are different records the answer and empties the queue. The
+  // decision itself stays in view, in the rail, so it can be taken back.
   await page.getByRole("button", { name: "Not duplicates" }).click();
   await expect(page.getByText("Kept apart")).toBeVisible();
-  await expect(page.getByText("Nothing to reconcile")).toBeVisible();
+  await expect(page.getByText("Every question answered")).toBeVisible();
 
   // And it stays answered across a reload: the decision outlived the sitting.
   await page.reload();
-  await expect(page.getByText("Nothing to reconcile")).toBeVisible();
+  await expect(page.getByText("Every question answered")).toBeVisible();
 
   // Nothing left the database, since nothing was merged.
   await page.goto("/");
@@ -140,25 +141,32 @@ test("a decision to keep records apart can be taken back, and a merge takes it b
 
   await page.goto("/admin/publications/duplicates");
   await page.getByRole("button", { name: "Not duplicates" }).click();
-  await expect(page.getByText("Nothing to reconcile")).toBeVisible();
+  await expect(page.getByText("Every question answered")).toBeVisible();
 
-  // The decision is visible, and says who made it.
-  await page.getByText(/Ruled apart \(1\)/).click();
-  await expect(page.getByText(/Told apart by/)).toBeVisible();
+  // The decision is in the rail beside the questions, and says who made it.
+  const ruledApart = page.getByRole("list", { name: "Records ruled apart" });
+  await ruledApart.getByRole("button", { name: /Dom Casmur/ }).click();
+  await expect(page.getByText(/Ruled apart by/)).toBeVisible();
 
   // Taking it back puts the question among the others again.
-  await page.getByRole("button", { name: "Reconsider" }).click();
-  await expect(page.getByText("Back among the questions")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Put back among the questions" })
+    .click();
+  await expect(
+    page.getByText("Back among the questions", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("radio", { name: "Keep Dom Casmuro" }),
   ).toBeVisible();
 
   // Rule them apart once more, then merge them anyway — the later answer.
   await page.getByRole("button", { name: "Not duplicates" }).click();
-  await expect(page.getByText("Nothing to reconcile")).toBeVisible();
+  await expect(page.getByText("Every question answered")).toBeVisible();
 
-  await page.getByText(/Ruled apart \(1\)/).click();
-  await page.getByRole("button", { name: "Reconsider" }).click();
+  await ruledApart.getByRole("button", { name: /Dom Casmur/ }).click();
+  await page
+    .getByRole("button", { name: "Put back among the questions" })
+    .click();
   await expect(
     page.getByRole("radio", { name: "Keep Dom Casmurro" }),
   ).toBeVisible();
@@ -180,5 +188,7 @@ test("a decision to keep records apart can be taken back, and a merge takes it b
   await expect(
     page.getByRole("radio", { name: "Keep Dom Casmuro" }),
   ).toBeVisible();
-  await expect(page.getByText(/Ruled apart/)).toHaveCount(0);
+  await expect(
+    page.getByRole("list", { name: "Records ruled apart" }),
+  ).toHaveCount(0);
 });
