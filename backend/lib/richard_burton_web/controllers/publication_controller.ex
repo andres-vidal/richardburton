@@ -187,6 +187,22 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_status(:bad_request) |> json(%{error: :not_enough})
   end
 
+  # What has been ruled apart, so a reviewer can see a decision and take it back.
+  def distinctions(conn, _params) do
+    json(conn, %{entries: Publication.Duplicates.told_apart()})
+  end
+
+  # Put a pair back among the questions. Naming fewer than two says nothing
+  # there is to take back.
+  def reconsider(conn, %{"publications" => ids = [_, _ | _]}) do
+    {:ok, _count} = Publication.Duplicates.reconsider(ids)
+    send_resp(conn, :no_content, "")
+  end
+
+  def reconsider(conn, _params) do
+    conn |> put_status(:bad_request) |> json(%{error: :not_enough})
+  end
+
   # Collapse publications into this one. The losers are named in the body, so
   # the address stays the surviving record's own.
   def merge(conn, %{"id" => id, "losers" => losers}) when is_list(losers) do

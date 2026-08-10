@@ -17,16 +17,32 @@ the right is the evidence, side by side, because that is all there is to go on.
 
 ## The three answers
 
-- **Merge into the one kept** — they are one publication. The record chosen to
-  keep survives and gains what the others hold; the rest leave the database. See
-  [publication merge](?path=/docs/publications-publication-merge--docs) for what
-  a merge does and why it cannot be undone.
+- **Merge into the selected one** — they are one publication. The record chosen
+  to keep survives and gains what the others hold; the rest leave the database.
+  See [publication merge](?path=/docs/publications-publication-merge--docs) for
+  what a merge does, and how taking it apart puts the records back.
 - **Not duplicates** — they are different publications. The answer is
-  remembered, so the pair is never offered again; without that the tail never
-  clears.
+  remembered, so the pair is not offered again; without that the tail never
+  clears. It can be taken back — see below.
 - **Skip** — not now. Nothing is recorded and the cluster comes back.
 
 <Canvas of={DuplicateReviewStories.KeepingTheOther} />
+
+## Taking an answer back
+
+Both lasting answers are reversible, which is what lets a reviewer work quickly
+without the fear of being wrong once and forever.
+
+- A **merge** is undone from the publication's history, which restores the
+  records it absorbed. Merging also forgets any earlier "not duplicates" about
+  the same records: it answers the same question, and later, so the stale
+  answer would otherwise keep the pair hidden after the un-merge.
+- **Ruled apart** lists what has been set aside, with who said so, and offers
+  each pair back among the questions. Collapsed by default — it is the
+  exception rather than the work — and absent entirely when nothing has been
+  ruled apart.
+
+<Canvas of={DuplicateReviewStories.RuledApart} />
 
 ## Usage
 

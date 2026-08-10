@@ -1,11 +1,11 @@
-import { test, expect } from "./fixtures";
+import { expect, test } from "./fixtures";
 import {
   addPublicationRow,
+  CORPUS_SIZE,
   expectPublicationCount,
   indexTable,
   seedCorpus,
   submitWorkspace,
-  CORPUS_SIZE,
 } from "./helpers";
 
 // The corpus already holds "Dom Casmurro" (Helen Caldwell, 1953). These three
@@ -105,7 +105,9 @@ test("merging from the review collapses the cluster and takes it off the queue",
   await expect(kept).toBeChecked();
 
   // Keep the corpus's record and fold the typo into it.
-  await page.getByRole("button", { name: "Merge into the one kept" }).click();
+  await page
+    .getByRole("button", { name: "Merge into the selected one" })
+    .click();
   await expect(page.getByText(/Merged 1 publication/)).toBeVisible();
   await expect(page.getByText("Nothing to reconcile")).toBeVisible();
 
@@ -125,4 +127,58 @@ test("merging from the review collapses the cluster and takes it off the queue",
   await expect(
     indexTable(page).getByRole("row").filter({ hasText: "Dom Casmuro," }),
   ).toHaveCount(0);
+});
+
+test("a decision to keep records apart can be taken back, and a merge takes it back too", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+
+  await page.goto("/admin/publications/new");
+  await addPublicationRow(page, TYPO);
+  await submitWorkspace(page, 1);
+
+  await page.goto("/admin/publications/duplicates");
+  await page.getByRole("button", { name: "Not duplicates" }).click();
+  await expect(page.getByText("Nothing to reconcile")).toBeVisible();
+
+  // The decision is visible, and says who made it.
+  await page.getByText(/Ruled apart \(1\)/).click();
+  await expect(page.getByText(/Told apart by/)).toBeVisible();
+
+  // Taking it back puts the question among the others again.
+  await page.getByRole("button", { name: "Reconsider" }).click();
+  await expect(page.getByText("Back among the questions")).toBeVisible();
+  await expect(
+    page.getByRole("radio", { name: "Keep Dom Casmuro" }),
+  ).toBeVisible();
+
+  // Rule them apart once more, then merge them anyway — the later answer.
+  await page.getByRole("button", { name: "Not duplicates" }).click();
+  await expect(page.getByText("Nothing to reconcile")).toBeVisible();
+
+  await page.getByText(/Ruled apart \(1\)/).click();
+  await page.getByRole("button", { name: "Reconsider" }).click();
+  await expect(
+    page.getByRole("radio", { name: "Keep Dom Casmurro" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Merge into the selected one" })
+    .click();
+  await expect(page.getByText(/Merged 1 publication/)).toBeVisible();
+
+  // The merge forgot the distinction, so taking the merge apart leaves the
+  // question live rather than the stale answer to it.
+  await page.goto("/admin/publications/history");
+  await page
+    .locator('li[data-action="merged"]')
+    .getByRole("button", { name: "Undo" })
+    .click();
+  await expect(page.locator('li[data-action="unmerged"]')).toHaveCount(1);
+
+  await page.goto("/admin/publications/duplicates");
+  await expect(
+    page.getByRole("radio", { name: "Keep Dom Casmuro" }),
+  ).toBeVisible();
+  await expect(page.getByText(/Ruled apart/)).toHaveCount(0);
 });

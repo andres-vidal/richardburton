@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { DuplicateCluster } from "app/publications/read";
+import type { Distinction, DuplicateCluster } from "app/publications/read";
 import { empty, type Publication } from "modules/publication/model";
 import { useState } from "react";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
@@ -46,6 +46,19 @@ const CLUSTERS: DuplicateCluster[] = [
   },
 ];
 
+// A pair the reviewer has already ruled apart — the same records, on the other
+// side of the answer.
+const RULED_APART: Distinction[] = [
+  {
+    publications: [
+      publication({ id: 5, title: "Iracema", year: "1886" }),
+      publication({ id: 6, title: "Iracema", year: "1922" }),
+    ],
+    actor: "curator@rb.test",
+    timestamp: "2026-08-01T10:00:00",
+  },
+];
+
 // The view is presentational; this harness owns the position so the stories can
 // move through the queue like the page does.
 const Stepping = (
@@ -67,11 +80,13 @@ const meta = {
   render: (args) => <Stepping {...args} />,
   args: {
     clusters: CLUSTERS,
+    distinctions: [],
     position: 0,
     busy: false,
     onSelect: fn(),
     onMerge: fn(),
     onDistinguish: fn(),
+    onReconsider: fn(),
     onSkip: fn(),
   },
   parameters: { layout: "fullscreen" },
@@ -110,7 +125,7 @@ export const KeepingTheOther: Story = {
       canvas.getByRole("radio", { name: "Keep Dom Casmuro" }),
     );
     await userEvent.click(
-      canvas.getByRole("button", { name: "Merge into the one kept" }),
+      canvas.getByRole("button", { name: "Merge into the selected one" }),
     );
 
     await expect(args.onMerge).toHaveBeenCalledWith(
@@ -170,12 +185,45 @@ export const Answering: Story = {
     const canvas = within(canvasElement);
 
     await expect(
-      canvas.getByRole("button", { name: "Merge into the one kept" }),
+      canvas.getByRole("button", { name: "Merge into the selected one" }),
     ).toBeDisabled();
     await expect(
       canvas.getByRole("button", { name: "Not duplicates" }),
     ).toBeDisabled();
     // Skipping costs nothing and stays available.
     await expect(canvas.getByRole("button", { name: "Skip" })).toBeEnabled();
+  },
+};
+
+/**
+ * A decision already made, and the way out of it. The section is collapsed —
+ * it is the exception, not the work — and opening it offers each pair back.
+ */
+export const RuledApart: Story = {
+  args: { distinctions: RULED_APART },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    // Collapsed: the count is on the summary, the pair is not on screen yet.
+    const summary = canvas.getByText("Ruled apart (1)");
+    await expect(summary).toBeVisible();
+
+    await userEvent.click(summary);
+
+    await expect(
+      canvas.getByText(/Told apart by curator@rb.test/),
+    ).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Reconsider" }));
+
+    await expect(args.onReconsider).toHaveBeenCalledWith(RULED_APART[0]);
+  },
+};
+
+/** With nothing ruled apart there is nothing to offer back, and no empty section. */
+export const NothingRuledApart: Story = {
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).queryByText(/Ruled apart/),
+    ).not.toBeInTheDocument();
   },
 };

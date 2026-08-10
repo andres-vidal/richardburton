@@ -1,9 +1,9 @@
 "use client";
 
-import type { DuplicateCluster } from "app/publications/read";
+import type { Distinction, DuplicateCluster } from "app/publications/read";
 import Button from "components/Button";
 import { Publication } from "modules/publication/model";
-import { distinguish, merge } from "modules/publication/remote";
+import { distinguish, merge, reconsider } from "modules/publication/remote";
 import {
   PublicationStoreProvider,
   usePublicationStore,
@@ -215,7 +215,7 @@ export const DuplicateStep: FC<{
           onClick={onDistinguish}
         />
         <Button
-          label="Merge into the one kept"
+          label="Merge into the selected one"
           variant="danger"
           width="fit"
           size="medium"
@@ -228,66 +228,131 @@ export const DuplicateStep: FC<{
   );
 };
 
+/**
+ * What has already been ruled apart, and the way back.
+ *
+ * A decision nobody can see is a decision nobody can take back, and this one is
+ * easy to make by accident: it is one click, it is silent, and afterwards the
+ * pair never surfaces again. Collapsed, because it is the exception rather than
+ * the work.
+ */
+export const SetAside: FC<{
+  distinctions: Distinction[];
+  busy: boolean;
+  onReconsider: (distinction: Distinction) => void;
+}> = ({ distinctions, busy, onReconsider }) => (
+  <details className="my-4">
+    <summary className="text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none focus-ring">
+      Ruled apart ({distinctions.length})
+    </summary>
+    <ul className="mt-2 space-y-1">
+      {distinctions.map((distinction) => (
+        <li
+          key={distinction.publications.map((p) => p.id).join("-")}
+          className="flex gap-3 justify-between items-baseline py-1.5 px-3 rounded border border-gray-200"
+        >
+          <div className="min-w-0">
+            <p className="text-sm">
+              {distinction.publications
+                .map((p) => `${p.title} (${p.year})`)
+                .join("  ·  ")}
+            </p>
+            <p className="text-xs text-gray-600">
+              Told apart by {distinction.actor}
+            </p>
+          </div>
+          <Button
+            label="Reconsider"
+            variant="outline"
+            width="fit"
+            size="small"
+            disabled={busy}
+            onClick={() => onReconsider(distinction)}
+          />
+        </li>
+      ))}
+    </ul>
+  </details>
+);
+
 /** Presentational shell, so the empty and populated states render in isolation. */
 export const DuplicateReviewView: FC<{
   clusters: DuplicateCluster[];
+  distinctions: Distinction[];
   position: number;
   busy: boolean;
   onSelect: (position: number) => void;
   onMerge: (winner: Publication) => void;
   onDistinguish: () => void;
+  onReconsider: (distinction: Distinction) => void;
   onSkip: () => void;
 }> = ({
   clusters,
+  distinctions,
   position,
   busy,
   onSelect,
   onMerge,
   onDistinguish,
+  onReconsider,
   onSkip,
-}) =>
-  clusters.length === 0 ? (
-    <div className="flex flex-col gap-4 items-center py-16 text-center">
-      <h1 className="text-2xl font-normal">Nothing to reconcile</h1>
-      <p className="text-gray-600">
-        No two records look like the same publication.
-      </p>
-      <Link href="/" className="anchor">
-        Back to the index
-      </Link>
-    </div>
-  ) : (
-    <div className="flex overflow-hidden my-4 rounded-lg border border-gray-200 h-[calc(100dvh-15.5rem)]">
-      <DuplicateQueue
-        clusters={clusters}
-        position={position}
-        onSelect={onSelect}
-      />
-      <div className="overflow-y-auto flex-1">
-        <DuplicateStep
-          // Key by the cluster's members so each question gets a fresh choice.
-          key={clusters[position].publications.map((p) => p.id).join("-")}
-          cluster={clusters[position]}
-          position={position}
-          total={clusters.length}
-          busy={busy}
-          onMerge={onMerge}
-          onDistinguish={onDistinguish}
-          onSkip={onSkip}
-        />
-      </div>
-    </div>
-  );
-
-const DuplicateReview: FC<{ clusters: DuplicateCluster[] }> = ({
-  clusters,
 }) => (
+  <>
+    {clusters.length === 0 ? (
+      <div className="flex flex-col gap-4 items-center py-16 text-center">
+        <h1 className="text-2xl font-normal">Nothing to reconcile</h1>
+        <p className="text-gray-600">
+          No two records look like the same publication.
+        </p>
+        <Link href="/" className="anchor">
+          Back to the index
+        </Link>
+      </div>
+    ) : (
+      <div className="flex overflow-hidden my-4 rounded-lg border border-gray-200 h-[calc(100dvh-15.5rem)]">
+        <DuplicateQueue
+          clusters={clusters}
+          position={position}
+          onSelect={onSelect}
+        />
+        <div className="overflow-y-auto flex-1">
+          <DuplicateStep
+            // Key by the cluster's members so each question gets a fresh choice.
+            key={clusters[position].publications.map((p) => p.id).join("-")}
+            cluster={clusters[position]}
+            position={position}
+            total={clusters.length}
+            busy={busy}
+            onMerge={onMerge}
+            onDistinguish={onDistinguish}
+            onSkip={onSkip}
+          />
+        </div>
+      </div>
+    )}
+    {distinctions.length > 0 && (
+      <SetAside
+        distinctions={distinctions}
+        busy={busy}
+        onReconsider={onReconsider}
+      />
+    )}
+  </>
+);
+
+const DuplicateReview: FC<{
+  clusters: DuplicateCluster[];
+  distinctions: Distinction[];
+}> = ({ clusters, distinctions }) => (
   <PublicationStoreProvider>
-    <Review clusters={clusters} />
+    <Review clusters={clusters} distinctions={distinctions} />
   </PublicationStoreProvider>
 );
 
-const Review: FC<{ clusters: DuplicateCluster[] }> = ({ clusters }) => {
+const Review: FC<{
+  clusters: DuplicateCluster[];
+  distinctions: Distinction[];
+}> = ({ clusters, distinctions }) => {
   const store = usePublicationStore();
   const router = useRouter();
 
@@ -327,6 +392,22 @@ const Review: FC<{ clusters: DuplicateCluster[] }> = ({ clusters }) => {
     if (kept) advance(current);
   }
 
+  async function handleReconsider(distinction: Distinction) {
+    setBusy(true);
+    const back = await reconsider(distinction.publications.map((p) => p.id!));
+    setBusy(false);
+    // The pair rejoins the questions, so the queue is read again rather than
+    // patched — the cluster it belongs to may be larger than the pair. What
+    // this sitting has already answered is forgotten with it: the reviewer is
+    // revisiting decisions, and a cluster still on that list would come back
+    // from the server only to be filtered straight out again.
+    if (back) {
+      setAnswered([]);
+      setPosition(0);
+      router.refresh();
+    }
+  }
+
   function handleSkip() {
     setPosition((p) => Math.min(p + 1, remaining.length - 1));
   }
@@ -334,11 +415,13 @@ const Review: FC<{ clusters: DuplicateCluster[] }> = ({ clusters }) => {
   return (
     <DuplicateReviewView
       clusters={remaining}
+      distinctions={distinctions}
       position={Math.min(position, Math.max(remaining.length - 1, 0))}
       busy={busy}
       onSelect={setPosition}
       onMerge={handleMerge}
       onDistinguish={handleDistinguish}
+      onReconsider={handleReconsider}
       onSkip={handleSkip}
     />
   );

@@ -1,4 +1,4 @@
-import { readDuplicates } from "app/publications/read";
+import { readDistinctions, readDuplicates } from "app/publications/read";
 import Breadcrumb from "components/Breadcrumb";
 import DuplicateReview from "components/DuplicateReview";
 import Layout from "components/Layout";
@@ -11,7 +11,10 @@ const BREADCRUMB_ITEMS = [
 ];
 
 export default async function DuplicateReviewPage() {
-  const { clusters } = await readDuplicates();
+  const [{ clusters }, distinctions] = await Promise.all([
+    readDuplicates(),
+    readDistinctions(),
+  ]);
 
   return (
     <Layout
@@ -24,7 +27,9 @@ export default async function DuplicateReviewPage() {
           />
         </>
       }
-      content={<DuplicateReview clusters={clusters} />}
+      content={
+        <DuplicateReview clusters={clusters} distinctions={distinctions} />
+      }
     />
   );
 }

@@ -107,6 +107,25 @@ export type DuplicateReport = {
  * the page is rendered, like the rest of the admin views, so the reviewer has
  * the first question in the first response.
  */
+/** A pair someone has ruled apart, and the record of who did. */
+export type Distinction = {
+  publications: Publication[];
+  actor: string;
+  timestamp: string;
+};
+
+/**
+ * The pairs already ruled apart, newest first. Read alongside the clusters so
+ * a decision can be seen and taken back — one that cannot be seen cannot be.
+ */
+export const readDistinctions = cache(async (): Promise<Distinction[]> => {
+  const { entries } = await get<{ entries: Distinction[] }>(
+    "/publications/duplicates/distinctions",
+  );
+
+  return entries;
+});
+
 export const readDuplicates = cache(async (): Promise<DuplicateReport> => {
   const { entries, threshold } = await get<{
     entries: DuplicateCluster[];
