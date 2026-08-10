@@ -8,12 +8,12 @@ const DOM_CASMURRO: Publication = {
   ...empty(),
   id: 7,
   title: "Dom Casmurro",
-  authors: "Helen Caldwell",
+  authors: ["Helen Caldwell"],
   originalTitle: "Dom Casmurro",
-  originalAuthors: "Machado de Assis",
+  originalAuthors: ["Machado de Assis"],
   year: "1953",
-  countries: "US",
-  publishers: "Noonday Press",
+  countries: ["US"],
+  publishers: ["Noonday Press"],
   references: ["Caldwell, Helen. Introduction, 1953."],
 };
 
@@ -23,8 +23,8 @@ const DUPLICATES: Publication[] = [
   {
     ...DOM_CASMURRO,
     id: 8,
-    countries: "GB",
-    publishers: "W. H. Allen",
+    countries: ["GB"],
+    publishers: ["W. H. Allen"],
     references: ["Gledson, John. Deceptive Realism, 1984."],
   },
   {

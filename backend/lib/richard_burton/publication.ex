@@ -438,20 +438,18 @@ defmodule RichardBurton.Publication do
     kept
     |> Map.delete(:id)
     |> Map.merge(%{
-      countries: joined(flat, :countries),
-      publishers: joined(flat, :publishers),
+      countries: gathered(flat, :countries),
+      publishers: gathered(flat, :publishers),
       references: flat |> Enum.flat_map(& &1.references) |> Enum.uniq()
     })
     |> Codec.nest()
   end
 
-  defp joined(flat, field) do
+  defp gathered(flat, field) do
     flat
-    |> Enum.flat_map(&String.split(Map.get(&1, field) || "", ",", trim: true))
-    |> Enum.map(&String.trim/1)
+    |> Enum.flat_map(&(Map.get(&1, field) || []))
     |> Enum.uniq()
     |> Enum.sort()
-    |> Enum.join(", ")
   end
 
   @doc """

@@ -4,6 +4,7 @@ import {
   autocomplete,
   define,
   describeError,
+  describe as describeAttribute,
   describeValue,
   empty,
   merged,
@@ -41,10 +42,10 @@ describe("describeValue", () => {
     );
   });
 
-  test("maps every code of a list — what a merged record holds", () => {
+  test("describes every code of a list — what a merged record holds", () => {
     const [first, second] = Object.keys(COUNTRIES);
 
-    expect(describeValue(`${first}, ${second}`, "countries")).toBe(
+    expect(describeAttribute([first, second], "countries")).toBe(
       `${COUNTRIES[first].label}, ${COUNTRIES[second].label}`,
     );
   });
@@ -56,7 +57,7 @@ describe("describeValue", () => {
     expect(warn).toHaveBeenCalled();
 
     // One unknown code in a list does not cost the others their labels.
-    expect(describeValue(`${knownCode}, __nope__`, "countries")).toBe(
+    expect(describeAttribute([knownCode, "__nope__"], "countries")).toBe(
       `${COUNTRIES[knownCode].label}, __nope__`,
     );
 
@@ -165,18 +166,18 @@ describe("merged", () => {
 
   test("unions the countries and publishers of all of them", () => {
     const winner = publication({
-      countries: "GB",
-      publishers: "Bickers & Son",
+      countries: ["GB"],
+      publishers: ["Bickers & Son"],
     });
     const losers = [
-      publication({ countries: "US, GB", publishers: "Noonday Press" }),
-      publication({ countries: "BR", publishers: "Bickers & Son" }),
+      publication({ countries: ["US", "GB"], publishers: ["Noonday Press"] }),
+      publication({ countries: ["BR"], publishers: ["Bickers & Son"] }),
     ];
 
     const result = merged(winner, losers);
 
-    expect(result.countries).toBe("BR, GB, US");
-    expect(result.publishers).toBe("Bickers & Son, Noonday Press");
+    expect(result.countries).toEqual(["BR", "GB", "US"]);
+    expect(result.publishers).toEqual(["Bickers & Son", "Noonday Press"]);
   });
 
   test("takes every source none of the others already gave", () => {
@@ -195,8 +196,8 @@ describe("merged", () => {
 
   test("merging nothing in leaves the record as it stands", () => {
     const winner = publication({
-      countries: "GB, US",
-      publishers: "Bickers & Son",
+      countries: ["GB", "US"],
+      publishers: ["Bickers & Son"],
       references: ["Alves, 1990"],
     });
 

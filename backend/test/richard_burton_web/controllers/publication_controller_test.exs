@@ -559,8 +559,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> json_response(200)
 
       assert result["id"] == meta.winner.id
-      assert result["countries"] == "GB, US"
-      assert result["publishers"] == "Bickers & Son, Noonday Press"
+      assert result["countries"] == ["GB", "US"]
+      assert result["publishers"] == ["Bickers & Son", "Noonday Press"]
 
       # Only the survivor is left in the index.
       conn = get(build_conn(), publication_path(meta.conn, :index))

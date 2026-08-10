@@ -44,7 +44,7 @@ const Summary: FC<{ publication: Publication }> = ({ publication: p }) => (
     </p>
     <dl className="mt-0.5 text-xs text-gray-600">
       {DETAILED.map((key) => {
-        const value = Publication.describeValue(p[key] as string, key);
+        const value = Publication.describe(p[key], key);
 
         return value ? (
           <div key={key} className="flex gap-1">
@@ -113,16 +113,8 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
   const result = Publication.merged(winner, losers);
 
   const rows = [
-    {
-      label: "Countries",
-      kept: Publication.items(winner.countries),
-      all: Publication.items(result.countries),
-    },
-    {
-      label: "Publishers",
-      kept: Publication.items(winner.publishers),
-      all: Publication.items(result.publishers),
-    },
+    { label: "Countries", kept: winner.countries, all: result.countries },
+    { label: "Publishers", kept: winner.publishers, all: result.publishers },
     { label: "References", kept: winner.references, all: result.references },
   ].map(({ label, kept, all }) => ({
     label,

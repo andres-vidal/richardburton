@@ -202,8 +202,6 @@ function describeValue(value: string, attribute: PublicationKey): string {
     console.warn("Unknown country code: ", value);
   }
   return value;
-  }
-  return value;
 }
 
 /**
@@ -301,7 +299,6 @@ const Publication = {
   describeError,
   describeValue,
   empty,
-  items,
   merged,
 };
 
@@ -319,7 +316,6 @@ export {
   describeValue,
   empty,
   HISTORY_ACTIONS,
-  items,
   merged,
   Publication,
 };
