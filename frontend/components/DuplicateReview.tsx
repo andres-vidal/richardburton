@@ -307,7 +307,7 @@ export const RuledApartStep: FC<{
 
     <div className="flex justify-end mt-auto">
       <Button
-        label="Put back among the questions"
+        label="Reconsider"
         variant="outline-primary"
         width="fit"
         size="medium"

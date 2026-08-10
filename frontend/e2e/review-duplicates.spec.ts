@@ -149,9 +149,7 @@ test("a decision to keep records apart can be taken back, and a merge takes it b
   await expect(page.getByText(/Ruled apart by/)).toBeVisible();
 
   // Taking it back puts the question among the others again.
-  await page
-    .getByRole("button", { name: "Put back among the questions" })
-    .click();
+  await page.getByRole("button", { name: "Reconsider" }).click();
   await expect(
     page.getByText("Back among the questions", { exact: true }),
   ).toBeVisible();
@@ -164,9 +162,7 @@ test("a decision to keep records apart can be taken back, and a merge takes it b
   await expect(page.getByText("Every question answered")).toBeVisible();
 
   await ruledApart.getByRole("button", { name: /Dom Casmur/ }).click();
-  await page
-    .getByRole("button", { name: "Put back among the questions" })
-    .click();
+  await page.getByRole("button", { name: "Reconsider" }).click();
   await expect(
     page.getByRole("radio", { name: "Keep Dom Casmurro" }),
   ).toBeVisible();

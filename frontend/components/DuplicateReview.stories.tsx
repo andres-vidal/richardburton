@@ -228,9 +228,7 @@ export const RuledApart: Story = {
     ).toBeVisible();
     await expect(canvas.queryByRole("radio")).not.toBeInTheDocument();
 
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Put back among the questions" }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: "Reconsider" }));
     await expect(args.onReconsider).toHaveBeenCalledWith(RULED_APART[0]);
   },
 };
