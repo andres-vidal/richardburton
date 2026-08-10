@@ -34,7 +34,7 @@ test("entering a translation of a book already in the database completes it from
   // Typing part of the author finds the book: either half of it will do.
   await originalTitle.fill("Machado");
   const byAuthor = page.getByRole("option", {
-    name: "Dom Casmurro — Machado de Assis",
+    name: "Dom Casmurro Machado de Assis",
   });
   await expect(byAuthor).toBeVisible();
 
@@ -44,7 +44,7 @@ test("entering a translation of a book already in the database completes it from
   // Typing the title narrows to the one book, and picking it fills both halves.
   await originalTitle.fill("Dom Cas");
   await page
-    .getByRole("option", { name: "Dom Casmurro — Machado de Assis" })
+    .getByRole("option", { name: "Dom Casmurro Machado de Assis" })
     .click();
 
   await expect(originalTitle).toHaveValue("Dom Casmurro");
