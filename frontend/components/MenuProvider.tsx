@@ -15,14 +15,7 @@ import {
   useRole,
 } from "@floating-ui/react";
 import { isString } from "lodash";
-import {
-  cloneElement,
-  FC,
-  ReactElement,
-  Ref,
-  useMemo,
-  useRef,
-} from "react";
+import { cloneElement, FC, ReactElement, Ref, useMemo, useRef } from "react";
 import { mergeRefs } from "react-merge-refs";
 import Menu from "./Menu";
 import MenuItem from "./MenuItem";
