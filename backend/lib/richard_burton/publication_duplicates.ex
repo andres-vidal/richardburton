@@ -122,6 +122,46 @@ defmodule RichardBurton.Publication.Duplicates do
     end
   end
 
+  @doc """
+  Take back a decision to tell records apart, so the review asks about them
+  again.
+
+  Every pair among the ids is forgotten, matching how `tell_apart/2` records
+  them: the answer was about the cluster, so taking it back is too.
+  """
+  def reconsider(ids) when is_list(ids) do
+    {count, _} = Repo.delete_all(among(ids))
+    {:ok, count}
+  end
+
+  @doc """
+  The pairs someone has ruled apart, newest first, with the records themselves.
+
+  A decision that cannot be seen cannot be taken back, and this is what a
+  reviewer looks at to find one worth reconsidering.
+  """
+  def told_apart do
+    from(d in Distinction, order_by: [desc: d.id])
+    |> Repo.all()
+    |> Enum.map(
+      &%{
+        publications: load([&1.publication_id, &1.other_publication_id]),
+        actor: &1.actor,
+        timestamp: &1.inserted_at
+      }
+    )
+    # A pair whose records are no longer both in the index — merged away, or
+    # deleted — has nothing left to ask about.
+    |> Enum.filter(&(length(&1.publications) == 2))
+  end
+
+  # Every distinction among these records, whichever way round it was stored.
+  defp among(ids) do
+    from(d in Distinction,
+      where: d.publication_id in ^ids and d.other_publication_id in ^ids
+    )
+  end
+
   # Every pair of live publications alike enough to ask about, minus the pairs
   # already told apart. The corpus is small enough to compare wholesale; a much
   # larger one would need blocking on a cheap key first.

@@ -187,6 +187,79 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
   end
 
+  describe "reconsider/1" do
+    test "puts the pair back among the questions" do
+      a = insert(%{})
+      b = insert(%{"title" => "Dom Casmuro"})
+
+      {:ok, _} = Duplicates.tell_apart([a.id, b.id], "admin@example.com")
+      assert [] == Duplicates.clusters()
+
+      assert {:ok, 1} = Duplicates.reconsider([a.id, b.id])
+      assert [_] = Duplicates.clusters()
+    end
+
+    test "forgets every pair among the records, as telling apart recorded them" do
+      [a, b, c] = [
+        insert(%{}),
+        insert(%{"title" => "Dom Casmuro"}),
+        insert(%{"title" => "Dom C"})
+      ]
+
+      {:ok, 3} = Duplicates.tell_apart([a.id, b.id, c.id], "admin@example.com")
+
+      assert {:ok, 3} = Duplicates.reconsider([a.id, b.id, c.id])
+    end
+
+    test "taking back what was never decided is not an error" do
+      a = insert(%{})
+      b = insert(%{"title" => "Dom Casmuro"})
+
+      assert {:ok, 0} = Duplicates.reconsider([a.id, b.id])
+    end
+  end
+
+  describe "told_apart/0" do
+    test "says which records were ruled apart, and by whom" do
+      a = insert(%{})
+      b = insert(%{"title" => "Dom Casmuro"})
+      {:ok, _} = Duplicates.tell_apart([a.id, b.id], "admin@example.com")
+
+      assert [%{publications: [_, _], actor: "admin@example.com"}] = Duplicates.told_apart()
+    end
+
+    test "leaves out a pair one of whose records is gone" do
+      a = insert(%{})
+      b = insert(%{"title" => "Dom Casmuro"})
+      {:ok, _} = Duplicates.tell_apart([a.id, b.id], "admin@example.com")
+
+      {:ok, _} = Publication.delete(b.id)
+      Publication.Index.Refresher.refresh()
+
+      # Nothing left to ask about, so nothing to offer taking back.
+      assert [] == Duplicates.told_apart()
+    end
+  end
+
+  describe "a merge and a distinction, which answer the same question" do
+    test "merging forgets the distinction, so an un-merge asks again" do
+      a = insert(%{})
+      b = insert(%{"title" => "Dom Casmuro"})
+
+      {:ok, _} = Duplicates.tell_apart([a.id, b.id], "admin@example.com")
+      {:ok, _} = Publication.merge(a.id, [b.id], "admin@example.com")
+      Publication.Index.Refresher.refresh()
+
+      [merge | _] = Publication.History.of(a.id)
+      {:ok, _} = Publication.undo(a.id, merge.version, "admin@example.com")
+      Publication.Index.Refresher.refresh()
+
+      # Both are live again and still alike, so the question is live again too:
+      # the merge was the later answer, and taking it back leaves none.
+      assert [_] = Duplicates.clusters()
+    end
+  end
+
   describe "threshold/0" do
     test "is tunable without a code change" do
       original = Application.get_env(:richard_burton, :duplicate_threshold)
