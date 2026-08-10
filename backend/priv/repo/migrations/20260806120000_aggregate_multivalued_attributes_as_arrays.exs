@@ -36,9 +36,10 @@ defmodule RichardBurton.Repo.Migrations.AggregateMultivaluedAttributesAsArrays d
   # search_keywords reads search_documents, which reads flat_publications, so
   # the stack comes down top-first and is rebuilt bottom-first.
   #
-  # `words` renders a multi-value column as the text the tsvector wants, and
-  # `codes` renders the country codes as the array the name lookup matches on —
-  # the two things the shape decides.
+  # `words` renders one of the four newly-multi-valued columns as the text the
+  # tsvector wants, and `codes` renders the country codes as the array the name
+  # lookup matches on — the two things the shape decides. `references` is a
+  # list either way, so it is not one of them.
   defp restack(select, words, codes) do
     execute("DROP MATERIALIZED VIEW search_keywords")
     execute("DROP MATERIALIZED VIEW search_documents")
@@ -65,7 +66,8 @@ defmodule RichardBurton.Repo.Migrations.AggregateMultivaluedAttributesAsArrays d
       setweight(to_tsvector('rb_search'::regconfig, #{words.("publishers")}), 'C')        ||
       setweight(to_tsvector('rb_search'::regconfig, coalesce(cn.names, '')), 'C')         ||
       setweight(to_tsvector('rb_search'::regconfig, fp.year::text), 'C')                  ||
-      setweight(to_tsvector('rb_search'::regconfig, #{words.("references")}), 'D')        AS document
+      setweight(to_tsvector('rb_search'::regconfig,
+        array_to_string(fp."references", ' ')), 'D')                                      AS document
     FROM
       flat_publications fp
       LEFT JOIN LATERAL (
