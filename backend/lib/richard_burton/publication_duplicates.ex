@@ -166,21 +166,12 @@ defmodule RichardBurton.Publication.Duplicates do
   # already ruled apart. The corpus is small enough to compare wholesale; a much
   # larger one would need blocking on a cheap key first.
   defp candidate_pairs do
-    threshold = threshold()
-
     from(a in FlatPublication,
+      as: :left,
       join: b in FlatPublication,
+      as: :right,
       on: a.id < b.id,
-      where:
-        fragment("similarity(?, ?) > ?", a.authors, b.authors, ^threshold) and
-          (fragment("similarity(?, ?) > ?", a.title, b.title, ^threshold) or
-             (fragment("similarity(?, ?) > ?", a.original_title, b.original_title, ^threshold) and
-                fragment(
-                  "similarity(?, ?) > ?",
-                  a.original_authors,
-                  b.original_authors,
-                  ^threshold
-                ))),
+      where: ^worth_asking_about(),
       left_join: d in Distinction,
       on: d.publication_id == a.id and d.other_publication_id == b.id,
       where: is_nil(d.id),
@@ -193,6 +184,29 @@ defmodule RichardBurton.Publication.Duplicates do
       }
     )
     |> Repo.all()
+  end
+
+  # Translators alike, and then either the title or the book behind it. The
+  # threshold is read once, so every field is judged against the same bar.
+  defp worth_asking_about do
+    threshold = threshold()
+
+    dynamic(
+      ^alike(:authors, threshold) and
+        (^alike(:title, threshold) or
+           (^alike(:original_title, threshold) and ^alike(:original_authors, threshold)))
+    )
+  end
+
+  defp alike(field, threshold) do
+    dynamic(
+      fragment(
+        "similarity(?, ?) > ?",
+        field(as(:left), ^field),
+        field(as(:right), ^field),
+        ^threshold
+      )
+    )
   end
 
   # The connected components of the candidate graph, as sorted id lists.
