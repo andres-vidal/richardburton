@@ -30,7 +30,7 @@ const PUBLICATION = {
   year: "1953",
   countries: "US",
   publishers: "Noonday Press",
-  references: [
+  sources: [
     "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
   ],
 };
@@ -47,7 +47,7 @@ const LOG: PublicationHistoryEntry[] = [
     snapshot: { ...PUBLICATION, year: 1953 },
     diff: {
       fields: { title: { from: "Dom Casmurro (draft)", to: "Dom Casmurro" } },
-      references: null,
+      sources: null,
     },
   },
   {
@@ -211,9 +211,9 @@ export const Editing: Story = {
 
 /**
  * The edit form carries a provenance editor: the publication's existing
- * references load as rows, and "Add reference" appends an empty one.
+ * sources load as rows, and "Add source" appends an empty one.
  */
-export const EditingReferences: Story = {
+export const EditingSources: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],
   parameters: {
@@ -223,25 +223,23 @@ export const EditingReferences: Story = {
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
     await userEvent.click(screen.getByRole("button", { name: "Edit" }));
 
-    // The stored reference loads as the first row.
+    // The stored source loads as the first row.
     await waitFor(() =>
-      expect(screen.getByLabelText("Reference 1")).toHaveValue(
+      expect(screen.getByLabelText("Source 1")).toHaveValue(
         "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
       ),
     );
 
     // Adding appends an empty, focusable row.
-    await userEvent.click(
-      screen.getByRole("button", { name: "Add reference" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Add source" }));
     await waitFor(() =>
-      expect(screen.getByLabelText("Reference 2")).toHaveValue(""),
+      expect(screen.getByLabelText("Source 2")).toHaveValue(""),
     );
     await userEvent.type(
-      screen.getByLabelText("Reference 2"),
+      screen.getByLabelText("Source 2"),
       "https://archive.org/details/domcasmurro",
     );
-    await expect(screen.getByLabelText("Reference 2")).toHaveValue(
+    await expect(screen.getByLabelText("Source 2")).toHaveValue(
       "https://archive.org/details/domcasmurro",
     );
   },

@@ -10,7 +10,7 @@ const meta = {
     items: [
       { label: "Home", href: "/" },
       { label: "Admin", href: "/admin" },
-      { label: "Backfill references" },
+      { label: "Backfill sources" },
     ],
   },
   decorators: [
@@ -41,12 +41,12 @@ export const Default: Story = {
       "/admin",
     );
     // The current page is announced but not a link.
-    await expect(canvas.getByText("Backfill references")).toHaveAttribute(
+    await expect(canvas.getByText("Backfill sources")).toHaveAttribute(
       "aria-current",
       "page",
     );
     await expect(
-      canvas.queryByRole("link", { name: "Backfill references" }),
+      canvas.queryByRole("link", { name: "Backfill sources" }),
     ).not.toBeInTheDocument();
   },
 };

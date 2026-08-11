@@ -13,7 +13,7 @@ const DOM_CASMURRO: FullHistoryEntry["snapshot"] = {
   year: 1953,
   countries: "US",
   publishers: "Noonday Press",
-  references: [],
+  sources: [],
 };
 
 const IRACEMA: FullHistoryEntry["snapshot"] = {
@@ -24,7 +24,7 @@ const IRACEMA: FullHistoryEntry["snapshot"] = {
   year: 1886,
   countries: "GB",
   publishers: "Bickers & Son",
-  references: [],
+  sources: [],
 };
 
 // Two records' streams interleaved, newest first — the way the server feeds
@@ -53,7 +53,7 @@ const FEED: FullHistoryEntry[] = [
     snapshot: { ...IRACEMA, title: "Iracema, a Legend of Brazil", year: 1954 },
     // Only the year: the retitle below is left untouched, which is what keeps
     // it undoable further down the feed.
-    diff: { fields: { year: { from: 1886, to: 1954 } }, references: null },
+    diff: { fields: { year: { from: 1886, to: 1954 } }, sources: null },
   },
   {
     publicationId: 1,
@@ -81,7 +81,7 @@ const FEED: FullHistoryEntry[] = [
           to: "Iracema, a Legend of Brazil",
         },
       },
-      references: null,
+      sources: null,
     },
   },
   {

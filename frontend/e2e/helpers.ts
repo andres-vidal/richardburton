@@ -114,32 +114,32 @@ export async function submitWorkspace(page: Page, count: number) {
 }
 
 /**
- * Attach references to a committed workspace row through its "Sources" cell:
- * open the row's references modal, add each source, close, and check the count
+ * Attach sources to a committed workspace row through its "Sources" cell:
+ * open the row's sources modal, add each source, close, and check the count
  * the button reports.
  */
-export async function addRowReferences(
+export async function addRowSources(
   page: Page,
   rowName: string | RegExp,
-  references: string[],
+  sources: string[],
 ) {
   const row = indexTable(page).getByRole("row", { name: rowName });
-  await row.getByRole("button", { name: "Add references" }).click();
+  await row.getByRole("button", { name: "Add sources" }).click();
 
-  const dialog = page.getByRole("dialog", { name: "Edit references" });
+  const dialog = page.getByRole("dialog", { name: "Edit sources" });
   await expect(dialog).toBeVisible();
-  for (const [index, reference] of references.entries()) {
-    await dialog.getByRole("button", { name: "Add reference" }).click();
+  for (const [index, source] of sources.entries()) {
+    await dialog.getByRole("button", { name: "Add source" }).click();
     await dialog
-      .getByRole("textbox", { name: `Reference ${index + 1}` })
-      .fill(reference);
+      .getByRole("textbox", { name: `Source ${index + 1}` })
+      .fill(source);
   }
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
 
   // The cell button now reports the count — the edits ride the bulk insert.
   await expect(
-    row.getByRole("button", { name: `Edit references (${references.length})` }),
+    row.getByRole("button", { name: `Edit sources (${sources.length})` }),
   ).toBeVisible();
 }
 
@@ -238,8 +238,8 @@ export const PUBLICATIONS: PublicationInput[] = [
 
 // A realistic corpus seeded in one shot via CSV bulk-import (8 columns in codec
 // order: original_authors; year; countries; original_title; title; authors;
-// publishers; references). Three works share an author (Machado de Assis) so
-// search narrows to several rows; three rows carry a reference and four don't, so
+// publishers; sources). Three works share an author (Machado de Assis) so
+// search narrows to several rows; three rows carry a source and four don't, so
 // the backfill wizard sees a real queue.
 const CORPUS_ROWS = [
   "Machado de Assis;1953;US;Dom Casmurro;Dom Casmurro;Helen Caldwell;Noonday Press;",
@@ -252,7 +252,7 @@ const CORPUS_ROWS = [
 ];
 export const CORPUS_CSV = CORPUS_ROWS.join("\n") + "\n";
 export const CORPUS_SIZE = CORPUS_ROWS.length; // 7
-export const CORPUS_UNREFERENCED = 4; // rows with an empty references column
+export const CORPUS_UNSOURCED = 4; // rows with an empty sources column
 
 /** A page holds 20 under `:e2e` (see config/e2e.exs), so this is two of them
  * and a bit: enough to have a first page, a last one, and a boundary between. */

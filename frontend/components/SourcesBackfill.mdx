@@ -1,54 +1,54 @@
 import { Canvas, Meta } from "@storybook/addon-docs/blocks";
 
-import * as ReferencesBackfillStories from "./ReferencesBackfill.stories";
+import * as SourcesBackfillStories from "./SourcesBackfill.stories";
 
-<Meta of={ReferencesBackfillStories} />
+<Meta of={SourcesBackfillStories} />
 
-# References backfill
+# Sources backfill
 
 A master-detail wizard for adding provenance to publications that have none: a
-queue of reference-less publications on the left, the editor for the selected one
-on the right. Reached from the admin panel at `/admin/publications/references`.
+queue of source-less publications on the left, the editor for the selected one
+on the right. Reached from the admin panel at `/admin/publications/sources`.
 
 ## Composition
 
-- **`ReferencesBackfill`** (default export) — the orchestrator. It takes the
-  `queue` — the reference-less publications, read where the page is rendered —
+- **`SourcesBackfill`** (default export) — the orchestrator. It takes the
+  `queue` — the source-less publications, read where the page is rendered —
   brings the state the wizard edits them through, tracks the current position and
   save state, and wires Save / Skip. The wizard opens on the first record rather
   than on a spinner; there is no fetch on mount.
-- **`ReferencesBackfillView`** — the presentational shell. It takes the queue as
+- **`SourcesBackfillView`** — the presentational shell. It takes the queue as
   an `ids` prop so its **loading** (`undefined`), **empty** (`[]`), and
   **populated** states can each be rendered and a11y-checked in isolation.
-- **`ReferencesQueue`** — the queue listbox (see below).
+- **`SourcesQueue`** — the queue listbox (see below).
 - **`BackfillStep`** — the detail pane: the selected publication's identifying
-  context, the shared `ReferencesEditor`, and the Skip / Save & next actions.
+  context, the shared `SourcesEditor`, and the Skip / Save & next actions.
 
-<Canvas of={ReferencesBackfillStories.Populated} />
+<Canvas of={SourcesBackfillStories.Populated} />
 
 ## States
 
 - **Populated** — the master-detail: the queue next to the editor, first
   publication selected. Fully interactive: click through the queue, edit
-  references, and Skip / Save advance the position (persistence is the one
+  sources, and Skip / Save advance the position (persistence is the one
   part stubbed out).
 - **Loading** — the shell's own empty-handed state (`ids: undefined`). The
   wizard does not reach it in the app, since the queue arrives with the page, but
   the shell still has to render it correctly.
 - **Empty** — nothing left to source ("All caught up").
 
-<Canvas of={ReferencesBackfillStories.Loading} />
-<Canvas of={ReferencesBackfillStories.Empty} />
+<Canvas of={SourcesBackfillStories.Loading} />
+<Canvas of={SourcesBackfillStories.Empty} />
 
 ## Queue
 
 The queue is a single-select **listbox**: one tab stop, arrow / Home / End move
 the selection (via `aria-activedescendant`), and a click jumps straight to a
 publication. A dot marks whether each publication has **saved** sources, and the
-panel header counts the entries still missing references — both react when a
+panel header counts the entries still missing sources — both react when a
 save lands, never to an unsaved draft.
 
-<Canvas of={ReferencesBackfillStories.Queue} />
+<Canvas of={SourcesBackfillStories.Queue} />
 
 ## Step
 
@@ -58,5 +58,5 @@ source. Edits write to the row's override overlay and are persisted by `update`
 on save. On the last publication in the queue the button reads just **Save** —
 there is no next to advance to.
 
-<Canvas of={ReferencesBackfillStories.Step} />
-<Canvas of={ReferencesBackfillStories.LastStep} />
+<Canvas of={SourcesBackfillStories.Step} />
+<Canvas of={SourcesBackfillStories.LastStep} />

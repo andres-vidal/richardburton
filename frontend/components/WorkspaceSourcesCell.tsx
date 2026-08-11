@@ -1,16 +1,16 @@
 "use client";
 
-import { usePublicationReferences } from "modules/publication/hooks";
+import { usePublicationSources } from "modules/publication/hooks";
 import { usePublicationStore } from "modules/publication/workspace";
-import { overrideReferences } from "modules/publication/store";
+import { overrideSources } from "modules/publication/store";
 import { FC, MouseEvent, useState } from "react";
 import Button from "./Button";
 import { Modal } from "./Modal";
 import type { RowId } from "./PublicationIndexTable";
-import ReferencesEditor from "./ReferencesEditor";
+import SourcesEditor from "./SourcesEditor";
 
 /**
- * The trailing "sources" cell for a workspace row. References is a list, not a
+ * The trailing "sources" cell for a workspace row. Sources is a list, not a
  * scalar cell, so it lives outside the attribute grid: a button shows the count
  * and opens the list editor in a modal. Edits write to the row's override overlay,
  * so they ride the bulk insert with everything else — no separate save.
@@ -19,15 +19,15 @@ import ReferencesEditor from "./ReferencesEditor";
  * hover / error / selected background. The workspace supplies them for committed
  * rows and leaves them at their defaults for the plain draft row.
  */
-const WorkspaceReferencesCell: FC<{
+const WorkspaceSourcesCell: FC<{
   rowId: RowId;
   invalid?: boolean;
   selected?: boolean;
   focused?: boolean;
 }> = ({ rowId, invalid = false, selected = false, focused = false }) => {
-  const references = usePublicationReferences(rowId);
+  const sources = usePublicationSources(rowId);
   const [open, setOpen] = useState(false);
-  const count = references.length;
+  const count = sources.length;
 
   // The cell sits inside the row's onClick (which selects the row); opening the
   // editor must not also select.
@@ -51,24 +51,18 @@ const WorkspaceReferencesCell: FC<{
         width="fit"
         size="small"
         onClick={openEditor}
-        aria-label={
-          count === 0 ? "Add references" : `Edit references (${count})`
-        }
+        aria-label={count === 0 ? "Add sources" : `Edit sources (${count})`}
         label={
           count === 0 ? "Sources" : `${count} source${count === 1 ? "" : "s"}`
         }
       />
 
-      <Modal
-        isOpen={open}
-        onClose={() => setOpen(false)}
-        label="Edit references"
-      >
+      <Modal isOpen={open} onClose={() => setOpen(false)} label="Edit sources">
         <div className="p-8 space-y-4 w-full">
-          <h1 className="text-xl font-normal">References</h1>
-          <ReferencesEditor
-            value={references}
-            onChange={(next) => overrideReferences(store, rowId, next)}
+          <h1 className="text-xl font-normal">Sources</h1>
+          <SourcesEditor
+            value={sources}
+            onChange={(next) => overrideSources(store, rowId, next)}
           />
         </div>
       </Modal>
@@ -76,4 +70,4 @@ const WorkspaceReferencesCell: FC<{
   );
 };
 
-export default WorkspaceReferencesCell;
+export default WorkspaceSourcesCell;

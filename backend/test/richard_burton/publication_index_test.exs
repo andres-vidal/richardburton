@@ -53,7 +53,7 @@ defmodule RichardBurton.Publication.IndexTest do
       publishers_fingerprint: "CFC153F1AB2F32958A66F3F4B36EECFFDF8A28C48F202DE09FFEFF6BE98F1027",
       title: "Posthumous Reminiscences of Brás Cubas",
       year: 1955,
-      references: [
+      sources: [
         "Caldwell, Helen. Machado de Assis: The Brazilian Master. Berkeley: University of California Press, 1970.",
         "Ellis, E. Percy, trans. Posthumous Reminiscences of Brás Cubas. Rio de Janeiro: Instituto Nacional do Livro, 1955."
       ]
@@ -68,7 +68,7 @@ defmodule RichardBurton.Publication.IndexTest do
       publishers_fingerprint: "2F6FE554F3CF1014B2345ADE7C06166EA58D929FBEE633D4A782126F5C4331EA",
       title: "The Three Marias",
       year: 1963,
-      references: ["Ellison, Fred P. The Three Marias. Austin: University of Texas Press, 1963."]
+      sources: ["Ellison, Fred P. The Three Marias. Austin: University of Texas Press, 1963."]
     },
     %FlatPublication{
       authors: "Gregory Rabassa",
@@ -217,8 +217,8 @@ defmodule RichardBurton.Publication.IndexTest do
 
   setup(_context) do
     # Seed as plain flat maps, not FlatPublication structs: nesting a struct applies
-    # changes and turns references into %Reference{} structs that a second cast can't
-    # re-cast. Feeding the codec maps lets insert cast references once. (Reference-less
+    # changes and turns sources into %Source{} structs that a second cast can't
+    # re-cast. Feeding the codec maps lets insert cast sources once. (Source-less
     # seeds insert identically either way.)
     @publications
     |> Enum.map(&(&1 |> Map.from_struct() |> Map.delete(:__meta__)))
@@ -307,15 +307,15 @@ defmodule RichardBurton.Publication.IndexTest do
       {:ok, output} = Publication.Index.all()
 
       # Fingerprint values are covered by the fingerprint/composite-key tests, and
-      # references by the codec/controller round-trip tests; this test is about the
-      # flattened representation, so normalise them. (Some seeds carry references;
+      # sources by the codec/controller round-trip tests; this test is about the
+      # flattened representation, so normalise them. (Some seeds carry sources;
       # they're zeroed here since this test only checks the flattened shape.)
       strip =
         &%{
           &1
           | __meta__: nil,
             id: nil,
-            references: [],
+            sources: [],
             countries_fingerprint: nil,
             publishers_fingerprint: nil,
             translated_book_fingerprint: nil
@@ -345,19 +345,19 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
-  describe "without_references/0" do
-    test "returns only the publications missing references, ordered by id" do
-      {:ok, results} = Publication.Index.without_references()
+  describe "without_sources/0" do
+    test "returns only the publications missing sources, ordered by id" do
+      {:ok, results} = Publication.Index.without_sources()
 
-      # The reference-less seeds come back; the ones seeded with references don't.
+      # The source-less seeds come back; the ones seeded with sources don't.
       expected_titles =
         @publications
-        |> Enum.filter(&(&1.references in [nil, []]))
+        |> Enum.filter(&(&1.sources in [nil, []]))
         |> Enum.map(& &1.title)
         |> Enum.sort()
 
       assert Enum.sort(Enum.map(results, & &1.title)) == expected_titles
-      assert Enum.all?(results, &(&1.references == []))
+      assert Enum.all?(results, &(&1.sources == []))
 
       # Stable ascending-id order — the wizard steps through a fixed queue.
       ids = Enum.map(results, & &1.id)
@@ -596,7 +596,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert order != []
     end
 
-    test "a page carries the reference match that answered a row" do
+    test "a page carries the source match that answered a row" do
       {order, keywords} = Publication.Index.search_order("Berkeley")
       page = Publication.Index.details(order, "Berkeley", keywords)
 
@@ -604,7 +604,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert row.source_match =~ "Berkeley"
     end
 
-    test "a plain listing carries no reference match" do
+    test "a plain listing carries no source match" do
       [row | _] =
         Publication.Index.all_order()
         |> Enum.take(1)
@@ -761,7 +761,7 @@ defmodule RichardBurton.Publication.IndexTest do
   end
 
   describe "search/1 over a publication's sources" do
-    test "finds a publication by a word only its references carry" do
+    test "finds a publication by a word only its sources carry" do
       assert {:ok, publications, _} = Publication.Index.search("Berkeley")
 
       assert_search_results(publications,

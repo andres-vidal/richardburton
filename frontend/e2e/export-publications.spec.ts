@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import { seedCorpus, indexTable } from "./helpers";
 
-test("an admin exports the corpus as a CSV, references included", async ({
+test("an admin exports the corpus as a CSV, sources included", async ({
   page,
 }) => {
   await seedCorpus(page);

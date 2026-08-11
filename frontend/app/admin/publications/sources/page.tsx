@@ -1,17 +1,17 @@
 import Breadcrumb from "components/Breadcrumb";
 import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
-import ReferencesBackfill from "components/ReferencesBackfill";
-import { readUnreferenced } from "app/publications/read";
+import SourcesBackfill from "components/SourcesBackfill";
+import { readUnsourced } from "app/publications/read";
 
 const BREADCRUMB_ITEMS = [
   { label: "Home", href: "/" },
   { label: "Admin", href: "/admin" },
-  { label: "Backfill references" },
+  { label: "Backfill sources" },
 ];
 
-export default async function ReferencesBackfillPage() {
-  const queue = await readUnreferenced();
+export default async function SourcesBackfillPage() {
+  const queue = await readUnsourced();
 
   return (
     <Layout
@@ -19,12 +19,12 @@ export default async function ReferencesBackfillPage() {
         <>
           <Breadcrumb items={BREADCRUMB_ITEMS} />
           <PageHeader
-            title="Backfill references"
+            title="Backfill sources"
             description="Add sources to publications that are missing them."
           />
         </>
       }
-      content={<ReferencesBackfill queue={queue} />}
+      content={<SourcesBackfill queue={queue} />}
     />
   );
 }
