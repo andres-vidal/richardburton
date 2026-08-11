@@ -294,7 +294,7 @@ defmodule RichardBurton.PublisherTest do
         %{"name" => "Bickers & Son"}
       ]
 
-      assert "Noonday Press, Bickers & Son" = Publisher.flatten(publishers)
+      assert ["Noonday Press", "Bickers & Son"] = Publisher.flatten(publishers)
     end
 
     test "with a list of maps with atom keys, returns a list of maps with name key" do
@@ -303,7 +303,7 @@ defmodule RichardBurton.PublisherTest do
         %{name: "Bickers & Son"}
       ]
 
-      assert "Noonday Press, Bickers & Son" = Publisher.flatten(publishers)
+      assert ["Noonday Press", "Bickers & Son"] = Publisher.flatten(publishers)
     end
 
     test "with a list of Publisher structs, returns a list of maps with name key" do
@@ -312,7 +312,7 @@ defmodule RichardBurton.PublisherTest do
         %Publisher{name: "Bickers & Son"}
       ]
 
-      assert "Noonday Press, Bickers & Son" = Publisher.flatten(publishers)
+      assert ["Noonday Press", "Bickers & Son"] = Publisher.flatten(publishers)
     end
   end
 

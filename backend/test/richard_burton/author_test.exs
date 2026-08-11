@@ -285,7 +285,7 @@ defmodule RichardBurton.AuthorTest do
         %{"name" => "Isabel Burton"}
       ]
 
-      assert "Richard Burton, Isabel Burton" = Author.flatten(authors)
+      assert ["Richard Burton", "Isabel Burton"] = Author.flatten(authors)
     end
 
     test "with a list of maps with atom keys, returns a list of maps with code key" do
@@ -294,7 +294,7 @@ defmodule RichardBurton.AuthorTest do
         %{name: "Isabel Burton"}
       ]
 
-      assert "Richard Burton, Isabel Burton" = Author.flatten(authors)
+      assert ["Richard Burton", "Isabel Burton"] = Author.flatten(authors)
     end
 
     test "with a list of Author structs, returns a list of maps with code key" do
@@ -303,7 +303,7 @@ defmodule RichardBurton.AuthorTest do
         %Author{name: "Isabel Burton"}
       ]
 
-      assert "Richard Burton, Isabel Burton" = Author.flatten(authors)
+      assert ["Richard Burton", "Isabel Burton"] = Author.flatten(authors)
     end
   end
 

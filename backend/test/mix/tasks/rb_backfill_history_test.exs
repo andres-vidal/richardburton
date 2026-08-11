@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Rb.BackfillHistoryTest do
       # The record as it stands, so the next change has something to compare to.
       assert entry.snapshot["title"] == publication.title
       assert entry.snapshot["year"] == publication.year
-      assert entry.snapshot["countries"] == "GB"
+      assert entry.snapshot["countries"] == ["GB"]
     end
 
     test "leaves a publication that already has history alone" do

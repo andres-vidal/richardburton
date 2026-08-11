@@ -42,7 +42,7 @@ export const Empty: Story = {
 export const WithInvalidRow: Story = {
   beforeEach: () =>
     seed(store, [
-      { title: "Dom Casmurro", authors: "Helen Caldwell", year: "1953" },
+      { title: "Dom Casmurro", authors: ["Helen Caldwell"], year: "1953" },
       { title: "", errors: fieldErrors({ title: "required" }) },
     ]),
   play: async ({ canvasElement }) => {

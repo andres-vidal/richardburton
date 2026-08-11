@@ -37,16 +37,12 @@ defmodule RichardBurton.Publisher do
   end
 
   @spec fingerprint(binary() | maybe_improper_list()) :: binary()
-  def fingerprint(publishers) when is_binary(publishers) do
-    publishers
-    |> nest()
-    |> Enum.map(fn %{"name" => name} -> %Publisher{name: name} end)
-    |> fingerprint()
-  end
+  def fingerprint(publishers) when is_binary(publishers),
+    do: publishers |> nest() |> fingerprint()
 
   def fingerprint(publishers) when is_list(publishers) do
     publishers
-    |> Enum.map(fn %Publisher{name: name} -> name end)
+    |> Enum.map(&get_name/1)
     |> Fingerprint.of_set()
   end
 
@@ -103,34 +99,42 @@ defmodule RichardBurton.Publisher do
   end
 
   @doc ~S"""
-  Split a comma-separated publishers string into nested publisher maps.
+  Nest publisher names into the maps the schema casts.
+
+  A list is the shape the client and the flat schema speak in; a
+  comma-separated string is CSV's, and is split on the way through.
 
   ## Examples
+
+    iex> RichardBurton.Publisher.nest(["Noonday Press", "Penguin"])
+    [%{"name" => "Noonday Press"}, %{"name" => "Penguin"}]
 
     iex> RichardBurton.Publisher.nest("Noonday Press, Penguin")
     [%{"name" => "Noonday Press"}, %{"name" => "Penguin"}]
   """
   def nest(publishers) when is_binary(publishers) do
-    publishers |> String.split(",") |> Enum.map(&%{"name" => String.trim(&1)})
+    publishers |> String.split(",") |> Enum.map(&String.trim/1) |> nest()
   end
 
+  def nest(publishers) when is_list(publishers),
+    do: Enum.map(publishers, &%{"name" => get_name(&1)})
+
   @doc ~S"""
-  Join a list of publishers back into a comma-separated string. A non-list value
-  (already flat) is returned unchanged.
+  Flatten publishers to the names they are. A value that is not a list is
+  returned unchanged.
 
   ## Examples
 
     iex> RichardBurton.Publisher.flatten([%{"name" => "Noonday Press"}, %{"name" => "Penguin"}])
-    "Noonday Press, Penguin"
+    ["Noonday Press", "Penguin"]
 
     iex> RichardBurton.Publisher.flatten("Noonday Press")
     "Noonday Press"
   """
-  def flatten(publishers) when is_list(publishers),
-    do: Enum.map_join(publishers, ", ", &get_name/1)
-
+  def flatten(publishers) when is_list(publishers), do: Enum.map(publishers, &get_name/1)
   def flatten(publishers), do: publishers
 
+  def get_name(name) when is_binary(name), do: name
   def get_name(%Publisher{name: name}), do: name
   def get_name(%{"name" => name}), do: name
   def get_name(%{name: name}), do: name

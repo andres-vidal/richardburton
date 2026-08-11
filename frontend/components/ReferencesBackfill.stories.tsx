@@ -22,12 +22,12 @@ import {
 const publication = (title: string, references: string[] = []) => ({
   ...Publication.empty(),
   title,
-  authors: "Helen Caldwell",
+  authors: ["Helen Caldwell"],
   originalTitle: "Dom Casmurro",
-  originalAuthors: "Machado de Assis",
+  originalAuthors: ["Machado de Assis"],
   year: "1953",
-  countries: "US",
-  publishers: "Noonday Press",
+  countries: ["US"],
+  publishers: ["Noonday Press"],
   references,
 });
 

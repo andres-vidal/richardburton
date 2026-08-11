@@ -33,7 +33,17 @@ defmodule RichardBurton.Publication.Codec do
     "references"
   ]
 
-  @references_csv_separator "\n"
+  # The cells that hold several values: what separates them on the way in, and
+  # what joins them on the way out. A publication's countries, publishers and
+  # names are lists everywhere else — one cell per list is CSV's own convention,
+  # and this is the only place that knows it.
+  @csv_lists %{
+    "references" => {"\n", "\n"},
+    "countries" => {",", ", "},
+    "publishers" => {",", ", "},
+    "authors" => {",", ", "},
+    "original_authors" => {",", ", "}
+  }
 
   def from_csv(path) do
     try do
@@ -42,7 +52,7 @@ defmodule RichardBurton.Publication.Codec do
         |> File.stream!()
         |> CSV.decode!(separator: ?;, headers: @csv_headers)
         |> Enum.map(&Util.deep_merge_maps(@empty_flat_attrs, &1))
-        |> Enum.map(&parse_references_cell/1)
+        |> Enum.map(&parse_list_cells/1)
 
       {:ok, publications}
     rescue
@@ -60,39 +70,81 @@ defmodule RichardBurton.Publication.Codec do
   def to_csv(flat_publications) do
     flat_publications
     |> Enum.map(&Util.stringify_keys/1)
-    |> Enum.map(&flatten_references_cell/1)
+    |> Enum.map(&join_list_cells/1)
     |> Enum.map(&Map.take(&1, @csv_headers))
     |> CSV.encode(separator: ?;, delimiter: "\n", headers: true)
     |> Enum.to_list()
   end
 
-  # Split the newline-per-line cell into a trimmed, blank-free list, so a CSV row
-  # carries `references` in the same array shape the frontend bulk payload uses —
-  # a missing/absent column becomes an empty list.
-  defp parse_references_cell(row) do
-    parsed =
-      case Map.get(row, "references") do
-        content when is_binary(content) ->
-          content
-          |> String.split(@references_csv_separator)
-          |> Enum.map(&String.trim/1)
-          |> Enum.reject(&(&1 == ""))
+  # Each multi-value cell becomes the trimmed, blank-free list the rest of the
+  # application speaks in; a column the file does not carry reads as empty.
+  defp parse_list_cells(row) do
+    Enum.reduce(@csv_lists, row, fn {column, {separator, _}}, row ->
+      Map.put(row, column, split_cell(Map.get(row, column), separator))
+    end)
+  end
+
+  # A comma can be part of a name rather than a break between two — a publisher
+  # called "Cassel, McBride & Co." is one value. Quoting it says so, and is the
+  # only way the file can: the column separator is a semicolon, so a comma has
+  # no other reading available to it.
+  defp split_cell(content, ",") when is_binary(content) do
+    content |> outside_quotes() |> Enum.map(&unwrap/1) |> Enum.reject(&(&1 == ""))
+  end
+
+  # A line break cannot occur inside a source, so references need no such escape.
+  defp split_cell(content, separator) when is_binary(content) do
+    content
+    |> String.split(separator)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp split_cell(_absent, _separator), do: []
+
+  defp outside_quotes(content) do
+    {values, last, _} =
+      content
+      |> String.graphemes()
+      |> Enum.reduce({[], "", false}, fn
+        "\"", {values, current, quoted?} -> {values, current <> "\"", not quoted?}
+        ",", {values, current, false} -> {[current | values], "", false}
+        char, {values, current, quoted?} -> {values, current <> char, quoted?}
+      end)
+
+    Enum.reverse([last | values])
+  end
+
+  defp unwrap(value) do
+    trimmed = String.trim(value)
+
+    if String.length(trimmed) > 1 and String.starts_with?(trimmed, "\"") and
+         String.ends_with?(trimmed, "\"") do
+      trimmed |> String.slice(1..-2//1) |> String.trim()
+    else
+      trimmed
+    end
+  end
+
+  # Only a cell that is there is joined: a `select`-limited export leaves some
+  # columns out, and they must not reappear empty.
+  defp join_list_cells(row) do
+    Enum.reduce(@csv_lists, row, fn {column, {split, separator}}, row ->
+      case Map.get(row, column) do
+        values when is_list(values) ->
+          Map.put(row, column, Enum.map_join(values, separator, &quoted_if_split(&1, split)))
 
         _ ->
-          []
+          row
       end
-
-    Map.put(row, "references", parsed)
+    end)
   end
 
-  # Join the list back into one newline-per-line cell. Only touch the cell when
-  # it's present (a full export) — a `select`-limited export omits references and
-  # must not gain the column.
-  defp flatten_references_cell(%{"references" => refs} = row) when is_list(refs) do
-    %{row | "references" => Enum.join(refs, @references_csv_separator)}
+  # A value holding the separator goes out quoted, so reading the file back
+  # gives one value again rather than the two it would otherwise look like.
+  defp quoted_if_split(value, separator) do
+    if String.contains?(value, separator), do: ~s("#{value}"), else: value
   end
-
-  defp flatten_references_cell(row), do: row
 
   def from_csv!(path) do
     case from_csv(path) do
@@ -162,23 +214,11 @@ defmodule RichardBurton.Publication.Codec do
     do: {key, value}
 
   @doc ~S"""
-  Nest a comma-separated authors string into author maps — used when building a
-  translated book's author associations.
-
-  ## Examples
-
-    iex> RichardBurton.Publication.Codec.nest_authors("Helen Caldwell, Gregory Rabassa")
-    [%{"name" => "Helen Caldwell"}, %{"name" => "Gregory Rabassa"}]
-  """
-  def nest_authors(authors) when is_binary(authors) do
-    Enum.map(String.split(authors, ","), &%{"name" => String.trim(&1)})
-  end
-
-  @doc ~S"""
   Flatten a nested publication back to flat, string-keyed fields — the inverse of
-  `nest/1`. Child lists are joined and the `translated_book` association is lifted
-  back to top-level `authors` / `original_title` / `original_authors`. Accepts a
-  `Publication` struct, a nested map, a list, or a `%{publication:, errors:}` pair.
+  `nest/1`. Child lists become lists of the names or codes they hold, and the
+  `translated_book` association is lifted back to top-level `authors` /
+  `original_title` / `original_authors`. Accepts a `Publication` struct, a nested
+  map, a list, or a `%{publication:, errors:}` pair.
 
   ## Examples
 
@@ -192,7 +232,7 @@ defmodule RichardBurton.Publication.Codec do
     ...>     }
     ...>   }
     ...> })
-    %{"authors" => "Helen Caldwell", "original_authors" => "Machado de Assis", "original_title" => "Dom Casmurro", "title" => "Dom Casmurro"}
+    %{"authors" => ["Helen Caldwell"], "original_authors" => ["Machado de Assis"], "original_title" => "Dom Casmurro", "title" => "Dom Casmurro"}
   """
   def flatten(publication = %Publication{}) do
     attrs =

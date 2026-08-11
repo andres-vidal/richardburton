@@ -130,7 +130,7 @@ const Content: FC<{
 
   return (
     <div className="px-2 py-1 truncate">
-      {Publication.describeValue(value, colId)}
+      {Publication.describe(value, colId)}
       {colId === "title" && <SourceMatch rowId={rowId} />}
     </div>
   );

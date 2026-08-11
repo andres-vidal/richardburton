@@ -7,12 +7,12 @@ import PublicationHistory from "./PublicationHistory";
 
 const SNAPSHOT: PublicationHistoryEntry["snapshot"] = {
   title: "Dom Casmurro",
-  authors: "Helen Caldwell",
+  authors: ["Helen Caldwell"],
   originalTitle: "Dom Casmurro",
-  originalAuthors: "Machado de Assis",
+  originalAuthors: ["Machado de Assis"],
   year: 1953,
-  countries: "US",
-  publishers: "Noonday Press",
+  countries: ["US"],
+  publishers: ["Noonday Press"],
   references: [],
 };
 

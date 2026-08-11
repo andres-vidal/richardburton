@@ -21,41 +21,41 @@ defmodule RichardBurton.Publication.CodecTest do
 
       output = [
         %{
-          "authors" => "Isabel Burton, Richard Burton",
-          "countries" => "GB",
-          "original_authors" => "José de Alencar",
+          "authors" => ["Isabel Burton", "Richard Burton"],
+          "countries" => ["GB"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "publishers" => "Bickers & Son",
+          "publishers" => ["Bickers & Son"],
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
           "references" => []
         },
         %{
-          "authors" => "J. T. W. Sadler",
-          "countries" => "US, GB",
-          "original_authors" => "José de Alencar",
+          "authors" => ["J. T. W. Sadler"],
+          "countries" => ["US", "GB"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Ubirajara",
-          "publishers" => "Ronald Massey",
+          "publishers" => ["Ronald Massey"],
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "1922",
           "references" => []
         },
         %{
-          "authors" => "",
-          "countries" => "GB",
-          "original_authors" => "José de Alencar",
+          "authors" => [],
+          "countries" => ["GB"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "publishers" => "Bickers & Son",
+          "publishers" => ["Bickers & Son"],
           "title" => "",
           "year" => "AAAA",
           "references" => []
         },
         %{
-          "authors" => "J. T. W. Sadler",
-          "countries" => "",
-          "original_authors" => "",
+          "authors" => ["J. T. W. Sadler"],
+          "countries" => [],
+          "original_authors" => [],
           "original_title" => "",
-          "publishers" => "",
+          "publishers" => [],
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "",
           "references" => []
@@ -66,38 +66,69 @@ defmodule RichardBurton.Publication.CodecTest do
     end
   end
 
+  describe "from_csv/1 when a value holds the separator" do
+    test "a quoted value is one value, not the two it looks like" do
+      {:ok, [row]} =
+        Publication.Codec.from_csv("test/fixtures/data_correct_with_quoted_values.csv")
+
+      assert row["publishers"] == ["Cassel, McBride & Co.", "Penguin"]
+    end
+
+    test "a value holding the separator is written back quoted" do
+      [_headers, line] =
+        Publication.Codec.to_csv([
+          %{
+            "publishers" => ["Cassel, McBride & Co.", "Penguin"],
+            "title" => "A Brazilian Tenement"
+          }
+        ])
+
+      # Doubled by the encoder, since the quotes are the file's own.
+      assert line =~ ~s("""Cassel, McBride & Co."", Penguin")
+    end
+  end
+
   describe "from_csv/1 when the provided csv is incorrect" do
     test "because it has malformed separators, does its best effort" do
       input = "test/fixtures/data_incorrect_malformed_separators.csv"
 
       output = [
         %{
-          "authors" => "Isabel Burton",
-          "countries" => "GB",
-          "original_authors" => "José de Alencar",
+          "authors" => ["Isabel Burton"],
+          "countries" => ["GB"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "publishers" => "",
+          "publishers" => [],
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
           "references" => []
         },
         %{
-          "authors" => "Ronald Massey",
-          "countries" => "Ubirajara",
-          "original_authors" => "",
+          "authors" => ["Ronald Massey"],
+          "countries" => ["Ubirajara"],
+          "original_authors" => [],
           "original_title" => "Ubirajara: A Legend of the Tupy Indians",
-          "publishers" => "",
+          "publishers" => [],
           "title" => "J. T. W. Sadler",
           "year" => "GB",
           "references" => []
         },
         %{
-          "authors" => "",
-          "countries" => "",
-          "original_authors" =>
-            "José de Alencar,1886,GB,Iracema,Iraçéma the Honey-Lips: A Legend of Brazil,Isabel Burton,Bickers & Son",
+          "authors" => [],
+          "countries" => [],
+          # The whole malformed row lands in one cell, and that cell is split
+          # like any other multi-value cell.
+          "original_authors" => [
+            "José de Alencar",
+            "1886",
+            "GB",
+            "Iracema",
+            "Iraçéma the Honey-Lips: A Legend of Brazil",
+            "Isabel Burton",
+            "Bickers & Son"
+          ],
           "original_title" => "",
-          "publishers" => "",
+          "publishers" => [],
           "title" => "",
           "year" => "",
           "references" => []
@@ -122,22 +153,22 @@ defmodule RichardBurton.Publication.CodecTest do
     @output %{
       "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
       "year" => "1886",
-      "countries" => "GB",
-      "publishers" => "Bickers & Son, Noonday Press",
-      "authors" => "Isabel Burton",
-      "original_authors" => "José de Alencar",
+      "countries" => ["GB"],
+      "publishers" => ["Bickers & Son", "Noonday Press"],
+      "authors" => ["Isabel Burton"],
+      "original_authors" => ["José de Alencar"],
       "original_title" => "Iracema"
     }
 
     @output_struct %FlatPublication{
       title: "Iraçéma the Honey-Lips: A Legend of Brazil",
       year: 1886,
-      countries: "GB",
+      countries: ["GB"],
       countries_fingerprint: "B4043B0B8297E379BC559AB33B6AE9C7A9B4EF6519D3BAEE53270F0C0DD3D960",
-      publishers: "Bickers & Son, Noonday Press",
+      publishers: ["Bickers & Son", "Noonday Press"],
       publishers_fingerprint: "830DE6E9CE04669334B8C1A5D61E94E37A8842B9241C2EB3C9E72E7973CF3A7C",
-      authors: "Isabel Burton",
-      original_authors: "José de Alencar",
+      authors: ["Isabel Burton"],
+      original_authors: ["José de Alencar"],
       original_title: "Iracema",
       references: [],
       translated_book_fingerprint:
@@ -148,7 +179,7 @@ defmodule RichardBurton.Publication.CodecTest do
       input = %{
         "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
         "year" => "1886",
-        "countries" => "GB",
+        "countries" => ["GB"],
         "publishers" => [%{"name" => "Bickers & Son"}, %{"name" => "Noonday Press"}],
         "translated_book" => %{
           "authors" => [
@@ -273,10 +304,12 @@ defmodule RichardBurton.Publication.CodecTest do
     @output_publication %{
       "title" => "Ubirajara: A Legend of the Tupy Indians",
       "year" => "",
-      "countries" => "",
-      "publishers" => "",
-      "authors" => "J. T. W. Sadler",
-      "original_authors" => "",
+      "countries" => [],
+      "publishers" => [],
+      "authors" => ["J. T. W. Sadler"],
+      # One author, whose name is blank — flattening says how many there are,
+      # it does not judge them.
+      "original_authors" => [""],
       "original_title" => ""
     }
 
@@ -284,8 +317,8 @@ defmodule RichardBurton.Publication.CodecTest do
       input_publication = %{
         "title" => "Ubirajara: A Legend of the Tupy Indians",
         "year" => "",
-        "countries" => "",
-        "publishers" => "",
+        "countries" => [],
+        "publishers" => [],
         "translated_book" => %{
           "authors" => [
             %{"name" => "J. T. W. Sadler"}
@@ -304,8 +337,8 @@ defmodule RichardBurton.Publication.CodecTest do
           publication: input_publication,
           errors: %{
             year: "required",
-            countries: "required",
-            publishers: "required",
+            countries: ["required"],
+            publishers: ["required"],
             translated_book: %{
               original_book: %{
                 authors: [%{name: "required"}],
@@ -329,9 +362,9 @@ defmodule RichardBurton.Publication.CodecTest do
           "publication" => @output_publication,
           "errors" => %{
             "year" => "required",
-            "countries" => "required",
-            "publishers" => "required",
-            "original_authors" => "required",
+            "countries" => ["required"],
+            "publishers" => ["required"],
+            "original_authors" => ["required"],
             "original_title" => "required"
           }
         },
@@ -399,10 +432,10 @@ defmodule RichardBurton.Publication.CodecTest do
       input = %{
         "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
         "year" => "1886",
-        "countries" => "GB",
-        "publishers" => "Bickers & Son, Noonday Press",
-        "authors" => "Isabel Burton",
-        "original_authors" => "José de Alencar",
+        "countries" => ["GB"],
+        "publishers" => ["Bickers & Son", "Noonday Press"],
+        "authors" => ["Isabel Burton"],
+        "original_authors" => ["José de Alencar"],
         "original_title" => "Iracema"
       }
 
@@ -413,10 +446,10 @@ defmodule RichardBurton.Publication.CodecTest do
       input = %{
         title: "Iraçéma the Honey-Lips: A Legend of Brazil",
         year: "1886",
-        countries: "GB",
-        publishers: "Bickers & Son, Noonday Press",
-        authors: "Isabel Burton",
-        original_authors: "José de Alencar",
+        countries: ["GB"],
+        publishers: ["Bickers & Son", "Noonday Press"],
+        authors: ["Isabel Burton"],
+        original_authors: ["José de Alencar"],
         original_title: "Iracema"
       }
 
@@ -427,10 +460,10 @@ defmodule RichardBurton.Publication.CodecTest do
       input = %FlatPublication{
         title: "Iraçéma the Honey-Lips: A Legend of Brazil",
         year: "1886",
-        countries: "GB",
-        publishers: "Bickers & Son, Noonday Press",
-        authors: "Isabel Burton",
-        original_authors: "José de Alencar",
+        countries: ["GB"],
+        publishers: ["Bickers & Son", "Noonday Press"],
+        authors: ["Isabel Burton"],
+        original_authors: ["José de Alencar"],
         original_title: "Iracema"
       }
 
@@ -442,28 +475,28 @@ defmodule RichardBurton.Publication.CodecTest do
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
-          "countries" => "GB",
-          "publishers" => "Bickers & Son, Noonday Press",
-          "authors" => "Isabel Burton",
-          "original_authors" => "José de Alencar",
+          "countries" => ["GB"],
+          "publishers" => ["Bickers & Son", "Noonday Press"],
+          "authors" => ["Isabel Burton"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema"
         },
         %{
           title: "Iraçéma the Honey-Lips: A Legend of Brazil",
           year: "1886",
-          countries: "GB",
-          publishers: "Bickers & Son, Noonday Press",
-          authors: "Isabel Burton",
-          original_authors: "José de Alencar",
+          countries: ["GB"],
+          publishers: ["Bickers & Son", "Noonday Press"],
+          authors: ["Isabel Burton"],
+          original_authors: ["José de Alencar"],
           original_title: "Iracema"
         },
         %FlatPublication{
           title: "Iraçéma the Honey-Lips: A Legend of Brazil",
           year: "1886",
-          countries: "GB",
-          publishers: "Bickers & Son, Noonday Press",
-          authors: "Isabel Burton",
-          original_authors: "José de Alencar",
+          countries: ["GB"],
+          publishers: ["Bickers & Son", "Noonday Press"],
+          authors: ["Isabel Burton"],
+          original_authors: ["José de Alencar"],
           original_title: "Iracema"
         }
       ]
@@ -525,11 +558,11 @@ defmodule RichardBurton.Publication.CodecTest do
       flat = %{
         "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
         "year" => "1886",
-        "countries" => "GB",
-        "publishers" => "Bickers & Son",
-        "authors" => "Isabel Burton",
+        "countries" => ["GB"],
+        "publishers" => ["Bickers & Son"],
+        "authors" => ["Isabel Burton"],
         "original_title" => "Iracema",
-        "original_authors" => "José de Alencar",
+        "original_authors" => ["José de Alencar"],
         "references" => ["First source", "Second source"]
       }
 

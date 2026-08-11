@@ -96,21 +96,11 @@ defmodule RichardBurton.TranslatedBook do
   def link_fingerprint(changeset = %Ecto.Changeset{valid?: true, data: %FlatPublication{}}) do
     translated_book_fingerprint =
       fingerprint(%TranslatedBook{
-        authors_fingerprint:
-          changeset
-          |> get_field(:authors)
-          |> Publication.Codec.nest_authors()
-          |> Enum.map(fn %{"name" => name} -> %Author{name: name} end)
-          |> Author.fingerprint(),
+        authors_fingerprint: changeset |> get_field(:authors) |> Author.fingerprint(),
         original_book_fingerprint:
           OriginalBook.fingerprint(%OriginalBook{
             title: get_field(changeset, :original_title),
-            authors_fingerprint:
-              changeset
-              |> get_field(:original_authors)
-              |> Publication.Codec.nest_authors()
-              |> Enum.map(fn %{"name" => name} -> %Author{name: name} end)
-              |> Author.fingerprint()
+            authors_fingerprint: changeset |> get_field(:original_authors) |> Author.fingerprint()
           })
       })
 

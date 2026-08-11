@@ -5,6 +5,7 @@ import {
   type PublicationId,
   type PublicationKey,
   type PublicationKeyType,
+  type PublicationValue,
 } from "modules/publication/model";
 import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
@@ -18,13 +19,19 @@ import TextEnumDataInput from "./TextEnumDataInput";
 import TextNumberDataInput from "./TextNumberDataInput";
 import Tooltip from "./Tooltip";
 
+/**
+ * An attribute's type picks the component that edits it, and the same choice
+ * decides whether its value is one string or several — `array` and `enumArray`
+ * take a list, the rest take a single value. That pairing is what these casts
+ * stand on, and this table is the only place it is stated.
+ */
 const COMPONENTS_PER_TYPE: Record<PublicationKeyType, FC<Props>> = {
-  text: TextDataInput,
-  enum: TextEnumDataInput,
-  enumArray: TextEnumArrayDataInput,
-  number: TextNumberDataInput,
-  array: TextArrayDataInput,
-  book: OriginalBookDataInput,
+  text: TextDataInput as FC<Props>,
+  enum: TextEnumDataInput as FC<Props>,
+  enumArray: TextEnumArrayDataInput as FC<Props>,
+  number: TextNumberDataInput as FC<Props>,
+  array: TextArrayDataInput as FC<Props>,
+  book: OriginalBookDataInput as FC<Props>,
 };
 
 /**
@@ -47,9 +54,9 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
   ref?: Ref<HTMLElement>;
   rowId: PublicationId;
   colId: PublicationKey;
-  value: string;
+  value: PublicationValue;
   error: string;
-  onChange?: (value: string) => void;
+  onChange?: (value: PublicationValue) => void;
   autoValidated?: boolean;
   /** What to run when `autoValidated` fires. Defaults to the bulk validate; the
    * edit form passes the id-aware one. */
@@ -90,7 +97,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
     if (autoValidated) validateRow();
   }
 
-  function handleChange(value: string) {
+  function handleChange(value: PublicationValue) {
     overrideField(store, rowId, colId, value);
     if (VALIDATES_ON_CHANGE.includes(type)) {
       doValidate();
@@ -132,5 +139,21 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   );
 });
 
-export type { Props as DataInputProps };
+/** What a component for a single-value attribute receives. */
+type ScalarProps = Omit<Props, "value" | "onChange"> & {
+  value: string;
+  onChange?: (value: string) => void;
+};
+
+/** What a component for a multi-value attribute receives. */
+type ListProps = Omit<Props, "value" | "onChange"> & {
+  value: string[];
+  onChange?: (value: string[]) => void;
+};
+
+export type {
+  Props as DataInputProps,
+  ListProps as ListDataInputProps,
+  ScalarProps as ScalarDataInputProps,
+};
 export default DataInput;

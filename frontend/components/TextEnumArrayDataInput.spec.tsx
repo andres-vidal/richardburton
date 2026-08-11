@@ -20,21 +20,29 @@ describe("TextEnumArrayDataInput", () => {
 
   test("renders each id as its human label", () => {
     render(
-      <TextEnumArrayDataInput {...props} value="BR,US" onChange={vi.fn()} />,
+      <TextEnumArrayDataInput
+        {...props}
+        value={["BR", "US"]}
+        onChange={vi.fn()}
+      />,
     );
 
     expect(screen.getByText(brLabel)).toBeTruthy();
     expect(screen.getByText(usLabel)).toBeTruthy();
   });
 
-  test("removing a pill emits the remaining ids (not labels) re-joined", () => {
+  test("removing a pill emits the ids that remain, not their labels", () => {
     const onChange = vi.fn();
     render(
-      <TextEnumArrayDataInput {...props} value="BR,US" onChange={onChange} />,
+      <TextEnumArrayDataInput
+        {...props}
+        value={["BR", "US"]}
+        onChange={onChange}
+      />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: `Remove ${brLabel}` }));
 
-    expect(onChange).toHaveBeenCalledWith("US");
+    expect(onChange).toHaveBeenCalledWith(["US"]);
   });
 });

@@ -6,12 +6,12 @@ import { Publisher } from "modules/publisher";
 
 type Publication = {
   title: string;
-  countries: string;
+  countries: string[];
   year: string;
-  publishers: string;
-  authors: string;
+  publishers: string[];
+  authors: string[];
   originalTitle: string;
-  originalAuthors: string;
+  originalAuthors: string[];
   references: string[];
   // The server PK: a real id on persisted rows (index/search), null on
   // unsaved/working rows. Read-only: never cast from client input.
@@ -25,6 +25,14 @@ type PublicationKey = keyof Omit<
   Publication,
   "id" | "references" | "sourceMatch"
 >;
+
+/** What an attribute holds: one value, or several. */
+type PublicationValue = Publication[PublicationKey];
+
+/** The attributes that hold several values, for readers that need all of them. */
+type PublicationListKey = {
+  [K in PublicationKey]: Publication[K] extends string[] ? K : never;
+}[PublicationKey];
 
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
@@ -150,27 +158,15 @@ const ERROR_MESSAGES: Record<string, string> = {
 function empty(): Publication {
   return {
     id: null,
-    authors: "",
-    countries: "",
-    originalAuthors: "",
+    authors: [],
+    countries: [],
+    originalAuthors: [],
     originalTitle: "",
-    publishers: "",
+    publishers: [],
     title: "",
     year: "",
     references: [],
   };
-}
-
-/**
- * The individual values behind a multi-valued attribute. Countries, publishers
- * and the like are held as one comma-joined string; this is the one place that
- * knows it, so every reader of them counts and compares the same things.
- */
-function items(value: string): string[] {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
 }
 
 /**
@@ -187,9 +183,7 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   const all = [winner, ...losers];
 
   const union = (attribute: "countries" | "publishers") =>
-    Array.from(new Set(all.flatMap((p) => items(p[attribute]))))
-      .sort()
-      .join(", ");
+    Array.from(new Set(all.flatMap((p) => p[attribute]))).sort();
 
   return {
     ...winner,
@@ -199,21 +193,25 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   };
 }
 
+/** One value of an attribute, as a reader should see it. */
 function describeValue(value: string, attribute: PublicationKey): string {
   if (attribute === "countries") {
-    // One code or a list of them: a record published in several places names
-    // them all in the one field.
-    return value
-      .split(",")
-      .map((code) => {
-        const country = COUNTRIES[code.trim()];
-        if (country) return country.label;
-        console.warn("Unknown country code: ", code.trim());
-        return code.trim();
-      })
-      .join(", ");
+    const country = COUNTRIES[value];
+    if (country) return country.label;
+
+    console.warn("Unknown country code: ", value);
   }
   return value;
+}
+
+/**
+ * A whole attribute in one line — for the places that show a record at a
+ * glance rather than value by value.
+ */
+function describe(value: PublicationValue, attribute: PublicationKey): string {
+  return Array.isArray(value)
+    ? value.map((one) => describeValue(one, attribute)).join(", ")
+    : describeValue(value, attribute);
 }
 
 function describeError(
@@ -297,10 +295,10 @@ const Publication = {
   ATTRIBUTE_IS_TOGGLEABLE,
   autocomplete,
   define,
+  describe,
   describeError,
   describeValue,
   empty,
-  items,
   merged,
 };
 
@@ -313,17 +311,18 @@ export {
   COUNTRIES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
+  describe,
   describeError,
   describeValue,
   empty,
   HISTORY_ACTIONS,
-  items,
   merged,
   Publication,
 };
 export type {
   AbsorbedPublication,
   DeletedPublicationEntry,
+  PublicationValue,
   FullHistoryEntry,
   PublicationEntry,
   PublicationError,
@@ -332,6 +331,7 @@ export type {
   PublicationId,
   PublicationKey,
   PublicationKeyType,
+  PublicationListKey,
   SnapshotDiff,
   ValidationResult,
 };
