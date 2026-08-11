@@ -1,0 +1,62 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DuplicateReviewStories from "./DuplicateReview.stories";
+
+<Meta of={DuplicateReviewStories} />
+
+# Duplicate review
+
+Steps through the records that look like one publication entered more than once
+— the ones the composite key cannot catch, because a typo, a dropped accent or a
+translator's initials make them technically distinct.
+
+The queue on the left is one question per cluster, likeliest first; the pane on
+the right is the evidence, side by side, because that is all there is to go on.
+
+<Canvas of={DuplicateReviewStories.Default} />
+
+## The three answers
+
+- **Merge into the selected one** — they are one publication. The record chosen
+  to keep survives and gains what the others hold; the rest leave the database.
+  See [publication merge](?path=/docs/publications-publication-merge--docs) for
+  what a merge does, and how taking it apart puts the records back.
+- **Not duplicates** — they are different publications. The answer is
+  remembered, so the pair is not offered again; without that the tail never
+  clears. It can be taken back — see below.
+- **Skip** — not now. Nothing is recorded and the cluster comes back.
+
+<Canvas of={DuplicateReviewStories.KeepingTheOther} />
+
+## Taking an answer back
+
+Both lasting answers are reversible, which is what lets a reviewer work quickly
+without the fear of being wrong once and forever.
+
+- A **merge** is undone from the publication's history, which restores the
+  records it absorbed. Merging also forgets any earlier "not duplicates" about
+  the same records: it answers the same question, and later, so the stale
+  answer would otherwise keep the pair hidden after the un-merge.
+- **Ruled apart** sits under the queue in the same rail. Opening one shows the
+  pair in the pane where a question would be — the same evidence, with nothing
+  left to choose — and offers it back among the questions. It is part of the
+  review rather than beside it: a reviewer who misread a cluster finds it where
+  they answered it. The section is absent when nothing has been ruled apart.
+
+<Canvas of={DuplicateReviewStories.RuledApart} />
+
+## Usage
+
+`DuplicateReview` reads nothing: the page reads the clusters on the server and
+hands them over, and the exported `DuplicateReviewView` is the presentational
+shell the stories drive.
+
+Which record survives is the reviewer's choice. It opens on the one entered
+first, since the others came along after it — a proposal, not a judgement about
+which is right.
+
+## States
+
+<Canvas of={DuplicateReviewStories.NothingToReconcile} />
+
+<Canvas of={DuplicateReviewStories.Answering} />

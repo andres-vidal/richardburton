@@ -16,6 +16,13 @@ import Config
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
+# How alike two publications must be for the duplicate review to ask about them.
+# Read here rather than compiled in, so the sensitivity can be tuned against
+# real data without a deploy.
+if threshold = System.get_env("DUPLICATE_THRESHOLD") do
+  config :richard_burton, duplicate_threshold: String.to_float(threshold)
+end
+
 if System.get_env("PHX_SERVER") do
   config :richard_burton, RichardBurtonWeb.Endpoint, server: true
 end

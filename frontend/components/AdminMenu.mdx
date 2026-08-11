@@ -8,19 +8,24 @@ import * as AdminMenuStories from "./AdminMenu.stories";
 
 The admin hub: a card per admin tool. It's linked from the home footer so the
 admin actions live on one page instead of cluttering the footer. Each card is a
-link to its route with a title and a one-line description.
+link to its route with an icon, a title and a one-line description.
 
 ## Data source
 
 Takes no props. The tools are a static `ACTIONS` list in the component — add a
-new admin tool by adding an entry (`href`, `title`, `description`, `role`) and
-it slots into the responsive grid. Currently:
+new admin tool by adding an entry (`href`, `Icon`, `title`, `description`,
+`role`) and it slots into the responsive grid. Currently:
 
 - **Add publications** → `/admin/publications/new`
 - **Backfill references** → `/admin/publications/references`
+- **Review duplicates** → `/admin/publications/duplicates`
 - **History** → `/admin/publications/history`
 - **Deleted publications** → `/admin/publications/deleted`
 - **Access** → `/admin/users`
+
+The icon repeats what the title already says — it is there to be recognised at a
+glance, on a page the same person returns to daily — so it is hidden from
+assistive technology rather than named twice.
 
 <Canvas of={AdminMenuStories.Default} />
 

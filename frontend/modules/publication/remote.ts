@@ -289,6 +289,58 @@ async function merge(
 }
 
 /**
+ * Record that these publications are not the same record twice (admin), so the
+ * duplicate review stops offering them. Returns whether it succeeded.
+ */
+/**
+ * Take back a ruling that records are different, so the review offers them
+ * again. The reviewer changed their mind, or merged them since and undid it.
+ */
+async function reconsider(ids: PublicationId[]): Promise<boolean> {
+  try {
+    await request((http) =>
+      http.post("publications/duplicates/reconsider", { publications: ids }),
+    );
+
+    notify({
+      message: "Back among the questions",
+      detail: "These will be offered as possible duplicates again.",
+      level: "success",
+    });
+    return true;
+  } catch {
+    notify({
+      message: "Could not put them back",
+      detail: "Nothing changed. Check your connection and try again.",
+      level: "warning",
+    });
+    return false;
+  }
+}
+
+async function distinguish(ids: PublicationId[]): Promise<boolean> {
+  try {
+    await request((http) =>
+      http.post("publications/duplicates/distinguish", { publications: ids }),
+    );
+
+    notify({
+      message: "Kept apart",
+      detail: "These will not be offered as duplicates again.",
+      level: "success",
+    });
+    return true;
+  } catch {
+    notify({
+      message: "Could not keep them apart",
+      detail: "Nothing changed. Check your connection and try again.",
+      level: "warning",
+    });
+    return false;
+  }
+}
+
+/**
  * Live-validate a single publication's pending edits, excluding it from the
  * conflict check so an in-place edit doesn't collide with itself.
  */
@@ -369,8 +421,10 @@ async function upload(store: Store, payload: FormData): Promise<void> {
 export {
   bulk,
   deletePublication,
+  distinguish,
   loadDetails,
   merge,
+  reconsider,
   restore,
   search,
   undo,

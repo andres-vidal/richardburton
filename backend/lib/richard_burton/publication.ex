@@ -12,6 +12,7 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.History
+  alias RichardBurton.Publication.Duplicates
   alias RichardBurton.Publication.Index
   alias RichardBurton.Publisher
   alias RichardBurton.Reference
@@ -380,6 +381,12 @@ defmodule RichardBurton.Publication do
     winner = preload(winner)
     Enum.each(losers, &absorb/1)
     History.record(:merged, winner, actor, losers)
+
+    # Saying these are one record answers the same question a distinction did,
+    # and answers it later — so the older answer goes, and taking the merge
+    # apart puts the question back rather than the stale reply to it.
+    Duplicates.reconsider([winner.id | Enum.map(losers, & &1.id)])
+
     winner
   end
 
