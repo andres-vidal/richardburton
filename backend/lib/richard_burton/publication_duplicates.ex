@@ -163,9 +163,30 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   # Every pair of live publications alike enough to ask about, minus the pairs
-  # already ruled apart. The corpus is small enough to compare wholesale; a much
-  # larger one would need blocking on a cheap key first.
+  # already ruled apart.
   defp candidate_pairs do
+    {:ok, pairs} =
+      Repo.transaction(fn ->
+        put_threshold()
+        Repo.all(candidates())
+      end)
+
+    pairs
+  end
+
+  # `%` asks exactly what `similarity(a, b) > threshold` asks, but it is the
+  # question the trigram index can answer, so a record is compared against the
+  # handful that share a trigram with it rather than against every other. It
+  # takes the bar from the session, which is why the threshold is set here
+  # instead of being pinned into the expression.
+  defp put_threshold do
+    Repo.query!(
+      "SELECT set_config('pg_trgm.similarity_threshold', $1, true)",
+      [to_string(threshold())]
+    )
+  end
+
+  defp candidates do
     from(a in FlatPublication,
       as: :left,
       join: b in FlatPublication,
@@ -183,30 +204,18 @@ defmodule RichardBurton.Publication.Duplicates do
         score: fragment("similarity(?, ?)", a.title, b.title)
       }
     )
-    |> Repo.all()
   end
 
-  # Translators alike, and then either the title or the book behind it. The
-  # threshold is read once, so every field is judged against the same bar.
+  # Translators alike, and then either the title or the book behind it.
   defp worth_asking_about do
-    threshold = threshold()
-
     dynamic(
-      ^alike(:authors, threshold) and
-        (^alike(:title, threshold) or
-           (^alike(:original_title, threshold) and ^alike(:original_authors, threshold)))
+      ^alike(:authors) and
+        (^alike(:title) or (^alike(:original_title) and ^alike(:original_authors)))
     )
   end
 
-  defp alike(field, threshold) do
-    dynamic(
-      fragment(
-        "similarity(?, ?) > ?",
-        field(as(:left), ^field),
-        field(as(:right), ^field),
-        ^threshold
-      )
-    )
+  defp alike(field) do
+    dynamic(fragment("? % ?", field(as(:left), ^field), field(as(:right), ^field)))
   end
 
   # The connected components of the candidate graph, as sorted id lists.
