@@ -23,6 +23,7 @@ import {
 } from "react";
 import { mergeRefs } from "react-merge-refs";
 import useVisible from "utils/useVisible";
+import Highlight from "./Highlight";
 import { EmptySearchResults } from "./EmptySearchResults";
 import { ListSkeleton } from "./ListSkeleton";
 
@@ -130,7 +131,7 @@ const Content: FC<{
 
   return (
     <div className="px-2 py-1 truncate">
-      {Publication.describeValue(value, colId)}
+      <Highlight>{Publication.describeValue(value, colId)}</Highlight>
       {colId === "title" && <SourceMatch rowId={rowId} />}
     </div>
   );

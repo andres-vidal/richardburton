@@ -35,6 +35,7 @@ import { FC, SubmitEvent, useEffect, useState } from "react";
 import Button from "./Button";
 import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
+import Highlight from "./Highlight";
 import { useModal } from "./Modal";
 import PublicationHistory from "./PublicationHistory";
 import PublicationMerge from "./PublicationMerge";
@@ -47,7 +48,7 @@ const Searchable: FC<{ label: string; value?: string }> = ({
   label,
 }) => (
   <Link href={`/?search=${value || label}`} className="anchor">
-    {label}
+    <Highlight>{label}</Highlight>
   </Link>
 );
 
@@ -71,12 +72,12 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
   <div className="flex flex-col w-full text-2xl font-normal sm:gap-2 sm:items-center sm:flex-row">
     <Tooltip variant="info" message="Translation's title">
       <span className="w-full truncate sm:w-min whitespace-nowrap">
-        {publication.title}
+        <Highlight>{publication.title}</Highlight>
       </span>
     </Tooltip>
     <Tooltip variant="info" message="Who translated this publication">
       <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl whitespace-nowrap">
-        ({publication.authors})
+        (<Highlight>{publication.authors}</Highlight>)
       </span>
     </Tooltip>
   </div>
@@ -130,7 +131,9 @@ const PublicationReferences: FC<{ references: string[] }> = ({
               aria-hidden
               className="size-1.5 rounded-full shrink-0 bg-indigo-400 ring-2 ring-indigo-100"
             />
-            <span className="wrap-break-words">{reference}</span>
+            <span className="wrap-break-words">
+              <Highlight>{reference}</Highlight>
+            </span>
           </li>
         ))}
       </ul>
