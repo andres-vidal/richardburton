@@ -1,18 +1,18 @@
 import { test, expect } from "./fixtures";
-import { seedCorpus, CORPUS_UNREFERENCED } from "./helpers";
+import { seedCorpus, CORPUS_UNSOURCED } from "./helpers";
 
-test("the wizard queues only unreferenced publications and sources one", async ({
+test("the wizard queues only unsourced publications and sources one", async ({
   page,
 }) => {
-  // Seven publications; three already carry a reference, so four are queued.
+  // Seven publications; three already carry a source, so four are queued.
   await seedCorpus(page);
 
-  await page.goto("/admin/publications/references");
+  await page.goto("/admin/publications/sources");
 
   const queue = page.getByRole("listbox", {
-    name: "Publications missing references",
+    name: "Publications missing sources",
   });
-  await expect(queue.getByRole("option")).toHaveCount(CORPUS_UNREFERENCED);
+  await expect(queue.getByRole("option")).toHaveCount(CORPUS_UNSOURCED);
   await expect(page.getByText(/^1 \/ 4$/)).toBeVisible();
   // The three already-sourced works are absent from the queue.
   await expect(
@@ -29,9 +29,9 @@ test("the wizard queues only unreferenced publications and sources one", async (
   const save = page.getByRole("button", { name: "Save", exact: true });
   await expect(save).toBeVisible();
 
-  await page.getByRole("button", { name: "Add reference" }).click();
+  await page.getByRole("button", { name: "Add source" }).click();
   await page
-    .getByRole("textbox", { name: "Reference 1" })
+    .getByRole("textbox", { name: "Source 1" })
     .fill("Dimmick, Ralph. Translator's note, 1965.");
 
   // Drafting alone does not mark it sourced — only a save does.
@@ -51,17 +51,17 @@ test("skipping a publication discards its edits and moves on", async ({
   page,
 }) => {
   await seedCorpus(page);
-  await page.goto("/admin/publications/references");
+  await page.goto("/admin/publications/sources");
 
   const queue = page.getByRole("listbox", {
-    name: "Publications missing references",
+    name: "Publications missing sources",
   });
   await expect(page.getByText(/^1 \/ 4$/)).toBeVisible();
 
-  // Draft a reference but skip instead of saving.
-  await page.getByRole("button", { name: "Add reference" }).click();
+  // Draft a source but skip instead of saving.
+  await page.getByRole("button", { name: "Add source" }).click();
   await page
-    .getByRole("textbox", { name: "Reference 1" })
+    .getByRole("textbox", { name: "Source 1" })
     .fill("A draft that should not survive the skip");
   await page.getByRole("button", { name: "Skip" }).click();
 
@@ -71,9 +71,9 @@ test("skipping a publication discards its edits and moves on", async ({
     queue.getByRole("option", { name: "Dom Casmurro", exact: true }),
   ).toBeVisible();
 
-  // Coming back to it, the drafted reference is gone.
+  // Coming back to it, the drafted source is gone.
   await queue
     .getByRole("option", { name: "Dom Casmurro", exact: true })
     .click();
-  await expect(page.getByText("No references yet.")).toBeVisible();
+  await expect(page.getByText("No sources yet.")).toBeVisible();
 });

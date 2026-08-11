@@ -15,11 +15,11 @@ import { expect, fn, userEvent, within } from "storybook/test";
 
 import {
   BackfillStep,
-  ReferencesBackfillView,
-  ReferencesQueue,
-} from "./ReferencesBackfill";
+  SourcesBackfillView,
+  SourcesQueue,
+} from "./SourcesBackfill";
 
-const publication = (title: string, references: string[] = []) => ({
+const publication = (title: string, sources: string[] = []) => ({
   ...Publication.empty(),
   title,
   authors: "Helen Caldwell",
@@ -28,7 +28,7 @@ const publication = (title: string, references: string[] = []) => ({
   year: "1953",
   countries: "US",
   publishers: "Noonday Press",
-  references,
+  sources,
 });
 
 const seedQueue = () => {
@@ -44,11 +44,11 @@ const seedQueue = () => {
   ]);
 };
 
-// The references backfill is a master-detail: a queue listbox of reference-less
+// The sources backfill is a master-detail: a queue listbox of source-less
 // publications alongside the editor for the selected one.
 const meta = {
-  title: "Publications/References backfill",
-  component: ReferencesBackfillView,
+  title: "Publications/Sources backfill",
+  component: SourcesBackfillView,
   args: {
     ids: [1, 2, 3],
     position: 0,
@@ -68,7 +68,7 @@ const meta = {
     ),
   ],
   parameters: { layout: "fullscreen" },
-} satisfies Meta<typeof ReferencesBackfillView>;
+} satisfies Meta<typeof SourcesBackfillView>;
 
 export default meta;
 
@@ -76,7 +76,7 @@ type Story = StoryObj<typeof meta>;
 
 /** Mimic a successful save without a server: promote the draft (base ⊕
  * override) to the stored publication and clear the edit — exactly the state
- * `update()` leaves behind. Dots and the count react to *stored* references,
+ * `update()` leaves behind. Dots and the count react to *stored* sources,
  * so they only change here, never while typing. */
 const persistDraft = (id: number) => {
   store.set(publicationFamily(id), store.get(visiblePublicationFamily(id)));
@@ -88,7 +88,7 @@ const persistDraft = (id: number) => {
  * the story is fully interactive: clicking the queue moves the selection, Skip
  * discards the draft and advances, Save "persists" locally and advances.
  */
-const InteractiveView: FC<ComponentProps<typeof ReferencesBackfillView>> = ({
+const InteractiveView: FC<ComponentProps<typeof SourcesBackfillView>> = ({
   ids = [1, 2, 3],
   onSelect,
   onSave,
@@ -100,7 +100,7 @@ const InteractiveView: FC<ComponentProps<typeof ReferencesBackfillView>> = ({
   const currentId = ids?.[position];
 
   return (
-    <ReferencesBackfillView
+    <SourcesBackfillView
       ids={ids}
       position={position}
       saving={false}
@@ -129,20 +129,18 @@ export const Populated: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("listbox")).toBeInTheDocument();
     await expect(canvas.getAllByRole("option")).toHaveLength(3);
-    // The queue header counts the still-unreferenced entries (2 of the 3 seeded).
-    const header = canvas.getByText("Missing references").closest("header")!;
+    // The queue header counts the still-unsourced entries (2 of the 3 seeded).
+    const header = canvas.getByText("Missing sources").closest("header")!;
     await expect(within(header).getByText("2")).toBeInTheDocument();
     // The first publication is selected and shown in the detail pane.
     await expect(canvas.getByText("1 / 3")).toBeInTheDocument();
     await expect(
       canvas.getByRole("option", { name: "Dom Casmurro" }),
     ).toHaveAttribute("aria-selected", "true");
-    // Drafting a reference does NOT mark the publication sourced — the dot and
-    // the count only react to saved references.
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Add reference" }),
-    );
-    await userEvent.type(canvas.getByLabelText("Reference 1"), "A citation");
+    // Drafting a source does NOT mark the publication sourced — the dot and
+    // the count only react to saved sources.
+    await userEvent.click(canvas.getByRole("button", { name: "Add source" }));
+    await userEvent.type(canvas.getByLabelText("Source 1"), "A citation");
     await expect(within(header).getByText("2")).toBeInTheDocument();
     await expect(
       canvas.getByRole("option", { name: "Dom Casmurro" }),
@@ -195,15 +193,15 @@ export const Empty: Story = {
  */
 export const Queue: Story = {
   render: (args) => (
-    <ReferencesQueue ids={[1, 2, 3]} activeId={1} onSelect={args.onSelect} />
+    <SourcesQueue ids={[1, 2, 3]} activeId={1} onSelect={args.onSelect} />
   ),
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
 
     await expect(canvas.getAllByRole("option")).toHaveLength(3);
-    // The header counts only the entries still missing references (2 of 3 —
+    // The header counts only the entries still missing sources (2 of 3 —
     // "The Hour of the Star" is already sourced).
-    const header = canvas.getByText("Missing references").closest("header")!;
+    const header = canvas.getByText("Missing sources").closest("header")!;
     await expect(within(header).getByText("2")).toBeInTheDocument();
     await expect(
       canvas.getByRole("option", { name: "The Hour of the Star — sourced" }),
@@ -266,11 +264,9 @@ export const Step: Story = {
     const save = canvas.getByRole("button", { name: "Save & next" });
     await expect(save).toBeDisabled();
 
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Add reference" }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: "Add source" }));
     await userEvent.type(
-      canvas.getByLabelText("Reference 1"),
+      canvas.getByLabelText("Source 1"),
       "Caldwell, Helen. Introduction to Dom Casmurro.",
     );
     await expect(save).toBeEnabled();

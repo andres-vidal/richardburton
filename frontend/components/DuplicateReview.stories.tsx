@@ -24,7 +24,7 @@ const CLUSTERS: DuplicateCluster[] = [
   {
     score: 0.79,
     publications: [
-      publication({ id: 1, references: ["Caldwell, Helen. Introduction."] }),
+      publication({ id: 1, sources: ["Caldwell, Helen. Introduction."] }),
       publication({
         id: 2,
         title: "Dom Casmuro",

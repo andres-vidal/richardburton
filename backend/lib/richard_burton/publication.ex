@@ -15,7 +15,7 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.Publication.Duplicates
   alias RichardBurton.Publication.Index
   alias RichardBurton.Publisher
-  alias RichardBurton.Reference
+  alias RichardBurton.Source
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Validation
@@ -45,7 +45,7 @@ defmodule RichardBurton.Publication do
 
     # Owned provenance: replaced wholesale on edit (children carry no client id,
     # so cast_assoc treats every incoming entry as new), preloaded in order.
-    has_many(:references, Reference,
+    has_many(:sources, Source,
       on_replace: :delete,
       preload_order: [asc: :position]
     )
@@ -68,7 +68,7 @@ defmodule RichardBurton.Publication do
     |> cast_assoc(:translated_book, required: true)
     |> cast_assoc(:countries, required: true)
     |> cast_assoc(:publishers, required: true)
-    |> cast_assoc(:references)
+    |> cast_assoc(:sources)
     |> validate_length(:countries, min: 1)
     |> validate_no_duplicates(:countries, :code)
     |> validate_no_duplicates(:publishers, :name)
@@ -96,7 +96,7 @@ defmodule RichardBurton.Publication do
     Repo.preload(data, [
       :countries,
       :publishers,
-      :references,
+      :sources,
       translated_book: [:authors, original_book: [:authors]]
     ])
   end
@@ -144,7 +144,7 @@ defmodule RichardBurton.Publication do
   defp refresh_if_changed(error), do: error
 
   defp update_and_record(publication, attrs, actor) do
-    # Snapshots are the yardstick, not the changeset: cast_assoc(:references)
+    # Snapshots are the yardstick, not the changeset: cast_assoc(:sources)
     # treats every incoming entry as new (children carry no client id), so a
     # changeset always looks dirty even when the record is untouched.
     before = History.snapshot(preload(publication))
@@ -177,7 +177,7 @@ defmodule RichardBurton.Publication do
 
   @doc """
   Soft-delete a publication: stamp `deleted_at`, so every read path hides it
-  while its row, references, and history survive — and `restore/2` can bring
+  while its row, sources, and history survive — and `restore/2` can bring
   it back. The final state rides along in the history snapshot.
   """
   def delete(id, actor \\ History.system_actor()) do
@@ -440,7 +440,7 @@ defmodule RichardBurton.Publication do
     |> Map.merge(%{
       countries: joined(flat, :countries),
       publishers: joined(flat, :publishers),
-      references: flat |> Enum.flat_map(& &1.references) |> Enum.uniq()
+      sources: flat |> Enum.flat_map(& &1.sources) |> Enum.uniq()
     })
     |> Codec.nest()
   end

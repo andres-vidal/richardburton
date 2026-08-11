@@ -26,9 +26,9 @@ defmodule RichardBurton.FlatPublication do
 
   # Writable but not required: a publication may legitimately have no provenance,
   # and the bulk CSV import doesn't carry it.
-  @writable_attributes [:references | @required_attributes]
+  @writable_attributes [:sources | @required_attributes]
 
-  # A highlighted snippet of the references, set only when a search matched on
+  # A highlighted snippet of the sources, set only when a search matched on
   # them rather than on the record's own fields.
   @readable_attributes [:id, :source_match | @writable_attributes]
 
@@ -41,7 +41,7 @@ defmodule RichardBurton.FlatPublication do
     field(:publishers, :string)
     field(:original_title, :string)
     field(:original_authors, :string)
-    field(:references, {:array, :string})
+    field(:sources, {:array, :string})
 
     field(:countries_fingerprint, :string)
     field(:translated_book_fingerprint, :string)

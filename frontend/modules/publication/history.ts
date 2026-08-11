@@ -12,8 +12,8 @@ type FieldChange = {
   to: string;
 };
 
-type ReferencesChange = {
-  kind: "references";
+type SourcesChange = {
+  kind: "sources";
   added: string[];
   removed: string[];
   reordered: boolean;
@@ -25,7 +25,7 @@ type AbsorbedRecord = {
   id: number;
   title: string;
   fields: { label: string; value: string }[];
-  references: string[];
+  sources: string[];
 };
 
 /**
@@ -40,7 +40,7 @@ type AbsorbedChange = {
   records: AbsorbedRecord[];
 };
 
-type Change = FieldChange | ReferencesChange | AbsorbedChange;
+type Change = FieldChange | SourcesChange | AbsorbedChange;
 
 /** An entry carrying the changes its action made — what the views render. */
 type WithChanges<T> = T & { changes: Change[] };
@@ -54,7 +54,7 @@ function keyOf(entry: FullHistoryEntry): string {
  * Turn the server's structural diff into something renderable: field keys
  * become labels, raw values become strings, and the whole thing takes the
  * database's own attribute order rather than whatever order the payload
- * happened to arrive in. References come last, as the one change that is a list
+ * happened to arrive in. Sources come last, as the one change that is a list
  * rather than a value.
  *
  * This is the seam the wire format buys us — the server says *what* changed, and
@@ -72,9 +72,9 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
     to: String(diff.fields[key]!.to),
   }));
 
-  return diff.references === null
+  return diff.sources === null
     ? fields
-    : [...fields, { kind: "references", ...diff.references }];
+    : [...fields, { kind: "sources", ...diff.sources }];
 }
 
 /**
@@ -99,7 +99,7 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
         value: String(publication[key] ?? ""),
       }))
       .filter(({ value }) => value !== ""),
-    references: publication.references ?? [],
+    sources: publication.sources ?? [],
   }));
 
   return [

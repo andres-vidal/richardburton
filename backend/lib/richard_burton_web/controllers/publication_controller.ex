@@ -8,7 +8,7 @@ defmodule RichardBurtonWeb.PublicationController do
   # A later page of a search or listing already begun: the reader has scrolled,
   # and asks for the next stretch of the ordering the first response handed back.
   # The search and the words it matched on ride along so a row matched by its
-  # references still says so, without the search being resolved again.
+  # sources still says so, without the search being resolved again.
   #
   # The total was reported with the first page and does not change under the
   # reader; a later stretch is only the rows, so it does not pay to count again.
@@ -23,8 +23,8 @@ defmodule RichardBurtonWeb.PublicationController do
     json(conn, %{entries: entries})
   end
 
-  def index(conn, %{"unreferenced" => _}) do
-    {:ok, results} = Publication.Index.without_references()
+  def index(conn, %{"unsourced" => _}) do
+    {:ok, results} = Publication.Index.without_sources()
     conn |> put_total() |> json(%{entries: results})
   end
 
