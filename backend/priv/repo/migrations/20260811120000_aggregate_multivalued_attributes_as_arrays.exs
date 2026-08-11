@@ -18,10 +18,20 @@ defmodule RichardBurton.Repo.Migrations.AggregateMultivaluedAttributesAsArrays d
   """
 
   def up do
+    # `array_to_string` is stable rather than immutable, so an index cannot be
+    # built on it. Reading a list of names as its values with a space between
+    # depends on nothing but the values, which is what lets this be declared.
+    execute("""
+    CREATE FUNCTION rb_words(character varying[]) RETURNS text
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE AS
+    $$ SELECT array_to_string($1, ' ') $$
+    """)
+
     restack(
       flat_publications_select(&~s|array_agg(#{&1} ORDER BY #{&1})|),
       &~s|array_to_string(fp."#{&1}", ' ')|,
-      "fp.countries"
+      "fp.countries",
+      "rb_words(authors)"
     )
   end
 
@@ -29,18 +39,22 @@ defmodule RichardBurton.Repo.Migrations.AggregateMultivaluedAttributesAsArrays d
     restack(
       flat_publications_select(&~s|string_agg(#{&1}, ', ' ORDER BY #{&1})|),
       &~s|fp."#{&1}"|,
-      "string_to_array(fp.countries, ', ')"
+      "string_to_array(fp.countries, ', ')",
+      "authors"
     )
+
+    execute("DROP FUNCTION rb_words(character varying[])")
   end
 
   # search_keywords reads search_documents, which reads flat_publications, so
   # the stack comes down top-first and is rebuilt bottom-first.
   #
   # `words` renders one of the four newly-multi-valued columns as the text the
-  # tsvector wants, and `codes` renders the country codes as the array the name
-  # lookup matches on — the two things the shape decides. `references` is a
+  # tsvector wants, `codes` renders the country codes as the array the name
+  # lookup matches on, and `translators` renders the column the duplicate review
+  # measures likeness on — the three things the shape decides. `references` is a
   # list either way, so it is not one of them.
-  defp restack(select, words, codes) do
+  defp restack(select, words, codes, translators) do
     execute("DROP MATERIALIZED VIEW search_keywords")
     execute("DROP MATERIALIZED VIEW search_documents")
     execute("DROP MATERIALIZED VIEW flat_publications")
@@ -48,6 +62,14 @@ defmodule RichardBurton.Repo.Migrations.AggregateMultivaluedAttributesAsArrays d
     execute("CREATE MATERIALIZED VIEW flat_publications AS #{select}")
     execute("CREATE UNIQUE INDEX flat_publications_id_index ON flat_publications (id)")
     execute("CREATE INDEX flat_publications_title_id_index ON flat_publications (title, id)")
+
+    # Rebuilding the view drops what was indexed on it, and the duplicate review
+    # is only cheap while this exists — it must match how the review spells the
+    # column, or the planner reads every publication instead.
+    execute("""
+    CREATE INDEX flat_publications_translators_trigram_index
+    ON flat_publications USING gin((#{translators}) gin_trgm_ops)
+    """)
 
     create_search_stack(words, codes)
   end

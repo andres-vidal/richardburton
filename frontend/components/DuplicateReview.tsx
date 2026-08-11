@@ -174,20 +174,25 @@ const Candidate: FC<{
           {p.title}{" "}
           <span className="font-normal text-gray-600">({p.year})</span>
         </p>
-        <p className="text-xs text-gray-600">{p.authors}</p>
+        <p className="text-xs text-gray-600">
+          {Publication.describe(p.authors, "authors")}
+        </p>
       </div>
     </div>
     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
       <dt className="text-gray-600">Original</dt>
       <dd className="text-gray-800">
-        {p.originalTitle} — {p.originalAuthors}
+        {p.originalTitle} —{" "}
+        {Publication.describe(p.originalAuthors, "originalAuthors")}
       </dd>
       <dt className="text-gray-600">Countries</dt>
       <dd className="text-gray-800">
-        {Publication.describeValue(p.countries, "countries")}
+        {Publication.describe(p.countries, "countries")}
       </dd>
       <dt className="text-gray-600">Publishers</dt>
-      <dd className="text-gray-800">{p.publishers}</dd>
+      <dd className="text-gray-800">
+        {Publication.describe(p.publishers, "publishers")}
+      </dd>
       <dt className="text-gray-600">Sources</dt>
       <dd className="text-gray-800">
         {p.references.length === 0 ? "None" : p.references.join("; ")}

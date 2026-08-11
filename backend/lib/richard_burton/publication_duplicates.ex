@@ -214,6 +214,22 @@ defmodule RichardBurton.Publication.Duplicates do
     )
   end
 
+  # A name and a book's title are one value; translators and original authors
+  # are lists. `rb_words` reads a list as its values with a space between — the
+  # same way the search index reads these columns — and the index on them is
+  # written that way too, so the comparison can use it.
+  @lists [:authors, :original_authors]
+
+  defp alike(field) when field in @lists do
+    dynamic(
+      fragment(
+        "rb_words(?) % rb_words(?)",
+        field(as(:left), ^field),
+        field(as(:right), ^field)
+      )
+    )
+  end
+
   defp alike(field) do
     dynamic(fragment("? % ?", field(as(:left), ^field), field(as(:right), ^field)))
   end

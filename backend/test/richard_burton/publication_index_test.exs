@@ -720,8 +720,8 @@ defmodule RichardBurton.Publication.IndexTest do
       {:ok, fuzzy, _} = Publication.Index.search("Verissimoo :or Machadoo")
 
       refute Enum.empty?(fuzzy)
-      assert Enum.any?(fuzzy, &String.contains?(&1.original_authors, "Verissimo"))
-      assert Enum.any?(fuzzy, &String.contains?(&1.original_authors, "Machado"))
+      assert Enum.any?(fuzzy, &("Erico Verissimo" in &1.original_authors))
+      assert Enum.any?(fuzzy, &("Machado de Assis" in &1.original_authors))
     end
 
     test "the operator answers to Portuguese too" do
