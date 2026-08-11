@@ -11,6 +11,7 @@ import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
 import PublicationScroll from "components/PublicationScroll";
 import PublicationSearch from "components/PublicationSearch";
+import { SearchHelpModal } from "components/SearchHelpModal";
 import SignInButton from "components/SignInButton";
 import type { PublicationIndex } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
@@ -114,6 +115,7 @@ function Database({ index }: Props) {
 
           <ContactModal />
           <LearnMoreModal />
+          <SearchHelpModal />
         </div>
       }
     />
