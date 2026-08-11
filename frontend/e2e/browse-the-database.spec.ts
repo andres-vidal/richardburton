@@ -219,7 +219,7 @@ test("a large index virtualizes: far rows render as they scroll into view", asyn
   await expect(lastRow).not.toHaveText("");
 });
 
-test("a signed-out reader sees publication details read-only, references included", async ({
+test("a signed-out reader sees publication details read-only, sources included", async ({
   page,
 }) => {
   await seedCorpus(page);
@@ -228,7 +228,7 @@ test("a signed-out reader sees publication details read-only, references include
   await signOut(page);
 
   const dialog = await openPublicationModal(page, "The Hour of the Star");
-  // Provenance is public: the reference shows in the read view…
+  // Provenance is public: the source shows in the read view…
   await expect(
     dialog.getByText("Pontiero, Giovanni. Afterword."),
   ).toBeVisible();
@@ -290,7 +290,7 @@ test("a search link in an open publication takes the reader to that search", asy
 
 test("a row answered by its sources says so", async ({ page }) => {
   await seedCorpus(page);
-  // "Afterword" is in one publication's references and nowhere else in the
+  // "Afterword" is in one publication's sources and nowhere else in the
   // corpus, so the row it returns has nothing on it explaining why.
   await page.goto("/?search=Afterword");
 

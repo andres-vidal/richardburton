@@ -55,13 +55,13 @@ const Summary: FC<{ publication: Publication }> = ({ publication: p }) => (
           </div>
         ) : null;
       })}
-      {p.references?.length > 0 && (
+      {p.sources?.length > 0 && (
         <div className="flex gap-1">
           <dt className="text-gray-600 shrink-0">Sources:</dt>
           <dd className="wrap-break-words">
             <ul>
-              {p.references.map((reference) => (
-                <li key={reference}>{reference}</li>
+              {p.sources.map((source) => (
+                <li key={source}>{source}</li>
               ))}
             </ul>
           </dd>
@@ -123,7 +123,7 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
       kept: Publication.items(winner.publishers),
       all: Publication.items(result.publishers),
     },
-    { label: "References", kept: winner.references, all: result.references },
+    { label: "Sources", kept: winner.sources, all: result.sources },
   ].map(({ label, kept, all }) => ({
     label,
     kept,

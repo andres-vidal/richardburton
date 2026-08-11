@@ -7,7 +7,7 @@ import {
   submitWorkspace,
 } from "./helpers";
 
-test("an admin edits a publication's title and references in a corpus", async ({
+test("an admin edits a publication's title and sources in a corpus", async ({
   page,
 }) => {
   await seedCorpus(page);
@@ -25,13 +25,13 @@ test("an admin edits a publication's title and references in a corpus", async ({
   await title.fill("The Hour of the Star (revised)");
   await title.blur();
 
-  // The corpus reference is already listed; add a second source alongside it.
-  await expect(
-    dialog.getByRole("textbox", { name: "Reference 1" }),
-  ).toHaveValue("Pontiero, Giovanni. Afterword.");
-  await dialog.getByRole("button", { name: "Add reference" }).click();
+  // The corpus source is already listed; add a second source alongside it.
+  await expect(dialog.getByRole("textbox", { name: "Source 1" })).toHaveValue(
+    "Pontiero, Giovanni. Afterword.",
+  );
+  await dialog.getByRole("button", { name: "Add source" }).click();
   await dialog
-    .getByRole("textbox", { name: "Reference 2" })
+    .getByRole("textbox", { name: "Source 2" })
     .fill("Moser, Benjamin. Why This World, 2009.");
 
   const save = dialog.getByRole("button", { name: "Save" });
@@ -58,7 +58,7 @@ test("an admin edits a publication's title and references in a corpus", async ({
     dialog.getByRole("heading", { name: "Edit publication" }),
   ).toHaveCount(0);
   // `exact`: the history section is in the document too, and its diff names the
-  // same reference with a "+ " in front.
+  // same source with a "+ " in front.
   await expect(
     dialog.getByText("Pontiero, Giovanni. Afterword.", { exact: true }),
   ).toBeVisible();
@@ -80,7 +80,7 @@ test("an admin edits a publication's title and references in a corpus", async ({
       "Title: The Hour of the Star → The Hour of the Star (revised)",
     ),
   ).toBeVisible();
-  // The diff names the exact reference that was added.
+  // The diff names the exact source that was added.
   await expect(
     dialog.getByText("+ Moser, Benjamin. Why This World, 2009."),
   ).toBeVisible();
@@ -110,7 +110,7 @@ test("an admin edits a publication's title and references in a corpus", async ({
   ).toHaveCount(0);
   await page.keyboard.press("Escape");
 
-  // Undoing the OLDER update reverts exactly its fields (title, references) —
+  // Undoing the OLDER update reverts exactly its fields (title, sources) —
   // the later year change survives. Reconcilable undo, not last-write undo.
   await page.goto("/admin/publications/history");
   const updated = page.locator('li[data-action="updated"]');

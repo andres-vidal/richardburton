@@ -51,13 +51,13 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  Publications with no provenance, ordered by id — the stable queue the references
+  Publications with no provenance, ordered by id — the stable queue the sources
   backfill steps through.
   """
-  def without_references do
+  def without_sources do
     results =
       from(fp in FlatPublication,
-        where: fragment("cardinality(?) = 0", fp.references),
+        where: fragment("cardinality(?) = 0", fp.sources),
         order_by: [asc: fp.id]
       )
       |> Repo.all()
@@ -172,7 +172,7 @@ defmodule RichardBurton.Publication.Index do
   The full rows for the given ids, in that order — one stretch of an ordering
   `search_order/1` or `all_order/0` handed back. A `nil` term is a plain
   listing; a term and the words it matched on (as `search_order/1` returned
-  them) are carried so a row matched only by its references still shows which —
+  them) are carried so a row matched only by its sources still shows which —
   and shows it without resolving the term over again.
 
   An id no longer in the database is simply left out, which is how a deletion
@@ -345,7 +345,7 @@ defmodule RichardBurton.Publication.Index do
     |> source_match(attributes, ask)
   end
 
-  # The query to highlight a row's references with — built from the words the
+  # The query to highlight a row's sources with — built from the words the
   # search resolved to, which came back with the ids, so a page reads them from
   # the client rather than resolving the term over again. A spelled-out term
   # carries no keywords and is highlighted exactly as it was written.
@@ -357,7 +357,7 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  # A publication can match on its references, which the index does not display.
+  # A publication can match on its sources, which the index does not display.
   # When it does, build a highlighted snippet of the matching source so the
   # reader can see why the row is here; the matched words are wrapped in [[ ]].
   # Only whole-row reads carry it — a column-narrowed export asks for no snippet.
@@ -366,9 +366,9 @@ defmodule RichardBurton.Publication.Index do
       source_match:
         fragment(
           "CASE WHEN to_tsvector('rb_search', array_to_string(?, ' ')) @@ to_tsquery('rb_search', ?) THEN ts_headline('rb_search', array_to_string(?, ' '), to_tsquery('rb_search', ?), 'StartSel=[[,StopSel=]],MaxFragments=1,MaxWords=16,MinWords=6') ELSE NULL END",
-          p.references,
+          p.sources,
           ^term,
-          p.references,
+          p.sources,
           ^term
         )
     })
@@ -379,9 +379,9 @@ defmodule RichardBurton.Publication.Index do
       source_match:
         fragment(
           "CASE WHEN to_tsvector('rb_search', array_to_string(?, ' ')) @@ websearch_to_tsquery('rb_search', ?) THEN ts_headline('rb_search', array_to_string(?, ' '), websearch_to_tsquery('rb_search', ?), 'StartSel=[[,StopSel=]],MaxFragments=1,MaxWords=16,MinWords=6') ELSE NULL END",
-          p.references,
+          p.sources,
           ^term,
-          p.references,
+          p.sources,
           ^term
         )
     })

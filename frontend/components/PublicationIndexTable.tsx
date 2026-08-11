@@ -98,9 +98,9 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
 };
 
 /**
- * A search can match a publication on its references, which the table does not
+ * A search can match a publication on its sources, which the table does not
  * show — so the row looks unexplained. This renders a snippet of the matching
- * reference, with the matched words (arriving wrapped in `[[ ]]`) highlighted,
+ * source, with the matched words (arriving wrapped in `[[ ]]`) highlighted,
  * so the reader can see why the row is here.
  */
 const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
@@ -339,7 +339,7 @@ const PublicationIndexTable: FC<Props> = ({
         ))}
         {ExtendedTrailingColumn && (
           <Aria.ColumnHeader>
-            <span className="sr-only">References</span>
+            <span className="sr-only">Sources</span>
           </Aria.ColumnHeader>
         )}
       </Aria.Row>

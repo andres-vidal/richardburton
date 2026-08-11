@@ -28,11 +28,11 @@ const RowButton: FC<{
  * there is no per-row local state (the reorder is a plain array swap, not a
  * drag-measured layout).
  */
-const ReferencesEditor: FC<{
+const SourcesEditor: FC<{
   value: string[];
-  onChange: (references: string[]) => void;
+  onChange: (sources: string[]) => void;
   label?: string;
-}> = ({ value, onChange, label = "References" }) => {
+}> = ({ value, onChange, label = "Sources" }) => {
   const setAt = (index: number, content: string) =>
     onChange(value.map((entry, i) => (i === index ? content : entry)));
 
@@ -58,7 +58,7 @@ const ReferencesEditor: FC<{
       </div>
 
       {value.length === 0 ? (
-        <p className="text-sm italic text-gray-500">No references yet.</p>
+        <p className="text-sm italic text-gray-500">No sources yet.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {value.map((content, index) => (
@@ -70,25 +70,25 @@ const ReferencesEditor: FC<{
                 fill
                 value={content}
                 onChange={(next) => setAt(index, next)}
-                aria-label={`Reference ${index + 1}`}
+                aria-label={`Source ${index + 1}`}
                 placeholder="A citation, URL, or note"
               />
               <RowButton
-                label={`Move reference ${index + 1} up`}
+                label={`Move source ${index + 1} up`}
                 onClick={() => move(index, -1)}
                 disabled={index === 0}
               >
                 ↑
               </RowButton>
               <RowButton
-                label={`Move reference ${index + 1} down`}
+                label={`Move source ${index + 1} down`}
                 onClick={() => move(index, 1)}
                 disabled={index === value.length - 1}
               >
                 ↓
               </RowButton>
               <RowButton
-                label={`Remove reference ${index + 1}`}
+                label={`Remove source ${index + 1}`}
                 onClick={() => removeAt(index)}
               >
                 ✕
@@ -100,7 +100,7 @@ const ReferencesEditor: FC<{
 
       <div>
         <Button
-          label="Add reference"
+          label="Add source"
           variant="outline"
           width="fit"
           size="small"
@@ -111,4 +111,4 @@ const ReferencesEditor: FC<{
   );
 };
 
-export default ReferencesEditor;
+export default SourcesEditor;

@@ -12,7 +12,7 @@ type Publication = {
   authors: string;
   originalTitle: string;
   originalAuthors: string;
-  references: string[];
+  sources: string[];
   // The server PK: a real id on persisted rows (index/search), null on
   // unsaved/working rows. Read-only: never cast from client input.
   id: number | null;
@@ -21,10 +21,7 @@ type Publication = {
   sourceMatch?: string;
 };
 
-type PublicationKey = keyof Omit<
-  Publication,
-  "id" | "references" | "sourceMatch"
->;
+type PublicationKey = keyof Omit<Publication, "id" | "sources" | "sourceMatch">;
 
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
@@ -46,7 +43,7 @@ type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
 
 type SnapshotDiff = {
   fields: Partial<Record<PublicationKey, { from: unknown; to: unknown }>>;
-  references: { added: string[]; removed: string[]; reordered: boolean } | null;
+  sources: { added: string[]; removed: string[]; reordered: boolean } | null;
 };
 
 /**
@@ -157,7 +154,7 @@ function empty(): Publication {
     publishers: "",
     title: "",
     year: "",
-    references: [],
+    sources: [],
   };
 }
 
@@ -195,7 +192,7 @@ function merged(winner: Publication, losers: Publication[]): Publication {
     ...winner,
     countries: union("countries"),
     publishers: union("publishers"),
-    references: Array.from(new Set(all.flatMap((p) => p.references))),
+    sources: Array.from(new Set(all.flatMap((p) => p.sources))),
   };
 }
 

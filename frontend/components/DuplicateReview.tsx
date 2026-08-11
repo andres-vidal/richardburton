@@ -20,7 +20,7 @@ const name = (cluster: DuplicateCluster) =>
 
 /**
  * The queue of clusters as a single-select listbox — one tab stop, arrows move
- * the selection, click jumps. The same shape the references backfill uses, so
+ * the selection, click jumps. The same shape the sources backfill uses, so
  * an admin who has stepped through one knows this one.
  */
 export const DuplicateQueue: FC<{
@@ -190,7 +190,7 @@ const Candidate: FC<{
       <dd className="text-gray-800">{p.publishers}</dd>
       <dt className="text-gray-600">Sources</dt>
       <dd className="text-gray-800">
-        {p.references.length === 0 ? "None" : p.references.join("; ")}
+        {p.sources.length === 0 ? "None" : p.sources.join("; ")}
       </dd>
     </dl>
   </label>

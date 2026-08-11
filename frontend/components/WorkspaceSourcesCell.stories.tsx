@@ -4,9 +4,9 @@ import { Publication } from "modules/publication/model";
 import { resetAll, setAll } from "modules/publication/store";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
-import WorkspaceReferencesCell from "./WorkspaceReferencesCell";
+import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
-const seed = (store: Store, rowId: number, references: string[]) => {
+const seed = (store: Store, rowId: number, sources: string[]) => {
   resetAll(store);
   setAll(store, [
     {
@@ -14,7 +14,7 @@ const seed = (store: Store, rowId: number, references: string[]) => {
       publication: {
         ...Publication.empty(),
         title: "Dom Casmurro",
-        references,
+        sources,
       },
       errors: null,
     },
@@ -24,8 +24,8 @@ const seed = (store: Store, rowId: number, references: string[]) => {
 // The trailing "sources" cell for a workspace row. `role="cell"` needs a row/table
 // ancestor to be valid ARIA, so the decorator supplies one.
 const meta = {
-  title: "Publications/Workspace references cell",
-  component: WorkspaceReferencesCell,
+  title: "Publications/Workspace sources cell",
+  component: WorkspaceSourcesCell,
   args: { rowId: 1 },
   decorators: [
     (Story) => (
@@ -37,37 +37,37 @@ const meta = {
     ),
   ],
   parameters: { layout: "centered" },
-} satisfies Meta<typeof WorkspaceReferencesCell>;
+} satisfies Meta<typeof WorkspaceSourcesCell>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** With references: the button summarizes the count and opens the list editor. */
-export const WithReferences: Story = {
+/** With sources: the button summarizes the count and opens the list editor. */
+export const WithSources: Story = {
   beforeEach: () => seed(store, 1, ["A source", "Another source"]),
   parameters: {
     // The open modal aria-hides the background trigger, which is still focusable.
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
   },
   play: async () => {
-    const button = screen.getByRole("button", { name: "Edit references (2)" });
+    const button = screen.getByRole("button", { name: "Edit sources (2)" });
     await expect(button).toBeInTheDocument();
 
     await userEvent.click(button);
     // The editor opens in a modal (portalled to the body) seeded with the list.
     await waitFor(() =>
-      expect(screen.getByLabelText("Reference 1")).toHaveValue("A source"),
+      expect(screen.getByLabelText("Source 1")).toHaveValue("A source"),
     );
   },
 };
 
-/** With none: the button invites adding references. */
+/** With none: the button invites adding sources. */
 export const Empty: Story = {
   beforeEach: () => seed(store, 1, []),
   play: async () => {
     await expect(
-      screen.getByRole("button", { name: "Add references" }),
+      screen.getByRole("button", { name: "Add sources" }),
     ).toBeInTheDocument();
   },
 };

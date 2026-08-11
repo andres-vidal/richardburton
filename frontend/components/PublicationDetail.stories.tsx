@@ -28,7 +28,7 @@ const DOM_CASMURRO = {
   year: "1953",
   countries: "US",
   publishers: "Noonday Press",
-  references: [
+  sources: [
     "Caldwell, Helen. Introduction, 1953.",
     "Gledson, John. Deceptive Realism, 1984.",
   ],
@@ -45,7 +45,7 @@ const LOG: PublicationHistoryEntry[] = [
     snapshot: { ...DOM_CASMURRO, year: 1953 },
     diff: {
       fields: { year: { from: "1952", to: "1953" } },
-      references: null,
+      sources: null,
     },
   },
   {
@@ -99,10 +99,10 @@ export const Default: Story = {
  * A record nobody has sourced yet says so: for a database whose worth is its
  * provenance, an absent source is worth stating.
  */
-export const WithoutReferences: Story = {
-  args: { publication: { ...DOM_CASMURRO, references: [] } },
+export const WithoutSources: Story = {
+  args: { publication: { ...DOM_CASMURRO, sources: [] } },
   play: async () => {
-    await expect(screen.getByText("References")).toBeVisible();
+    await expect(screen.getByText("Sources")).toBeVisible();
     await expect(screen.getByText(/No sources recorded yet/)).toBeVisible();
   },
 };

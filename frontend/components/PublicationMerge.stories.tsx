@@ -14,7 +14,7 @@ const DOM_CASMURRO: Publication = {
   year: "1953",
   countries: "US",
   publishers: "Noonday Press",
-  references: ["Caldwell, Helen. Introduction, 1953."],
+  sources: ["Caldwell, Helen. Introduction, 1953."],
 };
 
 // Two records of the same book, entered separately: one adds a country and a
@@ -25,12 +25,12 @@ const DUPLICATES: Publication[] = [
     id: 8,
     countries: "GB",
     publishers: "W. H. Allen",
-    references: ["Gledson, John. Deceptive Realism, 1984."],
+    sources: ["Gledson, John. Deceptive Realism, 1984."],
   },
   {
     ...DOM_CASMURRO,
     id: 9,
-    references: ["Caldwell, Helen. Introduction, 1953."],
+    sources: ["Caldwell, Helen. Introduction, 1953."],
   },
 ];
 
