@@ -39,6 +39,14 @@ test("browse the corpus, search, and toggle a column", async ({ page }) => {
   await expect(table.getByText("Gabriela, Clove and Cinnamon")).toBeVisible();
   await expect(table.getByText("Epitaph of a Small Winner")).toHaveCount(0);
 
+  // `:or` widens: either alternative matches, from the search bar directly.
+  await search.fill("Amado :or Lispector");
+  await expect(table.getByText("Gabriela, Clove and Cinnamon")).toBeVisible();
+  await expect(table.getByText("The Hour of the Star")).toBeVisible();
+  await expect(
+    table.getByRole("row").filter({ hasText: "Machado de Assis" }),
+  ).toHaveCount(0);
+
   // Clearing restores the full corpus.
   await search.fill("");
   await expect(table.getByText("Barren Lives")).toBeVisible();

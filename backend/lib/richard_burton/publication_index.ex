@@ -2,13 +2,13 @@ defmodule RichardBurton.Publication.Index do
   @moduledoc """
   Full-text search over the publication index.
 
-  A search runs in one of two modes. A plain term is split into words, each
-  word is matched on its own (as a prefix, or fuzzily if nothing matches as
-  typed), and the words are combined with AND so each one narrows the result.
-  A term that quotes a phrase or negates a word is instead passed to Postgres
-  verbatim, exactly as written. Either way the match runs against a `tsvector`
-  built with accents folded, so a term is folded the same way before it is
-  compared.
+  A search runs in one of two modes. A plain term is split on `:or` (or `:ou`) into
+  alternatives, any of which may match; within an alternative the words are
+  matched each on its own (as a prefix, or fuzzily if nothing matches as typed)
+  and combined with AND, so each word narrows the result. A term that quotes a
+  phrase or negates a word is instead passed to Postgres verbatim, exactly as
+  written. Either way the match runs against a `tsvector` built with accents
+  folded, so a term is folded the same way before it is compared.
   """
 
   import Ecto.Query
@@ -121,13 +121,15 @@ defmodule RichardBurton.Publication.Index do
   @doc """
   The publications a term matches, and the indexed words it matched on.
 
-  The term's words are combined with AND, so each word narrows the result: a
-  publication must match every word. That is why searching a full title returns
-  just that title, not everything that shares a word with it. For a single word,
-  matching any of the indexed words it could be is enough, so a half-typed word
-  matches everything it might still become. The words are tried as typed first,
-  and only if that matches nothing is the term retried fuzzily, dropping a word
-  that matches nothing rather than emptying the result.
+  The term is split on `:or` (or `:ou`) into alternatives, and a publication
+  matches if it satisfies any of them. Within an alternative the words are
+  combined with AND, so each word narrows: a publication must match every word
+  of the alternative. That is why searching a full title returns just that
+  title, while "one title or another" returns both. For a single word, matching
+  any of the indexed words it could be is enough, so a half-typed word matches
+  everything it might still become. The term is tried as typed first, and only
+  if that matches nothing is it retried fuzzily, dropping a word that matches
+  nothing rather than emptying the result.
 
   Unbounded, for the caller that needs all of it at once — the CSV export is a
   download of the database, not a page of it. A reader takes it a page at a time
@@ -246,25 +248,44 @@ defmodule RichardBurton.Publication.Index do
       ask = {:spelled_out, term}
       {ask, [], order_ids(ask)}
     else
-      words = String.split(term, ~r/\s+/, trim: true)
-      as_written = {:parsed, written_query(words)}
+      alternatives = or_split(term)
+      as_written = {:parsed, written_query(alternatives)}
 
       case order_ids(as_written) do
-        [] -> fuzzily_answering(words)
-        ids -> {as_written, prefix_keywords(words), ids}
+        [] -> fuzzily_answering(alternatives)
+        ids -> {as_written, prefix_keywords(alternatives), ids}
       end
     end
   end
 
-  defp fuzzily_answering(words) do
-    case fuzzily(words) do
+  defp fuzzily_answering(alternatives) do
+    case fuzzily(alternatives) do
       :none -> :none
       {ask, keywords} -> {ask, keywords, order_ids(ask)}
     end
   end
 
-  defp prefix_keywords(words),
-    do: words |> Enum.flat_map(&search_keywords(&1, :prefix)) |> Enum.uniq()
+  # Split a term into the alternatives `:or` separates, each a list of words.
+  # "one two :or three" becomes [["one", "two"], ["three"]]. A term with no
+  # `:or` is one alternative, so the AND-narrowing path is unchanged.
+  #
+  # The operator wears a colon so that it cannot be mistaken for a word being
+  # searched for — a title like "Love or Death" is about the word, not the
+  # operator — and it answers to `:ou` as well, since a reader searching a
+  # Brazilian database should not have to reach for English to widen a query.
+  defp or_split(term) do
+    term
+    |> String.split(~r/\s+:(or|ou)\s+/i, trim: true)
+    |> Enum.map(&String.split(&1, ~r/\s+/, trim: true))
+    |> Enum.reject(&(&1 == []))
+  end
+
+  defp prefix_keywords(alternatives),
+    do:
+      alternatives
+      |> List.flatten()
+      |> Enum.flat_map(&search_keywords(&1, :prefix))
+      |> Enum.uniq()
 
   defp spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
 
@@ -272,28 +293,42 @@ defmodule RichardBurton.Publication.Index do
   # word that starts with it, and a complete word matches itself. A country name
   # is matched the same way as any other word: its names are folded into the
   # document at index time, so "United Kingdom" reaches the record that stores
-  # the code "GB" with no special handling here.
-  defp written_query(words) do
-    Enum.map_join(words, " & ", &"(#{lexeme(&1)}:*)")
+  # the code "GB" with no special handling here. Alternatives are OR-ed, their
+  # words AND-ed.
+  defp written_query(alternatives) do
+    Enum.map_join(alternatives, " | ", &"(#{and_prefixes(&1)})")
   end
+
+  defp and_prefixes(words), do: Enum.map_join(words, " & ", &"(#{lexeme(&1)}:*)")
 
   # Nothing matched as typed, so each word is matched against the indexed words
   # it resembles. A word that resembles none is dropped: a typo should cost its
-  # own word, not the whole term.
-  defp fuzzily(words) do
-    words
-    |> Enum.map(&search_keywords(&1, :fuzzy))
+  # own word, not the whole alternative. An alternative left with no words is
+  # dropped whole.
+  defp fuzzily(alternatives) do
+    alternatives
+    |> Enum.map(&fuzzy_words/1)
     |> Enum.reject(&(&1 == []))
     |> case do
       [] ->
         :none
 
-      groups ->
-        query =
-          Enum.map_join(groups, " & ", &"(#{Enum.map_join(&1, " | ", fn w -> lexeme(w) end)})")
-
-        {{:parsed, query}, groups |> List.flatten() |> Enum.uniq()}
+      alternatives ->
+        query = Enum.map_join(alternatives, " | ", &"(#{and_fuzzy(&1)})")
+        {{:parsed, query}, alternatives |> List.flatten() |> Enum.uniq()}
     end
+  end
+
+  # One alternative's words resolved to the keywords they resemble, dropping any
+  # word that resembles none.
+  defp fuzzy_words(words) do
+    words
+    |> Enum.map(&search_keywords(&1, :fuzzy))
+    |> Enum.reject(&(&1 == []))
+  end
+
+  defp and_fuzzy(word_groups) do
+    Enum.map_join(word_groups, " & ", &"(#{Enum.map_join(&1, " | ", fn w -> lexeme(w) end)})")
   end
 
   # A word as a tsquery lexeme: quoted, so punctuation in it is read as part of
