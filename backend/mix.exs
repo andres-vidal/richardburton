@@ -66,7 +66,7 @@ defmodule RichardBurton.MixProject do
       {:csv, "~> 3.2.1"},
       {:cors_plug, "~> 3.0.3"},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
-      {:joken, "~> 2.6.0"},
+      {:joken, "~> 2.7.0"},
       {:httpoison, "~> 3.0"},
       {:mox, "~> 1.2", only: :test},
       {:bypass, "~> 2.1", only: :test},
