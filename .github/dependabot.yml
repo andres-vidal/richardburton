@@ -22,6 +22,14 @@ updates:
           - "storybook"
           - "@storybook/*"
         update-types: ["minor", "patch"]
+      # A family's major has to arrive whole: a satellite on the new major
+      # beside a core on the old one installs and then does not work. It is
+      # kept apart from the group above so a patch never waits on a major.
+      storybook-major:
+        patterns:
+          - "storybook"
+          - "@storybook/*"
+        update-types: ["major"]
       react:
         patterns:
           - "react"
@@ -29,6 +37,13 @@ updates:
           - "@types/react"
           - "@types/react-dom"
         update-types: ["minor", "patch"]
+      react-major:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+        update-types: ["major"]
       # `eslint-config-next` carries Next's version, not ESLint's, and is
       # released from the same repository. It has to follow `next` — grouped
       # with ESLint it would be offered a Next the application is not on.
@@ -37,11 +52,21 @@ updates:
           - "next"
           - "eslint-config-next"
         update-types: ["minor", "patch"]
+      next-major:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+        update-types: ["major"]
       vitest:
         patterns:
           - "vitest"
           - "@vitest/*"
         update-types: ["minor", "patch"]
+      vitest-major:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+        update-types: ["major"]
       # The Vite plugins name a Vite major as their peer, so they are only ever
       # correct against the Vite beside them.
       vite:
@@ -49,6 +74,11 @@ updates:
           - "vite"
           - "@vitejs/*"
         update-types: ["minor", "patch"]
+      vite-major:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+        update-types: ["major"]
       tailwind:
         patterns:
           - "tailwindcss"
@@ -60,6 +90,11 @@ updates:
           - "playwright"
           - "@playwright/*"
         update-types: ["minor", "patch"]
+      playwright-major:
+        patterns:
+          - "playwright"
+          - "@playwright/*"
+        update-types: ["major"]
       jotai:
         patterns:
           - "jotai"
