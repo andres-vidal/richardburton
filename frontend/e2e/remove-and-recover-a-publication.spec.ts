@@ -61,11 +61,7 @@ test("an admin deletes a publication; it leaves the index and search, and the sa
   // wait, since it dismisses itself after a few seconds.
   await expect(
     page.locator("section[aria-label='Notifications']"),
-    // `[\s\S]` rather than the `s` flag: tsconfig targets es5, where dotAll is
-    // a compile error.
-  ).toContainText(
-    /Publication deleted[\s\S]*Restore it from Deleted publications/,
-  );
+  ).toContainText(/Publication deleted.*Restore it from Deleted publications/s);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expectPublicationCount(page, CORPUS_SIZE - 1);
   await expect(

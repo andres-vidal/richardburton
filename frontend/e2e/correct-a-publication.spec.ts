@@ -50,9 +50,7 @@ test("an admin edits a publication's title and references in a corpus", async ({
   ).toContainText(
     // No quote characters in the pattern — the copy wraps the title in curly
     // quotes, which are easy to get wrong in a regex and prove nothing here.
-    // `[\s\S]` rather than the `s` flag: tsconfig targets es5, where dotAll is
-    // a compile error.
-    /Publication updated[\s\S]*The Hour of the Star \(revised\)[\s\S]*is saved/,
+    /Publication updated.*The Hour of the Star \(revised\).*is saved/s,
   );
   await expect(
     dialog.getByRole("heading", { name: "Edit publication" }),
