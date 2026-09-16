@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -14,11 +14,10 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "baseUrl": ".",
     "paths": {
-      "app": ["modules/app"]
+      "app": ["./modules/app"],
+      "*": ["./*"]
     },
-    "downlevelIteration": true,
     "types": ["vitest/globals"],
     "plugins": [
       {
