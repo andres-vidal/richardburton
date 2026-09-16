@@ -63,7 +63,7 @@
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.10",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.0",
     "colord": "^2.10.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.3.0",
