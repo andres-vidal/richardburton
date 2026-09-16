@@ -61,9 +61,9 @@
     "@types/react-dom": "^19.3.0",
     "@types/react-google-recaptcha": "^2.1.9",
     "@vitejs/plugin-react": "^6.1.1",
-    "@vitest/browser": "^4.1.10",
-    "@vitest/browser-playwright": "^4.1.10",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/browser": "^5.0.0",
+    "@vitest/browser-playwright": "^5.0.0",
+    "@vitest/coverage-v8": "^5.0.0",
     "colord": "^2.10.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.3.5",
@@ -81,6 +81,6 @@
     "vite-plugin-magical-svg": "^1.10.3",
     "vite-plugin-svgr": "^5.2.0",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   }
 }
