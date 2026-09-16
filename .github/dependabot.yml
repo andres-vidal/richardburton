@@ -22,9 +22,6 @@ updates:
           - "storybook"
           - "@storybook/*"
         update-types: ["minor", "patch"]
-      # A family's major has to arrive whole: a satellite on the new major
-      # beside a core on the old one installs and then does not work. It is
-      # kept apart from the group above so a patch never waits on a major.
       storybook-major:
         patterns:
           - "storybook"
