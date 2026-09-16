@@ -79,6 +79,15 @@ updates:
         exclude-patterns:
           - "eslint-config-next"
         update-types: ["minor", "patch"]
+      # The tail: everything released on its own, and the lockfile-only bumps
+      # beneath it. A patch to a package nothing else is released with is not
+      # worth a pull request and a full run of CI by itself, and a tail of them
+      # crowds out the updates that do deserve a look. Majors still arrive
+      # alone, as above.
+      tail:
+        patterns:
+          - "*"
+        update-types: ["minor", "patch"]
     # The Node types describe the runtime this project pins, so their major is
     # not ours to choose: it follows `.tool-versions`, and a major ahead of it
     # would have the compiler accept APIs that do not exist when the code runs.
@@ -117,6 +126,10 @@ updates:
         patterns:
           - "telemetry"
           - "telemetry_*"
+        update-types: ["minor", "patch"]
+      tail:
+        patterns:
+          - "*"
         update-types: ["minor", "patch"]
 
   # The workflows pin their actions, and those pins go stale silently — checkout
