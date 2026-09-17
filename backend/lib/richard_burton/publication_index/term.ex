@@ -65,9 +65,6 @@ defmodule RichardBurton.Publication.Index.Term do
   @operator ~r/^(?<negated>-?)(?<field>[^\s:"]+):(?<value>.*)$/s
   @alternator ~r/^:(or|ou)$/i
 
-  @doc "The fields an operator can name, against every word that names them."
-  def fields, do: @fields
-
   @doc """
   Read a term as the alternatives it offers, each a set of words to look for and
   the filters that narrow them. A term with no operators is one alternative of

@@ -313,18 +313,17 @@ defmodule RichardBurton.Publication.Index do
     value
     |> String.split(~r/\s+/, trim: true)
     |> Enum.map(&search_keywords(&1, :fuzzy))
-    |> case do
-      [] ->
-        :none
-
-      groups ->
-        if Enum.any?(groups, &(&1 == [])) do
-          :none
-        else
-          dynamic(fragment("to_tsquery('rb_search', ?)", ^and_fuzzy(groups)))
-        end
-    end
+    |> Enum.split_with(&(&1 == []))
+    |> fuzzy_value_query()
   end
+
+  # Nothing unresolved, and something to ask for: every word of the value stands
+  # for the indexed words it resembles. A word resembling none leaves the
+  # operator asking for something the database does not hold, so it asks nothing.
+  defp fuzzy_value_query({[], [_ | _] = groups}),
+    do: dynamic(fragment("to_tsquery('rb_search', ?)", ^and_fuzzy(groups)))
+
+  defp fuzzy_value_query(_unresolved), do: :none
 
   defp ranking({:spelled_out, term}),
     do: dynamic(fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term))
@@ -376,7 +375,7 @@ defmodule RichardBurton.Publication.Index do
 
         case order_ids(as_written) do
           [] -> fuzzily_answering(alternatives)
-          ids -> {as_written, prefix_keywords(alternatives), ids}
+          ids -> {as_written, keywords(alternatives, :prefix), ids}
         end
     end
   end
@@ -414,13 +413,6 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  defp prefix_keywords(alternatives),
-    do:
-      alternatives
-      |> Enum.flat_map(& &1.words)
-      |> Enum.flat_map(&search_keywords(&1, :prefix))
-      |> Enum.uniq()
-
   defp spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
 
   defp and_prefixes(words), do: Enum.map_join(words, " & ", &"(#{lexeme(&1)}:*)")
@@ -437,14 +429,16 @@ defmodule RichardBurton.Publication.Index do
     if Enum.all?(asked, &(&1.query == nil and &1.filters == [])) do
       :none
     else
-      {ask, fuzzy_keywords(alternatives)}
+      {ask, keywords(alternatives, :fuzzy)}
     end
   end
 
-  defp fuzzy_keywords(alternatives) do
+  # The indexed words an alternative's free words stand for, which the reader is
+  # shown as what the search matched on.
+  defp keywords(alternatives, mode) do
     alternatives
     |> Enum.flat_map(& &1.words)
-    |> Enum.flat_map(&search_keywords(&1, :fuzzy))
+    |> Enum.flat_map(&search_keywords(&1, mode))
     |> Enum.uniq()
   end
 
