@@ -131,8 +131,8 @@ defmodule RichardBurton.Publication.Index.Term do
   @doc """
   A year operator's value as the span it names: `1950` is that year alone,
   `1950-1960` the years between, and an open end (`1950-`, `-1960`) everything
-  from or up to it. Anything else is not a span, and the operator is ignored
-  rather than answered wrongly.
+  from or up to it. Anything else names no span, and the operator is
+  satisfied by nothing rather than dropped.
   """
   @spec span(String.t()) :: {integer | nil, integer | nil} | :none
   def span(value) do

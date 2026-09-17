@@ -259,17 +259,18 @@ defmodule RichardBurton.Publication.Index do
   # An operator asks of one field rather than of the whole document, so it is
   # matched against that field's own text. A quoted value is a phrase, taken in
   # order; anything else matches from the start of a word, as free text does.
+  # A value the operator cannot use — a span that names no years, a word the
+  # index does not hold — is satisfied by nothing rather than dropped. Dropping
+  # it would widen the search in answer to a narrowing the reader asked for.
   defp filter_predicate(%{field: :year, value: value, negated: negated}, _mode) do
     case Term.span(value) do
-      :none -> nil
+      :none -> negate(dynamic(false), negated)
       {from, to} -> negate(year_predicate(from, to), negated)
     end
   end
 
   defp filter_predicate(%{field: field, value: value, exact: exact, negated: negated}, mode) do
     case value_query(value, exact, mode) do
-      # Nothing in the index resembles what was asked of this field, so nothing
-      # can satisfy it — the same answer the free words give.
       :none -> negate(dynamic(false), negated)
       query -> negate(text_predicate(field, query), negated)
     end

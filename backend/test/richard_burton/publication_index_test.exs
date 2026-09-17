@@ -797,6 +797,16 @@ defmodule RichardBurton.Publication.IndexTest do
       refute Enum.empty?(found("year:1950-1960"))
     end
 
+    test "a value the operator cannot use narrows to nothing" do
+      # Dropping the operator instead would answer a narrowing with a wider
+      # search than the one the reader started from.
+      assert [] == found("year:recently")
+      assert [] == found("title:zzzzzzz")
+
+      refute Enum.empty?(found("machado"))
+      assert [] == found("machado year:recently")
+    end
+
     test "a minus excludes what it names" do
       all = found("translator:barrett")
       without = found("translator:barrett -country:US")
