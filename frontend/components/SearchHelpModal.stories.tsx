@@ -14,8 +14,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * What the search can do, said in the reader's terms. Opened from the address,
- * so the search being explained is still there behind it.
+ * The search syntax reference. Open state lives in the URL, so the search it
+ * documents stays on screen behind it.
  */
 export const Open: Story = {
   parameters: {
@@ -25,10 +25,10 @@ export const Open: Story = {
     const dialog = await screen.findByRole("dialog", { name: "How to search" });
 
     await expect(dialog).toBeVisible();
-    // The tolerances a reader could not guess from a text box.
+    // The tolerances that are not discoverable from the input itself.
     await expect(dialog).toHaveTextContent("Accents may be omitted");
     await expect(dialog).toHaveTextContent("misspellings are tolerated");
-    // And the operators, with an example of each shape.
+    // The operators, with an example of each form.
     await expect(dialog).toHaveTextContent("title:iracema");
     await expect(dialog).toHaveTextContent("year:1950-1960");
     await expect(dialog).toHaveTextContent("-country:US");
@@ -36,7 +36,7 @@ export const Open: Story = {
   },
 };
 
-/** Portuguese is not a footnote: every operator answers in it. */
+/** Every operator accepts a Portuguese name. */
 export const InPortuguese: Story = {
   parameters: {
     nextjs: { navigation: { pathname: "/", query: { "search-help": "true" } } },
@@ -50,7 +50,7 @@ export const InPortuguese: Story = {
   },
 };
 
-/** Closed, it is nothing at all — the address says whether it is open. */
+/** Renders nothing when closed; the URL parameter controls it. */
 export const Closed: Story = {
   parameters: { nextjs: { navigation: { pathname: "/" } } },
   play: async () => {

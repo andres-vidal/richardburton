@@ -2,25 +2,24 @@ defmodule RichardBurton.Publication.Index do
   @moduledoc """
   Full-text search over the publication index.
 
-  A term is read as the alternatives `:or` (or `:ou`) separates, any of which
-  may match. An alternative is free words — matched each on its own, as a
-  prefix or fuzzily if nothing matches as typed, and combined with AND so each
-  one narrows — together with the operators that name a single field:
+  A term parses into alternatives separated by `:or` (or `:ou`), any of which
+  may match. An alternative holds free words — matched individually by prefix,
+  or fuzzily if nothing matches as typed, and AND-ed together — plus operators
+  scoped to a single field:
 
-      title:casmurro            the title alone
-      autor:machado             the writer, in Portuguese
-      year:1950-1960            a span of years
-      -country:US               everything but
-      title:"dom casmurro"      the phrase, in that order
+      title:casmurro            title only
+      autor:machado             author, in Portuguese
+      year:1950-1960            year range
+      -country:US               negated
+      title:"dom casmurro"      phrase, in that order
 
-  An alternative is satisfied by its words and its operators together. A term
-  with no operator that quotes a phrase or negates a word is passed to Postgres
-  verbatim instead, exactly as written.
+  An alternative matches when its words and its filters both match. A term that
+  quotes or negates but contains no operator is passed to `websearch_to_tsquery`
+  unchanged.
 
-  Either way the match runs against a `tsvector` built with accents folded, so a
-  term is folded the same way before it is compared. See
-  `RichardBurton.Publication.Index.Term` for the operators and the words that
-  name them.
+  Both paths match against a `tsvector` built with accents folded, so the term
+  is folded the same way first. See `RichardBurton.Publication.Index.Term` for
+  the operators and the names they accept.
   """
 
   import Ecto.Query
@@ -233,7 +232,7 @@ defmodule RichardBurton.Publication.Index do
   defp matches({:spelled_out, term}),
     do: dynamic(fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term))
 
-  # Any alternative will do, and each is its words and its operators together.
+  # Alternatives are OR-ed; within one, words and filters are AND-ed.
   defp matches({:alternatives, alternatives}) do
     alternatives
     |> Enum.map(&alternative_predicate/1)
@@ -244,8 +243,7 @@ defmodule RichardBurton.Publication.Index do
     [words_predicate(query) | Enum.map(filters, &filter_predicate(&1, mode))]
     |> Enum.reject(&is_nil/1)
     |> case do
-      # Only operators nothing could be made of: the alternative asks nothing,
-      # rather than silently asking for everything.
+      # No usable predicate: match nothing rather than everything.
       [] -> dynamic(false)
       predicates -> Enum.reduce(predicates, fn predicate, acc -> dynamic(^acc and ^predicate) end)
     end
@@ -256,12 +254,11 @@ defmodule RichardBurton.Publication.Index do
   defp words_predicate(query),
     do: dynamic(fragment("document @@ to_tsquery('rb_search', ?)", ^query))
 
-  # An operator asks of one field rather than of the whole document, so it is
-  # matched against that field's own text. A quoted value is a phrase, taken in
-  # order; anything else matches from the start of a word, as free text does.
-  # A value the operator cannot use — a span that names no years, a word the
-  # index does not hold — is satisfied by nothing rather than dropped. Dropping
-  # it would widen the search in answer to a narrowing the reader asked for.
+  # An operator matches against one column rather than the search document. A
+  # quoted value matches as a phrase; anything else by prefix, like free text.
+  # An unusable value — an unparseable span, a word absent from the index —
+  # matches nothing rather than dropping the operator, which would widen a term
+  # the user narrowed.
   defp filter_predicate(%{field: :year, value: value, negated: negated}, _mode) do
     case Term.span(value) do
       :none -> negate(dynamic(false), negated)
@@ -283,8 +280,8 @@ defmodule RichardBurton.Publication.Index do
   defp year_predicate(from, nil), do: dynamic([p], p.year >= ^from)
   defp year_predicate(from, to), do: dynamic([p], p.year >= ^from and p.year <= ^to)
 
-  # References are a list, so they are matched as the text of the whole list —
-  # the same thing the search document folds them in as.
+  # `references` is an array, matched as its joined text, the same form
+  # `search_documents` indexes it in.
   defp text_predicate(:references, query) do
     dynamic(
       [p],
@@ -299,7 +296,7 @@ defmodule RichardBurton.Publication.Index do
     )
   end
 
-  # A quoted value is a phrase, whatever the mode: it was asked for as written.
+  # A quoted value matches as a phrase in either mode.
   defp value_query(value, true, _mode),
     do: dynamic(fragment("phraseto_tsquery('rb_search', ?)", ^value))
 
@@ -308,8 +305,8 @@ defmodule RichardBurton.Publication.Index do
     dynamic(fragment("to_tsquery('rb_search', ?)", ^query))
   end
 
-  # An operator's value is forgiven a misspelling exactly as a free word is:
-  # each of its words stands for the indexed words it resembles.
+  # In fuzzy mode each word of the value expands to the indexed words it
+  # resembles, as a free word does.
   defp value_query(value, false, :fuzzy) do
     value
     |> String.split(~r/\s+/, trim: true)
@@ -318,9 +315,8 @@ defmodule RichardBurton.Publication.Index do
     |> fuzzy_value_query()
   end
 
-  # Nothing unresolved, and something to ask for: every word of the value stands
-  # for the indexed words it resembles. A word resembling none leaves the
-  # operator asking for something the database does not hold, so it asks nothing.
+  # Builds a query only when every word resolved to at least one keyword. A word
+  # that resolved to none is absent from the index, so the value cannot match.
   defp fuzzy_value_query({[], [_ | _] = groups}),
     do: dynamic(fragment("to_tsquery('rb_search', ?)", ^and_fuzzy(groups)))
 
@@ -329,8 +325,8 @@ defmodule RichardBurton.Publication.Index do
   defp ranking({:spelled_out, term}),
     do: dynamic(fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term))
 
-  # Rank on the words asked for, whichever alternative they came from; an
-  # alternative made only of operators has nothing to rank by and adds nothing.
+  # Ranks on the free words of every alternative; one made only of operators
+  # contributes nothing to rank by.
   defp ranking({:alternatives, alternatives}) do
     alternatives
     |> Enum.map(& &1.query)
@@ -365,8 +361,7 @@ defmodule RichardBurton.Publication.Index do
       alternatives == [] ->
         :none
 
-      # A term that only quotes or excludes, with no operator in it, is still
-      # handed to Postgres as written — the path that has always served it.
+      # Quotes or exclusions with no operator: passed through unchanged.
       plain?(alternatives) and spelled_out?(term) ->
         ask = {:spelled_out, term}
         {ask, [], order_ids(ask)}
@@ -390,9 +385,8 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  # What the search asks of the database: for each alternative, the words to
-  # look for anywhere in the record and the operators that narrow it. An
-  # alternative is satisfied by both together, and any alternative will do.
+  # Per alternative: the tsquery for its free words, and the filters that
+  # narrow it.
   defp asked(alternatives, mode) do
     {:alternatives,
      Enum.map(alternatives, fn alternative ->
@@ -419,14 +413,12 @@ defmodule RichardBurton.Publication.Index do
   defp and_prefixes(words), do: Enum.map_join(words, " & ", &"(#{lexeme(&1)}:*)")
 
   # Nothing matched as typed, so each word is matched against the indexed words
-  # it resembles. A word that resembles none is dropped: a typo should cost its
-  # own word, not the whole alternative. An alternative left with no words is
-  # dropped whole.
+  # it resembles. A word resembling none is dropped rather than failing the
+  # alternative; an alternative left with no words is dropped entirely.
   defp fuzzily(alternatives) do
     {:alternatives, asked} = ask = asked(alternatives, :fuzzy)
 
-    # Nothing resembled anything and no operator narrowed anything: the term
-    # names nothing this database holds.
+    # No word resolved and no filter applies: nothing to search for.
     if Enum.all?(asked, &(&1.query == nil and &1.filters == [])) do
       :none
     else
@@ -434,8 +426,8 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  # The indexed words an alternative's free words stand for, which the reader is
-  # shown as what the search matched on.
+  # The indexed keywords the free words resolved to, returned so the UI can show
+  # what the search matched on.
   defp keywords(alternatives, mode) do
     alternatives
     |> Enum.flat_map(& &1.words)
@@ -444,7 +436,7 @@ defmodule RichardBurton.Publication.Index do
   end
 
   # One alternative's words resolved to the keywords they resemble, dropping any
-  # word that resembles none.
+  # that resolved to none.
   defp fuzzy_words(words) do
     words
     |> Enum.map(&search_keywords(&1, :fuzzy))
@@ -455,8 +447,8 @@ defmodule RichardBurton.Publication.Index do
     Enum.map_join(word_groups, " & ", &"(#{Enum.map_join(&1, " | ", fn w -> lexeme(w) end)})")
   end
 
-  # A word as a tsquery lexeme: quoted, so punctuation in it is read as part of
-  # the word rather than as syntax.
+  # A word as a tsquery lexeme, quoted so punctuation in it is read as part of
+  # the word rather than as tsquery syntax.
   defp lexeme(word), do: "'" <> String.replace(word, "'", "''") <> "'"
 
   # The full rows a search matches, in reading order — the same ranking as

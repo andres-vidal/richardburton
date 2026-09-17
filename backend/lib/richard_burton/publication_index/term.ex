@@ -1,37 +1,35 @@
 defmodule RichardBurton.Publication.Index.Term do
   @moduledoc """
-  What a reader typed, read as a question.
+  Parses a search term into the structure `Publication.Index` builds a query from.
 
-  A term is free text — words to look for anywhere in a publication — with two
-  things picked out of it: the alternatives `:or` separates, and the operators
-  that name a single field. `title:casmurro` asks of the title alone;
-  `year:1950-1960` asks for a span of years; a leading `-` excludes rather than
-  requires; `title:"dom casmurro"` asks for those words in that order; and
-  `title:(dom casmurro)` asks for both of them, in any. An operator's value is
-  matched as a free word is — from the start of a word, and fuzzily when
-  nothing matches as typed — except when quoted, which asks for it as written.
+  A term is free text plus two constructs: alternatives separated by `:or` (or
+  `:ou`), and operators that scope a value to one field.
 
-  Operators answer to three vocabularies — the labels the interface uses, the
-  names the database uses, and Portuguese — because the reader of a database of
-  Brazilian literature should not have to know which language it was built in.
-  A prefix this does not recognise is not an operator at all: `foo:bar` is
-  searched for as the words it looks like, which is friendlier than refusing a
-  query over a colon someone typed in a title.
+      title:casmurro          matches the title only
+      year:1950-1960          matches a year range
+      -country:US             excludes
+      title:"dom casmurro"    matches the words in that order
+      title:(dom casmurro)    matches both words in any order
+
+  Operator values match like free words — by prefix, with a fuzzy fallback —
+  unless quoted, which matches them as written.
+
+  Each operator accepts several names: the label shown in the UI, the database
+  column, and the Portuguese term. An unrecognised prefix is not an operator:
+  `foo:bar` parses as free text, so a colon typed inside a title does not fail
+  the query.
   """
 
   @type filter :: %{field: atom, value: String.t(), exact: boolean, negated: boolean}
   @type alternative :: %{words: [String.t()], filters: [filter]}
 
-  # Every name an operator answers to, in English and in Portuguese.
+  # Operator names, English and Portuguese, mapped to the column they filter.
   #
-  # Each is singular, because asking for more than one of something is asking
-  # the same operator twice — `author:machado author:assis` wants both — and a
-  # plural spelling would only be a second way to say the same thing.
+  # Names are singular: repeating an operator (`author:machado author:assis`)
+  # already means both, so a plural would be a second name for the same thing.
   #
-  # `author` names whoever wrote the book, though the column holding the
-  # translators is the one called `authors`. That is the database's word for
-  # them, and it has no business reaching the person typing: the one who
-  # rendered a book is asked for as `translator`.
+  # `author` maps to `original_authors`, the book's author. The column named
+  # `authors` holds the translators, which `translator` maps to.
   @fields %{
     "title" => :title,
     "titulo" => :title,
@@ -58,17 +56,16 @@ defmodule RichardBurton.Publication.Index.Term do
     "fonte" => :references
   }
 
-  # A token runs until a space, except that a quoted or bracketed stretch is
-  # part of it and may hold spaces — so `title:"dom casmurro"` and
-  # `title:(dom casmurro)` are each one token, not two.
+  # A token ends at a space, except inside quotes or brackets, so
+  # `title:"dom casmurro"` and `title:(dom casmurro)` are each one token.
   @token ~r/(?:[^\s"()]+|"[^"]*"|\([^)]*\))+/
   @operator ~r/^(?<negated>-?)(?<field>[^\s:"]+):(?<value>.*)$/s
   @alternator ~r/^:(or|ou)$/i
 
   @doc """
-  Read a term as the alternatives it offers, each a set of words to look for and
-  the filters that narrow them. A term with no operators is one alternative of
-  words, which is what the search has always been.
+  Parses a term into its alternatives, each holding the free words and the field
+  filters it contains. A term with no operators parses to one alternative of
+  words.
   """
   @spec parse(String.t()) :: [alternative]
   def parse(term) when is_binary(term) do
@@ -113,8 +110,8 @@ defmodule RichardBurton.Publication.Index.Term do
 
   defp quoted?(value), do: wrapped?(value, ~s("), ~s("))
 
-  # Several words asked of one field, in any order: `title:(dom casmurro)`.
-  # Quoting would ask for them in that order, which is a different question.
+  # `title:(dom casmurro)` matches both words in any order; quoting them
+  # instead matches them in the order given.
   defp grouped?(value), do: wrapped?(value, "(", ")")
 
   defp wrapped?(value, opening, closing),
@@ -129,10 +126,11 @@ defmodule RichardBurton.Publication.Index.Term do
   end
 
   @doc """
-  A year operator's value as the span it names: `1950` is that year alone,
-  `1950-1960` the years between, and an open end (`1950-`, `-1960`) everything
-  from or up to it. Anything else names no span, and the operator is
-  satisfied by nothing rather than dropped.
+  Parses a `year` operator value into `{from, to}`, where either bound may be
+  nil: `1950` gives `{1950, 1950}`, `1950-1960` gives `{1950, 1960}`, `1950-`
+  gives `{1950, nil}` and `-1960` gives `{nil, 1960}`. Returns `:none` for
+  anything else, which the caller matches nothing against rather than dropping
+  the operator.
   """
   @spec span(String.t()) :: {integer | nil, integer | nil} | :none
   def span(value) do

@@ -5,7 +5,7 @@ import { Modal, useURLQueryModal } from "./Modal";
 
 const SEARCH_HELP_MODAL_KEY = "search-help";
 
-/** One example, against what it returns. */
+/** One example query and what it matches. */
 const Row: FC<{ type: string; children: ReactNode }> = ({ type, children }) => (
   <tr className="border-b border-gray-100 last:border-0">
     <td className="py-1.5 pr-4 align-top">
@@ -17,7 +17,7 @@ const Row: FC<{ type: string; children: ReactNode }> = ({ type, children }) => (
   </tr>
 );
 
-/** A named run of rows: the tables read as one, grouped by what is being asked. */
+/** A titled group of examples; the modal renders one table per group. */
 const Group: FC<{ title: string; children: ReactNode }> = ({
   title,
   children,
@@ -37,13 +37,12 @@ const Group: FC<{ title: string; children: ReactNode }> = ({
 );
 
 /**
- * How to search, for the person searching.
+ * Documents the search syntax: accent and misspelling tolerance, per-word
+ * narrowing, and the field operators. None of that is discoverable from a text
+ * box.
  *
- * The search does a good deal that is not obvious from a text box — it forgives
- * accents and misspellings, it narrows on every word, and it takes operators —
- * and none of that is worth anything to a reader who cannot discover it. This
- * states what to enter and what it returns: nothing here describes how the
- * search works underneath, and every line is something a reader could want.
+ * Every row states a query and what it matches; none describes the
+ * implementation.
  */
 const SearchHelp: FC = () => (
   <div className="p-8 space-y-6 w-full">

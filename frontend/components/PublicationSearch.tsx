@@ -46,7 +46,7 @@ const PublicationSearch: FC = () => {
 
   const isLoading = search !== searchUrlParam || isNavigating;
 
-  // Opened through the address, so the modal keeps whatever is being searched.
+  // Opened from the URL, so the modal preserves the current search.
   const { open: openHelp } = useURLQueryModal(SEARCH_HELP_MODAL_KEY);
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {

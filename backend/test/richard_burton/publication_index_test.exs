@@ -750,14 +750,14 @@ defmodule RichardBurton.Publication.IndexTest do
       publications
     end
 
-    test "a field operator asks of that field alone" do
+    test "a field operator matches that field only" do
       results = found("title:night")
 
       refute Enum.empty?(results)
       assert Enum.all?(results, &(String.downcase(&1.title) =~ "night"))
     end
 
-    test "the same word asked of another field answers differently" do
+    test "the same word scoped to another field returns different results" do
       by_title = found("title:noite")
       by_original = found("original:noite")
 
@@ -766,7 +766,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.all?(by_original, &(String.downcase(&1.original_title) =~ "noite"))
     end
 
-    test "a translator and an original author are told apart" do
+    test "translator and author match different columns" do
       translators = found("translator:barrett")
       authors = found("autor:verissimo")
 
@@ -777,7 +777,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.all?(authors, &(String.downcase(&1.original_authors) =~ "verissimo"))
     end
 
-    test "a publisher and a country can be asked for" do
+    test "publisher and country can be filtered" do
       assert Enum.all?(
                found("publisher:macmillan"),
                &(String.downcase(&1.publishers) =~ "macmillan")
@@ -788,7 +788,7 @@ defmodule RichardBurton.Publication.IndexTest do
       refute Enum.empty?(found("pais:GB"))
     end
 
-    test "a year is a year, and a span is a span" do
+    test "year matches a single year or a range" do
       assert Enum.all?(found("year:1956"), &(&1.year == 1956))
       assert Enum.all?(found("year:1950-1960"), &(&1.year >= 1950 and &1.year <= 1960))
       assert Enum.all?(found("ano:2000-"), &(&1.year >= 2000))
@@ -807,7 +807,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert [] == found("machado year:recently")
     end
 
-    test "a minus excludes what it names" do
+    test "a leading minus negates the filter" do
       all = found("translator:barrett")
       without = found("translator:barrett -country:US")
 
@@ -816,13 +816,13 @@ defmodule RichardBurton.Publication.IndexTest do
       refute Enum.any?(without, &(&1.countries =~ "US"))
     end
 
-    test "a quoted value is a phrase, not a set of words" do
+    test "a quoted value matches as a phrase, in order" do
       assert Enum.all?(found(~s(title:"time and the wind")), &(&1.title == "Time and the Wind"))
       # The same words in another order are not that phrase.
       assert found(~s(title:"wind and the time")) == []
     end
 
-    test "several words can be asked of one field, in any order" do
+    test "a bracketed value matches several words of one field, in any order" do
       grouped = found("title:(time wind)")
 
       refute Enum.empty?(grouped)
@@ -832,7 +832,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert found(~s(title:"wind time")) == []
     end
 
-    test "an author is the writer, and a translator the one who rendered it" do
+    test "author matches the original author, translator the translator" do
       writers = found("author:verissimo")
       renderers = found("translator:barrett")
 
@@ -843,7 +843,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.all?(renderers, &(String.downcase(&1.authors) =~ "barrett"))
     end
 
-    test "operators narrow the free words beside them" do
+    test "an operator narrows the free words in the same alternative" do
       loose = found("night")
       narrowed = found("night country:US")
 
@@ -852,7 +852,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.all?(narrowed, &(&1.countries =~ "US"))
     end
 
-    test "operators belong to their own alternative" do
+    test "an operator applies to its own alternative only" do
       either = found("country:BR :or country:CA")
 
       refute Enum.empty?(either)
@@ -861,14 +861,14 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.any?(either, &(&1.countries =~ "CA"))
     end
 
-    test "an operator alone answers without any words to look for" do
+    test "a term of only operators matches without free words" do
       results = found("year:1956")
 
       refute Enum.empty?(results)
       assert Enum.all?(results, &(&1.year == 1956))
     end
 
-    test "a misspelled value is forgiven, as a free word is" do
+    test "a misspelled operator value falls back to fuzzy matching" do
       assert Enum.all?(found("title:nigth"), &(&1.title == "Night"))
       refute Enum.empty?(found("title:nigth"))
 
@@ -879,12 +879,12 @@ defmodule RichardBurton.Publication.IndexTest do
       assert found("title:zzzzqqqx") == []
     end
 
-    test "a half-typed value still finds the word it could become" do
+    test "an incomplete operator value matches by prefix" do
       assert Enum.all?(found("translator:barr"), &(String.downcase(&1.authors) =~ "barr"))
       refute Enum.empty?(found("translator:barr"))
     end
 
-    test "a prefix that names no field is not an operator" do
+    test "an unrecognised prefix is searched as free text" do
       # A colon someone typed is not a failed query: the term is looked for as
       # text, and answers as any text does — including the fuzzy ladder, which
       # is why a word buried in it can still find something.
