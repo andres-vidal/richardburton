@@ -85,14 +85,44 @@ defmodule RichardBurton.Publication.Index.Term do
       iex> RichardBurton.Publication.Index.Term.parse("casmurro :or iracema")
       [%{words: ["casmurro"], filters: []}, %{words: ["iracema"], filters: []}]
 
+  An operator becomes a filter naming the column it scopes to, here through its
+  Portuguese name:
+
+      iex> RichardBurton.Publication.Index.Term.parse("ano:1950")
+      [%{words: [], filters: [%{field: :year, value: "1950", exact: false, negated: false}]}]
+
+  A leading minus negates it, and words alongside it stay free:
+
+      iex> RichardBurton.Publication.Index.Term.parse("machado -country:US")
+      [
+        %{
+          words: ["machado"],
+          filters: [%{field: :countries, value: "US", exact: false, negated: true}]
+        }
+      ]
+
+  A quoted value is exact; a bracketed one is not:
+
+      iex> RichardBurton.Publication.Index.Term.parse(~s(title:"dom casmurro"))
+      [
+        %{
+          words: [],
+          filters: [%{field: :title, value: "dom casmurro", exact: true, negated: false}]
+        }
+      ]
+
+      iex> RichardBurton.Publication.Index.Term.parse("title:(dom casmurro)")
+      [
+        %{
+          words: [],
+          filters: [%{field: :title, value: "dom casmurro", exact: false, negated: false}]
+        }
+      ]
+
   A prefix that names no field is read as free text rather than as an operator:
 
       iex> RichardBurton.Publication.Index.Term.parse("foo:bar")
       [%{words: ["foo:bar"], filters: []}]
-
-  How an operator parses — the field it names, whether it was quoted or negated
-  — is covered by the tests rather than shown here, since a filter inspects to
-  more than reads as an example.
   """
   @spec parse(String.t()) :: [alternative]
   def parse(term) when is_binary(term) do
