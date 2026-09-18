@@ -3,7 +3,7 @@
 import {
   useHiddenAttributes,
   usePublicationExcerpts,
-  usePublicationStoredField,
+  usePublicationMarkedField,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
 import {
@@ -118,14 +118,11 @@ const Content: FC<{
 }> = ({ rowId, colId }) => {
   // Read-only surface: the *stored* value. An editing surface injects its own
   // Content, which reads the edited value — see PublicationWorkspace.
-  const value = usePublicationStoredField(rowId, colId);
-  const excerpt = usePublicationExcerpts(rowId)?.[colId];
+  const marked = usePublicationMarkedField(rowId, colId);
 
   return (
     <div className="px-2 py-1 truncate">
-      <Highlight>
-        {excerpt ?? Publication.describeValue(value, colId)}
-      </Highlight>
+      <Highlight>{marked}</Highlight>
       {colId === "title" && <SourceMatch rowId={rowId} />}
     </div>
   );

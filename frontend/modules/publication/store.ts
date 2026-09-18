@@ -13,6 +13,7 @@ import {
   PublicationKey,
   describeError,
   empty,
+  markedValue,
 } from "./model";
 
 /**
@@ -245,6 +246,15 @@ const fieldErrorDescriptionFamily = cellFamily(({ id, key }) =>
   atom((get) => describeError(get(errorFamily(id)), key)),
 );
 
+/**
+ * A single cell as the index marked it, or as it is stored where the search did
+ * not match it. Reads the *stored* publication, like `storedFieldValueFamily`, so
+ * a pending edit does not leak into the read-only table.
+ */
+const markedFieldFamily = cellFamily(({ id, key }) =>
+  atom((get) => markedValue(get(publicationFamily(id)), key)),
+);
+
 // --- Family lifecycle -------------------------------------------------------
 
 /**
@@ -271,6 +281,7 @@ const CELL_FAMILIES = [
   fieldValueFamily,
   storedFieldValueFamily,
   fieldErrorDescriptionFamily,
+  markedFieldFamily,
 ];
 
 /**
@@ -622,6 +633,7 @@ export {
   setErrors,
   setFocusedRowId,
   storedFieldValueFamily,
+  markedFieldFamily,
   storedReferencesFamily,
   totalCountAtom,
   matchingCountAtom,

@@ -20,6 +20,7 @@ import {
   publicationOrNullFamily,
   publicationReferencesFamily,
   publicationExcerptsFamily,
+  markedFieldFamily,
   storedFieldValueFamily,
   storedReferencesFamily,
   totalCountAtom,
@@ -73,6 +74,11 @@ function usePublicationStoredField<K extends PublicationKey>(
   key: K,
 ) {
   return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
+}
+
+/** A single cell as the index marked it — see `markedFieldFamily`. */
+function usePublicationMarkedField(id: PublicationId, key: PublicationKey) {
+  return useAtomValue(markedFieldFamily({ id, key }));
 }
 
 function usePublicationExcerpts(id: PublicationId) {
@@ -194,6 +200,7 @@ export {
   usePublicationOverride,
   usePublicationReferences,
   usePublicationExcerpts,
+  usePublicationMarkedField,
   usePublicationStoredField,
   useStoredPublicationReferences,
   useTotalPublicationCount,

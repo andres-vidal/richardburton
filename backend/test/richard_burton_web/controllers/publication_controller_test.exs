@@ -140,6 +140,32 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert id == meta.publication.id
     end
 
+    test "marks the reference a search matched, and only that one", meta do
+      {:ok, publication} =
+        @publication_attrs
+        |> Map.put("title", "A Sourced Publication")
+        |> Map.put("references", [
+          "Caldwell, Helen. Machado de Assis. Berkeley: California, 1970.",
+          "Gledson, John. The Deceptive Realism. Liverpool: Cairns, 1984."
+        ])
+        |> Publication.Codec.nest()
+        |> Publication.insert("importer@example.com")
+
+      Publication.Index.Refresher.refresh()
+
+      body =
+        meta.conn
+        |> get("#{publication_path(meta.conn, :show, publication.id)}?search=berkeley")
+        |> json_response(200)
+
+      assert [marked, unmatched] = body["marked_references"]
+      assert marked =~ "[[Berkeley]]"
+      # The whole reference comes back, not a window over it, so a page showing
+      # the provenance list can show each entry in full.
+      assert marked =~ "Caldwell, Helen."
+      assert unmatched == nil
+    end
+
     test "returns 404 for a publication that never existed", meta do
       conn = get(meta.conn, publication_path(meta.conn, :show, -1))
       assert json_response(conn, 404) == %{"error" => "not_found"}
@@ -678,7 +704,11 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :create_all), input)
         |> json_response(201)
 
-      assert publications == Enum.map(result, &Map.drop(&1, ["id", "references", "excerpts"]))
+      assert publications ==
+               Enum.map(
+                 result,
+                 &Map.drop(&1, ["id", "references", "excerpts", "marked_references"])
+               )
     end
 
     test "bulk-inserts publications with their references", meta do
@@ -771,7 +801,12 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert 3 == FlatPublication.all() |> length()
       assert ["GB", "US", "BR"] == Country.all() |> Enum.map(&Country.get_code/1)
-      assert output == Enum.map(result, &Map.drop(&1, ["id", "references", "excerpts"]))
+
+      assert output ==
+               Enum.map(
+                 result,
+                 &Map.drop(&1, ["id", "references", "excerpts", "marked_references"])
+               )
     end
 
     test "returns 201 and inserts publications with several publishers", meta do
@@ -848,7 +883,12 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert 3 == FlatPublication.all() |> length()
       assert publishers == Publisher.all() |> Enum.map(&Publisher.get_name/1)
-      assert output == Enum.map(result, &Map.drop(&1, ["id", "references", "excerpts"]))
+
+      assert output ==
+               Enum.map(
+                 result,
+                 &Map.drop(&1, ["id", "references", "excerpts", "marked_references"])
+               )
     end
 
     test "returns 409 when publications are repeated, and returns the first repeated one", meta do

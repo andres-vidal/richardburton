@@ -12,24 +12,20 @@ import { FC } from "react";
  * Text with no markers in it renders unchanged. That covers both a field the
  * search did not match and any text shown outside a search.
  */
-const Highlight: FC<{ children: string | number; className?: string }> = ({
+const Highlight: FC<{ children: string; className?: string }> = ({
   children,
   className = "text-inherit bg-amber-100",
 }) => (
   <>
-    {/* `year` is held as a number, so what arrives here is not always the string
-        the types promise. */}
-    {String(children ?? "")
-      .split(/\[\[|\]\]/)
-      .map((part, index) =>
-        index % 2 === 0 ? (
-          part
-        ) : (
-          <mark key={index} className={className}>
-            {part}
-          </mark>
-        ),
-      )}
+    {children.split(/\[\[|\]\]/).map((part, index) =>
+      index % 2 === 0 ? (
+        part
+      ) : (
+        <mark key={index} className={className}>
+          {part}
+        </mark>
+      ),
+    )}
   </>
 );
 

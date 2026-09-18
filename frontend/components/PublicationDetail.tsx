@@ -335,7 +335,9 @@ const Detail: FC<PublicationDetailProps> = ({
       ) : (
         <>
           <PublicationDescription publication={publication} />
-          <PublicationReferences references={publication.references} />
+          <PublicationReferences
+            references={Publication.markedReferences(publication)}
+          />
           {history && <PublicationHistorySection entries={history} />}
           {canEdit && (
             <div className="flex gap-3">

@@ -28,9 +28,9 @@ defmodule RichardBurton.FlatPublication do
   # and the bulk CSV import doesn't carry it.
   @writable_attributes [:references | @required_attributes]
 
-  # What in each field answered a search, keyed by field. Absent outside a
-  # search, and holding only the fields the search matched.
-  @readable_attributes [:id, :excerpts | @writable_attributes]
+  # What in each field answered a search, keyed by field, and each reference on
+  # its own. Both are null outside a search.
+  @readable_attributes [:id, :excerpts, :marked_references | @writable_attributes]
 
   @derive {Jason.Encoder, only: @readable_attributes}
   schema "flat_publications" do
@@ -48,6 +48,7 @@ defmodule RichardBurton.FlatPublication do
     field(:publishers_fingerprint, :string)
 
     field(:excerpts, :map, virtual: true)
+    field(:marked_references, {:array, :string}, virtual: true)
   end
 
   @doc false

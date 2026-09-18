@@ -20,9 +20,15 @@ type Publication = {
   // wrapped in `[[ ]]`. Only present on search results, and null for any field
   // the search did not match. `countries` and `year` never carry one.
   excerpts?: Partial<Record<PublicationKey | "references", string | null>>;
+  // Each reference with its matched words wrapped, or null where the search did
+  // not match that one. Only present on a record read with a search.
+  markedReferences?: (string | null)[];
 };
 
-type PublicationKey = keyof Omit<Publication, "id" | "references" | "excerpts">;
+type PublicationKey = keyof Omit<
+  Publication,
+  "id" | "references" | "excerpts" | "markedReferences"
+>;
 
 /**
  * One word the search matched with something other than what was typed.
@@ -216,11 +222,21 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   };
 }
 
-function describeValue(value: string, attribute: PublicationKey): string {
+/**
+ * A stored field as it is displayed: country codes become country names, and
+ * anything else is its own text.
+ *
+ * Takes an unknown rather than a string because the wire does not always agree
+ * with the model. `year` is an integer on the backend and text in a form, so it
+ * arrives here as either.
+ */
+function describeValue(value: unknown, attribute: PublicationKey): string {
+  const text = String(value ?? "");
+
   if (attribute === "countries") {
     // One code or a list of them: a record published in several places names
     // them all in the one field.
-    return value
+    return text
       .split(",")
       .map((code) => {
         const country = COUNTRIES[code.trim()];
@@ -230,7 +246,8 @@ function describeValue(value: string, attribute: PublicationKey): string {
       })
       .join(", ");
   }
-  return value;
+
+  return text;
 }
 
 /**
@@ -242,9 +259,10 @@ function markedValue(
   publication: Publication,
   attribute: PublicationKey,
 ): string {
-  const value = describeValue(String(publication[attribute] ?? ""), attribute);
-
-  return publication.excerpts?.[attribute] ?? value;
+  return (
+    publication.excerpts?.[attribute] ??
+    describeValue(publication[attribute], attribute)
+  );
 }
 
 /**
@@ -271,6 +289,18 @@ function markedItems(
         ? marked[index]
         : describeValue(value, attribute),
   }));
+}
+
+/**
+ * Each of a publication's references as the index marked it, or as it is stored
+ * where the search did not match that one.
+ */
+function markedReferences(publication: Publication): string[] {
+  const references = publication.references ?? [];
+
+  return references.map(
+    (reference, index) => publication.markedReferences?.[index] ?? reference,
+  );
 }
 
 function describeError(
@@ -358,6 +388,7 @@ const Publication = {
   describeValue,
   markedValue,
   markedItems,
+  markedReferences,
   empty,
   items,
   merged,
@@ -377,6 +408,7 @@ export {
   empty,
   HISTORY_ACTIONS,
   items,
+  markedValue,
   merged,
   Publication,
 };
