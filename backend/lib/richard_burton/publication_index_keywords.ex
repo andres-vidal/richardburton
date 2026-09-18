@@ -36,7 +36,10 @@ defmodule RichardBurton.Publication.Index.Keywords do
 
   def resolve(word, :fuzzy) do
     from(w in SearchKeyword,
-      where: fragment("similarity((?), unaccent(?)) > ?", w.word, ^word, ^@similarity)
+      where: fragment("similarity((?), unaccent(?)) > ?", w.word, ^word, ^@similarity),
+      # Likest first. Every one of them is searched on, so this does not decide
+      # what matches — only which are worth naming to the reader first.
+      order_by: [desc: fragment("similarity((?), unaccent(?))", w.word, ^word)]
     )
     |> Repo.all()
     |> Enum.map(& &1.word)

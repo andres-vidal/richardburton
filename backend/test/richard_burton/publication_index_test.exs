@@ -717,49 +717,49 @@ defmodule RichardBurton.Publication.IndexTest do
   describe "Excerpt.resolution/1" do
     alias RichardBurton.Publication.Index.Excerpt
 
-    test "free words are reported under no field" do
-      assert Excerpt.resolution("machado") == [%{field: nil, words: ["machado"]}]
+    test "a word the index took as written reports nothing" do
+      assert Excerpt.resolution("machado") == []
     end
 
-    test "a fuzzy term reports what it was read as" do
-      [%{field: nil, words: words}] = Excerpt.resolution("Maries")
+    test "a word the index could only resemble reports what it found instead" do
+      [%{field: nil, typed: "Maries", words: words}] = Excerpt.resolution("Maries")
 
       assert Enum.sort(words) == ["marias", "marie", "mario"]
     end
 
-    test "an operator is reported under the field it named" do
-      assert Excerpt.resolution("title:night") == [%{field: "title", words: ["night"]}]
+    test "an accent is not a widening, being how the index holds the word anyway" do
+      assert Excerpt.resolution("Angústia") == []
+      assert Excerpt.resolution("Angustia") == []
     end
 
-    test "a term reports its free words and its operators alike" do
-      assert Excerpt.resolution("machado title:night") == [
-               %{field: nil, words: ["machado"]},
-               %{field: "title", words: ["night"]}
+    test "an operator value reports under the field it named" do
+      assert Excerpt.resolution("title:nigth") == [
+               %{field: "title", typed: "nigth", words: ["night"]}
              ]
     end
 
-    test "an operator is reported by the name a reader types, not the column" do
-      # Written in Portuguese, reported in the English name that reads back as a
-      # term — `autor` scopes to `original_authors`, which is not a name at all.
-      assert Excerpt.resolution("titulo:night autor:machado") == [
-               %{field: "title", words: ["night"]},
-               %{field: "author", words: ["machado"]}
+    test "only the widened part of a term is reported" do
+      assert Excerpt.resolution("machado title:nigth") == [
+               %{field: "title", typed: "nigth", words: ["night"]}
              ]
     end
 
-    test "a quoted value is reported as the phrase it is, not widened" do
-      # It was matched by `phraseto_tsquery`, so it stands for nothing beyond
-      # itself: `de` must not drag in every indexed word beginning with it.
-      assert Excerpt.resolution(~s(author:"machado de assis")) == [
-               %{field: "author", words: ["machado", "de", "assis"]}
+    test "a field is reported by the name a reader types, not the column" do
+      # `autor` scopes to `original_authors`, which is not a name a term accepts.
+      assert Excerpt.resolution("autor:machadoo") == [
+               %{field: "author", typed: "machadoo", words: ["machado"]}
              ]
+    end
+
+    test "a quoted value matched as the phrase it is, so it was never widened" do
+      assert Excerpt.resolution(~s(author:"machado de assis")) == []
     end
 
     test "a negated operator reports nothing, having excluded rather than answered" do
-      assert Excerpt.resolution("machado -country:US") == [%{field: nil, words: ["machado"]}]
+      assert Excerpt.resolution("machado -country:US") == []
     end
 
-    test "a year reports nothing, naming no words" do
+    test "a year reports nothing, holding no words" do
       assert Excerpt.resolution("year:1950-1960") == []
     end
 
@@ -767,7 +767,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Excerpt.resolution(~s("Berkeley")) == []
     end
 
-    test "a word the index does not hold reports nothing" do
+    test "a word the index does not hold reports nothing, there being no answer" do
       assert Excerpt.resolution("zzzzqqqx") == []
     end
   end

@@ -25,13 +25,21 @@ type Publication = {
 type PublicationKey = keyof Omit<Publication, "id" | "references" | "excerpts">;
 
 /**
- * One group of what a search matched: the words the index resolved, and the
- * field they were asked of — `null` for free words, asked of every field.
+ * One word the index read differently from the way it was typed: what was typed,
+ * what the index answered it with, and the field it was asked of — `null` for a
+ * free word, asked of every field.
  *
- * `field` is the name an operator is written with, so it reads straight back
- * into a term.
+ * A word taken as written is not reported, so this is empty for most searches.
+ * `field` is the name an operator is written with, so each entry reads straight
+ * back into a term.
  */
-type Matched = { field: string | null; words: string[] };
+type Matched = {
+  field: string | null;
+  /** The word as it was typed. */
+  typed: string;
+  /** What the index answered it with, when that was not the word itself. */
+  words: string[];
+};
 
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };

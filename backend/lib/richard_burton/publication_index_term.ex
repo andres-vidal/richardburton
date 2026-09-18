@@ -215,10 +215,21 @@ defmodule RichardBurton.Publication.Index.Term do
   # Whether a prefix names a field, in any of the names that field accepts.
   defp known?(field), do: Map.has_key?(@fields, fold(field))
 
-  # Operator names are matched with case and accents folded away, so `TÍTULO`,
-  # `título` and `titulo` are one name and each is listed once. Values are
-  # already compared this way, through the search configuration's `unaccent`.
-  defp fold(name) do
+  @doc """
+  A word as the index holds it: lowercased, with its accents folded away.
+
+  Operator names are matched this way, so `TÍTULO`, `título` and `titulo` are one
+  name and each is listed once. Values are folded the same way by the search
+  configuration's `unaccent`, so this is also how to tell whether a word the
+  index returned is the one that was typed.
+
+  ## Examples
+
+      iex> RichardBurton.Publication.Index.Term.fold("Angústia")
+      "angustia"
+  """
+  @spec fold(String.t()) :: String.t()
+  def fold(name) do
     name
     |> String.downcase()
     |> :unicode.characters_to_nfd_binary()

@@ -81,56 +81,65 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   end
 
   @doc """
-  What the index made of a term: the words it resolved to, grouped by the field
-  each was asked of — `nil` for the free words, which are asked of every field.
+  The words the index read differently from the way they were typed, in the
+  order they were typed, each with what it stood for and the field it was asked
+  of — `nil` for a free word, which is asked of every field.
 
-  The same resolution the excerpts are built from, in words rather than
-  tsqueries, so what a reader is told the search matched is what it marked. A
-  spelled-out term is read by Postgres rather than resolved here, and reports
-  nothing.
+  A word the index took as written is not reported: a reader who typed
+  `machado` and is told the search was for `machado` has learnt nothing. What is
+  worth saying is that `Maries` found `marias`, `marie` and `mario`, because the
+  results answer a term nobody typed.
+
+  Read from the same resolution the excerpts are built from, so what a reader is
+  told was matched is what was marked on the rows. A quoted value matched as the
+  phrase it is and so was never widened; a spelled-out term is read by Postgres
+  rather than here. Neither reports anything.
   """
-  @spec resolution(String.t()) :: [%{field: String.t() | nil, words: [String.t()]}]
+  @spec resolution(String.t()) :: [
+          %{field: String.t() | nil, typed: String.t(), words: [String.t()]}
+        ]
   def resolution(term) do
     alternatives = Term.parse(term)
 
     if Term.plain?(alternatives) and Query.spelled_out?(term),
       do: [],
-      else: free_resolution(alternatives) ++ scoped_resolution(alternatives)
+      else: free_widenings(alternatives) ++ scoped_widenings(alternatives)
   end
 
-  # The free words, as one group asked of no field in particular.
-  defp free_resolution(alternatives) do
-    case alternatives |> Enum.flat_map(& &1.words) |> standing_for() do
-      [] -> []
-      words -> [%{field: nil, words: words}]
+  # The free words, asked of no field in particular.
+  defp free_widenings(alternatives) do
+    alternatives |> Enum.flat_map(& &1.words) |> Enum.flat_map(&widening(nil, &1))
+  end
+
+  # The words of each operator's value, under the name the operator is written
+  # with so a reader can type it back. A negated operator answered nothing, a
+  # `year` holds no words, and a quoted value was matched as written.
+  defp scoped_widenings(alternatives) do
+    alternatives
+    |> Enum.flat_map(& &1.filters)
+    |> Enum.reject(&(&1.negated or &1.field == :year or &1.exact))
+    |> Enum.flat_map(fn filter ->
+      filter.value
+      |> Keywords.words()
+      |> Enum.flat_map(&widening(Term.name(filter.field), &1))
+    end)
+  end
+
+  # A word is worth reporting when the index answered it with something other
+  # than itself: it fell back to what the word resembles, or it began more than
+  # the one word. A word that stands for itself alone, and one the index does not
+  # hold at all, both report nothing.
+  defp widening(field, word) do
+    case Keywords.standing_for(word) do
+      {_how, []} -> []
+      {:prefix, [only]} -> if Term.fold(word) == only, do: [], else: report(field, word, [only])
+      {_how, words} -> report(field, word, words)
     end
   end
 
-  # One group per field an operator named, reported under the name it is written
-  # with so a reader can type it back. Negated and `year` operators report
-  # nothing, as they mark nothing.
-  defp scoped_resolution(alternatives) do
-    alternatives
-    |> Enum.flat_map(& &1.filters)
-    |> Enum.reject(&(&1.negated or &1.field == :year))
-    |> Enum.group_by(& &1.field)
-    |> Enum.map(fn {field, filters} ->
-      %{field: Term.name(field), words: Enum.flat_map(filters, &filter_words/1)}
-    end)
-    |> Enum.reject(&(&1.words == []))
-  end
-
-  # A quoted value is reported as the words it holds: it was matched as a phrase,
-  # so it stands for nothing beyond itself. Anything else is reported as what the
-  # index widened it to.
-  defp filter_words(%{value: value, exact: true}), do: Keywords.words(value)
-  defp filter_words(%{value: value}), do: value |> Keywords.words() |> standing_for()
-
-  defp standing_for(words) do
-    words
-    |> Enum.flat_map(&(&1 |> Keywords.standing_for() |> elem(1)))
-    |> Enum.uniq()
-  end
+  # Likest first, as the index returned them, so the nearest answer reads before
+  # the ones that only just cleared the threshold.
+  defp report(field, word, words), do: [%{field: field, typed: word, words: words}]
 
   @doc "Adds each field's excerpt to a query."
   def select(query, ask) do

@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  useMatched,
-  useVisiblePublicationIds,
-} from "modules/publication/hooks";
+import { useMatched } from "modules/publication/hooks";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChangeEventHandler, FC, useRef, useState, useTransition } from "react";
@@ -14,14 +11,20 @@ import { SEARCH_HELP_MODAL_KEY } from "./SearchHelpModal";
 /** Long enough that a typist does not query on every letter. */
 const SEARCH_DELAY_MS = 350;
 
+/**
+ * A word written as the term that would find it on its own: scoped to the field
+ * it was asked of, so following it narrows the same way rather than widening to
+ * every field.
+ */
+function searchFor(field: string | null, word: string): string {
+  return field ? `${field}:${word}` : word;
+}
+
 const PublicationSearch: FC = () => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const matched = useMatched();
-  // With nothing to show, the line says what was looked for rather than what is
-  // being shown — which is the answer to why nothing came back.
-  const found = (useVisiblePublicationIds() ?? []).length > 0;
   const [isNavigating, startTransition] = useTransition();
 
   const searchUrlParam = searchParams?.get("search") ?? "";
@@ -83,19 +86,22 @@ const PublicationSearch: FC = () => {
           ) : (
             matched &&
             matched.length > 0 && (
+              // Only the words the index read differently from the way they
+              // were typed: told that `machado` was searched as `machado`, a
+              // reader has learnt nothing. This says where the results came
+              // from when they answer a term nobody typed.
               <>
-                <span>{found ? "Showing results for" : "Searched for"}</span>
-                {matched.map(({ field, words }, group) => (
-                  <span key={`search-matched-${field ?? "free"}`}>
-                    {group > 0 && <span className="text-gray-400"> · </span>}
-                    {field && <span>{field}: </span>}
+                {matched.map(({ field, typed, words }, entry) => (
+                  <span key={`search-matched-${field ?? "free"}-${typed}`}>
+                    {entry > 0 && <span className="text-gray-400"> · </span>}
+                    <strong className="font-normal">
+                      {searchFor(field, typed)}
+                    </strong>
+                    <span> matched </span>
                     {words.map((word, index) => (
-                      <span key={`search-matched-${field ?? "free"}-${word}`}>
+                      <span key={`search-matched-${typed}-${word}`}>
                         <Link
-                          // Scoped words read back as the operator that found
-                          // them, so following one narrows the same way rather
-                          // than widening to every field.
-                          href={`?search=${encodeURIComponent(field ? `${field}:${word}` : word)}`}
+                          href={`?search=${encodeURIComponent(searchFor(field, word))}`}
                           className="text-indigo-600 underline hover:bg-indigo-300"
                         >
                           {word}
@@ -103,7 +109,6 @@ const PublicationSearch: FC = () => {
                         {index < words.length - 1 && ", "}
                       </span>
                     ))}
-                    {group === matched.length - 1 && "."}
                   </span>
                 ))}
               </>
