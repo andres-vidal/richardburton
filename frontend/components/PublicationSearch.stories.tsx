@@ -27,7 +27,7 @@ export const Default: Story = {
   },
 };
 
-/** A `?search=` param (e.g. following a keyword link) is mirrored into the box. */
+/** A `?search=` param (e.g. following a matched-word link) is mirrored into the box. */
 export const FromUrlParam: Story = {
   parameters: { nextjs: { navigation: { query: { search: "Machado" } } } },
   beforeEach: () => seed(store),
@@ -40,7 +40,7 @@ export const FromUrlParam: Story = {
 };
 
 /**
- * While a search is in flight, the keyword line becomes an animated status. The
+ * While a search is in flight, the matched line becomes an animated status. The
  * query lives in the URL and the results are read for it, so "in flight" is what
  * has been typed not having reached the URL yet.
  */
