@@ -51,23 +51,14 @@ async function run<T>(op: (http: AxiosInstance) => Promise<T>): Promise<T> {
   }
 }
 
-/**
- * Read the details of a named stretch of the index from the browser, for
- * infinite scroll. The first page is server-rendered; as the reader nears the
- * foot, the next stretch of the frozen ordering is asked for by id. The search
- * is sent along so each row still shows what matched it. Ids that no longer
- * resolve (removed since the ordering froze) simply come back absent.
- */
+/** The publications with the given ids. Ids that no longer resolve come back absent. */
 async function loadDetails(
   ids: PublicationId[],
   search: string | undefined,
 ): Promise<Publication[]> {
   const { data } = await request((http) =>
     http.get<{ entries: Publication[] }>("publications", {
-      params: {
-        ids,
-        ...(search ? { search } : {}),
-      },
+      params: { ids, search },
     }),
   );
   return data.entries;
