@@ -23,7 +23,7 @@ defmodule RichardBurton.Publication.Index do
       operator. Postgres already understands that syntax, so the term is handed
       to `websearch_to_tsquery` as written instead of being parsed here. Tagged
       `{:spelled_out, term}`.
-    * **ask** — what a term becomes once it has been read: either
+    * **criteria** — what a term becomes once it has been read: either
       `{:spelled_out, term}` or `{:alternatives, alternatives}`. `matches/1` and
       `ranking/1` are built from it, and it is the only thing that differs
       between the two ways of reading a term.
@@ -119,7 +119,7 @@ defmodule RichardBurton.Publication.Index do
   def search(term, select: attributes) when is_binary(term) do
     case answering(term) do
       :none -> {:ok, []}
-      {ask, _ids} -> {:ok, Repo.all(asking(ask, attributes))}
+      {criteria, _ids} -> {:ok, Repo.all(asking(criteria, attributes))}
     end
   end
 
@@ -170,7 +170,7 @@ defmodule RichardBurton.Publication.Index do
 
   def details(ids, term) when is_list(ids) and is_binary(term) do
     from(fp in FlatPublication, where: fp.id in ^ids)
-    |> Excerpt.select(Excerpt.asked(term))
+    |> Excerpt.select(Excerpt.highlighting(term))
     |> Repo.all()
     |> in_order(ids)
   end
@@ -197,39 +197,39 @@ defmodule RichardBurton.Publication.Index do
 
       # Quotes or exclusions, with no operator: passed to Postgres as written.
       Term.plain?(alternatives) and Query.spelled_out?(term) ->
-        ask = {:spelled_out, term}
-        {ask, order_ids(ask)}
+        criteria = {:spelled_out, term}
+        {criteria, order_ids(criteria)}
 
       true ->
-        ask = Query.asked(alternatives)
+        criteria = Query.criteria(alternatives)
 
-        if Query.empty?(ask),
+        if Query.empty?(criteria),
           do: :none,
-          else: {ask, order_ids(ask)}
+          else: {criteria, order_ids(criteria)}
     end
   end
 
   # The ids a search matches, in reading order. This is the ordering the reader
   # pages through by id.
-  defp order_ids(ask), do: ask |> ranked() |> select([p], p.id) |> Repo.all()
+  defp order_ids(criteria), do: criteria |> ranked() |> select([p], p.id) |> Repo.all()
 
   # The publications a search matches, in reading order: by rank, then title, then
   # id. Rows with the same rank have to sort the same way every time, or paging
   # through the results would repeat or skip some.
-  defp ranked(ask) do
+  defp ranked(criteria) do
     from(p in FlatPublication,
       join: d in SearchDocument,
       on: d.id == p.id,
-      where: ^Query.matches(ask),
-      order_by: ^[desc: Query.ranking(ask), asc: :title, asc: :id]
+      where: ^Query.matches(criteria),
+      order_by: ^[desc: Query.ranking(criteria), asc: :title, asc: :id]
     )
   end
 
   # The full rows a search matches, in reading order — the same ranking as
   # `order_ids/1`, selected whole (or to the asked attributes) for the export
   # that takes the results all at once rather than a page at a time.
-  defp asking(ask, attributes) do
-    ask |> ranked() |> maybe_select(attributes)
+  defp asking(criteria, attributes) do
+    criteria |> ranked() |> maybe_select(attributes)
   end
 
   # An empty attribute list returns whole rows. Naming attributes narrows the

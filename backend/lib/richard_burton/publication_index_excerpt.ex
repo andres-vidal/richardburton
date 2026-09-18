@@ -20,12 +20,9 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     * **excerpt** — the matching text of one field. Short fields come back in
       full. `references` is an array, which the search treats as one long
       string, so it comes back as a short window around the match instead.
-    * **ask** — a map from field name to the tsquery used to highlight it. Free
-      words (the ones not attached to an operator) are searched in every field;
-      an operator's value is searched only in the field it names. Not the same
-      thing as the ask in `RichardBurton.Publication.Index.Query`, which is the
-      tagged term a search runs from; this one is built per field, and only for
-      highlighting.
+    * **highlighting** — a map from field name to the tsquery used to highlight
+      that field. Free words (the ones not attached to an operator) are searched
+      in every field; an operator's value is searched only in the field it names.
     * **widening** — one word that the search matched with something other than
       what was typed, either because the word is a prefix of several indexed
       words or because it matched none and fell back to ones resembling it. A
@@ -43,7 +40,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   @typedoc """
   The tsquery to highlight each field with, or nil for a field nothing searched.
   """
-  @type ask :: %{atom => String.t() | nil}
+  @type highlighting :: %{atom => String.t() | nil}
 
   @typedoc """
   One word the search matched with something other than what was typed: the word
@@ -91,20 +88,20 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   end
 
   @doc """
-  Builds the ask: a map from field name to the tsquery to highlight it with.
+  A map from field name to the tsquery to highlight that field with.
 
   This works the term out from scratch, the same way the search did, so it needs
   nothing but the term itself. None of what the search resolved earlier has to be
   carried along. A field that no part of the term searched gets no tsquery,
   and so gets no excerpt.
   """
-  @spec asked(String.t()) :: ask
-  def asked(term) do
+  @spec highlighting(String.t()) :: highlighting
+  def highlighting(term) do
     alternatives = Term.parse(term)
 
     if Term.plain?(alternatives) and Query.spelled_out?(term),
-      do: spelled_out_ask(term),
-      else: parsed_ask(alternatives)
+      do: spelled_out_highlighting(term),
+      else: parsed_highlighting(alternatives)
   end
 
   @doc """
@@ -172,19 +169,19 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   defp report(field, word, words), do: [%{field: field, typed: word, words: words}]
 
   @doc "Adds the `excerpts` map to a query, one excerpt per field."
-  def select(query, ask) do
+  def select(query, highlighting) do
     select_merge(query, [p], %{
       excerpts: %{
-        title: excerpt(p.title, ^ask.title, @whole),
-        original_title: excerpt(p.original_title, ^ask.original_title, @whole),
-        authors: excerpt(p.authors, ^ask.authors, @whole),
-        original_authors: excerpt(p.original_authors, ^ask.original_authors, @whole),
-        publishers: excerpt(p.publishers, ^ask.publishers, @whole),
-        countries: excerpt(p.countries, ^ask.countries, @whole),
+        title: excerpt(p.title, ^highlighting.title, @whole),
+        original_title: excerpt(p.original_title, ^highlighting.original_title, @whole),
+        authors: excerpt(p.authors, ^highlighting.authors, @whole),
+        original_authors: excerpt(p.original_authors, ^highlighting.original_authors, @whole),
+        publishers: excerpt(p.publishers, ^highlighting.publishers, @whole),
+        countries: excerpt(p.countries, ^highlighting.countries, @whole),
         references:
           excerpt(
             fragment("array_to_string(?, ' ')", p.references),
-            ^ask.references,
+            ^highlighting.references,
             @window
           )
       }
@@ -194,7 +191,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # Some terms are handed to Postgres to parse rather than parsed here, which
   # means we never resolve any words for them. So we ask Postgres what tsquery it
   # reads the term as, and highlight every field with that.
-  defp spelled_out_ask(term) do
+  defp spelled_out_highlighting(term) do
     %{rows: [[query]]} = Repo.query!("SELECT websearch_to_tsquery('rb_search', $1)::text", [term])
 
     Map.new(@fields, &{&1, query})
@@ -203,23 +200,23 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # Free words are searched in every field; an operator's value only in the field
   # it names. A term made only of operators therefore highlights nothing outside
   # those fields.
-  defp parsed_ask(alternatives) do
+  defp parsed_highlighting(alternatives) do
     words = alternatives |> Enum.flat_map(& &1.words) |> Enum.map(&Query.word_query/1) |> any_of()
     filters = alternatives |> Enum.flat_map(& &1.filters) |> Enum.reduce(%{}, &filter/2)
 
     Map.new(@fields, &{&1, any_of([words, filters[&1]])})
   end
 
-  # Adds an operator's value to the ask, under the field it names. Negated
+  # Adds an operator's value under the field it names. Negated
   # operators are skipped: the reader asked not to see those words, so they
   # cannot be the reason a row matched. `year` is skipped because it is a number
   # with no text to highlight.
-  defp filter(%{negated: true}, ask), do: ask
-  defp filter(%{field: :year}, ask), do: ask
+  defp filter(%{negated: true}, acc), do: acc
+  defp filter(%{field: :year}, acc), do: acc
 
-  defp filter(%{field: field, value: value, exact: exact}, ask) do
+  defp filter(%{field: field, value: value, exact: exact}, acc) do
     query = value_query(value, exact)
-    Map.update(ask, field, query, &any_of([&1, query]))
+    Map.update(acc, field, query, &any_of([&1, query]))
   end
 
   # A quoted value was matched as an exact phrase, so it highlights exactly the
@@ -233,7 +230,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
 
   # Combines tsqueries with `|` rather than `&`: highlighting asks whether any of
   # these words appears in the field, not whether all of them do. Returns nil when
-  # there is nothing to ask, which highlights nothing.
+  # there is nothing to search for, which highlights nothing.
   defp any_of(queries) do
     case Enum.reject(queries, &(&1 in [nil, ""])) do
       [] -> nil

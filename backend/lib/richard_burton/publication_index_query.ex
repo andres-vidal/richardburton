@@ -8,7 +8,7 @@ defmodule RichardBurton.Publication.Index.Query do
 
   Two words carry specific meanings here, both appearing as tags in the code:
 
-    * **ask** — a term ready to query with: `{:spelled_out, term}` for one handed
+    * **criteria** — a term ready to query with: `{:spelled_out, term}` for one handed
       to Postgres verbatim, or `{:alternatives, alternatives}` for one parsed
       into words and filters.
 
@@ -23,10 +23,10 @@ defmodule RichardBurton.Publication.Index.Query do
   alias RichardBurton.Publication.Index.Term
 
   @doc """
-  A parsed term as an ask: for each alternative, the tsquery for its free words
+  A parsed term as criteria: for each alternative, the tsquery for its free words
   and the filters that narrow it.
   """
-  def asked(alternatives) do
+  def criteria(alternatives) do
     {:alternatives,
      Enum.map(alternatives, fn alternative ->
        %{query: words_query(alternative.words), filters: alternative.filters}
@@ -34,7 +34,7 @@ defmodule RichardBurton.Publication.Index.Query do
   end
 
   @doc """
-  Whether an ask found anything to search for. A term whose every word resolved to
+  Whether criteria found anything to search for. A term whose every word resolved to
   nothing, and which carries no filter, asks for nothing at all.
   """
   def empty?({:alternatives, alternatives}),
@@ -91,7 +91,7 @@ defmodule RichardBurton.Publication.Index.Query do
     end
   end
 
-  @doc "The `WHERE` clause for an ask."
+  @doc "The `WHERE` clause for the given criteria."
   def matches({:spelled_out, term}),
     do: dynamic(fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term))
 
@@ -100,7 +100,7 @@ defmodule RichardBurton.Publication.Index.Query do
     alternatives |> Enum.map(&alternative_predicate/1) |> any_of()
   end
 
-  @doc "The `ORDER BY` expression for an ask: how well each row matches it."
+  @doc "The `ORDER BY` expression for the given criteria: how well each row matches."
   def ranking({:spelled_out, term}),
     do: dynamic(fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term))
 
@@ -123,9 +123,9 @@ defmodule RichardBurton.Publication.Index.Query do
     |> all_of()
   end
 
-  # Nothing to ask for matches nothing rather than everything, so an alternative
-  # whose words and operators were all unusable excludes itself instead of
-  # widening the search to every publication.
+  # Nothing to search for matches nothing rather than everything, so an
+  # alternative whose words and operators were all unusable excludes itself
+  # instead of widening the search to every publication.
   defp all_of([]), do: dynamic(false)
   defp all_of(predicates), do: Enum.reduce(predicates, &dynamic(^&2 and ^&1))
 
@@ -141,9 +141,9 @@ defmodule RichardBurton.Publication.Index.Query do
 
   # An operator matches against one column rather than the search document. A
   # quoted value matches as a phrase; anything else by prefix, like free text.
-  # A value the operator cannot use matches nothing, rather than the operator
-  # being dropped, which would widen a term the reader narrowed. A span that does
-  # not parse and a word absent from the index are both unusable.
+  # A year whose range does not parse matches nothing, rather than the operator
+  # being dropped, which would widen a term the reader narrowed. A value the index
+  # does not hold needs no such handling: its tsquery simply matches nothing.
   defp filter_predicate(%{field: :year, value: value, negated: negated}) do
     case Term.span(value) do
       :none -> negate(dynamic(false), negated)
@@ -152,10 +152,7 @@ defmodule RichardBurton.Publication.Index.Query do
   end
 
   defp filter_predicate(%{field: field, value: value, exact: exact, negated: negated}) do
-    case value_query(value, exact) do
-      :none -> negate(dynamic(false), negated)
-      query -> negate(text_predicate(field, query), negated)
-    end
+    negate(text_predicate(field, value_query(value, exact)), negated)
   end
 
   # A filter written with a leading minus excludes what it would otherwise match.
