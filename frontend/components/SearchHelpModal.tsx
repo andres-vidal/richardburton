@@ -49,8 +49,8 @@ const SearchHelp: FC = () => (
     <header className="space-y-1">
       <h2 className="text-2xl font-normal">How to search</h2>
       <p className="text-sm text-gray-600">
-        Enter any details of a publication — a title, a name, a year. Each
-        additional word narrows the results, so a record must match all of them.
+        Search by title, author, translator, publisher or year. Adding words
+        narrows the results.
       </p>
     </header>
 
