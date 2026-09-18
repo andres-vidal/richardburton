@@ -60,6 +60,9 @@ const HTTP: HttpModule = {
           typeof window !== "undefined" &&
           !window.location.pathname.startsWith("/auth")
         ) {
+          // A whole-page navigation rather than the router: the session is gone,
+          // so the client state built for it should go with it.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.assign("/auth/sign-in");
         }
 

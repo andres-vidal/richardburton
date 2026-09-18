@@ -3,6 +3,12 @@
 import { ROLE_LABELS, ROLES } from "modules/users";
 import { FC } from "react";
 
+const signInAs = (role: (typeof ROLES)[number]) => {
+  // The route handler answers with a redirect, so the client router cannot follow it.
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.assign(`/api/auth/dev?role=${role}`);
+};
+
 // Dev-only credentials shortcut, one per role. Navigates to the `/api/auth/dev`
 // route handler (a full navigation, not a client-side <Link>, so its Set-Cookie
 // reaches the browser), which mints a session for that role and sends it where a
@@ -19,7 +25,7 @@ const DevSignInButton: FC = () => (
       <button
         key={role}
         type="button"
-        onClick={() => window.location.assign(`/api/auth/dev?role=${role}`)}
+        onClick={() => signInAs(role)}
         className="rounded underline hover:text-indigo-600 focus-ring"
       >
         {ROLE_LABELS[role]}

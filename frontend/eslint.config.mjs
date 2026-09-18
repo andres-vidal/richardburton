@@ -41,6 +41,7 @@ const eslintConfig = [
       ".next-e2e-*/**",
       "node_modules/**",
       "storybook-static/**",
+      "coverage/**",
       "**/*.config.{js,cjs,mjs,ts,mts}",
     ],
   },
