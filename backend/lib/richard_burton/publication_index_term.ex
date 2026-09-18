@@ -24,10 +24,12 @@ defmodule RichardBurton.Publication.Index.Term do
   Operator values match like free words — by prefix, with a fuzzy fallback —
   unless quoted, which matches them as written.
 
-  Each operator accepts several names: the label shown in the UI, the database
-  column, and the Portuguese term, matched with case and accents folded away. An unrecognised prefix is not an operator:
-  `foo:bar` parses as free text, so a colon typed inside a title does not fail
-  the query.
+  Each operator accepts an English name and a Portuguese one, matched with case
+  and accents folded away; a name of two words is accepted hyphenated or
+  underscored.
+
+  An unrecognised prefix is not an operator: `foo:bar` parses as free text, so a
+  colon typed inside a title does not fail the query.
   """
 
   @type filter :: %{field: atom, value: String.t(), exact: boolean, negated: boolean}

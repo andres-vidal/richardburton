@@ -1,13 +1,14 @@
 defmodule RichardBurton.Publication.Index.Highlight do
   @moduledoc """
-  Shows why a row is in a result when the reason is not on screen.
+  Returns the sources a search matched, as a snippet.
 
-  A publication can match on its sources, which the index does not display, so a
-  row can look unrelated to what was searched. When that happens the matching
-  source is returned as a snippet with the matched words wrapped in `[[ ]]`, in
-  the row's virtual `source_match` field.
+  A publication's `references` are matched as one joined string, so a row that
+  answered on them records neither which source matched nor what in it did. The
+  virtual `source_match` field carries that: the matching stretch of the
+  sources, with the matched words wrapped in `[[ ]]`, or nil when the sources
+  did not match.
 
-  Only whole-row reads carry it: an export narrowed to named columns asks for no
+  Only whole-row reads carry it: a read narrowed to named attributes asks for no
   snippet.
   """
 

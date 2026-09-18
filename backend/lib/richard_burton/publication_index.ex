@@ -128,7 +128,7 @@ defmodule RichardBurton.Publication.Index do
   The order is settled here, once. A reader then pages through it by id (see
   `details/3`) and sees a stable list, because the order was fixed the moment
   the search ran: rows cannot shift, skip or repeat as the database changes
-  underneath the scroll.
+  between one page and the next.
   """
   def search_order(term) when is_binary(term) do
     case answering(term) do
@@ -150,8 +150,8 @@ defmodule RichardBurton.Publication.Index do
   The full rows for the given ids, in that order — one stretch of an ordering
   `search_order/1` or `all_order/0` handed back. A `nil` term is a plain
   listing; a term and the words it matched on (as `search_order/1` returned
-  them) are carried so a row matched only by its references still shows which —
-  and shows it without resolving the term over again.
+  them) are carried so a row matched on its sources comes back saying which,
+  without resolving the term over again.
 
   An id no longer in the database is simply left out, which is how a deletion
   since the order was fixed shows up: a gap, never a shifted or repeated row.
@@ -228,8 +228,8 @@ defmodule RichardBurton.Publication.Index do
       else: {ask, keywords(alternatives, :fuzzy)}
   end
 
-  # The indexed keywords the free words resolved to, returned so the UI can show
-  # what the search matched on.
+  # The indexed keywords the free words resolved to, returned with the results
+  # so what the term matched on is known without resolving it again.
   defp keywords(alternatives, mode) do
     alternatives
     |> Enum.flat_map(& &1.words)
