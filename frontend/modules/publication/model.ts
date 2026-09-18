@@ -28,7 +28,8 @@ type PublicationKey = keyof Omit<Publication, "id" | "references" | "excerpts">;
  * One word the search matched with something other than what was typed.
  *
  * Holds the word as typed, the indexed words it actually matched, and the field
- * it was searched in — `null` for a free word, which is searched in every field.
+ * it was searched in. The field is `null` for a free word, which is searched in
+ * every field.
  *
  * Words matched exactly are not included, so this is empty for most searches.
  * `field` is the name used to write an operator, so every entry can be read back
@@ -251,8 +252,8 @@ function markedValue(
 }
 
 /**
- * A field as the index marked it, split back into the values it holds — one
- * entry per value, in the order `items` gives them.
+ * A field as the index marked it, split back into the values it holds. One entry
+ * per value, in the order `items` gives them.
  *
  * The excerpt covers the whole stored field, commas and all, so splitting it the
  * same way the values are split lines the marks back up with them. If the two

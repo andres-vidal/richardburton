@@ -47,8 +47,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
 
   @typedoc """
   One word the search matched with something other than what was typed: the word
-  as typed, the indexed words it matched, and the field it was searched in — nil
-  for a free word, which is searched in every field.
+  as typed, the indexed words it matched, and the field it was searched in. The
+  field is nil for a free word, which is searched in every field.
   """
   @type widening :: %{field: String.t() | nil, typed: String.t(), words: [String.t()]}
 
@@ -94,8 +94,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   Builds the ask: a map from field name to the tsquery to highlight it with.
 
   This works the term out from scratch, the same way the search did, so it needs
-  nothing but the term itself — none of what the search resolved earlier has to
-  be carried along. A field that no part of the term searched gets no tsquery,
+  nothing but the term itself. None of what the search resolved earlier has to be
+  carried along. A field that no part of the term searched gets no tsquery,
   and so gets no excerpt.
   """
   @spec asked(String.t()) :: ask
@@ -111,8 +111,9 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   Lists the words the search matched with something other than what was typed.
 
   Each entry gives the word as it was typed, the indexed words it actually
-  matched, and the field it was searched in — `nil` for a free word, which is
-  searched in every field. Entries come back in the order the words were typed.
+  matched, and the field it was searched in. The field is `nil` for a free word,
+  which is searched in every field. Entries come back in the order the words were
+  typed.
 
   Words the search matched exactly are left out, since reporting that `machado`
   matched `machado` adds nothing. What is worth reporting is that `Maries`
@@ -133,8 +134,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
       else: free_widenings(alternatives) ++ scoped_widenings(alternatives)
   end
 
-  # The free words — the ones not attached to an operator, and so searched in
-  # every field.
+  # The free words, meaning the ones not attached to an operator, which are
+  # searched in every field.
   defp free_widenings(alternatives) do
     alternatives |> Enum.flat_map(& &1.words) |> Enum.flat_map(&widening(nil, &1))
   end

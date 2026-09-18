@@ -48,7 +48,7 @@ defmodule RichardBurton.Publication.Index.Keywords do
 
   @doc """
   The indexed words a given word matches, and how it matched them: the words it
-  is a prefix of, or — if it is a prefix of none — the words it resembles.
+  is a prefix of, or the words it resembles if it is a prefix of none.
   """
   def standing_for(word) do
     case resolve(word, :prefix) do

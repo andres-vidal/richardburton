@@ -23,8 +23,8 @@ over them.
 ## How it works
 
 For every field it searched, the index returns the text that matched, with the
-matched words wrapped in `[[ ]]` — see the backend's
-`RichardBurton.Publication.Index.Excerpt`. This component splits on those
+matched words wrapped in `[[ ]]` (see the backend's
+`RichardBurton.Publication.Index.Excerpt`). This component splits on those
 markers and wraps every other piece in a `<mark>`. It makes no decision about
 what matched; it only renders what the database already decided.
 
@@ -37,7 +37,7 @@ title alone.
 <Canvas of={HighlightStories.Accented} />
 
 Accents are preserved. The index strips them when deciding whether something
-matched, but the excerpt it returns is the text as actually stored — so a search
+matched, but the excerpt it returns is the text as actually stored, so a search
 for `angustia` highlights `Angústia` without the accent disappearing from what is
 displayed.
 
@@ -48,7 +48,7 @@ An excerpt can contain any number of markers, and all of them are rendered.
 ## Outside a search
 
 A field the search did not match has no excerpt, so the caller passes the stored
-value instead — see `Publication.markedValue`. That value contains no `[[ ]]`, so
+value instead (see `Publication.markedValue`). That value contains no `[[ ]]`, so
 it renders unchanged. The same goes for any text shown outside a search, such as
 a publication's own page opened without a query.
 

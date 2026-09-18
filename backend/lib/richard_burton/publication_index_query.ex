@@ -3,7 +3,7 @@ defmodule RichardBurton.Publication.Index.Query do
   Builds the query a parsed search term resolves to.
 
   `Publication.Index.Term` says what a reader asked for; this says how to ask it
-  of the database. Nothing here reads a publication — it returns the `WHERE` and
+  of the database. Nothing here reads a publication. It returns the `WHERE` and
   `ORDER BY` fragments `Publication.Index` runs.
 
   Two words carry specific meanings here, both appearing as tags in the code:
@@ -34,8 +34,8 @@ defmodule RichardBurton.Publication.Index.Query do
   end
 
   @doc """
-  Whether an ask found anything to search for — a term whose every word resolved
-  to nothing and which carries no filter asks for nothing at all.
+  Whether an ask found anything to search for. A term whose every word resolved to
+  nothing, and which carries no filter, asks for nothing at all.
   """
   def empty?({:alternatives, alternatives}),
     do: Enum.all?(alternatives, &(&1.query == nil and &1.filters == []))
@@ -141,9 +141,9 @@ defmodule RichardBurton.Publication.Index.Query do
 
   # An operator matches against one column rather than the search document. A
   # quoted value matches as a phrase; anything else by prefix, like free text.
-  # An unusable value — an unparseable span, a word absent from the index —
-  # matches nothing rather than dropping the operator, which would widen a term
-  # the user narrowed.
+  # A value the operator cannot use matches nothing, rather than the operator
+  # being dropped, which would widen a term the reader narrowed. A span that does
+  # not parse and a word absent from the index are both unusable.
   defp filter_predicate(%{field: :year, value: value, negated: negated}) do
     case Term.span(value) do
       :none -> negate(dynamic(false), negated)
@@ -189,8 +189,8 @@ defmodule RichardBurton.Publication.Index.Query do
     do: dynamic(fragment("phraseto_tsquery('rb_search', ?)", ^value))
 
   # Any other value matches word by word. A word that begins nothing the index
-  # holds is widened to what it resembles, exactly as a free word is — but the
-  # prefix form is always kept as well, which a free word does not need.
+  # holds is widened to what it resembles, exactly as a free word is. The prefix
+  # form is always kept as well, which a free word does not need.
   #
   # The reason is that these two are matched against different things. A free word
   # is matched against the search document, which is what the keyword view is
