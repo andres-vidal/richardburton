@@ -105,6 +105,15 @@ defmodule RichardBurton.Publication.Index.TermTest do
       assert [%{filters: [%{field: :authors}]}] = Term.parse("translator:caldwell")
     end
 
+    test "an unterminated delimiter is not an operator" do
+      # The tokenizer splits on the space, so `title:"dom` is a prefix with no
+      # closing quote and parses as free text rather than half a phrase.
+      assert [%{words: ["title:", "dom", "casmurro"], filters: []}] =
+               Term.parse(~s(title:"dom casmurro))
+
+      assert [%{words: ["title:", "dom"], filters: []}] = Term.parse("title:(dom")
+    end
+
     test "a bracketed value keeps several words for one field" do
       assert [%{filters: [filter]}] = Term.parse("title:(dom casmurro)")
       assert %{field: :title, value: "dom casmurro", exact: false} = filter

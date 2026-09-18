@@ -94,7 +94,7 @@ defmodule RichardBurton.Publication.Index.Term do
     {filters, words} = Enum.split_with(tokens, &operator?/1)
 
     %{
-      words: Enum.map(words, &unquoted/1),
+      words: Enum.map(words, fn word -> word |> delimited() |> elem(1) end),
       filters: Enum.map(filters, &read_filter/1)
     }
   end
@@ -114,10 +114,12 @@ defmodule RichardBurton.Publication.Index.Term do
     %{"negated" => negated, "field" => field, "value" => value} =
       Regex.named_captures(@operator, token)
 
+    {kind, value} = delimited(value)
+
     %{
       field: Map.fetch!(@fields, String.downcase(field)),
-      value: unquoted(value),
-      exact: quoted?(value),
+      value: value,
+      exact: kind == :phrase,
       negated: negated == "-"
     }
   end
@@ -125,26 +127,22 @@ defmodule RichardBurton.Publication.Index.Term do
   # Whether a prefix names a field, in any of the names that field accepts.
   defp known?(field), do: Map.has_key?(@fields, String.downcase(field))
 
-  # A quoted value matches as a phrase, in the order written.
-  defp quoted?(value), do: wrapped?(value, ~s("), ~s("))
+  # A value read through its delimiters: `"..."` is a phrase, matched in the
+  # order written; `(...)` is several words of one field, matched in any order;
+  # anything else is a bare value. Returns the kind and the value without them.
+  defp delimited(<<?", rest::binary>> = value), do: closed_by(value, rest, ~s("), :phrase)
+  defp delimited(<<?(, rest::binary>> = value), do: closed_by(value, rest, ")", :group)
+  defp delimited(value), do: {:bare, value}
 
-  # `title:(dom casmurro)` matches both words in any order; quoting them
-  # instead matches them in the order given.
-  defp grouped?(value), do: wrapped?(value, "(", ")")
+  # An opening delimiter counts only when the matching one closes the value, so
+  # `"abc`, `(abc` and a lone `"` are bare, and keep the delimiter they carry.
+  defp closed_by(value, "", _closing, _kind), do: {:bare, value}
 
-  # Whether a value is enclosed by the given delimiters, which requires at least
-  # the two delimiters themselves.
-  defp wrapped?(value, opening, closing),
-    do:
-      String.length(value) >= 2 and String.starts_with?(value, opening) and
-        String.ends_with?(value, closing)
-
-  # A value without the quotes or brackets that delimited it, leaving anything
-  # else untouched.
-  defp unquoted(value) do
-    if quoted?(value) or grouped?(value),
-      do: String.slice(value, 1..-2//1),
-      else: value
+  defp closed_by(value, rest, closing, kind) do
+    case String.split_at(rest, -1) do
+      {inner, ^closing} -> {kind, inner}
+      _ -> {:bare, value}
+    end
   end
 
   @doc """
