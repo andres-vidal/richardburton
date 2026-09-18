@@ -6,11 +6,13 @@ defmodule RichardBurton.Publication.Index.Query do
   of the database. Nothing here reads a publication. It returns the `WHERE` and
   `ORDER BY` fragments `Publication.Index` runs.
 
-  Two words carry specific meanings here, both appearing as tags in the code:
+  Terms used here:
 
-    * **criteria** — a term ready to query with: `{:spelled_out, term}` for one handed
-      to Postgres verbatim, or `{:alternatives, alternatives}` for one parsed
-      into words and filters.
+    * **criteria** — a term ready to query with, and a tag the code matches on:
+      `{:spelled_out, term}` for one handed to Postgres verbatim, or
+      `{:alternatives, alternatives}` for one parsed into words and filters.
+    * **predicate** — one condition a publication has to satisfy, held as an Ecto
+      `dynamic` so it can be combined with others and spliced into the `WHERE`.
 
   A free word is matched against the whole search document; an operator against
   the single column it names. That is why a term carrying operators cannot be
@@ -140,9 +142,9 @@ defmodule RichardBurton.Publication.Index.Query do
   defp words_predicate(query),
     do: dynamic(fragment("document @@ to_tsquery('rb_search', ?)", ^query))
 
-  # The predicate for one operator. A `year` compares that column as a number
-  # against the range its value parses into. Every other operator matches the
-  # column it names as text, rather than matching the search document.
+  # The condition one operator puts on a publication. A `year` compares that column
+  # as a number against the range its value parses into. Every other operator
+  # matches the column it names as text, rather than matching the search document.
   #
   # A value that parses into no range matches nothing, rather than the operator
   # being dropped, which would widen a term the reader narrowed.
