@@ -13,13 +13,22 @@ defmodule RichardBurton.Publication.Index do
       -country:US               negated
       title:"dom casmurro"      phrase, in that order
 
-  An alternative matches when its words and its filters both match. A term that
-  quotes or negates but contains no operator is passed to `websearch_to_tsquery`
-  unchanged.
+  An alternative matches when its words and its filters both match.
+
+  Two more words carry specific meanings here, both of which appear as tags in
+  the code:
+
+    * **spelled out** — a term that quotes or negates but contains no operator.
+      It is passed to `websearch_to_tsquery` unchanged rather than parsed, since
+      Postgres already reads that syntax. Tagged `{:spelled_out, term}`.
+    * **mode** — how a word is matched: `:prefix` from the start of a word, or
+      `:fuzzy` against the indexed words it resembles. A search runs in `:prefix`
+      first and falls back to `:fuzzy` only when that returns nothing. The two
+      modes differ only in which tsquery function reads the term.
 
   Both paths match against a `tsvector` built with accents folded, so the term
   is folded the same way first. See `RichardBurton.Publication.Index.Term` for
-  the operators and the names they accept.
+  the term vocabulary and the names each operator accepts.
   """
 
   import Ecto.Query

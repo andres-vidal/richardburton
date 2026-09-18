@@ -2,8 +2,18 @@ defmodule RichardBurton.Publication.Index.Term do
   @moduledoc """
   Parses a search term into the structure `Publication.Index` builds a query from.
 
-  A term is free text plus two constructs: alternatives separated by `:or` (or
-  `:ou`), and operators that scope a value to one field.
+  Four words carry specific meanings here:
+
+    * **term** — everything the reader typed, as one string.
+    * **alternative** — a part of a term that can satisfy it on its own. `:or`
+      (or `:ou`) separates them; a term without `:or` is a single alternative.
+    * **operator** — the `field:value` form as it is written, such as
+      `title:casmurro`.
+    * **filter** — one operator once parsed: the column it names, its value, and
+      whether it was quoted or negated. An operator is what the reader types; a
+      filter is what the query is built from.
+
+  An alternative holds free words and filters, and matches when both match.
 
       title:casmurro          matches the title only
       year:1950-1960          matches a year range
