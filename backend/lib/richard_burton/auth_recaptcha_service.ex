@@ -8,6 +8,7 @@ defmodule RichardBurton.Auth.Recaptcha do
   @spec verify(token :: String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def verify(token), do: impl().verify(token)
 
+  # The configured implementation of the recaptcha service, so tests can supply a double.
   defp impl,
     do:
       Application.get_env(

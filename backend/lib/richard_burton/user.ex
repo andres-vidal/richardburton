@@ -139,6 +139,8 @@ defmodule RichardBurton.User do
     if last_admin?(user) and role != :admin, do: {:error, :last_admin}, else: :ok
   end
 
+  # Whether this is the only administrator left, which neither a demotion nor a
+  # deletion may leave the platform without.
   defp last_admin?(%User{role: :admin, id: id}) do
     from(u in User, where: u.role == :admin and u.id != ^id) |> Repo.aggregate(:count) == 0
   end

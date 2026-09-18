@@ -85,6 +85,7 @@ defmodule RichardBurton.Source do
   def flatten(sources) when is_list(sources), do: sources
   def flatten(_), do: []
 
+  # An empty editor row, which is dropped rather than failing validation.
   defp blank?(value) do
     is_nil(value) or (is_binary(value) and String.trim(value) == "")
   end

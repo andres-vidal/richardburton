@@ -1,6 +1,31 @@
 defmodule RichardBurton.Publication do
   @moduledoc """
-  Schema for publications
+  A publication: one translated edition of an original book, and the write paths
+  that change one.
+
+  Identity is a composite key — title, year, and fingerprints of the countries,
+  publishers and translated book — so the same edition cannot be inserted twice.
+  The near-duplicates that key cannot catch are `Publication.Duplicates`.
+
+  Five words carry specific meanings here:
+
+    * **tombstone** — a soft-deleted row. `delete/2` stamps `deleted_at` rather
+      than removing anything, so the row, its sources and its history survive
+      and `restore/2` can return it. Every read path hides tombstoned rows, and
+      the composite-key index is partial so a tombstone never blocks a
+      re-import.
+    * **winner** and **losers** — in a merge, the record that survives and the
+      records collapsed into it. The winner keeps its identity; the losers
+      contribute their countries, publishers and sources, then are tombstoned.
+    * **absorbed** — the state of a record tombstoned by a merge rather than by
+      `delete/2`. It is not in the trash and `restore/2` refuses it with
+      `{:error, :absorbed}`; undoing the merge is what returns it.
+    * **compensate** — the action `undo/3` applies to reverse a recorded entry.
+      Nothing is erased: the compensating action is appended to the log as a new
+      entry, and is itself undoable.
+
+  Every mutation records an entry in `Publication.History` inside the same
+  transaction, and signals `Publication.Index.Refresher` once per operation.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -143,6 +168,8 @@ defmodule RichardBurton.Publication do
   defp refresh_if_changed({:ok, {updated, false}}), do: {:ok, updated}
   defp refresh_if_changed(error), do: error
 
+  # Applies an update and records it, in one transaction, returning
+  # `{:error, :conflict}` when the change would collide with the composite key.
   defp update_and_record(publication, attrs, actor) do
     # Snapshots are the yardstick, not the changeset: cast_assoc(:sources)
     # treats every incoming entry as new (children carry no client id), so a
@@ -206,10 +233,15 @@ defmodule RichardBurton.Publication do
     end
   end
 
+  # The entry immediately before this one in the stream, which holds the state an
+  # update is reverted to. Nil for the record's first entry.
   defp previous_of(stream, entry) do
     Enum.find(stream, &(&1.version < entry.version))
   end
 
+  # The action that reverses a recorded entry: delete compensates a create or a
+  # restore, restore compensates a delete, an update is reverted to the previous
+  # snapshot, and a merge is taken apart by `unmerge/4`.
   defp compensate(%{action: action, publication_id: id}, _previous, _head, actor)
        when action in ["created", "restored"] do
     delete(id, actor)
@@ -239,6 +271,8 @@ defmodule RichardBurton.Publication do
     merge(id, History.absorbed_ids(entry), actor)
   end
 
+  # Takes a merge apart: lifts the tombstones off the absorbed records, reverts
+  # the winner to its pre-merge state, and records the whole thing as one entry.
   defp unmerge(entry, previous, head, actor) do
     Repo.transaction(fn ->
       with {:ok, restored} <- restore_absorbed(History.absorbed_ids(entry)),
@@ -268,6 +302,8 @@ defmodule RichardBurton.Publication do
       else: {:error, :not_found}
   end
 
+  # Clears `deleted_at` on each record, stopping at the first that would collide
+  # with the composite key.
   defp lift_tombstones(publications) do
     publications
     |> Enum.reduce_while({:ok, []}, fn publication, {:ok, lifted} ->
@@ -331,6 +367,8 @@ defmodule RichardBurton.Publication do
     end
   end
 
+  # The winner and losers loaded together, rejecting a merge of a record into
+  # itself. Loser ids are compared as strings because they may arrive either way.
   defp assemble(winner_id, loser_ids) do
     loser_ids = loser_ids |> Enum.map(&to_string/1) |> Enum.uniq()
 
@@ -358,6 +396,8 @@ defmodule RichardBurton.Publication do
     end
   end
 
+  # Applies a merge and records it as one entry on the winner, in one
+  # transaction, so an interrupted merge leaves neither half behind.
   defp merge_and_record(winner, losers, actor) do
     attrs = reconciled(winner, losers)
 
@@ -445,6 +485,8 @@ defmodule RichardBurton.Publication do
     |> Codec.nest()
   end
 
+  # One list field across several flat records, as the sorted set of its values.
+  # This is how a merge combines countries and publishers.
   defp gathered(flat, field) do
     flat
     |> Enum.flat_map(&(Map.get(&1, field) || []))
@@ -477,6 +519,9 @@ defmodule RichardBurton.Publication do
     end
   end
 
+  # Sets or clears `deleted_at` and records the entry, in one transaction. The
+  # same path serves delete and restore, which differ only in the timestamp and
+  # the action recorded.
   defp stamp_deleted(publication, deleted_at, action, actor) do
     publication = preload(publication)
 
@@ -540,6 +585,7 @@ defmodule RichardBurton.Publication do
     end
   end
 
+  # One publication by id, either excluding tombstoned rows or only among them.
   defp get(id, deleted: false) do
     Repo.one(Ecto.Query.from(p in Publication, where: p.id == ^id and is_nil(p.deleted_at)))
   end
@@ -548,6 +594,8 @@ defmodule RichardBurton.Publication do
     Repo.one(Ecto.Query.from(p in Publication, where: p.id == ^id and not is_nil(p.deleted_at)))
   end
 
+  # Computes the fingerprints the composite key is built from, before the
+  # associations they summarise are linked.
   defp link_fingerprints(changeset) do
     changeset
     |> TranslatedBook.link_fingerprint()
@@ -555,6 +603,9 @@ defmodule RichardBurton.Publication do
     |> Publisher.link_fingerprint()
   end
 
+  # Resolves each association to an existing row where one matches, so a
+  # publication reuses countries, books and publishers rather than duplicating
+  # them.
   defp link_assocs(changeset) do
     changeset
     |> Country.link()
@@ -581,6 +632,8 @@ defmodule RichardBurton.Publication do
     end
   end
 
+  # Inserts one publication inside a bulk transaction, rolling the whole batch
+  # back on the first failure so a partial import cannot land.
   defp insert_or_rollback(attrs, actor) do
     case insert(attrs, actor) do
       {:ok, publication} ->

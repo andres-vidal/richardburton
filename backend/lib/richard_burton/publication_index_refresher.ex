@@ -85,15 +85,21 @@ defmodule RichardBurton.Publication.Index.Refresher do
   # rebuilt before the one that reads it.
   @views ~w[flat_publications search_documents search_keywords]
 
+  # A concurrent refresh keeps the views readable while it runs but needs a
+  # unique index on each; the blocking form is used where determinism matters
+  # more than availability.
   defp rebuild(:blocking), do: refresh_views("")
   defp rebuild(:concurrent), do: refresh_views("CONCURRENTLY ")
 
+  # Refreshes the view stack bottom-first, since each view reads the one below.
   defp refresh_views(concurrently) do
     Enum.each(@views, fn view ->
       Repo.query!("REFRESH MATERIALIZED VIEW #{concurrently}#{view}", [], timeout: :infinity)
     end)
   end
 
+  # The refresh strategy for this environment: debounced in dev and production,
+  # synchronous in test and e2e so a test can read what it just wrote.
   defp strategy do
     Application.get_env(
       :richard_burton,
@@ -102,10 +108,12 @@ defmodule RichardBurton.Publication.Index.Refresher do
     )
   end
 
+  # Whether writes are coalesced before a refresh.
   defp debounced? do
     match?({:debounced, _}, strategy())
   end
 
+  # How long a burst of writes is allowed to accumulate before the rebuild runs.
   defp configured_debounce_ms do
     case strategy() do
       {:debounced, ms} -> ms

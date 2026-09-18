@@ -1,4 +1,14 @@
 defmodule RichardBurtonWeb.PublicationController do
+  @moduledoc """
+  The publication endpoints: reading the index, searching and exporting it, and
+  the admin writes — insert, update, merge, delete, restore and undo.
+
+  Reads are paged by a frozen ordering rather than by offset. The first response
+  to a query carries the whole ordering — every matching id, in reading order —
+  plus the first page of rows; later pages are fetched by id against that
+  ordering, so results cannot drift as the database changes underneath a reader.
+  """
+
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.FlatPublication
@@ -53,6 +63,8 @@ defmodule RichardBurtonWeb.PublicationController do
     }
   end
 
+  # The total row count, sent as a header because it belongs to the query rather
+  # than to any one page.
   defp put_total(conn) do
     put_resp_header(
       conn,
@@ -61,9 +73,13 @@ defmodule RichardBurtonWeb.PublicationController do
     )
   end
 
+  # Ids from the query string, dropping anything that is not an integer rather
+  # than failing the request.
   defp parse_ids(ids) when is_list(ids), do: Enum.flat_map(ids, &parse_id/1)
   defp parse_ids(_), do: []
 
+  # One id as a single-element list, or an empty one, so an unparseable id is
+  # dropped by the flat_map rather than failing the request.
   defp parse_id(id) do
     case Integer.parse(to_string(id)) do
       {id, ""} -> [id]
@@ -128,6 +144,7 @@ defmodule RichardBurtonWeb.PublicationController do
     send_exported_csv(conn, results, filename)
   end
 
+  # Sends results as a CSV attachment.
   defp send_exported_csv(conn, data, filename) do
     content = Publication.Codec.to_csv(data)
 
@@ -319,6 +336,8 @@ defmodule RichardBurtonWeb.PublicationController do
     end
   end
 
+  # One history entry as the client reads it, including the records a merge
+  # absorbed and whether the entry is still undoable.
   defp serialize_history(entry) do
     %{
       publication_id: entry.publication_id,
@@ -371,6 +390,8 @@ defmodule RichardBurtonWeb.PublicationController do
     |> json(validate_publication(publication, id))
   end
 
+  # One publication validated without being written, reported as the record and
+  # its errors so a client can show both.
   defp validate_publication(p, exclude_id \\ nil) do
     case FlatPublication.validate(p, exclude_id) do
       :ok -> %{publication: p, errors: nil}

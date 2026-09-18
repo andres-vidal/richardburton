@@ -5,10 +5,9 @@ defmodule RichardBurtonWeb.Plugs.Authorize do
 
       plug RichardBurtonWeb.Plugs.Authorize, role: :contributor
 
-  A route asks for the least it needs, so a role added above that one is
-  admitted without every route being revisited. The role is re-read per request,
-  so granting or revoking takes effect on the next one rather than the next
-  sign-in.
+  A route names the least role it needs, so a role ranked above it is admitted
+  without revisiting every route. The role is read per request, so granting or
+  revoking takes effect on the next one rather than at the next sign-in.
   """
 
   alias RichardBurton.Auth
@@ -28,6 +27,8 @@ defmodule RichardBurtonWeb.Plugs.Authorize do
     halt_unauthorized(conn)
   end
 
+  # Refuses the request without saying which check failed, so a caller learns
+  # nothing it can probe with.
   defp halt_unauthorized(conn) do
     conn |> send_resp(:unauthorized, "Unauthorized, not enough privileges") |> halt
   end

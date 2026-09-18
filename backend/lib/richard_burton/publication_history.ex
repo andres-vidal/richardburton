@@ -247,6 +247,8 @@ defmodule RichardBurton.Publication.History do
     end
   end
 
+  # Whether every field an entry changed still holds that entry's value in the
+  # current state — the condition for an older update to remain undoable.
   defp untouched_since?(previous, current, head) do
     previous
     |> changed_keys(current)
@@ -266,6 +268,7 @@ defmodule RichardBurton.Publication.History do
     |> Map.drop(@derived)
   end
 
+  # The fields that differ between two snapshots, ignoring the derived ones.
   defp changed_keys(previous, current) do
     (Map.keys(previous) ++ Map.keys(current))
     |> Enum.uniq()
@@ -273,6 +276,8 @@ defmodule RichardBurton.Publication.History do
     |> Enum.filter(&field_changed?(previous, current, &1))
   end
 
+  # Sources are compared as a list rather than by value, and a missing list is
+  # the same as an empty one.
   defp field_changed?(a, b, "sources"), do: (a["sources"] || []) != (b["sources"] || [])
   defp field_changed?(a, b, field), do: a[field] != b[field]
 
@@ -291,6 +296,8 @@ defmodule RichardBurton.Publication.History do
 
   defp diff(_previous, _entry), do: nil
 
+  # The structural diff between two snapshots: changed fields with their raw
+  # before and after values, and sources as added, removed or reordered.
   defp compare(%History{snapshot: previous}, %History{snapshot: current}) do
     fields =
       (Map.keys(previous) ++ Map.keys(current))
@@ -356,6 +363,8 @@ defmodule RichardBurton.Publication.History do
     |> Map.delete(:__meta__)
   end
 
+  # The next version for a record's stream, counting from its current maximum so
+  # versions stay contiguous per publication rather than global.
   defp next_version(publication_id) do
     max =
       from(h in History, where: h.publication_id == ^publication_id, select: max(h.version))

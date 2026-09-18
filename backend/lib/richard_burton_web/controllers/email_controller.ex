@@ -1,4 +1,9 @@
 defmodule RichardBurtonWeb.EmailController do
+  @moduledoc """
+  The public contact form. The only unauthenticated write, so it is guarded by
+  recaptcha rather than by a session.
+  """
+
   use Phoenix.Controller, formats: [:json]
   alias RichardBurton.Email
 

@@ -84,6 +84,7 @@ defmodule RichardBurton.OriginalBook do
     matching(dynamic(^similar_to(:book, :title, term) or ^similar_to(:author, :name, term)))
   end
 
+  # Prefix match on one column of a named binding.
   defp starts_with(binding, field, term) do
     dynamic(ilike(field(as(^binding), ^field), ^"#{term}%"))
   end
@@ -91,6 +92,7 @@ defmodule RichardBurton.OriginalBook do
   # How much of a name a misspelling has to share to still answer for it.
   @similarity 0.3
 
+  # Trigram match on one column of a named binding, for the fuzzy pass.
   defp similar_to(binding, field, term) do
     dynamic(
       fragment("similarity((?), (?)) > ?", field(as(^binding), ^field), ^term, ^@similarity)

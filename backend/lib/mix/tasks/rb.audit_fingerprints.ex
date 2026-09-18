@@ -42,6 +42,8 @@ defmodule Mix.Tasks.Rb.AuditFingerprints do
     end
   end
 
+  # Recomputes each original book's fingerprint and reports the rows whose stored
+  # value disagrees.
   defp audit_original_books do
     OriginalBook
     |> Repo.all()
@@ -57,6 +59,8 @@ defmodule Mix.Tasks.Rb.AuditFingerprints do
     end)
   end
 
+  # The same for translated books, whose fingerprint also covers the original
+  # book they render.
   defp audit_translated_books do
     TranslatedBook
     |> Repo.all()
@@ -79,6 +83,8 @@ defmodule Mix.Tasks.Rb.AuditFingerprints do
     end)
   end
 
+  # The same for publications, across all three fingerprints the composite key is
+  # built from.
   defp audit_publications do
     Publication
     |> Repo.all()
@@ -108,6 +114,7 @@ defmodule Mix.Tasks.Rb.AuditFingerprints do
     end)
   end
 
+  # A row reports nothing when the stored and recomputed values agree.
   defp check(_schema, _id, _field, stored, stored), do: []
   defp check(schema, id, field, _stored, _computed), do: [{schema, id, field}]
 end

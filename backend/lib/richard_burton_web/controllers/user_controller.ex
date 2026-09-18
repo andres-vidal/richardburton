@@ -1,4 +1,12 @@
 defmodule RichardBurtonWeb.UserController do
+  @moduledoc """
+  Who may work on the database: the signed-in subject, the list of accounts, and
+  the admin writes that change or revoke a role.
+
+  The platform refuses to be left without an administrator, and nobody may
+  change their own role.
+  """
+
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.Auth.Session

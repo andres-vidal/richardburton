@@ -17,6 +17,8 @@ defmodule RichardBurton.Auth.JWKS.Google do
     end
   end
 
+  # The issuer from Google's OpenID configuration, which a token's `iss` claim is
+  # checked against.
   defp fetch_issuer do
     with {:ok, url} <- env("GOOGLE_OPENID_CONFIG_URL"),
          {:ok, %{status_code: 200, body: body}} <- HTTPoison.get(url),
@@ -27,6 +29,7 @@ defmodule RichardBurton.Auth.JWKS.Google do
     end
   end
 
+  # Google's current signing keys, with the max age its cache headers give.
   defp fetch_keys do
     with {:ok, url} <- env("GOOGLE_OAUTH2_CERTS_URL"),
          {:ok, %{status_code: 200, body: body, headers: headers}} <- HTTPoison.get(url),
@@ -37,6 +40,8 @@ defmodule RichardBurton.Auth.JWKS.Google do
     end
   end
 
+  # A required environment variable, reported as an error rather than raising so
+  # a missing one surfaces as a failed fetch.
   defp env(name) do
     case System.get_env(name) do
       value when value in [nil, ""] -> {:error, {:missing_env, name}}
@@ -44,12 +49,14 @@ defmodule RichardBurton.Auth.JWKS.Google do
     end
   end
 
+  # How long the key set may be cached, taken from the response's cache headers.
   defp max_age(headers) do
     headers
     |> Enum.find_value(fn {k, v} -> if String.downcase(k) == "cache-control", do: v end)
     |> parse_max_age()
   end
 
+  # Falls back to the default when the header is absent or unparseable.
   defp parse_max_age(nil), do: @default_max_age
 
   defp parse_max_age(cache_control) do

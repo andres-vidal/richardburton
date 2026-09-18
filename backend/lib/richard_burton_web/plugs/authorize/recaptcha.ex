@@ -18,6 +18,8 @@ defmodule RichardBurtonWeb.Plugs.Authorize.Recaptcha do
     end
   end
 
+  # The recaptcha token from the request body, verified with the provider. A
+  # request carrying none does not pass.
   defp verify(%{params: %{"recaptcha_token" => recaptcha_token}}) do
     case Auth.Recaptcha.verify(recaptcha_token) do
       :ok -> :ok
@@ -27,6 +29,8 @@ defmodule RichardBurtonWeb.Plugs.Authorize.Recaptcha do
 
   defp verify(_conn), do: :error
 
+  # Refuses the request without saying which check failed, so a caller learns
+  # nothing it can probe with.
   defp halt_unauthorized(conn) do
     conn |> send_resp(:unauthorized, "Unauthorized, recaptcha token is invalid") |> halt
   end

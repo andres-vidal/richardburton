@@ -77,23 +77,31 @@ defmodule RichardBurton.Auth.KeyStore do
     {:noreply, state}
   end
 
+  # The JWKS provider, overridable in config so tests can supply their own.
   defp configured_provider do
     Application.get_env(:richard_burton, :jwks_provider, @default_provider)
   end
 
+  # The key a token names by `kid`, if the cached set holds it.
   defp find_key(%{keys: keys}, kid), do: Enum.find(keys, &(&1["kid"] == kid))
 
+  # A cache lookup as the caller's reply.
   defp reply_for(nil), do: :error
   defp reply_for(key), do: {:ok, key}
 
+  # Refreshes on a miss, but only outside the cooldown, so an unknown `kid` from
+  # a forged token cannot be used to hammer the provider.
   defp maybe_refresh(state) do
     if can_refresh?(state), do: do_refresh(state), else: state
   end
 
+  # Whether the cooldown has elapsed since the last refresh.
   defp can_refresh?(%{refreshed_at: nil}), do: true
 
   defp can_refresh?(%{refreshed_at: last, refresh_cooldown: cd}), do: now_ms() - last >= cd
 
+  # Fetches the key set and reschedules the next refresh from its max age. A
+  # failed fetch leaves the cached keys in place rather than emptying them.
   defp do_refresh(state) do
     case state.provider.fetch() do
       {:ok, %{issuer: issuer, keys: keys, max_age: max_age}} ->
@@ -108,11 +116,13 @@ defmodule RichardBurton.Auth.KeyStore do
     end
   end
 
+  # Schedules the next refresh for when the provider says the set expires.
   defp schedule_next(%{max_age: max_age}) when is_integer(max_age) and max_age > 0 do
     Process.send_after(self(), :scheduled_refresh, max_age * 1000)
   end
 
   defp schedule_next(_state), do: :ok
 
+  # Monotonic time, so a clock adjustment cannot shorten or extend a cooldown.
   defp now_ms, do: System.monotonic_time(:millisecond)
 end

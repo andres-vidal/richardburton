@@ -7,6 +7,7 @@ defmodule RichardBurton.Util do
     Map.merge(map1, map2, &deep_merge_resolve/3)
   end
 
+  # Two maps merge recursively; any other pair of values takes the right one.
   defp deep_merge_resolve(_, left = %{}, right = %{}) do
     deep_merge_maps(left, right)
   end
@@ -19,6 +20,7 @@ defmodule RichardBurton.Util do
     data |> sha256 |> Base.encode16()
   end
 
+  # The hash the fingerprints are built from.
   defp sha256(data) do
     :crypto.hash(:sha256, data)
   end

@@ -1,4 +1,9 @@
 defmodule RichardBurton.Repo do
+  @moduledoc """
+  The Ecto repository, extended with the upsert helpers the schemas share for
+  linking a row by its unique key rather than duplicating it.
+  """
+
   use Ecto.Repo,
     otp_app: :richard_burton,
     adapter: Ecto.Adapters.Postgres
@@ -19,6 +24,8 @@ defmodule RichardBurton.Repo do
     end
   end
 
+  # A unique key naming an association is compared by the foreign key the row
+  # actually holds, since the association itself is not a column.
   defp replace_unique_key_assocs_with_ids(unique_key, changeset) do
     Enum.map(unique_key, fn key ->
       case changeset.changes[key] do

@@ -16,6 +16,7 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Cookie do
     end
   end
 
+  # The session token from the cookie, verified against the stored sessions.
   defp verify(conn) do
     case fetch_cookies(conn).cookies[Session.cookie_name()] do
       nil -> :error
@@ -23,6 +24,8 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Cookie do
     end
   end
 
+  # Refuses the request without saying which check failed, so a caller learns
+  # nothing it can probe with.
   defp halt_unauthorized(conn) do
     conn |> send_resp(:unauthorized, "Unauthorized") |> halt()
   end

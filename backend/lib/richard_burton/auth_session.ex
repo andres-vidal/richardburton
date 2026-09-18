@@ -108,22 +108,31 @@ defmodule RichardBurton.Auth.Session do
     :ok
   end
 
+  # When an idle session expires, counted from now and pushed forward on each
+  # use.
   defp idle_deadline(now \\ DateTime.utc_now()) do
     now |> DateTime.add(idle_timeout(), :second) |> DateTime.truncate(:second)
   end
 
+  # When a session expires regardless of use, counted from when it was created.
   defp absolute_deadline(session) do
     session.inserted_at |> DateTime.add(max_age(), :second) |> DateTime.truncate(:second)
   end
 
+  # A session is live only until the earlier of its two deadlines.
   defp expired?(now, deadline), do: DateTime.compare(now, deadline) != :lt
 
+  # The earlier of two times.
   defp min_datetime(a, b), do: if(DateTime.compare(a, b) == :lt, do: a, else: b)
 
+  # A session token from the system's cryptographic source, URL-safe so it can be
+  # carried in a cookie.
   defp generate_token do
     @token_bytes |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
   end
 
+  # Only the hash is stored, so a leaked database cannot be used to impersonate
+  # anyone.
   defp hash(token) do
     :crypto.hash(:sha256, token) |> Base.encode16(case: :lower)
   end

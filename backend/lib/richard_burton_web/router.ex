@@ -1,4 +1,10 @@
 defmodule RichardBurtonWeb.Router do
+  @moduledoc """
+  The routes, grouped by what each pipeline requires: public reads, writes
+  behind a session and a role, and the development-only helpers that are never
+  mounted in production.
+  """
+
   use RichardBurtonWeb, :router
 
   pipeline :api do

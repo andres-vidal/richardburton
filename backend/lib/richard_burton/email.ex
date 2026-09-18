@@ -40,6 +40,8 @@ defmodule RichardBurton.Email do
     end
   end
 
+  # Sends the message, then optionally a confirmation to the writer. A failed
+  # confirmation does not fail the message that was already delivered.
   defp send_email(email, confirmation: false) do
     case Mailer.send(email) do
       {:ok, _} -> :ok
@@ -77,6 +79,7 @@ defmodule RichardBurton.Email do
     }
   end
 
+  # The copy of their own message sent back to the writer.
   defp get_confimation_message(email) do
     """
     Thank you for contacting the Richard & Isabel Burton Platform research team. We will get back to you as soon as possible.

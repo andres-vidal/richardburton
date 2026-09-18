@@ -24,6 +24,8 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Bearer do
     end
   end
 
+  # The bearer token from the Authorization header, verified. A missing or
+  # malformed header is the same answer as an invalid token.
   defp verify(conn) do
     case get_req_header(conn, "authorization") do
       ["Bearer " <> token] -> Auth.verify(token)
@@ -31,6 +33,8 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Bearer do
     end
   end
 
+  # Refuses the request without saying which check failed, so a caller learns
+  # nothing it can probe with.
   defp halt_unauthorized(conn) do
     conn |> send_resp(:unauthorized, "Unauthorized") |> halt()
   end

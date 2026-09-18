@@ -195,6 +195,8 @@ defmodule RichardBurton.Publication.Codec do
     Enum.map(flat_publication_like_maps, &nest/1)
   end
 
+  # The entries whose flat value is a joined string the nested shape needs as
+  # child maps; everything else passes through unchanged.
   defp nest_entry({"authors", value}),
     do: {"authors", Author.nest(value)}
 
@@ -264,6 +266,8 @@ defmodule RichardBurton.Publication.Codec do
     publication_like_map |> Codec.flatten() |> Map.new(&(&1 |> rename_key |> flatten_entry))
   end
 
+  # The reverse: child structs rendered back as the joined strings the flat shape
+  # carries.
   defp flatten_entry({"authors", value}), do: {"authors", Author.flatten(value)}
   defp flatten_entry({"original_authors", value}), do: {"original_authors", Author.flatten(value)}
   defp flatten_entry({"countries", value}), do: {"countries", Country.flatten(value)}
@@ -271,6 +275,9 @@ defmodule RichardBurton.Publication.Codec do
   defp flatten_entry({"sources", value}), do: {"sources", Source.flatten(value)}
   defp flatten_entry({key, value}), do: {key, value}
 
+  # Translates between the flat names a client uses and the nested paths the
+  # schema stores them under. The two directions are separate clauses on the same
+  # function, so each name is written once per direction.
   defp rename_key({"translated_book_authors", v}), do: {"authors", v}
   defp rename_key({"translated_book_original_book_title", v}), do: {"original_title", v}
   defp rename_key({"translated_book_original_book_authors", v}), do: {"original_authors", v}
@@ -281,6 +288,8 @@ defmodule RichardBurton.Publication.Codec do
 
   defp rename_key({key, value}), do: {key, value}
 
+  # A struct as a plain map, recursively, so a loaded record can be compared and
+  # encoded without its Ecto metadata.
   defp map_from_struct(struct) when is_struct(struct) do
     struct
     |> Map.from_struct()
