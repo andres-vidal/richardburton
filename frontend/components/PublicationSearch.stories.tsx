@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { seed } from "modules/publication/fixtures";
+import { matchedAtom } from "modules/publication/store";
 import { store } from "modules/store";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
@@ -65,5 +66,59 @@ export const Typing: Story = {
     });
     await userEvent.type(input, "Machado");
     await waitFor(() => expect(input).toHaveValue("Machado"));
+  },
+};
+
+/**
+ * A term the index could not match as typed reports what it matched instead.
+ * The report is one clipped line until "Show all" opens it, and closes again
+ * from the same control.
+ */
+export const Widened: Story = {
+  parameters: { nextjs: { navigation: { query: { search: "Maries" } } } },
+  beforeEach: () => {
+    seed(store);
+    store.set(matchedAtom, [
+      {
+        field: null,
+        typed: "Maries",
+        words: ["marie", "maria", "mario", "marias"],
+      },
+    ]);
+    return () => store.set(matchedAtom, undefined);
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const report = canvasElement.querySelector("#search-report");
+
+    await expect(report).toHaveAttribute("data-expanded", "false");
+
+    await userEvent.click(canvas.getByRole("button", { name: "Show all" }));
+    await waitFor(() =>
+      expect(report).toHaveAttribute("data-expanded", "true"),
+    );
+
+    await userEvent.click(canvas.getByRole("button", { name: "Show less" }));
+    await waitFor(() =>
+      expect(report).toHaveAttribute("data-expanded", "false"),
+    );
+  },
+};
+
+/**
+ * A term the index took as written reports nothing — there is no widening to
+ * disclose — so there is nothing to open either.
+ */
+export const TakenAsWritten: Story = {
+  parameters: { nextjs: { navigation: { query: { search: "machado" } } } },
+  beforeEach: () => {
+    seed(store);
+    store.set(matchedAtom, []);
+    return () => store.set(matchedAtom, undefined);
+  },
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).queryByRole("button", { name: "Show all" }),
+    ).toBeNull();
   },
 };

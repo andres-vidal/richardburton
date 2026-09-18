@@ -74,11 +74,16 @@ const PublicationSearch: FC = () => {
   const searchUrlParam = searchParams?.get("search") ?? "";
   const [search, setSearch] = useState(searchUrlParam);
   const [previousParam, setPreviousParam] = useState(searchUrlParam);
+  // The report is one clipped line until asked for in full. A widened term can
+  // match a dozen words, and the ones past the edge are the reader's to read.
+  const [expanded, setExpanded] = useState(false);
 
   const requested = useRef(searchUrlParam);
 
   if (searchUrlParam !== previousParam) {
     setPreviousParam(searchUrlParam);
+    // A new term is a new report, so it opens clipped like the last one did.
+    setExpanded(false);
     if (searchUrlParam !== requested.current) {
       requested.current = searchUrlParam;
       setSearch(searchUrlParam);
@@ -116,14 +121,36 @@ const PublicationSearch: FC = () => {
         value={search}
         onChange={handleChange}
       />
-      <div className="flex gap-3 items-baseline px-3 h-4 text-xs">
-        <div aria-live="polite" className="space-x-1 min-w-0 truncate grow">
+      {/* `min-h-4` rather than a fixed height: expanded, the report wraps to as
+          many lines as it needs and the row grows with it. */}
+      <div className="flex gap-3 items-baseline px-3 min-h-4 text-xs">
+        <div
+          id="search-report"
+          aria-live="polite"
+          data-expanded={expanded}
+          className="space-x-1 min-w-0 grow data-[expanded=false]:truncate"
+        >
           {isLoading ? (
             <SearchProgress />
           ) : (
             <SearchMatches matched={matched ?? []} />
           )}
         </div>
+        {/* Offered whenever there is a report at all. Whether the line is
+            actually clipped is a question only measuring the rendered text
+            answers, and the answer changes with every resize; asking it would
+            cost more than the toggle that occasionally does nothing. */}
+        {matched && matched.length > 0 && (
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-controls="search-report"
+            onClick={() => setExpanded(!expanded)}
+            className="text-gray-600 whitespace-nowrap rounded underline shrink-0 hover:text-indigo-600 focus-ring"
+          >
+            {expanded ? "Show less" : "Show all"}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => openHelp()}

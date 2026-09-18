@@ -7,7 +7,7 @@ import * as SearchStories from "./PublicationSearch.stories";
 # Publication search
 
 The search bar for the publication index — a single text input that filters the
-list by search term. It sits above the index table/list and drives what the rest of
+list by keyword. It sits above the index table/list and drives what the rest of
 the workspace shows.
 
 ## Data source
@@ -23,12 +23,20 @@ new rows are ready — and is debounced, so a typist does not ask for a page per
 letter. "Searching…" shows while what has been typed and what the URL says have
 not met, or the page for it is still coming.
 
-The line below the input is **state-driven** — it reads the matches from the
-publication store (`useMatched`) and lists, for each word the index read
-differently from the way it was typed, the words it actually matched, each a link
-to a search for that word alone. A word matched exactly is not reported, so the
-line is empty for most searches. Beside it, "How to search" opens the syntax
-help. In stories the store is seeded through the shared fixtures:
+The report below the input is **state-driven** — it reads what the index made of
+the term from the publication store (`useMatched`). Only the words the index read
+differently from the way they were typed are there: a reader who typed `machado`
+and is told the search was for `machado` has learnt nothing, so most searches
+report nothing at all. A widened one reads `Maries matched marie, maria, mario`,
+each word a link back to the term that would find it on its own — scoped to its
+field, so following one narrows the same way.
+
+It is one clipped line, with a "Show all" beside "How to search" that lets it
+wrap to as many lines as it needs. The control is offered whenever there is a
+report, since whether the line is actually clipped is a question only measuring
+the rendered text answers, and the answer changes with every resize.
+
+In stories the store is seeded through the shared fixtures:
 
 ```tsx
 import { seed } from "modules/publication/fixtures";
@@ -40,12 +48,15 @@ seed(); // load the sample publications before the story renders
 
 ## States
 
-- **Empty** — the default: the input renders with its placeholder and no
-  matched line below it.
+- **Empty** — the default: the input renders with its placeholder and no report
+  below it.
 - **Typing** — entering text updates the input and, after a beat, the `search`
   param the page reads its rows for. See the
   [Typing](?path=/story/publications-publication-search--typing) story.
 - **Searching** — the status line while the typed query and the URL have yet to
   meet.
-- **Matched** — when the store reports matches, the line under the input names
-  each typed word and links the words it matched.
+- **Widened** — when the index answered a word with something other than itself,
+  the line under the input says so, and opens in full on demand. See the
+  [Widened](?path=/story/publications-publication-search--widened) story.
+- **Taken as written** — nothing was widened, so nothing is reported and there is
+  no control to open.
