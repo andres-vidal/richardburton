@@ -7,6 +7,8 @@ defmodule RichardBurton.Publication.Index.TermTest do
 
   alias RichardBurton.Publication.Index.Term
 
+  doctest RichardBurton.Publication.Index.Term
+
   describe "parse/1 without operators" do
     test "a plain term is one alternative of words" do
       assert [%{words: ["machado", "assis"], filters: []}] = Term.parse("machado assis")

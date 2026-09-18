@@ -76,6 +76,23 @@ defmodule RichardBurton.Publication.Index.Term do
   Parses a term into its alternatives, each holding the free words and the field
   filters it contains. A term with no operators parses to one alternative of
   words.
+
+  ## Examples
+
+      iex> RichardBurton.Publication.Index.Term.parse("dom casmurro")
+      [%{words: ["dom", "casmurro"], filters: []}]
+
+      iex> RichardBurton.Publication.Index.Term.parse("casmurro :or iracema")
+      [%{words: ["casmurro"], filters: []}, %{words: ["iracema"], filters: []}]
+
+  A prefix that names no field is read as free text rather than as an operator:
+
+      iex> RichardBurton.Publication.Index.Term.parse("foo:bar")
+      [%{words: ["foo:bar"], filters: []}]
+
+  How an operator parses — the field it names, whether it was quoted or negated
+  — is covered by the tests rather than shown here, since a filter inspects to
+  more than reads as an example.
   """
   @spec parse(String.t()) :: [alternative]
   def parse(term) when is_binary(term) do
@@ -151,6 +168,26 @@ defmodule RichardBurton.Publication.Index.Term do
   gives `{1950, nil}` and `-1960` gives `{nil, 1960}`. Returns `:none` for
   anything else, which the caller matches nothing against rather than dropping
   the operator.
+
+  ## Examples
+
+      iex> RichardBurton.Publication.Index.Term.span("1950")
+      {1950, 1950}
+
+      iex> RichardBurton.Publication.Index.Term.span("1950-1960")
+      {1950, 1960}
+
+      iex> RichardBurton.Publication.Index.Term.span("1950-")
+      {1950, nil}
+
+      iex> RichardBurton.Publication.Index.Term.span("-1960")
+      {nil, 1960}
+
+      iex> RichardBurton.Publication.Index.Term.span("recently")
+      :none
+
+      iex> RichardBurton.Publication.Index.Term.span("-")
+      :none
   """
   @spec span(String.t()) :: {integer | nil, integer | nil} | :none
   def span(value) do
