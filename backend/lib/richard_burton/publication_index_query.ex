@@ -54,8 +54,27 @@ defmodule RichardBurton.Publication.Index.Query do
   """
   def spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
 
-  @doc "A word as a tsquery lexeme, quoted so punctuation in it is read as part of the word."
-  def lexeme(word), do: "'" <> String.replace(word, "'", "''") <> "'"
+  @doc """
+  A word as a tsquery lexeme, quoted so punctuation in it is read as part of the
+  word rather than as tsquery syntax.
+
+  Inside the quotes a backslash escapes the next character, so both it and the
+  quote have to be escaped in turn — an unescaped trailing backslash would eat
+  the closing quote and leave Postgres a tsquery it cannot parse.
+
+  ## Examples
+
+      iex> RichardBurton.Publication.Index.Query.lexeme("caldwell")
+      "'caldwell'"
+
+      iex> RichardBurton.Publication.Index.Query.lexeme("o'brien")
+      "'o''brien'"
+  """
+  def lexeme(word) do
+    escaped = word |> String.replace("\\", "\\\\") |> String.replace("'", "''")
+
+    "'" <> escaped <> "'"
+  end
 
   @doc "The `WHERE` clause for an ask."
   def matches({:spelled_out, term}),
