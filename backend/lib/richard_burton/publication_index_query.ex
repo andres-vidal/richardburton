@@ -170,11 +170,12 @@ defmodule RichardBurton.Publication.Index.Query do
   defp year_predicate(from, to), do: dynamic([p], p.year >= ^from and p.year <= ^to)
 
   # `references` is an array, matched as its joined text, the same form
-  # `search_documents` indexes it in.
+  # `search_documents` indexes it in. The join goes through `rb_joined`, which is
+  # declared immutable so that this expression can be indexed.
   defp text_predicate(:references, query) do
     dynamic(
       [p],
-      fragment("to_tsvector('rb_search', array_to_string(?, ' ')) @@ ?", p.references, ^query)
+      fragment("to_tsvector('rb_search', rb_joined(?)) @@ ?", p.references, ^query)
     )
   end
 
