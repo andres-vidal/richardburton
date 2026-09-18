@@ -140,10 +140,11 @@ defmodule RichardBurton.Publication.Index.Query do
   defp words_predicate(query),
     do: dynamic(fragment("document @@ to_tsquery('rb_search', ?)", ^query))
 
-  # The predicate for one operator, matched against the column it names rather than
-  # against the search document.
+  # The predicate for one operator. A `year` compares that column as a number
+  # against the range its value parses into. Every other operator matches the
+  # column it names as text, rather than matching the search document.
   #
-  # A year whose range does not parse matches nothing, rather than the operator
+  # A value that parses into no range matches nothing, rather than the operator
   # being dropped, which would widen a term the reader narrowed.
   defp filter_predicate(%{field: :year, value: value, negated: negated}) do
     case Term.span(value) do
