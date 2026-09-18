@@ -72,9 +72,11 @@ defmodule RichardBurton.Publication.Index do
     {:ok, results}
   end
 
-  # The total is counted from the same rows the index lists, so it lags behind
-  # writes by the same amount the search does. That is deliberate: the count then
-  # matches how many items a client would get by fetching the full list right now.
+  # The number of publications in the index.
+  #
+  # Counted from the same rows the index lists, so it lags behind writes by as much
+  # as the search does. That is deliberate: it matches what a client would get by
+  # fetching the full list right now.
   def count() do
     Repo.aggregate(FlatPublication, :count, :id)
   end
@@ -178,13 +180,8 @@ defmodule RichardBurton.Publication.Index do
   @doc "How many publications a page holds."
   def per_page, do: @per_page
 
-  # Works out what a term is asking for: the query that answers it and the ids it
-  # matched, or `:none` if nothing in the index matches.
-  #
-  # Every word is read once, by `Query.word_query/1`, which decides for that word
-  # alone whether it matches as a prefix or by resemblance. So the query is built
-  # and run once, and a word that has to fall back does not drag the words beside
-  # it along with it.
+  # The criteria that answer a term and the ids they matched, or `:none` if nothing
+  # in the index matches.
   #
   # A term that quotes a phrase or excludes a word with `-` is saying exactly what
   # it wants, so it is passed to Postgres as written and never widened.
@@ -225,9 +222,9 @@ defmodule RichardBurton.Publication.Index do
     )
   end
 
-  # The full rows a search matches, in reading order — the same ranking as
-  # `order_ids/1`, selected whole (or to the asked attributes) for the export
-  # that takes the results all at once rather than a page at a time.
+  # The full rows a search matches, in the same order as `order_ids/1`, selected
+  # whole or narrowed to the named attributes. Used by the export, which takes the
+  # results all at once rather than a page at a time.
   defp asking(criteria, attributes) do
     criteria |> ranked() |> maybe_select(attributes)
   end
@@ -242,9 +239,8 @@ defmodule RichardBurton.Publication.Index do
     select(query, [fp], map(fp, ^attributes))
   end
 
-  # The database returns rows in whatever order it likes, but the caller asked for
-  # a specific one. This puts them back in that order and drops any that have been
-  # deleted since.
+  # Puts rows into the order the given ids are in, dropping any id that is no longer
+  # in the database. The database returns them in whatever order it likes.
   defp in_order(rows, ids) do
     by_id = Map.new(rows, &{&1.id, &1})
     ids |> Enum.map(&Map.get(by_id, &1)) |> Enum.reject(&is_nil/1)

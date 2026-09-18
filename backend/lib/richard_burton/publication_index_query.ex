@@ -123,12 +123,13 @@ defmodule RichardBurton.Publication.Index.Query do
     |> all_of()
   end
 
-  # Nothing to search for matches nothing rather than everything, so an
-  # alternative whose words and operators were all unusable excludes itself
-  # instead of widening the search to every publication.
+  # Combines predicates with AND. An empty list is `false` rather than the `true`
+  # that AND would suggest, so an alternative left with nothing usable excludes
+  # itself instead of matching every publication.
   defp all_of([]), do: dynamic(false)
   defp all_of(predicates), do: Enum.reduce(predicates, &dynamic(^&2 and ^&1))
 
+  # Combines predicates with OR.
   defp any_of([]), do: dynamic(false)
   defp any_of(predicates), do: Enum.reduce(predicates, &dynamic(^&2 or ^&1))
 
@@ -139,11 +140,11 @@ defmodule RichardBurton.Publication.Index.Query do
   defp words_predicate(query),
     do: dynamic(fragment("document @@ to_tsquery('rb_search', ?)", ^query))
 
-  # An operator matches against one column rather than the search document. A
-  # quoted value matches as a phrase; anything else by prefix, like free text.
+  # The predicate for one operator, matched against the column it names rather than
+  # against the search document.
+  #
   # A year whose range does not parse matches nothing, rather than the operator
-  # being dropped, which would widen a term the reader narrowed. A value the index
-  # does not hold needs no such handling: its tsquery simply matches nothing.
+  # being dropped, which would widen a term the reader narrowed.
   defp filter_predicate(%{field: :year, value: value, negated: negated}) do
     case Term.span(value) do
       :none -> negate(dynamic(false), negated)
@@ -185,16 +186,7 @@ defmodule RichardBurton.Publication.Index.Query do
   defp value_query(value, true),
     do: dynamic(fragment("phraseto_tsquery('rb_search', ?)", ^value))
 
-  # Any other value matches word by word. A word that begins nothing the index
-  # holds is widened to what it resembles, exactly as a free word is. The prefix
-  # form is always kept as well, which a free word does not need.
-  #
-  # The reason is that these two are matched against different things. A free word
-  # is matched against the search document, which is what the keyword view is
-  # built from, so the view can say whether the word is there. An operator's value
-  # is matched against one column, and a column can hold words the document never
-  # does: `countries` holds `GB`, while the document holds `United Kingdom`, so
-  # `country:GB` matches a word the view has never heard of.
+  # Any other value matches word by word, every word required.
   defp value_query(value, false) do
     query =
       value
@@ -205,6 +197,14 @@ defmodule RichardBurton.Publication.Index.Query do
     dynamic(fragment("to_tsquery('rb_search', ?)", ^query))
   end
 
+  # One word of a value, as a tsquery: its prefix form, plus whatever it resembles
+  # if the index holds nothing beginning with it.
+  #
+  # The prefix is kept even when the keyword view knows nothing of the word, where
+  # a free word would be dropped instead. That view is built from the search
+  # document, while a value is matched against a single column, and a column holds
+  # words the document does not. `countries` holds `GB` where the document holds
+  # `United Kingdom`.
   defp value_word_query(word) do
     prefix = "#{lexeme(word)}:*"
 

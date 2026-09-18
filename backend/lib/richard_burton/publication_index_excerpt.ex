@@ -106,16 +106,16 @@ defmodule RichardBurton.Publication.Index.Excerpt do
       else: free_widenings(alternatives) ++ scoped_widenings(alternatives)
   end
 
-  # The free words, meaning the ones not attached to an operator, which are
-  # searched in every field.
+  # The widenings among the free words, meaning the ones not attached to an
+  # operator, which are searched in every field.
   defp free_widenings(alternatives) do
     alternatives |> Enum.flat_map(& &1.words) |> Enum.flat_map(&widening(nil, &1))
   end
 
-  # The words in each operator's value, reported under the name the operator is
-  # written with, so the entry can be written back into a term. Three kinds are
-  # skipped: a negated operator excludes rather than matches, a `year` contains
-  # no words, and a quoted value is matched exactly and so is never widened.
+  # The widenings among the words of each operator's value, reported under the name
+  # the operator is written with so the entry can be written back into a term.
+  # Three kinds are skipped: a negated operator excludes rather than matches, a
+  # `year` contains no words, and a quoted value is matched exactly.
   defp scoped_widenings(alternatives) do
     alternatives
     |> Enum.flat_map(& &1.filters)
@@ -139,8 +139,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     end
   end
 
-  # The words arrive most-similar-first from the index, and stay in that order, so
-  # the closest match is read before ones that only just passed the threshold.
+  # Wraps a word and what it matched into a widening. The words arrive
+  # most-similar-first from the index and keep that order.
   defp report(field, word, words), do: [%{field: field, typed: word, words: words}]
 
   @doc """
@@ -182,18 +182,18 @@ defmodule RichardBurton.Publication.Index.Excerpt do
       else: parsed_queries(alternatives)
   end
 
-  # Some terms are handed to Postgres to parse rather than parsed here, which
-  # means we never resolve any words for them. So we ask Postgres what tsquery it
-  # reads the term as, and highlight every field with that.
+  # The tsquery to highlight every field with, for a term Postgres parses rather
+  # than us. No words are resolved here in that case, so Postgres is asked what
+  # tsquery it reads the term as.
   defp spelled_out_queries(term) do
     %{rows: [[query]]} = Repo.query!("SELECT websearch_to_tsquery('rb_search', $1)::text", [term])
 
     Map.new(@fields, &{&1, query})
   end
 
-  # Free words are searched in every field; an operator's value only in the field
-  # it names. A term made only of operators therefore highlights nothing outside
-  # those fields.
+  # The tsquery per field for a parsed term. Free words are searched in every
+  # field; an operator's value only in the field it names, so a term made only of
+  # operators highlights nothing outside those fields.
   defp parsed_queries(alternatives) do
     words = alternatives |> Enum.flat_map(& &1.words) |> Enum.map(&Query.word_query/1) |> any_of()
     filters = alternatives |> Enum.flat_map(& &1.filters) |> Enum.reduce(%{}, &filter/2)
@@ -201,10 +201,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     Map.new(@fields, &{&1, any_of([words, filters[&1]])})
   end
 
-  # Adds an operator's value under the field it names. Negated
-  # operators are skipped: the reader asked not to see those words, so they
-  # cannot be the reason a row matched. `year` is skipped because it is a number
-  # with no text to highlight.
+  # Adds an operator's value under the field it names. Negated operators are
+  # skipped, since the reader asked not to see those words and they cannot be why a
+  # row matched, and `year` is skipped for being a number with no text to
+  # highlight.
   defp filter(%{negated: true}, acc), do: acc
   defp filter(%{field: :year}, acc), do: acc
 
