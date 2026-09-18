@@ -43,27 +43,15 @@ defmodule RichardBurton.Publication.Index.Keywords do
   end
 
   @doc """
-  The indexed words a whole term matches.
+  A term as the words it is made of.
 
-  Each word is resolved on its own: by prefix, or by resemblance when it
-  prefixes nothing. A word matching no indexed word is left out, so one
-  unmatched word does not empty the result.
+  ## Examples
+
+      iex> RichardBurton.Publication.Index.Keywords.words("dom casmurro")
+      ["dom", "casmurro"]
+
+      iex> RichardBurton.Publication.Index.Keywords.words("  dom   casmurro  ")
+      ["dom", "casmurro"]
   """
-  def naming(term) when is_binary(term) do
-    term
-    |> words()
-    |> Enum.flat_map(&naming_word/1)
-    |> Enum.uniq()
-  end
-
-  @doc "A term as the words it is made of."
   def words(term), do: String.split(term, ~r/\s+/, trim: true)
-
-  # Those the word prefixes, or those it resembles when it prefixes none.
-  defp naming_word(word) do
-    case resolve(word, :prefix) do
-      [] -> resolve(word, :fuzzy)
-      keywords -> keywords
-    end
-  end
 end
