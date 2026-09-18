@@ -29,7 +29,7 @@ const HTTP: HttpModule = {
         withCredentials: true,
         // A `params` object is serialized once, here: array values repeat with
         // brackets (`ids[]=1&ids[]=2`), which Plug reads back as a list — so
-        // callers hand over `{ ids, keywords }` instead of building query strings.
+        // callers hand over `{ ids }` instead of building query strings.
         paramsSerializer: (params) =>
           qs.stringify(params, { arrayFormat: "brackets" }),
         ...options,

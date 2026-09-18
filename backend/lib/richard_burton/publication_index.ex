@@ -39,7 +39,7 @@ defmodule RichardBurton.Publication.Index do
 
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication.Index.SearchDocument
-  alias RichardBurton.Publication.Index.Highlight
+  alias RichardBurton.Publication.Index.Excerpt
   alias RichardBurton.Publication.Index.Keywords
   alias RichardBurton.Publication.Index.Query
   alias RichardBurton.Publication.Index.Term
@@ -97,7 +97,7 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  The publications a term matches, and the indexed words it matched on.
+  The publications a term matches.
 
   The term is split on `:or` (or `:ou`) into alternatives, and a publication
   matches if it satisfies any of them. Within an alternative the words are
@@ -111,22 +111,25 @@ defmodule RichardBurton.Publication.Index do
 
   Unbounded, for the caller that needs all of it at once — the CSV export is a
   download of the database, not a page of it. A reader takes it a page at a time
-  through `search_order/1` and `details/3` instead.
+  through `search_order/1` and `details/2` instead.
   """
   def search(term, select: attributes) when is_binary(term) do
     case answering(term) do
-      :none -> {:ok, [], []}
-      {ask, keywords, _ids} -> {:ok, Repo.all(asking(ask, attributes)), keywords}
+      :none -> {:ok, []}
+      {ask, _keywords, _ids} -> {:ok, Repo.all(asking(ask, attributes))}
     end
   end
 
   @doc """
   The whole ordering a search resolves to — the ids of every publication it
-  matches, in the order they are to be read — and the words it matched on, or
-  `:none` when nothing in the index answers at all.
+  matches, in the order they are to be read — and the indexed words it resolved
+  to, or `:none` when nothing in the index answers at all.
+
+  The words are what the index made of the term, which a reader is shown so a
+  fuzzy match explains itself: typing `Maries` reports `marias, marie, mario`.
 
   The order is settled here, once. A reader then pages through it by id (see
-  `details/3`) and sees a stable list, because the order was fixed the moment
+  `details/2`) and sees a stable list, because the order was fixed the moment
   the search ran: rows cannot shift, skip or repeat as the database changes
   between one page and the next.
   """
@@ -149,24 +152,23 @@ defmodule RichardBurton.Publication.Index do
   @doc """
   The full rows for the given ids, in that order — one stretch of an ordering
   `search_order/1` or `all_order/0` handed back. A `nil` term is a plain
-  listing; a term and the words it matched on (as `search_order/1` returned
-  them) are carried so a row matched on its sources comes back saying which,
-  without resolving the term over again.
+  listing; a term is carried so each row comes back with an excerpt of every
+  field that answered it.
 
   An id no longer in the database is simply left out, which is how a deletion
   since the order was fixed shows up: a gap, never a shifted or repeated row.
   """
-  def details(ids, term \\ nil, keywords \\ [])
+  def details(ids, term \\ nil)
 
-  def details(ids, nil, _keywords) when is_list(ids) do
+  def details(ids, nil) when is_list(ids) do
     from(fp in FlatPublication, where: fp.id in ^ids)
     |> Repo.all()
     |> in_order(ids)
   end
 
-  def details(ids, term, keywords) when is_list(ids) and is_binary(term) do
+  def details(ids, term) when is_list(ids) and is_binary(term) do
     from(fp in FlatPublication, where: fp.id in ^ids)
-    |> Highlight.select([], Highlight.asked(term, keywords))
+    |> Excerpt.select(Excerpt.asked(term))
     |> Repo.all()
     |> in_order(ids)
   end
@@ -177,9 +179,9 @@ defmodule RichardBurton.Publication.Index do
   # What a term is asking for: the query that answers it, the words it resolved
   # to, and the ids it matched — or `:none` when nothing in the index answers.
   #
-  # Deciding whether the term answers as written means running it, so what it
-  # matched comes back with the answer rather than being asked for again. Only if
-  # it matched nothing is the term retried fuzzily.
+  # Deciding whether the term answers as written means running it, so the ids
+  # come back with the answer rather than being asked for again. Only if it
+  # matched nothing is the term retried fuzzily.
   #
   # A term that quotes a phrase or negates a word (-word) is stating exactly what
   # it wants, so it is passed to Postgres as written and never widened: no prefix
@@ -192,7 +194,7 @@ defmodule RichardBurton.Publication.Index do
         :none
 
       # Quotes or exclusions with no operator: passed through unchanged.
-      plain?(alternatives) and Query.spelled_out?(term) ->
+      Term.plain?(alternatives) and Query.spelled_out?(term) ->
         ask = {:spelled_out, term}
         {ask, [], order_ids(ask)}
 
@@ -206,30 +208,21 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  # Whether a term carries no operators, and so can take the verbatim path.
-  defp plain?(alternatives), do: Enum.all?(alternatives, &(&1.filters == []))
-
-  # The fuzzy pass, run only when nothing matched as typed.
-  defp fuzzily_answering(alternatives) do
-    case fuzzily(alternatives) do
-      :none -> :none
-      {ask, keywords} -> {ask, keywords, order_ids(ask)}
-    end
-  end
-
   # Nothing matched as typed, so each word is matched against the indexed words
   # it resembles. A word resembling none is dropped rather than failing the
-  # alternative; an alternative left with no words is dropped entirely.
-  defp fuzzily(alternatives) do
+  # alternative; an alternative left with no words is dropped entirely, and a
+  # term left with nothing to ask answers nothing.
+  defp fuzzily_answering(alternatives) do
     ask = Query.asked(alternatives, :fuzzy)
 
     if Query.empty?(ask),
       do: :none,
-      else: {ask, keywords(alternatives, :fuzzy)}
+      else: {ask, keywords(alternatives, :fuzzy), order_ids(ask)}
   end
 
-  # The indexed keywords the free words resolved to, returned with the results
-  # so what the term matched on is known without resolving it again.
+  # The indexed words the free words resolved to — not what a row is marked with,
+  # which the index decides per field, but what the term was read as, which the
+  # reader is shown.
   defp keywords(alternatives, mode) do
     alternatives
     |> Enum.flat_map(& &1.words)
@@ -259,10 +252,7 @@ defmodule RichardBurton.Publication.Index do
   # `order_ids/1`, selected whole (or to the asked attributes) for the export
   # that takes the results all at once rather than a page at a time.
   defp asking(ask, attributes) do
-    ask
-    |> ranked()
-    |> maybe_select(attributes)
-    |> Highlight.select(attributes, ask)
+    ask |> ranked() |> maybe_select(attributes)
   end
 
   # Selecting no attributes returns whole rows; naming some narrows the export to

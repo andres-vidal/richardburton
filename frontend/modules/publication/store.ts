@@ -63,8 +63,11 @@ const isLoadingMoreAtom = atom<boolean>(false);
 const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
-const isValidatingAtom = atom(false);
+/** The indexed words the current search resolved to — what the index made of
+ * the term, shown to the reader so a fuzzy match explains itself. Rows carry
+ * their own marks; these are not those. */
 const keywordsAtom = atom<string[] | undefined>(undefined);
+const isValidatingAtom = atom(false);
 const areRowIdsVisibleAtom = atom(false);
 const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
 
@@ -151,10 +154,12 @@ const publicationReferencesFamily = atomFamily((id: PublicationId) =>
   atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
 );
 
-/** A highlighted snippet of a publication's references, present only when the
- * current search matched on them rather than on the record's own fields. */
-const publicationSourceMatchFamily = atomFamily((id: PublicationId) =>
-  atom<string | undefined>((get) => get(publicationFamily(id))?.sourceMatch),
+/** What in each field answered the current search, marked with `[[ ]]` — absent
+ * outside a search, and null for a field the search did not match. */
+const publicationExcerptsFamily = atomFamily((id: PublicationId) =>
+  atom<Record<string, string | null> | undefined>(
+    (get) => get(publicationFamily(id))?.excerpts,
+  ),
 );
 
 /** A publication's *persisted* provenance list — ignores in-progress drafts,
@@ -266,12 +271,13 @@ const CELL_FAMILIES = [
 ];
 
 /**
- * A page of the database: the rows, the keywords the search matched on, and how
+ * A page of the database: the rows, the words the search resolved to, and how
  * many publications exist in total — which the index reports in a header rather
  * than in the body.
  */
 type PublicationIndex = {
   entries: Publication[];
+  /** What the index made of the term, for the reader to see. */
   keywords: string[];
   /** How many exist in total, not how many matched. `null` when unreported. */
   total: number | null;
@@ -339,8 +345,8 @@ function remember(store: Store, publication: Publication): void {
 }
 
 /**
- * Take an index payload as the working set: the rows, the keywords the search
- * matched on, and how many publications exist in total.
+ * Take an index payload as the working set: the rows, the words the search
+ * resolved to, and how many publications exist in total.
  *
  * One definition of "these are the results now", wherever they were read.
  */
@@ -585,8 +591,8 @@ export {
   hiddenAttributesAtom,
   isLoadingMoreAtom,
   isValidFamily,
-  isValidatingAtom,
   keywordsAtom,
+  isValidatingAtom,
   lastValidatedFamily,
   overriddenCountAtom,
   overriddenIdsAtom,
@@ -598,7 +604,7 @@ export {
   publicationIdsAtom,
   publicationOrNullFamily,
   publicationReferencesFamily,
-  publicationSourceMatchFamily,
+  publicationExcerptsFamily,
   receiveIndex,
   remember,
   removePublication,

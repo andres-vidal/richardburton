@@ -135,6 +135,20 @@ defmodule RichardBurton.Publication.Index.Term do
     |> Enum.reject(&(&1.words == [] and &1.filters == []))
   end
 
+  @doc """
+  Whether a term carries no operators, and so asks for nothing of a single field.
+
+  ## Examples
+
+      iex> RichardBurton.Publication.Index.Term.plain?(RichardBurton.Publication.Index.Term.parse("dom casmurro"))
+      true
+
+      iex> RichardBurton.Publication.Index.Term.plain?(RichardBurton.Publication.Index.Term.parse("title:casmurro"))
+      false
+  """
+  @spec plain?([alternative]) :: boolean
+  def plain?(alternatives), do: Enum.all?(alternatives, &(&1.filters == []))
+
   # Splits one alternative's tokens into the operators and the free words, and
   # strips the quotes or brackets the words were written in.
   defp read_alternative(tokens) do

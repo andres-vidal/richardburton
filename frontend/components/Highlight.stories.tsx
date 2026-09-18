@@ -1,41 +1,29 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { keywordsAtom } from "modules/publication/store";
-import { store } from "modules/store";
 import { expect, within } from "storybook/test";
 
 import Highlight from "./Highlight";
 
-/** Seed the words the current search matched on, as an index read would. */
-const matching = (...keywords: string[]) => {
-  store.set(keywordsAtom, keywords);
-  return () => store.set(keywordsAtom, undefined);
-};
-
 const meta = {
   title: "Components/Highlight",
   component: Highlight,
-  // Falls back to the term in the address when the store holds no keywords.
-  parameters: { nextjs: { navigation: { pathname: "/" } } },
 } satisfies Meta<typeof Highlight>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Outside a search nothing is marked, and the text reads as it always did. */
-export const Unsearched: Story = {
+/** Text the search did not match carries no marks, and reads as it is stored. */
+export const Unmatched: Story = {
   args: { children: "Dom Casmurro" },
-  beforeEach: () => matching(),
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelector("mark")).toBeNull();
     await expect(within(canvasElement).getByText("Dom Casmurro")).toBeVisible();
   },
 };
 
-/** The word the search matched is picked out; the rest of the text is not. */
+/** The marked word is picked out; the rest of the excerpt is not. */
 export const Matched: Story = {
-  args: { children: "Dom Casmurro" },
-  beforeEach: () => matching("casmurro"),
+  args: { children: "Dom [[Casmurro]]" },
   play: async ({ canvasElement }) => {
     const marks = canvasElement.querySelectorAll("mark");
     await expect(marks).toHaveLength(1);
@@ -43,25 +31,36 @@ export const Matched: Story = {
   },
 };
 
-/** Every occurrence is marked, and several keywords can match at once. */
+/** An excerpt can carry several marks, and every one of them is rendered. */
 export const ManyMatches: Story = {
-  args: { children: "Machado de Assis, by Machado de Assis" },
-  beforeEach: () => matching("machado", "assis"),
+  args: { children: "[[Machado]] de [[Assis]], by [[Machado]] de [[Assis]]" },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelectorAll("mark")).toHaveLength(4);
   },
 };
 
 /**
- * The index folds accents away, so a term typed without them still marks the
- * word that carries them.
+ * The index folds accents away when it matches, and marks the word as it is
+ * actually written — so a term typed without them still marks the accented word.
  */
 export const Accented: Story = {
-  args: { children: "Angústia" },
-  beforeEach: () => matching("angustia"),
+  args: { children: "[[Angústia]]" },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelector("mark")).toHaveTextContent(
       "Angústia",
+    );
+  },
+};
+
+/** The caller can ask for a different mark, as the sources line does. */
+export const Restyled: Story = {
+  args: {
+    children: "Austin: University of [[Texas]] Press, 1963.",
+    className: "text-gray-700 bg-amber-100",
+  },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector("mark")).toHaveClass(
+      "bg-amber-100",
     );
   },
 };

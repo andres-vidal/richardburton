@@ -28,9 +28,13 @@ export type PublicationView = {
  * means: a page answers 404, an overlay says the link is stale.
  */
 export const readPublication = cache(
-  async (id: string): Promise<PublicationView | null> => {
+  async (id: string, search?: string): Promise<PublicationView | null> => {
+    // The search rides along so the record marks what answered it, exactly as the
+    // row the reader followed did. Off a search there is nothing to mark.
     const [publication, session] = await Promise.all([
-      get<Publication>(`/publications/${id}`).catch(() => null),
+      get<Publication>(`/publications/${id}`, search ? { search } : {}).catch(
+        () => null,
+      ),
       getSession(),
     ]);
 

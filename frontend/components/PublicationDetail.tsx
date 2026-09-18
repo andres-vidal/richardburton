@@ -72,12 +72,14 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
   <div className="flex flex-col w-full text-2xl font-normal sm:gap-2 sm:items-center sm:flex-row">
     <Tooltip variant="info" message="Translation's title">
       <span className="w-full truncate sm:w-min whitespace-nowrap">
-        <Highlight>{publication.title}</Highlight>
+        <Highlight>{Publication.markedValue(publication, "title")}</Highlight>
       </span>
     </Tooltip>
     <Tooltip variant="info" message="Who translated this publication">
       <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl whitespace-nowrap">
-        (<Highlight>{publication.authors}</Highlight>)
+        (
+        <Highlight>{Publication.markedValue(publication, "authors")}</Highlight>
+        )
       </span>
     </Tooltip>
   </div>
@@ -86,10 +88,14 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
 const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
+  // The link carries the stored value, the label the marked one: a href must not
+  // carry the index's `[[ ]]`.
   function getSearchableItems(p: Publication, key: PublicationKey) {
-    return Publication.items(p[key]).map((value) => ({
+    const marked = Publication.markedItems(p, key);
+
+    return Publication.items(p[key]).map((value, index) => ({
       value,
-      label: Publication.describeValue(value, key),
+      label: marked[index],
     }));
   }
 
@@ -99,10 +105,14 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
 
   return (
     <div>
-      <Searchable label={p.title} /> is a translation of{" "}
-      <Searchable label={p.originalTitle} />, by {list("originalAuthors")}. It
-      was written by {list("authors")} and published in {list("countries")} in{" "}
-      {p.year} by {list("publishers")}.
+      <Searchable value={p.title} label={Publication.markedValue(p, "title")} />{" "}
+      is a translation of{" "}
+      <Searchable
+        value={p.originalTitle}
+        label={Publication.markedValue(p, "originalTitle")}
+      />
+      , by {list("originalAuthors")}. It was written by {list("authors")} and
+      published in {list("countries")} in {p.year} by {list("publishers")}.
     </div>
   );
 };

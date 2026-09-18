@@ -2,7 +2,7 @@
 
 import {
   useHiddenAttributes,
-  usePublicationSourceMatch,
+  usePublicationExcerpts,
   usePublicationStoredField,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
@@ -99,24 +99,15 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
 
 /**
  * A search can match a publication on its references, which the table does not
- * show — so the row looks unexplained. This renders a snippet of the matching
- * reference, with the matched words (arriving wrapped in `[[ ]]`) highlighted,
- * so the reader can see why the row is here.
+ * show — so the row looks unexplained. This renders the excerpt of the matching
+ * reference, so the reader can see why the row is here.
  */
 const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
-  const snippet = usePublicationSourceMatch(rowId);
+  const excerpt = usePublicationExcerpts(rowId)?.references;
 
-  return snippet ? (
+  return excerpt ? (
     <span className="block text-xs text-gray-500 truncate">
-      {snippet.split(/\[\[|\]\]/).map((part, index) =>
-        index % 2 === 0 ? (
-          part
-        ) : (
-          <mark key={index} className="text-gray-700 bg-amber-100">
-            {part}
-          </mark>
-        ),
-      )}
+      <Highlight className="text-gray-700 bg-amber-100">{excerpt}</Highlight>
     </span>
   ) : null;
 };
@@ -128,10 +119,17 @@ const Content: FC<{
   // Read-only surface: the *stored* value. An editing surface injects its own
   // Content, which reads the edited value — see PublicationWorkspace.
   const value = usePublicationStoredField(rowId, colId);
+  const excerpts = usePublicationExcerpts(rowId);
+  // The index marks a cell with what the search matched in it. `countries` is
+  // the exception: it stores a code and shows a name, so the excerpt marks text
+  // this cell never displays, and the term stands in as it does off the index.
+  const excerpt = colId === "countries" ? null : excerpts?.[colId];
 
   return (
     <div className="px-2 py-1 truncate">
-      <Highlight>{Publication.describeValue(value, colId)}</Highlight>
+      <Highlight>
+        {excerpt ?? Publication.describeValue(value, colId)}
+      </Highlight>
       {colId === "title" && <SourceMatch rowId={rowId} />}
     </div>
   );

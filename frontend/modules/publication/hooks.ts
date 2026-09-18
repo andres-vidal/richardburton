@@ -12,14 +12,14 @@ import {
   focusedRowIdAtom,
   hiddenAttributesAtom,
   isValidFamily,
-  isValidatingAtom,
   keywordsAtom,
+  isValidatingAtom,
   overriddenCountAtom,
   overriddenIdsAtom,
   overrideFamily,
   publicationOrNullFamily,
   publicationReferencesFamily,
-  publicationSourceMatchFamily,
+  publicationExcerptsFamily,
   storedFieldValueFamily,
   storedReferencesFamily,
   totalCountAtom,
@@ -75,8 +75,8 @@ function usePublicationStoredField<K extends PublicationKey>(
   return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
 }
 
-function usePublicationSourceMatch(id: PublicationId) {
-  return useAtomValue(publicationSourceMatchFamily(id));
+function usePublicationExcerpts(id: PublicationId) {
+  return useAtomValue(publicationExcerptsFamily(id));
 }
 
 function usePublicationReferences(id: PublicationId) {
@@ -146,12 +146,12 @@ function useMatchingCount() {
   return useAtomValue(matchingCountAtom);
 }
 
-function useIsValidating() {
-  return useAtomValue(isValidatingAtom);
-}
-
 function useKeywords() {
   return useAtomValue(keywordsAtom);
+}
+
+function useIsValidating() {
+  return useAtomValue(isValidatingAtom);
 }
 
 function useVisibleAttributes() {
@@ -180,8 +180,8 @@ export {
   useIsAttributeVisible,
   useIsPublicationFocused,
   useIsPublicationValid,
-  useIsValidating,
   useKeywords,
+  useIsValidating,
   useOverriddenPublicationCount,
   useOverriddenPublicationIds,
   usePublication,
@@ -193,7 +193,7 @@ export {
   usePublicationIndexCount,
   usePublicationOverride,
   usePublicationReferences,
-  usePublicationSourceMatch,
+  usePublicationExcerpts,
   usePublicationStoredField,
   useStoredPublicationReferences,
   useTotalPublicationCount,

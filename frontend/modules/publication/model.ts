@@ -16,15 +16,13 @@ type Publication = {
   // The server PK: a real id on persisted rows (index/search), null on
   // unsaved/working rows. Read-only: never cast from client input.
   id: number | null;
-  // A snippet of the sources that answered a search, when they are what did.
-  // Present only on search results, and only for the rows the sources answered.
-  sourceMatch?: string;
+  // What in each field answered a search, keyed by field, with the matched words
+  // wrapped in `[[ ]]`. Present only on search results; a field the search did
+  // not match is null.
+  excerpts?: Record<string, string | null>;
 };
 
-type PublicationKey = keyof Omit<
-  Publication,
-  "id" | "references" | "sourceMatch"
->;
+type PublicationKey = keyof Omit<Publication, "id" | "references" | "excerpts">;
 
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
@@ -216,6 +214,49 @@ function describeValue(value: string, attribute: PublicationKey): string {
   return value;
 }
 
+/**
+ * A field as the index marked it, or as it is stored when the search did not
+ * match it. The marks are the index's own, so what a reader is shown as the
+ * answer is what was actually searched.
+ */
+function markedValue(
+  publication: Publication,
+  attribute: PublicationKey,
+): string {
+  const value = describeValue(String(publication[attribute] ?? ""), attribute);
+
+  // `countries` stores a code and shows a name, so the index marks text this
+  // never displays; the stored value stands unmarked rather than wrongly marked.
+  return attribute === "countries"
+    ? value
+    : (publication.excerpts?.[attribute] ?? value);
+}
+
+/**
+ * A field as the index marked it, split back into the values it holds — one
+ * entry per value, in the order `items` gives them.
+ *
+ * The excerpt covers the whole stored field, commas and all, so splitting it the
+ * same way the values are split lines the marks back up with them. If the two
+ * disagree on how many there are, the stored values stand unmarked rather than
+ * marked in the wrong places.
+ */
+function markedItems(
+  publication: Publication,
+  attribute: PublicationKey,
+): string[] {
+  const values = items(String(publication[attribute] ?? ""));
+  const described = values.map((value) => describeValue(value, attribute));
+
+  // As in `markedValue`, `countries` shows a name for a stored code, so the
+  // index's marks point at text these never display.
+  const excerpt =
+    attribute === "countries" ? undefined : publication.excerpts?.[attribute];
+  const marked = excerpt ? items(excerpt) : undefined;
+
+  return marked?.length === values.length ? marked : described;
+}
+
 function describeError(
   error: PublicationError,
   scope?: PublicationKey,
@@ -299,6 +340,8 @@ const Publication = {
   define,
   describeError,
   describeValue,
+  markedValue,
+  markedItems,
   empty,
   items,
   merged,

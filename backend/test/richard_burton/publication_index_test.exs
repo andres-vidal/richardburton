@@ -368,10 +368,9 @@ defmodule RichardBurton.Publication.IndexTest do
   describe "search/1 with a single-word term present in the dataset" do
     test "retrieves publications by original author" do
       term = "Verissimo"
-      keyword = String.downcase(term)
       expected_original_authors = ["Erico Verissimo", "Luis Fernando Verissimo"]
 
-      assert {:ok, publications, [^keyword]} = Publication.Index.search(term)
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -383,10 +382,9 @@ defmodule RichardBurton.Publication.IndexTest do
 
     test "retrieves publications by title" do
       term = "Night"
-      keyword = String.downcase(term)
       expected_titles = ["Night"]
 
-      assert {:ok, publications, [^keyword]} = Publication.Index.search(term)
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -398,10 +396,9 @@ defmodule RichardBurton.Publication.IndexTest do
 
     test "retrieves publications by original title" do
       term = "Noite"
-      keyword = String.downcase(term)
       expected_original_titles = ["Noite"]
 
-      assert {:ok, publications, [^keyword]} = Publication.Index.search(term)
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -413,10 +410,9 @@ defmodule RichardBurton.Publication.IndexTest do
 
     test "retrieves publications by author" do
       term = "Brakel"
-      keyword = String.downcase(term)
       expected_authors = ["Arthur Brakel"]
 
-      assert {:ok, publications, [^keyword]} = Publication.Index.search(term)
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -428,10 +424,9 @@ defmodule RichardBurton.Publication.IndexTest do
 
     test "retrieves publications by publisher" do
       term = "Macmillan"
-      keyword = String.downcase(term)
       expected_publishers = ["Macmillan"]
 
-      assert {:ok, publications, [^keyword]} = Publication.Index.search(term)
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -443,10 +438,9 @@ defmodule RichardBurton.Publication.IndexTest do
 
     test "retrieves publications by year" do
       term = "1956"
-      keyword = String.downcase(term)
       expected_years = ["1956"]
 
-      assert {:ok, publications, [^keyword]} = Publication.Index.search(term)
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -456,10 +450,10 @@ defmodule RichardBurton.Publication.IndexTest do
       )
     end
 
-    test "retrieves no publications and no keywords for inexistent term" do
+    test "retrieves no publications for an inexistent term" do
       term = "Blablabla"
 
-      assert {:ok, [], []} == Publication.Index.search(term)
+      assert {:ok, []} == Publication.Index.search(term)
     end
   end
 
@@ -467,7 +461,7 @@ defmodule RichardBurton.Publication.IndexTest do
     test "prioritizes words that start with the term" do
       term = "veri"
 
-      assert {:ok, publications, ["verissimo"]} = Publication.Index.search(term)
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -480,7 +474,7 @@ defmodule RichardBurton.Publication.IndexTest do
     test "does a fuzzy search when there's no words start with the term" do
       term = "vera"
 
-      assert {:ok, publications, ["verbo"]} = Publication.Index.search(term)
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -495,11 +489,9 @@ defmodule RichardBurton.Publication.IndexTest do
     test "does a prefix search" do
       term = "Mari"
 
-      assert {:ok, publications, keywords} = Publication.Index.search(term)
-
       # "Mário" is held with its accent folded away, so a term written without
       # one reaches it.
-      assert Enum.sort(keywords) == ["marias", "marie", "mario"]
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -515,9 +507,7 @@ defmodule RichardBurton.Publication.IndexTest do
     test "does a fuzzy search" do
       term = "Maries"
 
-      assert {:ok, publications, keywords} = Publication.Index.search(term)
-
-      assert Enum.sort(keywords) == ["marias", "marie", "mario"]
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -570,11 +560,10 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.map(Publication.Index.details(with_hole), & &1.id) == order
     end
 
-    test "a search settles an ordering, and the words it matched on" do
-      {order, keywords} = Publication.Index.search_order("Verissimo")
+    test "a search settles an ordering" do
+      {order, _keywords} = Publication.Index.search_order("Verissimo")
 
       assert order != []
-      refute Enum.empty?(keywords)
 
       page =
         order
@@ -590,54 +579,106 @@ defmodule RichardBurton.Publication.IndexTest do
     end
 
     test "the fuzzy ladder still settles an ordering" do
-      {order, keywords} = Publication.Index.search_order("Maries")
-
-      assert "marias" in keywords
+      assert {order, _keywords} = Publication.Index.search_order("Maries")
       assert order != []
     end
 
-    test "a page carries the reference match that answered a row" do
-      {order, keywords} = Publication.Index.search_order("Berkeley")
-      page = Publication.Index.details(order, "Berkeley", keywords)
+    test "a page carries an excerpt of each field that answered a row" do
+      {order, _keywords} = Publication.Index.search_order("Berkeley")
+      page = Publication.Index.details(order, "Berkeley")
 
       row = Enum.find(page, &(&1.title == "Posthumous Reminiscences of Brás Cubas"))
-      assert row.source_match =~ "Berkeley"
+
+      # Only the sources carry the word, so only they are excerpted.
+      assert row.excerpts.references =~ "[[Berkeley]]"
+      assert row.excerpts.title == nil
     end
 
-    test "a plain listing carries no reference match" do
+    test "a plain listing carries no excerpts" do
       [row | _] =
         Publication.Index.all_order()
         |> Enum.take(1)
         |> Publication.Index.details()
 
-      assert row.source_match == nil
+      assert row.excerpts == nil
+    end
+  end
+
+  describe "details/2 excerpts" do
+    # Each row's excerpts, with the fields the search did not match left out.
+    defp marked(term) do
+      {order, _keywords} = Publication.Index.search_order(term)
+
+      order
+      |> Publication.Index.details(term)
+      |> Enum.map(&Map.reject(&1.excerpts, fn {_field, excerpt} -> is_nil(excerpt) end))
+    end
+
+    test "a free word marks the field carrying it, in every row" do
+      rows = marked("machado")
+
+      refute Enum.empty?(rows)
+      assert Enum.all?(rows, &(&1.original_authors =~ "[[Machado]]"))
+    end
+
+    test "an operator marks its own field and no other" do
+      rows = marked("title:night")
+
+      refute Enum.empty?(rows)
+      assert Enum.all?(rows, &(Map.keys(&1) == [:title]))
+      assert Enum.all?(rows, &(&1.title == "[[Night]]"))
+    end
+
+    test "the same word scoped to another field marks there instead" do
+      assert Enum.all?(marked("autor:machado"), &(Map.keys(&1) == [:original_authors]))
+    end
+
+    test "a misspelled operator value marks what it found" do
+      rows = marked("title:nigth")
+
+      refute Enum.empty?(rows)
+      assert Enum.all?(rows, &(&1.title == "[[Night]]"))
+    end
+
+    test "a negated operator marks nothing, having excluded rather than answered" do
+      rows = marked("machado -country:US")
+
+      refute Enum.empty?(rows)
+      assert Enum.all?(rows, &(&1.original_authors =~ "[[Machado]]"))
+      refute Enum.any?(rows, &Map.has_key?(&1, :countries))
+    end
+
+    test "a spelled-out term marks what Postgres read it as" do
+      rows = marked(~s("Berkeley"))
+
+      assert Enum.any?(rows, &(&1[:references] =~ "[[Berkeley]]"))
     end
   end
 
   describe "search/1 by country" do
     test "a country's name finds the records that store its code" do
-      assert {:ok, publications, _} = Publication.Index.search("Brazil")
+      assert {:ok, publications} = Publication.Index.search("Brazil")
 
       assert Enum.any?(publications, &String.contains?(&1.countries, "BR"))
     end
 
     test "a multi-word name finds the country" do
-      assert {:ok, publications, _} = Publication.Index.search("United Kingdom")
+      assert {:ok, publications} = Publication.Index.search("United Kingdom")
 
       refute Enum.empty?(publications)
       assert Enum.any?(publications, &String.contains?(&1.countries, "GB"))
     end
 
     test "an alternate or translated name finds the country too" do
-      assert {:ok, uk, _} = Publication.Index.search("Reino Unido")
+      assert {:ok, uk} = Publication.Index.search("Reino Unido")
       assert Enum.any?(uk, &String.contains?(&1.countries, "GB"))
 
-      assert {:ok, us, _} = Publication.Index.search("USA")
+      assert {:ok, us} = Publication.Index.search("USA")
       assert Enum.any?(us, &String.contains?(&1.countries, "US"))
     end
 
     test "a quoted name finds the country, which the literal path could not do before" do
-      assert {:ok, publications, _} = Publication.Index.search(~s("United Kingdom"))
+      assert {:ok, publications} = Publication.Index.search(~s("United Kingdom"))
 
       assert Enum.any?(publications, &String.contains?(&1.countries, "GB"))
     end
@@ -662,7 +703,7 @@ defmodule RichardBurton.Publication.IndexTest do
       Publication.Index.Refresher.refresh()
 
       for term <- ["Norway", "United"] do
-        assert {:ok, results, _} = Publication.Index.search(term)
+        assert {:ok, results} = Publication.Index.search(term)
         refute Enum.any?(results, &(&1.id == bait.id))
       end
     end
@@ -670,14 +711,14 @@ defmodule RichardBurton.Publication.IndexTest do
 
   describe "search/1 spelled out" do
     test "a quoted phrase is asked for as written" do
-      assert {:ok, publications, _} = Publication.Index.search(~s("Civil Servant"))
+      assert {:ok, publications} = Publication.Index.search(~s("Civil Servant"))
 
       assert Enum.all?(publications, &(&1.title == "Diary of a Civil Servant"))
     end
 
     test "a word can be excluded" do
-      {:ok, all, _} = Publication.Index.search("Verissimo")
-      {:ok, fewer, _} = Publication.Index.search("Verissimo -Noite")
+      {:ok, all} = Publication.Index.search("Verissimo")
+      {:ok, fewer} = Publication.Index.search("Verissimo -Noite")
 
       assert length(fewer) < length(all)
       refute Enum.any?(fewer, &(&1.original_title == "Noite"))
@@ -688,26 +729,26 @@ defmodule RichardBurton.Publication.IndexTest do
     defp ids(publications), do: MapSet.new(publications, & &1.id)
 
     test "matches either alternative" do
-      {:ok, verissimo, _} = Publication.Index.search("Verissimo")
-      {:ok, assis, _} = Publication.Index.search("Assis")
-      {:ok, either, _} = Publication.Index.search("Verissimo :or Assis")
+      {:ok, verissimo} = Publication.Index.search("Verissimo")
+      {:ok, assis} = Publication.Index.search("Assis")
+      {:ok, either} = Publication.Index.search("Verissimo :or Assis")
 
       refute MapSet.equal?(ids(verissimo), ids(assis))
       assert ids(either) == MapSet.union(ids(verissimo), ids(assis))
     end
 
     test "the operator is case-insensitive" do
-      {:ok, lower, _} = Publication.Index.search("Verissimo :or Assis")
-      {:ok, upper, _} = Publication.Index.search("Verissimo :OR Assis")
+      {:ok, lower} = Publication.Index.search("Verissimo :or Assis")
+      {:ok, upper} = Publication.Index.search("Verissimo :OR Assis")
 
       assert Enum.map(lower, & &1.id) == Enum.map(upper, & &1.id)
     end
 
     test "words within an alternative still narrow it" do
-      {:ok, verissimo, _} = Publication.Index.search("Verissimo")
-      {:ok, erico, _} = Publication.Index.search("Erico Verissimo")
-      {:ok, machado, _} = Publication.Index.search("Machado")
-      {:ok, either, _} = Publication.Index.search("Erico Verissimo :or Machado")
+      {:ok, verissimo} = Publication.Index.search("Verissimo")
+      {:ok, erico} = Publication.Index.search("Erico Verissimo")
+      {:ok, machado} = Publication.Index.search("Machado")
+      {:ok, either} = Publication.Index.search("Erico Verissimo :or Machado")
 
       # "Erico Verissimo" is narrowed by both its words to a subset of what
       # "Verissimo" alone matches, and the whole term adds the second alternative.
@@ -717,7 +758,7 @@ defmodule RichardBurton.Publication.IndexTest do
     end
 
     test "a fully misspelled term falls back to fuzzy per alternative" do
-      {:ok, fuzzy, _} = Publication.Index.search("Verissimoo :or Machadoo")
+      {:ok, fuzzy} = Publication.Index.search("Verissimoo :or Machadoo")
 
       refute Enum.empty?(fuzzy)
       assert Enum.any?(fuzzy, &String.contains?(&1.original_authors, "Verissimo"))
@@ -728,15 +769,15 @@ defmodule RichardBurton.Publication.IndexTest do
       # Neither alternative matches as typed, so both are retried fuzzily, and
       # only the first resolves to an indexed word. The second is left asking
       # for nothing, which excludes it instead of matching every publication.
-      {:ok, fuzzy, _} = Publication.Index.search("Nigth :or zzzzqqqx")
+      {:ok, fuzzy} = Publication.Index.search("Nigth :or zzzzqqqx")
 
       refute Enum.empty?(fuzzy)
       assert Enum.all?(fuzzy, &(&1.title == "Night"))
     end
 
     test "the operator answers to Portuguese too" do
-      {:ok, english, _} = Publication.Index.search("Verissimo :or Assis")
-      {:ok, portuguese, _} = Publication.Index.search("Verissimo :ou Assis")
+      {:ok, english} = Publication.Index.search("Verissimo :or Assis")
+      {:ok, portuguese} = Publication.Index.search("Verissimo :ou Assis")
 
       refute Enum.empty?(portuguese)
       assert ids(english) == ids(portuguese)
@@ -746,8 +787,8 @@ defmodule RichardBurton.Publication.IndexTest do
       # Which is the point of the colon: a title may well contain "or", and a
       # reader typing it means the word. So it narrows like any other word —
       # here to nothing, no record carrying all three — rather than widening.
-      {:ok, widened, _} = Publication.Index.search("Verissimo :or Assis")
-      {:ok, literal, _} = Publication.Index.search("Verissimo or Assis")
+      {:ok, widened} = Publication.Index.search("Verissimo :or Assis")
+      {:ok, literal} = Publication.Index.search("Verissimo or Assis")
 
       assert literal == []
       refute Enum.empty?(widened)
@@ -756,7 +797,7 @@ defmodule RichardBurton.Publication.IndexTest do
 
   describe "search/1 with field operators" do
     defp found(term) do
-      {:ok, publications, _} = Publication.Index.search(term)
+      {:ok, publications} = Publication.Index.search(term)
       publications
     end
 
@@ -916,15 +957,15 @@ defmodule RichardBurton.Publication.IndexTest do
 
   describe "search/1 with accents" do
     test "a term written without them finds the words that carry them" do
-      {:ok, folded, _} = Publication.Index.search("Angustia")
-      {:ok, written, _} = Publication.Index.search("Angústia")
+      {:ok, folded} = Publication.Index.search("Angustia")
+      {:ok, written} = Publication.Index.search("Angústia")
 
       assert_search_results(folded, expect: [original_title: "Angústia"])
       assert Enum.map(folded, & &1.id) == Enum.map(written, & &1.id)
     end
 
     test "a term written with them finds what is held without" do
-      assert {:ok, publications, _} = Publication.Index.search("Frãulein")
+      assert {:ok, publications} = Publication.Index.search("Frãulein")
 
       assert_search_results(publications, expect: [title: "Fraulein"])
     end
@@ -932,7 +973,7 @@ defmodule RichardBurton.Publication.IndexTest do
 
   describe "search/1 over a publication's sources" do
     test "finds a publication by a word only its references carry" do
-      assert {:ok, publications, _} = Publication.Index.search("Berkeley")
+      assert {:ok, publications} = Publication.Index.search("Berkeley")
 
       assert_search_results(publications,
         expect: [title: "Posthumous Reminiscences of Brás Cubas"]
@@ -940,7 +981,7 @@ defmodule RichardBurton.Publication.IndexTest do
     end
 
     test "a title outranks a passing mention in someone else's sources" do
-      assert {:ok, [first | _], _} = Publication.Index.search("Three Marias")
+      assert {:ok, [first | _]} = Publication.Index.search("Three Marias")
 
       assert first.title == "The Three Marias"
     end
@@ -949,10 +990,8 @@ defmodule RichardBurton.Publication.IndexTest do
   describe "search/1 with a composite term present in the dataset" do
     test "retrieves publications answering every word" do
       term = "Marie Barrett"
-      split_term = String.split(term, " ")
-      keywords = Enum.map(split_term, &String.downcase/1)
 
-      assert {:ok, publications, ^keywords} = Publication.Index.search(term)
+      assert {:ok, publications} = Publication.Index.search(term)
 
       assert_search_results(
         publications,
@@ -966,28 +1005,21 @@ defmodule RichardBurton.Publication.IndexTest do
   describe "search/1 with a whole title as the term" do
     # A title is what the publication's own link searches for.
     test "returns the publication the title belongs to, and not the rest" do
-      assert {:ok, publications, keywords} =
-               Publication.Index.search("Diary of a Civil Servant")
-
-      assert "diary" in keywords
-      assert "servant" in keywords
+      assert {:ok, publications} = Publication.Index.search("Diary of a Civil Servant")
 
       assert Enum.all?(publications, &(&1.title == "Diary of a Civil Servant"))
     end
 
     test "each word narrows what the one before it found" do
-      {:ok, one_word, _} = Publication.Index.search("Diary")
-      {:ok, three_words, _} = Publication.Index.search("Diary Civil Servant")
+      {:ok, one_word} = Publication.Index.search("Diary")
+      {:ok, three_words} = Publication.Index.search("Diary Civil Servant")
 
       assert length(three_words) <= length(one_word)
       assert Enum.any?(three_words, &(&1.title == "Diary of a Civil Servant"))
     end
 
     test "a word naming nothing does not empty the search" do
-      assert {:ok, publications, keywords} =
-               Publication.Index.search("Diary zzzzqqq Servant")
-
-      assert "diary" in keywords
+      assert {:ok, publications} = Publication.Index.search("Diary zzzzqqq Servant")
 
       assert Enum.any?(publications, &(&1.title == "Diary of a Civil Servant"))
     end
@@ -996,11 +1028,10 @@ defmodule RichardBurton.Publication.IndexTest do
   describe "search/2 with a single-word term present in the dataset" do
     test "retrieves a subset of all publications attributes, by original author" do
       term = "Verissimo"
-      keyword = String.downcase(term)
       attributes = [:title, :original_title, :original_authors, :authors]
       expected_original_authors = ["Erico Verissimo", "Luis Fernando Verissimo"]
 
-      assert {:ok, publications, [^keyword]} = Publication.Index.search(term, select: attributes)
+      assert {:ok, publications} = Publication.Index.search(term, select: attributes)
 
       assert_search_results(
         publications,
