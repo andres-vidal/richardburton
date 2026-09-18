@@ -52,9 +52,31 @@ Write "only the open modal answers Escape", not "this used to fire on closed mod
 
 Use the same plain, technical register as commit messages. Name what a function takes and returns, which column a query filters, what a value parses into. Write "Splits one alternative's tokens into the operators and the free words", not "What a reader typed, read as a question".
 
+Write **ordinary explanatory sentences**. The failure here is not jargon, it is compression: prose squeezed until the reader has to unpack it.
+
+- Full sentences with explicit subjects. "Returns nil when there is nothing to ask", not "Nothing to ask is nil".
+- No inverted or aphoristic constructions. "A search result tells you which publications matched, but not what in them matched", not "A row says which publication matched, not what in it did".
+- Let a sentence finish before qualifying it. "…or the words it resembles if it is a prefix of none", not "…or — if it is a prefix of none — the words it resembles".
+- An em-dash is not a full stop. It is fine leading a definition list, and fine for a short trailing appositive; it is not a general-purpose joiner. Mid-sentence, the fix is usually a full stop or a comma.
+
+**Backend docs describe what a row, a query or a response holds — never what happens to it afterwards.** Not "Postgres does the highlighting rather than the browser" but "The highlighting is produced by the same query that decides the match": the reason has to stand on what the database knows. Avoid screen verbs — *is told*, *is shown to*, *sent for the reader to see*, *so a page can…*. `reader` is fine for the person searching, and `page` is fine for pagination; what is not fine is describing what that person sees. Grepping a diff for `browser|client|screen|display|is told|shown to` catches most of it.
+
 ## Documenting functions
 
 Document **private functions too**, not only the public ones or the ones whose behaviour is surprising. In Elixir that is a `#` comment above the `defp` — an `@doc` there is discarded. The bar is whether a reader could state the function's contract without reading its body; a name alone rarely carries it. This does not license restating the next line: say what it takes and what it returns, and why when that is not evident.
+
+**Open with what the function does, not why it exists.** Rationale is welcome, but after, in its own paragraph, and only where a reader could not infer it. The recurring fault is starting from the situation instead of the return value:
+
+| Opens with why | Opens with what |
+|---|---|
+| "The total is counted from the same rows the index lists, so it lags behind writes" | "The number of publications in the index." |
+| "The database returns rows in whatever order it likes, but the caller asked for a specific one" | "Puts rows into the order the given ids are in…" |
+| "Nothing to search for matches nothing rather than everything, so an alternative…" | "Combines predicates with AND." — then why the empty case is `false` |
+
+Two checks that catch the same mistake from other angles:
+
+- **The comment describes the function it sits above.** When the *why* runs long it usually belongs on the callee, where the decision is made, not on the caller that loops over it.
+- **Name the output, not the input.** "The free words, meaning the ones not attached to an operator" describes the argument; "The widenings among the free words" describes what comes back.
 
 ## Coined vocabulary
 
