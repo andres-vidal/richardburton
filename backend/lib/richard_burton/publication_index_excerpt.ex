@@ -32,6 +32,18 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   alias RichardBurton.Publication.Index.Term
   alias RichardBurton.Repo
 
+  @typedoc """
+  The tsquery to highlight each field with, or nil for a field nothing searched.
+  """
+  @type ask :: %{atom => String.t() | nil}
+
+  @typedoc """
+  One word the search matched with something other than what was typed: the word
+  as typed, the indexed words it matched, and the field it was searched in — nil
+  for a free word, which is searched in every field.
+  """
+  @type widening :: %{field: String.t() | nil, typed: String.t(), words: [String.t()]}
+
   # Highlighting options for `ts_headline`. Short fields are returned in full.
   # `references` holds a whole bibliography joined into one string, so only a
   # short window around the match is returned.
@@ -78,6 +90,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   be carried along. A field that no part of the term searched gets no tsquery,
   and so gets no excerpt.
   """
+  @spec asked(String.t()) :: ask
   def asked(term) do
     alternatives = Term.parse(term)
 
@@ -103,9 +116,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   quoted value, which is matched exactly and so is never widened, and a term
   Postgres parses itself (see `RichardBurton.Publication.Index.Query`).
   """
-  @spec resolution(String.t()) :: [
-          %{field: String.t() | nil, typed: String.t(), words: [String.t()]}
-        ]
+  @spec resolution(String.t()) :: [widening]
   def resolution(term) do
     alternatives = Term.parse(term)
 
@@ -122,9 +133,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
 
   # The words in each operator's value, reported under the name the operator is
   # written with, so the entry can be written back into a term. Three kinds are
-  # skipped: a
-  # negated operator excludes rather than matches, a `year` contains no words,
-  # and a quoted value is matched exactly and so is never widened.
+  # skipped: a negated operator excludes rather than matches, a `year` contains
+  # no words, and a quoted value is matched exactly and so is never widened.
   defp scoped_widenings(alternatives) do
     alternatives
     |> Enum.flat_map(& &1.filters)
