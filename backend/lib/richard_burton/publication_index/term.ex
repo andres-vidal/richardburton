@@ -78,6 +78,8 @@ defmodule RichardBurton.Publication.Index.Term do
     |> Enum.reject(&(&1.words == [] and &1.filters == []))
   end
 
+  # Splits one alternative's tokens into the operators and the free words, and
+  # strips the quotes or brackets the words were written in.
   defp read_alternative(tokens) do
     {filters, words} = Enum.split_with(tokens, &operator?/1)
 
@@ -87,6 +89,8 @@ defmodule RichardBurton.Publication.Index.Term do
     }
   end
 
+  # A token is an operator only if its prefix names a known field and it carries
+  # a value; `foo:bar` and `title:` are free text.
   defp operator?(token) do
     case Regex.named_captures(@operator, token) do
       nil -> false
@@ -94,6 +98,8 @@ defmodule RichardBurton.Publication.Index.Term do
     end
   end
 
+  # The field the operator names, its value stripped of quotes or brackets, and
+  # whether it was quoted (matched as a phrase) or negated.
   defp read_filter(token) do
     %{"negated" => negated, "field" => field, "value" => value} =
       Regex.named_captures(@operator, token)
@@ -106,19 +112,25 @@ defmodule RichardBurton.Publication.Index.Term do
     }
   end
 
+  # Whether a prefix names a field, in any of the names that field accepts.
   defp known?(field), do: Map.has_key?(@fields, String.downcase(field))
 
+  # A quoted value matches as a phrase, in the order written.
   defp quoted?(value), do: wrapped?(value, ~s("), ~s("))
 
   # `title:(dom casmurro)` matches both words in any order; quoting them
   # instead matches them in the order given.
   defp grouped?(value), do: wrapped?(value, "(", ")")
 
+  # Whether a value is enclosed by the given delimiters, which requires at least
+  # the two delimiters themselves.
   defp wrapped?(value, opening, closing),
     do:
       String.length(value) >= 2 and String.starts_with?(value, opening) and
         String.ends_with?(value, closing)
 
+  # A value without the quotes or brackets that delimited it, leaving anything
+  # else untouched.
   defp unquoted(value) do
     if quoted?(value) or grouped?(value),
       do: String.slice(value, 1..-2//1),
@@ -140,6 +152,7 @@ defmodule RichardBurton.Publication.Index.Term do
     end
   end
 
+  # A lone year is a range with both bounds on it.
   defp single(year) do
     case Integer.parse(String.trim(year)) do
       {year, ""} -> {year, year}
@@ -147,6 +160,8 @@ defmodule RichardBurton.Publication.Index.Term do
     end
   end
 
+  # A range needs both edges parseable and at least one of them present, so `-`
+  # alone names nothing.
   defp range(from, to) do
     case {edge(from), edge(to)} do
       {:invalid, _} -> :none
@@ -156,6 +171,8 @@ defmodule RichardBurton.Publication.Index.Term do
     end
   end
 
+  # One side of a range: an absent bound is nil, an unparseable one `:invalid`,
+  # which are different answers — the first is open, the second is a mistake.
   defp edge(""), do: nil
 
   defp edge(value) do

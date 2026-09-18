@@ -229,6 +229,8 @@ defmodule RichardBurton.Publication.Index do
     )
   end
 
+  # The WHERE clause for a search: a term passed through verbatim, or the
+  # alternatives parsed out of it.
   defp matches({:spelled_out, term}),
     do: dynamic(fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term))
 
@@ -239,6 +241,7 @@ defmodule RichardBurton.Publication.Index do
     |> Enum.reduce(fn predicate, acc -> dynamic(^acc or ^predicate) end)
   end
 
+  # One alternative: its free words and each of its filters, AND-ed.
   defp alternative_predicate(%{query: query, filters: filters, mode: mode}) do
     [words_predicate(query) | Enum.map(filters, &filter_predicate(&1, mode))]
     |> Enum.reject(&is_nil/1)
@@ -249,6 +252,8 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
+  # The free words matched against the whole search document. An alternative of
+  # only operators has none, and contributes no predicate.
   defp words_predicate(nil), do: nil
 
   defp words_predicate(query),
@@ -273,9 +278,12 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
+  # A filter written with a leading minus excludes what it would otherwise match.
   defp negate(predicate, false), do: predicate
   defp negate(predicate, true), do: dynamic(not (^predicate))
 
+  # A year range compared as integers rather than text, with a nil bound leaving
+  # that end open.
   defp year_predicate(nil, to), do: dynamic([p], p.year <= ^to)
   defp year_predicate(from, nil), do: dynamic([p], p.year >= ^from)
   defp year_predicate(from, to), do: dynamic([p], p.year >= ^from and p.year <= ^to)
@@ -322,6 +330,7 @@ defmodule RichardBurton.Publication.Index do
 
   defp fuzzy_value_query(_unresolved), do: :none
 
+  # How results are ordered: how well each row matches what was searched for.
   defp ranking({:spelled_out, term}),
     do: dynamic(fragment("ts_rank_cd(document, websearch_to_tsquery('rb_search', ?), 4)", ^term))
 
@@ -337,6 +346,7 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
+  # One tsquery's contribution to the rank.
   defp ranking_by(query),
     do: dynamic(fragment("ts_rank_cd(document, to_tsquery('rb_search', ?), 4)", ^query))
 
@@ -376,8 +386,10 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
+  # Whether a term carries no operators, and so can take the verbatim path.
   defp plain?(alternatives), do: Enum.all?(alternatives, &(&1.filters == []))
 
+  # The fuzzy pass, run only when nothing matched as typed.
   defp fuzzily_answering(alternatives) do
     case fuzzily(alternatives) do
       :none -> :none
@@ -398,6 +410,8 @@ defmodule RichardBurton.Publication.Index do
      end)}
   end
 
+  # One alternative's free words as a tsquery: nil when it has none, or when no
+  # word resolved to anything in the fuzzy pass.
   defp words_query([], _mode), do: nil
   defp words_query(words, :prefix), do: and_prefixes(words)
 
@@ -408,8 +422,11 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
+  # Whether a term quotes a phrase or negates a word, which Postgres understands
+  # itself through `websearch_to_tsquery`.
   defp spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
 
+  # Every word required, each matched from its start.
   defp and_prefixes(words), do: Enum.map_join(words, " & ", &"(#{lexeme(&1)}:*)")
 
   # Nothing matched as typed, so each word is matched against the indexed words
@@ -443,6 +460,7 @@ defmodule RichardBurton.Publication.Index do
     |> Enum.reject(&(&1 == []))
   end
 
+  # Every word required, each satisfied by any of the indexed words it resembles.
   defp and_fuzzy(word_groups) do
     Enum.map_join(word_groups, " & ", &"(#{Enum.map_join(&1, " | ", fn w -> lexeme(w) end)})")
   end
