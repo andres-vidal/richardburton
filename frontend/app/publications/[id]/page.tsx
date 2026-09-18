@@ -16,10 +16,13 @@ async function read(id: string, search?: string) {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ search?: string }>;
 }): Promise<Metadata> {
-  const { publication } = await read((await params).id);
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const { publication } = await read(id, query.search);
   const { title, authors, originalTitle, originalAuthors, year } = publication;
 
   return {
