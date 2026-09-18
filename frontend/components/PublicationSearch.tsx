@@ -73,7 +73,10 @@ const PublicationSearch: FC = () => {
         onChange={handleChange}
       />
       <div className="flex gap-3 items-baseline px-3 h-4 text-xs">
-        <div aria-live="polite" className="space-x-1 truncate grow">
+        {/* `min-w-0`: a flex item will not shrink below its content unless told
+            it may, so without it the line stretches the row instead of being
+            clipped, and the page scrolls sideways. */}
+        <div aria-live="polite" className="space-x-1 min-w-0 truncate grow">
           {isLoading ? (
             <span>
               Searching the collection

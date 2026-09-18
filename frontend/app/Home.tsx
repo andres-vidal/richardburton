@@ -83,7 +83,11 @@ function Database({ index }: Props) {
             <span className="border-b grow h-fit" />
           </div>
           <div className="flex gap-2 items-start pr-3 md:pr-0">
-            <div className="grow">
+            {/* `min-w-0`: a flex item will not shrink below its content unless
+                told it may, and the search reports what a widened term matched,
+                which can be a long line. Without this it stretches the row and
+                the page scrolls sideways instead of the line being clipped. */}
+            <div className="grow min-w-0">
               <PublicationSearch />
             </div>
             <div className="hidden sm:block">
