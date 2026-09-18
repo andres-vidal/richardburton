@@ -724,6 +724,16 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.any?(fuzzy, &String.contains?(&1.original_authors, "Machado"))
     end
 
+    test "an alternative resembling nothing drops out, rather than widening the term" do
+      # Neither alternative matches as typed, so both are retried fuzzily, and
+      # only the first resolves to an indexed word. The second is left asking
+      # for nothing, which excludes it instead of matching every publication.
+      {:ok, fuzzy, _} = Publication.Index.search("Nigth :or zzzzqqqx")
+
+      refute Enum.empty?(fuzzy)
+      assert Enum.all?(fuzzy, &(&1.title == "Night"))
+    end
+
     test "the operator answers to Portuguese too" do
       {:ok, english, _} = Publication.Index.search("Verissimo :or Assis")
       {:ok, portuguese, _} = Publication.Index.search("Verissimo :ou Assis")
@@ -795,6 +805,17 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.all?(found("year:-1950"), &(&1.year <= 1950))
 
       refute Enum.empty?(found("year:1950-1960"))
+    end
+
+    test "source matches the provenance rather than the record's own fields" do
+      assert_search_results(found("source:berkeley"),
+        expect: [title: "Posthumous Reminiscences of Brás Cubas"]
+      )
+
+      # "Night" is a title, and no publication's sources mention it, so scoping
+      # the word to the sources finds nothing.
+      assert found("source:night") == []
+      refute Enum.empty?(found("fonte:austin"))
     end
 
     test "a value the operator cannot use narrows to nothing" do
