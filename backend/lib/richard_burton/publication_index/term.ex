@@ -130,8 +130,8 @@ defmodule RichardBurton.Publication.Index.Term do
   # A value read through its delimiters: `"..."` is a phrase, matched in the
   # order written; `(...)` is several words of one field, matched in any order;
   # anything else is a bare value. Returns the kind and the value without them.
-  defp delimited(<<?", rest::binary>> = value), do: closed_by(value, rest, ~s("), :phrase)
-  defp delimited(<<?(, rest::binary>> = value), do: closed_by(value, rest, ")", :group)
+  defp delimited(~s(") <> rest = value), do: closed_by(value, rest, ~s("), :phrase)
+  defp delimited("(" <> rest = value), do: closed_by(value, rest, ")", :group)
   defp delimited(value), do: {:bare, value}
 
   # An opening delimiter counts only when the matching one closes the value, so
