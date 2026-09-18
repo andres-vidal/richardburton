@@ -27,10 +27,11 @@ defmodule RichardBurton.Publication.Index do
       `{:spelled_out, term}` or `{:alternatives, alternatives}`. `matches/1` and
       `ranking/1` are built from it, and it is the only thing that differs
       between the two ways of reading a term.
-    * **mode** — how a word is matched. `:prefix` matches words starting with it;
-      `:fuzzy` matches indexed words that merely resemble it. A search always
-      tries `:prefix` first and only falls back to `:fuzzy` if that found
-      nothing. The two modes differ only in which tsquery function is used.
+
+  Every word is read once, on its own: it matches as a prefix if the index holds
+  words beginning with it, and by resemblance if it does not. A word that has to
+  fall back therefore does not drag the words beside it along with it, and the
+  query is built and run once rather than twice.
 
   Both ways of reading a term match against a `tsvector` whose accents have been
   stripped, so the term has its accents stripped too before it is compared. See
@@ -180,13 +181,13 @@ defmodule RichardBurton.Publication.Index do
   # Works out what a term is asking for: the query that answers it and the ids it
   # matched, or `:none` if nothing in the index matches.
   #
-  # Finding out whether the term matches anything as typed means running it, so
-  # the ids are kept rather than thrown away and asked for again. The term is
-  # only retried fuzzily if it matched nothing.
+  # Every word is read once, by `Query.word_query/1`, which decides for that word
+  # alone whether it matches as a prefix or by resemblance. So the query is built
+  # and run once, and a word that has to fall back does not drag the words beside
+  # it along with it.
   #
   # A term that quotes a phrase or excludes a word with `-` is saying exactly what
-  # it wants, so it is passed to Postgres as written and never widened: no prefix
-  # matching, and no fuzzy retry that might add back a word it just excluded.
+  # it wants, so it is passed to Postgres as written and never widened.
   defp answering(term) do
     alternatives = Term.parse(term)
 
@@ -200,25 +201,12 @@ defmodule RichardBurton.Publication.Index do
         {ask, order_ids(ask)}
 
       true ->
-        as_written = Query.asked(alternatives, :prefix)
+        ask = Query.asked(alternatives)
 
-        case order_ids(as_written) do
-          [] -> fuzzily_answering(alternatives)
-          ids -> {as_written, ids}
-        end
+        if Query.empty?(ask),
+          do: :none,
+          else: {ask, order_ids(ask)}
     end
-  end
-
-  # Nothing matched as typed, so each word is matched against the indexed words
-  # it resembles. A word that resembles nothing is dropped, rather than making the
-  # whole alternative fail. An alternative left with no words is dropped too, and
-  # a term left with nothing to search for matches nothing.
-  defp fuzzily_answering(alternatives) do
-    ask = Query.asked(alternatives, :fuzzy)
-
-    if Query.empty?(ask),
-      do: :none,
-      else: {ask, order_ids(ask)}
   end
 
   # The ids a search matches, in reading order. This is the ordering the reader

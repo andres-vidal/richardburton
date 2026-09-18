@@ -714,6 +714,35 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
+  describe "Keywords.standing_for/1" do
+    alias RichardBurton.Publication.Index.Keywords
+
+    test "a word the index holds stands for itself" do
+      assert Keywords.standing_for("night") == {:prefix, ["night"]}
+    end
+
+    test "an incomplete word stands for what it begins" do
+      assert Keywords.standing_for("mach") == {:prefix, ["machado"]}
+    end
+
+    test "a word the index does not hold stands for what it resembles" do
+      assert Keywords.standing_for("nigth") == {:fuzzy, ["night"]}
+    end
+
+    test "a word resembling nothing stands for nothing, and says it fell back" do
+      # The tag still matters here: the caller has to tell "matched as typed"
+      # from "found nothing either way".
+      assert Keywords.standing_for("zzzzqqqx") == {:fuzzy, []}
+    end
+
+    test "an accent is not a difference, the index holding the word without one" do
+      # Otherwise every accented word would look like the index answered it with
+      # something other than what was typed.
+      assert Keywords.standing_for("Angústia") == {:prefix, ["angustia"]}
+      assert Keywords.standing_for("angustia") == {:prefix, ["angustia"]}
+    end
+  end
+
   describe "Excerpt.resolution/1" do
     alias RichardBurton.Publication.Index.Excerpt
 

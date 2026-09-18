@@ -203,7 +203,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # it names. A term made only of operators therefore highlights nothing outside
   # those fields.
   defp parsed_ask(alternatives) do
-    words = alternatives |> Enum.flat_map(& &1.words) |> Enum.map(&word_query/1) |> any_of()
+    words = alternatives |> Enum.flat_map(& &1.words) |> Enum.map(&Query.word_query/1) |> any_of()
     filters = alternatives |> Enum.flat_map(& &1.filters) |> Enum.reduce(%{}, &filter/2)
 
     Map.new(@fields, &{&1, any_of([words, filters[&1]])})
@@ -228,18 +228,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     do: value |> Keywords.words() |> Enum.map(&Query.lexeme/1) |> any_of()
 
   defp value_query(value, false),
-    do: value |> Keywords.words() |> Enum.map(&word_query/1) |> any_of()
-
-  # Highlights a word the same way the search matched it: as a prefix if the index
-  # contains words starting with it, otherwise as the list of similar words it
-  # fell back to. Following the search's own steps is what makes a misspelled
-  # word still highlight whatever it found.
-  defp word_query(word) do
-    case Keywords.standing_for(word) do
-      {:prefix, _words} -> "#{Query.lexeme(word)}:*"
-      {:fuzzy, words} -> words |> Enum.map(&Query.lexeme/1) |> any_of()
-    end
-  end
+    do: value |> Keywords.words() |> Enum.map(&Query.word_query/1) |> any_of()
 
   # Combines tsqueries with `|` rather than `&`: highlighting asks whether any of
   # these words appears in the field, not whether all of them do. Returns nil when

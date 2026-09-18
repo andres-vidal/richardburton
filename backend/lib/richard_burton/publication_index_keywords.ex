@@ -50,9 +50,12 @@ defmodule RichardBurton.Publication.Index.Keywords do
   The indexed words a given word matches, and how it matched them: the words it
   is a prefix of, or — if it is a prefix of none — the words it resembles.
 
-  These are the same two steps, in the same order, that a search itself takes.
-  Using one function for both means the words a reader is told their search
-  matched are exactly the words highlighted in the rows.
+  Everything goes through this one function: the search that finds the rows, the
+  highlighting on them, and the report of what the search matched. They cannot
+  disagree, because there is nothing for them to disagree about.
+
+  The decision is about one word, not about the term it sits in. A word that has
+  to fall back does so alone, and the words beside it keep matching as typed.
   """
   def standing_for(word) do
     case resolve(word, :prefix) do

@@ -11,8 +11,6 @@ defmodule RichardBurton.Publication.Index.Query do
     * **ask** — a term ready to query with: `{:spelled_out, term}` for one handed
       to Postgres verbatim, or `{:alternatives, alternatives}` for one parsed
       into words and filters.
-    * **mode** — how a word is matched: `:prefix` from the start of a word, or
-      `:fuzzy` against the indexed words it resembles.
 
   A free word is matched against the whole search document; an operator against
   the single column it names. That is why a term carrying operators cannot be
@@ -28,14 +26,10 @@ defmodule RichardBurton.Publication.Index.Query do
   A parsed term as an ask: for each alternative, the tsquery for its free words
   and the filters that narrow it.
   """
-  def asked(alternatives, mode) do
+  def asked(alternatives) do
     {:alternatives,
      Enum.map(alternatives, fn alternative ->
-       %{
-         query: words_query(alternative.words, mode),
-         filters: alternative.filters,
-         mode: mode
-       }
+       %{query: words_query(alternative.words), filters: alternative.filters}
      end)}
   end
 
@@ -77,6 +71,26 @@ defmodule RichardBurton.Publication.Index.Query do
     "'" <> escaped <> "'"
   end
 
+  @doc """
+  A word as the tsquery that matches it.
+
+  Reads the word through `Keywords.standing_for/1` and renders whichever way it
+  matched: a word that begins indexed words becomes a prefix query, and one that
+  begins none becomes the list of words it resembles. A word the index does not
+  hold at all has no tsquery, and the caller decides what that means.
+
+  This is the one place a word becomes a query, so a row is highlighted by the
+  same thing that matched it.
+  """
+  @spec word_query(String.t()) :: String.t() | nil
+  def word_query(word) do
+    case Keywords.standing_for(word) do
+      {:prefix, _words} -> "#{lexeme(word)}:*"
+      {:fuzzy, []} -> nil
+      {:fuzzy, words} -> Enum.map_join(words, " | ", &lexeme/1)
+    end
+  end
+
   @doc "The `WHERE` clause for an ask."
   def matches({:spelled_out, term}),
     do: dynamic(fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term))
@@ -103,8 +117,8 @@ defmodule RichardBurton.Publication.Index.Query do
   end
 
   # An alternative is satisfied by its free words and all of its filters.
-  defp alternative_predicate(%{query: query, filters: filters, mode: mode}) do
-    [words_predicate(query) | Enum.map(filters, &filter_predicate(&1, mode))]
+  defp alternative_predicate(%{query: query, filters: filters}) do
+    [words_predicate(query) | Enum.map(filters, &filter_predicate/1)]
     |> Enum.reject(&is_nil/1)
     |> all_of()
   end
@@ -130,15 +144,15 @@ defmodule RichardBurton.Publication.Index.Query do
   # An unusable value — an unparseable span, a word absent from the index —
   # matches nothing rather than dropping the operator, which would widen a term
   # the user narrowed.
-  defp filter_predicate(%{field: :year, value: value, negated: negated}, _mode) do
+  defp filter_predicate(%{field: :year, value: value, negated: negated}) do
     case Term.span(value) do
       :none -> negate(dynamic(false), negated)
       {from, to} -> negate(year_predicate(from, to), negated)
     end
   end
 
-  defp filter_predicate(%{field: field, value: value, exact: exact, negated: negated}, mode) do
-    case value_query(value, exact, mode) do
+  defp filter_predicate(%{field: field, value: value, exact: exact, negated: negated}) do
+    case value_query(value, exact) do
       :none -> negate(dynamic(false), negated)
       query -> negate(text_predicate(field, query), negated)
     end
@@ -170,61 +184,58 @@ defmodule RichardBurton.Publication.Index.Query do
     )
   end
 
-  # A quoted value matches as a phrase in either mode.
-  defp value_query(value, true, _mode),
+  # A quoted value matches as a phrase, exactly as written.
+  defp value_query(value, true),
     do: dynamic(fragment("phraseto_tsquery('rb_search', ?)", ^value))
 
-  defp value_query(value, false, :prefix) do
-    query = value |> Keywords.words() |> and_prefixes()
+  # Any other value matches word by word. A word that begins nothing the index
+  # holds is widened to what it resembles, exactly as a free word is — but the
+  # prefix form is always kept as well, which a free word does not need.
+  #
+  # The reason is that these two are matched against different things. A free word
+  # is matched against the search document, which is what the keyword view is
+  # built from, so the view can say whether the word is there. An operator's value
+  # is matched against one column, and a column can hold words the document never
+  # does: `countries` holds `GB`, while the document holds `United Kingdom`, so
+  # `country:GB` matches a word the view has never heard of.
+  defp value_query(value, false) do
+    query =
+      value
+      |> Keywords.words()
+      |> Enum.map(&value_word_query/1)
+      |> all_words()
+
     dynamic(fragment("to_tsquery('rb_search', ?)", ^query))
   end
 
-  # In fuzzy mode each word of the value expands to the indexed words it
-  # resembles, as a free word does.
-  defp value_query(value, false, :fuzzy) do
-    value
-    |> Keywords.words()
-    |> Enum.map(&Keywords.resolve(&1, :fuzzy))
-    |> Enum.split_with(&(&1 == []))
-    |> fuzzy_value_query()
+  defp value_word_query(word) do
+    prefix = "#{lexeme(word)}:*"
+
+    case Keywords.standing_for(word) do
+      {:fuzzy, [_ | _] = words} ->
+        Enum.map_join([prefix | Enum.map(words, &lexeme/1)], " | ", & &1)
+
+      _ ->
+        prefix
+    end
   end
-
-  # Builds a query only when every word resolved to at least one keyword. A word
-  # that resolved to none is absent from the index, so the value cannot match.
-  defp fuzzy_value_query({[], [_ | _] = groups}),
-    do: dynamic(fragment("to_tsquery('rb_search', ?)", ^and_fuzzy(groups)))
-
-  defp fuzzy_value_query(_unresolved), do: :none
 
   # One tsquery's contribution to the rank.
   defp ranking_by(query),
     do: dynamic(fragment("ts_rank_cd(document, to_tsquery('rb_search', ?), 4)", ^query))
 
-  # One alternative's free words as a tsquery: nil when it has none, or when no
-  # word resolved to anything in the fuzzy pass.
-  defp words_query([], _mode), do: nil
-  defp words_query(words, :prefix), do: and_prefixes(words)
+  # One alternative's free words as a tsquery. A word the index does not hold is
+  # dropped rather than failing the alternative; an alternative left with no
+  # usable word has no tsquery at all.
+  defp words_query([]), do: nil
 
-  defp words_query(words, :fuzzy) do
-    case fuzzy_words(words) do
+  defp words_query(words) do
+    case words |> Enum.map(&word_query/1) |> Enum.reject(&is_nil/1) do
       [] -> nil
-      groups -> and_fuzzy(groups)
+      queries -> all_words(queries)
     end
   end
 
-  # One alternative's words resolved to the keywords they resemble, dropping any
-  # that resolved to none.
-  defp fuzzy_words(words) do
-    words
-    |> Enum.map(&Keywords.resolve(&1, :fuzzy))
-    |> Enum.reject(&(&1 == []))
-  end
-
-  # Every word required, each matched from its start.
-  defp and_prefixes(words), do: Enum.map_join(words, " & ", &"(#{lexeme(&1)}:*)")
-
-  # Every word required, each satisfied by any of the indexed words it resembles.
-  defp and_fuzzy(word_groups) do
-    Enum.map_join(word_groups, " & ", &"(#{Enum.map_join(&1, " | ", fn w -> lexeme(w) end)})")
-  end
+  # Every word required.
+  defp all_words(queries), do: Enum.map_join(queries, " & ", &"(#{&1})")
 end
