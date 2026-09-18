@@ -243,23 +243,26 @@ defmodule RichardBurton.Publication.Index do
   defp matches({:spelled_out, term}),
     do: dynamic(fragment("document @@ websearch_to_tsquery('rb_search', ?)", ^term))
 
-  # Alternatives are OR-ed; within one, words and filters are AND-ed.
+  # A term is satisfied by any of its alternatives.
   defp matches({:alternatives, alternatives}) do
-    alternatives
-    |> Enum.map(&alternative_predicate/1)
-    |> Enum.reduce(fn predicate, acc -> dynamic(^acc or ^predicate) end)
+    alternatives |> Enum.map(&alternative_predicate/1) |> any_of()
   end
 
-  # One alternative: its free words and each of its filters, AND-ed.
+  # An alternative is satisfied by its free words and all of its filters.
   defp alternative_predicate(%{query: query, filters: filters, mode: mode}) do
     [words_predicate(query) | Enum.map(filters, &filter_predicate(&1, mode))]
     |> Enum.reject(&is_nil/1)
-    |> case do
-      # No usable predicate: match nothing rather than everything.
-      [] -> dynamic(false)
-      predicates -> Enum.reduce(predicates, fn predicate, acc -> dynamic(^acc and ^predicate) end)
-    end
+    |> all_of()
   end
+
+  # Nothing to ask for matches nothing rather than everything, so an alternative
+  # whose words and operators were all unusable excludes itself instead of
+  # widening the search to every publication.
+  defp all_of([]), do: dynamic(false)
+  defp all_of(predicates), do: Enum.reduce(predicates, &dynamic(^&2 and ^&1))
+
+  defp any_of([]), do: dynamic(false)
+  defp any_of(predicates), do: Enum.reduce(predicates, &dynamic(^&2 or ^&1))
 
   # The free words matched against the whole search document. An alternative of
   # only operators has none, and contributes no predicate.
