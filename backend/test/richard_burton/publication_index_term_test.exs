@@ -99,6 +99,18 @@ defmodule RichardBurton.Publication.Index.TermTest do
       assert [%{filters: [%{field: :title}]}] = Term.parse("TÍTULO:casmurro")
     end
 
+    test "an accent is not part of an operator name" do
+      for {accented, plain} <- [
+            {"título", "titulo"},
+            {"país", "pais"},
+            {"título-original", "titulo-original"},
+            {"título_original", "titulo_original"}
+          ] do
+        assert Term.parse("#{accented}:x") == Term.parse("#{plain}:x"),
+               "expected #{accented}: and #{plain}: to name the same field"
+      end
+    end
+
     test "author maps to original_authors and translator to authors" do
       # The column named `authors` holds the translators; that is the database's
       # word, and a reader asking for an author means the writer.

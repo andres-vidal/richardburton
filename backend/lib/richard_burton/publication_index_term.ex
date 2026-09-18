@@ -25,7 +25,7 @@ defmodule RichardBurton.Publication.Index.Term do
   unless quoted, which matches them as written.
 
   Each operator accepts several names: the label shown in the UI, the database
-  column, and the Portuguese term. An unrecognised prefix is not an operator:
+  column, and the Portuguese term, matched with case and accents folded away. An unrecognised prefix is not an operator:
   `foo:bar` parses as free text, so a colon typed inside a title does not fail
   the query.
   """
@@ -43,7 +43,6 @@ defmodule RichardBurton.Publication.Index.Term do
   @fields %{
     "title" => :title,
     "titulo" => :title,
-    "título" => :title,
     "original" => :original_title,
     "original-title" => :original_title,
     "original_title" => :original_title,
@@ -57,7 +56,6 @@ defmodule RichardBurton.Publication.Index.Term do
     "original_author" => :original_authors,
     "country" => :countries,
     "pais" => :countries,
-    "país" => :countries,
     "publisher" => :publishers,
     "editora" => :publishers,
     "year" => :year,
@@ -164,7 +162,7 @@ defmodule RichardBurton.Publication.Index.Term do
     {kind, value} = delimited(value)
 
     %{
-      field: Map.fetch!(@fields, String.downcase(field)),
+      field: Map.fetch!(@fields, fold(field)),
       value: value,
       exact: kind == :phrase,
       negated: negated == "-"
@@ -172,7 +170,17 @@ defmodule RichardBurton.Publication.Index.Term do
   end
 
   # Whether a prefix names a field, in any of the names that field accepts.
-  defp known?(field), do: Map.has_key?(@fields, String.downcase(field))
+  defp known?(field), do: Map.has_key?(@fields, fold(field))
+
+  # Operator names are matched with case and accents folded away, so `TÍTULO`,
+  # `título` and `titulo` are one name and each is listed once. Values are
+  # already compared this way, through the search configuration's `unaccent`.
+  defp fold(name) do
+    name
+    |> String.downcase()
+    |> :unicode.characters_to_nfd_binary()
+    |> String.replace(~r/[\x{0300}-\x{036F}]/u, "")
+  end
 
   # A value read through its delimiters: `"..."` is a phrase, matched in the
   # order written; `(...)` is several words of one field, matched in any order;
