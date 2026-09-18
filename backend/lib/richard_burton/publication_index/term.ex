@@ -139,8 +139,8 @@ defmodule RichardBurton.Publication.Index.Term do
   defp closed_by(value, "", _closing, _kind), do: {:bare, value}
 
   defp closed_by(value, rest, closing, kind) do
-    case String.split_at(rest, -1) do
-      {inner, ^closing} -> {kind, inner}
+    case String.last(rest) do
+      ^closing -> {kind, String.slice(rest, 0..-2//1)}
       _ -> {:bare, value}
     end
   end
