@@ -155,16 +155,8 @@ defmodule RichardBurton.Publication.Index.Term do
   @spec span(String.t()) :: {integer | nil, integer | nil} | :none
   def span(value) do
     case String.split(value, "-", parts: 2) do
-      [year] -> single(year)
+      [year] -> range(year, year)
       [from, to] -> range(from, to)
-    end
-  end
-
-  # A lone year is a range with both bounds on it.
-  defp single(year) do
-    case Integer.parse(String.trim(year)) do
-      {year, ""} -> {year, year}
-      _ -> :none
     end
   end
 
