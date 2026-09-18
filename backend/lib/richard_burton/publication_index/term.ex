@@ -130,20 +130,20 @@ defmodule RichardBurton.Publication.Index.Term do
   # A value read through its delimiters: `"..."` is a phrase, matched in the
   # order written; `(...)` is several words of one field, matched in any order;
   # anything else is a bare value. Returns the kind and the value without them.
-  defp delimited(~s(") <> rest = value), do: closed_by(value, rest, ~s("), :phrase)
-  defp delimited("(" <> rest = value), do: closed_by(value, rest, ")", :group)
-  defp delimited(value), do: {:bare, value}
+  # A delimiter counts only in a matching pair, so `"abc`, `(abc` and a lone `"`
+  # are bare and keep the character they carry.
+  defp delimited(value) when byte_size(value) < 2, do: {:bare, value}
 
-  # An opening delimiter counts only when the matching one closes the value, so
-  # `"abc`, `(abc` and a lone `"` are bare, and keep the delimiter they carry.
-  defp closed_by(value, "", _closing, _kind), do: {:bare, value}
-
-  defp closed_by(value, rest, closing, kind) do
-    case String.last(rest) do
-      ^closing -> {kind, String.slice(rest, 0..-2//1)}
+  defp delimited(value) do
+    case {String.first(value), String.last(value)} do
+      {~s("), ~s(")} -> {:phrase, inner(value)}
+      {"(", ")"} -> {:group, inner(value)}
       _ -> {:bare, value}
     end
   end
+
+  # A value without the delimiters around it.
+  defp inner(value), do: String.slice(value, 1..-2//1)
 
   @doc """
   Parses a `year` operator value into `{from, to}`, where either bound may be
