@@ -3,10 +3,12 @@ defmodule RichardBurtonWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(RichardBurtonWeb.Plugs.IgnoreBlankSearch)
   end
 
   pipeline :files do
     plug(:accepts, ["csv"])
+    plug(RichardBurtonWeb.Plugs.IgnoreBlankSearch)
   end
 
   pipeline :authenticate_bearer do

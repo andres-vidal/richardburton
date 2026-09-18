@@ -100,6 +100,20 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert body["entries"] == []
       assert body["order"] == []
     end
+
+    test "a blank search asks for the whole database, not for nothing", meta do
+      whole = meta.conn |> get(publication_path(meta.conn, :index)) |> json_response(200)
+
+      for blank <- ["", "%20%20"] do
+        body =
+          meta.conn
+          |> get("#{publication_path(meta.conn, :index)}?search=#{blank}")
+          |> json_response(200)
+
+        assert body["order"] == whole["order"]
+        assert body["matched"] == nil
+      end
+    end
   end
 
   describe "GET /publications/:id" do

@@ -30,13 +30,8 @@ export type PublicationView = {
  */
 export const readPublication = cache(
   async (id: string, search?: string): Promise<PublicationView | null> => {
-    // The search is sent along so the record highlights what matched it, the same
-    // way the row the reader clicked did. Outside a search there is nothing to
-    // highlight.
     const [publication, session] = await Promise.all([
-      get<Publication>(`/publications/${id}`, search ? { search } : {}).catch(
-        () => null,
-      ),
+      get<Publication>(`/publications/${id}`, { search }).catch(() => null),
       getSession(),
     ]);
 
@@ -83,9 +78,7 @@ async function readDatabase(
  * gets rows in the first response instead of an empty table and a spinner. The
  * rest of the pages are fetched in the browser as the reader scrolls.
  */
-export const readIndex = cache((search?: string) =>
-  readDatabase(search ? { search } : {}),
-);
+export const readIndex = cache((search?: string) => readDatabase({ search }));
 
 /**
  * The publications with no sources yet — the queue the backfill wizard steps
