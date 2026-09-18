@@ -72,8 +72,10 @@ rel/
 *.local.*
 credentials.md
 .claude
-CLAUDE.md
-AGENTS.md
+# Written by `next dev`, and re-added whenever it runs. The root CLAUDE.md is
+# tracked; these are not.
+frontend/CLAUDE.md
+frontend/AGENTS.md
 docs/planning/
 # IFRS GitLab deploy repos, cloned locally for reference — never part of this repo
 /ifrs-frontend/
