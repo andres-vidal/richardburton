@@ -8,12 +8,12 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   goes in the row's virtual `excerpts` map, keyed by field, and is `nil` for any
   field the search did not match.
 
-  Postgres does the highlighting rather than the browser for two reasons. First,
-  only Postgres knows what counts as a match — which spellings the search
-  configuration treats as the same word, and where one word ends. Second, an
-  operator applies to a single field, so `title:night` has to highlight the
-  title and nothing else; a plain list of matched words, with no record of which
-  field each was searched in, cannot express that.
+  The highlighting is produced by the same query that decides the match, because
+  only the database holds what is needed to place it. It knows which spellings
+  the search configuration treats as the same word and where one word ends, and
+  it knows which field each part of the term applied to. `title:night` has to
+  highlight the title and nothing else, and a list of matched words that does
+  not record which field each was searched in cannot express that.
 
   Terms used here:
 
@@ -73,10 +73,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   @doc """
   Builds the ask: a map from field name to the tsquery to highlight it with.
 
-  This works the term out from scratch, the same way the search did, so a page
-  can highlight its rows without being handed anything the search worked out
-  earlier. A field that no part of the term searched gets no tsquery, and so
-  gets no excerpt.
+  This works the term out from scratch, the same way the search did, so it needs
+  nothing but the term itself — none of what the search resolved earlier has to
+  be carried along. A field that no part of the term searched gets no tsquery,
+  and so gets no excerpt.
   """
   def asked(term) do
     alternatives = Term.parse(term)
@@ -93,15 +93,15 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   matched, and the field it was searched in — `nil` for a free word, which is
   searched in every field. Entries come back in the order the words were typed.
 
-  Words the search matched exactly are left out. Telling someone who searched
-  `machado` that the search looked for `machado` is not useful. Telling them
-  that `Maries` matched `marias`, `marie` and `mario` is, because otherwise the
-  results look like they answer a term nobody typed.
+  Words the search matched exactly are left out, since reporting that `machado`
+  matched `machado` adds nothing. What is worth reporting is that `Maries`
+  matched `marias`, `marie` and `mario`, because those results correspond to no
+  word in the term as it was written.
 
-  This uses the same word resolution the excerpts use, so what the reader is
-  told was matched is exactly what is highlighted in the rows. Two cases return
-  nothing: a quoted value, which is matched exactly and so is never widened, and
-  a term Postgres parses itself (see `RichardBurton.Publication.Index.Query`).
+  This uses the same word resolution the excerpts use, so the words reported here
+  are exactly the words highlighted in the rows. Two cases return nothing: a
+  quoted value, which is matched exactly and so is never widened, and a term
+  Postgres parses itself (see `RichardBurton.Publication.Index.Query`).
   """
   @spec resolution(String.t()) :: [
           %{field: String.t() | nil, typed: String.t(), words: [String.t()]}
@@ -121,7 +121,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   end
 
   # The words in each operator's value, reported under the name the operator is
-  # written with so the reader can type it back. Three kinds are skipped: a
+  # written with, so the entry can be written back into a term. Three kinds are
+  # skipped: a
   # negated operator excludes rather than matches, a `year` contains no words,
   # and a quoted value is matched exactly and so is never widened.
   defp scoped_widenings(alternatives) do

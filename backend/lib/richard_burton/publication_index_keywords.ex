@@ -39,8 +39,7 @@ defmodule RichardBurton.Publication.Index.Keywords do
     from(w in SearchKeyword,
       where: fragment("similarity((?), unaccent(?)) > ?", w.word, ^word, ^@similarity),
       # Most similar first. All of them are searched on regardless, so this does
-      # not affect which publications match — only the order they are listed in
-      # when the reader is told what their word matched.
+      # not affect which publications match, only the order they come back in.
       order_by: [desc: fragment("similarity((?), unaccent(?))", w.word, ^word)]
     )
     |> Repo.all()

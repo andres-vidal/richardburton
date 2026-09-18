@@ -151,7 +151,7 @@ defmodule RichardBurton.Publication.Index.Term do
   def plain?(alternatives), do: Enum.all?(alternatives, &(&1.filters == []))
 
   # The name a field is reported by: the English one of the several it answers
-  # to, which is the one a reader can type back into a term.
+  # to, and the one that can be written back into a term.
   @names %{
     title: "title",
     original_title: "original",
@@ -166,8 +166,8 @@ defmodule RichardBurton.Publication.Index.Term do
   @doc """
   The name used to write an operator on this field.
 
-  A field answers to several names, and this returns the English one, which is
-  what gets shown to the reader and read back as a term.
+  A field answers to several names. This returns the English one, which is the
+  name reported for the field and the name that can be written back into a term.
 
   ## Examples
 

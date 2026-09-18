@@ -38,8 +38,9 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil))
   end
 
-  # What the index made of the term is sent for the reader to see, not for the
-  # rows' sake — each row already carries its own record of what matched it.
+  # How the index read the term is included in the response for the caller to
+  # report. The rows do not need it: each one already carries its own record of
+  # what matched it.
   defp first_page(order, search) do
     per_page = Publication.Index.per_page()
     entries = Publication.Index.details(Enum.take(order, per_page), search)
