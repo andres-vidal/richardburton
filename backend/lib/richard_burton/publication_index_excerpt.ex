@@ -80,6 +80,55 @@ defmodule RichardBurton.Publication.Index.Excerpt do
       else: parsed_ask(alternatives)
   end
 
+  @doc """
+  What the index made of a term: the words it resolved to, grouped by the field
+  each was asked of — `nil` for the free words, which are asked of every field.
+
+  The same resolution the excerpts are built from, in words rather than
+  tsqueries, so what a reader is told the search matched is what it marked. A
+  spelled-out term is read by Postgres rather than resolved here, and reports
+  nothing.
+  """
+  @spec resolution(String.t()) :: [%{field: String.t() | nil, words: [String.t()]}]
+  def resolution(term) do
+    alternatives = Term.parse(term)
+
+    if Term.plain?(alternatives) and Query.spelled_out?(term),
+      do: [],
+      else: free_resolution(alternatives) ++ scoped_resolution(alternatives)
+  end
+
+  # The free words, as one group asked of no field in particular.
+  defp free_resolution(alternatives) do
+    case alternatives |> Enum.flat_map(& &1.words) |> standing_for() do
+      [] -> []
+      words -> [%{field: nil, words: words}]
+    end
+  end
+
+  # One group per field an operator named, reported under the name it is written
+  # with so a reader can type it back. Negated and `year` operators report
+  # nothing, as they mark nothing.
+  defp scoped_resolution(alternatives) do
+    alternatives
+    |> Enum.flat_map(& &1.filters)
+    |> Enum.reject(&(&1.negated or &1.field == :year))
+    |> Enum.group_by(& &1.field, & &1.value)
+    |> Enum.map(fn {field, values} ->
+      %{
+        field: Term.name(field),
+        words: values |> Enum.flat_map(&Keywords.words/1) |> standing_for()
+      }
+    end)
+    |> Enum.reject(&(&1.words == []))
+  end
+
+  defp standing_for(words) do
+    words
+    |> Enum.flat_map(&(&1 |> Keywords.standing_for() |> elem(1)))
+    |> Enum.uniq()
+  end
+
   @doc "Adds each field's excerpt to a query."
   def select(query, ask) do
     select_merge(query, [p], %{
@@ -137,9 +186,9 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # begins nothing in the index, what it resembles — the same ladder the search
   # itself climbed, so a misspelling still marks what it found.
   defp word_query(word) do
-    case Keywords.resolve(word, :prefix) do
-      [] -> word |> Keywords.resolve(:fuzzy) |> Enum.map(&Query.lexeme/1) |> any_of()
-      _prefixed -> "#{Query.lexeme(word)}:*"
+    case Keywords.standing_for(word) do
+      {:prefix, _words} -> "#{Query.lexeme(word)}:*"
+      {:fuzzy, words} -> words |> Enum.map(&Query.lexeme/1) |> any_of()
     end
   end
 

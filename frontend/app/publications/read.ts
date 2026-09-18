@@ -3,6 +3,7 @@ import { getSession } from "app/session";
 import { TOTAL_COUNT_HEADER } from "modules/api";
 import { withChanges, type WithChanges } from "modules/publication/history";
 import type {
+  Matched,
   Publication,
   PublicationHistoryEntry,
   PublicationId,
@@ -57,7 +58,7 @@ async function readDatabase(
 ): Promise<PublicationIndex> {
   const { data, headers } = await getWithHeaders<{
     entries: Publication[];
-    keywords?: string[];
+    matched?: Matched[];
     order?: PublicationId[];
     perPage?: number;
   }>("/publications", params);
@@ -66,7 +67,7 @@ async function readDatabase(
 
   return {
     entries: data.entries,
-    keywords: data.keywords ?? [],
+    matched: data.matched ?? [],
     total: total === undefined ? null : parseInt(total),
     // An endpoint that does not page (the backfill queue) hands back no
     // ordering; the rows it returned stand as the whole of it.

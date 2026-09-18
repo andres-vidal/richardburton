@@ -561,7 +561,7 @@ defmodule RichardBurton.Publication.IndexTest do
     end
 
     test "a search settles an ordering" do
-      {order, _keywords} = Publication.Index.search_order("Verissimo")
+      order = Publication.Index.search_order("Verissimo")
 
       assert order != []
 
@@ -579,12 +579,11 @@ defmodule RichardBurton.Publication.IndexTest do
     end
 
     test "the fuzzy ladder still settles an ordering" do
-      assert {order, _keywords} = Publication.Index.search_order("Maries")
-      assert order != []
+      assert Publication.Index.search_order("Maries") != []
     end
 
     test "a page carries an excerpt of each field that answered a row" do
-      {order, _keywords} = Publication.Index.search_order("Berkeley")
+      order = Publication.Index.search_order("Berkeley")
       page = Publication.Index.details(order, "Berkeley")
 
       row = Enum.find(page, &(&1.title == "Posthumous Reminiscences of Brás Cubas"))
@@ -607,9 +606,8 @@ defmodule RichardBurton.Publication.IndexTest do
   describe "details/2 excerpts" do
     # Each row's excerpts, with the fields the search did not match left out.
     defp marked(term) do
-      {order, _keywords} = Publication.Index.search_order(term)
-
-      order
+      term
+      |> Publication.Index.search_order()
       |> Publication.Index.details(term)
       |> Enum.map(&Map.reject(&1.excerpts, fn {_field, excerpt} -> is_nil(excerpt) end))
     end
@@ -706,6 +704,56 @@ defmodule RichardBurton.Publication.IndexTest do
         assert {:ok, results} = Publication.Index.search(term)
         refute Enum.any?(results, &(&1.id == bait.id))
       end
+    end
+  end
+
+  describe "Excerpt.resolution/1" do
+    alias RichardBurton.Publication.Index.Excerpt
+
+    test "free words are reported under no field" do
+      assert Excerpt.resolution("machado") == [%{field: nil, words: ["machado"]}]
+    end
+
+    test "a fuzzy term reports what it was read as" do
+      [%{field: nil, words: words}] = Excerpt.resolution("Maries")
+
+      assert Enum.sort(words) == ["marias", "marie", "mario"]
+    end
+
+    test "an operator is reported under the field it named" do
+      assert Excerpt.resolution("title:night") == [%{field: "title", words: ["night"]}]
+    end
+
+    test "a term reports its free words and its operators alike" do
+      assert Excerpt.resolution("machado title:night") == [
+               %{field: nil, words: ["machado"]},
+               %{field: "title", words: ["night"]}
+             ]
+    end
+
+    test "an operator is reported by the name a reader types, not the column" do
+      # Written in Portuguese, reported in the English name that reads back as a
+      # term — `autor` scopes to `original_authors`, which is not a name at all.
+      assert Excerpt.resolution("titulo:night autor:machado") == [
+               %{field: "title", words: ["night"]},
+               %{field: "author", words: ["machado"]}
+             ]
+    end
+
+    test "a negated operator reports nothing, having excluded rather than answered" do
+      assert Excerpt.resolution("machado -country:US") == [%{field: nil, words: ["machado"]}]
+    end
+
+    test "a year reports nothing, naming no words" do
+      assert Excerpt.resolution("year:1950-1960") == []
+    end
+
+    test "a spelled-out term is read by Postgres, and reports nothing" do
+      assert Excerpt.resolution(~s("Berkeley")) == []
+    end
+
+    test "a word the index does not hold reports nothing" do
+      assert Excerpt.resolution("zzzzqqqx") == []
     end
   end
 

@@ -43,6 +43,20 @@ defmodule RichardBurton.Publication.Index.Keywords do
   end
 
   @doc """
+  The indexed words a word stands for, and how it reached them: those it begins,
+  or those it resembles when it begins none.
+
+  The same ladder a search climbs, so what a reader is told the index made of
+  their word is what it marked on the rows.
+  """
+  def standing_for(word) do
+    case resolve(word, :prefix) do
+      [] -> {:fuzzy, resolve(word, :fuzzy)}
+      prefixed -> {:prefix, prefixed}
+    end
+  end
+
+  @doc """
   A term as the words it is made of.
 
   ## Examples

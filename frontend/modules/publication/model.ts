@@ -24,6 +24,15 @@ type Publication = {
 
 type PublicationKey = keyof Omit<Publication, "id" | "references" | "excerpts">;
 
+/**
+ * One group of what a search matched: the words the index resolved, and the
+ * field they were asked of — `null` for free words, asked of every field.
+ *
+ * `field` is the name an operator is written with, so it reads straight back
+ * into a term.
+ */
+type Matched = { field: string | null; words: string[] };
+
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: number };
@@ -373,6 +382,7 @@ export type {
   PublicationHistoryAction,
   PublicationHistoryEntry,
   PublicationId,
+  Matched,
   PublicationKey,
   PublicationKeyType,
   SnapshotDiff,

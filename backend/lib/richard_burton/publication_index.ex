@@ -40,7 +40,6 @@ defmodule RichardBurton.Publication.Index do
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication.Index.SearchDocument
   alias RichardBurton.Publication.Index.Excerpt
-  alias RichardBurton.Publication.Index.Keywords
   alias RichardBurton.Publication.Index.Query
   alias RichardBurton.Publication.Index.Term
   alias RichardBurton.Repo
@@ -116,17 +115,14 @@ defmodule RichardBurton.Publication.Index do
   def search(term, select: attributes) when is_binary(term) do
     case answering(term) do
       :none -> {:ok, []}
-      {ask, _keywords, _ids} -> {:ok, Repo.all(asking(ask, attributes))}
+      {ask, _ids} -> {:ok, Repo.all(asking(ask, attributes))}
     end
   end
 
   @doc """
   The whole ordering a search resolves to — the ids of every publication it
-  matches, in the order they are to be read — and the indexed words it resolved
-  to, or `:none` when nothing in the index answers at all.
-
-  The words are what the index made of the term, which a reader is shown so a
-  fuzzy match explains itself: typing `Maries` reports `marias, marie, mario`.
+  matches, in the order they are to be read — or `:none` when nothing in the index
+  answers at all.
 
   The order is settled here, once. A reader then pages through it by id (see
   `details/2`) and sees a stable list, because the order was fixed the moment
@@ -136,7 +132,7 @@ defmodule RichardBurton.Publication.Index do
   def search_order(term) when is_binary(term) do
     case answering(term) do
       :none -> :none
-      {_ask, keywords, ids} -> {ids, keywords}
+      {_ask, ids} -> ids
     end
   end
 
@@ -176,8 +172,8 @@ defmodule RichardBurton.Publication.Index do
   @doc "How many publications a page holds."
   def per_page, do: @per_page
 
-  # What a term is asking for: the query that answers it, the words it resolved
-  # to, and the ids it matched — or `:none` when nothing in the index answers.
+  # What a term is asking for: the query that answers it and the ids it matched,
+  # or `:none` when nothing in the index answers.
   #
   # Deciding whether the term answers as written means running it, so the ids
   # come back with the answer rather than being asked for again. Only if it
@@ -196,14 +192,14 @@ defmodule RichardBurton.Publication.Index do
       # Quotes or exclusions with no operator: passed through unchanged.
       Term.plain?(alternatives) and Query.spelled_out?(term) ->
         ask = {:spelled_out, term}
-        {ask, [], order_ids(ask)}
+        {ask, order_ids(ask)}
 
       true ->
         as_written = Query.asked(alternatives, :prefix)
 
         case order_ids(as_written) do
           [] -> fuzzily_answering(alternatives)
-          ids -> {as_written, keywords(alternatives, :prefix), ids}
+          ids -> {as_written, ids}
         end
     end
   end
@@ -217,17 +213,7 @@ defmodule RichardBurton.Publication.Index do
 
     if Query.empty?(ask),
       do: :none,
-      else: {ask, keywords(alternatives, :fuzzy), order_ids(ask)}
-  end
-
-  # The indexed words the free words resolved to — not what a row is marked with,
-  # which the index decides per field, but what the term was read as, which the
-  # reader is shown.
-  defp keywords(alternatives, mode) do
-    alternatives
-    |> Enum.flat_map(& &1.words)
-    |> Enum.flat_map(&Keywords.resolve(&1, mode))
-    |> Enum.uniq()
+      else: {ask, order_ids(ask)}
   end
 
   # The ids a search matches, in reading order — the ordering the reader pages

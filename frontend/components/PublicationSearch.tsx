@@ -1,6 +1,9 @@
 "use client";
 
-import { useKeywords } from "modules/publication/hooks";
+import {
+  useMatched,
+  useVisiblePublicationIds,
+} from "modules/publication/hooks";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChangeEventHandler, FC, useRef, useState, useTransition } from "react";
@@ -15,7 +18,10 @@ const PublicationSearch: FC = () => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
-  const keywords = useKeywords();
+  const matched = useMatched();
+  // With nothing to show, the line says what was looked for rather than what is
+  // being shown — which is the answer to why nothing came back.
+  const found = (useVisiblePublicationIds() ?? []).length > 0;
   const [isNavigating, startTransition] = useTransition();
 
   const searchUrlParam = searchParams?.get("search") ?? "";
@@ -75,19 +81,29 @@ const PublicationSearch: FC = () => {
               </span>
             </span>
           ) : (
-            keywords &&
-            keywords.length > 0 && (
+            matched &&
+            matched.length > 0 && (
               <>
-                <span>Showing results for</span>
-                {keywords.map((keyword, index) => (
-                  <span key={`search-keyword-${keyword}`}>
-                    <Link
-                      href={`?search=${keyword}`}
-                      className="text-indigo-600 underline hover:bg-indigo-300"
-                    >
-                      {keyword}
-                    </Link>
-                    {index < keywords.length - 1 ? "," : "."}
+                <span>{found ? "Showing results for" : "Searched for"}</span>
+                {matched.map(({ field, words }, group) => (
+                  <span key={`search-matched-${field ?? "free"}`}>
+                    {group > 0 && <span className="text-gray-400"> · </span>}
+                    {field && <span>{field}: </span>}
+                    {words.map((word, index) => (
+                      <span key={`search-matched-${field ?? "free"}-${word}`}>
+                        <Link
+                          // Scoped words read back as the operator that found
+                          // them, so following one narrows the same way rather
+                          // than widening to every field.
+                          href={`?search=${encodeURIComponent(field ? `${field}:${word}` : word)}`}
+                          className="text-indigo-600 underline hover:bg-indigo-300"
+                        >
+                          {word}
+                        </Link>
+                        {index < words.length - 1 && ", "}
+                      </span>
+                    ))}
+                    {group === matched.length - 1 && "."}
                   </span>
                 ))}
               </>

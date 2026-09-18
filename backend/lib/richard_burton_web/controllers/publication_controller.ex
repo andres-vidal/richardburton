@@ -28,22 +28,27 @@ defmodule RichardBurtonWeb.PublicationController do
   # cannot drift as the database changes underneath it.
   def index(conn, %{"search" => query}) do
     case Publication.Index.search_order(query) do
-      :none -> conn |> put_total() |> json(first_page([], nil, []))
-      {order, keywords} -> conn |> put_total() |> json(first_page(order, query, keywords))
+      :none -> conn |> put_total() |> json(first_page([], nil))
+      order -> conn |> put_total() |> json(first_page(order, query))
     end
   end
 
   def index(conn, _params) do
-    conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil, []))
+    conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil))
   end
 
-  # The words the term resolved to ride along for the reader to see, not for the
+  # What the index made of the term rides along for the reader to see, not for the
   # rows: each row says what answered it on its own.
-  defp first_page(order, search, keywords) do
+  defp first_page(order, search) do
     per_page = Publication.Index.per_page()
     entries = Publication.Index.details(Enum.take(order, per_page), search)
 
-    %{entries: entries, order: order, per_page: per_page, keywords: keywords}
+    %{
+      entries: entries,
+      order: order,
+      per_page: per_page,
+      matched: search && Publication.Index.Excerpt.resolution(search)
+    }
   end
 
   defp put_total(conn) do

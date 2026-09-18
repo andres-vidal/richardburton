@@ -5,6 +5,7 @@ import type { Store } from "modules/store";
 import {
   ATTRIBUTES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
+  Matched,
   Publication,
   PublicationEntry,
   PublicationError,
@@ -63,10 +64,10 @@ const isLoadingMoreAtom = atom<boolean>(false);
 const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
-/** The indexed words the current search resolved to — what the index made of
- * the term, shown to the reader so a fuzzy match explains itself. Rows carry
- * their own marks; these are not those. */
-const keywordsAtom = atom<string[] | undefined>(undefined);
+/** What the index made of the current term, grouped by field — shown to the
+ * reader so a widened or scoped match explains itself. Rows carry their own
+ * marks; these are not those. */
+const matchedAtom = atom<Matched[] | undefined>(undefined);
 const isValidatingAtom = atom(false);
 const areRowIdsVisibleAtom = atom(false);
 const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
@@ -271,14 +272,15 @@ const CELL_FAMILIES = [
 ];
 
 /**
- * A page of the database: the rows, the words the search resolved to, and how
+ * A page of the database: the rows, what the index made of the term, and how
  * many publications exist in total — which the index reports in a header rather
  * than in the body.
  */
 type PublicationIndex = {
   entries: Publication[];
-  /** What the index made of the term, for the reader to see. */
-  keywords: string[];
+  /** What the index made of the term, for the reader to see: the words it
+   * resolved to, grouped by the field each was asked of. */
+  matched: Matched[];
   /** How many exist in total, not how many matched. `null` when unreported. */
   total: number | null;
   /** The ids of every match, in reading order — the ordering the reader scrolls
@@ -345,17 +347,17 @@ function remember(store: Store, publication: Publication): void {
 }
 
 /**
- * Take an index payload as the working set: the rows, the words the search
- * resolved to, and how many publications exist in total.
+ * Take an index payload as the working set: the rows, what the index made of the
+ * term, and how many publications exist in total.
  *
  * One definition of "these are the results now", wherever they were read.
  */
 function receiveIndex(
   store: Store,
-  { entries, keywords, total, order, perPage }: PublicationIndex,
+  { entries, matched, total, order, perPage }: PublicationIndex,
 ): PublicationId[] {
   if (total !== null) store.set(totalIndexCountAtom, total);
-  store.set(keywordsAtom, keywords);
+  store.set(matchedAtom, matched);
   store.set(orderAtom, order);
   store.set(perPageAtom, perPage);
   // The first page has drawn as far into the ordering as it holds rows.
@@ -591,7 +593,7 @@ export {
   hiddenAttributesAtom,
   isLoadingMoreAtom,
   isValidFamily,
-  keywordsAtom,
+  matchedAtom,
   isValidatingAtom,
   lastValidatedFamily,
   overriddenCountAtom,

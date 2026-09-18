@@ -149,6 +149,33 @@ defmodule RichardBurton.Publication.Index.Term do
   @spec plain?([alternative]) :: boolean
   def plain?(alternatives), do: Enum.all?(alternatives, &(&1.filters == []))
 
+  # The name a field is reported by: the English one of the several it answers
+  # to, which is the one a reader can type back into a term.
+  @names %{
+    title: "title",
+    original_title: "original",
+    authors: "translator",
+    original_authors: "author",
+    countries: "country",
+    publishers: "publisher",
+    year: "year",
+    references: "source"
+  }
+
+  @doc """
+  The name an operator on this field is written with.
+
+  ## Examples
+
+      iex> RichardBurton.Publication.Index.Term.name(:original_authors)
+      "author"
+
+      iex> RichardBurton.Publication.Index.Term.name(:references)
+      "source"
+  """
+  @spec name(atom) :: String.t()
+  def name(field), do: Map.fetch!(@names, field)
+
   # Splits one alternative's tokens into the operators and the free words, and
   # strips the quotes or brackets the words were written in.
   defp read_alternative(tokens) do

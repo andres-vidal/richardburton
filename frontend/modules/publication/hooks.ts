@@ -12,7 +12,7 @@ import {
   focusedRowIdAtom,
   hiddenAttributesAtom,
   isValidFamily,
-  keywordsAtom,
+  matchedAtom,
   isValidatingAtom,
   overriddenCountAtom,
   overriddenIdsAtom,
@@ -146,8 +146,8 @@ function useMatchingCount() {
   return useAtomValue(matchingCountAtom);
 }
 
-function useKeywords() {
-  return useAtomValue(keywordsAtom);
+function useMatched() {
+  return useAtomValue(matchedAtom);
 }
 
 function useIsValidating() {
@@ -180,7 +180,7 @@ export {
   useIsAttributeVisible,
   useIsPublicationFocused,
   useIsPublicationValid,
-  useKeywords,
+  useMatched,
   useIsValidating,
   useOverriddenPublicationCount,
   useOverriddenPublicationIds,
