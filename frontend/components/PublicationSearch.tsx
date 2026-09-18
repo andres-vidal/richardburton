@@ -1,6 +1,7 @@
 "use client";
 
 import { useMatched } from "modules/publication/hooks";
+import type { Matched } from "modules/publication/model";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChangeEventHandler, FC, useRef, useState, useTransition } from "react";
@@ -19,6 +20,49 @@ const SEARCH_DELAY_MS = 350;
 function searchFor(field: string | null, word: string): string {
   return field ? `${field}:${word}` : word;
 }
+
+/** One typed word and what it matched, each match linking to a search for it. */
+const SearchMatch: FC<Matched> = ({ field, typed, words }) => (
+  <>
+    <strong className="font-normal">{searchFor(field, typed)}</strong>
+    <span> matched </span>
+    {words.map((word, index) => (
+      <span key={word}>
+        <Link
+          href={`?search=${encodeURIComponent(searchFor(field, word))}`}
+          className="text-indigo-600 underline hover:bg-indigo-300"
+        >
+          {word}
+        </Link>
+        {index < words.length - 1 && ", "}
+      </span>
+    ))}
+  </>
+);
+
+/** Every match the current search made, separated by dots. Empty renders nothing. */
+const SearchMatches: FC<{ matched: Matched[] }> = ({ matched }) => (
+  <>
+    {matched.map((match, index) => (
+      <span key={`${match.field ?? "free"}-${match.typed}`}>
+        {index > 0 && <span className="text-gray-400"> · </span>}
+        <SearchMatch {...match} />
+      </span>
+    ))}
+  </>
+);
+
+/** The animated ellipsis shown while a query is in flight. */
+const SearchProgress: FC = () => (
+  <span>
+    Searching the collection
+    <span aria-hidden className="tracking-widest">
+      <span className="animate-pulse">.</span>
+      <span className="animate-pulse [animation-delay:150ms]">.</span>
+      <span className="animate-pulse [animation-delay:300ms]">.</span>
+    </span>
+  </span>
+);
 
 const PublicationSearch: FC = () => {
   const router = useRouter();
@@ -75,44 +119,9 @@ const PublicationSearch: FC = () => {
       <div className="flex gap-3 items-baseline px-3 h-4 text-xs">
         <div aria-live="polite" className="space-x-1 min-w-0 truncate grow">
           {isLoading ? (
-            <span>
-              Searching the collection
-              <span aria-hidden className="tracking-widest">
-                <span className="animate-pulse">.</span>
-                <span className="animate-pulse [animation-delay:150ms]">.</span>
-                <span className="animate-pulse [animation-delay:300ms]">.</span>
-              </span>
-            </span>
+            <SearchProgress />
           ) : (
-            matched &&
-            matched.length > 0 && (
-              // Only the words the index read differently from the way they
-              // were typed: told that `machado` was searched as `machado`, a
-              // reader has learnt nothing. This says where the results came
-              // from when they answer a term nobody typed.
-              <>
-                {matched.map(({ field, typed, words }, entry) => (
-                  <span key={`search-matched-${field ?? "free"}-${typed}`}>
-                    {entry > 0 && <span className="text-gray-400"> · </span>}
-                    <strong className="font-normal">
-                      {searchFor(field, typed)}
-                    </strong>
-                    <span> matched </span>
-                    {words.map((word, index) => (
-                      <span key={`search-matched-${typed}-${word}`}>
-                        <Link
-                          href={`?search=${encodeURIComponent(searchFor(field, word))}`}
-                          className="text-indigo-600 underline hover:bg-indigo-300"
-                        >
-                          {word}
-                        </Link>
-                        {index < words.length - 1 && ", "}
-                      </span>
-                    ))}
-                  </span>
-                ))}
-              </>
-            )
+            <SearchMatches matched={matched ?? []} />
           )}
         </div>
         <button
