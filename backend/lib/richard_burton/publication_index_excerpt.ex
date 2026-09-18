@@ -113,15 +113,18 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     alternatives
     |> Enum.flat_map(& &1.filters)
     |> Enum.reject(&(&1.negated or &1.field == :year))
-    |> Enum.group_by(& &1.field, & &1.value)
-    |> Enum.map(fn {field, values} ->
-      %{
-        field: Term.name(field),
-        words: values |> Enum.flat_map(&Keywords.words/1) |> standing_for()
-      }
+    |> Enum.group_by(& &1.field)
+    |> Enum.map(fn {field, filters} ->
+      %{field: Term.name(field), words: Enum.flat_map(filters, &filter_words/1)}
     end)
     |> Enum.reject(&(&1.words == []))
   end
+
+  # A quoted value is reported as the words it holds: it was matched as a phrase,
+  # so it stands for nothing beyond itself. Anything else is reported as what the
+  # index widened it to.
+  defp filter_words(%{value: value, exact: true}), do: Keywords.words(value)
+  defp filter_words(%{value: value}), do: value |> Keywords.words() |> standing_for()
 
   defp standing_for(words) do
     words
@@ -173,14 +176,18 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   defp filter(%{negated: true}, ask), do: ask
   defp filter(%{field: :year}, ask), do: ask
 
-  defp filter(%{field: field, value: value}, ask) do
-    Map.update(ask, field, value_query(value), &any_of([&1, value_query(value)]))
+  defp filter(%{field: field, value: value, exact: exact}, ask) do
+    query = value_query(value, exact)
+    Map.update(ask, field, query, &any_of([&1, query]))
   end
 
-  # An operator value marks word by word, as a free word does.
-  defp value_query(value) do
-    value |> Keywords.words() |> Enum.map(&word_query/1) |> any_of()
-  end
+  # A quoted value was matched as the phrase it is, so it marks the words it
+  # actually holds. Anything else marks word by word, as a free word does.
+  defp value_query(value, true),
+    do: value |> Keywords.words() |> Enum.map(&Query.lexeme/1) |> any_of()
+
+  defp value_query(value, false),
+    do: value |> Keywords.words() |> Enum.map(&word_query/1) |> any_of()
 
   # A word marks what the search matched it as: what it begins, or, when it
   # begins nothing in the index, what it resembles — the same ladder the search

@@ -631,6 +631,13 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.all?(marked("autor:machado"), &(Map.keys(&1) == [:original_authors]))
     end
 
+    test "a quoted operator value marks the phrase, not what its words begin" do
+      rows = marked(~s(autor:"machado de assis"))
+
+      refute Enum.empty?(rows)
+      assert Enum.all?(rows, &(&1.original_authors == "[[Machado]] [[de]] [[Assis]]"))
+    end
+
     test "a misspelled operator value marks what it found" do
       rows = marked("title:nigth")
 
@@ -737,6 +744,14 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Excerpt.resolution("titulo:night autor:machado") == [
                %{field: "title", words: ["night"]},
                %{field: "author", words: ["machado"]}
+             ]
+    end
+
+    test "a quoted value is reported as the phrase it is, not widened" do
+      # It was matched by `phraseto_tsquery`, so it stands for nothing beyond
+      # itself: `de` must not drag in every indexed word beginning with it.
+      assert Excerpt.resolution(~s(author:"machado de assis")) == [
+               %{field: "author", words: ["machado", "de", "assis"]}
              ]
     end
 
