@@ -1,18 +1,19 @@
 defmodule RichardBurton.Publication.Index.Keywords do
   @moduledoc """
-  Resolves the words a reader typed to the words the index actually holds.
+  Maps the words someone typed onto the words the index actually contains.
 
-  `search_keywords` is a materialized view of every distinct word in the search
-  documents. A term is matched against it word by word, because both kinds of
-  match only work that way: a prefix is the start of a single word, and trigram
-  similarity between a word and a whole phrase falls toward zero as the phrase
-  grows.
+  `search_keywords` is a materialized view holding every distinct word in the
+  search documents. Terms are matched against it one word at a time, because
+  neither kind of match works on anything longer: a prefix is the beginning of a
+  single word, and trigram similarity between a word and a whole phrase drops
+  towards zero as the phrase gets longer.
 
-  Two modes, which the caller chooses:
+  The caller picks one of two modes:
 
-    * `:prefix` — the indexed words a word begins, for a term matched as typed.
-    * `:fuzzy` — the indexed words a word resembles, for the second pass when
-      nothing matched as typed.
+    * `:prefix` — the indexed words that start with the given word. Used when
+      matching a term as typed.
+    * `:fuzzy` — the indexed words that merely resemble it. Used for the second
+      attempt, after nothing matched as typed.
   """
 
   import Ecto.Query
@@ -37,8 +38,9 @@ defmodule RichardBurton.Publication.Index.Keywords do
   def resolve(word, :fuzzy) do
     from(w in SearchKeyword,
       where: fragment("similarity((?), unaccent(?)) > ?", w.word, ^word, ^@similarity),
-      # Likest first. Every one of them is searched on, so this does not decide
-      # what matches — only which are worth naming to the reader first.
+      # Most similar first. All of them are searched on regardless, so this does
+      # not affect which publications match — only the order they are listed in
+      # when the reader is told what their word matched.
       order_by: [desc: fragment("similarity((?), unaccent(?))", w.word, ^word)]
     )
     |> Repo.all()
@@ -46,11 +48,12 @@ defmodule RichardBurton.Publication.Index.Keywords do
   end
 
   @doc """
-  The indexed words a word stands for, and how it reached them: those it begins,
-  or those it resembles when it begins none.
+  The indexed words a given word matches, and how it matched them: the words it
+  is a prefix of, or — if it is a prefix of none — the words it resembles.
 
-  The same ladder a search climbs, so what a reader is told the index made of
-  their word is what it marked on the rows.
+  These are the same two steps, in the same order, that a search itself takes.
+  Using one function for both means the words a reader is told their search
+  matched are exactly the words highlighted in the rows.
   """
   def standing_for(word) do
     case resolve(word, :prefix) do
@@ -60,7 +63,7 @@ defmodule RichardBurton.Publication.Index.Keywords do
   end
 
   @doc """
-  A term as the words it is made of.
+  Splits a term into the individual words it is made of.
 
   ## Examples
 

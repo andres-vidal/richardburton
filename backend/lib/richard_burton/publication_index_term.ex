@@ -2,18 +2,17 @@ defmodule RichardBurton.Publication.Index.Term do
   @moduledoc """
   Parses a search term into the structure `Publication.Index` builds a query from.
 
-  Four words carry specific meanings here:
+  Terms used here:
 
-    * **term** — everything the reader typed, as one string.
+    * **term** — everything the reader typed, as a single string.
     * **alternative** — a part of a term that can satisfy it on its own. `:or`
-      (or `:ou`) separates them; a term without `:or` is a single alternative.
-    * **operator** — the `field:value` form as it is written, such as
-      `title:casmurro`.
-    * **filter** — one operator once parsed: the column it names, its value, and
-      whether it was quoted or negated. An operator is what the reader types; a
-      filter is what the query is built from.
+      (or `:ou`) separates them, so a term without `:or` is one alternative.
+    * **operator** — the `field:value` form as written, such as `title:casmurro`.
+    * **filter** — an operator after parsing: the column it names, its value, and
+      whether it was quoted or negated. The operator is what gets typed; the
+      filter is what the query gets built from.
 
-  An alternative holds free words and filters, and matches when both match.
+  An alternative holds free words and filters, and matches only when both do.
 
       title:casmurro          matches the title only
       year:1950-1960          matches a year range
@@ -21,15 +20,17 @@ defmodule RichardBurton.Publication.Index.Term do
       title:"dom casmurro"    matches the words in that order
       title:(dom casmurro)    matches both words in any order
 
-  Operator values match like free words — by prefix, with a fuzzy fallback —
-  unless quoted, which matches them as written.
+  An operator's value is matched the same way a free word is — by prefix, falling
+  back to similar words — unless it is quoted, in which case it is matched
+  exactly as written.
 
-  Each operator accepts an English name and a Portuguese one, matched with case
-  and accents folded away; a name of two words is accepted hyphenated or
-  underscored.
+  Every operator answers to an English name and a Portuguese one. Case and accents
+  are ignored when matching them, and a two-word name may be written with either a
+  hyphen or an underscore.
 
-  An unrecognised prefix is not an operator: `foo:bar` parses as free text, so a
-  colon typed inside a title does not fail the query.
+  Anything before a colon that is not a known name is not an operator at all:
+  `foo:bar` is parsed as ordinary text. That way a colon typed inside a title does
+  not break the search.
   """
 
   @type filter :: %{field: atom, value: String.t(), exact: boolean, negated: boolean}
@@ -136,7 +137,7 @@ defmodule RichardBurton.Publication.Index.Term do
   end
 
   @doc """
-  Whether a term carries no operators, and so asks for nothing of a single field.
+  Whether a term contains no operators, and so searches no field in particular.
 
   ## Examples
 
@@ -163,7 +164,10 @@ defmodule RichardBurton.Publication.Index.Term do
   }
 
   @doc """
-  The name an operator on this field is written with.
+  The name used to write an operator on this field.
+
+  A field answers to several names, and this returns the English one, which is
+  what gets shown to the reader and read back as a term.
 
   ## Examples
 
@@ -216,12 +220,12 @@ defmodule RichardBurton.Publication.Index.Term do
   defp known?(field), do: Map.has_key?(@fields, fold(field))
 
   @doc """
-  A word as the index holds it: lowercased, with its accents folded away.
+  A word in the form the index holds it: lowercased, with accents removed.
 
-  Operator names are matched this way, so `TÍTULO`, `título` and `titulo` are one
-  name and each is listed once. Values are folded the same way by the search
-  configuration's `unaccent`, so this is also how to tell whether a word the
-  index returned is the one that was typed.
+  Operator names are compared in this form, so `TÍTULO`, `título` and `titulo` are
+  all the same name and it only has to be listed once. The search configuration's
+  `unaccent` puts values into the same form, which makes this the way to tell
+  whether a word the index returned is the one that was typed.
 
   ## Examples
 

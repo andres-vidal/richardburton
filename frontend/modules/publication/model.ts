@@ -16,28 +16,29 @@ type Publication = {
   // The server PK: a real id on persisted rows (index/search), null on
   // unsaved/working rows. Read-only: never cast from client input.
   id: number | null;
-  // What in each field answered a search, keyed by field, with the matched words
-  // wrapped in `[[ ]]`. Present only on search results; a field the search did
-  // not match is null.
+  // The matching text of each field, keyed by field, with the matched words
+  // wrapped in `[[ ]]`. Only present on search results, and null for any field
+  // the search did not match.
   excerpts?: Record<string, string | null>;
 };
 
 type PublicationKey = keyof Omit<Publication, "id" | "references" | "excerpts">;
 
 /**
- * One word the index read differently from the way it was typed: what was typed,
- * what the index answered it with, and the field it was asked of — `null` for a
- * free word, asked of every field.
+ * One word the search matched with something other than what was typed.
  *
- * A word taken as written is not reported, so this is empty for most searches.
- * `field` is the name an operator is written with, so each entry reads straight
- * back into a term.
+ * Holds the word as typed, the indexed words it actually matched, and the field
+ * it was searched in — `null` for a free word, which is searched in every field.
+ *
+ * Words matched exactly are not included, so this is empty for most searches.
+ * `field` is the name used to write an operator, so every entry can be read back
+ * as a search term.
  */
 type Matched = {
   field: string | null;
-  /** The word as it was typed. */
+  /** The word exactly as the reader typed it. */
   typed: string;
-  /** What the index answered it with, when that was not the word itself. */
+  /** The indexed words it matched, when those were not simply the word itself. */
   words: string[];
 };
 

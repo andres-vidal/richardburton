@@ -30,8 +30,9 @@ export type PublicationView = {
  */
 export const readPublication = cache(
   async (id: string, search?: string): Promise<PublicationView | null> => {
-    // The search rides along so the record marks what answered it, exactly as the
-    // row the reader followed did. Off a search there is nothing to mark.
+    // The search is sent along so the record highlights what matched it, the same
+    // way the row the reader clicked did. Outside a search there is nothing to
+    // highlight.
     const [publication, session] = await Promise.all([
       get<Publication>(`/publications/${id}`, search ? { search } : {}).catch(
         () => null,

@@ -55,7 +55,7 @@ async function run<T>(op: (http: AxiosInstance) => Promise<T>): Promise<T> {
  * Read the details of a named stretch of the index from the browser, for
  * infinite scroll. The first page is server-rendered; as the reader nears the
  * foot, the next stretch of the frozen ordering is asked for by id. The search
- * rides along so each row still says what answered it. Ids that no longer
+ * is sent along so each row still shows what matched it. Ids that no longer
  * resolve (removed since the ordering froze) simply come back absent.
  */
 async function loadDetails(

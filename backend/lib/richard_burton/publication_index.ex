@@ -2,37 +2,40 @@ defmodule RichardBurton.Publication.Index do
   @moduledoc """
   Full-text search over the publication index.
 
-  A term parses into alternatives separated by `:or` (or `:ou`), any of which
-  may match. An alternative holds free words — matched individually by prefix,
-  or fuzzily if nothing matches as typed, and AND-ed together — plus operators
-  scoped to a single field:
+  A term is split on `:or` (or `:ou`) into **alternatives**, and a publication
+  matches if it satisfies any one of them.
 
-      title:casmurro            title only
-      autor:machado             author, in Portuguese
-      year:1950-1960            year range
-      -country:US               negated
-      title:"dom casmurro"      phrase, in that order
+  Each alternative contains free words and operators. Free words are matched one
+  at a time and combined with AND, so every word has to match. An operator
+  restricts its value to a single field:
 
-  An alternative matches when its words and its filters both match.
+      title:casmurro            search the title only
+      autor:machado             search the author, written in Portuguese
+      year:1950-1960            a range of years
+      -country:US               exclude
+      title:"dom casmurro"      these words, in this order
 
-  Two more words carry specific meanings here, both of which appear as tags in
-  the code:
+  An alternative matches when both its words and its operators match.
 
-    * **spelled out** — a term that quotes or negates but contains no operator.
-      It is passed to `websearch_to_tsquery` unchanged rather than parsed, since
-      Postgres already reads that syntax. Tagged `{:spelled_out, term}`.
-    * **ask** — the tagged tuple a parsed term becomes, either
-      `{:spelled_out, term}` or `{:alternatives, alternatives}`. It is what
-      `matches/1` and `ranking/1` are built from, and the only thing the two
-      paths differ by.
-    * **mode** — how a word is matched: `:prefix` from the start of a word, or
-      `:fuzzy` against the indexed words it resembles. A search runs in `:prefix`
-      first and falls back to `:fuzzy` only when that returns nothing. The two
-      modes differ only in which tsquery function reads the term.
+  Terms used here, which also appear as tags in the code:
 
-  Both paths match against a `tsvector` built with accents folded, so the term
-  is folded the same way first. See `RichardBurton.Publication.Index.Term` for
-  the term vocabulary and the names each operator accepts.
+    * **spelled out** — a term that uses quotes or a leading `-` but contains no
+      operator. Postgres already understands that syntax, so the term is handed
+      to `websearch_to_tsquery` as written instead of being parsed here. Tagged
+      `{:spelled_out, term}`.
+    * **ask** — what a term becomes once it has been read: either
+      `{:spelled_out, term}` or `{:alternatives, alternatives}`. `matches/1` and
+      `ranking/1` are built from it, and it is the only thing that differs
+      between the two ways of reading a term.
+    * **mode** — how a word is matched. `:prefix` matches words starting with it;
+      `:fuzzy` matches indexed words that merely resemble it. A search always
+      tries `:prefix` first and only falls back to `:fuzzy` if that found
+      nothing. The two modes differ only in which tsquery function is used.
+
+  Both ways of reading a term match against a `tsvector` whose accents have been
+  stripped, so the term has its accents stripped too before it is compared. See
+  `RichardBurton.Publication.Index.Term` for the vocabulary a term is written in
+  and the names each operator answers to.
   """
 
   import Ecto.Query
@@ -68,17 +71,17 @@ defmodule RichardBurton.Publication.Index do
     {:ok, results}
   end
 
-  # The registered total is counted from the same rows the index lists, so it
-  # shares the same indexing delay as the search. This is on purpose, so the
-  # count matches the number of items the client would get if it fetched the
-  # full list at this exact point in time.
+  # The total is counted from the same rows the index lists, so it lags behind
+  # writes by the same amount the search does. That is deliberate: the count then
+  # matches how many items a client would get by fetching the full list right now.
   def count() do
     Repo.aggregate(FlatPublication, :count, :id)
   end
 
   @doc """
-  Publications with no provenance, ordered by id — the stable queue the references
-  backfill steps through.
+  Publications that have no sources recorded, ordered by id. This is the queue
+  the sources backfill works through, and the order has to be stable so it can be
+  resumed.
   """
   def without_references do
     results =
@@ -99,18 +102,18 @@ defmodule RichardBurton.Publication.Index do
   The publications a term matches.
 
   The term is split on `:or` (or `:ou`) into alternatives, and a publication
-  matches if it satisfies any of them. Within an alternative the words are
-  combined with AND, so each word narrows: a publication must match every word
-  of the alternative. That is why searching a full title returns just that
-  title, while "one title or another" returns both. For a single word, matching
-  any of the indexed words it could be is enough, so a half-typed word matches
-  everything it might still become. The term is tried as typed first, and only
-  if that matches nothing is it retried fuzzily, dropping a word that matches
-  nothing rather than emptying the result.
+  matches if it satisfies any one of them. Within an alternative, words are
+  combined with AND, so every word has to match. That is why searching a full
+  title returns only that title, while "one title or another" returns both.
 
-  Unbounded, for the caller that needs all of it at once — the CSV export is a
-  download of the database, not a page of it. A reader takes it a page at a time
-  through `search_order/1` and `details/2` instead.
+  A single word only has to match one of the indexed words it could be, so a
+  half-typed word matches anything it might still become. The term is tried as
+  typed first; only if that matches nothing is it retried fuzzily, and a word
+  that matches nothing is then dropped rather than emptying the whole result.
+
+  This returns everything at once, with no paging, for callers that need the
+  whole result — the CSV export downloads the database rather than a page of it.
+  A reader goes through `search_order/1` and `details/2` instead.
   """
   def search(term, select: attributes) when is_binary(term) do
     case answering(term) do
@@ -120,14 +123,13 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  The whole ordering a search resolves to — the ids of every publication it
-  matches, in the order they are to be read — or `:none` when nothing in the index
-  answers at all.
+  The ids of every publication a term matches, in the order they should be read,
+  or `:none` if the term matches nothing at all.
 
-  The order is settled here, once. A reader then pages through it by id (see
-  `details/2`) and sees a stable list, because the order was fixed the moment
-  the search ran: rows cannot shift, skip or repeat as the database changes
-  between one page and the next.
+  The order is decided once, here. The reader then pages through those ids with
+  `details/2` and sees a stable list, because the order was fixed at the moment
+  the search ran. Without that, rows could shift, be skipped or appear twice as
+  the database changed between one page and the next.
   """
   def search_order(term) when is_binary(term) do
     case answering(term) do
@@ -137,8 +139,9 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  The ids of the whole database, in the order it is listed — by title, then id.
-  The counterpart of `search_order/1` for a reader browsing rather than searching.
+  The ids of every publication, in the order the index lists them: by title, then
+  by id. The equivalent of `search_order/1` for a reader who is browsing rather
+  than searching.
   """
   def all_order do
     from(fp in FlatPublication, order_by: [asc: fp.title, asc: fp.id], select: fp.id)
@@ -146,13 +149,15 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  The full rows for the given ids, in that order — one stretch of an ordering
-  `search_order/1` or `all_order/0` handed back. A `nil` term is a plain
-  listing; a term is carried so each row comes back with an excerpt of every
-  field that answered it.
+  The full rows for the given ids, in that order — one page of an ordering that
+  `search_order/1` or `all_order/0` returned earlier.
 
-  An id no longer in the database is simply left out, which is how a deletion
-  since the order was fixed shows up: a gap, never a shifted or repeated row.
+  Pass `nil` as the term for a plain listing. Pass the term itself and each row
+  comes back with an excerpt of every field that matched it.
+
+  An id that is no longer in the database is left out. That is what a deletion
+  looks like after the order was fixed: a gap in the page, rather than rows
+  shifting up or repeating.
   """
   def details(ids, term \\ nil)
 
@@ -172,16 +177,16 @@ defmodule RichardBurton.Publication.Index do
   @doc "How many publications a page holds."
   def per_page, do: @per_page
 
-  # What a term is asking for: the query that answers it and the ids it matched,
-  # or `:none` when nothing in the index answers.
+  # Works out what a term is asking for: the query that answers it and the ids it
+  # matched, or `:none` if nothing in the index matches.
   #
-  # Deciding whether the term answers as written means running it, so the ids
-  # come back with the answer rather than being asked for again. Only if it
-  # matched nothing is the term retried fuzzily.
+  # Finding out whether the term matches anything as typed means running it, so
+  # the ids are kept rather than thrown away and asked for again. The term is
+  # only retried fuzzily if it matched nothing.
   #
-  # A term that quotes a phrase or negates a word (-word) is stating exactly what
+  # A term that quotes a phrase or excludes a word with `-` is saying exactly what
   # it wants, so it is passed to Postgres as written and never widened: no prefix
-  # matching, and no fuzzy pass that could add back a word it just excluded.
+  # matching, and no fuzzy retry that might add back a word it just excluded.
   defp answering(term) do
     alternatives = Term.parse(term)
 
@@ -189,7 +194,7 @@ defmodule RichardBurton.Publication.Index do
       alternatives == [] ->
         :none
 
-      # Quotes or exclusions with no operator: passed through unchanged.
+      # Quotes or exclusions, with no operator: passed to Postgres as written.
       Term.plain?(alternatives) and Query.spelled_out?(term) ->
         ask = {:spelled_out, term}
         {ask, order_ids(ask)}
@@ -205,9 +210,9 @@ defmodule RichardBurton.Publication.Index do
   end
 
   # Nothing matched as typed, so each word is matched against the indexed words
-  # it resembles. A word resembling none is dropped rather than failing the
-  # alternative; an alternative left with no words is dropped entirely, and a
-  # term left with nothing to ask answers nothing.
+  # it resembles. A word that resembles nothing is dropped, rather than making the
+  # whole alternative fail. An alternative left with no words is dropped too, and
+  # a term left with nothing to search for matches nothing.
   defp fuzzily_answering(alternatives) do
     ask = Query.asked(alternatives, :fuzzy)
 
@@ -216,15 +221,13 @@ defmodule RichardBurton.Publication.Index do
       else: {ask, order_ids(ask)}
   end
 
-  # The ids a search matches, in reading order — the ordering the reader pages
-  # through by id.
+  # The ids a search matches, in reading order. This is the ordering the reader
+  # pages through by id.
   defp order_ids(ask), do: ask |> ranked() |> select([p], p.id) |> Repo.all()
 
-  # The publications a search matches, in the order they are to be read: by rank,
-  # then title, then id. Rows of equal rank must sort the same way every time, or
-  # paging through the results would repeat or skip some. The two search modes
-  # differ only in which tsquery function reads the term, so that difference is
-  # all that `matches/1` and `ranking/1` carry.
+  # The publications a search matches, in reading order: by rank, then title, then
+  # id. Rows with the same rank have to sort the same way every time, or paging
+  # through the results would repeat or skip some.
   defp ranked(ask) do
     from(p in FlatPublication,
       join: d in SearchDocument,
@@ -241,8 +244,8 @@ defmodule RichardBurton.Publication.Index do
     ask |> ranked() |> maybe_select(attributes)
   end
 
-  # Selecting no attributes returns whole rows; naming some narrows the export to
-  # those columns.
+  # An empty attribute list returns whole rows. Naming attributes narrows the
+  # export to just those columns.
   defp maybe_select(query, []) do
     query
   end
@@ -251,8 +254,9 @@ defmodule RichardBurton.Publication.Index do
     select(query, [fp], map(fp, ^attributes))
   end
 
-  # The database returns rows in whatever order it likes; the caller asked for a
-  # particular one, so put them back into it and drop any that have since left.
+  # The database returns rows in whatever order it likes, but the caller asked for
+  # a specific one. This puts them back in that order and drops any that have been
+  # deleted since.
   defp in_order(rows, ids) do
     by_id = Map.new(rows, &{&1.id, &1})
     ids |> Enum.map(&Map.get(by_id, &1)) |> Enum.reject(&is_nil/1)

@@ -5,12 +5,13 @@ defmodule RichardBurtonWeb.PublicationController do
   alias RichardBurton.Publication
   alias RichardBurton.User
 
-  # A later page of a search or listing already begun: the reader has scrolled,
-  # and asks for the next stretch of the ordering the first response handed back.
-  # The search rides along so each row still says what answered it.
+  # A later page of a search or listing that has already started: the reader has
+  # scrolled, and is asking for the next stretch of the ordering the first
+  # response returned. The search is sent along too, so each row can still show
+  # what matched it.
   #
-  # The total was reported with the first page and does not change under the
-  # reader; a later stretch is only the rows, so it does not pay to count again.
+  # The total was already reported with the first page and does not change while
+  # the reader scrolls, so later pages return only the rows and skip counting.
   def index(conn, params = %{"ids" => ids}) do
     entries = Publication.Index.details(parse_ids(ids), Map.get(params, "search"))
 
@@ -22,10 +23,10 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_total() |> json(%{entries: results})
   end
 
-  # The first response to a query hands back the whole ordering — the ids of
-  # every match, in the order they are to be read — and the first page of them in
-  # full. The reader scrolls the rest in by that frozen ordering, so the paging
-  # cannot drift as the database changes underneath it.
+  # The first response to a query returns two things: the whole ordering (the ids
+  # of every match, in reading order) and the first page of those rows in full.
+  # The reader scrolls the rest in using that fixed ordering, so paging cannot
+  # drift as the database changes underneath.
   def index(conn, %{"search" => query}) do
     case Publication.Index.search_order(query) do
       :none -> conn |> put_total() |> json(first_page([], nil))
@@ -37,8 +38,8 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil))
   end
 
-  # What the index made of the term rides along for the reader to see, not for the
-  # rows: each row says what answered it on its own.
+  # What the index made of the term is sent for the reader to see, not for the
+  # rows' sake — each row already carries its own record of what matched it.
   defp first_page(order, search) do
     per_page = Publication.Index.per_page()
     entries = Publication.Index.details(Enum.take(order, per_page), search)
@@ -69,10 +70,10 @@ defmodule RichardBurtonWeb.PublicationController do
     end
   end
 
-  # One publication, flat, the same shape the index lists — so a page that shows
-  # a single record does not have to be handed one by a page that lists many. A
-  # search rides along when the reader arrived from one, so the record marks what
-  # answered it exactly as the index did.
+  # One publication, flattened into the same shape the index lists, so a page
+  # showing a single record does not need a page listing many to hand it one. If
+  # the reader arrived from a search, that search is sent along too, so the record
+  # highlights what matched exactly as the index did.
   def show(conn, params = %{"id" => id}) do
     case Publication.find(id) do
       nil ->
@@ -84,9 +85,10 @@ defmodule RichardBurtonWeb.PublicationController do
     end
   end
 
-  # The record itself is read live, so it answers before the index has caught up
-  # with it. The excerpts are read from the index, and so are simply absent until
-  # it has — a record shows without marks rather than not showing.
+  # The record itself is read from the live table, so it is available as soon as it
+  # is written. The excerpts come from the index, which lags behind, so a record
+  # written moments ago has none. It is shown without highlighting rather than not
+  # shown at all.
   defp excerpted(flat, nil), do: flat
 
   defp excerpted(flat, search) do

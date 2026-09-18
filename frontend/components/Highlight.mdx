@@ -6,54 +6,57 @@ import * as HighlightStories from "./Highlight.stories";
 
 # Highlight
 
-Renders the marks the index put on an excerpt, so a reader can see what the query
-caught rather than inferring it. Used wherever a publication is shown while a
-search is on — the rows of the index, the list, and a record open over them.
+Renders the highlighting the index put on an excerpt, so a reader can see what
+the search matched instead of having to work it out. Used wherever a publication
+is shown during a search: the rows of the index, the list, and a record opened
+over them.
 
 <Canvas of={HighlightStories.Matched} />
 
 ## Props
 
-- `children` — the excerpt to render. A plain string; the component returns it as
-  a mix of text and `<mark>` runs.
-- `className` — the classes each `<mark>` carries. Defaults to the amber mark the
-  index uses.
+- `children` — the excerpt to render, as a plain string. The component returns it
+  as a mix of plain text and `<mark>` elements.
+- `className` — the classes applied to each `<mark>`. Defaults to the amber
+  highlight the index uses.
 
 ## How it works
 
-The index returns, for every field it searched, the text that matched with the
+For every field it searched, the index returns the text that matched, with the
 matched words wrapped in `[[ ]]` — see the backend's
 `RichardBurton.Publication.Index.Excerpt`. This component splits on those
-delimiters and wraps the odd runs in `<mark>`. It decides nothing about what
-matched; it only renders what the database already decided.
+markers and wraps every other piece in a `<mark>`. It makes no decision about
+what matched; it only renders what the database already decided.
 
-That is the point of doing it this way. Whether two spellings are one word, where
-a word ends, and which field an operator was scoped to are all settled by the
-search configuration, and only the database knows them. `title:night` marks the
-title and nothing else because the index built an excerpt for the title alone.
+That is the whole point of doing it this way. Whether two spellings count as the
+same word, where one word ends, and which field an operator applied to are all
+decided by the search configuration, which only the database knows. `title:night`
+highlights the title and nothing else because the index built an excerpt for the
+title alone.
 
 <Canvas of={HighlightStories.Accented} />
 
-Accents survive: the index folds them away to decide a match, but the excerpt it
-returns is the text as it is actually stored, so `Angústia` is marked by a search
-for `angustia` without losing the accent from what is shown.
+Accents are preserved. The index strips them when deciding whether something
+matched, but the excerpt it returns is the text as actually stored — so a search
+for `angustia` highlights `Angústia` without the accent disappearing from what is
+displayed.
 
-An excerpt can carry any number of marks, and all of them are rendered.
+An excerpt can contain any number of markers, and all of them are rendered.
 
 <Canvas of={HighlightStories.ManyMatches} />
 
 ## Outside a search
 
-A field the search did not match has no excerpt, and the caller passes the stored
-value instead — see `Publication.markedValue`. It carries no `[[ ]]`, so it
-renders untouched. The same is true of any text read outside a search, such as a
-publication's own page opened without a query behind it.
+A field the search did not match has no excerpt, so the caller passes the stored
+value instead — see `Publication.markedValue`. That value contains no `[[ ]]`, so
+it renders unchanged. The same goes for any text shown outside a search, such as
+a publication's own page opened without a query.
 
 <Canvas of={HighlightStories.Unmatched} />
 
 ## Restyling the mark
 
-The sources line under a title uses a dimmer mark, since the whole line is
+The sources line under a title uses a dimmer highlight, because the whole line is
 secondary to the row it explains.
 
 <Canvas of={HighlightStories.Restyled} />

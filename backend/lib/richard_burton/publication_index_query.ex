@@ -55,12 +55,13 @@ defmodule RichardBurton.Publication.Index.Query do
   def spelled_out?(term), do: String.contains?(term, ~s(")) or term =~ ~r/(^|\s)-\S/
 
   @doc """
-  A word as a tsquery lexeme, quoted so punctuation in it is read as part of the
-  word rather than as tsquery syntax.
+  Writes a word as a tsquery lexeme, in quotes, so that any punctuation in it is
+  read as part of the word instead of as tsquery syntax.
 
-  Inside the quotes a backslash escapes the next character, so both it and the
-  quote have to be escaped in turn — an unescaped trailing backslash would eat
-  the closing quote and leave Postgres a tsquery it cannot parse.
+  Inside those quotes a backslash escapes whatever follows it, so backslashes and
+  quotes both have to be escaped themselves. A word ending in an unescaped
+  backslash would otherwise escape the closing quote, and Postgres would reject
+  the whole tsquery.
 
   ## Examples
 

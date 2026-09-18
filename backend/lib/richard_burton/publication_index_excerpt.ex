@@ -1,25 +1,28 @@
 defmodule RichardBurton.Publication.Index.Excerpt do
   @moduledoc """
-  What in each field answered a search.
+  Builds the highlighted text that shows why a publication matched a search.
 
-  A row says which publication matched, not what in it did. For every field the
-  index searches, this returns that field's matching text with the matched words
-  wrapped in `[[ ]]`, in the row's virtual `excerpts` map — keyed by field, and
-  nil for a field the search did not match.
+  A search result tells you which publications matched, but not what in them
+  matched. This asks Postgres for that: for each field, the part of its text
+  that the search matched, with the matched words wrapped in `[[ ]]`. The result
+  goes in the row's virtual `excerpts` map, keyed by field, and is `nil` for any
+  field the search did not match.
 
-  The marking is done here rather than where the row is read because only the
-  database knows what counts as a match: which spellings the search
-  configuration folds together, and where one word ends. An operator is scoped
-  to a field besides, so `title:night` marks the title and nothing else. The
-  matched words alone, without the field each was asked of, cannot say that.
+  Postgres does the highlighting rather than the browser for two reasons. First,
+  only Postgres knows what counts as a match — which spellings the search
+  configuration treats as the same word, and where one word ends. Second, an
+  operator applies to a single field, so `title:night` has to highlight the
+  title and nothing else; a plain list of matched words, with no record of which
+  field each was searched in, cannot express that.
 
-  Two words carry specific meanings here:
+  Terms used here:
 
-    * **excerpt** — one field's matching text. A short field comes back whole;
-      `references`, which is an array matched as one joined string, comes back
-      as a window around the match.
-    * **ask** — the tsquery to excerpt each field with, keyed by field. The free
-      words are asked of every field; an operator only of the field it named.
+    * **excerpt** — the matching text of one field. Short fields come back in
+      full. `references` is an array, which the search treats as one long
+      string, so it comes back as a short window around the match instead.
+    * **ask** — a map from field name to the tsquery used to highlight it. Free
+      words (the ones not attached to an operator) are searched in every field;
+      an operator's value is searched only in the field it names.
   """
 
   import Ecto.Query
@@ -29,13 +32,14 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   alias RichardBurton.Publication.Index.Term
   alias RichardBurton.Repo
 
-  # A short field is marked in full. `references` is a whole bibliography joined
-  # into one string, so only the stretch that matched comes back.
+  # Highlighting options for `ts_headline`. Short fields are returned in full.
+  # `references` holds a whole bibliography joined into one string, so only a
+  # short window around the match is returned.
   @whole "StartSel=[[,StopSel=]],HighlightAll=true"
   @window "StartSel=[[,StopSel=]],MaxFragments=1,MaxWords=16,MinWords=6"
 
-  # The fields an excerpt is built for: those the search document is built from,
-  # less `year`, which is a number and has nothing to mark.
+  # The fields that get an excerpt. These are the fields the search document is
+  # built from, except `year`, which is a number and has no text to highlight.
   @fields [
     :title,
     :original_title,
@@ -46,9 +50,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     :references
   ]
 
-  # A field's matching text, or nil — when the field has no tsquery to answer,
-  # `to_tsquery` is given nil and nothing matches. Written once and expanded per
-  # field, since a fragment's SQL has to be a literal.
+  # Builds one field's excerpt, or nil. When the field has no tsquery, `to_tsquery`
+  # receives nil, nothing matches, and the CASE yields nil. This is a macro
+  # because a fragment's SQL must be a literal string, so it cannot be built in a
+  # loop over the fields.
   defmacrop excerpt(text, query, options) do
     quote do
       fragment(
@@ -66,11 +71,12 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   end
 
   @doc """
-  The tsquery to excerpt each field with, keyed by field.
+  Builds the ask: a map from field name to the tsquery to highlight it with.
 
-  Read from the term alone, the same way the search read it, so a page excerpts
-  without being handed what the search resolved to. A field nothing in the term
-  asked of comes back with no tsquery, and so with no excerpt.
+  This works the term out from scratch, the same way the search did, so a page
+  can highlight its rows without being handed anything the search worked out
+  earlier. A field that no part of the term searched gets no tsquery, and so
+  gets no excerpt.
   """
   def asked(term) do
     alternatives = Term.parse(term)
@@ -81,19 +87,21 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   end
 
   @doc """
-  The words the index read differently from the way they were typed, in the
-  order they were typed, each with what it stood for and the field it was asked
-  of — `nil` for a free word, which is asked of every field.
+  Lists the words the search matched with something other than what was typed.
 
-  A word the index took as written is not reported: a reader who typed
-  `machado` and is told the search was for `machado` has learnt nothing. What is
-  worth saying is that `Maries` found `marias`, `marie` and `mario`, because the
-  results answer a term nobody typed.
+  Each entry gives the word as it was typed, the indexed words it actually
+  matched, and the field it was searched in — `nil` for a free word, which is
+  searched in every field. Entries come back in the order the words were typed.
 
-  Read from the same resolution the excerpts are built from, so what a reader is
-  told was matched is what was marked on the rows. A quoted value matched as the
-  phrase it is and so was never widened; a spelled-out term is read by Postgres
-  rather than here. Neither reports anything.
+  Words the search matched exactly are left out. Telling someone who searched
+  `machado` that the search looked for `machado` is not useful. Telling them
+  that `Maries` matched `marias`, `marie` and `mario` is, because otherwise the
+  results look like they answer a term nobody typed.
+
+  This uses the same word resolution the excerpts use, so what the reader is
+  told was matched is exactly what is highlighted in the rows. Two cases return
+  nothing: a quoted value, which is matched exactly and so is never widened, and
+  a term Postgres parses itself (see `RichardBurton.Publication.Index.Query`).
   """
   @spec resolution(String.t()) :: [
           %{field: String.t() | nil, typed: String.t(), words: [String.t()]}
@@ -106,14 +114,16 @@ defmodule RichardBurton.Publication.Index.Excerpt do
       else: free_widenings(alternatives) ++ scoped_widenings(alternatives)
   end
 
-  # The free words, asked of no field in particular.
+  # The free words — the ones not attached to an operator, and so searched in
+  # every field.
   defp free_widenings(alternatives) do
     alternatives |> Enum.flat_map(& &1.words) |> Enum.flat_map(&widening(nil, &1))
   end
 
-  # The words of each operator's value, under the name the operator is written
-  # with so a reader can type it back. A negated operator answered nothing, a
-  # `year` holds no words, and a quoted value was matched as written.
+  # The words in each operator's value, reported under the name the operator is
+  # written with so the reader can type it back. Three kinds are skipped: a
+  # negated operator excludes rather than matches, a `year` contains no words,
+  # and a quoted value is matched exactly and so is never widened.
   defp scoped_widenings(alternatives) do
     alternatives
     |> Enum.flat_map(& &1.filters)
@@ -125,10 +135,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     end)
   end
 
-  # A word is worth reporting when the index answered it with something other
-  # than itself: it fell back to what the word resembles, or it began more than
-  # the one word. A word that stands for itself alone, and one the index does not
-  # hold at all, both report nothing.
+  # Reports a word only if the index matched it with something other than itself:
+  # either it found nothing spelled that way and fell back to similar words, or
+  # the word is a prefix of more than one indexed word. A word that matches only
+  # itself, and a word the index does not contain at all, are both left out.
   defp widening(field, word) do
     case Keywords.standing_for(word) do
       {_how, []} -> []
@@ -137,11 +147,11 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     end
   end
 
-  # Likest first, as the index returned them, so the nearest answer reads before
-  # the ones that only just cleared the threshold.
+  # The words arrive most-similar-first from the index, and stay in that order, so
+  # the closest match is read before ones that only just passed the threshold.
   defp report(field, word, words), do: [%{field: field, typed: word, words: words}]
 
-  @doc "Adds each field's excerpt to a query."
+  @doc "Adds the `excerpts` map to a query, one excerpt per field."
   def select(query, ask) do
     select_merge(query, [p], %{
       excerpts: %{
@@ -161,17 +171,18 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     })
   end
 
-  # A spelled-out term is read by Postgres rather than parsed here, and resolves
-  # to no words, so Postgres is asked for the tsquery it reads the term as and
-  # every field is excerpted with that.
+  # Some terms are handed to Postgres to parse rather than parsed here, which
+  # means we never resolve any words for them. So we ask Postgres what tsquery it
+  # reads the term as, and highlight every field with that.
   defp spelled_out_ask(term) do
     %{rows: [[query]]} = Repo.query!("SELECT websearch_to_tsquery('rb_search', $1)::text", [term])
 
     Map.new(@fields, &{&1, query})
   end
 
-  # The free words are asked of every field; a filter only of the field it named,
-  # so a term of operators alone excerpts nothing outside them.
+  # Free words are searched in every field; an operator's value only in the field
+  # it names. A term made only of operators therefore highlights nothing outside
+  # those fields.
   defp parsed_ask(alternatives) do
     words = alternatives |> Enum.flat_map(& &1.words) |> Enum.map(&word_query/1) |> any_of()
     filters = alternatives |> Enum.flat_map(& &1.filters) |> Enum.reduce(%{}, &filter/2)
@@ -179,9 +190,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     Map.new(@fields, &{&1, any_of([words, filters[&1]])})
   end
 
-  # A filter marks the words of its value in the field it named. A negated one
-  # marks nothing: the reader asked not to see it, so it cannot be why a row is
-  # here. `year` names a number, which has nothing to mark.
+  # Adds an operator's value to the ask, under the field it names. Negated
+  # operators are skipped: the reader asked not to see those words, so they
+  # cannot be the reason a row matched. `year` is skipped because it is a number
+  # with no text to highlight.
   defp filter(%{negated: true}, ask), do: ask
   defp filter(%{field: :year}, ask), do: ask
 
@@ -190,17 +202,19 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     Map.update(ask, field, query, &any_of([&1, query]))
   end
 
-  # A quoted value was matched as the phrase it is, so it marks the words it
-  # actually holds. Anything else marks word by word, as a free word does.
+  # A quoted value was matched as an exact phrase, so it highlights exactly the
+  # words it contains. An unquoted value is highlighted word by word, the same
+  # way a free word is.
   defp value_query(value, true),
     do: value |> Keywords.words() |> Enum.map(&Query.lexeme/1) |> any_of()
 
   defp value_query(value, false),
     do: value |> Keywords.words() |> Enum.map(&word_query/1) |> any_of()
 
-  # A word marks what the search matched it as: what it begins, or, when it
-  # begins nothing in the index, what it resembles — the same ladder the search
-  # itself climbed, so a misspelling still marks what it found.
+  # Highlights a word the same way the search matched it: as a prefix if the index
+  # contains words starting with it, otherwise as the list of similar words it
+  # fell back to. Following the search's own steps is what makes a misspelled
+  # word still highlight whatever it found.
   defp word_query(word) do
     case Keywords.standing_for(word) do
       {:prefix, _words} -> "#{Query.lexeme(word)}:*"
@@ -208,9 +222,9 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     end
   end
 
-  # Marking asks whether a word is there at all, not whether every word is, so
-  # the parts are combined with `|`: a field carrying any of them is excerpted at
-  # it. Nothing to ask is nil, which matches nothing.
+  # Combines tsqueries with `|` rather than `&`: highlighting asks whether any of
+  # these words appears in the field, not whether all of them do. Returns nil when
+  # there is nothing to ask, which highlights nothing.
   defp any_of(queries) do
     case Enum.reject(queries, &(&1 in [nil, ""])) do
       [] -> nil

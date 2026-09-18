@@ -99,8 +99,8 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
 
 /**
  * A search can match a publication on its references, which the table does not
- * show — so the row looks unexplained. This renders the excerpt of the matching
- * reference, so the reader can see why the row is here.
+ * show, which makes the row look unrelated to the search. This renders the
+ * excerpt of the matching reference so the reader can see why it is here.
  */
 const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
   const excerpt = usePublicationExcerpts(rowId)?.references;
@@ -120,9 +120,10 @@ const Content: FC<{
   // Content, which reads the edited value — see PublicationWorkspace.
   const value = usePublicationStoredField(rowId, colId);
   const excerpts = usePublicationExcerpts(rowId);
-  // The index marks a cell with what the search matched in it. `countries` is
-  // the exception: it stores a code and shows a name, so the excerpt marks text
-  // this cell never displays, and the term stands in as it does off the index.
+  // Each cell is highlighted with whatever the search matched in it. `countries`
+  // is the exception: it stores a country code but displays the country name, so
+  // the excerpt highlights text this cell never shows. There it falls back to
+  // matching on the term, the way it does outside the index.
   const excerpt = colId === "countries" ? null : excerpts?.[colId];
 
   return (

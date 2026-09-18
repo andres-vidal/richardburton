@@ -64,9 +64,10 @@ const isLoadingMoreAtom = atom<boolean>(false);
 const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
-/** What the index made of the current term, grouped by field — shown to the
- * reader so a widened or scoped match explains itself. Rows carry their own
- * marks; these are not those. */
+/** The words the current search matched with something other than what was
+ * typed, grouped by field. Shown to the reader so that a widened or
+ * field-scoped match explains itself. Note this is not what highlights the
+ * rows — each row carries its own highlighting. */
 const matchedAtom = atom<Matched[] | undefined>(undefined);
 const isValidatingAtom = atom(false);
 const areRowIdsVisibleAtom = atom(false);
@@ -155,8 +156,9 @@ const publicationReferencesFamily = atomFamily((id: PublicationId) =>
   atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
 );
 
-/** What in each field answered the current search, marked with `[[ ]]` — absent
- * outside a search, and null for a field the search did not match. */
+/** The matching text of each of a publication's fields, with the matched words
+ * wrapped in `[[ ]]`. Undefined outside a search, and null for any field the
+ * search did not match. */
 const publicationExcerptsFamily = atomFamily((id: PublicationId) =>
   atom<Record<string, string | null> | undefined>(
     (get) => get(publicationFamily(id))?.excerpts,
@@ -272,14 +274,14 @@ const CELL_FAMILIES = [
 ];
 
 /**
- * A page of the database: the rows, what the index made of the term, and how
- * many publications exist in total — which the index reports in a header rather
+ * A page of the database: the rows, what the search matched, and how many
+ * publications exist in total — which the index reports in a header rather
  * than in the body.
  */
 type PublicationIndex = {
   entries: Publication[];
-  /** What the index made of the term, for the reader to see: the words it
-   * resolved to, grouped by the field each was asked of. */
+  /** What to tell the reader the search matched: the words it resolved to,
+   * grouped by the field each was searched in. */
   matched: Matched[];
   /** How many exist in total, not how many matched. `null` when unreported. */
   total: number | null;
@@ -347,8 +349,8 @@ function remember(store: Store, publication: Publication): void {
 }
 
 /**
- * Take an index payload as the working set: the rows, what the index made of the
- * term, and how many publications exist in total.
+ * Take an index payload as the working set: the rows, what the search matched,
+ * and how many publications exist in total.
  *
  * One definition of "these are the results now", wherever they were read.
  */
