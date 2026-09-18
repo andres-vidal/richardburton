@@ -49,13 +49,6 @@ defmodule RichardBurton.Publication.Index.Keywords do
   @doc """
   The indexed words a given word matches, and how it matched them: the words it
   is a prefix of, or — if it is a prefix of none — the words it resembles.
-
-  Everything goes through this one function: the search that finds the rows, the
-  highlighting on them, and the report of what the search matched. They cannot
-  disagree, because there is nothing for them to disagree about.
-
-  The decision is about one word, not about the term it sits in. A word that has
-  to fall back does so alone, and the words beside it keep matching as typed.
   """
   def standing_for(word) do
     case resolve(word, :prefix) do
