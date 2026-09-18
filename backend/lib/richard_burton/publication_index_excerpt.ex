@@ -22,7 +22,15 @@ defmodule RichardBurton.Publication.Index.Excerpt do
       string, so it comes back as a short window around the match instead.
     * **ask** — a map from field name to the tsquery used to highlight it. Free
       words (the ones not attached to an operator) are searched in every field;
-      an operator's value is searched only in the field it names.
+      an operator's value is searched only in the field it names. Not the same
+      thing as the ask in `RichardBurton.Publication.Index.Query`, which is the
+      tagged term a search runs from; this one is built per field, and only for
+      highlighting.
+    * **widening** — one word that the search matched with something other than
+      what was typed, either because the word is a prefix of several indexed
+      words or because it matched none and fell back to ones resembling it. A
+      word matched exactly is not a widening, and is not reported. See
+      `resolution/1`.
   """
 
   import Ecto.Query
