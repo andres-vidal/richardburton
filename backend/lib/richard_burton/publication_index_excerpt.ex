@@ -20,9 +20,6 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     * **excerpt** — the matching text of one field. Short fields come back in
       full. `references` is an array, which the search treats as one long
       string, so it comes back as a short window around the match instead.
-    * **highlighting** — a map from field name to the tsquery used to highlight
-      that field. Free words (the ones not attached to an operator) are searched
-      in every field; an operator's value is searched only in the field it names.
     * **widening** — one word that the search matched with something other than
       what was typed, either because the word is a prefix of several indexed
       words or because it matched none and fell back to ones resembling it. A
@@ -36,11 +33,6 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   alias RichardBurton.Publication.Index.Query
   alias RichardBurton.Publication.Index.Term
   alias RichardBurton.Repo
-
-  @typedoc """
-  The tsquery to highlight each field with, or nil for a field nothing searched.
-  """
-  @type highlighting :: %{atom => String.t() | nil}
 
   @typedoc """
   One word the search matched with something other than what was typed: the word
@@ -85,23 +77,6 @@ defmodule RichardBurton.Publication.Index.Excerpt do
         unquote(options)
       )
     end
-  end
-
-  @doc """
-  A map from field name to the tsquery to highlight that field with.
-
-  This works the term out from scratch, the same way the search did, so it needs
-  nothing but the term itself. None of what the search resolved earlier has to be
-  carried along. A field that no part of the term searched gets no tsquery,
-  and so gets no excerpt.
-  """
-  @spec highlighting(String.t()) :: highlighting
-  def highlighting(term) do
-    alternatives = Term.parse(term)
-
-    if Term.plain?(alternatives) and Query.spelled_out?(term),
-      do: spelled_out_highlighting(term),
-      else: parsed_highlighting(alternatives)
   end
 
   @doc """
@@ -168,30 +143,49 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # the closest match is read before ones that only just passed the threshold.
   defp report(field, word, words), do: [%{field: field, typed: word, words: words}]
 
-  @doc "Adds the `excerpts` map to a query, one excerpt per field."
-  def select(query, highlighting) do
+  @doc """
+  Adds the `excerpts` map to a query, one excerpt per field.
+
+  The term is read from scratch here, the same way the search read it, so this
+  needs nothing but the term itself. None of what the search resolved earlier has
+  to be carried along. A field that no part of the term searched gets no tsquery,
+  and so gets no excerpt.
+  """
+  @spec select(Ecto.Query.t(), String.t()) :: Ecto.Query.t()
+  def select(query, term) do
+    queries = field_queries(term)
+
     select_merge(query, [p], %{
       excerpts: %{
-        title: excerpt(p.title, ^highlighting.title, @whole),
-        original_title: excerpt(p.original_title, ^highlighting.original_title, @whole),
-        authors: excerpt(p.authors, ^highlighting.authors, @whole),
-        original_authors: excerpt(p.original_authors, ^highlighting.original_authors, @whole),
-        publishers: excerpt(p.publishers, ^highlighting.publishers, @whole),
-        countries: excerpt(p.countries, ^highlighting.countries, @whole),
+        title: excerpt(p.title, ^queries.title, @whole),
+        original_title: excerpt(p.original_title, ^queries.original_title, @whole),
+        authors: excerpt(p.authors, ^queries.authors, @whole),
+        original_authors: excerpt(p.original_authors, ^queries.original_authors, @whole),
+        publishers: excerpt(p.publishers, ^queries.publishers, @whole),
+        countries: excerpt(p.countries, ^queries.countries, @whole),
         references:
           excerpt(
             fragment("array_to_string(?, ' ')", p.references),
-            ^highlighting.references,
+            ^queries.references,
             @window
           )
       }
     })
   end
 
+  # The tsquery to highlight each field with, or nil for a field nothing searched.
+  defp field_queries(term) do
+    alternatives = Term.parse(term)
+
+    if Term.plain?(alternatives) and Query.spelled_out?(term),
+      do: spelled_out_queries(term),
+      else: parsed_queries(alternatives)
+  end
+
   # Some terms are handed to Postgres to parse rather than parsed here, which
   # means we never resolve any words for them. So we ask Postgres what tsquery it
   # reads the term as, and highlight every field with that.
-  defp spelled_out_highlighting(term) do
+  defp spelled_out_queries(term) do
     %{rows: [[query]]} = Repo.query!("SELECT websearch_to_tsquery('rb_search', $1)::text", [term])
 
     Map.new(@fields, &{&1, query})
@@ -200,7 +194,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # Free words are searched in every field; an operator's value only in the field
   # it names. A term made only of operators therefore highlights nothing outside
   # those fields.
-  defp parsed_highlighting(alternatives) do
+  defp parsed_queries(alternatives) do
     words = alternatives |> Enum.flat_map(& &1.words) |> Enum.map(&Query.word_query/1) |> any_of()
     filters = alternatives |> Enum.flat_map(& &1.filters) |> Enum.reduce(%{}, &filter/2)
 

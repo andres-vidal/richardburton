@@ -170,7 +170,7 @@ defmodule RichardBurton.Publication.Index do
 
   def details(ids, term) when is_list(ids) and is_binary(term) do
     from(fp in FlatPublication, where: fp.id in ^ids)
-    |> Excerpt.select(Excerpt.highlighting(term))
+    |> Excerpt.select(term)
     |> Repo.all()
     |> in_order(ids)
   end
