@@ -1,0 +1,48 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as SearchHelpStories from "./SearchHelpModal.stories";
+
+<Meta of={SearchHelpStories} />
+
+# Search help
+
+Documents the search syntax. The input tolerates missing accents and
+misspellings, narrows on every word, and accepts field operators, none of which
+is discoverable from the input itself.
+
+<Canvas of={SearchHelpStories.Open} />
+
+## What it covers
+
+- **Spelling and accents** — accents may be omitted or included, minor
+  misspellings are tolerated, and an incomplete word matches by prefix. Listed
+  first because they apply to every search, operators or not.
+- **Searching a single field** — `title:`, `author:` (the author of the
+  original work), `translator:`, `publisher:`, `country:`, `original:` and
+  `source:`, plus `year:` for a single year or a range.
+- **Refining a search** — quotation marks for a phrase in the order given,
+  parentheses for several words of one field in any order, a leading minus to
+  exclude, and a repeated operator to require both values.
+- **Broadening a search** — `:or`, the only operator that widens rather than
+  narrows.
+
+## In Portuguese
+
+Every operator accepts a Portuguese name, documented rather than left to be
+discovered.
+
+<Canvas of={SearchHelpStories.InPortuguese} />
+
+## How it opens
+
+From the URL (`?search-help`), like the platform's other modals, and from a
+link beside the search box. Opening it preserves the current search, so the
+query being refined stays on screen.
+
+<Canvas of={SearchHelpStories.Closed} />
+
+## Scope
+
+Each row gives a query and what it matches. Nothing here describes the
+implementation — no indexes, ranking or tsquery syntax. This copy has to change
+whenever an operator does.

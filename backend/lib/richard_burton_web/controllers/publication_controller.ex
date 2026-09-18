@@ -5,20 +5,15 @@ defmodule RichardBurtonWeb.PublicationController do
   alias RichardBurton.Publication
   alias RichardBurton.User
 
-  # A later page of a search or listing already begun: the reader has scrolled,
-  # and asks for the next stretch of the ordering the first response handed back.
-  # The search and the words it matched on ride along so a row matched by its
-  # references still says so, without the search being resolved again.
+  # A later page of a search or listing that has already started: the reader has
+  # scrolled, and is asking for the next stretch of the ordering the first
+  # response returned. The search is sent along too, so each row can still show
+  # what matched it.
   #
-  # The total was reported with the first page and does not change under the
-  # reader; a later stretch is only the rows, so it does not pay to count again.
+  # The total was already reported with the first page and does not change while
+  # the reader scrolls, so later pages return only the rows and skip counting.
   def index(conn, params = %{"ids" => ids}) do
-    entries =
-      Publication.Index.details(
-        parse_ids(ids),
-        Map.get(params, "search"),
-        parse_keywords(Map.get(params, "keywords"))
-      )
+    entries = Publication.Index.details(parse_ids(ids), Map.get(params, "search"))
 
     json(conn, %{entries: entries})
   end
@@ -28,29 +23,34 @@ defmodule RichardBurtonWeb.PublicationController do
     conn |> put_total() |> json(%{entries: results})
   end
 
-  # The first response to a query hands back the whole ordering — the ids of
-  # every match, in the order they are to be read — the words it matched on, and
-  # the first page of them in full. The reader scrolls the rest in by that frozen
-  # ordering, so the paging cannot drift as the database changes underneath it.
+  # The first response to a query returns two things: the whole ordering (the ids
+  # of every match, in reading order) and the first page of those rows in full.
+  # The reader scrolls the rest in using that fixed ordering, so paging cannot
+  # drift as the database changes underneath.
   def index(conn, %{"search" => query}) do
     case Publication.Index.search_order(query) do
-      :none ->
-        conn |> put_total() |> json(first_page([], nil, []))
-
-      {order, keywords} ->
-        conn |> put_total() |> json(first_page(order, query, keywords))
+      :none -> conn |> put_total() |> json(first_page([], nil))
+      order -> conn |> put_total() |> json(first_page(order, query))
     end
   end
 
   def index(conn, _params) do
-    conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil, []))
+    conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil))
   end
 
-  defp first_page(order, search, keywords) do
+  # How the index read the term is included in the response for the caller to
+  # report. The rows do not need it: each one already carries its own record of
+  # what matched it.
+  defp first_page(order, search) do
     per_page = Publication.Index.per_page()
-    entries = Publication.Index.details(Enum.take(order, per_page), search, keywords)
+    entries = Publication.Index.details(Enum.take(order, per_page), search)
 
-    %{entries: entries, order: order, per_page: per_page, keywords: keywords}
+    %{
+      entries: entries,
+      order: order,
+      per_page: per_page,
+      matched: search && Publication.Index.Excerpt.resolution(search)
+    }
   end
 
   defp put_total(conn) do
@@ -71,27 +71,46 @@ defmodule RichardBurtonWeb.PublicationController do
     end
   end
 
-  defp parse_keywords(keywords) when is_list(keywords), do: keywords
-  defp parse_keywords(_), do: []
-
-  # One publication, flat, the same shape the index lists — so a page that shows
-  # a single record does not have to be handed one by a page that lists many.
-  def show(conn, %{"id" => id}) do
+  # One publication, flattened into the same shape the index lists, so a page
+  # showing a single record does not need a page listing many to hand it one. If
+  # the reader arrived from a search, that search is sent along too, so the record
+  # highlights what matched exactly as the index did.
+  def show(conn, params = %{"id" => id}) do
     case Publication.find(id) do
-      nil -> conn |> put_status(:not_found) |> json(%{error: :not_found})
-      publication -> json(conn, Publication.Codec.flatten(publication))
+      nil ->
+        conn |> put_status(:not_found) |> json(%{error: :not_found})
+
+      publication ->
+        flat = Publication.Codec.flatten(publication)
+        json(conn, excerpted(flat, Map.get(params, "search")))
+    end
+  end
+
+  # The record itself is read from the live table, so it is available as soon as it
+  # is written. The excerpts come from the index, which lags behind, so a record
+  # written moments ago has none. It is shown without highlighting rather than not
+  # shown at all.
+  defp excerpted(flat, nil), do: flat
+
+  defp excerpted(flat, search) do
+    case Publication.Index.detail(flat.id, search) do
+      [%{excerpts: excerpts, marked_references: marked}] ->
+        %{flat | excerpts: excerpts, marked_references: marked}
+
+      [] ->
+        flat
     end
   end
 
   def export(conn, %{"search" => query, "select" => attributes}) do
     attributes = Enum.map(attributes, &String.to_existing_atom/1)
-    {:ok, results, _} = Publication.Index.search(query, select: attributes)
+    {:ok, results} = Publication.Index.search(query, select: attributes)
     filename = "publications-#{query}-#{Enum.join(attributes, "-")}.csv"
     send_exported_csv(conn, results, filename)
   end
 
   def export(conn, %{"search" => query}) do
-    {:ok, results, _} = Publication.Index.search(query, select: [])
+    {:ok, results} = Publication.Index.search(query, select: [])
     filename = "publications-#{query}.csv"
     send_exported_csv(conn, results, filename)
   end

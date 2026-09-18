@@ -6,6 +6,8 @@ defmodule RichardBurton.OriginalBookTest do
   use RichardBurton.DataCase
 
   alias RichardBurton.Author
+
+  doctest RichardBurton.OriginalBook
   alias RichardBurton.Util
   alias RichardBurton.OriginalBook
   alias RichardBurton.TranslatedBook

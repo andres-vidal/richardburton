@@ -4,6 +4,7 @@ import {
   usePublication,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
+import { Publication } from "modules/publication/model";
 import { FC, MouseEvent } from "react";
 import { EmptySearchResults } from "./EmptySearchResults";
 import Highlight from "./Highlight";
@@ -18,26 +19,38 @@ const PublicationItem: FC<{ id: number }> = ({ id }) => {
         <div className="p-2 space-y-4">
           <div>
             <span className="font-normal">
-              <Highlight>{publication.title}</Highlight>
+              <Highlight>
+                {Publication.markedValue(publication, "title")}
+              </Highlight>
             </span>
             <br className="sm:hidden" />
             <span className="whitespace-nowrap">
               {" "}
-              (<Highlight>{publication.authors}</Highlight>)
+              (
+              <Highlight>
+                {Publication.markedValue(publication, "authors")}
+              </Highlight>
+              )
             </span>
           </div>
           <div className="text-sm text-indigo-600">
             Translation of{" "}
             <span className="font-normal">
-              <Highlight>{publication.originalTitle}</Highlight>
+              <Highlight>
+                {Publication.markedValue(publication, "originalTitle")}
+              </Highlight>
             </span>{" "}
             by{" "}
             <span className="font-normal whitespace-nowrap">
-              <Highlight>{publication.originalAuthors}</Highlight>
+              <Highlight>
+                {Publication.markedValue(publication, "originalAuthors")}
+              </Highlight>
             </span>
             , published by{" "}
             <span className="font-normal">
-              <Highlight>{publication.publishers}</Highlight>
+              <Highlight>
+                {Publication.markedValue(publication, "publishers")}
+              </Highlight>
             </span>
           </div>
         </div>

@@ -6,44 +6,57 @@ import * as HighlightStories from "./Highlight.stories";
 
 # Highlight
 
-Marks the parts of a publication the current search matched, so a reader can see
-what the query caught rather than inferring it. Used wherever a publication is
-shown while a search is on — the rows of the index, and a record open over them.
+Renders the highlighting the index put on an excerpt, so a reader can see what
+the search matched instead of having to work it out. Used wherever a publication
+is shown during a search: the rows of the index, the list, and a record opened
+over them.
 
 <Canvas of={HighlightStories.Matched} />
 
 ## Props
 
-- `children` — the text to render. A plain string; the component returns it as a
-  mix of text and `<mark>` runs.
+- `children` — the excerpt to render, as a plain string. The component returns it
+  as a mix of plain text and `<mark>` elements.
+- `className` — the classes applied to each `<mark>`. Defaults to the amber
+  highlight the index uses.
 
 ## How it works
 
-- The words to mark come from the store (`useKeywords`), which holds the indexed
-  words the search resolved to — the server returns them with the results.
-  Because the server has already widened a half-typed term into the words it
-  matched, typing `mach` marks `Machado`.
-- Matching is done on a folded copy of the text — accents removed, lowercased,
-  the same folding the index applies — and the marks are mapped back onto the
-  original characters, so `Angústia` is marked by a search for `angustia`
-  without the accents being lost from what is displayed.
+For every field it searched, the index returns the text that matched, with the
+matched words wrapped in `[[ ]]` (see the backend's
+`RichardBurton.Publication.Index.Excerpt`). This component splits on those
+markers and wraps every other piece in a `<mark>`. It makes no decision about
+what matched; it only renders what the database already decided.
+
+That is the whole point of doing it this way. Whether two spellings count as the
+same word, where one word ends, and which field an operator applied to are all
+decided by the search configuration, which only the database knows. `title:night`
+highlights the title and nothing else because the index built an excerpt for the
+title alone.
 
 <Canvas of={HighlightStories.Accented} />
 
-- A word is marked only when it matches a keyword **whole**: the keywords are
-  themselves whole indexed words, so `casmurro` does not mark `Casmurros`.
-- Every occurrence is marked, and several keywords can match in one string.
+Accents are preserved. The index strips them when deciding whether something
+matched, but the excerpt it returns is the text as actually stored, so a search
+for `angustia` highlights `Angústia` without the accent disappearing from what is
+displayed.
+
+An excerpt can contain any number of markers, and all of them are rendered.
 
 <Canvas of={HighlightStories.ManyMatches} />
 
 ## Outside a search
 
-With no search there are no keywords, nothing is marked, and the text renders
-untouched — which is also what a publication's own page shows, since it is
-opened without a query behind it.
+A field the search did not match has no excerpt, so the caller passes the stored
+value instead (see `Publication.markedValue`). That value contains no `[[ ]]`, so
+it renders unchanged. The same goes for any text shown outside a search, such as
+a publication's own page opened without a query.
 
-<Canvas of={HighlightStories.Unsearched} />
+<Canvas of={HighlightStories.Unmatched} />
 
-A search that quotes a phrase or negates a word is passed to Postgres verbatim
-and resolves to no keywords, so it marks nothing; the row still explains itself
-through the reference snippet when it matched on its sources.
+## Restyling the mark
+
+The sources line under a title uses a dimmer highlight, because the whole line is
+secondary to the row it explains.
+
+<Canvas of={HighlightStories.Restyled} />

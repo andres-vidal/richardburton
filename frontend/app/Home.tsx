@@ -11,6 +11,7 @@ import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
 import PublicationScroll from "components/PublicationScroll";
 import PublicationSearch from "components/PublicationSearch";
+import { SearchHelpModal } from "components/SearchHelpModal";
 import SignInButton from "components/SignInButton";
 import type { PublicationIndex } from "app/publications/read";
 import { usePublicationIndexCount } from "modules/publication/hooks";
@@ -82,7 +83,7 @@ function Database({ index }: Props) {
             <span className="border-b grow h-fit" />
           </div>
           <div className="flex gap-2 items-start pr-3 md:pr-0">
-            <div className="grow">
+            <div className="grow min-w-0">
               <PublicationSearch />
             </div>
             <div className="hidden sm:block">
@@ -114,6 +115,7 @@ function Database({ index }: Props) {
 
           <ContactModal />
           <LearnMoreModal />
+          <SearchHelpModal />
         </div>
       }
     />

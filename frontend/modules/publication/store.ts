@@ -5,6 +5,7 @@ import type { Store } from "modules/store";
 import {
   ATTRIBUTES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
+  Matched,
   Publication,
   PublicationEntry,
   PublicationError,
@@ -12,6 +13,7 @@ import {
   PublicationKey,
   describeError,
   empty,
+  markedValue,
 } from "./model";
 
 /**
@@ -63,8 +65,12 @@ const isLoadingMoreAtom = atom<boolean>(false);
 const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
+/** The words the current search matched with something other than what was
+ * typed, grouped by field. Shown to the reader so that a widened or
+ * field-scoped match explains itself. Note this is not what highlights the
+ * rows — each row carries its own highlighting. */
+const matchedAtom = atom<Matched[] | undefined>(undefined);
 const isValidatingAtom = atom(false);
-const keywordsAtom = atom<string[] | undefined>(undefined);
 const areRowIdsVisibleAtom = atom(false);
 const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
 
@@ -151,10 +157,13 @@ const publicationReferencesFamily = atomFamily((id: PublicationId) =>
   atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
 );
 
-/** A highlighted snippet of a publication's references, present only when the
- * current search matched on them rather than on the record's own fields. */
-const publicationSourceMatchFamily = atomFamily((id: PublicationId) =>
-  atom<string | undefined>((get) => get(publicationFamily(id))?.sourceMatch),
+/** The matching text of each of a publication's fields, with the matched words
+ * wrapped in `[[ ]]`. Undefined outside a search, and null for any field the
+ * search did not match. */
+const publicationExcerptsFamily = atomFamily((id: PublicationId) =>
+  atom<Record<string, string | null> | undefined>(
+    (get) => get(publicationFamily(id))?.excerpts,
+  ),
 );
 
 /** A publication's *persisted* provenance list — ignores in-progress drafts,
@@ -237,6 +246,15 @@ const fieldErrorDescriptionFamily = cellFamily(({ id, key }) =>
   atom((get) => describeError(get(errorFamily(id)), key)),
 );
 
+/**
+ * A single cell as the index marked it, or as it is stored where the search did
+ * not match it. Reads the *stored* publication, like `storedFieldValueFamily`, so
+ * a pending edit does not leak into the read-only table.
+ */
+const markedFieldFamily = cellFamily(({ id, key }) =>
+  atom((get) => markedValue(get(publicationFamily(id)), key)),
+);
+
 // --- Family lifecycle -------------------------------------------------------
 
 /**
@@ -263,16 +281,19 @@ const CELL_FAMILIES = [
   fieldValueFamily,
   storedFieldValueFamily,
   fieldErrorDescriptionFamily,
+  markedFieldFamily,
 ];
 
 /**
- * A page of the database: the rows, the keywords the search matched on, and how
- * many publications exist in total — which the index reports in a header rather
+ * A page of the database: the rows, what the search matched, and how many
+ * publications exist in total — which the index reports in a header rather
  * than in the body.
  */
 type PublicationIndex = {
   entries: Publication[];
-  keywords: string[];
+  /** What to tell the reader the search matched: the words it resolved to,
+   * grouped by the field each was searched in. */
+  matched: Matched[];
   /** How many exist in total, not how many matched. `null` when unreported. */
   total: number | null;
   /** The ids of every match, in reading order — the ordering the reader scrolls
@@ -339,17 +360,17 @@ function remember(store: Store, publication: Publication): void {
 }
 
 /**
- * Take an index payload as the working set: the rows, the keywords the search
- * matched on, and how many publications exist in total.
+ * Take an index payload as the working set: the rows, what the search matched,
+ * and how many publications exist in total.
  *
  * One definition of "these are the results now", wherever they were read.
  */
 function receiveIndex(
   store: Store,
-  { entries, keywords, total, order, perPage }: PublicationIndex,
+  { entries, matched, total, order, perPage }: PublicationIndex,
 ): PublicationId[] {
   if (total !== null) store.set(totalIndexCountAtom, total);
-  store.set(keywordsAtom, keywords);
+  store.set(matchedAtom, matched);
   store.set(orderAtom, order);
   store.set(perPageAtom, perPage);
   // The first page has drawn as far into the ordering as it holds rows.
@@ -585,8 +606,8 @@ export {
   hiddenAttributesAtom,
   isLoadingMoreAtom,
   isValidFamily,
+  matchedAtom,
   isValidatingAtom,
-  keywordsAtom,
   lastValidatedFamily,
   overriddenCountAtom,
   overriddenIdsAtom,
@@ -598,7 +619,7 @@ export {
   publicationIdsAtom,
   publicationOrNullFamily,
   publicationReferencesFamily,
-  publicationSourceMatchFamily,
+  publicationExcerptsFamily,
   receiveIndex,
   remember,
   removePublication,
@@ -612,6 +633,7 @@ export {
   setErrors,
   setFocusedRowId,
   storedFieldValueFamily,
+  markedFieldFamily,
   storedReferencesFamily,
   totalCountAtom,
   matchingCountAtom,

@@ -3,6 +3,7 @@ import { getSession } from "app/session";
 import { TOTAL_COUNT_HEADER } from "modules/api";
 import { withChanges, type WithChanges } from "modules/publication/history";
 import type {
+  Matched,
   Publication,
   PublicationHistoryEntry,
   PublicationId,
@@ -28,9 +29,9 @@ export type PublicationView = {
  * means: a page answers 404, an overlay says the link is stale.
  */
 export const readPublication = cache(
-  async (id: string): Promise<PublicationView | null> => {
+  async (id: string, search?: string): Promise<PublicationView | null> => {
     const [publication, session] = await Promise.all([
-      get<Publication>(`/publications/${id}`).catch(() => null),
+      get<Publication>(`/publications/${id}`, { search }).catch(() => null),
       getSession(),
     ]);
 
@@ -53,7 +54,7 @@ async function readDatabase(
 ): Promise<PublicationIndex> {
   const { data, headers } = await getWithHeaders<{
     entries: Publication[];
-    keywords?: string[];
+    matched?: Matched[];
     order?: PublicationId[];
     perPage?: number;
   }>("/publications", params);
@@ -62,7 +63,7 @@ async function readDatabase(
 
   return {
     entries: data.entries,
-    keywords: data.keywords ?? [],
+    matched: data.matched ?? [],
     total: total === undefined ? null : parseInt(total),
     // An endpoint that does not page (the backfill queue) hands back no
     // ordering; the rows it returned stand as the whole of it.
@@ -77,9 +78,7 @@ async function readDatabase(
  * gets rows in the first response instead of an empty table and a spinner. The
  * rest of the pages are fetched in the browser as the reader scrolls.
  */
-export const readIndex = cache((search?: string) =>
-  readDatabase(search ? { search } : {}),
-);
+export const readIndex = cache((search?: string) => readDatabase({ search }));
 
 /**
  * The publications with no sources yet — the queue the backfill wizard steps

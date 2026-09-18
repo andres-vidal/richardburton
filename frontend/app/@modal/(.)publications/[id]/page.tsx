@@ -16,10 +16,12 @@ import { readPublication } from "../../../publications/read";
  */
 export default async function InterceptedPublication({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ search?: string }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { search }] = await Promise.all([params, searchParams]);
 
-  return <PublicationOverlay view={readPublication(id)} />;
+  return <PublicationOverlay view={readPublication(id, search)} />;
 }

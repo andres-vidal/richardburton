@@ -187,6 +187,73 @@ test("reloading with a publication open keeps it open, over the search that foun
   );
 });
 
+test("a reader narrows a search with operators, in either language", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+
+  const rows = indexTable(page).getByRole("row");
+  const search = page.getByRole("textbox", { name: "Search publications" });
+
+  // The name belongs to an author, not a title: scoped to the title it matches
+  // nothing, scoped to the author it matches their three works.
+  await search.fill("title:Machado");
+  await expect(
+    page.getByText("No results found, try another query.").first(),
+  ).toBeVisible();
+
+  await search.fill("autor:Machado");
+  await expect(rows.filter({ hasText: "Machado de Assis" })).toHaveCount(3);
+
+  // A year range, in English and in Portuguese.
+  await search.fill("year:1952-1954");
+  await expect(rows.filter({ hasText: "Machado de Assis" })).toHaveCount(3);
+  await expect(rows.filter({ hasText: "Barren Lives" })).toHaveCount(0);
+
+  await search.fill("ano:1952-1954");
+  await expect(rows.filter({ hasText: "Machado de Assis" })).toHaveCount(3);
+
+  // An operator narrows the free words beside it; a minus excludes.
+  await search.fill("Machado -title:Casmurro");
+  await expect(rows.filter({ hasText: "Dom Casmurro" })).toHaveCount(0);
+  await expect(
+    rows.filter({ hasText: "Epitaph of a Small Winner" }),
+  ).toHaveCount(1);
+
+  // An operator applies to its own alternative only.
+  await search.fill("country:GB :or editora:Knopf");
+  await expect(rows.filter({ hasText: "The Hour of the Star" })).toHaveCount(1);
+  await expect(
+    rows.filter({ hasText: "Gabriela, Clove and Cinnamon" }),
+  ).toHaveCount(1);
+  await expect(rows.filter({ hasText: "Barren Lives" })).toHaveCount(0);
+});
+
+test("a reader can find out how to search, without losing the search", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/?search=Machado");
+
+  await page.getByRole("button", { name: "How to search" }).click();
+
+  const help = page.getByRole("dialog", { name: "How to search" });
+  await expect(help).toBeVisible();
+  // The tolerances and the operators, neither visible from the input.
+  await expect(help).toContainText("Accents may be omitted");
+  await expect(help).toContainText("title:iracema");
+  await expect(help).toContainText("autor:");
+
+  // Opening the help preserves the current search.
+  await page.keyboard.press("Escape");
+  await expect(help).toHaveCount(0);
+  await expect(page).toHaveURL(/\?search=Machado/);
+  await expect(
+    indexTable(page).getByRole("row").filter({ hasText: "Machado de Assis" }),
+  ).toHaveCount(3);
+});
+
 test("a large index virtualizes: far rows render as they scroll into view", async ({
   page,
 }) => {

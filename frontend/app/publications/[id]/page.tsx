@@ -10,16 +10,19 @@ import { notFound } from "next/navigation";
 import Home from "../../Home";
 import { readIndex, readPublication } from "../read";
 
-async function read(id: string) {
-  return (await readPublication(id)) ?? notFound();
+async function read(id: string, search?: string) {
+  return (await readPublication(id, search)) ?? notFound();
 }
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ search?: string }>;
 }): Promise<Metadata> {
-  const { publication } = await read((await params).id);
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const { publication } = await read(id, query.search);
   const { title, authors, originalTitle, originalAuthors, year } = publication;
 
   return {
@@ -53,7 +56,7 @@ export default async function PublicationPage({
 
   if (query.modal !== undefined) {
     const [view, index] = await Promise.all([
-      read(id),
+      read(id, query.search),
       readIndex(query.search),
     ]);
 
@@ -68,7 +71,7 @@ export default async function PublicationPage({
     );
   }
 
-  const { publication, history } = await read(id);
+  const { publication, history } = await read(id, query.search);
 
   return (
     <Layout

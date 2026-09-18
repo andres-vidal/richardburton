@@ -1,19 +1,74 @@
 "use client";
 
-import { useKeywords } from "modules/publication/hooks";
+import { useMatched } from "modules/publication/hooks";
+import type { Matched } from "modules/publication/model";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChangeEventHandler, FC, useRef, useState, useTransition } from "react";
 import useDebounce from "utils/useDebounce";
+import { useURLQueryModal } from "./Modal";
+import { SEARCH_HELP_MODAL_KEY } from "./SearchHelpModal";
 
 /** Long enough that a typist does not query on every letter. */
 const SEARCH_DELAY_MS = 350;
+
+/**
+ * A word written as the term that would find it on its own: scoped to the field
+ * it was asked of, so following it narrows the same way rather than widening to
+ * every field.
+ */
+function searchFor(field: string | null, word: string): string {
+  return field ? `${field}:${word}` : word;
+}
+
+/** One typed word and what it matched, each match linking to a search for it. */
+const SearchMatch: FC<Matched> = ({ field, typed, words }) => (
+  <>
+    <strong className="font-normal">{searchFor(field, typed)}</strong>
+    <span> matched </span>
+    {words.map((word, index) => (
+      <span key={word}>
+        <Link
+          href={`?search=${encodeURIComponent(searchFor(field, word))}`}
+          className="text-indigo-600 underline hover:bg-indigo-300"
+        >
+          {word}
+        </Link>
+        {index < words.length - 1 && ", "}
+      </span>
+    ))}
+  </>
+);
+
+/** Every match the current search made, separated by dots. Empty renders nothing. */
+const SearchMatches: FC<{ matched: Matched[] }> = ({ matched }) => (
+  <>
+    {matched.map((match, index) => (
+      <span key={`${match.field ?? "free"}-${match.typed}`}>
+        {index > 0 && <span className="text-gray-400"> · </span>}
+        <SearchMatch {...match} />
+      </span>
+    ))}
+  </>
+);
+
+/** The animated ellipsis shown while a query is in flight. */
+const SearchProgress: FC = () => (
+  <span>
+    Searching the collection
+    <span aria-hidden className="tracking-widest">
+      <span className="animate-pulse">.</span>
+      <span className="animate-pulse [animation-delay:150ms]">.</span>
+      <span className="animate-pulse [animation-delay:300ms]">.</span>
+    </span>
+  </span>
+);
 
 const PublicationSearch: FC = () => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
-  const keywords = useKeywords();
+  const matched = useMatched();
   const [isNavigating, startTransition] = useTransition();
 
   const searchUrlParam = searchParams?.get("search") ?? "";
@@ -44,6 +99,9 @@ const PublicationSearch: FC = () => {
 
   const isLoading = search !== searchUrlParam || isNavigating;
 
+  // Opened from the URL, so the modal preserves the current search.
+  const { open: openHelp } = useURLQueryModal(SEARCH_HELP_MODAL_KEY);
+
   const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
     setSearch(e.target.value);
     navigate(e.target.value);
@@ -58,35 +116,21 @@ const PublicationSearch: FC = () => {
         value={search}
         onChange={handleChange}
       />
-      <div aria-live="polite" className="h-4 px-3 space-x-1 text-xs truncate">
-        {isLoading ? (
-          <span>
-            Searching the collection
-            <span aria-hidden className="tracking-widest">
-              <span className="animate-pulse">.</span>
-              <span className="animate-pulse [animation-delay:150ms]">.</span>
-              <span className="animate-pulse [animation-delay:300ms]">.</span>
-            </span>
-          </span>
-        ) : (
-          keywords &&
-          keywords.length > 0 && (
-            <>
-              <span>Showing results for</span>
-              {keywords.map((keyword, index) => (
-                <span key={`search-keyword-${keyword}`}>
-                  <Link
-                    href={`?search=${keyword}`}
-                    className="text-indigo-600 underline hover:bg-indigo-300"
-                  >
-                    {keyword}
-                  </Link>
-                  {index < keywords.length - 1 ? "," : "."}
-                </span>
-              ))}
-            </>
-          )
-        )}
+      <div className="flex gap-3 items-baseline px-3 h-4 text-xs">
+        <div aria-live="polite" className="space-x-1 min-w-0 truncate grow">
+          {isLoading ? (
+            <SearchProgress />
+          ) : (
+            <SearchMatches matched={matched ?? []} />
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => openHelp()}
+          className="text-gray-600 whitespace-nowrap rounded underline shrink-0 hover:text-indigo-600 focus-ring"
+        >
+          How to search
+        </button>
       </div>
     </section>
   );

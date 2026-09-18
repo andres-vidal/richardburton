@@ -16,6 +16,9 @@ const SignInButton: FC<Props> = ({
   centered = false,
 }) => {
   const handleClick = () => {
+    // A whole-page navigation, not the router: this is a route handler that
+    // answers with a redirect to Google, not a page the client router can render.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`);
   };
 
