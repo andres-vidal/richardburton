@@ -18,8 +18,8 @@ type Publication = {
   id: number | null;
   // The matching text of each field, keyed by field, with the matched words
   // wrapped in `[[ ]]`. Only present on search results, and null for any field
-  // the search did not match.
-  excerpts?: Record<string, string | null>;
+  // the search did not match. `countries` and `year` never carry one.
+  excerpts?: Partial<Record<PublicationKey | "references", string | null>>;
 };
 
 type PublicationKey = keyof Omit<Publication, "id" | "references" | "excerpts">;
@@ -244,36 +244,33 @@ function markedValue(
 ): string {
   const value = describeValue(String(publication[attribute] ?? ""), attribute);
 
-  // `countries` stores a code and shows a name, so the index marks text this
-  // never displays; the stored value stands unmarked rather than wrongly marked.
-  return attribute === "countries"
-    ? value
-    : (publication.excerpts?.[attribute] ?? value);
+  return publication.excerpts?.[attribute] ?? value;
 }
 
 /**
- * A field as the index marked it, split back into the values it holds. One entry
- * per value, in the order `items` gives them.
+ * Each value a field holds, paired with that value as the index marked it. The
+ * value is what a term would search for, the label what is shown.
  *
  * The excerpt covers the whole stored field, commas and all, so splitting it the
  * same way the values are split lines the marks back up with them. If the two
- * disagree on how many there are, the stored values stand unmarked rather than
- * marked in the wrong places.
+ * disagree on how many there are, every value stands unmarked rather than marked
+ * in the wrong places.
  */
 function markedItems(
   publication: Publication,
   attribute: PublicationKey,
-): string[] {
+): { value: string; label: string }[] {
   const values = items(String(publication[attribute] ?? ""));
-  const described = values.map((value) => describeValue(value, attribute));
-
-  // As in `markedValue`, `countries` shows a name for a stored code, so the
-  // index's marks point at text these never display.
-  const excerpt =
-    attribute === "countries" ? undefined : publication.excerpts?.[attribute];
+  const excerpt = publication.excerpts?.[attribute];
   const marked = excerpt ? items(excerpt) : undefined;
 
-  return marked?.length === values.length ? marked : described;
+  return values.map((value, index) => ({
+    value,
+    label:
+      marked?.length === values.length
+        ? marked[index]
+        : describeValue(value, attribute),
+  }));
 }
 
 function describeError(

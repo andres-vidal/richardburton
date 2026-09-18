@@ -48,14 +48,16 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   @window "StartSel=[[,StopSel=]],MaxFragments=1,MaxWords=16,MinWords=6"
 
   # The fields that get an excerpt. These are the fields the search document is
-  # built from, except `year`, which is a number and has no text to highlight.
+  # built from, less two. `year` is a number and has no text to highlight.
+  # `countries` holds a country code while the search document holds the
+  # country's names, so an excerpt on that column would mark the code, which is
+  # not the text the search matched.
   @fields [
     :title,
     :original_title,
     :authors,
     :original_authors,
     :publishers,
-    :countries,
     :references
   ]
 
@@ -162,7 +164,6 @@ defmodule RichardBurton.Publication.Index.Excerpt do
         authors: excerpt(p.authors, ^queries.authors, @whole),
         original_authors: excerpt(p.original_authors, ^queries.original_authors, @whole),
         publishers: excerpt(p.publishers, ^queries.publishers, @whole),
-        countries: excerpt(p.countries, ^queries.countries, @whole),
         references:
           excerpt(
             fragment("array_to_string(?, ' ')", p.references),

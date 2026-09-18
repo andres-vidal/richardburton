@@ -43,17 +43,14 @@ import ReferencesEditor from "./ReferencesEditor";
 import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
 
-const Searchable: FC<{ label: string; value?: string }> = ({
-  value,
-  label,
-}) => (
-  <Link href={`/?search=${value || label}`} className="anchor">
+const Searchable: FC<{ label: string; value: string }> = ({ value, label }) => (
+  <Link href={`/?search=${value}`} className="anchor">
     <Highlight>{label}</Highlight>
   </Link>
 );
 
 const SearchableList: FC<{
-  items: { label: string; value?: string }[];
+  items: { label: string; value: string }[];
 }> = ({ items }) => (
   <ul className="contents">
     {items.map((item, index) => (
@@ -88,19 +85,8 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
 const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
-  // The link carries the stored value, the label the marked one: a href must not
-  // carry the index's `[[ ]]`.
-  function getSearchableItems(p: Publication, key: PublicationKey) {
-    const marked = Publication.markedItems(p, key);
-
-    return Publication.items(p[key]).map((value, index) => ({
-      value,
-      label: marked[index],
-    }));
-  }
-
   const list = (key: PublicationKey) => (
-    <SearchableList items={getSearchableItems(p, key)} />
+    <SearchableList items={Publication.markedItems(p, key)} />
   );
 
   return (

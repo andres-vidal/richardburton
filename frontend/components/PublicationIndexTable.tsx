@@ -119,12 +119,7 @@ const Content: FC<{
   // Read-only surface: the *stored* value. An editing surface injects its own
   // Content, which reads the edited value — see PublicationWorkspace.
   const value = usePublicationStoredField(rowId, colId);
-  const excerpts = usePublicationExcerpts(rowId);
-  // Each cell is highlighted with whatever the search matched in it. `countries`
-  // is the exception: it stores a country code but displays the country name, so
-  // the excerpt highlights text this cell never shows. There it falls back to
-  // matching on the term, the way it does outside the index.
-  const excerpt = colId === "countries" ? null : excerpts?.[colId];
+  const excerpt = usePublicationExcerpts(rowId)?.[colId];
 
   return (
     <div className="px-2 py-1 truncate">
