@@ -10,7 +10,8 @@ import { Key } from "app";
 import CloseIcon from "assets/close.svg";
 import Logo from "assets/logo.svg";
 import { AnimatePresence, motion } from "framer-motion";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   FC,
   MouseEvent,

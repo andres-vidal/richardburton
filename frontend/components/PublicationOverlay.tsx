@@ -1,7 +1,8 @@
 "use client";
 
 import type { PublicationView } from "app/publications/read";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "i18n/navigation";
+import { useTranslations } from "next-intl";
 import { FC, Suspense, use } from "react";
 import { Article } from "./Article";
 import CopyLink from "./CopyLink";
@@ -15,44 +16,49 @@ import PublicationDetail, { PublicationHeading } from "./PublicationDetail";
  * be transitioned — so instead of animating the growth there is little to grow
  * from: the dialog barely moves when the record replaces this.
  */
-const Loading: FC = () => (
-  <div role="status" aria-label="Loading" className="p-8 w-full">
-    <div aria-hidden className="space-y-6 animate-pulse">
-      <div className="flex gap-3 items-center">
-        <div className="w-2/5 h-7 bg-gray-200 rounded" />
-        <div className="w-24 h-5 bg-gray-100 rounded" />
-      </div>
-      <div className="space-y-2">
-        <div className="w-full h-4 bg-gray-200 rounded" />
-        <div className="w-11/12 h-4 bg-gray-200 rounded" />
-        <div className="w-2/3 h-4 bg-gray-200 rounded" />
-      </div>
-      <div className="space-y-2">
-        <div className="w-28 h-3 bg-gray-100 rounded" />
-        <ul className="space-y-1.5">
-          <li className="flex gap-2.5 items-baseline">
-            <span className="size-1.5 rounded-full shrink-0 bg-gray-200" />
-            <span className="w-4/5 h-4 bg-gray-200 rounded" />
-          </li>
-          <li className="flex gap-2.5 items-baseline">
-            <span className="size-1.5 rounded-full shrink-0 bg-gray-200" />
-            <span className="w-3/5 h-4 bg-gray-200 rounded" />
-          </li>
-        </ul>
+const Loading: FC = () => {
+  const t = useTranslations("common");
+
+  return (
+    <div role="status" aria-label={t("loading")} className="p-8 w-full">
+      <div aria-hidden className="space-y-6 animate-pulse">
+        <div className="flex gap-3 items-center">
+          <div className="w-2/5 h-7 bg-gray-200 rounded" />
+          <div className="w-24 h-5 bg-gray-100 rounded" />
+        </div>
+        <div className="space-y-2">
+          <div className="w-full h-4 bg-gray-200 rounded" />
+          <div className="w-11/12 h-4 bg-gray-200 rounded" />
+          <div className="w-2/3 h-4 bg-gray-200 rounded" />
+        </div>
+        <div className="space-y-2">
+          <div className="w-28 h-3 bg-gray-100 rounded" />
+          <ul className="space-y-1.5">
+            <li className="flex gap-2.5 items-baseline">
+              <span className="size-1.5 rounded-full shrink-0 bg-gray-200" />
+              <span className="w-4/5 h-4 bg-gray-200 rounded" />
+            </li>
+            <li className="flex gap-2.5 items-baseline">
+              <span className="size-1.5 rounded-full shrink-0 bg-gray-200" />
+              <span className="w-3/5 h-4 bg-gray-200 rounded" />
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-const Missing: FC = () => (
-  <div className="p-8 w-full space-y-2">
-    <h1 className="text-2xl font-normal">This publication is not here</h1>
-    <p className="text-gray-700">
-      It has been removed from the database, or the link names a record that
-      never existed.
-    </p>
-  </div>
-);
+const Missing: FC = () => {
+  const t = useTranslations("publication");
+
+  return (
+    <div className="p-8 w-full space-y-2">
+      <h1 className="text-2xl font-normal">{t("notHere")}</h1>
+      <p className="text-gray-700">{t("notHereDetail")}</p>
+    </div>
+  );
+};
 
 const Opened: FC<{
   view: Promise<PublicationView | null>;
@@ -101,6 +107,7 @@ const PublicationOverlay: FC<{
    */
   closeTo?: string;
 }> = ({ view, closeTo }) => {
+  const t = useTranslations("publication");
   const router = useRouter();
   const pathname = usePathname();
 
@@ -111,7 +118,7 @@ const PublicationOverlay: FC<{
   // over the new page. Gate on the URL instead: show it only while the path is
   // still a publication's.
   return pathname.startsWith("/publications/") ? (
-    <Modal isOpen onClose={close} label="Publication details">
+    <Modal isOpen onClose={close} label={t("details")}>
       <Suspense fallback={<Loading />}>
         <Opened view={view} onClose={close} />
       </Suspense>

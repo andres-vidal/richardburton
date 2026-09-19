@@ -1,6 +1,7 @@
 "use client";
 
 import { Publication } from "modules/publication/model";
+import { useTranslations } from "next-intl";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback } from "react";
 import { ListDataInputProps } from "./DataInput";
@@ -18,6 +19,8 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
     },
     ref,
   ) {
+    const t = useTranslations("admin");
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const getOptions = useCallback(
       pDebounce(
@@ -34,7 +37,7 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
         value={value}
         onChange={(next) => onChange?.(next)}
         getOptions={getOptions}
-        emptyMessage={`No match — press , to add it anyway, or "quote it" to keep a comma`}
+        emptyMessage={t("noMatchComma")}
       />
     );
   },

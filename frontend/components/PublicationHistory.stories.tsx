@@ -139,7 +139,7 @@ export const Default: Story = {
     ]);
 
     // Every action is attributed.
-    await expect(screen.getByText("restored")).toBeInTheDocument();
+    await expect(screen.getByText("Restored")).toBeInTheDocument();
     await expect(
       screen.getAllByText("by curator@rb.test").length,
     ).toBeGreaterThan(0);

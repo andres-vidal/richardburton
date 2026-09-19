@@ -4,16 +4,26 @@ import { FloatingPortal } from "@floating-ui/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { atom, useAtom } from "jotai";
 import { store } from "modules/store";
-import { usePathname } from "next/navigation";
+import { usePathname } from "i18n/navigation";
+import { useTranslations } from "next-intl";
 import { FC, useEffect } from "react";
 import { v4 as uuid } from "uuid";
 import Notification, { isFailure, NotificationLevel } from "./Notification";
 
+/**
+ * A notification names its copy rather than holding it. What raised it is
+ * usually not a component — a remote call, a store write — and so has no locale
+ * to write in; the card is rendered in React, where there is one.
+ */
 type NotificationEntry = {
   id: string;
+  /** Names the headline in the message catalogue, whole: `notify.roleChanged`. */
   message: string;
-  level: NotificationLevel;
+  /** Names the second line, where there is one. */
   detail?: string;
+  /** Fills whatever placeholders the two hold. */
+  values?: Record<string, string | number>;
+  level: NotificationLevel;
 };
 
 const notificationsAtom = atom<NotificationEntry[]>([]);
@@ -27,10 +37,10 @@ type Notifier = (notification: Omit<NotificationEntry, "id">) => void;
  * Push a notification imperatively. Safe to call outside React (e.g. from the
  * publication remote layer) since it writes straight to the app store.
  */
-const notify: Notifier = ({ message, level, detail }) => {
+const notify: Notifier = ({ message, level, detail, values }) => {
   store.set(notificationsAtom, (current) => [
     ...current,
-    { id: uuid(), message, level, detail },
+    { id: uuid(), message, level, detail, values },
   ]);
 };
 
@@ -44,6 +54,13 @@ function useNotify(): Notifier {
  * cards themselves are `Notification`.
  */
 const Notifications: FC = () => {
+  // Rooted, not scoped: a notification names its copy wherever in the catalogue
+  // that copy lives. A name the catalogue has nothing for falls back to its last
+  // part, which is how a code the server invented still reaches the reader.
+  const t = useTranslations();
+  const write = (key: string, values?: NotificationEntry["values"]) =>
+    t.has(key) ? t(key, values) : (key.split(".").pop() ?? key);
+
   const [notifications, setNotifications] = useAtom(notificationsAtom);
   const pathname = usePathname();
 
@@ -79,13 +96,13 @@ const Notifications: FC = () => {
   return (
     <FloatingPortal>
       <section
-        aria-label="Notifications"
+        aria-label={t("common.notifications")}
         className="flex fixed top-10 left-1/2 flex-col items-center space-y-2 -translate-x-1/2 z-70"
       >
         <AnimatePresence>
           {notifications
             .slice(0, shownNotificationsCount)
-            .map(({ id, message, level, detail }) => (
+            .map(({ id, message, level, detail, values }) => (
               <motion.div
                 layout
                 key={id}
@@ -96,8 +113,8 @@ const Notifications: FC = () => {
               >
                 <Notification
                   level={level}
-                  message={message}
-                  detail={detail}
+                  message={write(message, values)}
+                  detail={detail && write(detail, values)}
                   onDismiss={() => dismiss(id)}
                 />
               </motion.div>
@@ -113,7 +130,9 @@ const Notifications: FC = () => {
             >
               <Notification
                 level="info"
-                message={`${stackedNotificationsCount} more notifications`}
+                message={t("common.moreNotifications", {
+                  count: stackedNotificationsCount,
+                })}
               />
             </motion.div>
           )}

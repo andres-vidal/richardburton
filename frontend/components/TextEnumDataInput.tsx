@@ -1,6 +1,7 @@
 "use client";
 
 import { Publication } from "modules/publication/model";
+import { useLocale } from "next-intl";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useMemo } from "react";
 import { ScalarDataInputProps } from "./DataInput";
@@ -22,21 +23,26 @@ export default forwardRef<HTMLInputElement, ScalarDataInputProps>(
       onChange?.(option.id);
     }
 
+    const locale = useLocale();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const getOptions = useCallback(
       pDebounce(
-        (search: string) => Publication.autocomplete(search, colId),
+        (search: string) => Publication.autocomplete(search, colId, locale),
         350,
       ),
-      [colId],
+      [colId, locale],
     );
 
     const selectedOption = useMemo(
       () =>
         value
-          ? { id: value, label: Publication.describeValue(value, colId) }
+          ? {
+              id: value,
+              label: Publication.describeValue(value, colId, locale),
+            }
           : undefined,
-      [value, colId],
+      [value, colId, locale],
     );
 
     return (

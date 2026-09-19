@@ -8,7 +8,7 @@ import {
   useStoredPublicationSources,
   useUnsourcedPublicationCount,
 } from "modules/publication/hooks";
-import type { PublicationId } from "modules/publication/model";
+import { Publication, type PublicationId } from "modules/publication/model";
 import { receiveIndex, type PublicationIndex } from "modules/publication/store";
 import {
   PublicationStoreProvider,
@@ -16,7 +16,8 @@ import {
 } from "modules/publication/workspace";
 import { update } from "modules/publication/remote";
 import { discardEdit, overrideSources } from "modules/publication/store";
-import Link from "next/link";
+import { Link } from "i18n/navigation";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { FC, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 const optionId = (id: PublicationId) => `sources-queue-option-${id}`;
@@ -72,6 +73,8 @@ export const SourcesQueue: FC<{
 }> = ({ ids, activeId, onSelect }) => {
   const position = activeId === undefined ? -1 : ids.indexOf(activeId);
   // Live count of entries still missing sources — shrinks as sources are added.
+  const t = useTranslations("backfill");
+  const format = useFormatter();
   const missingCount = useUnsourcedPublicationCount();
 
   const move = (event: KeyboardEvent, next: number) => {
@@ -91,15 +94,15 @@ export const SourcesQueue: FC<{
     <div className="flex flex-col w-72 border-r border-gray-200 shrink-0">
       <header className="flex gap-2 justify-between items-baseline px-3 py-2 border-b border-gray-200">
         <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-          Missing sources
+          {t("missingSources")}
         </span>
         <span className="px-1.5 py-0.5 text-xs font-medium text-indigo-700 rounded-full bg-indigo-100 tabular-nums">
-          {missingCount}
+          {format.number(missingCount)}
         </span>
       </header>
       <ul
         role="listbox"
-        aria-label="Publications missing sources"
+        aria-label={t("queue")}
         tabIndex={0}
         aria-activedescendant={
           activeId === undefined ? undefined : optionId(activeId)
@@ -129,6 +132,9 @@ export const BackfillStep: FC<{
   onSave: () => void;
   onSkip: () => void;
 }> = ({ id, position, total, saving, onSave, onSkip }) => {
+  const t = useTranslations("backfill");
+  const common = useTranslations("common");
+  const locale = useLocale();
   const store = usePublicationStore();
   const publication = usePublication(id);
   const sources = usePublicationSources(id);
@@ -143,13 +149,29 @@ export const BackfillStep: FC<{
               <span className="text-indigo-500">({publication.authors})</span>
             </div>
             <span className="text-sm text-gray-600 shrink-0 tabular-nums">
-              {position + 1} / {total}
+              {common("progress", { position: position + 1, total })}
             </span>
           </div>
           <div className="mt-1 text-sm text-gray-600">
-            {publication.originalTitle} — {publication.originalAuthors} ·{" "}
-            {publication.year} · {publication.countries} ·{" "}
-            {publication.publishers}
+            {t("line", {
+              originalTitle: publication.originalTitle,
+              originalAuthors: Publication.describe(
+                publication.originalAuthors,
+                "originalAuthors",
+                locale,
+              ),
+              year: publication.year,
+              countries: Publication.describe(
+                publication.countries,
+                "countries",
+                locale,
+              ),
+              publishers: Publication.describe(
+                publication.publishers,
+                "publishers",
+                locale,
+              ),
+            })}
           </div>
         </div>
       )}
@@ -161,7 +183,7 @@ export const BackfillStep: FC<{
 
       <div className="flex gap-3 justify-end mt-auto">
         <Button
-          label="Skip"
+          label={t("skip")}
           variant="outline"
           width="fit"
           size="medium"
@@ -170,7 +192,7 @@ export const BackfillStep: FC<{
         <Button
           // The last publication has no "next" to advance to — the action is
           // just Save (position clamps, so the wizard stays put either way).
-          label={position === total - 1 ? "Save" : "Save & next"}
+          label={position === total - 1 ? t("save") : t("saveAndNext")}
           width="fit"
           size="medium"
           loading={saving}
@@ -195,19 +217,18 @@ export const SourcesBackfillView: FC<{
   onSave: () => void;
   onSkip: () => void;
 }> = ({ ids, position, saving, onSelect, onSave, onSkip }) => {
+  const t = useTranslations("backfill");
   const currentId = ids?.[position];
   const empty = ids !== undefined && ids.length === 0;
 
   return ids === undefined ? (
-    <p className="py-8 text-center text-gray-600">
-      Finding publications without sources…
-    </p>
+    <p className="py-8 text-center text-gray-600">{t("finding")}</p>
   ) : empty ? (
     <div className="flex flex-col gap-4 items-center py-16 text-center">
-      <h1 className="text-2xl font-normal">All caught up</h1>
-      <p className="text-gray-600">Every publication already has sources.</p>
+      <h1 className="text-2xl font-normal">{t("allCaughtUp")}</h1>
+      <p className="text-gray-600">{t("allCaughtUpDetail")}</p>
       <Link href="/" className="anchor">
-        Back to the index
+        {t("backToIndex")}
       </Link>
     </div>
   ) : (

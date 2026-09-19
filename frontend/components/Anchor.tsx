@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { Link } from "i18n/navigation";
+import NextLink from "next/link";
 import { FC, PropsWithChildren } from "react";
 
 interface Props extends PropsWithChildren {
@@ -9,7 +10,10 @@ interface Props extends PropsWithChildren {
 }
 
 const Anchor: FC<Props> = ({ query, href = "", onClick, children }) => {
-  const Tag = href.startsWith("http") ? "a" : Link;
+  // A link that is only a query stays on the page it is already on, so it keeps
+  // that page's locale without being told: there is no path to prefix, and the
+  // locale-aware Link has nothing to work with.
+  const Tag = href.startsWith("http") ? "a" : href ? Link : NextLink;
 
   const content = (
     <>

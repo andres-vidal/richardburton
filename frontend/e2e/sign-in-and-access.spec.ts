@@ -43,9 +43,9 @@ test("signing out works from a page that is not the index", async ({
   await signOut(page);
 
   // Back at the front door, and the page just left is closed to them.
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/en");
   await page.goto("/admin/users");
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/en");
 });
 
 test("a signed-out visitor cannot reach the admin workspace", async ({
@@ -54,7 +54,7 @@ test("a signed-out visitor cannot reach the admin workspace", async ({
   await page.goto("/admin/publications/new");
 
   // The guard bounces the visitor back to the public index.
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/en");
   await expect(
     page.getByRole("heading", { name: "Add publications" }),
   ).toHaveCount(0);

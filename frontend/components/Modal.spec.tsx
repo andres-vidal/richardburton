@@ -27,6 +27,13 @@ const nav = vi.hoisted(() => {
   };
 });
 
+// The components navigate through `i18n/navigation`, so that is what is stood
+// in for. `useSearchParams` still comes from Next itself.
+vi.mock("i18n/navigation", () => ({
+  useRouter: () => ({ replace: nav.replace }),
+  usePathname: () => "/",
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: nav.replace }),
   usePathname: () => "/",

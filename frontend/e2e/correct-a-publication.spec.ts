@@ -70,8 +70,8 @@ test("an admin edits a publication's title and sources in a corpus", async ({
   // section shows the import and the update, actor-attributed, with the
   // update's field-level diff.
   await dialog.getByText("History", { exact: true }).click();
-  await expect(dialog.getByText("created")).toBeVisible();
-  await expect(dialog.getByText("updated")).toBeVisible();
+  await expect(dialog.getByText("Created")).toBeVisible();
+  await expect(dialog.getByText("Updated")).toBeVisible();
   await expect(dialog.getByText("by dev-admin@localhost")).toHaveCount(2);
   await expect(
     dialog.getByText(
@@ -172,7 +172,7 @@ test("an admin arrives by link and corrects the publication on its own page", as
   // address intercepted. Arriving at it cold gives the page instead.
   await openPublicationModal(page, "Barren Lives");
   const address = new URL(page.url()).pathname;
-  expect(address).toMatch(/^\/publications\/\d+$/);
+  expect(address).toMatch(/^\/en\/publications\/\d+$/);
   await page.goto(address);
 
   // The page offers what the overlay offers, with no database behind it.

@@ -1,8 +1,9 @@
 "use client";
 
-import { formatDate } from "modules/dates";
+import { useFormatDate } from "modules/dates";
 import type { WithChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
 
@@ -32,11 +33,14 @@ type UndoHandler = (() => Promise<void>) | typeof UNDO_DISABLED;
 const ActionBadge: FC<{
   action: PublicationHistoryEntry["action"];
   variant: Variant;
-}> = ({ action, variant }) => (
-  <span
-    data-variant={variant}
-    className="
-      inline-block shrink-0 font-medium text-center capitalize rounded-full
+}> = ({ action, variant }) => {
+  const t = useTranslations("historyActions");
+
+  return (
+    <span
+      data-variant={variant}
+      className="
+      inline-block shrink-0 font-medium text-center rounded-full
       data-[variant=card]:w-20 data-[variant=card]:py-0.5 data-[variant=card]:text-xs
       data-[variant=plain]:w-16 data-[variant=plain]:text-[0.6875rem]
       group-data-[action=created]:bg-indigo-100 group-data-[action=created]:text-indigo-700
@@ -46,10 +50,11 @@ const ActionBadge: FC<{
       group-data-[action=merged]:bg-sky-100 group-data-[action=merged]:text-sky-700
       group-data-[action=unmerged]:bg-sky-100 group-data-[action=unmerged]:text-sky-700
     "
-  >
-    {action}
-  </span>
-);
+    >
+      {t(action)}
+    </span>
+  );
+};
 
 const Entry: FC<{
   entry: HistoryEntry;
@@ -64,6 +69,11 @@ const Entry: FC<{
   onUndo?: UndoHandler;
   variant?: Variant;
 }> = ({ entry, onUndo, variant = "card" }) => {
+  // A change names the attribute it is about; what that attribute is called is
+  // settled here.
+  const attribute = useTranslations("attributes");
+  const t = useTranslations("admin");
+  const formatDate = useFormatDate();
   const [undoing, setUndoing] = useState(false);
 
   const subject = variant === "card" ? entry.snapshot.title : null;
@@ -99,7 +109,7 @@ const Entry: FC<{
         ) : (
           <>
             <span className="text-gray-600 wrap-break-words">
-              by {entry.actor}
+              {t("byActor", { actor: entry.actor })}
             </span>
             <span className="ml-auto text-gray-500 whitespace-nowrap shrink-0">
               {formatDate(entry.timestamp)}
@@ -109,7 +119,7 @@ const Entry: FC<{
         {onUndo && entry.undoable && (
           <span className="flex shrink-0 justify-end ml-auto">
             <Button
-              label="Undo"
+              label={t("undo")}
               variant="outline"
               width="fit"
               size="small"
@@ -125,7 +135,10 @@ const Entry: FC<{
           data-variant={variant}
           className="mt-0.5 text-gray-500 wrap-break-words data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
         >
-          by {entry.actor} · {formatDate(entry.timestamp)}
+          {t("byActorOn", {
+            actor: entry.actor,
+            date: formatDate(entry.timestamp),
+          })}
         </p>
       )}
       {entry.action === "updated" && entry.diff === null && (
@@ -144,8 +157,9 @@ const Entry: FC<{
         >
           {entry.changes.map((change) =>
             change.kind === "field" ? (
-              <li key={change.label} className="text-xs text-gray-600">
-                {change.label}: <s className="text-gray-500">{change.from}</s> →{" "}
+              <li key={change.attribute} className="text-xs text-gray-600">
+                {attribute(change.attribute)}:{" "}
+                <s className="text-gray-500">{change.from}</s> →{" "}
                 <span className="text-gray-700">{change.to}</span>
               </li>
             ) : change.kind === "sources" ? (
@@ -166,7 +180,7 @@ const Entry: FC<{
               </li>
             ) : (
               <li key="absorbed" className="mt-1 text-xs text-gray-600">
-                {change.direction === "in" ? "Took in" : "Gave back"}
+                {change.direction === "in" ? t("tookIn") : t("gaveBack")}
                 <ul className="mt-1 space-y-1.5">
                   {change.records.map((record) => (
                     <li
@@ -174,17 +188,17 @@ const Entry: FC<{
                       className="pl-2 border-l-2 border-sky-200"
                     >
                       <span className="font-medium text-gray-700">
-                        {record.title}
+                        {record.title || t("untitledRecord")}
                       </span>
                       <ul className="space-y-0.5">
                         {record.fields.map((field) => (
-                          <li key={field.label} className="text-gray-500">
-                            {field.label}: {field.value}
+                          <li key={field.attribute} className="text-gray-500">
+                            {attribute(field.attribute)}: {field.value}
                           </li>
                         ))}
                         {record.sources.map((source) => (
                           <li key={source} className="text-gray-500">
-                            Source: {source}
+                            {t("sourceLabel", { source })}
                           </li>
                         ))}
                       </ul>
@@ -207,21 +221,23 @@ const Entry: FC<{
  * page's subject. Records created before the history log have no entries; that
  * absence is stated rather than hidden.
  */
-const PublicationHistory: FC<{ entries: HistoryEntry[] }> = ({ entries }) => (
-  <div>
-    {entries.length === 0 ? (
-      <p className="text-xs text-gray-500">
-        No recorded changes — this record predates the history log.
-      </p>
-    ) : (
-      <ol className="space-y-2.5">
-        {entries.map((entry) => (
-          <Entry key={entry.version} entry={entry} variant="plain" />
-        ))}
-      </ol>
-    )}
-  </div>
-);
+const PublicationHistory: FC<{ entries: HistoryEntry[] }> = ({ entries }) => {
+  const t = useTranslations("admin");
+
+  return (
+    <div>
+      {entries.length === 0 ? (
+        <p className="text-xs text-gray-500">{t("noRecordedChanges")}</p>
+      ) : (
+        <ol className="space-y-2.5">
+          {entries.map((entry) => (
+            <Entry key={entry.version} entry={entry} variant="plain" />
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+};
 
 export default PublicationHistory;
 export { Entry, UNDO_DISABLED };

@@ -148,8 +148,12 @@ test("reloading with a publication open keeps it open, over the search that foun
   await page
     .getByRole("textbox", { name: "Search publications" })
     .fill("Machado");
-  // Wait for the query to actually land — the unfiltered database contains this
-  // title too, so its presence proves nothing until the others are gone.
+  // Wait for the query to actually land. A row has to be there before its
+  // absence means anything: rows render as they scroll into view, so an empty
+  // table satisfies a count of zero without having answered the search yet.
+  await expect(
+    indexTable(page).getByText("Dom Casmurro").first(),
+  ).toBeVisible();
   await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
     0,
   );
@@ -176,10 +180,10 @@ test("reloading with a publication open keeps it open, over the search that foun
       // Let the press settle before judging it: going back is asynchronous, and
       // pressing again while it lands would step past the search too.
       await page
-        .waitForURL(/\/\?search=Machado$/, { timeout: 2000 })
+        .waitForURL(/\/en\?search=Machado$/, { timeout: 2000 })
         .catch(() => {});
     }
-    expect(page.url()).toMatch(/\/\?search=Machado$/);
+    expect(page.url()).toMatch(/\/en\?search=Machado$/);
   }).toPass();
   await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
     0,

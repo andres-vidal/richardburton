@@ -1,14 +1,17 @@
+"use client";
+
+import { useFormatter } from "next-intl";
+
 /**
- * A timestamp as the database shows dates: the day, not the hour. Everything
- * the app dates — history entries, the trash, who joined when — reads the same
- * way.
+ * A timestamp as the database shows dates.
+ *
+ * Which parts a date shows, in which order, is the `day` format declared in
+ * `i18n/request.ts` — so the shape is settled once for every language rather
+ * than assembled here.
  */
-function formatDate(timestamp: string): string {
-  return new Date(timestamp).toLocaleDateString("en", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+function useFormatDate(): (timestamp: string) => string {
+  const format = useFormatter();
+  return (timestamp) => format.dateTime(new Date(timestamp), "day");
 }
 
-export { formatDate };
+export { useFormatDate };

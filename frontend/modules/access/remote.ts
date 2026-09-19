@@ -1,6 +1,6 @@
 import { request } from "app";
 import { notify } from "components/Notifications";
-import { describeRole, type UserRecord, type UserRole } from "modules/users";
+import type { UserRecord, UserRole } from "modules/users";
 
 /** What happened to an offer of a role, which is not always the same thing. */
 type InviteOutcome = "granted" | "invited" | "unsent";
@@ -31,18 +31,21 @@ async function invite(email: string, role: UserRole): Promise<boolean> {
 
     const reports = {
       granted: {
-        message: "Access granted",
-        detail: `${email} is now ${describeRole(role)}.`,
+        message: "notify.accessGranted",
+        detail: "notify.accessGrantedDetail",
+        values: { email, role },
         level: "success",
       },
       invited: {
-        message: "Invitation sent",
-        detail: `${email} will be ${describeRole(role)} once they sign in.`,
+        message: "notify.invitationSent",
+        detail: "notify.invitationSentDetail",
+        values: { email, role },
         level: "success",
       },
       unsent: {
-        message: "Access granted, but the invitation was not sent",
-        detail: `${email} can sign in to take it up. Send the invitation again when mail is working.`,
+        message: "notify.invitationUnsent",
+        detail: "notify.invitationUnsentDetail",
+        values: { email },
         level: "warning",
       },
     } satisfies Record<InviteOutcome, Parameters<typeof notify>[0]>;
@@ -52,13 +55,14 @@ async function invite(email: string, role: UserRole): Promise<boolean> {
     return true;
   } catch (error) {
     notify({
-      message: "Could not invite",
+      message: "notify.inviteFailed",
       detail:
         errorOf(error) === "pending"
-          ? `${email} already has an invitation waiting.`
+          ? "notify.invitePendingDetail"
           : errorOf(error) === "self"
-            ? "Another admin has to change your own role for you."
-            : `Check the address and try again.`,
+            ? "notify.inviteSelfDetail"
+            : "notify.inviteAddressDetail",
+      values: { email },
       level: "warning",
     });
     return false;
@@ -71,14 +75,15 @@ async function setRole(user: UserRecord, role: UserRole): Promise<boolean> {
     await request((http) => http.patch(`users/${user.id}`, { role }));
 
     notify({
-      message: "Role changed",
-      detail: `${user.email} is now ${describeRole(role)}.`,
+      message: "notify.roleChanged",
+      detail: "notify.accessGrantedDetail",
+      values: { email: user.email, role },
       level: "success",
     });
     return true;
   } catch (error) {
     notify({
-      message: "Could not change the role",
+      message: "notify.roleChangeFailed",
       ...refusal(error),
       level: "warning",
     });
@@ -92,14 +97,15 @@ async function revoke(user: UserRecord): Promise<boolean> {
     await request((http) => http.delete(`users/${user.id}`));
 
     notify({
-      message: "Access revoked",
-      detail: `${user.email} is signed out and can no longer sign in.`,
+      message: "notify.accessRevoked",
+      detail: "notify.accessRevokedDetail",
+      values: { email: user.email },
       level: "success",
     });
     return true;
   } catch (error) {
     notify({
-      message: "Could not revoke access",
+      message: "notify.revokeFailed",
       ...refusal(error),
       level: "warning",
     });
@@ -111,12 +117,12 @@ async function revoke(user: UserRecord): Promise<boolean> {
 async function cancelInvitation(id: number): Promise<boolean> {
   try {
     await request((http) => http.delete(`invitations/${id}`));
-    notify({ message: "Invitation withdrawn", level: "success" });
+    notify({ message: "notify.invitationWithdrawn", level: "success" });
     return true;
   } catch {
     notify({
-      message: "Could not withdraw the invitation",
-      detail: "It may have been taken up already.",
+      message: "notify.withdrawFailed",
+      detail: "notify.withdrawFailedDetail",
       level: "warning",
     });
     return false;
@@ -127,12 +133,12 @@ async function cancelInvitation(id: number): Promise<boolean> {
 async function resendInvitation(id: number): Promise<boolean> {
   try {
     await request((http) => http.post(`invitations/${id}/resend`));
-    notify({ message: "Invitation sent again", level: "success" });
+    notify({ message: "notify.invitationResent", level: "success" });
     return true;
   } catch {
     notify({
-      message: "Could not send the invitation",
-      detail: "Check that mail is working and try again.",
+      message: "notify.resendFailed",
+      detail: "notify.resendFailedDetail",
       level: "warning",
     });
     return false;
@@ -144,16 +150,11 @@ async function resendInvitation(id: number): Promise<boolean> {
 function refusal(error: unknown): { detail: string } {
   switch (errorOf(error)) {
     case "self":
-      return { detail: "Another admin has to do this one for you." };
+      return { detail: "notify.refusalSelf" };
     case "last_admin":
-      return {
-        detail:
-          "This is the only admin left. Make someone else an admin first.",
-      };
+      return { detail: "notify.refusalLastAdmin" };
     default:
-      return {
-        detail: "Nothing changed. Check your connection and try again.",
-      };
+      return { detail: "notify.nothingChanged" };
   }
 }
 

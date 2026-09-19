@@ -1,6 +1,7 @@
 import { isString } from "lodash";
 import { Author } from "modules/author";
-import { COUNTRIES, Country } from "modules/country";
+import { countriesIn, countryName, Country } from "modules/country";
+import { routing } from "i18n/routing";
 import { OriginalBook, type OriginalBookValue } from "modules/original-book";
 import { Publisher } from "modules/publisher";
 
@@ -166,18 +167,6 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
   originalAuthors: true,
 };
 
-const ERROR_MESSAGES: Record<string, string> = {
-  conflict: `A publication with this data already exists`,
-  required: `This field is required and cannot be blank`,
-  integer: `This field should be an integer`,
-  incorrect_row_length: `Expected a different number of columns in csv`,
-  invalid_format: `Could not parse publications from the provided file`,
-  invalid_escape_sequence: `Could not parse publications from the provided file`,
-  stray_escape_character: `Could not parse publications from the provided file`,
-  alpha2: `This field should be a valid ISO 3166-1 alpha 2 country code`,
-  duplicate: `This field cannot repeat the same entry`,
-};
-
 function empty(): Publication {
   return {
     id: null,
@@ -224,12 +213,16 @@ function merged(winner: Publication, losers: Publication[]): Publication {
  * with the model. `year` is an integer on the backend and text in a form, so it
  * arrives here as either.
  */
-function describeValue(value: unknown, attribute: PublicationKey): string {
+function describeValue(
+  value: unknown,
+  attribute: PublicationKey,
+  locale: string = routing.defaultLocale,
+): string {
   const text = String(value ?? "");
 
   if (attribute === "countries") {
-    const country = COUNTRIES[text];
-    if (country) return country.label;
+    const name = countryName(text, locale);
+    if (name) return name;
 
     console.warn("Unknown country code: ", text);
   }
@@ -245,10 +238,11 @@ function describeValue(value: unknown, attribute: PublicationKey): string {
 function markedValue(
   publication: Publication,
   attribute: PublicationKey,
+  locale?: string,
 ): string {
   return (
     publication.excerpts?.[attribute] ??
-    describe(publication[attribute], attribute)
+    describe(publication[attribute], attribute, locale)
   );
 }
 
@@ -263,6 +257,7 @@ function markedValue(
 function markedItems(
   publication: Publication,
   attribute: PublicationKey,
+  locale?: string,
 ): { value: string; label: string }[] {
   const values = (publication[attribute] ?? []) as string[];
   const excerpt = publication.excerpts?.[attribute];
@@ -273,7 +268,7 @@ function markedItems(
     label:
       marked?.length === values.length
         ? marked[index]
-        : describeValue(value, attribute),
+        : describeValue(value, attribute, locale),
   }));
 }
 
@@ -293,30 +288,36 @@ function markedSources(publication: Publication): string[] {
  * A whole attribute in one line — for the places that show a record at a
  * glance rather than value by value.
  */
-function describe(value: PublicationValue, attribute: PublicationKey): string {
+function describe(
+  value: PublicationValue,
+  attribute: PublicationKey,
+  locale: string = routing.defaultLocale,
+): string {
   return Array.isArray(value)
-    ? value.map((one) => describeValue(one, attribute)).join(", ")
-    : describeValue(value, attribute);
+    ? new Intl.ListFormat(locale, { style: "long", type: "unit" }).format(
+        value.map((one) => describeValue(one, attribute, locale)),
+      )
+    : describeValue(value, attribute, locale);
 }
 
-function describeError(
-  error: PublicationError,
-  scope?: PublicationKey,
-): string {
+/**
+ * The code for what is wrong, empty where nothing is.
+ *
+ * A code, not a sentence: this module is read from outside React, where there
+ * is no locale to write one in. The sentence is in the `publicationError`
+ * catalogue, under this very code, and is written where the error is shown.
+ *
+ * Without a scope the answer is the error the whole publication carries, and
+ * with one the error on that field — a publication has either kind, never both,
+ * so asking for the kind that is not there is empty rather than wrong.
+ */
+function errorCode(error: PublicationError, scope?: PublicationKey): string {
   if (!error) {
     return "";
   } else if (!scope) {
-    if (isString(error)) {
-      return ERROR_MESSAGES[error] || error;
-    } else {
-      return "";
-    }
+    return isString(error) ? error : "";
   } else {
-    if (isString(error)) {
-      return "";
-    } else {
-      return ERROR_MESSAGES[error[scope]] || error[scope];
-    }
+    return isString(error) ? "" : error[scope];
   }
 }
 
@@ -330,6 +331,7 @@ function define(attribute: PublicationKey): Record<string, unknown> {
 function autocomplete(
   value: string,
   attribute: "countries",
+  locale?: string,
 ): Promise<Country[]>;
 function autocomplete(
   value: string,
@@ -341,9 +343,17 @@ function autocomplete(
   attribute: "originalTitle",
 ): Promise<OriginalBookValue[]>;
 function autocomplete(value: string, attribute: "publishers"): Promise<[]>;
-function autocomplete(value: string, attribute: string): Promise<[]>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function autocomplete(value: string, attribute: string): Promise<any> {
+function autocomplete(
+  value: string,
+  attribute: string,
+  locale?: string,
+): Promise<[]>;
+function autocomplete(
+  value: string,
+  attribute: string,
+  locale?: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
   switch (attribute) {
     case "authors":
     case "originalAuthors":
@@ -357,14 +367,23 @@ function autocomplete(value: string, attribute: string): Promise<any> {
       return OriginalBook.REMOTE.search(value);
 
     case "countries": {
-      const all = Object.values(COUNTRIES);
-      const countries = value
-        ? Object.values(COUNTRIES).filter((opt) =>
-            opt.label.toLowerCase().startsWith(value.toLowerCase()),
-          )
+      const all = Object.values(countriesIn(locale ?? routing.defaultLocale));
+      const term = value.toLowerCase();
+
+      // One country's name can begin another's — "United States" begins
+      // "United States Minor Outlying Islands" — so a name typed in full is
+      // offered first rather than behind the longer names it starts.
+      const found = value
+        ? all
+            .filter((opt) => opt.label.toLowerCase().startsWith(term))
+            .sort(
+              (one, other) =>
+                Number(other.label.toLowerCase() === term) -
+                Number(one.label.toLowerCase() === term),
+            )
         : all;
 
-      return new Promise<Country[]>((resolve) => resolve(countries));
+      return new Promise<Country[]>((resolve) => resolve(found));
     }
     default:
       return new Promise<[]>((resolve) => resolve([]));
@@ -381,7 +400,7 @@ const Publication = {
   autocomplete,
   define,
   describe,
-  describeError,
+  errorCode,
   describeValue,
   markedValue,
   markedItems,
@@ -396,11 +415,11 @@ export {
   ATTRIBUTE_TYPES,
   ATTRIBUTES,
   autocomplete,
-  COUNTRIES,
+  countriesIn,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
   describe,
-  describeError,
+  errorCode,
   describeValue,
   empty,
   HISTORY_ACTIONS,

@@ -1,13 +1,14 @@
 import type { SetStateAction } from "jotai";
 import { atom, useAtom, useAtomValue } from "jotai";
+import { useLocale, useTranslations } from "next-intl";
 import { Publication, PublicationId, PublicationKey } from "./model";
 import {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
   discardedCountAtom,
-  errorDescriptionFamily,
+  errorCodeFamily,
   errorFamily,
-  fieldErrorDescriptionFamily,
+  fieldErrorCodeFamily,
   fieldValueFamily,
   focusedRowIdAtom,
   hiddenAttributesAtom,
@@ -76,9 +77,12 @@ function usePublicationStoredField<K extends PublicationKey>(
   return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
 }
 
-/** A single cell as the index marked it — see `markedFieldFamily`. */
+/**
+ * A single cell as the index marked it — see `markedFieldFamily`. A country is
+ * named in the page's language, so the cell is keyed by it too.
+ */
 function usePublicationMarkedField(id: PublicationId, key: PublicationKey) {
-  return useAtomValue(markedFieldFamily({ id, key }));
+  return useAtomValue(markedFieldFamily({ id, key, locale: useLocale() }));
 }
 
 function usePublicationExcerpts(id: PublicationId) {
@@ -98,12 +102,23 @@ function usePublicationError(id: PublicationId) {
   return useAtomValue(errorFamily(id));
 }
 
+/** An error code as a sentence, or the code itself where there is none for it. */
+function useErrorSentence(code: string): string {
+  const t = useTranslations("publicationError");
+  return code && t.has(code) ? t(code) : code;
+}
+
+/**
+ * What is wrong with a publication, in words. The store keeps the code the
+ * server sent; a code it has no sentence for is shown as it is, so an error
+ * invented after this catalogue was written still reaches the reader.
+ */
 function usePublicationErrorDescription(id: PublicationId) {
-  return useAtomValue(errorDescriptionFamily(id));
+  return useErrorSentence(useAtomValue(errorCodeFamily(id)));
 }
 
 function usePublicationFieldError(id: PublicationId, key: PublicationKey) {
-  return useAtomValue(fieldErrorDescriptionFamily({ id, key }));
+  return useErrorSentence(useAtomValue(fieldErrorCodeFamily({ id, key })));
 }
 
 function usePublicationOverride(id: PublicationId) {

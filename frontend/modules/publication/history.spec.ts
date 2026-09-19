@@ -43,7 +43,7 @@ describe("presentChanges", () => {
         fields: { year: { from: 1953, to: 1954 } },
         sources: null,
       }),
-    ).toEqual([{ kind: "field", label: "Year", from: "1953", to: "1954" }]);
+    ).toEqual([{ kind: "field", attribute: "year", from: "1953", to: "1954" }]);
   });
 
   test("orders fields by the database's attributes, not the payload", () => {
@@ -55,9 +55,11 @@ describe("presentChanges", () => {
         title: { from: "A", to: "B" },
       },
       sources: null,
-    }).map((change) => (change.kind === "field" ? change.label : "sources"));
+    }).map((change) =>
+      change.kind === "field" ? change.attribute : "sources",
+    );
 
-    expect(labels).toEqual(["Title", "Publishers"]);
+    expect(labels).toEqual(["title", "publishers"]);
   });
 
   test("sources come last, as the one change that is a list", () => {
@@ -98,7 +100,7 @@ describe("withChanges", () => {
 
     expect(decorated).toMatchObject(original);
     expect(decorated.changes).toEqual([
-      { kind: "field", label: "Title", from: "A", to: "B" },
+      { kind: "field", attribute: "title", from: "A", to: "B" },
     ]);
   });
 });
@@ -130,9 +132,11 @@ describe("presentAbsorbed", () => {
     expect(record.title).toBe("A British Printing");
     // Every field it held, so the log says what became of the data — not only
     // that something was taken in.
-    expect(record.fields.map((field) => field.label)).toContain("Translators");
-    expect(record.fields.map((field) => field.label)).toContain("Year");
-    expect(record.fields.map((field) => field.label)).not.toContain("Title");
+    expect(record.fields.map((field) => field.attribute)).toContain("authors");
+    expect(record.fields.map((field) => field.attribute)).toContain("year");
+    expect(record.fields.map((field) => field.attribute)).not.toContain(
+      "title",
+    );
   });
 
   test("an un-merge gives them back", () => {

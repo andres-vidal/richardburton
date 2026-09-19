@@ -34,11 +34,11 @@ export const Default: Story = {
 
     await expect(canvas.getByRole("link", { name: "Home" })).toHaveAttribute(
       "href",
-      "/",
+      "/en",
     );
     await expect(canvas.getByRole("link", { name: "Admin" })).toHaveAttribute(
       "href",
-      "/admin",
+      "/en/admin",
     );
     // The current page is announced but not a link.
     await expect(canvas.getByText("Backfill sources")).toHaveAttribute(

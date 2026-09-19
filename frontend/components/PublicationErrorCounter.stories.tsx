@@ -26,7 +26,7 @@ export const Default: Story = {
     ]),
   play: async ({ canvasElement }) => {
     const button = within(canvasElement).getByRole("button", {
-      name: "1 invalid publications",
+      name: "1 invalid publication",
     });
     await expect(button).toBeInTheDocument();
     await expect(button).toHaveTextContent("1");

@@ -29,10 +29,19 @@ import {
   PublicationStoreProvider,
   usePublicationStore,
 } from "modules/publication/workspace";
+import { countryArticle } from "modules/country";
 import { useCanEditPublications } from "modules/session";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FC, SubmitEvent, useEffect, useState } from "react";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { Link } from "i18n/navigation";
+import { useRouter } from "i18n/navigation";
+import {
+  FC,
+  Fragment,
+  ReactNode,
+  SubmitEvent,
+  useEffect,
+  useState,
+} from "react";
 import Button from "./Button";
 import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
@@ -50,56 +59,111 @@ const Searchable: FC<{ label: string; value: string }> = ({ value, label }) => (
   </Link>
 );
 
-const SearchableList: FC<{
-  items: { label: string; value: string }[];
-}> = ({ items }) => (
-  <ul className="contents">
-    {items.map((item, index) => (
-      <li key={item.value} className="contents">
-        {index != 0 && index === items.length - 1 && " and "}
-        <Searchable {...item} />
-        {index < items.length - 2 && ", "}
-      </li>
-    ))}
-  </ul>
-);
+/**
+ * Several things read as one sentence would say them: "A, B and C".
+ *
+ * How a language joins a list is `Intl.ListFormat`'s to know, so the commas and
+ * the final conjunction are not written here.
+ */
+const SentenceList: FC<{ items: { key: string; node: ReactNode }[] }> = ({
+  items,
+}) => {
+  const format = useFormatter();
+
+  return (
+    <>
+      {format.list(
+        items.map((item) => <Fragment key={item.key}>{item.node}</Fragment>),
+      )}
+    </>
+  );
+};
 
 const PublicationHeading: FC<{ publication: Publication }> = ({
   publication,
-}) => (
-  <div className="flex flex-col w-full text-2xl font-normal sm:gap-2 sm:items-center sm:flex-row">
-    <Tooltip variant="info" message="Translation's title">
-      <span className="w-full truncate sm:w-min whitespace-nowrap">
-        <Highlight>{Publication.markedValue(publication, "title")}</Highlight>
-      </span>
-    </Tooltip>
-    <Tooltip variant="info" message="Who translated this publication">
-      <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl whitespace-nowrap">
-        (
-        <Highlight>{Publication.markedValue(publication, "authors")}</Highlight>
-        )
-      </span>
-    </Tooltip>
-  </div>
-);
+}) => {
+  const t = useTranslations("publication");
+
+  return (
+    <div className="flex flex-col w-full text-2xl font-normal sm:gap-2 sm:items-center sm:flex-row">
+      <Tooltip variant="info" message={t("translationTitle")}>
+        <span className="w-full truncate sm:w-min whitespace-nowrap">
+          <Highlight>{Publication.markedValue(publication, "title")}</Highlight>
+        </span>
+      </Tooltip>
+      <Tooltip variant="info" message={t("whoTranslated")}>
+        <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl whitespace-nowrap">
+          (
+          <Highlight>
+            {Publication.markedValue(publication, "authors")}
+          </Highlight>
+          )
+        </span>
+      </Tooltip>
+    </div>
+  );
+};
 
 const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
-  const list = (key: PublicationListKey) => (
-    <SearchableList items={Publication.markedItems(p, key)} />
-  );
+  const t = useTranslations("publication");
+  const locale = useLocale();
+
+  const list = (key: PublicationListKey) =>
+    function List() {
+      return (
+        <SentenceList
+          items={Publication.markedItems(p, key, locale).map((item) => ({
+            key: item.value,
+            node: <Searchable {...item} />,
+          }))}
+        />
+      );
+    };
+
+  // A country is introduced by a preposition, and which one it takes depends on
+  // the name: "in Brazil" but "in the Netherlands", "no Brasil" but "nos Países
+  // Baixos". The preposition sits outside the link, so what is clickable is
+  // still the name alone.
+  function Countries() {
+    const items = Publication.markedItems(p, "countries", locale).map(
+      (country) => ({
+        key: country.value,
+        node: t.rich("inCountry", {
+          article: countryArticle(country.value, locale),
+          name: () => <Searchable {...country} />,
+        }),
+      }),
+    );
+
+    return <SentenceList items={items} />;
+  }
 
   return (
     <div>
-      <Searchable value={p.title} label={Publication.markedValue(p, "title")} />{" "}
-      is a translation of{" "}
-      <Searchable
-        value={p.originalTitle}
-        label={Publication.markedValue(p, "originalTitle")}
-      />
-      , by {list("originalAuthors")}. It was written by {list("authors")} and
-      published in {list("countries")} in {p.year} by {list("publishers")}.
+      {t.rich("description", {
+        title: () => (
+          <Searchable
+            value={p.title}
+            label={Publication.markedValue(p, "title")}
+          />
+        ),
+        originalTitle: () => (
+          <Searchable
+            value={p.originalTitle}
+            label={Publication.markedValue(p, "originalTitle")}
+          />
+        ),
+        originalAuthors: list("originalAuthors"),
+        authors: list("authors"),
+        countries: Countries,
+        publishers: list("publishers"),
+        year: p.year,
+        // Portuguese names the publishers before listing them, so the sentence
+        // has to agree with how many there are.
+        publisherCount: p.publishers?.length ?? 0,
+      })}
     </div>
   );
 };
@@ -111,30 +175,32 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
  * database whose worth is its provenance, an absent source is worth stating.
  * The history section states its absence the same way.
  */
-const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => (
-  <section className="space-y-2">
-    <SectionHeading>Sources</SectionHeading>
-    {sources.length === 0 ? (
-      <p className="text-xs text-gray-500">
-        No sources recorded yet — this record has not been backed up by one.
-      </p>
-    ) : (
-      <ul className="space-y-1.5 text-sm text-gray-700">
-        {sources.map((source, index) => (
-          <li key={index} className="flex gap-2.5 items-baseline">
-            <span
-              aria-hidden
-              className="size-1.5 rounded-full shrink-0 bg-indigo-400 ring-2 ring-indigo-100"
-            />
-            <span className="wrap-break-words">
-              <Highlight>{source}</Highlight>
-            </span>
-          </li>
-        ))}
-      </ul>
-    )}
-  </section>
-);
+const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
+  const t = useTranslations("publication");
+
+  return (
+    <section className="space-y-2">
+      <SectionHeading>{t("sources")}</SectionHeading>
+      {sources.length === 0 ? (
+        <p className="text-xs text-gray-500">{t("noSources")}</p>
+      ) : (
+        <ul className="space-y-1.5 text-sm text-gray-700">
+          {sources.map((source, index) => (
+            <li key={index} className="flex gap-2.5 items-baseline">
+              <span
+                aria-hidden
+                className="size-1.5 rounded-full shrink-0 bg-indigo-400 ring-2 ring-indigo-100"
+              />
+              <span className="wrap-break-words">
+                <Highlight>{source}</Highlight>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
 
 /**
  * The record's mutation log, collapsed. The entries arrive with the record, so
@@ -142,34 +208,37 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => (
  */
 const PublicationHistorySection: FC<{
   entries: WithChanges<PublicationHistoryEntry>[];
-}> = ({ entries }) => (
-  <details className="space-y-2">
-    <summary className={`${SECTION_HEADING} cursor-pointer select-none`}>
-      History
-    </summary>
-    <PublicationHistory entries={entries} />
-  </details>
-);
+}> = ({ entries }) => {
+  const t = useTranslations("publication");
+
+  return (
+    <details className="space-y-2">
+      <summary className={`${SECTION_HEADING} cursor-pointer select-none`}>
+        {t("history")}
+      </summary>
+      <PublicationHistory entries={entries} />
+    </details>
+  );
+};
 
 const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
   id,
   attribute,
 }) => {
+  const t = useTranslations("attributes");
   const store = usePublicationStore();
   const value = usePublicationField(id, attribute);
   const error = usePublicationFieldError(id, attribute);
 
   return (
     <div className="flex flex-col gap-1 text-sm">
-      <span className="text-gray-500">
-        {Publication.ATTRIBUTE_LABELS[attribute]}
-      </span>
+      <span className="text-gray-500">{t(attribute)}</span>
       <DataInput
         rowId={id}
         colId={attribute}
         value={value}
         error={error}
-        aria-label={Publication.ATTRIBUTE_LABELS[attribute]}
+        aria-label={t(attribute)}
         bordered
         autoValidated
         // A form has room to say what is wrong, in place.
@@ -185,6 +254,7 @@ const PublicationEditForm: FC<{
   onSaved: () => void;
   onCancel: () => void;
 }> = ({ id, onSaved, onCancel }) => {
+  const t = useTranslations("publication");
   const store = usePublicationStore();
   const [saving, setSaving] = useState(false);
   const error = usePublicationErrorDescription(id);
@@ -201,7 +271,7 @@ const PublicationEditForm: FC<{
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5 w-full">
-      <SectionHeading>Edit publication</SectionHeading>
+      <SectionHeading>{t("editPublication")}</SectionHeading>
       <div className="grid gap-4 sm:grid-cols-2">
         {Publication.ATTRIBUTES.map((attribute) => (
           <EditField key={attribute} id={id} attribute={attribute} />
@@ -214,14 +284,14 @@ const PublicationEditForm: FC<{
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 justify-end">
         <Button
-          label="Cancel"
+          label={t("cancel")}
           variant="outline"
           width="fit"
           size="medium"
           onClick={onCancel}
         />
         <Button
-          label="Save"
+          label={t("save")}
           type="submit"
           width="fit"
           size="medium"
@@ -277,6 +347,7 @@ const Detail: FC<PublicationDetailProps> = ({
   history,
   onDeleted,
 }) => {
+  const t = useTranslations("publication");
   const id = publication.id!;
   const store = usePublicationStore();
   const canEdit = useCanEditPublications();
@@ -341,21 +412,21 @@ const Detail: FC<PublicationDetailProps> = ({
           {canEdit && (
             <div className="flex gap-3">
               <Button
-                label="Edit"
+                label={t("edit")}
                 variant="outline-primary"
                 width="fit"
                 size="medium"
                 onClick={startEditing}
               />
               <Button
-                label="Merge"
+                label={t("merge")}
                 variant="outline"
                 width="fit"
                 size="medium"
                 onClick={() => mergeDialog.open()}
               />
               <Button
-                label="Delete"
+                label={t("delete")}
                 variant="danger"
                 width="fit"
                 size="medium"
@@ -376,9 +447,12 @@ const Detail: FC<PublicationDetailProps> = ({
       />
       <ConfirmationModal
         isOpen={deleteConfirmation.isOpen}
-        title="Delete this publication?"
-        message={`“${publication.title}” (${publication.year}) will be removed from the database, its index, and search results.`}
-        confirmLabel="Delete"
+        title={t("deleteTitle")}
+        message={t("deleteMessage", {
+          title: publication.title,
+          year: publication.year,
+        })}
+        confirmLabel={t("delete")}
         loading={deleting}
         onConfirm={handleDelete}
         onCancel={deleteConfirmation.close}

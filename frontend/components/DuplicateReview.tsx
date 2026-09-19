@@ -8,8 +8,9 @@ import {
   PublicationStoreProvider,
   usePublicationStore,
 } from "modules/publication/workspace";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "i18n/navigation";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useRouter } from "i18n/navigation";
 import { FC, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 const optionId = (position: number) => `duplicate-cluster-option-${position}`;
@@ -38,6 +39,9 @@ export const DuplicateQueue: FC<{
   onSelect,
   onSelectRuledApart,
 }) => {
+  const t = useTranslations("duplicates");
+  const format = useFormatter();
+
   const move = (event: KeyboardEvent, next: number) => {
     event.preventDefault();
     onSelect(Math.max(0, Math.min(next, clusters.length - 1)));
@@ -55,15 +59,15 @@ export const DuplicateQueue: FC<{
     <div className="flex flex-col w-72 border-r border-gray-200 shrink-0">
       <header className="flex gap-2 justify-between items-baseline px-3 py-2 border-b border-gray-200">
         <span className="text-xs font-semibold tracking-wide text-gray-600 uppercase">
-          Possible duplicates
+          {t("possible")}
         </span>
         <span className="px-1.5 py-0.5 text-xs font-medium text-indigo-700 rounded-full bg-indigo-100 tabular-nums">
-          {clusters.length}
+          {format.number(clusters.length)}
         </span>
       </header>
       <ul
         role="listbox"
-        aria-label="Clusters of possible duplicates"
+        aria-label={t("clusters")}
         tabIndex={0}
         aria-activedescendant={optionId(position)}
         onKeyDown={onKeyDown}
@@ -83,14 +87,14 @@ export const DuplicateQueue: FC<{
         <div className="flex flex-col border-t border-gray-200 max-h-64 shrink-0">
           <div className="flex gap-2 justify-between items-baseline px-3 py-2">
             <span className="text-xs font-semibold tracking-wide text-gray-600 uppercase">
-              Ruled apart
+              {t("ruledApartHeading")}
             </span>
             <span className="px-1.5 py-0.5 text-xs font-medium text-gray-700 rounded-full bg-gray-100 tabular-nums">
-              {distinctions.length}
+              {format.number(distinctions.length)}
             </span>
           </div>
           <ul
-            aria-label="Records ruled apart"
+            aria-label={t("ruledApart")}
             className="overflow-y-auto p-2 space-y-0.5 min-h-0 scrollbar scrollbar-thin scrollbar-thumb-indigo-600"
           >
             {distinctions.map((distinction, index) => (
@@ -152,54 +156,66 @@ const Candidate: FC<{
   publication: Publication;
   kept?: boolean;
   onKeep?: () => void;
-}> = ({ publication: p, kept = false, onKeep }) => (
-  <label
-    data-kept={kept}
-    data-choosable={Boolean(onKeep)}
-    className="flex flex-col gap-2 p-4 rounded-lg border transition-colors data-[choosable=true]:cursor-pointer data-[kept=true]:border-indigo-400 data-[kept=true]:bg-indigo-50 data-[kept=false]:border-gray-200 data-[choosable=true]:data-[kept=false]:hover:bg-gray-50"
-  >
-    <div className="flex gap-3 items-start">
-      {onKeep && (
-        <input
-          type="radio"
-          name="survivor"
-          checked={kept}
-          onChange={onKeep}
-          className="mt-1 accent-indigo-600"
-          aria-label={`Keep ${p.title}`}
-        />
-      )}
-      <div className="min-w-0">
-        <p className="text-sm font-medium">
-          {p.title}{" "}
-          <span className="font-normal text-gray-600">({p.year})</span>
-        </p>
-        <p className="text-xs text-gray-600">
-          {Publication.describe(p.authors, "authors")}
-        </p>
+}> = ({ publication: p, kept = false, onKeep }) => {
+  const t = useTranslations("duplicates");
+  const attribute = useTranslations("attributes");
+  const locale = useLocale();
+
+  return (
+    <label
+      data-kept={kept}
+      data-choosable={Boolean(onKeep)}
+      className="flex flex-col gap-2 p-4 rounded-lg border transition-colors data-[choosable=true]:cursor-pointer data-[kept=true]:border-indigo-400 data-[kept=true]:bg-indigo-50 data-[kept=false]:border-gray-200 data-[choosable=true]:data-[kept=false]:hover:bg-gray-50"
+    >
+      <div className="flex gap-3 items-start">
+        {onKeep && (
+          <input
+            type="radio"
+            name="survivor"
+            checked={kept}
+            onChange={onKeep}
+            className="mt-1 accent-indigo-600"
+            aria-label={t("keep", { title: p.title })}
+          />
+        )}
+        <div className="min-w-0">
+          <p className="text-sm font-medium">
+            {p.title}{" "}
+            <span className="font-normal text-gray-600">({p.year})</span>
+          </p>
+          <p className="text-xs text-gray-600">
+            {Publication.describe(p.authors, "authors")}
+          </p>
+        </div>
       </div>
-    </div>
-    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-      <dt className="text-gray-600">Original</dt>
-      <dd className="text-gray-800">
-        {p.originalTitle} —{" "}
-        {Publication.describe(p.originalAuthors, "originalAuthors")}
-      </dd>
-      <dt className="text-gray-600">Countries</dt>
-      <dd className="text-gray-800">
-        {Publication.describe(p.countries, "countries")}
-      </dd>
-      <dt className="text-gray-600">Publishers</dt>
-      <dd className="text-gray-800">
-        {Publication.describe(p.publishers, "publishers")}
-      </dd>
-      <dt className="text-gray-600">Sources</dt>
-      <dd className="text-gray-800">
-        {p.sources.length === 0 ? "None" : p.sources.join("; ")}
-      </dd>
-    </dl>
-  </label>
-);
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+        <dt className="text-gray-600">{attribute("originalTitle")}</dt>
+        <dd className="text-gray-800">
+          {t("originalLine", {
+            title: p.originalTitle,
+            authors: Publication.describe(
+              p.originalAuthors,
+              "originalAuthors",
+              locale,
+            ),
+          })}
+        </dd>
+        <dt className="text-gray-600">{attribute("countries")}</dt>
+        <dd className="text-gray-800">
+          {Publication.describe(p.countries, "countries", locale)}
+        </dd>
+        <dt className="text-gray-600">{attribute("publishers")}</dt>
+        <dd className="text-gray-800">
+          {Publication.describe(p.publishers, "publishers")}
+        </dd>
+        <dt className="text-gray-600">{attribute("sources")}</dt>
+        <dd className="text-gray-800">
+          {p.sources.length === 0 ? t("none") : p.sources.join("; ")}
+        </dd>
+      </dl>
+    </label>
+  );
+};
 
 /**
  * One question: these records look alike — are they one publication?
@@ -217,6 +233,9 @@ export const DuplicateStep: FC<{
   onDistinguish: () => void;
   onSkip: () => void;
 }> = ({ cluster, position, total, busy, onMerge, onDistinguish, onSkip }) => {
+  const t = useTranslations("duplicates");
+  const common = useTranslations("common");
+
   // The record entered first is offered as the one to keep: the others came
   // along after it, and something has to be proposed. The reviewer decides.
   const [keptId, setKeptId] = useState(
@@ -230,12 +249,11 @@ export const DuplicateStep: FC<{
         <div>
           <h2 className="text-xl">{name(cluster)}</h2>
           <p className="mt-1 text-sm text-gray-600">
-            {cluster.publications.length} records look alike. Keep one and merge
-            the rest into it, or say they are different publications.
+            {t("lookAlike", { count: cluster.publications.length })}
           </p>
         </div>
         <span className="text-sm text-gray-600 shrink-0 tabular-nums">
-          {position + 1} / {total}
+          {common("progress", { position: position + 1, total })}
         </span>
       </div>
 
@@ -252,14 +270,14 @@ export const DuplicateStep: FC<{
 
       <div className="flex flex-wrap gap-3 justify-end mt-auto">
         <Button
-          label="Skip"
+          label={t("skip")}
           variant="outline"
           width="fit"
           size="medium"
           onClick={onSkip}
         />
         <Button
-          label="Not duplicates"
+          label={t("notDuplicates")}
           variant="outline-primary"
           width="fit"
           size="medium"
@@ -267,7 +285,7 @@ export const DuplicateStep: FC<{
           onClick={onDistinguish}
         />
         <Button
-          label="Merge into the selected one"
+          label={t("merge")}
           variant="danger"
           width="fit"
           size="medium"
@@ -292,37 +310,40 @@ export const RuledApartStep: FC<{
   distinction: Distinction;
   busy: boolean;
   onReconsider: () => void;
-}> = ({ distinction, busy, onReconsider }) => (
-  <div className="flex flex-col gap-6 p-8 w-full min-h-full">
-    <div className="flex gap-4 justify-between items-baseline pb-4 border-b border-gray-200">
-      <div>
-        <h2 className="text-xl">{distinction.publications[0]?.title}</h2>
-        <p className="mt-1 text-sm text-gray-600">
-          Ruled apart by {distinction.actor}. These are not offered as possible
-          duplicates while that stands.
-        </p>
+}> = ({ distinction, busy, onReconsider }) => {
+  const t = useTranslations("duplicates");
+
+  return (
+    <div className="flex flex-col gap-6 p-8 w-full min-h-full">
+      <div className="flex gap-4 justify-between items-baseline pb-4 border-b border-gray-200">
+        <div>
+          <h2 className="text-xl">{distinction.publications[0]?.title}</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            {t("ruledApartBy", { actor: distinction.actor })}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {distinction.publications.map((publication) => (
+          <Candidate key={publication.id} publication={publication} />
+        ))}
+      </div>
+
+      <div className="flex justify-end mt-auto">
+        <Button
+          label={t("reconsider")}
+          variant="outline-primary"
+          width="fit"
+          size="medium"
+          loading={busy}
+          disabled={busy}
+          onClick={onReconsider}
+        />
       </div>
     </div>
-
-    <div className="grid gap-4 sm:grid-cols-2">
-      {distinction.publications.map((publication) => (
-        <Candidate key={publication.id} publication={publication} />
-      ))}
-    </div>
-
-    <div className="flex justify-end mt-auto">
-      <Button
-        label="Reconsider"
-        variant="outline-primary"
-        width="fit"
-        size="medium"
-        loading={busy}
-        disabled={busy}
-        onClick={onReconsider}
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 /** Presentational shell, so the empty and populated states render in isolation. */
 export const DuplicateReviewView: FC<{
@@ -351,16 +372,15 @@ export const DuplicateReviewView: FC<{
   onReconsider,
   onSkip,
 }) => {
+  const t = useTranslations("duplicates");
   const ruledApart = selected === null ? null : distinctions[selected];
 
   return clusters.length === 0 && distinctions.length === 0 ? (
     <div className="flex flex-col gap-4 items-center py-16 text-center">
-      <h1 className="text-2xl font-normal">Nothing to reconcile</h1>
-      <p className="text-gray-600">
-        No two records look like the same publication.
-      </p>
+      <h1 className="text-2xl font-normal">{t("nothingToReconcile")}</h1>
+      <p className="text-gray-600">{t("nothingToReconcileDetail")}</p>
       <Link href="/" className="anchor">
-        Back to the index
+        {t("backToIndex")}
       </Link>
     </div>
   ) : (
@@ -383,11 +403,8 @@ export const DuplicateReviewView: FC<{
           />
         ) : clusters.length === 0 ? (
           <div className="flex flex-col gap-3 justify-center items-center p-8 h-full text-center">
-            <h2 className="text-xl">Every question answered</h2>
-            <p className="text-sm text-gray-600">
-              No two records are left looking alike. What was ruled apart is on
-              the left, and can be put back among the questions.
-            </p>
+            <h2 className="text-xl">{t("allAnswered")}</h2>
+            <p className="text-sm text-gray-600">{t("allAnsweredDetail")}</p>
           </div>
         ) : (
           <DuplicateStep

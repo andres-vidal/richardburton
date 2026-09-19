@@ -9,6 +9,7 @@ import {
 } from "modules/publication/model";
 import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
+import { useTranslations } from "next-intl";
 import { overrideField } from "modules/publication/store";
 import { FC, FocusEvent, HTMLProps, Ref, forwardRef } from "react";
 import OriginalBookDataInput from "./OriginalBookDataInput";
@@ -94,11 +95,12 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
     onChange,
   } = props;
 
+  const t = useTranslations("attributes");
   const type = Publication.ATTRIBUTE_TYPES[props.colId];
   // `type` is only known at runtime, so the value shape the table pairs with it
   // cannot be carried through the lookup. This is the one place that is asserted.
   const Component = COMPONENTS_PER_TYPE[type] as FC<Props>;
-  const placeholder = Publication.ATTRIBUTE_LABELS[colId];
+  const placeholder = t(colId);
 
   const store = usePublicationStore();
   const validateRow = onValidate ?? (() => validate(store, [rowId]));

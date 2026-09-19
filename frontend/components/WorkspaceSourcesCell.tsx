@@ -3,6 +3,7 @@
 import { usePublicationSources } from "modules/publication/hooks";
 import { usePublicationStore } from "modules/publication/workspace";
 import { overrideSources } from "modules/publication/store";
+import { useTranslations } from "next-intl";
 import { FC, MouseEvent, useState } from "react";
 import Button from "./Button";
 import { Modal } from "./Modal";
@@ -25,6 +26,7 @@ const WorkspaceSourcesCell: FC<{
   selected?: boolean;
   focused?: boolean;
 }> = ({ rowId, invalid = false, selected = false, focused = false }) => {
+  const t = useTranslations("admin");
   const sources = usePublicationSources(rowId);
   const [open, setOpen] = useState(false);
   const count = sources.length;
@@ -51,15 +53,17 @@ const WorkspaceSourcesCell: FC<{
         width="fit"
         size="small"
         onClick={openEditor}
-        aria-label={count === 0 ? "Add sources" : `Edit sources (${count})`}
-        label={
-          count === 0 ? "Sources" : `${count} source${count === 1 ? "" : "s"}`
-        }
+        aria-label={count === 0 ? t("addSources") : t("editSources", { count })}
+        label={t("sourcesCount", { count })}
       />
 
-      <Modal isOpen={open} onClose={() => setOpen(false)} label="Edit sources">
+      <Modal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        label={t("sourcesEditor")}
+      >
         <div className="p-8 space-y-4 w-full">
-          <h1 className="text-xl font-normal">Sources</h1>
+          <h1 className="text-xl font-normal">{t("sourcesEditor")}</h1>
           <SourcesEditor
             value={sources}
             onChange={(next) => overrideSources(store, rowId, next)}

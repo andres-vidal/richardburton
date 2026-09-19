@@ -2,6 +2,7 @@
 
 import { Key } from "app";
 import ChevronDownIcon from "assets/chevron-down.svg";
+import { useTranslations } from "next-intl";
 import {
   FocusEvent,
   forwardRef,
@@ -41,6 +42,7 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
   },
   ref,
 ) {
+  const t = useTranslations("common");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [search, setSearch] = useState<string | undefined>();
@@ -140,7 +142,7 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
         right={
           <button
             type="button"
-            aria-label={isOpen ? "Hide options" : "Show options"}
+            aria-label={isOpen ? t("hideOptions") : t("showOptions")}
             tabIndex={-1}
             className={`
               flex items-center justify-center h-5 aspect-square transition-transform rounded-full

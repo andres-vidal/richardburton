@@ -1,6 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { FC, ReactNode } from "react";
+import { Article } from "./Article";
 import { Modal, useURLQueryModal } from "./Modal";
 
 const SEARCH_HELP_MODAL_KEY = "search-help";
@@ -37,6 +39,33 @@ const Group: FC<{ title: string; children: ReactNode }> = ({
 );
 
 /**
+ * The groups, and the rows in each. A row's example and its description are
+ * both written per language, so a reader sees the operator names they would
+ * type — `titulo:` in Portuguese — and the last group offers the other
+ * language's names rather than always offering Portuguese.
+ */
+const GROUPS = [
+  { title: "spelling", rows: ["accents", "misspelling", "prefix"] },
+  {
+    title: "oneField",
+    rows: [
+      "titleField",
+      "authorField",
+      "translatorField",
+      "publisherField",
+      "yearField",
+      "rangeField",
+    ],
+  },
+  { title: "refining", rows: ["phrase", "allWords", "exclude", "repeat"] },
+  { title: "broadening", rows: ["either"] },
+  { title: "otherLanguage", rows: ["namesOne", "namesTwo", "or"] },
+] as const;
+
+/** A row's example is keyed beside its description, minus the `Field` suffix. */
+const exampleKey = (row: string) => `${row.replace(/Field$/, "")}Example`;
+
+/**
  * Documents the search syntax: accent and misspelling tolerance, per-word
  * narrowing, and the field operators. None of that is discoverable from a text
  * box.
@@ -44,117 +73,59 @@ const Group: FC<{ title: string; children: ReactNode }> = ({
  * Every row states a query and what it matches; none describes the
  * implementation.
  */
-const SearchHelp: FC = () => (
-  <div className="p-8 space-y-6 w-full">
-    <header className="space-y-1">
-      <h2 className="text-2xl font-normal">How to search</h2>
-      <p className="text-sm text-gray-600">
-        Search by title, author, translator, publisher or year. Adding words
-        narrows the results.
-      </p>
-    </header>
+const SearchHelp: FC = () => {
+  const t = useTranslations("searchHelp");
 
-    <table className="w-full border-collapse">
-      <thead>
-        <tr className="border-b border-gray-300">
-          <th
-            scope="col"
-            className="py-1 pr-4 w-1/3 text-xs font-medium text-left text-gray-500"
-          >
-            Example
-          </th>
-          <th
-            scope="col"
-            className="py-1 text-xs font-medium text-left text-gray-500"
-          >
-            What it returns
-          </th>
-        </tr>
-      </thead>
+  return (
+    <div className="space-y-6">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="border-b border-gray-300">
+            <th
+              scope="col"
+              className="py-1 pr-4 w-1/3 text-xs font-medium text-left text-gray-500"
+            >
+              {t("exampleHeader")}
+            </th>
+            <th
+              scope="col"
+              className="py-1 text-xs font-medium text-left text-gray-500"
+            >
+              {t("returnsHeader")}
+            </th>
+          </tr>
+        </thead>
 
-      <Group title="Spelling and accents">
-        <Row type="angustia">
-          Accents may be omitted or included; this returns <em>Angústia</em>.
-        </Row>
-        <Row type="casmuro">
-          Minor misspellings are tolerated when no exact match is found, here
-          and within an operator alike.
-        </Row>
-        <Row type="mach">
-          An incomplete word matches any word beginning with it, such as{" "}
-          <em>Machado</em>.
-        </Row>
-      </Group>
-
-      <Group title="Searching a single field">
-        <Row type="title:iracema">
-          Restricts the search to the title, excluding matches elsewhere in the
-          record.
-        </Row>
-        <Row type="author:machado">The author of the original work.</Row>
-        <Row type="translator:caldwell">The person who translated it.</Row>
-        <Row type="publisher:knopf">
-          Also <code className="font-mono text-xs">country:</code>,{" "}
-          <code className="font-mono text-xs">original:</code> for the original
-          title, and <code className="font-mono text-xs">source:</code> for the
-          sources a record cites.
-        </Row>
-        <Row type="year:1962">A single year.</Row>
-        <Row type="year:1950-1960">
-          A range. <code className="font-mono text-xs">year:2000-</code> runs
-          from that year onwards, and{" "}
-          <code className="font-mono text-xs">year:-1900</code> up to it.
-        </Row>
-      </Group>
-
-      <Group title="Refining a search">
-        <Row type={'title:"dom casmurro"'}>
-          Quotation marks match the words in the order given.
-        </Row>
-        <Row type="title:(dom casmurro)">
-          Parentheses match all the words, in any order — and, like any other
-          word, allowing for a misspelling.
-        </Row>
-        <Row type="-country:US">
-          A leading minus sign excludes matching records.
-        </Row>
-        <Row type="author:machado author:assis">
-          Repeating an operator requires both conditions to hold.
-        </Row>
-      </Group>
-
-      <Group title="Broadening a search">
-        <Row type="amado :or lispector">
-          Returns records matching either side, rather than both.
-        </Row>
-      </Group>
-
-      <Group title="Operators in Portuguese">
-        <Row type="titulo: autor: tradutor:">
-          The same as <code className="font-mono text-xs">title:</code>,{" "}
-          <code className="font-mono text-xs">author:</code> and{" "}
-          <code className="font-mono text-xs">translator:</code>.
-        </Row>
-        <Row type="editora: pais: ano: fonte:">
-          The same as <code className="font-mono text-xs">publisher:</code>,{" "}
-          <code className="font-mono text-xs">country:</code>,{" "}
-          <code className="font-mono text-xs">year:</code> and{" "}
-          <code className="font-mono text-xs">source:</code>.
-        </Row>
-        <Row type=":ou">
-          The same as <code className="font-mono text-xs">:or</code>.
-        </Row>
-      </Group>
-    </table>
-  </div>
-);
+        {GROUPS.map(({ title, rows }) => (
+          <Group key={title} title={t(title)}>
+            {rows.map((row) => (
+              <Row key={row} type={t(exampleKey(row))}>
+                {t.rich(row, {
+                  em: (chunks) => <em>{chunks}</em>,
+                  code: (chunks) => (
+                    <code className="font-mono text-xs">{chunks}</code>
+                  ),
+                })}
+              </Row>
+            ))}
+          </Group>
+        ))}
+      </table>
+    </div>
+  );
+};
 
 const SearchHelpModal: FC = () => {
   const { isOpen, close } = useURLQueryModal(SEARCH_HELP_MODAL_KEY);
+  const t = useTranslations("searchHelp");
 
   return (
-    <Modal isOpen={isOpen} onClose={close} label="How to search">
-      <SearchHelp />
+    <Modal isOpen={isOpen} onClose={close} label={t("title")}>
+      <Article
+        heading={t("title")}
+        subheading={t("subtitle")}
+        content={<SearchHelp />}
+      />
     </Modal>
   );
 };

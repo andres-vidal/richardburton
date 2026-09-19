@@ -12,7 +12,7 @@ type Enum = { id: string; label: string };
 
 const COUNTRIES: Enum[] = [
   { id: "GB", label: "United Kingdom" },
-  { id: "US", label: "United States of America" },
+  { id: "US", label: "United States" },
   { id: "BR", label: "Brazil" },
 ];
 

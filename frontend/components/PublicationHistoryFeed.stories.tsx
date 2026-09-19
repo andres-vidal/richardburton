@@ -202,7 +202,7 @@ export const FilteredByAction: Story = {
         node.getAttribute("data-action"),
       );
 
-    await userEvent.click(screen.getByRole("button", { name: "deleted" }));
+    await userEvent.click(screen.getByRole("button", { name: "Deleted" }));
     await expect(actions()).toEqual(["deleted"]);
     // Narrowing to it does not make it actionable: this delete was already
     // undone by the restore, so it carries no Undo however it is filtered.
@@ -211,15 +211,15 @@ export const FilteredByAction: Story = {
     ).toHaveLength(0);
 
     // The restore that settled it is its own entry, and is undoable.
-    await userEvent.click(screen.getByRole("button", { name: "deleted" }));
-    await userEvent.click(screen.getByRole("button", { name: "restored" }));
+    await userEvent.click(screen.getByRole("button", { name: "Deleted" }));
+    await userEvent.click(screen.getByRole("button", { name: "Restored" }));
     await expect(actions()).toEqual(["restored"]);
     await expect(screen.getAllByRole("button", { name: "Undo" })).toHaveLength(
       1,
     );
 
     // Toggling the chip off widens back to the full feed.
-    await userEvent.click(screen.getByRole("button", { name: "restored" }));
+    await userEvent.click(screen.getByRole("button", { name: "Restored" }));
     await expect(actions()).toHaveLength(6);
   },
 };

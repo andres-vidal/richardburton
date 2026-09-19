@@ -1,14 +1,17 @@
-import { SESSION_COOKIE } from "modules/api";
-import { NextResponse, type NextRequest } from "next/server";
+import { routing } from "i18n/routing";
+import createIntlProxy from "next-intl/middleware";
 
-export function proxy(request: NextRequest) {
-  if (!request.cookies.get(SESSION_COOKIE)) {
-    const url = new URL("/auth/sign-in", request.url);
-    url.searchParams.set("callbackUrl", request.nextUrl.pathname);
-    return NextResponse.redirect(url);
-  }
+/**
+ * Settles the locale for every request.
+ *
+ * Who may reach a page is decided by the page itself: `admin/layout.tsx` turns
+ * away anyone who cannot edit, and the backend answers 401 regardless. A second
+ * guard here would only be a second place to keep in step.
+ */
+export const proxy = createIntlProxy(routing);
 
-  return NextResponse.next();
-}
-
-export const config = { matcher: ["/publications/new"] };
+export const config = {
+  // Everything but the API routes, Next's own assets and files with an
+  // extension — none of those carry a locale.
+  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+};

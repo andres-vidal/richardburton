@@ -1,15 +1,19 @@
 import {
   ATTRIBUTES,
-  COUNTRIES,
   autocomplete,
   define,
-  describeError,
   describe as describeAttribute,
   describeValue,
   empty,
+  errorCode,
   merged,
 } from "./model";
 import type { Publication } from "./model";
+import { countriesIn } from "modules/country";
+import { routing } from "i18n/routing";
+
+// The specs are written in the default locale, so countries are named in it.
+const COUNTRIES = countriesIn(routing.defaultLocale);
 
 describe("empty", () => {
   test("returns a publication with every attribute blank", () => {
@@ -70,41 +74,31 @@ describe("describeValue", () => {
   });
 });
 
-describe("describeError", () => {
-  test("no error describes to an empty string, with or without a scope", () => {
-    expect(describeError(null)).toBe("");
-    expect(describeError(null, "title")).toBe("");
+describe("errorCode", () => {
+  test("no error is an empty code, with or without a scope", () => {
+    expect(errorCode(null)).toBe("");
+    expect(errorCode(null, "title")).toBe("");
   });
 
-  test("a row-level string error maps to a human message when unscoped", () => {
-    expect(describeError("conflict")).toBe(
-      "A publication with this data already exists",
-    );
+  test("a row-level error answers its code when unscoped", () => {
+    expect(errorCode("conflict")).toBe("conflict");
   });
 
-  test("an unknown error code falls back to the raw code", () => {
-    expect(describeError("mystery")).toBe("mystery");
-  });
-
-  test("a row-level string error is silent when asked about a field", () => {
+  test("a row-level error is silent when asked about a field", () => {
     // String = whole-row error; it must not leak into an individual cell.
-    expect(describeError("conflict", "title")).toBe("");
+    expect(errorCode("conflict", "title")).toBe("");
   });
 
   test("a field-error map is silent at the row level", () => {
-    // Record = per-field errors; there is no single row message to show.
-    expect(describeError({ title: "required" } as never)).toBe("");
+    // Record = per-field errors; there is no single row code to show.
+    expect(errorCode({ title: "required" } as never)).toBe("");
   });
 
-  test("a field-error map describes the message for the scoped field", () => {
+  test("a field-error map answers the code for the scoped field", () => {
     const errors = { title: "required", year: "integer" } as never;
 
-    expect(describeError(errors, "title")).toBe(
-      "This field is required and cannot be blank",
-    );
-    expect(describeError(errors, "year")).toBe(
-      "This field should be an integer",
-    );
+    expect(errorCode(errors, "title")).toBe("required");
+    expect(errorCode(errors, "year")).toBe("integer");
   });
 });
 

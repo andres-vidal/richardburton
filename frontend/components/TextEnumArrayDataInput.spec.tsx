@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "utils/testRender";
 
 import { Publication } from "modules/publication/model";
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
