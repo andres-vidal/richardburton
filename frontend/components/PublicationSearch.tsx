@@ -74,15 +74,13 @@ const PublicationSearch: FC = () => {
   const searchUrlParam = searchParams?.get("search") ?? "";
   const [search, setSearch] = useState(searchUrlParam);
   const [previousParam, setPreviousParam] = useState(searchUrlParam);
-  // The report is one clipped line until asked for in full. A widened term can
-  // match a dozen words, and the ones past the edge are the reader's to read.
   const [expanded, setExpanded] = useState(false);
 
   const requested = useRef(searchUrlParam);
 
   if (searchUrlParam !== previousParam) {
     setPreviousParam(searchUrlParam);
-    // A new term is a new report, so it opens clipped like the last one did.
+    // A new term opens clipped.
     setExpanded(false);
     if (searchUrlParam !== requested.current) {
       requested.current = searchUrlParam;
@@ -121,8 +119,6 @@ const PublicationSearch: FC = () => {
         value={search}
         onChange={handleChange}
       />
-      {/* `min-h-4` rather than a fixed height: expanded, the report wraps to as
-          many lines as it needs and the row grows with it. */}
       <div className="flex gap-3 items-baseline px-3 min-h-4 text-xs">
         <div
           id="search-report"
@@ -136,10 +132,9 @@ const PublicationSearch: FC = () => {
             <SearchMatches matched={matched ?? []} />
           )}
         </div>
-        {/* Offered whenever there is a report at all. Whether the line is
-            actually clipped is a question only measuring the rendered text
-            answers, and the answer changes with every resize; asking it would
-            cost more than the toggle that occasionally does nothing. */}
+        {/* Offered whenever there is a report, clipped or not: whether the line
+            actually overflows is a question only measuring rendered text answers,
+            and the answer changes with every resize. */}
         {matched && matched.length > 0 && (
           <button
             type="button"
