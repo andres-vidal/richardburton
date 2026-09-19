@@ -80,7 +80,6 @@ const PublicationSearch: FC = () => {
 
   if (searchUrlParam !== previousParam) {
     setPreviousParam(searchUrlParam);
-    // A new term opens clipped.
     setExpanded(false);
     if (searchUrlParam !== requested.current) {
       requested.current = searchUrlParam;
@@ -132,9 +131,6 @@ const PublicationSearch: FC = () => {
             <SearchMatches matched={matched ?? []} />
           )}
         </div>
-        {/* Offered whenever there is a report, clipped or not: whether the line
-            actually overflows is a question only measuring rendered text answers,
-            and the answer changes with every resize. */}
         {matched && matched.length > 0 && (
           <button
             type="button"
