@@ -61,20 +61,19 @@
     "errors": {
       "AccessDenied": {
         "title": "Você precisa de um convite",
-        "message": "O login funcionou, mas este endereço não foi convidado, então nenhuma conta foi criada.",
-        "suggestion": "Peça a um administrador que convide este endereço e entre novamente."
+        "body": "<message>O login funcionou, mas este endereço não foi convidado, então nenhuma conta foi criada.</message><suggestion>Peça a um administrador que convide este endereço e entre novamente.</suggestion>"
       },
       "Verification": {
         "title": "Erro de verificação",
-        "message": "Parece que seu token expirou ou já foi usado. Entre em contato com o suporte."
+        "body": "<message>Parece que seu token expirou ou já foi usado. Entre em contato com o suporte.</message>"
       },
       "Configuration": {
         "title": "Erro de configuração",
-        "message": "Parece que o servidor não está configurado corretamente. Entre em contato com o suporte."
+        "body": "<message>Parece que o servidor não está configurado corretamente. Entre em contato com o suporte.</message>"
       },
       "Default": {
         "title": "Algo deu errado...",
-        "message": "Parece que o aplicativo não está funcionando corretamente. Entre em contato com o suporte."
+        "body": "<message>Parece que o aplicativo não está funcionando corretamente. Entre em contato com o suporte.</message>"
       }
     }
   },

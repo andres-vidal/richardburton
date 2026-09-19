@@ -61,20 +61,19 @@
     "errors": {
       "AccessDenied": {
         "title": "You need an invitation",
-        "message": "Signing in worked, but this address has not been invited, so no account has been created.",
-        "suggestion": "Ask an administrator to invite this address, then sign in again."
+        "body": "<message>Signing in worked, but this address has not been invited, so no account has been created.</message><suggestion>Ask an administrator to invite this address, then sign in again.</suggestion>"
       },
       "Verification": {
         "title": "Verification error",
-        "message": "Seems like your token is expired or has already been used. Please contact support."
+        "body": "<message>Seems like your token is expired or has already been used. Please contact support.</message>"
       },
       "Configuration": {
         "title": "Configuration error",
-        "message": "Seems like the server is not configured correctly. Please contact support."
+        "body": "<message>Seems like the server is not configured correctly. Please contact support.</message>"
       },
       "Default": {
         "title": "Something went wrong...",
-        "message": "Seems like the app is not working correctly. Please contact support."
+        "body": "<message>Seems like the app is not working correctly. Please contact support.</message>"
       }
     }
   },

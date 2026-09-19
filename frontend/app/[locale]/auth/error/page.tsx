@@ -30,29 +30,23 @@ export default async function AuthErrorPage({
 
   // The provider names the error and the catalogue is keyed by that name, so
   // there is nothing in between to keep in step. One it has no words for is
-  // told as the general failure, and one it has no way out of says none.
+  // told as the general failure.
   const named = error && (errors.has(`${error}.title`) ? error : "Default");
-
-  const description = named && {
-    title: errors(`${named}.title`),
-    message: errors(`${named}.message`),
-    suggestion: errors.has(`${named}.suggestion`)
-      ? errors(`${named}.suggestion`)
-      : undefined,
-  };
 
   return (
     <Layout
       content={
-        description ? (
+        named ? (
           <AuthCard
-            title={description.title}
+            title={errors(`${named}.title`)}
             action={<SignInButton label={t("tryAgain")} centered />}
           >
-            <p className="text-lg">{description.message}</p>
-            {description.suggestion && (
-              <p className="text-sm">{description.suggestion}</p>
-            )}
+            {/* What the card says is the message's own shape: an error with no
+                way out of it names no suggestion, so none is rendered. */}
+            {errors.rich(`${named}.body`, {
+              message: (chunks) => <p className="text-lg">{chunks}</p>,
+              suggestion: (chunks) => <p className="text-sm">{chunks}</p>,
+            })}
           </AuthCard>
         ) : null
       }
