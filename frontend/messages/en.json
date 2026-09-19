@@ -194,8 +194,8 @@
     "duplicate": "Duplicate {count}",
     "resetDiscarded": "{count, plural, one {Reset # discarded} other {Reset # discarded}}",
     "resetOverridden": "{count, plural, one {Reset # overridden} other {Reset # overridden}}",
-    "byActor": "by {actor}",
-    "byActorOn": "by {actor} · {date}",
+    "byActor": "{actor, select, system {by the system} other {by {actor}}}",
+    "byActorOn": "{actor, select, system {by the system} other {by {actor}}} · {date}",
     "deletedOn": "Deleted {date}",
     "newPublications": "{count, plural, one {# new publication} other {# new publications}}",
     "recordLine": "{authors} · {year} · {publishers}"
