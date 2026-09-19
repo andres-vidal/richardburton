@@ -127,10 +127,9 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
                   // The dialog scrolls when its content outgrows it, and a
                   // region that scrolls has to be reachable by keyboard.
                   tabIndex={0}
-                  // `overscroll-none`: reaching either end stops there, rather
-                  // than springing back or handing the scroll to the page
-                  // behind. The spring moves the whole scroll area, which drags
-                  // the pinned heading and the decoration out of place with it.
+                  // `overscroll-none`: the overscroll spring moves the whole
+                  // scroll area, dragging the pinned heading and the decoration
+                  // out of place with it.
                   className={`
                   mb-5 sm:rounded-lg bg-white text-gray-900 shadow-lg scrollbar-thin scrollbar-thumb-indigo-600
                   overflow-y-auto overflow-x-clip overscroll-none
