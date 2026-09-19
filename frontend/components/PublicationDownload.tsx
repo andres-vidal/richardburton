@@ -10,6 +10,7 @@ import {
 } from "modules/publication/hooks";
 import { useSearchParams } from "next/navigation";
 import { FC, useRef } from "react";
+import { useTranslations } from "next-intl";
 import Button from "./Button";
 import { useNotify } from "./Notifications";
 
@@ -36,6 +37,7 @@ function filenameFrom(disposition: unknown): string {
 }
 
 const PublicationDownload: FC = () => {
+  const t = useTranslations("download");
   const notify = useNotify();
   const visibleCount = useVisiblePublicationCount();
   const visibleAttributes = useVisibleAttributes();
@@ -68,8 +70,8 @@ const PublicationDownload: FC = () => {
       });
     } catch {
       notify({
-        message: "Could not download the .csv",
-        detail: "Nothing was saved. Check your connection and try again.",
+        message: "notify.downloadFailed",
+        detail: "notify.downloadFailedDetail",
         level: "warning",
       });
     }
@@ -78,7 +80,7 @@ const PublicationDownload: FC = () => {
   return (
     <>
       <Button
-        label="Download .csv"
+        label={t("csv")}
         variant="outline"
         alignment="left"
         Icon={DownloadIcon}

@@ -36,6 +36,10 @@ export default defineConfig({
           include: ["**/*.spec.{ts,tsx}"],
           // Playwright specs (frontend/e2e) run under `npm run test:e2e`, not Vitest.
           exclude: [...configDefaults.exclude, "e2e/**"],
+          // next-intl ships ESM that imports `next/navigation` without an
+          // extension, which Node will not resolve on its own. Inlining it hands
+          // the resolution to Vite, which reads the package's own exports.
+          server: { deps: { inline: ["next-intl"] } },
         },
       },
       {

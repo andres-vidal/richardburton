@@ -4,11 +4,13 @@ import UploadIcon from "assets/upload.svg";
 import { useTotalPublicationCount } from "modules/publication/hooks";
 import { usePublicationStore } from "modules/publication/workspace";
 import { upload } from "modules/publication/remote";
+import { useTranslations } from "next-intl";
 import { ChangeEvent, FC, useRef, useState } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";
 
 const PublicationUpload: FC = () => {
+  const t = useTranslations("admin");
   const store = usePublicationStore();
   const totalPublications = useTotalPublicationCount();
 
@@ -31,7 +33,7 @@ const PublicationUpload: FC = () => {
     }
   };
 
-  const message = totalPublications > 0 ? "Current data will be replaced!" : "";
+  const message = totalPublications > 0 ? t("dataWillBeReplaced") : "";
 
   const input = useRef<HTMLInputElement>(null);
 
@@ -39,7 +41,7 @@ const PublicationUpload: FC = () => {
     <>
       <Tooltip variant="warning" message={message} placement="top">
         <Button
-          label="Upload.csv"
+          label={t("upload")}
           variant="outline"
           Icon={UploadIcon}
           alignment="left"

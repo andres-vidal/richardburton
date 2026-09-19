@@ -4,6 +4,7 @@ import CopyIcon from "assets/copy.svg";
 import { duplicate } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { validate } from "modules/publication/remote";
+import { useTranslations } from "next-intl";
 import { FC } from "react";
 import {
   clearSelection,
@@ -13,6 +14,7 @@ import {
 import Button from "./Button";
 
 const PublicationDuplicate: FC = () => {
+  const t = useTranslations("admin");
   const selectionSize = useSelectionSize();
 
   const store = usePublicationStore();
@@ -28,7 +30,7 @@ const PublicationDuplicate: FC = () => {
 
   return (
     <Button
-      label={`Duplicate ${selectionSize}`}
+      label={t("duplicate", { count: selectionSize })}
       variant="secondary"
       alignment="left"
       width="fit"

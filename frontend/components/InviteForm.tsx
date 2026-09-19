@@ -2,9 +2,10 @@
 
 import { invite } from "modules/access/remote";
 import type { UserRole } from "modules/users";
-import { useRouter } from "next/navigation";
+import { useRouter } from "i18n/navigation";
 import { FC, SubmitEvent, useState } from "react";
 import Button from "./Button";
+import { useTranslations } from "next-intl";
 import RoleMenu from "./RoleMenu";
 import TextInput from "./TextInput";
 
@@ -17,6 +18,8 @@ import TextInput from "./TextInput";
  * need to know which, and says which happened afterwards.
  */
 const InviteForm: FC = () => {
+  const t = useTranslations("access");
+  const admin = useTranslations("admin");
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("contributor");
@@ -40,7 +43,7 @@ const InviteForm: FC = () => {
       className="flex flex-wrap gap-3 items-end p-4 bg-white rounded-lg border border-gray-200"
     >
       <label className="flex flex-col gap-1 text-sm min-w-64 grow">
-        <span className="text-gray-500">Email address</span>
+        <span className="text-gray-500">{admin("emailAddress")}</span>
         <TextInput
           bordered
           type="email"
@@ -52,12 +55,12 @@ const InviteForm: FC = () => {
       </label>
 
       <div className="flex flex-col gap-1 text-sm">
-        <span className="text-gray-500">Role</span>
-        <RoleMenu label="Role to invite as" value={role} onChange={setRole} />
+        <span className="text-gray-500">{admin("role")}</span>
+        <RoleMenu label={t("roleToInvite")} value={role} onChange={setRole} />
       </div>
 
       <Button
-        label="Invite"
+        label={t("invite")}
         type="submit"
         width="fit"
         size="field"

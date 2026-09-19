@@ -2,6 +2,7 @@
 
 import { Publication } from "modules/publication/model";
 import pDebounce from "p-debounce";
+import { useLocale } from "next-intl";
 import { FC, forwardRef, useCallback, useMemo } from "react";
 import { ListDataInputProps } from "./DataInput";
 import Multicombobox from "./Multicombobox";
@@ -20,11 +21,13 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
     },
     ref,
   ) {
+    const locale = useLocale();
+
     const toEnum = useCallback(
       (id: string): Enum => {
-        return { id, label: Publication.describeValue(id, colId) };
+        return { id, label: Publication.describeValue(id, colId, locale) };
       },
-      [colId],
+      [colId, locale],
     );
 
     const items = useMemo(() => value.map(toEnum), [value, toEnum]);
@@ -36,10 +39,10 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const getOptions = useCallback(
       pDebounce(
-        (search: string) => Publication.autocomplete(search, colId),
+        (search: string) => Publication.autocomplete(search, colId, locale),
         350,
       ),
-      [colId],
+      [colId, locale],
     );
 
     return (

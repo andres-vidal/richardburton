@@ -2,8 +2,13 @@
 
 import { useMatched } from "modules/publication/hooks";
 import type { Matched } from "modules/publication/model";
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Link } from "i18n/navigation";
+import { usePathname, useRouter } from "i18n/navigation";
+import { useTranslations } from "next-intl";
+import {
+  usePathname as useAddressPathname,
+  useSearchParams,
+} from "next/navigation";
 import { ChangeEventHandler, FC, useRef, useState, useTransition } from "react";
 import useDebounce from "utils/useDebounce";
 import { useURLQueryModal } from "./Modal";
@@ -22,23 +27,27 @@ function searchFor(field: string | null, word: string): string {
 }
 
 /** One typed word and what it matched, each match linking to a search for it. */
-const SearchMatch: FC<Matched> = ({ field, typed, words }) => (
-  <>
-    <strong className="font-normal">{searchFor(field, typed)}</strong>
-    <span> matched </span>
-    {words.map((word, index) => (
-      <span key={word}>
-        <Link
-          href={`?search=${encodeURIComponent(searchFor(field, word))}`}
-          className="text-indigo-600 underline hover:bg-indigo-300"
-        >
-          {word}
-        </Link>
-        {index < words.length - 1 && ", "}
-      </span>
-    ))}
-  </>
-);
+const SearchMatch: FC<Matched> = ({ field, typed, words }) => {
+  const t = useTranslations("search");
+
+  return (
+    <>
+      <strong className="font-normal">{searchFor(field, typed)}</strong>
+      <span> {t("matched")} </span>
+      {words.map((word, index) => (
+        <span key={word}>
+          <Link
+            href={`?search=${encodeURIComponent(searchFor(field, word))}`}
+            className="text-indigo-600 underline hover:bg-indigo-300"
+          >
+            {word}
+          </Link>
+          {index < words.length - 1 && ", "}
+        </span>
+      ))}
+    </>
+  );
+};
 
 /** Every match the current search made, separated by dots. Empty renders nothing. */
 const SearchMatches: FC<{ matched: Matched[] }> = ({ matched }) => (
@@ -53,20 +62,29 @@ const SearchMatches: FC<{ matched: Matched[] }> = ({ matched }) => (
 );
 
 /** The animated ellipsis shown while a query is in flight. */
-const SearchProgress: FC = () => (
-  <span>
-    Searching the collection
-    <span aria-hidden className="tracking-widest">
-      <span className="animate-pulse">.</span>
-      <span className="animate-pulse [animation-delay:150ms]">.</span>
-      <span className="animate-pulse [animation-delay:300ms]">.</span>
+const SearchProgress: FC = () => {
+  const t = useTranslations("search");
+
+  return (
+    <span>
+      {t("searching")}
+      <span aria-hidden className="tracking-widest">
+        <span className="animate-pulse">.</span>
+        <span className="animate-pulse [animation-delay:150ms]">.</span>
+        <span className="animate-pulse [animation-delay:300ms]">.</span>
+      </span>
     </span>
-  </span>
-);
+  );
+};
 
 const PublicationSearch: FC = () => {
+  const t = useTranslations("search");
   const router = useRouter();
   const pathname = usePathname() ?? "";
+  // The address as written, locale and all. `usePathname` above strips the
+  // locale, which is right for building an href and wrong for asking whether the
+  // reader is still on the page they typed into.
+  const address = useAddressPathname();
   const searchParams = useSearchParams();
   const matched = useMatched();
   const [isNavigating, startTransition] = useTransition();
@@ -90,7 +108,7 @@ const PublicationSearch: FC = () => {
   const navigate = useDebounce((value: string) => {
     requested.current = value;
 
-    if (window.location.pathname !== pathname) return;
+    if (window.location.pathname !== address) return;
 
     startTransition(() => {
       router.replace(
@@ -113,8 +131,8 @@ const PublicationSearch: FC = () => {
     <section className="space-y-3">
       <input
         className="w-full py-2 px-3 bg-white border border-gray-300 rounded outline-none transition-colors placeholder:text-sm focus:bg-gray-100 hover:bg-gray-100"
-        placeholder="Browse data about Brazilian literature in translation"
-        aria-label="Search publications"
+        placeholder={t("placeholder")}
+        aria-label={t("ariaLabel")}
         value={search}
         onChange={handleChange}
       />
@@ -139,7 +157,7 @@ const PublicationSearch: FC = () => {
             onClick={() => setExpanded(!expanded)}
             className="text-gray-600 whitespace-nowrap rounded underline shrink-0 hover:text-indigo-600 focus-ring"
           >
-            {expanded ? "Show less" : "Show all"}
+            {expanded ? t("showLess") : t("showAll")}
           </button>
         )}
         <button
@@ -147,7 +165,7 @@ const PublicationSearch: FC = () => {
           onClick={() => openHelp()}
           className="text-gray-600 whitespace-nowrap rounded underline shrink-0 hover:text-indigo-600 focus-ring"
         >
-          How to search
+          {t("howTo")}
         </button>
       </div>
     </section>

@@ -82,12 +82,12 @@ export const Default: Story = {
     // Every field a reader might want to pivot on is a search link.
     await expect(
       screen.getByRole("link", { name: "Machado de Assis" }),
-    ).toHaveAttribute("href", "/?search=Machado de Assis");
+    ).toHaveAttribute("href", "/en?search=Machado de Assis");
 
     // Countries render their label but search by the stored code.
     await expect(
-      screen.getByRole("link", { name: "United States of America" }),
-    ).toHaveAttribute("href", "/?search=US");
+      screen.getByRole("link", { name: "United States" }),
+    ).toHaveAttribute("href", "/en?search=US");
 
     await expect(
       screen.getByText("Gledson, John. Deceptive Realism, 1984."),
@@ -126,7 +126,7 @@ export const AsAdmin: Story = {
       "Year: 1952 → 1953",
     );
     await userEvent.click(screen.getByText("History"));
-    await expect(screen.getByText("created")).toBeVisible();
+    await expect(screen.getByText("Created")).toBeVisible();
   },
 };
 
@@ -186,7 +186,7 @@ export const SearchLinks: Story = {
   play: async () => {
     await expect(
       screen.getByRole("link", { name: "Helen Caldwell" }),
-    ).toHaveAttribute("href", "/?search=Helen Caldwell");
+    ).toHaveAttribute("href", "/en?search=Helen Caldwell");
   },
 };
 

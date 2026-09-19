@@ -2,13 +2,15 @@
 
 import type { Invitation } from "modules/access/model";
 import { cancelInvitation, resendInvitation } from "modules/access/remote";
-import { formatDate } from "modules/dates";
-import { ROLE_LABELS } from "modules/users";
-import { useRouter } from "next/navigation";
+import { useFormatDate } from "modules/dates";
+import { useRouter } from "i18n/navigation";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
 
 const Entry: FC<{ invitation: Invitation }> = ({ invitation }) => {
+  const t = useTranslations("admin");
+  const formatDate = useFormatDate();
   const router = useRouter();
   const [working, setWorking] = useState(false);
   const pending = invitation.acceptedAt === null;
@@ -38,20 +40,22 @@ const Entry: FC<{ invitation: Invitation }> = ({ invitation }) => {
           {invitation.email}
         </p>
         <p className="text-xs text-gray-500">
-          Invited as {ROLE_LABELS[invitation.role]} on{" "}
-          {formatDate(invitation.insertedAt)}
+          {t("invitedAs", {
+            role: invitation.role,
+            date: formatDate(invitation.insertedAt),
+          })}
           {invitation.acceptedAt &&
-            ` · taken up ${formatDate(invitation.acceptedAt)}`}
+            t("takenUpOn", { date: formatDate(invitation.acceptedAt) })}
         </p>
       </div>
 
       {pending ? (
         <>
           <span className="px-2 py-0.5 text-xs font-medium text-amber-800 bg-amber-100 rounded-full">
-            waiting
+            {t("waiting")}
           </span>
           <Button
-            label="Send again"
+            label={t("sendAgain")}
             variant="outline"
             width="fit"
             size="small"
@@ -60,7 +64,7 @@ const Entry: FC<{ invitation: Invitation }> = ({ invitation }) => {
             onClick={resend}
           />
           <Button
-            label="Withdraw"
+            label={t("withdraw")}
             variant="outline"
             width="fit"
             size="small"
@@ -70,7 +74,7 @@ const Entry: FC<{ invitation: Invitation }> = ({ invitation }) => {
         </>
       ) : (
         <span className="px-2 py-0.5 text-xs font-medium rounded-full text-emerald-700 bg-emerald-100">
-          taken up
+          {t("takenUp")}
         </span>
       )}
     </li>
@@ -84,20 +88,22 @@ const Entry: FC<{ invitation: Invitation }> = ({ invitation }) => {
  * what they have, and who offered it. Only a waiting one can be withdrawn or
  * sent again — there is nothing left to chase once it has been redeemed.
  */
-const InvitationList: FC<{ invitations: Invitation[] }> = ({ invitations }) => (
-  <div>
-    {invitations.length === 0 ? (
-      <p className="text-sm text-gray-600">
-        No invitations yet — anyone invited will appear here until they sign in.
-      </p>
-    ) : (
-      <ul className="flex flex-col gap-2">
-        {invitations.map((invitation) => (
-          <Entry key={invitation.id} invitation={invitation} />
-        ))}
-      </ul>
-    )}
-  </div>
-);
+const InvitationList: FC<{ invitations: Invitation[] }> = ({ invitations }) => {
+  const t = useTranslations("admin");
+
+  return (
+    <div>
+      {invitations.length === 0 ? (
+        <p className="text-sm text-gray-600">{t("noInvitations")}</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {invitations.map((invitation) => (
+            <Entry key={invitation.id} invitation={invitation} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 export default InvitationList;

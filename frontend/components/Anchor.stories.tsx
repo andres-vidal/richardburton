@@ -29,7 +29,7 @@ export const Default: Story = {
     const canvas = within(canvasElement);
     const link = canvas.getByRole("link", { name: "Browse publications" });
     await expect(link).toBeInTheDocument();
-    await expect(link).toHaveAttribute("href", "/publications");
+    await expect(link).toHaveAttribute("href", "/en/publications");
   },
 };
 
@@ -62,6 +62,9 @@ export const WithQuery: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const link = canvas.getByRole("link", { name: "Search" });
-    await expect(link).toHaveAttribute("href", "/publications?search=Machado");
+    await expect(link).toHaveAttribute(
+      "href",
+      "/en/publications?search=Machado",
+    );
   },
 };

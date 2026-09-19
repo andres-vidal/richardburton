@@ -61,7 +61,7 @@ export const Default: Story = {
 
     await userEvent.click(canvas.getByRole("button", { name: "Edit a field" }));
     await expect(
-      await canvas.findByRole("button", { name: /Reset 1 overriden/ }),
+      await canvas.findByRole("button", { name: /Reset 1 overridden/ }),
     ).toBeInTheDocument();
   },
 };

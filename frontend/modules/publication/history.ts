@@ -3,11 +3,11 @@ import type {
   PublicationHistoryEntry,
   SnapshotDiff,
 } from "./model";
-import { Publication } from "./model";
+import { type PublicationKey, Publication } from "./model";
 
 type FieldChange = {
   kind: "field";
-  label: string;
+  attribute: PublicationKey;
   from: string;
   to: string;
 };
@@ -24,7 +24,7 @@ type AbsorbedRecord = {
   /** The record's own id — two records a merge took in may well share a title. */
   id: number;
   title: string;
-  fields: { label: string; value: string }[];
+  fields: { attribute: PublicationKey; value: string }[];
   sources: string[];
 };
 
@@ -67,7 +67,7 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
     (key) => diff.fields[key] !== undefined,
   ).map((key) => ({
     kind: "field",
-    label: Publication.ATTRIBUTE_LABELS[key],
+    attribute: key,
     from: String(diff.fields[key]!.from),
     to: String(diff.fields[key]!.to),
   }));
@@ -92,10 +92,10 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
 
   const records = absorbed.map((publication) => ({
     id: publication.id,
-    title: publication.title || "an untitled record",
+    title: publication.title,
     fields: Publication.ATTRIBUTES.filter((key) => key !== "title")
       .map((key) => ({
-        label: Publication.ATTRIBUTE_LABELS[key],
+        attribute: key,
         value: String(publication[key] ?? ""),
       }))
       .filter(({ value }) => value !== ""),

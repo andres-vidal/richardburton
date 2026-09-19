@@ -3,6 +3,7 @@
 import TrashIcon from "assets/trash.svg";
 import { setDiscarded } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
+import { useTranslations } from "next-intl";
 import { FC } from "react";
 import {
   clearSelection,
@@ -12,6 +13,7 @@ import {
 import Button from "./Button";
 
 const PublicationDiscard: FC = () => {
+  const t = useTranslations("admin");
   const selectionSize = useSelectionSize();
 
   const store = usePublicationStore();
@@ -26,7 +28,7 @@ const PublicationDiscard: FC = () => {
 
   return (
     <Button
-      label={`Discard ${selectionSize}`}
+      label={t("discard", { count: selectionSize })}
       variant="danger"
       alignment="left"
       width="fit"

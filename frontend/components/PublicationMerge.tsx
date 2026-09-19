@@ -1,6 +1,7 @@
 "use client";
 
 import { Publication } from "modules/publication/model";
+import { useLocale, useTranslations } from "next-intl";
 import { merge, search } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { ChangeEventHandler, FC, useState } from "react";
@@ -37,39 +38,42 @@ const DETAILED = Publication.ATTRIBUTES.filter(
  * nothing here is summarised away or truncated: every field the record holds,
  * and every source, is on the page while the choice is being made.
  */
-const Summary: FC<{ publication: Publication }> = ({ publication: p }) => (
-  <div className="min-w-0">
-    <p className="text-sm">
-      {p.title} <span className="text-gray-600">({p.year})</span>
-    </p>
-    <dl className="mt-0.5 text-xs text-gray-600">
-      {DETAILED.map((key) => {
-        const value = Publication.describe(p[key], key);
+const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
+  const t = useTranslations("attributes");
+  const locale = useLocale();
 
-        return value ? (
-          <div key={key} className="flex gap-1">
-            <dt className="text-gray-600 shrink-0">
-              {Publication.ATTRIBUTE_LABELS[key]}:
-            </dt>
-            <dd className="wrap-break-words">{value}</dd>
+  return (
+    <div className="min-w-0">
+      <p className="text-sm">
+        {p.title} <span className="text-gray-600">({p.year})</span>
+      </p>
+      <dl className="mt-0.5 text-xs text-gray-600">
+        {DETAILED.map((key) => {
+          const value = Publication.describe(p[key], key, locale);
+
+          return value ? (
+            <div key={key} className="flex gap-1">
+              <dt className="text-gray-600 shrink-0">{t(key)}:</dt>
+              <dd className="wrap-break-words">{value}</dd>
+            </div>
+          ) : null;
+        })}
+        {p.sources?.length > 0 && (
+          <div className="flex gap-1">
+            <dt className="text-gray-600 shrink-0">{t("sources")}:</dt>
+            <dd className="wrap-break-words">
+              <ul>
+                {p.sources.map((source) => (
+                  <li key={source}>{source}</li>
+                ))}
+              </ul>
+            </dd>
           </div>
-        ) : null;
-      })}
-      {p.sources?.length > 0 && (
-        <div className="flex gap-1">
-          <dt className="text-gray-600 shrink-0">Sources:</dt>
-          <dd className="wrap-break-words">
-            <ul>
-              {p.sources.map((source) => (
-                <li key={source}>{source}</li>
-              ))}
-            </ul>
-          </dd>
-        </div>
-      )}
-    </dl>
-  </div>
-);
+        )}
+      </dl>
+    </div>
+  );
+};
 
 /**
  * A field of the merged record, with what the merge adds to it set apart from
@@ -110,12 +114,22 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
   winner,
   losers,
 }) => {
+  const attribute = useTranslations("attributes");
+  const t = useTranslations("merge");
   const result = Publication.merged(winner, losers);
 
   const rows = [
-    { label: "Countries", kept: winner.countries, all: result.countries },
-    { label: "Publishers", kept: winner.publishers, all: result.publishers },
-    { label: "Sources", kept: winner.sources, all: result.sources },
+    {
+      label: attribute("countries"),
+      kept: winner.countries,
+      all: result.countries,
+    },
+    {
+      label: attribute("publishers"),
+      kept: winner.publishers,
+      all: result.publishers,
+    },
+    { label: attribute("sources"), kept: winner.sources, all: result.sources },
   ].map(({ label, kept, all }) => ({
     label,
     kept,
@@ -123,8 +137,8 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
   }));
 
   return (
-    <section aria-label="Result" className="space-y-2">
-      <SectionHeading>Result</SectionHeading>
+    <section aria-label={t("result")} className="space-y-2">
+      <SectionHeading>{t("result")}</SectionHeading>
       <div className="space-y-1.5">
         {rows.map((row) => (
           <Gained key={row.label} {...row} />
@@ -132,8 +146,7 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
       </div>
       {rows.every((row) => row.gained.length === 0) && (
         <p className="text-xs text-gray-500">
-          Nothing new to take — “{winner.title}” already says everything the
-          others do. Merging still removes them.
+          {t("nothingNew", { title: winner.title })}
         </p>
       )}
     </section>
@@ -155,6 +168,7 @@ const PublicationMerge: FC<Props> = ({
   onMerged,
   find: findPublications = search,
 }) => {
+  const t = useTranslations("merge");
   const store = usePublicationStore();
 
   const [term, setTerm] = useState("");
@@ -210,33 +224,35 @@ const PublicationMerge: FC<Props> = ({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} label="Merge publications">
+    <Modal isOpen={isOpen} onClose={handleClose} label={t("label")}>
       <div className="flex flex-col gap-5 p-8 w-full h-full sm:h-[70vh]">
         <div className="space-y-1 shrink-0">
-          <h1 className="text-2xl font-normal">Merge into this publication</h1>
+          <h1 className="text-2xl font-normal">{t("heading")}</h1>
           <p className="text-sm text-gray-500">
-            “{publication.title}” ({publication.year}) keeps its place. The
-            records you pick leave the database, and what they hold stays here.
+            {t("subheading", {
+              title: publication.title,
+              year: publication.year,
+            })}
           </p>
         </div>
 
         <section className="space-y-2 shrink-0">
-          <SectionHeading>Find the duplicates</SectionHeading>
+          <SectionHeading>{t("find")}</SectionHeading>
           <input
             className="w-full py-2 px-3 bg-white rounded border border-gray-300 transition-colors outline-none placeholder:text-sm focus:bg-gray-100 hover:bg-gray-100 shrink-0"
-            placeholder="Search by title, author, publisher or country"
-            aria-label="Search for publications to merge"
+            placeholder={t("searchPlaceholder")}
+            aria-label={t("searchLabel")}
             value={term}
             onChange={handleTerm}
           />
           <div aria-live="polite" className="shrink-0">
             {searching ? (
-              <p className="text-xs text-gray-500">Searching…</p>
+              <p className="text-xs text-gray-500">{t("searching")}</p>
             ) : (
               term.trim() &&
               offered.length === 0 && (
                 <p className="text-xs text-gray-500">
-                  No other publication matches “{term}”.
+                  {t("noMatches", { term })}
                 </p>
               )
             )}
@@ -252,7 +268,7 @@ const PublicationMerge: FC<Props> = ({
               >
                 <Summary publication={candidate} />
                 <Button
-                  label="Add"
+                  label={t("add")}
                   variant="outline-primary"
                   width="fit"
                   size="small"
@@ -265,7 +281,7 @@ const PublicationMerge: FC<Props> = ({
           {chosen.length > 0 && (
             <>
               <section className="space-y-2">
-                <SectionHeading>Merging in</SectionHeading>
+                <SectionHeading>{t("mergingIn")}</SectionHeading>
                 <ul className="space-y-1">
                   {chosen.map((picked) => (
                     <li
@@ -274,7 +290,7 @@ const PublicationMerge: FC<Props> = ({
                     >
                       <Summary publication={picked} />
                       <Button
-                        label="Remove"
+                        label={t("remove")}
                         variant="outline"
                         width="fit"
                         size="small"
@@ -294,18 +310,14 @@ const PublicationMerge: FC<Props> = ({
 
         <div className="flex gap-3 justify-end shrink-0">
           <Button
-            label="Cancel"
+            label={t("cancel")}
             variant="outline"
             width="fit"
             size="medium"
             onClick={handleClose}
           />
           <Button
-            label={
-              chosen.length > 1
-                ? `Merge ${chosen.length} publications`
-                : "Merge publication"
-            }
+            label={t("confirm", { count: chosen.length })}
             variant="danger"
             width="fit"
             size="medium"

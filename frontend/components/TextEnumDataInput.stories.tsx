@@ -67,7 +67,7 @@ export const WithValue: Story = {
   args: { value: "US" },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole("combobox")).toHaveValue(
-      "United States of America",
+      "United States",
     );
   },
 };

@@ -1,4 +1,5 @@
 import { times } from "lodash";
+import { useTranslations } from "next-intl";
 import { FC } from "react";
 
 interface Props {
@@ -6,11 +7,12 @@ interface Props {
 }
 
 const ListSkeleton: FC<Props> = ({ rows }) => {
+  const t = useTranslations("common");
   // `role="status"` on the wrapper announces "Loading"; the bars themselves are
   // decorative, so hide the list from assistive tech (an `aria-hidden` also keeps
   // its <li>s from being flagged as orphaned once the status role is applied).
   return (
-    <div role="status" aria-label="Loading">
+    <div role="status" aria-label={t("loading")}>
       <ul aria-hidden="true" className="w-full space-y-2 animate-pulse">
         {times(rows, (index) => (
           <li

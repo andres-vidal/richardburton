@@ -7,9 +7,11 @@ import {
 } from "@floating-ui/react";
 import LogoOutlinedAnimated from "assets/logo-outlined-animated.svg";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { FC } from "react";
 
 const AppLoader: FC = () => {
+  const t = useTranslations("common");
   const { context, refs } = useFloating();
 
   return (
@@ -19,7 +21,7 @@ const AppLoader: FC = () => {
           ref={refs.setFloating}
           role="dialog"
           aria-modal="true"
-          aria-label="Your request is being processed"
+          aria-label={t("processing")}
           aria-busy="true"
           tabIndex={-1}
           className="fixed inset-0 z-50 flex items-center justify-center outline-none text-indigo-900 bg-indigo-900/30"
@@ -35,7 +37,7 @@ const AppLoader: FC = () => {
             <LogoOutlinedAnimated aria-hidden className="h-full" />
 
             <div className="absolute z-50 px-2 py-1 text-center text-indigo-900 bg-gray-200 rounded-full absoluce-center-y">
-              Your request is being processed
+              {t("processing")}
             </div>
           </motion.div>
         </motion.div>

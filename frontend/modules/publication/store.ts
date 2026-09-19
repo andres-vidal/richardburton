@@ -11,7 +11,7 @@ import {
   PublicationError,
   PublicationId,
   PublicationKey,
-  describeError,
+  errorCode,
   empty,
   markedValue,
 } from "./model";
@@ -186,20 +186,33 @@ const isValidFamily = atomFamily((id: PublicationId) =>
   atom((get) => !get(errorFamily(id))),
 );
 
-const errorDescriptionFamily = atomFamily((id: PublicationId) =>
-  atom((get) => describeError(get(errorFamily(id)))),
+const errorCodeFamily = atomFamily((id: PublicationId) =>
+  atom((get) => errorCode(get(errorFamily(id)))),
 );
 
-type FieldKey = { id: PublicationId; key: PublicationKey };
-type CellKey = `${PublicationId}:${PublicationKey}`;
+/**
+ * Which cell, and — for the cells whose shown form depends on it — which
+ * language. A country is stored as a code and read as a name, so the same cell
+ * holds two different answers and each needs its own atom.
+ */
+type FieldKey = { id: PublicationId; key: PublicationKey; locale?: string };
+type CellKey =
+  | `${PublicationId}:${PublicationKey}`
+  | `${PublicationId}:${PublicationKey}@${string}`;
 
-const cellKey = ({ id, key }: FieldKey): CellKey => `${id}:${key}`;
+// An attribute never holds an "@", so it separates the cell from its language.
+const cellKey = ({ id, key, locale }: FieldKey): CellKey =>
+  locale ? `${id}:${key}@${locale}` : `${id}:${key}`;
 
 const fieldKey = (cell: CellKey): FieldKey => {
   const separator = cell.indexOf(":");
+  const rest = cell.slice(separator + 1);
+  const at = rest.lastIndexOf("@");
+
   return {
     id: Number(cell.slice(0, separator)),
-    key: cell.slice(separator + 1) as PublicationKey,
+    key: (at === -1 ? rest : rest.slice(0, at)) as PublicationKey,
+    locale: at === -1 ? undefined : rest.slice(at + 1),
   };
 };
 
@@ -242,8 +255,8 @@ const storedFieldValueFamily = cellFamily(({ id, key }) =>
   atom((get) => get(publicationFamily(id))[key]),
 );
 
-const fieldErrorDescriptionFamily = cellFamily(({ id, key }) =>
-  atom((get) => describeError(get(errorFamily(id)), key)),
+const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
+  atom((get) => errorCode(get(errorFamily(id)), key)),
 );
 
 /**
@@ -251,8 +264,8 @@ const fieldErrorDescriptionFamily = cellFamily(({ id, key }) =>
  * not match it. Reads the *stored* publication, like `storedFieldValueFamily`, so
  * a pending edit does not leak into the read-only table.
  */
-const markedFieldFamily = cellFamily(({ id, key }) =>
-  atom((get) => markedValue(get(publicationFamily(id)), key)),
+const markedFieldFamily = cellFamily(({ id, key, locale }) =>
+  atom((get) => markedValue(get(publicationFamily(id)), key, locale)),
 );
 
 // --- Family lifecycle -------------------------------------------------------
@@ -274,13 +287,13 @@ const PUBLICATION_FAMILIES = [
   publicationSourcesFamily,
   storedSourcesFamily,
   isValidFamily,
-  errorDescriptionFamily,
+  errorCodeFamily,
 ];
 
 const CELL_FAMILIES = [
   fieldValueFamily,
   storedFieldValueFamily,
-  fieldErrorDescriptionFamily,
+  fieldErrorCodeFamily,
   markedFieldFamily,
 ];
 
@@ -593,9 +606,9 @@ export {
   discardEdit,
   drawnCountAtom,
   duplicate,
-  errorDescriptionFamily,
+  errorCodeFamily,
   errorFamily,
-  fieldErrorDescriptionFamily,
+  fieldErrorCodeFamily,
   fieldValueFamily,
   focusNextInvalid,
   focusedRowIdAtom,

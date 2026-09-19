@@ -1,4 +1,8 @@
 import type { Preview } from "@storybook/nextjs-vite";
+import { formats } from "i18n/formats";
+import { routing } from "i18n/routing";
+import messages from "../messages/en.json";
+import { NextIntlClientProvider } from "next-intl";
 import { PublicationStoreProvider } from "modules/publication/workspace";
 import { store } from "modules/store";
 
@@ -7,10 +11,18 @@ import "./preview.css";
 
 const preview: Preview = {
   decorators: [
+    // Components read their copy from the provider the locale layout supplies.
+    // Stories are written in the default locale, so they get that one.
     (Story) => (
-      <PublicationStoreProvider store={store}>
-        <Story />
-      </PublicationStoreProvider>
+      <NextIntlClientProvider
+        locale={routing.defaultLocale}
+        messages={messages}
+        formats={formats}
+      >
+        <PublicationStoreProvider store={store}>
+          <Story />
+        </PublicationStoreProvider>
+      </NextIntlClientProvider>
     ),
   ],
   parameters: {

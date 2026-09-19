@@ -41,6 +41,7 @@ import {
   useEffect,
   useRef,
 } from "react";
+import { useTranslations } from "next-intl";
 import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
@@ -193,12 +194,13 @@ const SubmittableData: typeof Content = ({ rowId, colId }) => {
 };
 
 const NewPublicationSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
+  const t = useTranslations("admin");
   const submit = useSubmit();
   return (
     <SignalColumn rowId={rowId}>
       <button
         type="button"
-        aria-label="Add publication"
+        aria-label={t("addPublication")}
         className="flex text-indigo-600 rounded-full w-fit h-fit hover:text-indigo-700"
         onClick={submit}
       >

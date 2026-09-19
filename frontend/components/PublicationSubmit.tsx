@@ -8,12 +8,14 @@ import {
 import { setAll } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { bulk } from "modules/publication/remote";
+import { useTranslations } from "next-intl";
 import { FC, useCallback } from "react";
 import Button from "./Button";
 import { useNotify } from "./Notifications";
 import Tooltip from "./Tooltip";
 
 const PublicationSubmit: FC = () => {
+  const t = useTranslations("admin");
   const store = usePublicationStore();
   const notify = useNotify();
 
@@ -39,13 +41,9 @@ const PublicationSubmit: FC = () => {
     isValidating || publicationCount === 0 || invalidPublicationCount > 0;
 
   return (
-    <Tooltip
-      variant="info"
-      message="Save the publications to the repository"
-      placement="top"
-    >
+    <Tooltip variant="info" message={t("submitHint")} placement="top">
       <Button
-        label="Submit"
+        label={t("submit")}
         onClick={handleSubmit}
         disabled={isSubmitDisabled}
         width="fixed"
