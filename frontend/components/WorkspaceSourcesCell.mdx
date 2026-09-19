@@ -1,21 +1,21 @@
 import { Canvas, Meta } from "@storybook/addon-docs/blocks";
 
-import * as WorkspaceReferencesCellStories from "./WorkspaceReferencesCell.stories";
+import * as WorkspaceSourcesCellStories from "./WorkspaceSourcesCell.stories";
 
-<Meta of={WorkspaceReferencesCellStories} />
+<Meta of={WorkspaceSourcesCellStories} />
 
-# Workspace references cell
+# Workspace sources cell
 
 The trailing "sources" cell for a row in the Add-publications workspace.
-References are a list, not a scalar, so they live outside the attribute grid: a
+Sources are a list, not a scalar, so they live outside the attribute grid: a
 design-system `Button` (outline) that fills the cell shows the source count and
 opens the list editor in a modal.
 
 ## Props
 
-`rowId` — the workspace row the cell belongs to. It reads that row's references
-from the store (`usePublicationReferences`) and writes edits back to the row's
-**override overlay** (`overrideReferences`), so they ride the bulk insert with
+`rowId` — the workspace row the cell belongs to. It reads that row's sources
+from the store (`usePublicationSources`) and writes edits back to the row's
+**override overlay** (`overrideSources`), so they ride the bulk insert with
 the rest of the row — there is no separate save.
 
 `invalid` / `selected` / `focused` — optional row-state flags (default `false`)
@@ -25,16 +25,16 @@ committed rows and omits them for the plain draft row.
 
 The button label reflects the count: "Sources" when empty (an invitation to add),
 "N sources" once there are some. Clicking it opens a modal with the shared
-`ReferencesEditor`; the click is stopped from bubbling so it doesn't also select
+`SourcesEditor`; the click is stopped from bubbling so it doesn't also select
 the row.
 
-<Canvas of={WorkspaceReferencesCellStories.WithReferences} />
+<Canvas of={WorkspaceSourcesCellStories.WithSources} />
 
 ## States
 
-- **Empty** — no references yet; the button reads "Sources", labelled "Add
-  references".
-- **With references** — the button reads "N sources", labelled "Edit references
+- **Empty** — no sources yet; the button reads "Sources", labelled "Add
+  sources".
+- **With sources** — the button reads "N sources", labelled "Edit sources
   (N)".
 
 Note: the stories wrap the cell in a plain `role="row"` for valid ARIA, so it

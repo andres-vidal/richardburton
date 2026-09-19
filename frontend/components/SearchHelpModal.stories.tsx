@@ -14,7 +14,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * The search syntax reference. Open state lives in the URL, so the search it
+ * The search syntax source. Open state lives in the URL, so the search it
  * documents stays on screen behind it.
  */
 export const Open: Story = {

@@ -41,14 +41,14 @@ defmodule RichardBurton.Publication.HistoryTest do
       refute History.snapshot(publication) == History.snapshot(retitled)
     end
 
-    test "differs once references change", %{publication: publication} do
+    test "differs once sources change", %{publication: publication} do
       {:ok, sourced} =
         Publication.update(
           publication.id,
-          Map.put(@attrs, "references", [%{"content" => "A source", "position" => 0}])
+          Map.put(@attrs, "sources", [%{"content" => "A source", "position" => 0}])
         )
 
-      # The case a changeset cannot detect: references are replaced wholesale,
+      # The case a changeset cannot detect: sources are replaced wholesale,
       # so only the resulting state tells you whether anything moved.
       refute History.snapshot(publication) == History.snapshot(sourced)
     end
@@ -118,12 +118,12 @@ defmodule RichardBurton.Publication.HistoryTest do
 
       # Only what moved: untouched fields are absent, not present-and-equal.
       refute Map.has_key?(diff.fields, "publishers")
-      assert diff.references == nil
+      assert diff.sources == nil
     end
 
-    # References are positional, so a fixture has to say where each one sits —
+    # Sources are positional, so a fixture has to say where each one sits —
     # which is also what makes a pure reorder expressible.
-    defp references(contents) do
+    defp sources(contents) do
       contents
       |> Enum.with_index()
       |> Enum.map(fn {content, position} ->
@@ -131,9 +131,9 @@ defmodule RichardBurton.Publication.HistoryTest do
       end)
     end
 
-    test "references diff as the exact entries added and removed", %{publication: publication} do
-      edit(publication, %{"references" => references(["Pontiero, Giovanni."])})
-      edit(publication, %{"references" => references(["Moser, Benjamin."])})
+    test "sources diff as the exact entries added and removed", %{publication: publication} do
+      edit(publication, %{"sources" => sources(["Pontiero, Giovanni."])})
+      edit(publication, %{"sources" => sources(["Moser, Benjamin."])})
 
       expected_diff = %{
         added: ["Moser, Benjamin."],
@@ -143,15 +143,15 @@ defmodule RichardBurton.Publication.HistoryTest do
 
       assert [%History{diff: diff} | _] = History.of(publication.id)
 
-      assert expected_diff == diff.references
+      assert expected_diff == diff.sources
     end
 
-    test "the same references in a new order is a reorder", %{publication: publication} do
-      edit(publication, %{"references" => references(["Alpha", "Beta"])})
-      edit(publication, %{"references" => references(["Beta", "Alpha"])})
+    test "the same sources in a new order is a reorder", %{publication: publication} do
+      edit(publication, %{"sources" => sources(["Alpha", "Beta"])})
+      edit(publication, %{"sources" => sources(["Beta", "Alpha"])})
 
       assert [%History{diff: diff} | _] = History.of(publication.id)
-      assert diff.references == %{added: [], removed: [], reordered: true}
+      assert diff.sources == %{added: [], removed: [], reordered: true}
     end
 
     test "only updates carry a diff", %{publication: publication} do

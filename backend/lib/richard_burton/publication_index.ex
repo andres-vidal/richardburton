@@ -86,10 +86,10 @@ defmodule RichardBurton.Publication.Index do
   the sources backfill works through, and the order has to be stable so it can be
   resumed.
   """
-  def without_references do
+  def without_sources do
     results =
       from(fp in FlatPublication,
-        where: fragment("cardinality(?) = 0", fp.references),
+        where: fragment("cardinality(?) = 0", fp.sources),
         order_by: [asc: fp.id]
       )
       |> Repo.all()
@@ -180,7 +180,7 @@ defmodule RichardBurton.Publication.Index do
   @doc """
   The full row for one id, or an empty list when there is none.
 
-  Gives what `details/2` gives, and for a search also marks each reference on its
+  Gives what `details/2` gives, and for a search also marks each source on its
   own, which a page showing the whole provenance list needs and a page listing
   rows does not.
   """
@@ -189,7 +189,7 @@ defmodule RichardBurton.Publication.Index do
   def detail(id, term) when is_binary(term) do
     from(fp in FlatPublication, where: fp.id == ^id)
     |> Excerpt.select(term)
-    |> Excerpt.select_references(term)
+    |> Excerpt.select_sources(term)
     |> Repo.all()
   end
 

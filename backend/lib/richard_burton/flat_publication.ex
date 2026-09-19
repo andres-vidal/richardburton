@@ -26,11 +26,11 @@ defmodule RichardBurton.FlatPublication do
 
   # Writable but not required: a publication may legitimately have no provenance,
   # and the bulk CSV import doesn't carry it.
-  @writable_attributes [:references | @required_attributes]
+  @writable_attributes [:sources | @required_attributes]
 
-  # What in each field answered a search, keyed by field, and each reference on
+  # What in each field answered a search, keyed by field, and each source on
   # its own. Both are null outside a search.
-  @readable_attributes [:id, :excerpts, :marked_references | @writable_attributes]
+  @readable_attributes [:id, :excerpts, :marked_sources | @writable_attributes]
 
   @derive {Jason.Encoder, only: @readable_attributes}
   schema "flat_publications" do
@@ -41,14 +41,14 @@ defmodule RichardBurton.FlatPublication do
     field(:publishers, :string)
     field(:original_title, :string)
     field(:original_authors, :string)
-    field(:references, {:array, :string})
+    field(:sources, {:array, :string})
 
     field(:countries_fingerprint, :string)
     field(:translated_book_fingerprint, :string)
     field(:publishers_fingerprint, :string)
 
     field(:excerpts, :map, virtual: true)
-    field(:marked_references, {:array, :string}, virtual: true)
+    field(:marked_sources, {:array, :string}, virtual: true)
   end
 
   @doc false

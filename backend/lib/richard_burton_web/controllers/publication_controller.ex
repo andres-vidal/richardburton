@@ -18,8 +18,8 @@ defmodule RichardBurtonWeb.PublicationController do
     json(conn, %{entries: entries})
   end
 
-  def index(conn, %{"unreferenced" => _}) do
-    {:ok, results} = Publication.Index.without_references()
+  def index(conn, %{"unsourced" => _}) do
+    {:ok, results} = Publication.Index.without_sources()
     conn |> put_total() |> json(%{entries: results})
   end
 
@@ -94,8 +94,8 @@ defmodule RichardBurtonWeb.PublicationController do
 
   defp excerpted(flat, search) do
     case Publication.Index.detail(flat.id, search) do
-      [%{excerpts: excerpts, marked_references: marked}] ->
-        %{flat | excerpts: excerpts, marked_references: marked}
+      [%{excerpts: excerpts, marked_sources: marked}] ->
+        %{flat | excerpts: excerpts, marked_sources: marked}
 
       [] ->
         flat

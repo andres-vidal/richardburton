@@ -43,7 +43,7 @@ import {
 } from "react";
 import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
-import WorkspaceReferencesCell from "./WorkspaceReferencesCell";
+import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 const ExtendedColumn: typeof Column = (props) => {
   const { rowId } = props;
@@ -62,7 +62,7 @@ const ExtendedColumn: typeof Column = (props) => {
   );
 };
 
-// Feeds the trailing references cell the same row state the attribute cells get,
+// Feeds the trailing sources cell the same row state the attribute cells get,
 // so it shares the row's hover / error / selected background.
 const ExtendedTrailingColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
   const isSelected = useIsSelected(rowId);
@@ -70,7 +70,7 @@ const ExtendedTrailingColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
   const isFocused = useIsPublicationFocused(rowId);
 
   return (
-    <WorkspaceReferencesCell
+    <WorkspaceSourcesCell
       rowId={rowId}
       invalid={!isValid}
       focused={isFocused}
@@ -215,7 +215,7 @@ const NewPublicationRow: FC = () => {
       Column={Column}
       Content={SubmittableData}
       SignalColumn={NewPublicationSignalColumn}
-      TrailingColumn={WorkspaceReferencesCell}
+      TrailingColumn={WorkspaceSourcesCell}
       collapsible={false}
     />
   );
