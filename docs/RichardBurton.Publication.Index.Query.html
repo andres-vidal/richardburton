@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Publication.Index.Query — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-5CAF8DAE.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Publication.<wbr />Index.<wbr />Query</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Builds the query a parsed search term resolves to.</p><p><code class="inline">Publication.Index.Term</code> says what a reader asked for; this says how to ask it
+of the database. Nothing here reads a publication. It returns the <code class="inline">WHERE</code> and
+<code class="inline">ORDER BY</code> fragments <code class="inline">Publication.Index</code> runs.</p><p>Terms used here:</p><ul><li><strong>criteria</strong> — a term ready to query with, and a tag the code matches on:
+<code class="inline">{:spelled_out, term}</code> for one handed to Postgres verbatim, or
+<code class="inline">{:alternatives, alternatives}</code> for one parsed into words and filters.</li><li><strong>predicate</strong> — one condition a publication has to satisfy, held as an Ecto
+<code class="inline">dynamic</code> so it can be combined with others and spliced into the <code class="inline">WHERE</code>.</li></ul><p>A free word is matched against the whole search document; an operator against
+the single column it names. That is why a term carrying operators cannot be
+one tsquery string, and is composed from predicates instead.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#criteria/1" data-no-tooltip="" translate="no">criteria(alternatives)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>A parsed term as criteria: for each alternative, the tsquery for its free words
+and the filters that narrow it.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#empty?/1" data-no-tooltip="" translate="no">empty?(arg)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Whether criteria found anything to search for. A term whose every word resolved to
+nothing, and which carries no filter, asks for nothing at all.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#lexeme/1" data-no-tooltip="" translate="no">lexeme(word)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Writes a word as a tsquery lexeme, in quotes, so that any punctuation in it is
+read as part of the word instead of as tsquery syntax.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#matches/1" data-no-tooltip="" translate="no">matches(arg)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The <code class="inline">WHERE</code> clause for the given criteria.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#ranking/1" data-no-tooltip="" translate="no">ranking(arg)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The <code class="inline">ORDER BY</code> expression for the given criteria: how well each row matches.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#spelled_out?/1" data-no-tooltip="" translate="no">spelled_out?(term)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Whether a term quotes a phrase or negates a word, which Postgres reads itself
+through <code class="inline">websearch_to_tsquery</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#word_query/1" data-no-tooltip="" translate="no">word_query(word)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>A word as the tsquery that matches it.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="criteria/1">
+
+  <div class="detail-header">
+    <a href="#criteria/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">criteria(alternatives)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>A parsed term as criteria: for each alternative, the tsquery for its free words
+and the filters that narrow it.</p>
+  </section>
+</section>
+<section class="detail" id="empty?/1">
+
+  <div class="detail-header">
+    <a href="#empty?/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">empty?(arg)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Whether criteria found anything to search for. A term whose every word resolved to
+nothing, and which carries no filter, asks for nothing at all.</p>
+  </section>
+</section>
+<section class="detail" id="lexeme/1">
+
+  <div class="detail-header">
+    <a href="#lexeme/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">lexeme(word)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Writes a word as a tsquery lexeme, in quotes, so that any punctuation in it is
+read as part of the word instead of as tsquery syntax.</p><p>Inside those quotes a backslash escapes whatever follows it, so backslashes and
+quotes both have to be escaped themselves. A word ending in an unescaped
+backslash would otherwise escape the closing quote, and Postgres would reject
+the whole tsquery.</p><h2 id="lexeme/1-examples" class="section-heading"><a href="#lexeme/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Publication.Index.Query</span><span class="o">.</span><span class="n">lexeme</span><span class="p" data-group-id="group-1">(</span><span class="s">&quot;caldwell&quot;</span><span class="p" data-group-id="group-1">)</span><span class="w">
+</span><span class="s">&quot;&#39;caldwell&#39;&quot;</span><span class="w">
+
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">RichardBurton.Publication.Index.Query</span><span class="o">.</span><span class="n">lexeme</span><span class="p" data-group-id="group-2">(</span><span class="s">&quot;o&#39;brien&quot;</span><span class="p" data-group-id="group-2">)</span><span class="w">
+</span><span class="s">&quot;&#39;o&#39;&#39;brien&#39;&quot;</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="matches/1">
+
+  <div class="detail-header">
+    <a href="#matches/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">matches(arg)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>The <code class="inline">WHERE</code> clause for the given criteria.</p>
+  </section>
+</section>
+<section class="detail" id="ranking/1">
+
+  <div class="detail-header">
+    <a href="#ranking/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">ranking(arg)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>The <code class="inline">ORDER BY</code> expression for the given criteria: how well each row matches.</p>
+  </section>
+</section>
+<section class="detail" id="spelled_out?/1">
+
+  <div class="detail-header">
+    <a href="#spelled_out?/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">spelled_out?(term)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Whether a term quotes a phrase or negates a word, which Postgres reads itself
+through <code class="inline">websearch_to_tsquery</code>.</p>
+  </section>
+</section>
+<section class="detail" id="word_query/1">
+
+  <div class="detail-header">
+    <a href="#word_query/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">word_query(word)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> word_query(<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()) :: <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>() | nil</pre>
+
+      </div>
+
+<p>A word as the tsquery that matches it.</p><p>Reads the word through <code class="inline">Keywords.standing_for/1</code> and renders whichever way it
+matched: a word that begins indexed words becomes a prefix query, and one that
+begins none becomes the list of words it resembles. A word the index does not
+hold at all has no tsquery, and the caller decides what that means.</p><p>This is the one place a word becomes a query, so a row is highlighted by the
+same thing that matched it.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
