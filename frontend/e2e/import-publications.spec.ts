@@ -3,7 +3,7 @@ import {
   signInAsAdmin,
   seedCorpus,
   addPublicationRow,
-  addRowReferences,
+  addRowSources,
   submitWorkspace,
   openPublicationModal,
   indexTable,
@@ -14,18 +14,18 @@ import {
 } from "./helpers";
 
 // One row, 8 semicolon-separated columns in codec order:
-// original_authors; year; countries; original_title; title; authors; publishers; references
+// original_authors; year; countries; original_title; title; authors; publishers; sources
 const CSV_ROW =
   "Machado de Assis;1899;BR;Dom Casmurro;Dom Casmurro (CSV);Helen Caldwell;Noonday Press;A source\n";
 
-const [FIRST, REFERENCED, DUPLICATED] = PUBLICATIONS;
+const [FIRST, SOURCED, DUPLICATED] = PUBLICATIONS;
 
-const REFERENCES = [
+const SOURCES = [
   "Caldwell, Helen. The Brazilian Othello of Machado de Assis, 1960.",
   "https://archive.org/details/domcasmurro0000mach",
 ];
 
-test("an admin bulk-inserts publications with references from the workspace", async ({
+test("an admin bulk-inserts publications with sources from the workspace", async ({
   page,
 }) => {
   await signInAsAdmin(page);
@@ -38,7 +38,7 @@ test("an admin bulk-inserts publications with references from the workspace", as
   }
 
   // Attach two sources to the second row through its "Sources" cell.
-  await addRowReferences(page, REFERENCED.title, REFERENCES);
+  await addRowSources(page, SOURCED.title, SOURCES);
 
   // Selection: a row is selected by its leading cell — the handle. The other
   // cells hold fields, and a click there belongs to the field.
@@ -53,7 +53,7 @@ test("an admin bulk-inserts publications with references from the workspace", as
   await handleOf(DUPLICATED.title).click({ modifiers: ["Shift"] });
   await expect(page.getByRole("button", { name: "Deselect 3" })).toBeVisible();
 
-  await handleOf(REFERENCED.title).click({ modifiers: ["Meta"] });
+  await handleOf(SOURCED.title).click({ modifiers: ["Meta"] });
   await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
 
   // Clicking anything that is not a row's handle clears it.
@@ -86,27 +86,27 @@ test("an admin bulk-inserts publications with references from the workspace", as
   await submitWorkspace(page, PUBLICATIONS.length);
 
   // All three are in the index with their full content — every field of every
-  // row round-tripped through the bulk insert — and the references rode along.
+  // row round-tripped through the bulk insert — and the sources rode along.
   await page.goto("/");
   await expectPublicationCount(page, PUBLICATIONS.length);
   for (const publication of PUBLICATIONS) {
     await expectPublicationRow(page, publication);
   }
-  const dialog = await openPublicationModal(page, REFERENCED.title);
-  for (const reference of REFERENCES) {
-    await expect(dialog.getByText(reference)).toBeVisible();
+  const dialog = await openPublicationModal(page, SOURCED.title);
+  for (const source of SOURCES) {
+    await expect(dialog.getByText(source)).toBeVisible();
   }
   await page.keyboard.press("Escape");
 
-  // The backfill wizard agrees: only the two unreferenced publications queue up.
-  await page.goto("/admin/publications/references");
+  // The backfill wizard agrees: only the two unsourced publications queue up.
+  await page.goto("/admin/publications/sources");
   const queue = page.getByRole("listbox", {
-    name: "Publications missing references",
+    name: "Publications missing sources",
   });
   await expect(queue.getByRole("option")).toHaveCount(PUBLICATIONS.length - 1);
-  await expect(
-    queue.getByRole("option", { name: REFERENCED.title }),
-  ).toHaveCount(0);
+  await expect(queue.getByRole("option", { name: SOURCED.title })).toHaveCount(
+    0,
+  );
 });
 
 const VALID: PublicationInput = {
@@ -186,7 +186,7 @@ test("a duplicate of an existing publication is flagged as a conflict", async ({
   await submitWorkspace(page, 1);
 });
 
-test("an admin imports publications from a CSV, references included", async ({
+test("an admin imports publications from a CSV, sources included", async ({
   page,
 }) => {
   await signInAsAdmin(page);
@@ -199,14 +199,14 @@ test("an admin imports publications from a CSV, references included", async ({
   });
 
   // The imported row populates the workspace grid — its fields are editable
-  // inputs, so match the row by accessible name — and the references column
+  // inputs, so match the row by accessible name — and the sources column
   // landed in the row's "Sources" cell.
   const row = indexTable(page).getByRole("row", {
     name: /Dom Casmurro \(CSV\)/,
   });
   await expect(row).toBeVisible();
   await expect(
-    row.getByRole("button", { name: "Edit references (1)" }),
+    row.getByRole("button", { name: "Edit sources (1)" }),
   ).toBeVisible();
 });
 

@@ -12,22 +12,22 @@ type Publication = {
   authors: string;
   originalTitle: string;
   originalAuthors: string;
-  references: string[];
+  sources: string[];
   // The server PK: a real id on persisted rows (index/search), null on
   // unsaved/working rows. Read-only: never cast from client input.
   id: number | null;
   // The matching text of each field, keyed by field, with the matched words
   // wrapped in `[[ ]]`. Only present on search results, and null for any field
   // the search did not match. `countries` and `year` never carry one.
-  excerpts?: Partial<Record<PublicationKey | "references", string | null>>;
-  // Each reference with its matched words wrapped, or null where the search did
+  excerpts?: Partial<Record<PublicationKey | "sources", string | null>>;
+  // Each source with its matched words wrapped, or null where the search did
   // not match that one. Only present on a record read with a search.
-  markedReferences?: (string | null)[];
+  markedSources?: (string | null)[];
 };
 
 type PublicationKey = keyof Omit<
   Publication,
-  "id" | "references" | "excerpts" | "markedReferences"
+  "id" | "sources" | "excerpts" | "markedSources"
 >;
 
 /**
@@ -69,7 +69,7 @@ type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
 
 type SnapshotDiff = {
   fields: Partial<Record<PublicationKey, { from: unknown; to: unknown }>>;
-  references: { added: string[]; removed: string[]; reordered: boolean } | null;
+  sources: { added: string[]; removed: string[]; reordered: boolean } | null;
 };
 
 /**
@@ -180,7 +180,7 @@ function empty(): Publication {
     publishers: "",
     title: "",
     year: "",
-    references: [],
+    sources: [],
   };
 }
 
@@ -218,7 +218,7 @@ function merged(winner: Publication, losers: Publication[]): Publication {
     ...winner,
     countries: union("countries"),
     publishers: union("publishers"),
-    references: Array.from(new Set(all.flatMap((p) => p.references))),
+    sources: Array.from(new Set(all.flatMap((p) => p.sources))),
   };
 }
 
@@ -292,14 +292,14 @@ function markedItems(
 }
 
 /**
- * Each of a publication's references as the index marked it, or as it is stored
+ * Each of a publication's sources as the index marked it, or as it is stored
  * where the search did not match that one.
  */
-function markedReferences(publication: Publication): string[] {
-  const references = publication.references ?? [];
+function markedSources(publication: Publication): string[] {
+  const sources = publication.sources ?? [];
 
-  return references.map(
-    (reference, index) => publication.markedReferences?.[index] ?? reference,
+  return sources.map(
+    (source, index) => publication.markedSources?.[index] ?? source,
   );
 }
 
@@ -388,7 +388,7 @@ const Publication = {
   describeValue,
   markedValue,
   markedItems,
-  markedReferences,
+  markedSources,
   empty,
   items,
   merged,

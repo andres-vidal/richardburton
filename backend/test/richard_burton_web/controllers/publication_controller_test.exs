@@ -10,7 +10,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   alias RichardBurton.Country
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
-  alias RichardBurton.Reference
+  alias RichardBurton.Source
 
   # Admin mutations resolve the acting user for the history log.
   setup do
@@ -140,11 +140,11 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert id == meta.publication.id
     end
 
-    test "marks the reference a search matched, and only that one", meta do
+    test "marks the source a search matched, and only that one", meta do
       {:ok, publication} =
         @publication_attrs
         |> Map.put("title", "A Sourced Publication")
-        |> Map.put("references", [
+        |> Map.put("sources", [
           "Caldwell, Helen. Machado de Assis. Berkeley: California, 1970.",
           "Gledson, John. The Deceptive Realism. Liverpool: Cairns, 1984."
         ])
@@ -158,9 +158,9 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> get("#{publication_path(meta.conn, :show, publication.id)}?search=berkeley")
         |> json_response(200)
 
-      assert [marked, unmatched] = body["marked_references"]
+      assert [marked, unmatched] = body["marked_sources"]
       assert marked =~ "[[Berkeley]]"
-      # The whole reference comes back, not a window over it, so a page showing
+      # The whole source comes back, not a window over it, so a page showing
       # the provenance list can show each entry in full.
       assert marked =~ "Caldwell, Helen."
       assert unmatched == nil
@@ -182,8 +182,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
   end
 
-  describe "GET /publications?unreferenced" do
-    test "returns only publications that have no references", %{conn: conn} do
+  describe "GET /publications?unsourced" do
+    test "returns only publications that have no sources", %{conn: conn} do
       {:ok, with_refs} =
         @publication_attrs |> Publication.Codec.nest() |> Publication.insert()
 
@@ -192,7 +192,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           with_refs.id,
           @publication_attrs
           |> Publication.Codec.nest()
-          |> Map.put("references", Reference.nest(["A source"]))
+          |> Map.put("sources", Source.nest(["A source"]))
         )
 
       {:ok, _without} =
@@ -204,7 +204,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       entries =
         conn
-        |> get("#{publication_path(conn, :index)}?unreferenced")
+        |> get("#{publication_path(conn, :index)}?unsourced")
         |> json_response(200)
         |> Map.get("entries")
 
@@ -707,16 +707,16 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert publications ==
                Enum.map(
                  result,
-                 &Map.drop(&1, ["id", "references", "excerpts", "marked_references"])
+                 &Map.drop(&1, ["id", "sources", "excerpts", "marked_sources"])
                )
     end
 
-    test "bulk-inserts publications with their references", meta do
+    test "bulk-inserts publications with their sources", meta do
       expect_auth_authorize_admin()
 
       input = %{
         "_json" => [
-          Map.put(@publication_attrs, "references", ["First source", "Second source"])
+          Map.put(@publication_attrs, "sources", ["First source", "Second source"])
         ]
       }
 
@@ -725,8 +725,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :create_all), input)
         |> json_response(201)
 
-      assert [%{"references" => ["First source", "Second source"]}] = result
-      assert [%{references: ["First source", "Second source"]}] = FlatPublication.all()
+      assert [%{"sources" => ["First source", "Second source"]}] = result
+      assert [%{sources: ["First source", "Second source"]}] = FlatPublication.all()
     end
 
     test "returns 201 and inserts publications with several countries", meta do
@@ -805,7 +805,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert output ==
                Enum.map(
                  result,
-                 &Map.drop(&1, ["id", "references", "excerpts", "marked_references"])
+                 &Map.drop(&1, ["id", "sources", "excerpts", "marked_sources"])
                )
     end
 
@@ -887,7 +887,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert output ==
                Enum.map(
                  result,
-                 &Map.drop(&1, ["id", "references", "excerpts", "marked_references"])
+                 &Map.drop(&1, ["id", "sources", "excerpts", "marked_sources"])
                )
     end
 
@@ -1099,7 +1099,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => "Isabel Burton, Richard Burton",
           "original_authors" => "José de Alencar",
           "original_title" => "Iracema",
-          "references" => []
+          "sources" => []
         },
         "errors" => nil
       },
@@ -1112,7 +1112,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => "J. T. W. Sadler",
           "original_authors" => "José de Alencar",
           "original_title" => "Ubirajara",
-          "references" => []
+          "sources" => []
         },
         "errors" => nil
       },
@@ -1125,7 +1125,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => "",
           "original_authors" => "José de Alencar",
           "original_title" => "Iracema",
-          "references" => []
+          "sources" => []
         },
         "errors" => %{
           "year" => "integer",
@@ -1142,7 +1142,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => "J. T. W. Sadler",
           "original_authors" => "",
           "original_title" => "",
-          "references" => []
+          "sources" => []
         },
         "errors" => %{
           "year" => "required",
@@ -1194,7 +1194,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
       expected_data =
-        "authors;countries;original_authors;original_title;publishers;references;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
+        "authors;countries;original_authors;original_title;publishers;sources;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
 
       expected_filename = "publications.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1206,7 +1206,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert expected_data == response(conn, 200)
     end
 
-    test "joins a publication's references into the references cell", meta do
+    test "joins a publication's sources into the sources cell", meta do
       expect_auth_authorize_admin()
 
       {:ok, publication} =
@@ -1220,25 +1220,25 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           publication.id,
           @publication_attrs
           |> Publication.Codec.nest()
-          |> Map.put("references", Reference.nest(["First source", "Second source"]))
+          |> Map.put("sources", Source.nest(["First source", "Second source"]))
         )
 
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
-      # One reference per line inside a single quoted cell (CSV quotes the newline).
+      # One source per line inside a single quoted cell (CSV quotes the newline).
       assert response(conn, 200) =~ "\"First source\nSecond source\""
     end
 
-    test "imports a newline-per-line references cell back into a list", meta do
+    test "imports a newline-per-line sources cell back into a list", meta do
       expect_auth_authorize_admin()
-      input = uploaded_csv_fixture("test/fixtures/data_with_references.csv")
+      input = uploaded_csv_fixture("test/fixtures/data_with_sources.csv")
 
       [first | _] =
         meta.conn
         |> post(publication_path(meta.conn, :validate), input)
         |> json_response(200)
 
-      assert ["First source", "Second source"] == first["publication"]["references"]
+      assert ["First source", "Second source"] == first["publication"]["sources"]
     end
   end
 
@@ -1259,7 +1259,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors;countries;original_authors;original_title;publishers;references;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
+        "authors;countries;original_authors;original_title;publishers;sources;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
 
       expected_filename = "publications-#{search}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1422,11 +1422,11 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert response(conn, 404)
     end
 
-    test "sets the publication's references from the flat payload", meta do
+    test "sets the publication's sources from the flat payload", meta do
       publication = insert_publication(@publication_attrs)
       expect_auth_authorize_admin()
 
-      attrs = Map.put(@publication_attrs, "references", ["First source", "Second source"])
+      attrs = Map.put(@publication_attrs, "sources", ["First source", "Second source"])
 
       result =
         meta.conn
@@ -1435,9 +1435,9 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       # The flat string list round-trips: nested into child rows on the way in,
       # flattened back to an ordered list in the response and the read model.
-      assert result["references"] == ["First source", "Second source"]
+      assert result["sources"] == ["First source", "Second source"]
 
-      assert [%{references: ["First source", "Second source"]}] = FlatPublication.all()
+      assert [%{sources: ["First source", "Second source"]}] = FlatPublication.all()
     end
   end
 

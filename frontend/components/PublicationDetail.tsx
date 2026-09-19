@@ -6,7 +6,7 @@ import {
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
-  usePublicationReferences,
+  usePublicationSources,
 } from "modules/publication/hooks";
 import {
   Publication,
@@ -21,7 +21,7 @@ import {
 } from "modules/publication/remote";
 import {
   discardEdit,
-  overrideReferences,
+  overrideSources,
   remember,
 } from "modules/publication/store";
 import {
@@ -39,7 +39,7 @@ import Highlight from "./Highlight";
 import { useModal } from "./Modal";
 import PublicationHistory from "./PublicationHistory";
 import PublicationMerge from "./PublicationMerge";
-import ReferencesEditor from "./ReferencesEditor";
+import SourcesEditor from "./SourcesEditor";
 import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
 
@@ -110,25 +110,23 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
  * database whose worth is its provenance, an absent source is worth stating.
  * The history section states its absence the same way.
  */
-const PublicationReferences: FC<{ references: string[] }> = ({
-  references,
-}) => (
+const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => (
   <section className="space-y-2">
-    <SectionHeading>References</SectionHeading>
-    {references.length === 0 ? (
+    <SectionHeading>Sources</SectionHeading>
+    {sources.length === 0 ? (
       <p className="text-xs text-gray-500">
         No sources recorded yet — this record has not been backed up by one.
       </p>
     ) : (
       <ul className="space-y-1.5 text-sm text-gray-700">
-        {references.map((reference, index) => (
+        {sources.map((source, index) => (
           <li key={index} className="flex gap-2.5 items-baseline">
             <span
               aria-hidden
               className="size-1.5 rounded-full shrink-0 bg-indigo-400 ring-2 ring-indigo-100"
             />
             <span className="wrap-break-words">
-              <Highlight>{reference}</Highlight>
+              <Highlight>{source}</Highlight>
             </span>
           </li>
         ))}
@@ -190,7 +188,7 @@ const PublicationEditForm: FC<{
   const [saving, setSaving] = useState(false);
   const error = usePublicationErrorDescription(id);
   const isValid = useIsPublicationValid(id);
-  const references = usePublicationReferences(id);
+  const sources = usePublicationSources(id);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -208,9 +206,9 @@ const PublicationEditForm: FC<{
           <EditField key={attribute} id={id} attribute={attribute} />
         ))}
       </div>
-      <ReferencesEditor
-        value={references}
-        onChange={(next) => overrideReferences(store, id, next)}
+      <SourcesEditor
+        value={sources}
+        onChange={(next) => overrideSources(store, id, next)}
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 justify-end">
@@ -335,8 +333,8 @@ const Detail: FC<PublicationDetailProps> = ({
       ) : (
         <>
           <PublicationDescription publication={publication} />
-          <PublicationReferences
-            references={Publication.markedReferences(publication)}
+          <PublicationSources
+            sources={Publication.markedSources(publication)}
           />
           {history && <PublicationHistorySection entries={history} />}
           {canEdit && (

@@ -16,12 +16,12 @@ describe("empty", () => {
 
     // Every model attribute is present and empty — the shape editing relies on.
     ATTRIBUTES.forEach((key) => expect(publication[key]).toBe(""));
-    // Plus a null id (no server PK yet) and an empty provenance list. References
+    // Plus a null id (no server PK yet) and an empty provenance list. Sources
     // are a list outside the scalar ATTRIBUTES, so they're checked separately.
     expect(publication.id).toBeNull();
-    expect(publication.references).toEqual([]);
+    expect(publication.sources).toEqual([]);
     expect(Object.keys(publication).sort()).toEqual(
-      ["id", "references", ...ATTRIBUTES].sort(),
+      ["id", "sources", ...ATTRIBUTES].sort(),
     );
   });
 });
@@ -174,13 +174,13 @@ describe("merged", () => {
   });
 
   test("takes every source none of the others already gave", () => {
-    const winner = publication({ references: ["Alves, 1990"] });
+    const winner = publication({ sources: ["Alves, 1990"] });
     const losers = [
-      publication({ references: ["Alves, 1990", "Costa, 2001"] }),
-      publication({ references: ["Dias, 2011"] }),
+      publication({ sources: ["Alves, 1990", "Costa, 2001"] }),
+      publication({ sources: ["Dias, 2011"] }),
     ];
 
-    expect(merged(winner, losers).references).toEqual([
+    expect(merged(winner, losers).sources).toEqual([
       "Alves, 1990",
       "Costa, 2001",
       "Dias, 2011",
@@ -191,7 +191,7 @@ describe("merged", () => {
     const winner = publication({
       countries: "GB, US",
       publishers: "Bickers & Son",
-      references: ["Alves, 1990"],
+      sources: ["Alves, 1990"],
     });
 
     expect(merged(winner, [])).toEqual(winner);

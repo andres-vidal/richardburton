@@ -31,9 +31,9 @@ defmodule RichardBurton.Publication.History do
   # before a snapshot is fed back through the write path.
   @derived ~w[id countries_fingerprint translated_book_fingerprint publishers_fingerprint]
 
-  # References are compared as a list rather than as a value, so they are
+  # Sources are compared as a list rather than as a value, so they are
   # handled apart from the scalar fields.
-  @undiffed ["references" | @derived]
+  @undiffed ["sources" | @derived]
 
   schema "publication_history" do
     field(:publication_id, :integer)
@@ -273,7 +273,7 @@ defmodule RichardBurton.Publication.History do
     |> Enum.filter(&field_changed?(previous, current, &1))
   end
 
-  defp field_changed?(a, b, "references"), do: (a["references"] || []) != (b["references"] || [])
+  defp field_changed?(a, b, "sources"), do: (a["sources"] || []) != (b["sources"] || [])
   defp field_changed?(a, b, field), do: a[field] != b[field]
 
   # Structural only — field keys and raw values, no labels and no formatting.
@@ -299,13 +299,13 @@ defmodule RichardBurton.Publication.History do
       |> Enum.filter(&(previous[&1] != current[&1]))
       |> Map.new(&{&1, %{from: previous[&1], to: current[&1]}})
 
-    %{fields: fields, references: reference_change(previous["references"], current["references"])}
+    %{fields: fields, sources: source_change(previous["sources"], current["sources"])}
   end
 
-  # `--` is multiset difference, so a reference duplicated and removed once shows
+  # `--` is multiset difference, so a source duplicated and removed once shows
   # up removed exactly once. Same entries in a new order is a reorder, not a
   # removal plus an addition.
-  defp reference_change(previous, current) do
+  defp source_change(previous, current) do
     previous = previous || []
     current = current || []
     added = current -- previous
@@ -323,7 +323,7 @@ defmodule RichardBurton.Publication.History do
   with its associations collapsed to the flat fields the client speaks in.
 
   Comparing two of these is how callers tell an edit that changed something
-  from one that did not — the changeset cannot answer that, because references
+  from one that did not — the changeset cannot answer that, because sources
   are replaced wholesale on every save and so always look dirty.
 
   ## Examples
@@ -336,7 +336,7 @@ defmodule RichardBurton.Publication.History do
       ...>   year: 1953,
       ...>   countries: [%Country{code: "US"}],
       ...>   publishers: [%Publisher{name: "Noonday Press"}],
-      ...>   references: [],
+      ...>   sources: [],
       ...>   translated_book: %TranslatedBook{
       ...>     authors: [%Author{name: "Helen Caldwell"}],
       ...>     original_book: %OriginalBook{

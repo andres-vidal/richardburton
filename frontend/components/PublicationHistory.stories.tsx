@@ -13,7 +13,7 @@ const SNAPSHOT: PublicationHistoryEntry["snapshot"] = {
   year: 1953,
   countries: "US",
   publishers: "Noonday Press",
-  references: [],
+  sources: [],
 };
 
 // A full lifecycle — imported, retitled (with a source added), the source
@@ -32,7 +32,7 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      references: ["Gledson, John. Deceptive Realism, 1984."],
+      sources: ["Gledson, John. Deceptive Realism, 1984."],
     },
     diff: null,
   },
@@ -45,7 +45,7 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      references: ["Gledson, John. Deceptive Realism, 1984."],
+      sources: ["Gledson, John. Deceptive Realism, 1984."],
     },
     diff: null,
   },
@@ -58,12 +58,12 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      references: ["Gledson, John. Deceptive Realism, 1984."],
+      sources: ["Gledson, John. Deceptive Realism, 1984."],
     },
     // One source swapped for another: nothing else moved.
     diff: {
       fields: {},
-      references: {
+      sources: {
         added: ["Gledson, John. Deceptive Realism, 1984."],
         removed: ["Caldwell, Helen. Introduction, 1953."],
         reordered: false,
@@ -79,14 +79,14 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      references: ["Caldwell, Helen. Introduction, 1953."],
+      sources: ["Caldwell, Helen. Introduction, 1953."],
     },
     // Retitled, with the first source added in the same save.
     diff: {
       fields: {
         title: { from: "Dom Casmurro", to: "Dom Casmurro (revised)" },
       },
-      references: {
+      sources: {
         added: ["Caldwell, Helen. Introduction, 1953."],
         removed: [],
         reordered: false,
@@ -144,7 +144,7 @@ export const Default: Story = {
       screen.getAllByText("by curator@rb.test").length,
     ).toBeGreaterThan(0);
 
-    // Updates state exactly what changed: scalars as old → new, references
+    // Updates state exactly what changed: scalars as old → new, sources
     // as the precise entries added and removed.
     await expect(screen.getByText(/Title:/)).toHaveTextContent(
       "Title: Dom Casmurro → Dom Casmurro (revised)",
@@ -194,7 +194,7 @@ export const WithoutABaseline: Story = {
         timestamp: "2026-07-15T11:00:00",
         snapshot: {
           ...SNAPSHOT,
-          references: ["Caldwell, Helen. Introduction, 1953."],
+          sources: ["Caldwell, Helen. Introduction, 1953."],
         },
         diff: null,
       },

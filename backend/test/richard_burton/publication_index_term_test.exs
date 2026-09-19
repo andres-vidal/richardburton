@@ -63,7 +63,7 @@ defmodule RichardBurton.Publication.Index.TermTest do
             {"country", :countries},
             {"publisher", :publishers},
             {"year", :year},
-            {"source", :references}
+            {"source", :sources}
           ] do
         assert [%{filters: [%{field: ^field}]}] = Term.parse("#{name}:x"),
                "expected #{name}: to name #{field}"
@@ -87,7 +87,7 @@ defmodule RichardBurton.Publication.Index.TermTest do
             {"país", :countries},
             {"editora", :publishers},
             {"ano", :year},
-            {"fonte", :references}
+            {"fonte", :sources}
           ] do
         assert [%{filters: [%{field: ^field}]}] = Term.parse("#{name}:x"),
                "expected #{name}: to name #{field}"

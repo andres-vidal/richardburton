@@ -9,7 +9,7 @@ defmodule RichardBurton.PublicationTest do
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
   alias RichardBurton.Publication.History
-  alias RichardBurton.Reference
+  alias RichardBurton.Source
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Util
   alias RichardBurton.Validation
@@ -355,13 +355,13 @@ defmodule RichardBurton.PublicationTest do
       assert 2 == length(TranslatedBook.all())
     end
 
-    test "adds references, loaded in position order" do
+    test "adds sources, loaded in position order" do
       publication = insert_publication()
 
       {:ok, _} =
         Publication.update(
           publication.id,
-          Map.put(@valid_attrs, "references", [
+          Map.put(@valid_attrs, "sources", [
             %{"content" => "Second source", "position" => 1},
             %{"content" => "First source", "position" => 0}
           ])
@@ -370,50 +370,50 @@ defmodule RichardBurton.PublicationTest do
       # Re-fetch so the preload actually queries (an update returns the cast order,
       # in memory) — this exercises the has_many's `preload_order`.
       reloaded = Repo.get(Publication, publication.id) |> Publication.preload()
-      assert ["First source", "Second source"] == Enum.map(reloaded.references, & &1.content)
+      assert ["First source", "Second source"] == Enum.map(reloaded.sources, & &1.content)
     end
 
-    test "loads many references in position order" do
+    test "loads many sources in position order" do
       publication = insert_publication()
 
       # More than a couple, given out of order (positions descending), so ordering
       # can't pass by luck.
-      references =
+      sources =
         0..5
         |> Enum.map(&%{"content" => "Source #{&1}", "position" => &1})
         |> Enum.reverse()
 
       {:ok, _} =
-        Publication.update(publication.id, Map.put(@valid_attrs, "references", references))
+        Publication.update(publication.id, Map.put(@valid_attrs, "sources", sources))
 
       reloaded = Repo.get(Publication, publication.id) |> Publication.preload()
 
-      assert Enum.map(0..5, &"Source #{&1}") == Enum.map(reloaded.references, & &1.content)
-      assert 6 == length(reloaded.references)
+      assert Enum.map(0..5, &"Source #{&1}") == Enum.map(reloaded.sources, & &1.content)
+      assert 6 == length(reloaded.sources)
     end
 
-    test "keeps duplicate reference content as distinct rows" do
+    test "keeps duplicate source content as distinct rows" do
       publication = insert_publication()
 
       {:ok, updated} =
         Publication.update(
           publication.id,
-          Map.put(@valid_attrs, "references", [
+          Map.put(@valid_attrs, "sources", [
             %{"content" => "Same source", "position" => 0},
             %{"content" => "Same source", "position" => 1}
           ])
         )
 
-      # Unlike countries/publishers/authors (deduplicated shared rows), references
+      # Unlike countries/publishers/authors (deduplicated shared rows), sources
       # are owned children: identical content persists as two separate rows.
-      assert ["Same source", "Same source"] == Enum.map(updated.references, & &1.content)
-      assert 2 == length(Repo.all(Reference))
+      assert ["Same source", "Same source"] == Enum.map(updated.sources, & &1.content)
+      assert 2 == length(Repo.all(Source))
     end
 
-    test "replaces references wholesale, deleting the previous rows" do
+    test "replaces sources wholesale, deleting the previous rows" do
       publication =
         insert_publication(
-          Map.put(@valid_attrs, "references", [
+          Map.put(@valid_attrs, "sources", [
             %{"content" => "Old source 1", "position" => 0},
             %{"content" => "Old source 2", "position" => 1},
             %{"content" => "Old source 3", "position" => 2}
@@ -423,36 +423,36 @@ defmodule RichardBurton.PublicationTest do
       {:ok, updated} =
         Publication.update(
           publication.id,
-          Map.put(@valid_attrs, "references", [%{"content" => "New source", "position" => 0}])
+          Map.put(@valid_attrs, "sources", [%{"content" => "New source", "position" => 0}])
         )
 
       # The owned children are replaced, not accumulated: every previous row is
       # gone, leaving only the new one.
-      assert ["New source"] == Enum.map(updated.references, & &1.content)
-      assert ["New source"] == Repo.all(Reference) |> Enum.map(& &1.content)
+      assert ["New source"] == Enum.map(updated.sources, & &1.content)
+      assert ["New source"] == Repo.all(Source) |> Enum.map(& &1.content)
     end
 
-    test "clears references when given an empty list" do
+    test "clears sources when given an empty list" do
       publication =
         insert_publication(
-          Map.put(@valid_attrs, "references", [%{"content" => "A source", "position" => 0}])
+          Map.put(@valid_attrs, "sources", [%{"content" => "A source", "position" => 0}])
         )
 
-      {:ok, updated} = Publication.update(publication.id, Map.put(@valid_attrs, "references", []))
+      {:ok, updated} = Publication.update(publication.id, Map.put(@valid_attrs, "sources", []))
 
-      assert [] == updated.references
-      assert [] == Repo.all(Reference)
+      assert [] == updated.sources
+      assert [] == Repo.all(Source)
     end
 
-    test "leaves references untouched when the payload omits them" do
+    test "leaves sources untouched when the payload omits them" do
       publication =
         insert_publication(
-          Map.put(@valid_attrs, "references", [%{"content" => "A source", "position" => 0}])
+          Map.put(@valid_attrs, "sources", [%{"content" => "A source", "position" => 0}])
         )
 
       {:ok, updated} = Publication.update(publication.id, @valid_attrs)
 
-      assert ["A source"] == Enum.map(updated.references, & &1.content)
+      assert ["A source"] == Enum.map(updated.sources, & &1.content)
     end
   end
 
@@ -543,13 +543,13 @@ defmodule RichardBurton.PublicationTest do
       assert ["updated", "created"] == Enum.map(History.of(publication.id), & &1.action)
     end
 
-    test "a reference-only edit is recorded, despite identical scalar fields" do
+    test "a source-only edit is recorded, despite identical scalar fields" do
       publication = insert_publication()
 
       {:ok, _} =
         Publication.update(
           publication.id,
-          Map.put(@valid_attrs, "references", [%{"content" => "A source", "position" => 0}])
+          Map.put(@valid_attrs, "sources", [%{"content" => "A source", "position" => 0}])
         )
 
       assert ["updated", "created"] == Enum.map(History.of(publication.id), & &1.action)
@@ -571,10 +571,10 @@ defmodule RichardBurton.PublicationTest do
       assert %Publication{deleted_at: %DateTime{}} = Repo.get(Publication, publication.id)
     end
 
-    test "keeps shared entities and owned references" do
+    test "keeps shared entities and owned sources" do
       publication =
         insert_publication(
-          Map.put(@valid_attrs, "references", [%{"content" => "A source", "position" => 0}])
+          Map.put(@valid_attrs, "sources", [%{"content" => "A source", "position" => 0}])
         )
 
       countries = Repo.all(Country)
@@ -582,10 +582,10 @@ defmodule RichardBurton.PublicationTest do
 
       {:ok, _} = Publication.delete(publication.id)
 
-      # Nothing cascades: shared entities and the tombstone's references stay.
+      # Nothing cascades: shared entities and the tombstone's sources stay.
       assert countries == Repo.all(Country)
       assert translated_books == Repo.all(TranslatedBook)
-      assert ["A source"] == Repo.all(Reference) |> Enum.map(& &1.content)
+      assert ["A source"] == Repo.all(Source) |> Enum.map(& &1.content)
     end
 
     test "frees the composite key: the same record can be imported again" do
@@ -646,7 +646,7 @@ defmodule RichardBurton.PublicationTest do
         insert_publication(
           @valid_attrs
           |> Map.put("countries", [%{"code" => "GB"}])
-          |> Map.put("references", [%{"content" => "A source", "position" => 0}])
+          |> Map.put("sources", [%{"content" => "A source", "position" => 0}])
         )
 
       loser =
@@ -655,7 +655,7 @@ defmodule RichardBurton.PublicationTest do
           |> Map.put("title", "Manuel de Moraes: Another Printing")
           |> Map.put("countries", [%{"code" => "US"}])
           |> Map.put("publishers", [%{"name" => "Noonday Press"}])
-          |> Map.put("references", [%{"content" => "Another source", "position" => 0}])
+          |> Map.put("sources", [%{"content" => "Another source", "position" => 0}])
         )
 
       {winner, loser}
@@ -675,25 +675,25 @@ defmodule RichardBurton.PublicationTest do
                merged.publishers |> Enum.map(& &1.name) |> Enum.sort()
 
       assert ["A source", "Another source"] ==
-               merged.references |> Enum.map(& &1.content) |> Enum.sort()
+               merged.sources |> Enum.map(& &1.content) |> Enum.sort()
     end
 
     test "a source both of them recorded is recorded once" do
       winner =
         insert_publication(
-          Map.put(@valid_attrs, "references", [%{"content" => "A source", "position" => 0}])
+          Map.put(@valid_attrs, "sources", [%{"content" => "A source", "position" => 0}])
         )
 
       loser =
         insert_publication(
           @valid_attrs
           |> Map.put("title", "Manuel de Moraes: Another Printing")
-          |> Map.put("references", [%{"content" => "A source", "position" => 0}])
+          |> Map.put("sources", [%{"content" => "A source", "position" => 0}])
         )
 
       assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
 
-      assert ["A source"] == Enum.map(merged.references, & &1.content)
+      assert ["A source"] == Enum.map(merged.sources, & &1.content)
     end
 
     test "the losers leave the database, and the winner stays in it" do

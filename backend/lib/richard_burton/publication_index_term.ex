@@ -63,8 +63,8 @@ defmodule RichardBurton.Publication.Index.Term do
     "editora" => :publishers,
     "year" => :year,
     "ano" => :year,
-    "source" => :references,
-    "fonte" => :references
+    "source" => :sources,
+    "fonte" => :sources
   }
 
   # A token ends at a space, except inside quotes or brackets, so
@@ -160,7 +160,7 @@ defmodule RichardBurton.Publication.Index.Term do
     countries: "country",
     publishers: "publisher",
     year: "year",
-    references: "source"
+    sources: "source"
   }
 
   @doc """
@@ -174,7 +174,7 @@ defmodule RichardBurton.Publication.Index.Term do
       iex> RichardBurton.Publication.Index.Term.name(:original_authors)
       "author"
 
-      iex> RichardBurton.Publication.Index.Term.name(:references)
+      iex> RichardBurton.Publication.Index.Term.name(:sources)
       "source"
   """
   @spec name(atom) :: String.t()
