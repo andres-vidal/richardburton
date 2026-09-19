@@ -18,7 +18,7 @@ Do not add `Co-Authored-By` trailers (or any other tool/agent attribution).
 
 ## Pull requests
 
-Keep the title and description brief and conceptual: say what the change delivers and why, not how — don't over-explain technical details. Write the description in markdown, each paragraph on a single line (no hard wrapping) with a blank line between paragraphs.
+Keep the title and description brief and conceptual: say what the change delivers and why. Call out an implementation detail when it is novel or surprising enough that the change is hard to follow without it, but leave the rest to the code, which will be read. Write the description in markdown, each paragraph on a single line (no hard wrapping) with a blank line between paragraphs.
 
 ## Running the app
 
