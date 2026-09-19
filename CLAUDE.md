@@ -28,6 +28,8 @@ Never add `Co-Authored-By` trailers or any other tool attribution.
 
 Say what the change delivers and why. Call out an implementation detail when it is novel or surprising enough that the change is hard to follow without it, and leave the rest to the code. Use the same one-line-per-paragraph markdown as commit messages.
 
+Do not restate what CI already reports — no section listing test counts or which checks pass. Do not describe what the branch is stacked on; that goes stale the moment the base merges.
+
 ## Documentation
 
 This covers comments, docstrings, module docs, story descriptions and test comments alike.
