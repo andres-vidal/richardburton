@@ -8,7 +8,6 @@ import { request } from "app";
  */
 type OriginalBook = {
   title: string;
-  /** Who wrote it — the same list the publication's own field holds. */
   authors: string[];
 };
 
