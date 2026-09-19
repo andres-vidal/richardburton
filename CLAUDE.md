@@ -92,10 +92,6 @@ Keep Storybook coverage complete: every component ships **both** a `*.stories.ts
 
 Keep the Playwright suite (`frontend/e2e/`) **exhaustive**: every user-facing feature ships with an E2E journey, and tests favor **complex, realistic scenarios** over minimal ones — seed a corpus (several publications, mixed references) rather than a single row, exercise bulk flows (multi-row workspace insert, duplicate/delete, CSV import/export with references) rather than the smallest path, and assert cross-feature consequences (e.g. after an edit, the index, the detail modal, *and* the backfill queue all agree). Tests drive the real UI only — no API calls to set up or assert state (the per-test database reset is the one exception). When you add or change a feature, extend the E2E suite in the same change.
 
-## Planning docs
-
-`docs/planning/` holds the roadmap: one file per initiative plus a `README.md` index that tracks priority, sequencing, and dependencies. These files are **untracked on purpose** — never `git add` them or fold them into a commit. As an initiative ships, delete its file and reconcile the index: add it to the README's "Shipped" section, drop its row from the "Initiatives (remaining)" table, and update the sequencing block. Leaving a delivered doc behind is the mistake to avoid.
-
 ## Deploying to IFRS
 
 Deployment is a subtree split, not a mirror. `.github/workflows/deploy-to-ifrs.yml` runs on every push to `main`: it splits `frontend/` and `backend/` into their own histories, squashes each onto the GitLab repo's `stage` as one "Release to Stage" commit, and force-pushes that to `stage-release`. Someone then merges the `stage-release` → `stage` merge request on GitLab. The three repos live at `gitlab.com/ifrscanoas/richard-burton/{frontend,backend,deploy}`; clone them beside this one if you need them (they are gitignored).
