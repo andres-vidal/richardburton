@@ -86,7 +86,7 @@ defmodule RichardBurton.PublicationTest do
     end
 
     test "when countries is blank, is invalid" do
-      refute change_valid(%{"countries" => ""}).valid?
+      refute change_valid(%{"countries" => []}).valid?
     end
 
     test "when countries is nil, is invalid" do
@@ -94,19 +94,19 @@ defmodule RichardBurton.PublicationTest do
     end
 
     test "when countries is valid alpha3 code, is invalid" do
-      refute change_valid(%{"countries" => "USA"}).valid?
+      refute change_valid(%{"countries" => ["USA"]}).valid?
     end
 
     test "when countries is invalid 3 digit code, is invalid" do
-      refute change_valid(%{"countries" => "EUA"}).valid?
+      refute change_valid(%{"countries" => ["EUA"]}).valid?
     end
 
     test "when countries is invalid 2 digit code, is invalid" do
-      refute change_valid(%{"countries" => "XX"}).valid?
+      refute change_valid(%{"countries" => ["XX"]}).valid?
     end
 
     test "when publishers is blank, is invalid" do
-      refute change_valid(%{"publishers" => ""}).valid?
+      refute change_valid(%{"publishers" => []}).valid?
     end
 
     test "when publishers is nil, is invalid" do

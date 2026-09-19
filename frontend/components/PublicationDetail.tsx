@@ -13,6 +13,7 @@ import {
   type PublicationHistoryEntry,
   type PublicationId,
   type PublicationKey,
+  type PublicationListKey,
 } from "modules/publication/model";
 import {
   deletePublication,
@@ -85,7 +86,7 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
 const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
-  const list = (key: PublicationKey) => (
+  const list = (key: PublicationListKey) => (
     <SearchableList items={Publication.markedItems(p, key)} />
   );
 

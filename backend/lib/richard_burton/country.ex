@@ -94,6 +94,7 @@ defmodule RichardBurton.Country do
   def validate_countries(changeset = %Ecto.Changeset{}) do
     changeset
     |> validate_required([:countries])
+    |> validate_length(:countries, min: 1)
     |> validate_change(:countries, fn :countries, countries ->
       case validate_countries(countries) do
         {:ok} -> []
@@ -102,7 +103,7 @@ defmodule RichardBurton.Country do
     end)
   end
 
-  def validate_countries(countries) when is_binary(countries) do
+  def validate_countries(countries) when is_binary(countries) or is_list(countries) do
     invalid =
       countries
       |> nest()
@@ -118,16 +119,11 @@ defmodule RichardBurton.Country do
   end
 
   @spec fingerprint(binary() | maybe_improper_list()) :: binary()
-  def fingerprint(countries) when is_binary(countries) do
-    countries
-    |> nest()
-    |> Enum.map(fn %{"code" => code} -> %Country{code: code} end)
-    |> fingerprint()
-  end
+  def fingerprint(countries) when is_binary(countries), do: countries |> nest() |> fingerprint()
 
   def fingerprint(countries) when is_list(countries) do
     countries
-    |> Enum.map(fn %Country{code: code} -> code end)
+    |> Enum.map(&get_code/1)
     |> Fingerprint.of_set()
   end
 
@@ -167,32 +163,41 @@ defmodule RichardBurton.Country do
   def link_fingerprint(changeset = %Ecto.Changeset{valid?: false}), do: changeset
 
   @doc ~S"""
-  Split a comma-separated country-code string into nested country maps.
+  Nest country codes into the maps the schema casts.
+
+  A list is the shape the client and the flat schema speak in; a
+  comma-separated string is CSV's, and is split on the way through.
 
   ## Examples
+
+    iex> RichardBurton.Country.nest(["BR", "US"])
+    [%{"code" => "BR"}, %{"code" => "US"}]
 
     iex> RichardBurton.Country.nest("BR, US")
     [%{"code" => "BR"}, %{"code" => "US"}]
   """
   def nest(countries) when is_binary(countries) do
-    countries |> String.split(",") |> Enum.map(&%{"code" => String.trim(&1)})
+    countries |> String.split(",") |> Enum.map(&String.trim/1) |> nest()
   end
 
+  def nest(countries) when is_list(countries), do: Enum.map(countries, &%{"code" => get_code(&1)})
+
   @doc ~S"""
-  Join a list of countries back into a comma-separated code string. A non-list
-  value (already flat) is returned unchanged.
+  Flatten countries to the codes they are. A value that is not a list is
+  returned unchanged.
 
   ## Examples
 
     iex> RichardBurton.Country.flatten([%{"code" => "BR"}, %{"code" => "US"}])
-    "BR, US"
+    ["BR", "US"]
 
     iex> RichardBurton.Country.flatten("BR")
     "BR"
   """
-  def flatten(countries) when is_list(countries), do: Enum.map_join(countries, ", ", &get_code/1)
+  def flatten(countries) when is_list(countries), do: Enum.map(countries, &get_code/1)
   def flatten(countries), do: countries
 
+  def get_code(code) when is_binary(code), do: code
   def get_code(%Country{code: code}), do: code
   def get_code(%{"code" => code}), do: code
   def get_code(%{code: code}), do: code

@@ -61,6 +61,11 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     :sources
   ]
 
+  # One list column as the single string the search reads it as.
+  defmacrop joined(column) do
+    quote do: fragment("rb_joined(?)", unquote(column))
+  end
+
   # Builds one field's excerpt, or nil. When the field has no tsquery, `to_tsquery`
   # receives nil, nothing matches, and the CASE yields nil. This is a macro
   # because a fragment's SQL must be a literal string, so it cannot be built in a
@@ -161,12 +166,12 @@ defmodule RichardBurton.Publication.Index.Excerpt do
       excerpts: %{
         title: excerpt(p.title, ^queries.title, @whole),
         original_title: excerpt(p.original_title, ^queries.original_title, @whole),
-        authors: excerpt(p.authors, ^queries.authors, @whole),
-        original_authors: excerpt(p.original_authors, ^queries.original_authors, @whole),
-        publishers: excerpt(p.publishers, ^queries.publishers, @whole),
+        authors: excerpt(joined(p.authors), ^queries.authors, @whole),
+        original_authors: excerpt(joined(p.original_authors), ^queries.original_authors, @whole),
+        publishers: excerpt(joined(p.publishers), ^queries.publishers, @whole),
         sources:
           excerpt(
-            fragment("array_to_string(?, ' ')", p.sources),
+            joined(p.sources),
             ^queries.sources,
             @window
           )

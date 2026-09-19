@@ -36,6 +36,23 @@ function identity<ItemType extends string | Item>(item: ItemType): string {
   return isString(item) ? item.trim() : item.id;
 }
 
+/**
+ * A comma normally ends a value, so a name that contains one is written in
+ * quotes — the same way the CSV says it. While a quote is open the comma is
+ * just a character.
+ */
+function isQuoting(input: string): boolean {
+  return (input.match(/"/g)?.length ?? 0) % 2 === 1;
+}
+
+function unquote(value: string): string {
+  const trimmed = value.trim();
+
+  return trimmed.length > 1 && trimmed.startsWith('"') && trimmed.endsWith('"')
+    ? trimmed.slice(1, -1).trim()
+    : trimmed;
+}
+
 export default function Multicombobox<ItemType extends string | Item>({
   value,
   placeholder,
@@ -64,7 +81,7 @@ export default function Multicombobox<ItemType extends string | Item>({
   }
 
   function select(item: ItemType) {
-    const trimmed = (isString(item) ? item.trim() : item) as ItemType;
+    const trimmed = (isString(item) ? unquote(item) : item) as ItemType;
 
     if (!isSelected(trimmed) && identity(trimmed) !== "") {
       onChange([...value, trimmed]);
@@ -74,7 +91,7 @@ export default function Multicombobox<ItemType extends string | Item>({
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     const isInputValueBlank = inputValue.trim() === "";
 
-    if (event.key === Key.COMMA) {
+    if (event.key === Key.COMMA && !isQuoting(inputValue)) {
       event.preventDefault();
 
       if (isEnum) {

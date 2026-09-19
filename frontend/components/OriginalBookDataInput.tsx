@@ -6,7 +6,7 @@ import { overrideField } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useState } from "react";
-import { DataInputProps } from "./DataInput";
+import { ScalarDataInputProps } from "./DataInput";
 import MenuProvider from "./MenuProvider";
 import TextInput from "./TextInput";
 
@@ -14,7 +14,8 @@ import TextInput from "./TextInput";
  * What tells one offered book from another. Two books can share a title, and
  * two can share their authors, so neither half identifies one on its own.
  */
-const identify = (book: OriginalBookValue) => `${book.title} — ${book.authors}`;
+const identify = (book: OriginalBookValue) =>
+  `${book.title} — ${book.authors.join(", ")}`;
 
 /**
  * The original title, offering the books already in the database.
@@ -28,7 +29,7 @@ const identify = (book: OriginalBookValue) => `${book.title} — ${book.authors}
  * Free text stands: a book nobody has entered yet is typed, and the field keeps
  * what it is given.
  */
-export default forwardRef<HTMLDivElement, DataInputProps>(
+export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
   function OriginalBookDataInput(
     { rowId, colId, autoValidated: _autoValidated, value, onChange, ...props },
     ref,
@@ -80,7 +81,7 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
         options={books.map((book) => ({
           id: identify(book),
           label: book.title,
-          description: book.authors,
+          description: book.authors.join(", "),
         }))}
         isOpen={isOpen}
         activeIndex={activeIndex}
@@ -100,4 +101,4 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
       </MenuProvider>
     );
   },
-) as FC<DataInputProps>;
+) as FC<ScalarDataInputProps>;

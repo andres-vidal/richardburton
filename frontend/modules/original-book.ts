@@ -8,8 +8,8 @@ import { request } from "app";
  */
 type OriginalBook = {
   title: string;
-  /** The authors as the one comma-separated string the field holds. */
-  authors: string;
+  /** Who wrote it — the same list the publication's own field holds. */
+  authors: string[];
 };
 
 interface OriginalBookModule {

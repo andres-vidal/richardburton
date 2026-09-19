@@ -24,6 +24,9 @@ defmodule RichardBurton.Publication.Index.Query do
   alias RichardBurton.Publication.Index.Keywords
   alias RichardBurton.Publication.Index.Term
 
+  # The columns holding several values, which are matched as one joined string.
+  @list_fields [:sources, :countries, :publishers, :authors, :original_authors]
+
   @doc """
   A parsed term as criteria: for each alternative, the tsquery for its free words
   and the filters that narrow it.
@@ -169,13 +172,13 @@ defmodule RichardBurton.Publication.Index.Query do
   defp year_predicate(from, nil), do: dynamic([p], p.year >= ^from)
   defp year_predicate(from, to), do: dynamic([p], p.year >= ^from and p.year <= ^to)
 
-  # `sources` is an array, matched as its joined text, the same form
+  # A list column is matched as its joined text, the same form
   # `search_documents` indexes it in. The join goes through `rb_joined`, which is
   # declared immutable so that this expression can be indexed.
-  defp text_predicate(:sources, query) do
+  defp text_predicate(field, query) when field in @list_fields do
     dynamic(
       [p],
-      fragment("to_tsvector('rb_search', rb_joined(?)) @@ ?", p.sources, ^query)
+      fragment("to_tsvector('rb_search', rb_joined(?)) @@ ?", field(p, ^field), ^query)
     )
   end
 

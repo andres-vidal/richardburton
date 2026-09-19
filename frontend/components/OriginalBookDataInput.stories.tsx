@@ -13,11 +13,11 @@ import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 import OriginalBookDataInput from "./OriginalBookDataInput";
 
 const LIBRARY: OriginalBookValue[] = [
-  { title: "Dom Casmurro", authors: "Machado de Assis" },
-  { title: "Memórias Póstumas de Brás Cubas", authors: "Machado de Assis" },
+  { title: "Dom Casmurro", authors: ["Machado de Assis"] },
+  { title: "Memórias Póstumas de Brás Cubas", authors: ["Machado de Assis"] },
   {
     title: "Manuel de Moraes",
-    authors: "Machado de Assis, J. M. Pereira da Silva",
+    authors: ["Machado de Assis", "J. M. Pereira da Silva"],
   },
 ];
 
@@ -32,7 +32,9 @@ const withLibrary = (books: OriginalBookValue[]) => () => {
     books.filter(
       (book) =>
         book.title.toLowerCase().includes(term.toLowerCase()) ||
-        book.authors.toLowerCase().includes(term.toLowerCase()),
+        book.authors.some((author) =>
+          author.toLowerCase().includes(term.toLowerCase()),
+        ),
     );
 
   return () => {
@@ -155,9 +157,10 @@ export const FillsBothFields: Story = {
     await expect(args.onChange).toHaveBeenCalledWith("Manuel de Moraes");
     // The other half went straight to its own field.
     await waitFor(() =>
-      expect(store.get(visiblePublicationFamily(ROW)).originalAuthors).toBe(
-        "Machado de Assis, J. M. Pereira da Silva",
-      ),
+      expect(store.get(visiblePublicationFamily(ROW)).originalAuthors).toEqual([
+        "Machado de Assis",
+        "J. M. Pereira da Silva",
+      ]),
     );
   },
 };

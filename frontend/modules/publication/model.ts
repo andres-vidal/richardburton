@@ -6,12 +6,12 @@ import { Publisher } from "modules/publisher";
 
 type Publication = {
   title: string;
-  countries: string;
+  countries: string[];
   year: string;
-  publishers: string;
-  authors: string;
+  publishers: string[];
+  authors: string[];
   originalTitle: string;
-  originalAuthors: string;
+  originalAuthors: string[];
   sources: string[];
   // The server PK: a real id on persisted rows (index/search), null on
   // unsaved/working rows. Read-only: never cast from client input.
@@ -48,6 +48,14 @@ type Matched = {
   /** The indexed words it matched, when those were not simply the word itself. */
   words: string[];
 };
+
+/** What an attribute holds: one value, or several. */
+type PublicationValue = Publication[PublicationKey];
+
+/** The attributes that hold several values, for readers that need all of them. */
+type PublicationListKey = {
+  [K in PublicationKey]: Publication[K] extends string[] ? K : never;
+}[PublicationKey];
 
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
@@ -173,27 +181,15 @@ const ERROR_MESSAGES: Record<string, string> = {
 function empty(): Publication {
   return {
     id: null,
-    authors: "",
-    countries: "",
-    originalAuthors: "",
+    authors: [],
+    countries: [],
+    originalAuthors: [],
     originalTitle: "",
-    publishers: "",
+    publishers: [],
     title: "",
     year: "",
     sources: [],
   };
-}
-
-/**
- * The individual values behind a multi-valued attribute. Countries, publishers
- * and the like are held as one comma-joined string; this is the one place that
- * knows it, so every reader of them counts and compares the same things.
- */
-function items(value: string): string[] {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
 }
 
 /**
@@ -210,9 +206,7 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   const all = [winner, ...losers];
 
   const union = (attribute: "countries" | "publishers") =>
-    Array.from(new Set(all.flatMap((p) => items(p[attribute]))))
-      .sort()
-      .join(", ");
+    Array.from(new Set(all.flatMap((p) => p[attribute]))).sort();
 
   return {
     ...winner,
@@ -223,8 +217,8 @@ function merged(winner: Publication, losers: Publication[]): Publication {
 }
 
 /**
- * A stored field as it is displayed: country codes become country names, and
- * anything else is its own text.
+ * One value of an attribute, as a reader should see it: a country code becomes
+ * a country name, and anything else is its own text.
  *
  * Takes an unknown rather than a string because the wire does not always agree
  * with the model. `year` is an integer on the backend and text in a form, so it
@@ -234,17 +228,10 @@ function describeValue(value: unknown, attribute: PublicationKey): string {
   const text = String(value ?? "");
 
   if (attribute === "countries") {
-    // One code or a list of them: a record published in several places names
-    // them all in the one field.
-    return text
-      .split(",")
-      .map((code) => {
-        const country = COUNTRIES[code.trim()];
-        if (country) return country.label;
-        console.warn("Unknown country code: ", code.trim());
-        return code.trim();
-      })
-      .join(", ");
+    const country = COUNTRIES[text];
+    if (country) return country.label;
+
+    console.warn("Unknown country code: ", text);
   }
 
   return text;
@@ -261,7 +248,7 @@ function markedValue(
 ): string {
   return (
     publication.excerpts?.[attribute] ??
-    describeValue(publication[attribute], attribute)
+    describe(publication[attribute], attribute)
   );
 }
 
@@ -269,18 +256,17 @@ function markedValue(
  * Each value a field holds, paired with that value as the index marked it. The
  * value is what a term would search for, the label what is shown.
  *
- * The excerpt covers the whole stored field, commas and all, so splitting it the
- * same way the values are split lines the marks back up with them. If the two
- * disagree on how many there are, every value stands unmarked rather than marked
- * in the wrong places.
+ * The excerpt covers the whole field as one comma-joined string, so splitting it
+ * lines the marks back up with the values. If the two disagree on how many there
+ * are, every value stands unmarked rather than marked in the wrong places.
  */
 function markedItems(
   publication: Publication,
   attribute: PublicationKey,
 ): { value: string; label: string }[] {
-  const values = items(String(publication[attribute] ?? ""));
+  const values = (publication[attribute] ?? []) as string[];
   const excerpt = publication.excerpts?.[attribute];
-  const marked = excerpt ? items(excerpt) : undefined;
+  const marked = excerpt?.split(",").map((one) => one.trim());
 
   return values.map((value, index) => ({
     value,
@@ -301,6 +287,16 @@ function markedSources(publication: Publication): string[] {
   return sources.map(
     (source, index) => publication.markedSources?.[index] ?? source,
   );
+}
+
+/**
+ * A whole attribute in one line — for the places that show a record at a
+ * glance rather than value by value.
+ */
+function describe(value: PublicationValue, attribute: PublicationKey): string {
+  return Array.isArray(value)
+    ? value.map((one) => describeValue(one, attribute)).join(", ")
+    : describeValue(value, attribute);
 }
 
 function describeError(
@@ -384,13 +380,13 @@ const Publication = {
   ATTRIBUTE_IS_TOGGLEABLE,
   autocomplete,
   define,
+  describe,
   describeError,
   describeValue,
   markedValue,
   markedItems,
   markedSources,
   empty,
-  items,
   merged,
 };
 
@@ -403,11 +399,11 @@ export {
   COUNTRIES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
+  describe,
   describeError,
   describeValue,
   empty,
   HISTORY_ACTIONS,
-  items,
   markedValue,
   merged,
   Publication,
@@ -415,6 +411,7 @@ export {
 export type {
   AbsorbedPublication,
   DeletedPublicationEntry,
+  PublicationValue,
   FullHistoryEntry,
   PublicationEntry,
   PublicationError,
@@ -424,6 +421,7 @@ export type {
   Matched,
   PublicationKey,
   PublicationKeyType,
+  PublicationListKey,
   SnapshotDiff,
   ValidationResult,
 };

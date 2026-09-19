@@ -64,7 +64,7 @@ defmodule RichardBurton.Author do
 
   def fingerprint(authors) when is_list(authors) do
     authors
-    |> Enum.map(fn %Author{name: name} -> name end)
+    |> Enum.map(&get_name/1)
     |> Fingerprint.of_set()
   end
 
@@ -98,32 +98,41 @@ defmodule RichardBurton.Author do
   end
 
   @doc ~S"""
-  Split a comma-separated authors string into nested author maps.
+  Nest author names into the maps the schema casts.
+
+  A list is the shape the client and the flat schema speak in; a
+  comma-separated string is CSV's, and is split on the way through.
 
   ## Examples
+
+    iex> RichardBurton.Author.nest(["Machado de Assis", "Clarice Lispector"])
+    [%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}]
 
     iex> RichardBurton.Author.nest("Machado de Assis, Clarice Lispector")
     [%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}]
   """
   def nest(authors) when is_binary(authors) do
-    authors |> String.split(",") |> Enum.map(&%{"name" => String.trim(&1)})
+    authors |> String.split(",") |> Enum.map(&String.trim/1) |> nest()
   end
 
+  def nest(authors) when is_list(authors), do: Enum.map(authors, &%{"name" => get_name(&1)})
+
   @doc ~S"""
-  Join a list of authors back into a comma-separated string. A non-list value
-  (already flat) is returned unchanged.
+  Flatten authors to the names they are. A value that is not a list is returned
+  unchanged.
 
   ## Examples
 
     iex> RichardBurton.Author.flatten([%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}])
-    "Machado de Assis, Clarice Lispector"
+    ["Machado de Assis", "Clarice Lispector"]
 
     iex> RichardBurton.Author.flatten("Machado de Assis")
     "Machado de Assis"
   """
-  def flatten(authors) when is_list(authors), do: Enum.map_join(authors, ", ", &get_name/1)
+  def flatten(authors) when is_list(authors), do: Enum.map(authors, &get_name/1)
   def flatten(authors), do: authors
 
+  def get_name(name) when is_binary(name), do: name
   def get_name(%Author{name: name}), do: name
   def get_name(%{"name" => name}), do: name
   def get_name(%{name: name}), do: name

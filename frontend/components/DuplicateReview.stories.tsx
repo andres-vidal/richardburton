@@ -10,11 +10,11 @@ const publication = (fields: Partial<Publication>): Publication => ({
   ...empty(),
   title: "Dom Casmurro",
   originalTitle: "Dom Casmurro",
-  originalAuthors: "Machado de Assis",
-  authors: "Helen Caldwell",
+  originalAuthors: ["Machado de Assis"],
+  authors: ["Helen Caldwell"],
   year: "1953",
-  countries: "US",
-  publishers: "Noonday Press",
+  countries: ["US"],
+  publishers: ["Noonday Press"],
   ...fields,
 });
 
@@ -28,8 +28,8 @@ const CLUSTERS: DuplicateCluster[] = [
       publication({
         id: 2,
         title: "Dom Casmuro",
-        publishers: "W. H. Allen",
-        countries: "GB",
+        publishers: ["W. H. Allen"],
+        countries: ["GB"],
       }),
     ],
   },
