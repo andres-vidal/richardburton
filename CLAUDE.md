@@ -12,7 +12,7 @@ Creating a branch (`git switch -c`, `git branch`) is allowed, and preferred befo
 
 Keep them brief and conceptual: describe the change at the level of intent, not a file-by-file account. Write each paragraph as a single line (no hard wrapping), with a blank line between paragraphs. Use the imperative mood in the subject.
 
-Write plainly and technically. Name the mechanism — the package, file, option or operation — rather than reaching for metaphor. "Conceptual" means intent-level rather than file-by-file; it does not license figurative prose. Write "Rename references to sources", not "Call them sources".
+Write plainly and technically. Name the mechanism — the package, file, option or operation — rather than reaching for metaphor. "Conceptual" means intent-level rather than file-by-file; it does not license figurative prose.
 
 Do not add `Co-Authored-By` trailers (or any other tool/agent attribution).
 
