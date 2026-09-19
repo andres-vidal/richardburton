@@ -3,12 +3,12 @@
 import { Publication } from "modules/publication/model";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useCallback, useMemo } from "react";
-import { DataInputProps } from "./DataInput";
+import { ListDataInputProps } from "./DataInput";
 import Multicombobox from "./Multicombobox";
 
 type Enum = { id: string; label: string };
 
-export default forwardRef<HTMLDivElement, DataInputProps>(
+export default forwardRef<HTMLDivElement, ListDataInputProps>(
   function TextEnumArrayDataInput(
     {
       rowId: _rowId,
@@ -27,13 +27,10 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
       [colId],
     );
 
-    const items = useMemo(
-      () => (value === "" ? [] : value.split(",").map(toEnum)),
-      [value, toEnum],
-    );
+    const items = useMemo(() => value.map(toEnum), [value, toEnum]);
 
     function handleChange(value: Enum[]) {
-      onChange?.(value.map(({ id }) => id).join(","));
+      onChange?.(value.map(({ id }) => id));
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,4 +52,4 @@ export default forwardRef<HTMLDivElement, DataInputProps>(
       />
     );
   },
-) as FC<DataInputProps>;
+) as FC<ListDataInputProps>;

@@ -9,16 +9,16 @@ defmodule RichardBurton.CountryTest do
   alias RichardBurton.Validation
   alias RichardBurton.Util
 
-  defmodule WithStringCountries do
+  defmodule WithFlatCountries do
     use Ecto.Schema
     import Ecto.Changeset
 
     schema "with_countries" do
-      field(:countries, :string)
+      field(:countries, {:array, :string})
     end
 
     def changeset(attrs = %{}) do
-      %WithStringCountries{}
+      %WithFlatCountries{}
       |> cast(attrs, [:countries])
     end
   end
@@ -123,8 +123,8 @@ defmodule RichardBurton.CountryTest do
   describe "validate_countries/1" do
     test "when countries is valid alpha2 code, is valid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => "GB"}
-        |> WithStringCountries.changeset()
+        %{"countries" => ["GB"]}
+        |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       assert valid
@@ -133,28 +133,31 @@ defmodule RichardBurton.CountryTest do
 
     test "when countries is multiple, comma separated, valid codes, is valid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => "GB,US"}
-        |> WithStringCountries.changeset()
+        %{"countries" => ["GB", "US"]}
+        |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       assert valid
       assert errors == []
     end
 
+    # No countries at all is an empty list, which is not "blank" — it is a
+    # length. `Validation` reports both to the client as `:required`.
     test "when countries is blank, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => ""}
-        |> WithStringCountries.changeset()
+        %{"countries" => []}
+        |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
-      assert errors == [countries: {"can't be blank", [validation: :required]}]
+      assert [countries: {_, opts}] = errors
+      assert opts[:validation] == :length and opts[:kind] == :min and opts[:count] == 1
     end
 
     test "when countries is nil, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
         %{"countries" => nil}
-        |> WithStringCountries.changeset()
+        |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
@@ -163,8 +166,8 @@ defmodule RichardBurton.CountryTest do
 
     test "when countries is valid alpha3 code, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => "USA"}
-        |> WithStringCountries.changeset()
+        %{"countries" => ["USA"]}
+        |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
@@ -173,8 +176,8 @@ defmodule RichardBurton.CountryTest do
 
     test "when countries is invalid 3 digit code, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => "EUA"}
-        |> WithStringCountries.changeset()
+        %{"countries" => ["EUA"]}
+        |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
@@ -183,8 +186,8 @@ defmodule RichardBurton.CountryTest do
 
     test "when countries is multiple, comma separated, invalid codes, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => "USA,GBR"}
-        |> WithStringCountries.changeset()
+        %{"countries" => ["USA", "GBR"]}
+        |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
@@ -193,8 +196,8 @@ defmodule RichardBurton.CountryTest do
 
     test "when countries has at least one invalid code, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => "USA,GB"}
-        |> WithStringCountries.changeset()
+        %{"countries" => ["USA", "GB"]}
+        |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
@@ -203,8 +206,8 @@ defmodule RichardBurton.CountryTest do
 
     test "when countries is invalid 2 digit code, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => "XX"}
-        |> WithStringCountries.changeset()
+        %{"countries" => ["XX"]}
+        |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
@@ -345,7 +348,7 @@ defmodule RichardBurton.CountryTest do
         %{"code" => "US"}
       ]
 
-      assert "GB, US" = Country.flatten(countries)
+      assert ["GB", "US"] = Country.flatten(countries)
     end
 
     test "with a list of maps with atom keys, returns a list of maps with code key" do
@@ -354,7 +357,7 @@ defmodule RichardBurton.CountryTest do
         %{code: "US"}
       ]
 
-      assert "GB, US" = Country.flatten(countries)
+      assert ["GB", "US"] = Country.flatten(countries)
     end
 
     test "with a list of Country structs, returns a list of maps with code key" do
@@ -363,7 +366,7 @@ defmodule RichardBurton.CountryTest do
         %Country{code: "US"}
       ]
 
-      assert "GB, US" = Country.flatten(countries)
+      assert ["GB", "US"] = Country.flatten(countries)
     end
   end
 

@@ -5,6 +5,7 @@ import {
   type PublicationId,
   type PublicationKey,
   type PublicationKeyType,
+  type PublicationValue,
 } from "modules/publication/model";
 import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
@@ -18,7 +19,21 @@ import TextEnumDataInput from "./TextEnumDataInput";
 import TextNumberDataInput from "./TextNumberDataInput";
 import Tooltip from "./Tooltip";
 
-const COMPONENTS_PER_TYPE: Record<PublicationKeyType, FC<Props>> = {
+/** The attribute types whose value is several strings rather than one. */
+type ListKeyType = "array" | "enumArray";
+
+/**
+ * An attribute's type picks the component that edits it, and the same choice
+ * decides whether its value is one string or several. Writing the table this
+ * way makes each entry answer for its own value shape, so wiring a list type to
+ * an input that takes a single value is a type error here rather than a
+ * surprise at the call site.
+ */
+const COMPONENTS_PER_TYPE: {
+  [T in PublicationKeyType]: T extends ListKeyType
+    ? FC<ListProps>
+    : FC<ScalarProps>;
+} = {
   text: TextDataInput,
   enum: TextEnumDataInput,
   enumArray: TextEnumArrayDataInput,
@@ -47,9 +62,9 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
   ref?: Ref<HTMLElement>;
   rowId: PublicationId;
   colId: PublicationKey;
-  value: string;
+  value: PublicationValue;
   error: string;
-  onChange?: (value: string) => void;
+  onChange?: (value: PublicationValue) => void;
   autoValidated?: boolean;
   /** What to run when `autoValidated` fires. Defaults to the bulk validate; the
    * edit form passes the id-aware one. */
@@ -80,7 +95,9 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   } = props;
 
   const type = Publication.ATTRIBUTE_TYPES[props.colId];
-  const Component = COMPONENTS_PER_TYPE[type];
+  // `type` is only known at runtime, so the value shape the table pairs with it
+  // cannot be carried through the lookup. This is the one place that is asserted.
+  const Component = COMPONENTS_PER_TYPE[type] as FC<Props>;
   const placeholder = Publication.ATTRIBUTE_LABELS[colId];
 
   const store = usePublicationStore();
@@ -90,7 +107,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
     if (autoValidated) validateRow();
   }
 
-  function handleChange(value: string) {
+  function handleChange(value: PublicationValue) {
     overrideField(store, rowId, colId, value);
     if (VALIDATES_ON_CHANGE.includes(type)) {
       doValidate();
@@ -132,5 +149,21 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   );
 });
 
-export type { Props as DataInputProps };
+/** What a component for a single-value attribute receives. */
+type ScalarProps = Omit<Props, "value" | "onChange"> & {
+  value: string;
+  onChange?: (value: string) => void;
+};
+
+/** What a component for a multi-value attribute receives. */
+type ListProps = Omit<Props, "value" | "onChange"> & {
+  value: string[];
+  onChange?: (value: string[]) => void;
+};
+
+export type {
+  Props as DataInputProps,
+  ListProps as ListDataInputProps,
+  ScalarProps as ScalarDataInputProps,
+};
 export default DataInput;

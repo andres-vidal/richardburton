@@ -12,9 +12,9 @@ dispatches to for `enumArray` columns, built on a `Multicombobox`.
 
 ## Data flow
 
-The stored `value` is a comma-separated string of ISO country codes. Each code
-becomes a pill labelled by its country name via `Publication.describeValue`, and
-the selection is joined back into codes before re-emitting through `onChange`.
+The stored `value` is the list of ISO country codes. Each code becomes a pill
+labelled by its country name via `Publication.describeValue`, and the selection
+goes back through `onChange` as codes, not labels.
 Typing queries `Publication.autocomplete` (debounced) for matching countries;
 those options resolve locally, but the stories stay render-only to avoid
 depending on the dropdown.

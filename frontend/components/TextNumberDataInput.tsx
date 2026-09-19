@@ -2,10 +2,10 @@
 
 import { parseInt, toString } from "lodash";
 import { FC, forwardRef } from "react";
-import { DataInputProps } from "./DataInput";
+import { ScalarDataInputProps } from "./DataInput";
 import NumberInput from "./NumberInput";
 
-export default forwardRef<HTMLInputElement, DataInputProps>(
+export default forwardRef<HTMLInputElement, ScalarDataInputProps>(
   function TextNumberDataInput(
     {
       rowId: _rowId,
@@ -30,4 +30,4 @@ export default forwardRef<HTMLInputElement, DataInputProps>(
       />
     );
   },
-) as FC<DataInputProps>;
+) as FC<ScalarDataInputProps>;

@@ -21,10 +21,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   @publication_attrs %{
     "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
     "year" => "1886",
-    "countries" => "GB",
-    "publishers" => "Bickers & Son",
-    "authors" => "Isabel Burton",
-    "original_authors" => "José de Alencar",
+    "countries" => ["GB"],
+    "publishers" => ["Bickers & Son"],
+    "authors" => ["Isabel Burton"],
+    "original_authors" => ["José de Alencar"],
     "original_title" => "Iracema"
   }
 
@@ -598,8 +598,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> json_response(200)
 
       assert result["id"] == meta.winner.id
-      assert result["countries"] == "GB, US"
-      assert result["publishers"] == "Bickers & Son, Noonday Press"
+      assert result["countries"] == ["GB", "US"]
+      assert result["publishers"] == ["Bickers & Son", "Noonday Press"]
 
       # Only the survivor is left in the index.
       conn = get(build_conn(), publication_path(meta.conn, :index))
@@ -679,20 +679,20 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       publications = [
         %{
           "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
-          "countries" => "GB",
+          "countries" => ["GB"],
           "year" => 1886,
-          "publishers" => "Bickers & Son",
-          "authors" => "Richard Burton, Isabel Burton",
-          "original_authors" => "J. M. Pereira da Silva",
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Richard Burton", "Isabel Burton"],
+          "original_authors" => ["J. M. Pereira da Silva"],
           "original_title" => "Manuel de Moraes: crônica do século XVII"
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => 1886,
-          "countries" => "GB",
-          "publishers" => "Bickers & Son",
-          "authors" => "Isabel Burton",
-          "original_authors" => "José de Alencar",
+          "countries" => ["GB"],
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Isabel Burton"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema"
         }
       ]
@@ -735,28 +735,28 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       publications = [
         %{
           "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
-          "countries" => "GB, US",
+          "countries" => ["GB", "US"],
           "year" => 1886,
-          "publishers" => "Bickers & Son",
-          "authors" => "Richard Burton, Isabel Burton",
-          "original_authors" => "J. M. Pereira da Silva",
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Richard Burton", "Isabel Burton"],
+          "original_authors" => ["J. M. Pereira da Silva"],
           "original_title" => "Manuel de Moraes: crônica do século XVII"
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => 1886,
-          "countries" => "GB,US",
-          "publishers" => "Bickers & Son",
-          "authors" => "Isabel Burton",
-          "original_authors" => "José de Alencar",
+          "countries" => ["GB", "US"],
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Isabel Burton"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema"
         },
         %{
-          "authors" => "Isabel Burton, Richard Burton",
-          "countries" => "GB, BR,US",
-          "original_authors" => "José de Alencar",
+          "authors" => ["Isabel Burton", "Richard Burton"],
+          "countries" => ["GB", "BR", "US"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "publishers" => "Bickers & Son",
+          "publishers" => ["Bickers & Son"],
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886"
         }
@@ -772,28 +772,28 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       output = [
         %{
           "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
-          "countries" => "GB, US",
+          "countries" => ["GB", "US"],
           "year" => 1886,
-          "publishers" => "Bickers & Son",
-          "authors" => "Richard Burton, Isabel Burton",
-          "original_authors" => "J. M. Pereira da Silva",
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Richard Burton", "Isabel Burton"],
+          "original_authors" => ["J. M. Pereira da Silva"],
           "original_title" => "Manuel de Moraes: crônica do século XVII"
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => 1886,
-          "countries" => "GB, US",
-          "publishers" => "Bickers & Son",
-          "authors" => "Isabel Burton",
-          "original_authors" => "José de Alencar",
+          "countries" => ["GB", "US"],
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Isabel Burton"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema"
         },
         %{
-          "authors" => "Isabel Burton, Richard Burton",
-          "countries" => "GB, BR, US",
-          "original_authors" => "José de Alencar",
+          "authors" => ["Isabel Burton", "Richard Burton"],
+          "countries" => ["GB", "BR", "US"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "publishers" => "Bickers & Son",
+          "publishers" => ["Bickers & Son"],
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => 1886
         }
@@ -815,28 +815,28 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       publications = [
         %{
           "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
-          "countries" => "GB",
+          "countries" => ["GB"],
           "year" => 1886,
-          "publishers" => "Bickers & Son,Noonday Press",
-          "authors" => "Richard Burton, Isabel Burton",
-          "original_authors" => "J. M. Pereira da Silva",
+          "publishers" => ["Bickers & Son", "Noonday Press"],
+          "authors" => ["Richard Burton", "Isabel Burton"],
+          "original_authors" => ["J. M. Pereira da Silva"],
           "original_title" => "Manuel de Moraes: crônica do século XVII"
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => 1886,
-          "countries" => "GB",
-          "publishers" => "Bickers & Son, Noonday Press",
-          "authors" => "Isabel Burton",
-          "original_authors" => "José de Alencar",
+          "countries" => ["GB"],
+          "publishers" => ["Bickers & Son", "Noonday Press"],
+          "authors" => ["Isabel Burton"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema"
         },
         %{
-          "authors" => "Isabel Burton, Richard Burton",
-          "countries" => "GB",
-          "original_authors" => "José de Alencar",
+          "authors" => ["Isabel Burton", "Richard Burton"],
+          "countries" => ["GB"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "publishers" => "Bickers & Son, Noonday Press,Ronald Massey",
+          "publishers" => ["Bickers & Son", "Noonday Press", "Ronald Massey"],
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886"
         }
@@ -852,28 +852,28 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       output = [
         %{
           "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
-          "countries" => "GB",
+          "countries" => ["GB"],
           "year" => 1886,
-          "publishers" => "Bickers & Son, Noonday Press",
-          "authors" => "Richard Burton, Isabel Burton",
-          "original_authors" => "J. M. Pereira da Silva",
+          "publishers" => ["Bickers & Son", "Noonday Press"],
+          "authors" => ["Richard Burton", "Isabel Burton"],
+          "original_authors" => ["J. M. Pereira da Silva"],
           "original_title" => "Manuel de Moraes: crônica do século XVII"
         },
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => 1886,
-          "countries" => "GB",
-          "publishers" => "Bickers & Son, Noonday Press",
-          "authors" => "Isabel Burton",
-          "original_authors" => "José de Alencar",
+          "countries" => ["GB"],
+          "publishers" => ["Bickers & Son", "Noonday Press"],
+          "authors" => ["Isabel Burton"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema"
         },
         %{
-          "authors" => "Isabel Burton, Richard Burton",
-          "countries" => "GB",
-          "original_authors" => "José de Alencar",
+          "authors" => ["Isabel Burton", "Richard Burton"],
+          "countries" => ["GB"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "publishers" => "Bickers & Son, Noonday Press, Ronald Massey",
+          "publishers" => ["Bickers & Son", "Noonday Press", "Ronald Massey"],
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => 1886
         }
@@ -897,21 +897,21 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       repeated_publication = %{
         "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
         "year" => 1886,
-        "countries" => "GB",
-        "publishers" => "Bickers & Son",
-        "authors" => "Isabel Burton",
-        "original_authors" => "José de Alencar",
+        "countries" => ["GB"],
+        "publishers" => ["Bickers & Son"],
+        "authors" => ["Isabel Burton"],
+        "original_authors" => ["José de Alencar"],
         "original_title" => "Iracema"
       }
 
       publications = [
         %{
           "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
-          "countries" => "GB",
+          "countries" => ["GB"],
           "year" => 1886,
-          "publishers" => "Bickers & Son",
-          "authors" => "Richard Burton, Isabel Burton",
-          "original_authors" => "J. M. Pereira da Silva",
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Richard Burton", "Isabel Burton"],
+          "original_authors" => ["J. M. Pereira da Silva"],
           "original_title" => "Manuel de Moraes: crônica do século XVII"
         },
         repeated_publication,
@@ -934,10 +934,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       invalid_publication = %{
         "title" => "",
         "year" => 1886,
-        "countries" => "GB",
-        "publishers" => "Bickers & Son",
-        "authors" => "",
-        "original_authors" => "José de Alencar",
+        "countries" => ["GB"],
+        "publishers" => ["Bickers & Son"],
+        "authors" => [],
+        "original_authors" => ["José de Alencar"],
         "original_title" => "Iracema"
       }
 
@@ -949,21 +949,21 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       publications = [
         %{
           "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
-          "countries" => "GB",
+          "countries" => ["GB"],
           "year" => 1886,
-          "publishers" => "Bickers & Son",
-          "authors" => "Richard Burton, Isabel Burton",
-          "original_authors" => "J. M. Pereira da Silva",
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Richard Burton", "Isabel Burton"],
+          "original_authors" => ["J. M. Pereira da Silva"],
           "original_title" => "Manuel de Moraes: crônica do século XVII"
         },
         invalid_publication,
         %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => 1886,
-          "countries" => "GB",
-          "publishers" => "Bickers & Son",
-          "authors" => "Isabel Burton",
-          "original_authors" => "José de Alencar",
+          "countries" => ["GB"],
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Isabel Burton"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema"
         }
       ]
@@ -988,46 +988,46 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     @correct_input_1 %{
       "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
       "year" => "1886",
-      "countries" => "GB",
-      "publishers" => "Bickers & Son",
-      "authors" => "Isabel Burton, Richard Burton",
-      "original_authors" => "José de Alencar",
+      "countries" => ["GB"],
+      "publishers" => ["Bickers & Son"],
+      "authors" => ["Isabel Burton", "Richard Burton"],
+      "original_authors" => ["José de Alencar"],
       "original_title" => "Iracema"
     }
     @correct_input_2 %{
       "title" => "Ubirajara: A Legend of the Tupy Indians",
       "year" => "1922",
-      "countries" => "US",
-      "publishers" => "Ronald Massey",
-      "authors" => "J. T. W. Sadler",
-      "original_authors" => "José de Alencar",
+      "countries" => ["US"],
+      "publishers" => ["Ronald Massey"],
+      "authors" => ["J. T. W. Sadler"],
+      "original_authors" => ["José de Alencar"],
       "original_title" => "Ubirajara"
     }
     @correct_input_3 %{
       "title" => "",
       "year" => "AAAA",
-      "countries" => "GB",
-      "publishers" => "Bickers & Son",
-      "authors" => "",
-      "original_authors" => "José de Alencar",
+      "countries" => ["GB"],
+      "publishers" => ["Bickers & Son"],
+      "authors" => [],
+      "original_authors" => ["José de Alencar"],
       "original_title" => "Iracema"
     }
     @correct_input_4 %{
       "title" => "Ubirajara: A Legend of the Tupy Indians",
       "year" => "",
-      "countries" => "",
-      "publishers" => "",
-      "authors" => "J. T. W. Sadler",
-      "original_authors" => "",
+      "countries" => [],
+      "publishers" => [],
+      "authors" => ["J. T. W. Sadler"],
+      "original_authors" => [],
       "original_title" => ""
     }
     @correct_input_5 %{
       "title" => "Ubirajara: A Legend of the Tupy Indians",
       "year" => "",
-      "countries" => "USA",
-      "publishers" => "",
-      "authors" => "J. T. W. Sadler",
-      "original_authors" => "",
+      "countries" => ["USA"],
+      "publishers" => [],
+      "authors" => ["J. T. W. Sadler"],
+      "original_authors" => [],
       "original_title" => ""
     }
 
@@ -1094,10 +1094,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         "publication" => %{
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
-          "countries" => "GB",
-          "publishers" => "Bickers & Son",
-          "authors" => "Isabel Burton, Richard Burton",
-          "original_authors" => "José de Alencar",
+          "countries" => ["GB"],
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Isabel Burton", "Richard Burton"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
           "sources" => []
         },
@@ -1107,10 +1107,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         "publication" => %{
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "1922",
-          "countries" => "US, GB",
-          "publishers" => "Ronald Massey",
-          "authors" => "J. T. W. Sadler",
-          "original_authors" => "José de Alencar",
+          "countries" => ["US", "GB"],
+          "publishers" => ["Ronald Massey"],
+          "authors" => ["J. T. W. Sadler"],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Ubirajara",
           "sources" => []
         },
@@ -1120,10 +1120,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         "publication" => %{
           "title" => "",
           "year" => "AAAA",
-          "countries" => "GB",
-          "publishers" => "Bickers & Son",
-          "authors" => "",
-          "original_authors" => "José de Alencar",
+          "countries" => ["GB"],
+          "publishers" => ["Bickers & Son"],
+          "authors" => [],
+          "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
           "sources" => []
         },
@@ -1137,10 +1137,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         "publication" => %{
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "",
-          "countries" => "",
-          "publishers" => "",
-          "authors" => "J. T. W. Sadler",
-          "original_authors" => "",
+          "countries" => [],
+          "publishers" => [],
+          "authors" => ["J. T. W. Sadler"],
+          "original_authors" => [],
           "original_title" => "",
           "sources" => []
         },

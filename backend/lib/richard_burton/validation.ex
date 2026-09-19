@@ -66,6 +66,9 @@ defmodule RichardBurton.Validation do
 
   defp get_description({_msg, opts}), do: opts |> Map.new() |> get_description()
   defp get_description(%{validation: :required}), do: :required
+  # A multi-value attribute that did not arrive as a list failed at the
+  # container, not at the element type, and says so under one name.
+  defp get_description(%{validation: :cast, type: {:array, _element}}), do: :array
   defp get_description(%{validation: :cast, type: type}), do: type
   defp get_description(%{validation: :length, kind: :min, count: 1}), do: :required
   defp get_description(%{validation: :assoc}), do: :required
