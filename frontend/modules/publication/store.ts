@@ -153,8 +153,8 @@ const publicationOrNullFamily = atomFamily((id: PublicationId) =>
 );
 
 /** A publication's provenance list (base ⊕ override), never undefined. */
-const publicationReferencesFamily = atomFamily((id: PublicationId) =>
-  atom<string[]>((get) => get(visiblePublicationFamily(id)).references ?? []),
+const publicationSourcesFamily = atomFamily((id: PublicationId) =>
+  atom<string[]>((get) => get(visiblePublicationFamily(id)).sources ?? []),
 );
 
 /** The matching text of each of a publication's fields, with the matched words
@@ -168,17 +168,17 @@ const publicationExcerptsFamily = atomFamily((id: PublicationId) =>
 
 /** A publication's *persisted* provenance list — ignores in-progress drafts,
  * the same stored-vs-visible distinction as `storedFieldValueFamily`. */
-const storedReferencesFamily = atomFamily((id: PublicationId) =>
-  atom<string[]>((get) => get(publicationFamily(id))?.references ?? []),
+const storedSourcesFamily = atomFamily((id: PublicationId) =>
+  atom<string[]>((get) => get(publicationFamily(id))?.sources ?? []),
 );
 
-/** How many loaded publications still have no *saved* references — drives the
+/** How many loaded publications still have no *saved* sources — drives the
  * backfill wizard's counter and queue dots, updating as saves land (drafts
  * don't count until they're persisted). */
-const unreferencedCountAtom = atom(
+const unsourcedCountAtom = atom(
   (get) =>
     get(publicationIdsAtom)?.filter(
-      (id) => get(storedReferencesFamily(id)).length === 0,
+      (id) => get(storedSourcesFamily(id)).length === 0,
     ).length || 0,
 );
 
@@ -271,8 +271,8 @@ const PUBLICATION_FAMILIES = [
   lastValidatedFamily,
   visiblePublicationFamily,
   publicationOrNullFamily,
-  publicationReferencesFamily,
-  storedReferencesFamily,
+  publicationSourcesFamily,
+  storedSourcesFamily,
   isValidFamily,
   errorDescriptionFamily,
 ];
@@ -433,15 +433,15 @@ function overrideField(
   store.set(overrideFamily(id), { ...current, [attribute]: value });
 }
 
-/** Overlay the whole provenance list (references are edited as a unit, not per
+/** Overlay the whole provenance list (sources are edited as a unit, not per
  * cell), reusing the same override overlay as the scalar fields. */
-function overrideReferences(
+function overrideSources(
   store: Store,
   id: PublicationId,
-  references: string[],
+  sources: string[],
 ): void {
   const current = store.get(overrideFamily(id));
-  store.set(overrideFamily(id), { ...current, references });
+  store.set(overrideFamily(id), { ...current, sources });
 }
 
 /** Drop a single row's pending edits and errors (cancelling an edit). */
@@ -613,12 +613,12 @@ export {
   overriddenIdsAtom,
   overrideFamily,
   overrideField,
-  overrideReferences,
+  overrideSources,
   orderAtom,
   publicationFamily,
   publicationIdsAtom,
   publicationOrNullFamily,
-  publicationReferencesFamily,
+  publicationSourcesFamily,
   publicationExcerptsFamily,
   receiveIndex,
   remember,
@@ -634,12 +634,12 @@ export {
   setFocusedRowId,
   storedFieldValueFamily,
   markedFieldFamily,
-  storedReferencesFamily,
+  storedSourcesFamily,
   totalCountAtom,
   matchingCountAtom,
   perPageAtom,
   totalIndexCountAtom,
-  unreferencedCountAtom,
+  unsourcedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,

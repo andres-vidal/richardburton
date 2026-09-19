@@ -260,7 +260,7 @@ export const InsideAForm: Story = {
 
 /**
  * Object items — the shape the Countries field uses. Each lookup builds fresh
- * objects, so identity has to come from `id`; reference equality would let the
+ * objects, so identity has to come from `id`; source equality would let the
  * same country in twice.
  */
 export const ObjectItems: StoryObj = {
@@ -359,11 +359,11 @@ export const MenuMatchesTriggerWidth: Story = {
     await userEvent.type(input, "e");
     const listbox = await screen.findByRole("listbox");
 
-    // The reference floating-ui measures is the input's wrapper (TextInput's
+    // The source floating-ui measures is the input's wrapper (TextInput's
     // root), and `size` sets the menu width to it.
-    const reference = input.parentElement!.getBoundingClientRect();
+    const source = input.parentElement!.getBoundingClientRect();
     const menu = listbox.getBoundingClientRect();
-    await expect(Math.round(menu.width)).toBe(Math.round(reference.width));
+    await expect(Math.round(menu.width)).toBe(Math.round(source.width));
   },
 };
 

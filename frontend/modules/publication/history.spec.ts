@@ -12,7 +12,7 @@ function snapshot(
     year: 1953,
     countries: "US",
     publishers: "Noonday Press",
-    references: [],
+    sources: [],
     ...fields,
   };
 }
@@ -41,7 +41,7 @@ describe("presentChanges", () => {
     expect(
       presentChanges({
         fields: { year: { from: 1953, to: 1954 } },
-        references: null,
+        sources: null,
       }),
     ).toEqual([{ kind: "field", label: "Year", from: "1953", to: "1954" }]);
   });
@@ -54,31 +54,31 @@ describe("presentChanges", () => {
         publishers: { from: "A", to: "B" },
         title: { from: "A", to: "B" },
       },
-      references: null,
-    }).map((change) => (change.kind === "field" ? change.label : "references"));
+      sources: null,
+    }).map((change) => (change.kind === "field" ? change.label : "sources"));
 
     expect(labels).toEqual(["Title", "Publishers"]);
   });
 
-  test("references come last, as the one change that is a list", () => {
+  test("sources come last, as the one change that is a list", () => {
     const kinds = presentChanges({
       fields: { title: { from: "A", to: "B" } },
-      references: { added: ["x"], removed: [], reordered: false },
+      sources: { added: ["x"], removed: [], reordered: false },
     }).map((change) => change.kind);
 
-    expect(kinds).toEqual(["field", "references"]);
+    expect(kinds).toEqual(["field", "sources"]);
   });
 
   test("nothing to diff renders nothing", () => {
     expect(presentChanges(null)).toEqual([]);
-    expect(presentChanges({ fields: {}, references: null })).toEqual([]);
+    expect(presentChanges({ fields: {}, sources: null })).toEqual([]);
   });
 });
 
 describe("withChanges", () => {
   test("resolves every entry's changes once, up front", () => {
     const [update, created] = withChanges([
-      entry(1, 2, "updated", {}, { fields: {}, references: null }),
+      entry(1, 2, "updated", {}, { fields: {}, sources: null }),
       entry(1, 1, "created"),
     ]);
 
@@ -92,7 +92,7 @@ describe("withChanges", () => {
       2,
       "updated",
       {},
-      { fields: { title: { from: "A", to: "B" } }, references: null },
+      { fields: { title: { from: "A", to: "B" } }, sources: null },
     );
     const [decorated] = withChanges([original]);
 
@@ -153,14 +153,14 @@ describe("presentAbsorbed", () => {
       absorbing("merged", [
         {
           id: 9,
-          ...snapshot({ references: ["Sousa, J. Bibliografia, 1955."] }),
+          ...snapshot({ sources: ["Sousa, J. Bibliografia, 1955."] }),
         },
       ]),
     );
 
     if (change.kind !== "absorbed")
       throw new Error("expected an absorbed change");
-    expect(change.records[0].references).toEqual([
+    expect(change.records[0].sources).toEqual([
       "Sousa, J. Bibliografia, 1955.",
     ]);
   });

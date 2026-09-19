@@ -1,12 +1,12 @@
 "use client";
 
 import Button from "components/Button";
-import ReferencesEditor from "components/ReferencesEditor";
+import SourcesEditor from "components/SourcesEditor";
 import {
   usePublication,
-  usePublicationReferences,
-  useStoredPublicationReferences,
-  useUnreferencedPublicationCount,
+  usePublicationSources,
+  useStoredPublicationSources,
+  useUnsourcedPublicationCount,
 } from "modules/publication/hooks";
 import type { PublicationId } from "modules/publication/model";
 import { receiveIndex, type PublicationIndex } from "modules/publication/store";
@@ -15,11 +15,11 @@ import {
   usePublicationStore,
 } from "modules/publication/workspace";
 import { update } from "modules/publication/remote";
-import { discardEdit, overrideReferences } from "modules/publication/store";
+import { discardEdit, overrideSources } from "modules/publication/store";
 import Link from "next/link";
 import { FC, KeyboardEvent, useEffect, useRef, useState } from "react";
 
-const optionId = (id: PublicationId) => `references-queue-option-${id}`;
+const optionId = (id: PublicationId) => `sources-queue-option-${id}`;
 
 /** One option in the queue listbox: title + a dot marking whether it's sourced. */
 const QueueOption: FC<{
@@ -28,9 +28,9 @@ const QueueOption: FC<{
   onSelect: () => void;
 }> = ({ id, active, onSelect }) => {
   const publication = usePublication(id);
-  // Persisted sources only: a drafted reference must not turn the dot green (or
+  // Persisted sources only: a drafted source must not turn the dot green (or
   // decrement the count) until it is actually saved.
-  const sourced = useStoredPublicationReferences(id).length > 0;
+  const sourced = useStoredPublicationSources(id).length > 0;
   const ref = useRef<HTMLLIElement>(null);
 
   // Keep the selected option in view as arrow keys move through a long queue.
@@ -61,18 +61,18 @@ const QueueOption: FC<{
 };
 
 /**
- * The queue of reference-less publications as a single-select listbox: one tab
+ * The queue of source-less publications as a single-select listbox: one tab
  * stop, arrow / Home / End move the selection (via `aria-activedescendant`),
  * click jumps directly.
  */
-export const ReferencesQueue: FC<{
+export const SourcesQueue: FC<{
   ids: PublicationId[];
   activeId: PublicationId | undefined;
   onSelect: (position: number) => void;
 }> = ({ ids, activeId, onSelect }) => {
   const position = activeId === undefined ? -1 : ids.indexOf(activeId);
-  // Live count of entries still missing references — shrinks as sources are added.
-  const missingCount = useUnreferencedPublicationCount();
+  // Live count of entries still missing sources — shrinks as sources are added.
+  const missingCount = useUnsourcedPublicationCount();
 
   const move = (event: KeyboardEvent, next: number) => {
     event.preventDefault();
@@ -91,7 +91,7 @@ export const ReferencesQueue: FC<{
     <div className="flex flex-col w-72 border-r border-gray-200 shrink-0">
       <header className="flex gap-2 justify-between items-baseline px-3 py-2 border-b border-gray-200">
         <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-          Missing references
+          Missing sources
         </span>
         <span className="px-1.5 py-0.5 text-xs font-medium text-indigo-700 rounded-full bg-indigo-100 tabular-nums">
           {missingCount}
@@ -99,7 +99,7 @@ export const ReferencesQueue: FC<{
       </header>
       <ul
         role="listbox"
-        aria-label="Publications missing references"
+        aria-label="Publications missing sources"
         tabIndex={0}
         aria-activedescendant={
           activeId === undefined ? undefined : optionId(activeId)
@@ -120,7 +120,7 @@ export const ReferencesQueue: FC<{
   );
 };
 
-/** The detail pane: the selected publication's context + the references editor. */
+/** The detail pane: the selected publication's context + the sources editor. */
 export const BackfillStep: FC<{
   id: PublicationId;
   position: number;
@@ -131,7 +131,7 @@ export const BackfillStep: FC<{
 }> = ({ id, position, total, saving, onSave, onSkip }) => {
   const store = usePublicationStore();
   const publication = usePublication(id);
-  const references = usePublicationReferences(id);
+  const sources = usePublicationSources(id);
 
   return (
     <div className="flex flex-col gap-6 p-8 w-full min-h-full">
@@ -154,9 +154,9 @@ export const BackfillStep: FC<{
         </div>
       )}
 
-      <ReferencesEditor
-        value={references}
-        onChange={(next) => overrideReferences(store, id, next)}
+      <SourcesEditor
+        value={sources}
+        onChange={(next) => overrideSources(store, id, next)}
       />
 
       <div className="flex gap-3 justify-end mt-auto">
@@ -175,7 +175,7 @@ export const BackfillStep: FC<{
           size="medium"
           loading={saving}
           // Nothing to save if no source was added — Skip moves past instead.
-          disabled={references.length === 0 || saving}
+          disabled={sources.length === 0 || saving}
           onClick={onSave}
         />
       </div>
@@ -187,7 +187,7 @@ export const BackfillStep: FC<{
  * Presentational shell — takes the queue as a prop so its loading, empty, and
  * populated states can each be rendered (and a11y-checked) in isolation.
  */
-export const ReferencesBackfillView: FC<{
+export const SourcesBackfillView: FC<{
   ids: PublicationId[] | undefined;
   position: number;
   saving: boolean;
@@ -200,12 +200,12 @@ export const ReferencesBackfillView: FC<{
 
   return ids === undefined ? (
     <p className="py-8 text-center text-gray-600">
-      Finding publications without references…
+      Finding publications without sources…
     </p>
   ) : empty ? (
     <div className="flex flex-col gap-4 items-center py-16 text-center">
       <h1 className="text-2xl font-normal">All caught up</h1>
-      <p className="text-gray-600">Every publication already has references.</p>
+      <p className="text-gray-600">Every publication already has sources.</p>
       <Link href="/" className="anchor">
         Back to the index
       </Link>
@@ -214,7 +214,7 @@ export const ReferencesBackfillView: FC<{
     // Fill the area below the sticky header and scroll inside the panes — so the
     // page itself doesn't scroll here, avoiding a second scrollbar.
     <div className="flex overflow-hidden my-4 rounded-lg border border-gray-200 h-[calc(100dvh-15.5rem)]">
-      <ReferencesQueue ids={ids} activeId={currentId} onSelect={onSelect} />
+      <SourcesQueue ids={ids} activeId={currentId} onSelect={onSelect} />
       {currentId !== undefined && (
         <div className="overflow-y-auto flex-1">
           <BackfillStep
@@ -233,7 +233,7 @@ export const ReferencesBackfillView: FC<{
   );
 };
 
-const ReferencesBackfill: FC<{ queue: PublicationIndex }> = ({ queue }) => (
+const SourcesBackfill: FC<{ queue: PublicationIndex }> = ({ queue }) => (
   <PublicationStoreProvider initialize={(store) => receiveIndex(store, queue)}>
     <Backfill queue={queue} />
   </PublicationStoreProvider>
@@ -261,7 +261,7 @@ const Backfill: FC<{ queue: PublicationIndex }> = ({ queue }) => {
   }
 
   return (
-    <ReferencesBackfillView
+    <SourcesBackfillView
       ids={ids}
       position={position}
       saving={saving}
@@ -272,4 +272,4 @@ const Backfill: FC<{ queue: PublicationIndex }> = ({ queue }) => {
   );
 };
 
-export default ReferencesBackfill;
+export default SourcesBackfill;

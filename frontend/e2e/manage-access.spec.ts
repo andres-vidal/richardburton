@@ -96,7 +96,7 @@ test("a contributor edits publications but cannot say who may", async ({
     page.getByRole("link", { name: /Add publications/ }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Backfill references/ }),
+    page.getByRole("link", { name: /Backfill sources/ }),
   ).toBeVisible();
 
   // Deciding who has access is not, so it is not offered...

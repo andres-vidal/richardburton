@@ -9,7 +9,7 @@ defmodule RichardBurton.Publication.Codec do
   alias RichardBurton.Util
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
-  alias RichardBurton.Reference
+  alias RichardBurton.Source
   alias RichardBurton.FlatPublication
 
   @empty_flat_attrs %{
@@ -30,10 +30,10 @@ defmodule RichardBurton.Publication.Codec do
     "title",
     "authors",
     "publishers",
-    "references"
+    "sources"
   ]
 
-  @references_csv_separator "\n"
+  @sources_csv_separator "\n"
 
   def from_csv(path) do
     try do
@@ -42,7 +42,7 @@ defmodule RichardBurton.Publication.Codec do
         |> File.stream!()
         |> CSV.decode!(separator: ?;, headers: @csv_headers)
         |> Enum.map(&Util.deep_merge_maps(@empty_flat_attrs, &1))
-        |> Enum.map(&parse_references_cell/1)
+        |> Enum.map(&parse_sources_cell/1)
 
       {:ok, publications}
     rescue
@@ -60,21 +60,21 @@ defmodule RichardBurton.Publication.Codec do
   def to_csv(flat_publications) do
     flat_publications
     |> Enum.map(&Util.stringify_keys/1)
-    |> Enum.map(&flatten_references_cell/1)
+    |> Enum.map(&flatten_sources_cell/1)
     |> Enum.map(&Map.take(&1, @csv_headers))
     |> CSV.encode(separator: ?;, delimiter: "\n", headers: true)
     |> Enum.to_list()
   end
 
   # Split the newline-per-line cell into a trimmed, blank-free list, so a CSV row
-  # carries `references` in the same array shape the frontend bulk payload uses —
+  # carries `sources` in the same array shape the frontend bulk payload uses —
   # a missing/absent column becomes an empty list.
-  defp parse_references_cell(row) do
+  defp parse_sources_cell(row) do
     parsed =
-      case Map.get(row, "references") do
+      case Map.get(row, "sources") do
         content when is_binary(content) ->
           content
-          |> String.split(@references_csv_separator)
+          |> String.split(@sources_csv_separator)
           |> Enum.map(&String.trim/1)
           |> Enum.reject(&(&1 == ""))
 
@@ -82,17 +82,17 @@ defmodule RichardBurton.Publication.Codec do
           []
       end
 
-    Map.put(row, "references", parsed)
+    Map.put(row, "sources", parsed)
   end
 
   # Join the list back into one newline-per-line cell. Only touch the cell when
-  # it's present (a full export) — a `select`-limited export omits references and
+  # it's present (a full export) — a `select`-limited export omits sources and
   # must not gain the column.
-  defp flatten_references_cell(%{"references" => refs} = row) when is_list(refs) do
-    %{row | "references" => Enum.join(refs, @references_csv_separator)}
+  defp flatten_sources_cell(%{"sources" => refs} = row) when is_list(refs) do
+    %{row | "sources" => Enum.join(refs, @sources_csv_separator)}
   end
 
-  defp flatten_references_cell(row), do: row
+  defp flatten_sources_cell(row), do: row
 
   def from_csv!(path) do
     case from_csv(path) do
@@ -155,8 +155,8 @@ defmodule RichardBurton.Publication.Codec do
   defp nest_entry({"publishers", value}),
     do: {"publishers", Publisher.nest(value)}
 
-  defp nest_entry({"references", value}),
-    do: {"references", Reference.nest(value)}
+  defp nest_entry({"sources", value}),
+    do: {"sources", Source.nest(value)}
 
   defp nest_entry({key, value}),
     do: {key, value}
@@ -228,7 +228,7 @@ defmodule RichardBurton.Publication.Codec do
   defp flatten_entry({"original_authors", value}), do: {"original_authors", Author.flatten(value)}
   defp flatten_entry({"countries", value}), do: {"countries", Country.flatten(value)}
   defp flatten_entry({"publishers", value}), do: {"publishers", Publisher.flatten(value)}
-  defp flatten_entry({"references", value}), do: {"references", Reference.flatten(value)}
+  defp flatten_entry({"sources", value}), do: {"sources", Source.flatten(value)}
   defp flatten_entry({key, value}), do: {key, value}
 
   defp rename_key({"translated_book_authors", v}), do: {"authors", v}

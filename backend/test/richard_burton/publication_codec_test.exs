@@ -10,7 +10,7 @@ defmodule RichardBurton.Publication.CodecTest do
   alias RichardBurton.Country
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
-  alias RichardBurton.Reference
+  alias RichardBurton.Source
   alias RichardBurton.FlatPublication
   alias RichardBurton.TranslatedBook
   alias RichardBurton.OriginalBook
@@ -28,7 +28,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => "Bickers & Son",
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
-          "references" => []
+          "sources" => []
         },
         %{
           "authors" => "J. T. W. Sadler",
@@ -38,7 +38,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => "Ronald Massey",
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "1922",
-          "references" => []
+          "sources" => []
         },
         %{
           "authors" => "",
@@ -48,7 +48,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => "Bickers & Son",
           "title" => "",
           "year" => "AAAA",
-          "references" => []
+          "sources" => []
         },
         %{
           "authors" => "J. T. W. Sadler",
@@ -58,7 +58,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => "",
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "",
-          "references" => []
+          "sources" => []
         }
       ]
 
@@ -79,7 +79,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => "",
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
-          "references" => []
+          "sources" => []
         },
         %{
           "authors" => "Ronald Massey",
@@ -89,7 +89,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => "",
           "title" => "J. T. W. Sadler",
           "year" => "GB",
-          "references" => []
+          "sources" => []
         },
         %{
           "authors" => "",
@@ -100,7 +100,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => "",
           "title" => "",
           "year" => "",
-          "references" => []
+          "sources" => []
         }
       ]
 
@@ -139,7 +139,7 @@ defmodule RichardBurton.Publication.CodecTest do
       authors: "Isabel Burton",
       original_authors: "José de Alencar",
       original_title: "Iracema",
-      references: [],
+      sources: [],
       translated_book_fingerprint:
         "954F4C8E5EB33960B733BADB84134970AF5D970879260138C8C214B66DDBEF1F"
     }
@@ -190,13 +190,13 @@ defmodule RichardBurton.Publication.CodecTest do
 
     test "on a Publication struct, returns the flattened representation with string keys" do
       # Associations are given loaded, as the flatten path expects (every caller
-      # preloads) — references included, here with none attached.
+      # preloads) — sources included, here with none attached.
       input = %Publication{
         title: "Iraçéma the Honey-Lips: A Legend of Brazil",
         year: "1886",
         countries: [%Country{code: "GB"}],
         publishers: [%Publisher{name: "Bickers & Son"}, %Publisher{name: "Noonday Press"}],
-        references: [],
+        sources: [],
         translated_book: %TranslatedBook{
           authors: [%Author{name: "Isabel Burton"}],
           original_book: %OriginalBook{
@@ -250,7 +250,7 @@ defmodule RichardBurton.Publication.CodecTest do
           year: "1886",
           countries: [%Country{code: "GB"}],
           publishers: [%Publisher{name: "Bickers & Son"}, %Publisher{name: "Noonday Press"}],
-          references: [],
+          sources: [],
           translated_book: %TranslatedBook{
             authors: [
               %Author{name: "Isabel Burton"}
@@ -371,7 +371,7 @@ defmodule RichardBurton.Publication.CodecTest do
     @output_struct %Publication{
       title: "Iraçéma the Honey-Lips: A Legend of Brazil",
       year: 1886,
-      references: [],
+      sources: [],
       countries: [%Country{code: "GB"}],
       countries_fingerprint: "B4043B0B8297E379BC559AB33B6AE9C7A9B4EF6519D3BAEE53270F0C0DD3D960",
       publishers: [%Publisher{name: "Bickers & Son"}, %Publisher{name: "Noonday Press"}],
@@ -472,11 +472,11 @@ defmodule RichardBurton.Publication.CodecTest do
     end
   end
 
-  describe "references round-trip" do
+  describe "sources round-trip" do
     test "nest turns the flat string list into positioned child maps" do
-      input = %{"references" => ["First source", "Second source"]}
+      input = %{"sources" => ["First source", "Second source"]}
 
-      assert %{"references" => nested} = Publication.Codec.nest(input)
+      assert %{"sources" => nested} = Publication.Codec.nest(input)
 
       assert [
                %{"content" => "First source", "position" => 0},
@@ -485,9 +485,9 @@ defmodule RichardBurton.Publication.CodecTest do
     end
 
     test "nest drops blank rows and repositions the rest" do
-      input = %{"references" => ["Real source", "", "   "]}
+      input = %{"sources" => ["Real source", "", "   "]}
 
-      assert %{"references" => [%{"content" => "Real source", "position" => 0}]} =
+      assert %{"sources" => [%{"content" => "Real source", "position" => 0}]} =
                Publication.Codec.nest(input)
     end
 
@@ -504,24 +504,24 @@ defmodule RichardBurton.Publication.CodecTest do
             title: "Dom Casmurro"
           }
         },
-        references: [
-          %Reference{content: "Second source", position: 1},
-          %Reference{content: "First source", position: 0}
+        sources: [
+          %Source{content: "Second source", position: 1},
+          %Source{content: "First source", position: 0}
         ]
       }
 
-      assert %FlatPublication{references: ["First source", "Second source"]} =
+      assert %FlatPublication{sources: ["First source", "Second source"]} =
                Publication.Codec.flatten(input)
     end
 
-    test "from_csv splits a newline-per-line references cell into a list" do
-      input = "test/fixtures/data_with_references.csv"
+    test "from_csv splits a newline-per-line sources cell into a list" do
+      input = "test/fixtures/data_with_sources.csv"
 
       assert {:ok, [row]} = Publication.Codec.from_csv(input)
-      assert ["First source", "Second source"] == row["references"]
+      assert ["First source", "Second source"] == row["sources"]
     end
 
-    test "to_csv joins the references list back into one quoted newline cell" do
+    test "to_csv joins the sources list back into one quoted newline cell" do
       flat = %{
         "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
         "year" => "1886",
@@ -530,7 +530,7 @@ defmodule RichardBurton.Publication.CodecTest do
         "authors" => "Isabel Burton",
         "original_title" => "Iracema",
         "original_authors" => "José de Alencar",
-        "references" => ["First source", "Second source"]
+        "sources" => ["First source", "Second source"]
       }
 
       csv = [flat] |> Publication.Codec.to_csv() |> Enum.join()

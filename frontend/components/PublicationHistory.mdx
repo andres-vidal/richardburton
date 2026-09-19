@@ -9,7 +9,7 @@ import * as PublicationHistoryStories from "./PublicationHistory.stories";
 A publication's mutation log, newest first: each entry names the action
 (created / updated / deleted / restored / merged), the acting user, and the date, and
 **updates state exactly what changed**: scalar fields as `old → new`, and
-references as the precise entries added (+) and removed (−) — or a reorder, when
+sources as the precise entries added (+) and removed (−) — or a reorder, when
 the same entries merely moved.
 
 The data comes from the append-only `publication_history` log
@@ -32,7 +32,7 @@ the same entries as full cards, where they _are_ the page's subject.
 ## States
 
 - **Default** — the stream above: a full lifecycle whose updates carry exact,
-  attributed diffs (a retitle, a reference added, that reference later replaced)
+  attributed diffs (a retitle, a source added, that source later replaced)
   and no diff rows for delete/restore (nothing changed field-wise).
 - **Empty** — records created before the history log exist have no entries;
   the absence is stated rather than hidden.

@@ -1,15 +1,15 @@
-defmodule RichardBurton.ReferenceTest do
+defmodule RichardBurton.SourceTest do
   @moduledoc """
-  Tests for the Reference schema
+  Tests for the Source schema
   """
 
   use ExUnit.Case, async: true
-  doctest RichardBurton.Reference
+  doctest RichardBurton.Source
 
-  alias RichardBurton.Reference
+  alias RichardBurton.Source
 
   defp changeset(attrs) do
-    Reference.changeset(%Reference{}, attrs)
+    Source.changeset(%Source{}, attrs)
   end
 
   describe "changeset/2" do

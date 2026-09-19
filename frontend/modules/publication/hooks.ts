@@ -18,15 +18,15 @@ import {
   overriddenIdsAtom,
   overrideFamily,
   publicationOrNullFamily,
-  publicationReferencesFamily,
+  publicationSourcesFamily,
   publicationExcerptsFamily,
   markedFieldFamily,
   storedFieldValueFamily,
-  storedReferencesFamily,
+  storedSourcesFamily,
   totalCountAtom,
   matchingCountAtom,
   totalIndexCountAtom,
-  unreferencedCountAtom,
+  unsourcedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
@@ -85,13 +85,13 @@ function usePublicationExcerpts(id: PublicationId) {
   return useAtomValue(publicationExcerptsFamily(id));
 }
 
-function usePublicationReferences(id: PublicationId) {
-  return useAtomValue(publicationReferencesFamily(id));
+function usePublicationSources(id: PublicationId) {
+  return useAtomValue(publicationSourcesFamily(id));
 }
 
-/** The persisted references only — drafts don't show until saved. */
-function useStoredPublicationReferences(id: PublicationId) {
-  return useAtomValue(storedReferencesFamily(id));
+/** The persisted sources only — drafts don't show until saved. */
+function useStoredPublicationSources(id: PublicationId) {
+  return useAtomValue(storedSourcesFamily(id));
 }
 
 function usePublicationError(id: PublicationId) {
@@ -138,9 +138,9 @@ function useTotalPublicationCount() {
   return useAtomValue(totalCountAtom);
 }
 
-/** How many loaded publications still lack references (live). */
-function useUnreferencedPublicationCount() {
-  return useAtomValue(unreferencedCountAtom);
+/** How many loaded publications still lack sources (live). */
+function useUnsourcedPublicationCount() {
+  return useAtomValue(unsourcedCountAtom);
 }
 
 function usePublicationIndexCount() {
@@ -198,13 +198,13 @@ export {
   useMatchingCount,
   usePublicationIndexCount,
   usePublicationOverride,
-  usePublicationReferences,
+  usePublicationSources,
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationStoredField,
-  useStoredPublicationReferences,
+  useStoredPublicationSources,
   useTotalPublicationCount,
-  useUnreferencedPublicationCount,
+  useUnsourcedPublicationCount,
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,

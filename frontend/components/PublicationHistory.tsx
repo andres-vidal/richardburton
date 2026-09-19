@@ -148,18 +148,18 @@ const Entry: FC<{
                 {change.label}: <s className="text-gray-500">{change.from}</s> →{" "}
                 <span className="text-gray-700">{change.to}</span>
               </li>
-            ) : change.kind === "references" ? (
-              <li key="references" className="text-xs text-gray-600">
-                References:{change.reordered ? " reordered" : null}
+            ) : change.kind === "sources" ? (
+              <li key="sources" className="text-xs text-gray-600">
+                Sources:{change.reordered ? " reordered" : null}
                 <ul className="space-y-0.5">
-                  {change.removed.map((reference) => (
-                    <li key={`− ${reference}`} className="text-red-700">
-                      − <s>{reference}</s>
+                  {change.removed.map((source) => (
+                    <li key={`− ${source}`} className="text-red-700">
+                      − <s>{source}</s>
                     </li>
                   ))}
-                  {change.added.map((reference) => (
-                    <li key={`+ ${reference}`} className="text-emerald-700">
-                      + {reference}
+                  {change.added.map((source) => (
+                    <li key={`+ ${source}`} className="text-emerald-700">
+                      + {source}
                     </li>
                   ))}
                 </ul>
@@ -182,9 +182,9 @@ const Entry: FC<{
                             {field.label}: {field.value}
                           </li>
                         ))}
-                        {record.references.map((reference) => (
-                          <li key={reference} className="text-gray-500">
-                            Reference: {reference}
+                        {record.sources.map((source) => (
+                          <li key={source} className="text-gray-500">
+                            Source: {source}
                           </li>
                         ))}
                       </ul>

@@ -98,12 +98,12 @@ const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
 };
 
 /**
- * A search can match a publication on its references, which the table does not
+ * A search can match a publication on its sources, which the table does not
  * show, which makes the row look unrelated to the search. This renders the
- * excerpt of the matching reference so the reader can see why it is here.
+ * excerpt of the matching source so the reader can see why it is here.
  */
 const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
-  const excerpt = usePublicationExcerpts(rowId)?.references;
+  const excerpt = usePublicationExcerpts(rowId)?.sources;
 
   return excerpt ? (
     <span className="block text-xs text-gray-500 truncate">
@@ -330,7 +330,7 @@ const PublicationIndexTable: FC<Props> = ({
         ))}
         {ExtendedTrailingColumn && (
           <Aria.ColumnHeader>
-            <span className="sr-only">References</span>
+            <span className="sr-only">Sources</span>
           </Aria.ColumnHeader>
         )}
       </Aria.Row>

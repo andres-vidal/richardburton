@@ -3,7 +3,7 @@
 import AddIcon from "assets/add-circle.svg";
 import DuplicateIcon from "assets/copy.svg";
 import HistoryIcon from "assets/history.svg";
-import ReferencesIcon from "assets/numbered-list.svg";
+import SourcesIcon from "assets/numbered-list.svg";
 import PeopleIcon from "assets/people.svg";
 import RestoreTrashIcon from "assets/restore-trash.svg";
 import { useSession } from "modules/session";
@@ -31,9 +31,9 @@ const ACTIONS: {
     role: "contributor",
   },
   {
-    href: "/admin/publications/references",
-    Icon: ReferencesIcon,
-    title: "Backfill references",
+    href: "/admin/publications/sources",
+    Icon: SourcesIcon,
+    title: "Backfill sources",
     description:
       "Work through the publications that are missing sources and add their provenance.",
     role: "contributor",

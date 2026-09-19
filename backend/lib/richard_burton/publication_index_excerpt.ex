@@ -18,7 +18,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   Terms used here:
 
     * **excerpt** — the matching text of one field. Short fields come back in
-      full. `references` is an array, which the search treats as one long
+      full. `sources` is an array, which the search treats as one long
       string, so it comes back as a short window around the match instead.
     * **widening** — one word that the search matched with something other than
       what was typed, either because the word is a prefix of several indexed
@@ -42,7 +42,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   @type widening :: %{field: String.t() | nil, typed: String.t(), words: [String.t()]}
 
   # Highlighting options for `ts_headline`. Short fields are returned in full.
-  # `references` holds a whole bibliography joined into one string, so only a
+  # `sources` holds a whole bibliography joined into one string, so only a
   # short window around the match is returned.
   @whole "StartSel=[[,StopSel=]],HighlightAll=true"
   @window "StartSel=[[,StopSel=]],MaxFragments=1,MaxWords=16,MinWords=6"
@@ -58,7 +58,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     :authors,
     :original_authors,
     :publishers,
-    :references
+    :sources
   ]
 
   # Builds one field's excerpt, or nil. When the field has no tsquery, `to_tsquery`
@@ -164,10 +164,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
         authors: excerpt(p.authors, ^queries.authors, @whole),
         original_authors: excerpt(p.original_authors, ^queries.original_authors, @whole),
         publishers: excerpt(p.publishers, ^queries.publishers, @whole),
-        references:
+        sources:
           excerpt(
-            fragment("array_to_string(?, ' ')", p.references),
-            ^queries.references,
+            fragment("array_to_string(?, ' ')", p.sources),
+            ^queries.sources,
             @window
           )
       }
@@ -175,21 +175,21 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   end
 
   @doc """
-  Adds the `marked_references` list to a query: each of the row's references with
+  Adds the `marked_sources` list to a query: each of the row's sources with
   the matched words wrapped, or nil where the search did not match that one.
 
-  The `references` excerpt in `select/2` answers a different question. It is one
+  The `sources` excerpt in `select/2` answers a different question. It is one
   short window over the whole bibliography joined together, which says that a row
   matched on its provenance but not which entry did. This marks the entries
   themselves, in the order they are stored, so each can be shown beside the
-  reference it belongs to.
+  source it belongs to.
   """
-  @spec select_references(Ecto.Query.t(), String.t()) :: Ecto.Query.t()
-  def select_references(query, term) do
-    references = field_queries(term).references
+  @spec select_sources(Ecto.Query.t(), String.t()) :: Ecto.Query.t()
+  def select_sources(query, term) do
+    sources = field_queries(term).sources
 
     select_merge(query, [p], %{
-      marked_references:
+      marked_sources:
         fragment(
           """
           ARRAY(
@@ -198,10 +198,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
             FROM unnest(?) AS r
           )
           """,
-          ^references,
-          ^references,
+          ^sources,
+          ^sources,
           @whole,
-          p.references
+          p.sources
         )
     })
   end
