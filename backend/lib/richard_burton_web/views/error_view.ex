@@ -1,4 +1,9 @@
 defmodule RichardBurtonWeb.ErrorView do
+  @moduledoc """
+  Renders errors as the status text alone, since this is a headless API and the
+  client renders its own pages.
+  """
+
   use RichardBurtonWeb, :view
 
   # If you want to customize a particular status code

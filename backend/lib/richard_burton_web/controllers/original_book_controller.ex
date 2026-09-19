@@ -1,4 +1,9 @@
 defmodule RichardBurtonWeb.OriginalBookController do
+  @moduledoc """
+  The original-book lookup that backs the editor's autocomplete, returning a book
+  whole — title and authors together — so selecting one fills both.
+  """
+
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.OriginalBook

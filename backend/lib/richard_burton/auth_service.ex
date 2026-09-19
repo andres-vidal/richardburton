@@ -25,5 +25,6 @@ defmodule RichardBurton.Auth do
   @spec authorize(subject_id :: String.t(), role :: atom()) :: :ok | :error
   def authorize(subject_id, role), do: impl().authorize(subject_id, role)
 
+  # The configured implementation of the auth service, so tests can supply a double.
   defp impl, do: Application.get_env(:richard_burton, :auth_service, RichardBurton.Auth.Google)
 end

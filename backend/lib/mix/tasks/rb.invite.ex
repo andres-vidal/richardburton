@@ -35,6 +35,8 @@ defmodule Mix.Tasks.Rb.Invite do
     end
   end
 
+  # Writes one invitation from the console, which is how the first administrator
+  # is created on a platform that has none.
   defp invite(email, role) do
     case Invitation.invite(%{"email" => email, "role" => role}) do
       {:ok, {:invited, invitation}} ->

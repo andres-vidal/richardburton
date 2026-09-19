@@ -62,6 +62,7 @@ defmodule RichardBurtonWeb.Telemetry do
     ]
   end
 
+  # Measurements polled on a timer rather than emitted by an event.
   defp periodic_measurements do
     [
       # A module, function and arguments to be invoked periodically.

@@ -77,5 +77,7 @@ defmodule RichardBurtonWeb.SessionController do
     )
   end
 
+  # The session cookie is secure unless configured otherwise, which only local
+  # development over plain HTTP needs.
   defp secure_cookie?, do: Application.get_env(:richard_burton, :phx_session_tls, true)
 end

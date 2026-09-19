@@ -1,27 +1,33 @@
 defmodule RichardBurton.Publication.Duplicates do
   @moduledoc """
-  The publications that look like the same record entered twice.
+  Finds publications that are likely the same record entered twice.
 
-  The composite key blocks *exact* duplicates, so what is left are the ones it
-  cannot see: a typo, an accent dropped, `St.` for `Saint`, a translator entered
-  as "R. Burton" once and "Richard Burton" the next time. These read as distinct
-  records, fragment the database and mislead every count taken from it.
+  The composite key already blocks exact duplicates, so what remains are the
+  near-matches it cannot catch: a typo, a dropped accent, `St.` for `Saint`, a
+  translator entered as "R. Burton" once and "Richard Burton" the next time.
 
-  Likeness is trigram similarity — the same measure the author lookup uses — over
-  the fields a duplicate would agree on. Two records are candidates when their
-  *translators* are alike and either their titles are alike, or the original
-  books they render are.
+  Four words carry specific meanings here:
 
-  The translators are what carries the question, because this is a database of
-  translations: two people rendering one book is the subject matter, not a
-  mistake. "Dom Casmurro" by Helen Caldwell and "Dom Casmurro" by John Gledson
-  agree on title and original book and are still two publications. The same
-  translator's work appearing twice is the thing worth asking about.
+    * **candidate pair** — two publications similar enough to be worth review.
+    * **cluster** — a connected component of the candidate graph. If A matches B
+      and B matches C, all three form one cluster, because merging them is one
+      operation.
+    * **distinction** — a stored record that two publications are not the same,
+      so the review stops offering them. See `Distinction`.
+    * **ruled apart** — the state of a pair that has a distinction.
 
-  Similarity cannot tell two editions of one book from two records of one
-  edition, and it is not meant to: it proposes, a person decides. What that
-  person rules apart is remembered (see `Distinction`), so the question is asked
-  once.
+  Similarity is trigram distance, the measure the author lookup also uses, over
+  the fields a duplicate would agree on. A pair is a candidate when the
+  translators are similar and either the titles are, or the original books are.
+
+  The translators are the required half because this is a database of
+  translations: two people translating one book is the subject matter, not an
+  error. "Dom Casmurro" translated by Helen Caldwell and by John Gledson share a
+  title and an original book and are two distinct publications.
+
+  Similarity cannot distinguish two editions of one book from two records of one
+  edition, so it proposes and a reviewer decides. Distinctions persist that
+  decision, which is what makes the queue converge.
   """
 
   import Ecto.Query
@@ -123,11 +129,11 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   @doc """
-  Take back a decision to tell records apart, so the review asks about them
-  again.
+  Deletes the distinctions among these publications, returning the pair or
+  cluster to the review queue.
 
-  Every pair among the ids is forgotten, matching how `rule_apart/2` records
-  them: the answer was about the cluster, so taking it back is too.
+  Every pair among the ids is deleted, mirroring how `rule_apart/2` records
+  them: the decision covered the cluster, so reversing it does too.
   """
   def reconsider(ids) when is_list(ids) do
     {count, _} = Repo.delete_all(among(ids))
@@ -150,20 +156,21 @@ defmodule RichardBurton.Publication.Duplicates do
         timestamp: &1.inserted_at
       }
     )
-    # A pair whose records are no longer both in the index — merged away, or
-    # deleted — has nothing left to ask about.
+    # A pair is dropped when either record has left the index, by merge or by
+    # deletion: there is no longer a duplicate to review.
     |> Enum.filter(&(length(&1.publications) == 2))
   end
 
-  # Every distinction among these records, whichever way round it was stored.
+  # Query for every distinction among these ids. Both columns are checked
+  # against the same list, so the stored order of a pair does not matter.
   defp among(ids) do
     from(d in Distinction,
       where: d.publication_id in ^ids and d.other_publication_id in ^ids
     )
   end
 
-  # Every pair of live publications alike enough to ask about, minus the pairs
-  # already ruled apart.
+  # Every candidate pair among live publications, excluding pairs already ruled
+  # apart.
   defp candidate_pairs do
     {:ok, pairs} =
       Repo.transaction(fn ->
@@ -174,11 +181,11 @@ defmodule RichardBurton.Publication.Duplicates do
     pairs
   end
 
-  # `%` asks exactly what `similarity(a, b) > threshold` asks, but it is the
-  # question the trigram index can answer, so a record is compared against the
-  # handful that share a trigram with it rather than against every other. It
-  # takes the bar from the session, which is why the threshold is set here
-  # instead of being pinned into the expression.
+  # `%` is equivalent to `similarity(a, b) > threshold` but is indexable, so a
+  # record is compared only against those sharing a trigram with it rather than
+  # against every other row. It reads the threshold from
+  # `pg_trgm.similarity_threshold`, which is why that is set per transaction
+  # rather than interpolated into the expression.
   defp put_threshold do
     Repo.query!(
       "SELECT set_config('pg_trgm.similarity_threshold', $1, true)",
@@ -186,6 +193,9 @@ defmodule RichardBurton.Publication.Duplicates do
     )
   end
 
+  # The candidate-pair query: a self-join over live publications, ordered by id
+  # so each unordered pair appears once, with pairs already ruled apart removed
+  # by the anti-join.
   defp candidates do
     from(a in FlatPublication,
       as: :left,
@@ -206,7 +216,8 @@ defmodule RichardBurton.Publication.Duplicates do
     )
   end
 
-  # Translators alike, and then either the title or the book behind it.
+  # The similarity rule: translators alike, and then either the title or the
+  # original book.
   defp worth_asking_about do
     dynamic(
       ^alike(:authors) and
@@ -230,11 +241,13 @@ defmodule RichardBurton.Publication.Duplicates do
     )
   end
 
+  # Compares one column across the two joined rows.
   defp alike(field) do
     dynamic(fragment("? % ?", field(as(:left), ^field), field(as(:right), ^field)))
   end
 
-  # The connected components of the candidate graph, as sorted id lists.
+  # Builds an undirected adjacency map from the candidate pairs and returns its
+  # connected components as sorted id lists.
   defp connected(edges) do
     edges
     |> Enum.reduce(%{}, fn %{left: a, right: b}, adjacency ->
@@ -245,6 +258,8 @@ defmodule RichardBurton.Publication.Duplicates do
     |> components()
   end
 
+  # Walks the vertices in id order, flood-filling from each one not already
+  # claimed by an earlier component.
   defp components(adjacency) do
     adjacency
     |> Map.keys()
@@ -261,6 +276,8 @@ defmodule RichardBurton.Publication.Duplicates do
     |> Enum.reverse()
   end
 
+  # Flood fill over the adjacency map. `seen` is both the visited set and the
+  # result, so each vertex is expanded once and a cycle terminates.
   defp reachable([], _adjacency, seen), do: seen
 
   defp reachable([id | rest], adjacency, seen) do
@@ -271,7 +288,8 @@ defmodule RichardBurton.Publication.Duplicates do
     end
   end
 
-  # How alike the closest two records in a cluster are — what ranks it.
+  # A cluster's score: the highest similarity among the edges inside it, which
+  # is what orders the review queue.
   defp best_score(ids, edges) do
     members = MapSet.new(ids)
 
@@ -281,6 +299,8 @@ defmodule RichardBurton.Publication.Duplicates do
     |> Enum.max(fn -> 0.0 end)
   end
 
+  # The flat publications for these ids, ordered by title then id so a cluster
+  # is presented the same way every time.
   defp load(ids) do
     from(fp in FlatPublication, where: fp.id in ^ids, order_by: [asc: fp.title, asc: fp.id])
     |> Repo.all()

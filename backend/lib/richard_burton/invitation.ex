@@ -115,6 +115,7 @@ defmodule RichardBurton.Invitation do
 
   def resend(%Invitation{}), do: {:error, :already_accepted}
 
+  # Records an invitation for an address that has no account yet.
   defp offer(attrs, invited_by) do
     attrs = Map.put(attrs, "invited_by_id", invited_by && invited_by.id)
 
@@ -132,6 +133,8 @@ defmodule RichardBurton.Invitation do
     end
   end
 
+  # An address that already has an account takes the role directly, without an
+  # invitation to redeem.
   defp promote(user, %{"role" => role}, invited_by) do
     with {:ok, updated} <- User.set_role(user, role, invited_by && invited_by.subject_id) do
       {:ok, {:granted, updated}}
@@ -140,6 +143,8 @@ defmodule RichardBurton.Invitation do
 
   defp promote(_user, _attrs, _invited_by), do: {:error, %{role: "required"}}
 
+  # Grants the offered role and marks the invitation redeemed, in one
+  # transaction, so an invitation cannot be spent twice.
   defp accept(invitation, user) do
     Repo.transaction(fn ->
       {:ok, updated} = User.set_role(user, invitation.role)
@@ -152,6 +157,7 @@ defmodule RichardBurton.Invitation do
     end)
   end
 
+  # The unredeemed invitation for an address, if there is one.
   defp pending_for(email) do
     Repo.one(
       from(i in Invitation,
@@ -175,6 +181,7 @@ defmodule RichardBurton.Invitation do
     error -> {:error, error}
   end
 
+  # The invitation email body.
   defp message(invitation) do
     """
     You have been invited to the Richard & Isabel Burton Platform#{invited_by(invitation)} as #{describe(invitation.role)}.
@@ -185,12 +192,17 @@ defmodule RichardBurton.Invitation do
     """
   end
 
+  # Names the inviter when the record still has one; an invitation outlives the
+  # account that sent it.
   defp invited_by(%{invited_by: %User{email: email}}), do: " by #{email}"
   defp invited_by(_invitation), do: ""
 
+  # What each role allows, in the words the email uses.
   defp describe(:admin), do: "an administrator, who can also manage who has access"
   defp describe(:contributor), do: "a contributor, who can add and correct publications"
   defp describe(:reader), do: "a reader"
 
+  # The address the email points at, falling back to a neutral phrase when it is
+  # not configured rather than sending a broken link.
   defp app_url, do: System.get_env("APP_URL") || "the platform"
 end

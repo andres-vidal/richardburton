@@ -8,6 +8,7 @@ defmodule RichardBurton.Mailer.SMTP do
 
   use Swoosh.Mailer, otp_app: :richard_burton
 
+  # SMTP settings from the environment, over the adapter's defaults.
   defp config() do
     Keyword.merge(
       [
@@ -25,6 +26,8 @@ defmodule RichardBurton.Mailer.SMTP do
     )
   end
 
+  # Authentication is attempted only when a username is configured; an empty one
+  # means an open relay on the local network rather than a missing setting.
   defp config_auth(nil), do: [auth: :never]
   defp config_auth(""), do: [auth: :never]
   defp config_auth(password), do: [password: password]
@@ -38,6 +41,8 @@ defmodule RichardBurton.Mailer.SMTP do
   end
 
   @spec get_swoosh_email(RichardBurton.Email.t()) :: Swoosh.Email.t()
+  # The contact form's message as an email, addressed to the platform when the
+  # form names no recipient.
   defp get_swoosh_email(email = %{message: message, address: address, to: nil}) do
     new(
       from: get_from(),
@@ -58,12 +63,16 @@ defmodule RichardBurton.Mailer.SMTP do
     )
   end
 
+  # The envelope sender, which the SMTP relay requires to be one it owns —
+  # the writer's own address goes in the subject and reply instead.
   defp get_from(),
     do: {System.get_env("SMTP_NAME"), System.get_env("SMTP_FROM")}
 
+  # The subject carries who wrote, since the sender cannot.
   defp get_subject(email = %{address: address, subject: subject}),
     do: "#{subject} (from #{get_contact_name(email)}<#{address}>)"
 
+  # The writer's name, with their institution when they gave one.
   defp get_contact_name(%{name: name, institution: nil}), do: name
   defp get_contact_name(%{name: name, institution: ""}), do: name
   defp get_contact_name(%{name: name, institution: institution}), do: "#{name} (#{institution})"

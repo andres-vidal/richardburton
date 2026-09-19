@@ -80,6 +80,8 @@ defmodule RichardBurton.FlatPublication do
     %FlatPublication{} |> changeset(attrs) |> validate_changeset(exclude_id)
   end
 
+  # An invalid changeset reports its own errors; a valid one is then checked
+  # against the composite key, excluding the record being updated.
   defp validate_changeset(changeset = %{valid?: false}, _exclude_id) do
     {:error, Validation.get_errors(changeset)}
   end
@@ -97,10 +99,10 @@ defmodule RichardBurton.FlatPublication do
         &{&1, get_field(changeset, &1)}
       )
 
-    # The conflict check runs on the write path and must see the live database,
-    # not the materialized read model, or a duplicate inserted since the last
-    # refresh would slip past it. The composite key is native to the publications
-    # table — the same columns the partial unique index guards — so ask there.
+    # The conflict check runs on the write path and must read the live table, not
+    # the materialized view, or a duplicate inserted since the last refresh would
+    # pass. The composite key belongs to `publications` — the columns the partial
+    # unique index covers — so the check queries that table directly.
     conflict =
       from(p in Publication, where: ^where, where: is_nil(p.deleted_at))
       |> exclude_self(exclude_id)

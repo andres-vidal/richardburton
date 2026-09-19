@@ -1,4 +1,12 @@
 defmodule RichardBurtonWeb.InvitationController do
+  @moduledoc """
+  Invitations: offering a role to an address, listing what is outstanding,
+  resending, and withdrawing.
+
+  An invitation is redeemed by signing in with the address it names, so nothing
+  here creates an account.
+  """
+
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.Invitation

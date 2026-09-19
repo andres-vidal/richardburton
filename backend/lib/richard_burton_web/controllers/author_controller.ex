@@ -1,4 +1,9 @@
 defmodule RichardBurtonWeb.AuthorController do
+  @moduledoc """
+  The author lookup that backs the editor's autocomplete: every author, or
+  those matching a search term.
+  """
+
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.Author

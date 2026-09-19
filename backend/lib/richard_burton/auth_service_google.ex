@@ -52,5 +52,7 @@ defmodule RichardBurton.Auth.Google do
     end
   end
 
+  # The client id a token's `aud` claim must carry, so a token minted for another
+  # application is not accepted here.
   defp audience, do: System.get_env("GOOGLE_CLIENT_ID")
 end

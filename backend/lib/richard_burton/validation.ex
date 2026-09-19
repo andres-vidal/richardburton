@@ -12,6 +12,8 @@ defmodule RichardBurton.Validation do
     end
   end
 
+  # Validates inside a transaction that is always rolled back, so constraints the
+  # database enforces are checked without writing anything.
   defp validate_transaction(changeset = %{valid?: true}, link_assocs) do
     Repo.transaction(fn ->
       case Repo.insert(link_assocs.(changeset)) do
@@ -54,6 +56,7 @@ defmodule RichardBurton.Validation do
     end
   end
 
+  # A field of a nested changeset or of an already-loaded struct.
   defp get_child_value(child = %Ecto.Changeset{}, key), do: Ecto.Changeset.get_field(child, key)
   defp get_child_value(child, key), do: Map.get(child, key)
 
@@ -64,6 +67,7 @@ defmodule RichardBurton.Validation do
     |> simplify_errors
   end
 
+  # An Ecto error rendered as the code the API returns, rather than a sentence.
   defp get_description({_msg, opts}), do: opts |> Map.new() |> get_description()
   defp get_description(%{validation: :required}), do: :required
   # A multi-value attribute that did not arrive as a list failed at the
@@ -77,6 +81,8 @@ defmodule RichardBurton.Validation do
   defp get_description(%{validation: :email}), do: :invalid
   defp get_description(%{constraint: :unique}), do: :conflict
 
+  # Collapses a branch whose children all carry the same error into that one
+  # error, so a client is told once rather than per field.
   defp simplify_errors(node) when is_map(node) do
     case node |> Map.values() do
       [:conflict] -> :conflict
@@ -89,6 +95,7 @@ defmodule RichardBurton.Validation do
     atom
   end
 
+  # Walks the error tree, simplifying each branch from the leaves up.
   defp coalesce_errors(node) when is_map(node) do
     node |> Enum.map(&coalesce_errors/1) |> Map.new()
   end

@@ -37,6 +37,7 @@ defmodule RichardBurton.Codec do
     |> Map.new()
   end
 
+  # Walks a nested map depth-first, joining the keys on the path to each leaf.
   defp do_flatten({key, value}, acc) when not is_map(value) do
     [{key, value} | acc]
   end
@@ -86,6 +87,7 @@ defmodule RichardBurton.Codec do
     |> Map.new(&coalesce_keys/1)
   end
 
+  # Writes a value at a path, creating the maps along it that do not exist yet.
   defp put_path(map, [key], value) when is_map(map) do
     Map.put(map, key, value)
   end
@@ -96,6 +98,8 @@ defmodule RichardBurton.Codec do
 
   defp put_path(not_map, _, _) when not is_map(not_map), do: not_map
 
+  # Collapses a branch with a single child into one joined key, so a path that
+  # never branches reads as one name rather than a chain.
   defp coalesce_keys({key, map}) when is_map(map) do
     case(coalesce_keys(map)) do
       {inner_key, v} -> {"#{key}_#{inner_key}", v}

@@ -69,9 +69,9 @@ defmodule RichardBurton.Country do
     |> Enum.uniq()
   end
 
-  # Derived index data, not editor input, so it is set where a country is
-  # persisted rather than in the changeset — a changeset also shapes the codec's
-  # nested form, which has no business carrying it.
+  # Derived index data rather than editor input, so it is set where a country is
+  # persisted instead of in the changeset, which also shapes the codec's nested
+  # form.
   defp put_names(changeset = %Ecto.Changeset{valid?: true}) do
     case get_field(changeset, :code) do
       nil -> changeset

@@ -30,9 +30,13 @@ defmodule RichardBurton.Auth.Claims do
 
   def validate(_claims, _issuer, _audience, _now), do: :error
 
+  # The provider's stable identifier for the account, which the session is keyed
+  # on rather than the address, since an address can change.
   defp subject(%{"sub" => sub}) when is_binary(sub) and sub != "", do: {:ok, sub}
   defp subject(_claims), do: :error
 
+  # Only a verified address is accepted: an invitation grants a role to an
+  # address, so an unverified one would let a caller claim someone else's.
   defp verified_email(%{"email" => email, "email_verified" => true})
        when is_binary(email) and email != "",
        do: {:ok, email}

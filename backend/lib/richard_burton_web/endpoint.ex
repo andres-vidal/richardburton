@@ -1,4 +1,9 @@
 defmodule RichardBurtonWeb.Endpoint do
+  @moduledoc """
+  The HTTP entry point: the socket, the static and parsing plugs, and the
+  session the `rb-session` cookie is carried in.
+  """
+
   use Phoenix.Endpoint, otp_app: :richard_burton
 
   # The session will be stored in the cookie and signed,

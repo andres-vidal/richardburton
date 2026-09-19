@@ -1,4 +1,9 @@
 defmodule RichardBurtonWeb.PublisherController do
+  @moduledoc """
+  The publisher lookup that backs the editor's autocomplete: every publisher, or
+  those matching a search term.
+  """
+
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.Publisher
