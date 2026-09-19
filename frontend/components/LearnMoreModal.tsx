@@ -8,17 +8,18 @@ import { Modal, useURLQueryModal } from "./Modal";
 
 const LEARN_MORE_MODAL_KEY = "learn-more";
 
+const AboutRichardBurtonHeading: FC = () => (
+  <h2>
+    About
+    <strong className="font-normal"> Richard & Isabel Burton</strong>
+  </h2>
+);
+
 const AboutRichardBurton: FC = () => {
   const { close } = useURLQueryModal(LEARN_MORE_MODAL_KEY);
 
   return (
-    <div className="space-y-6">
-      <header className="sticky z-30 px-1 py-2 bg-white top-10 sm:top-4">
-        <h2 className="text-lg">
-          About
-          <strong className="font-normal"> Richard & Isabel Burton</strong>
-        </h2>
-      </header>
+    <div>
       <div className="space-y-4">
         <div className="relative sm:w-1/2 aspect-[0.7] sm:float-right m-1 sm:ml-4">
           <Image
@@ -159,6 +160,7 @@ const LearnMoreModal: FC = () => {
         heading={<LearnMoreHeading />}
         content={<AboutRichardBurtonPlatform />}
         aside={<AboutRichardBurton />}
+        asideHeading={<AboutRichardBurtonHeading />}
         noSeparator
       />
     </Modal>
