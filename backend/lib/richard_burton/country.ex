@@ -10,12 +10,20 @@ defmodule RichardBurton.Country do
   alias RichardBurton.Publication
   alias RichardBurton.Fingerprint
 
-  # Names people search a country by, beyond the ones the ISO data carries:
-  # abbreviations readers type that are not in the official or unofficial names.
-  @extra_names %{
-    "US" => ["USA", "EUA"],
-    "GB" => ["UK"]
-  }
+  # Every country, by ISO alpha-2 code: its alpha-3 code, the name it is shown
+  # by in each language the platform speaks, and the other names a reader might
+  # type for it. This is the one place countries are named — the editor's field
+  # and every page that shows a country read it from here, over the API, so a
+  # country is searchable by the very name it is shown under.
+  #
+  # Read at compile time, since it is static data and every country insert asks
+  # for it. `@external_resource` is what makes editing the file recompile this.
+  @countries_path Path.join(:code.priv_dir(:richard_burton), "countries.json")
+  @external_resource @countries_path
+  @countries @countries_path |> File.read!() |> Jason.decode!()
+
+  # The language countries are named in when the one asked for has no names.
+  @default_locale "en"
 
   @derive {Jason.Encoder, only: [:code]}
   schema "countries" do
@@ -49,25 +57,129 @@ defmodule RichardBurton.Country do
   end
 
   @doc """
-  Every name a country is searchable by: its official name, the unofficial and
-  translated names the ISO data carries (which is where "Reino Unido" and
-  "Estados Unidos" come from), and a curated supplement of abbreviations the
-  data lacks. Deduplicated, in no particular order — the search index folds them
-  in, it does not display them.
+  Every name a country is searchable by: both its ISO codes, the name it is
+  shown under in each language, and the other names a reader might type for it.
+
+  Deduplicated, in no particular order — the search index folds them in, it does
+  not display them. A code the table does not hold answers with the code itself,
+  so a country is always searchable by what is stored.
+
+  ## Examples
+
+    iex> RichardBurton.Country.names_for("NL") |> Enum.take(4)
+    ["NL", "NLD", "Netherlands", "Países Baixos"]
   """
   def names_for(code) do
-    iso =
-      if Countries.exists?(:alpha2, code) do
-        country = Countries.get(code)
-        [country.name | Map.get(country, :unofficial_names) || []]
-      else
-        []
-      end
+    case Map.get(@countries, code) do
+      nil ->
+        [code]
 
-    (iso ++ Map.get(@extra_names, code, []))
-    |> Enum.filter(&is_binary/1)
-    |> Enum.uniq()
+      country ->
+        [code, country["alpha3"], country["en"]["name"], country["pt"]["name"]]
+        |> Enum.concat(country["aliases"] || [])
+        |> Enum.filter(&is_binary/1)
+        |> Enum.uniq()
+    end
   end
+
+  @doc """
+  Every country the platform knows, by ISO alpha-2 code, as the table holds it.
+  """
+  def all_known, do: @countries
+
+  @doc """
+  Every country the platform knows, named in `locale`, ordered by that name.
+
+  The shape the editor's country field reads: the code is what a publication
+  stores, the label is what a reader is shown. A locale the table has no names
+  for is answered in the default one.
+  """
+  def known(locale \\ @default_locale) do
+    language = language(locale)
+
+    @countries
+    |> Enum.map(fn {code, country} -> shown(code, country, language) end)
+    |> Enum.sort_by(&normalize(&1.label))
+  end
+
+  @doc """
+  The countries `term` finds, named in `locale`.
+
+  A country is found by either of its ISO codes, by the name it is shown under
+  in any language, or by one of the other names readers type for it — so "NL",
+  "NLD", "Netherlands", "Países Baixos" and "Holanda" all reach the same one.
+
+  Names that begin with the term come before names that merely contain it, and
+  a name matched in full comes before both: one country's name can begin
+  another's, and typing a name in full should not put it behind the longer names
+  it starts.
+  """
+  def search(term, locale \\ @default_locale)
+
+  def search(term, locale) when is_binary(term) do
+    case normalize(term) do
+      "" ->
+        known(locale)
+
+      normalized ->
+        language = language(locale)
+
+        @countries
+        |> Enum.map(fn {code, country} ->
+          {code, country, rank(code, normalized)}
+        end)
+        |> Enum.reject(fn {_, _, rank} -> is_nil(rank) end)
+        |> Enum.sort_by(fn {_, country, rank} ->
+          {rank, normalize(country[language]["name"])}
+        end)
+        |> Enum.map(fn {code, country, _} -> shown(code, country, language) end)
+    end
+  end
+
+  # A country as both the things that travel: the code a publication stores, the
+  # name a reader is shown, and the article that name takes in a sentence.
+  defp shown(code, country, language) do
+    named = country[language]
+    %{id: code, label: named["name"], article: named["article"]}
+  end
+
+  # How well a country answers to a term, lower being better, or nil for one it
+  # does not answer to at all. Every name it goes by is tried and the best
+  # standing wins, so a country found by its code is not held back by an alias
+  # that merely contains the term.
+  defp rank(code, term) do
+    code
+    |> names_for()
+    |> Enum.map(&standing(normalize(&1), term))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.min(fn -> nil end)
+  end
+
+  defp standing(name, term) do
+    cond do
+      name == term -> 0
+      String.starts_with?(name, term) -> 1
+      String.contains?(name, term) -> 2
+      true -> nil
+    end
+  end
+
+  # A name as it compares: case folded, and stripped of the accents a reader
+  # will not always type. "Países" and "paises" are the same name to a search.
+  defp normalize(text) do
+    text
+    |> String.downcase()
+    |> :unicode.characters_to_nfd_binary()
+    |> String.replace(~r/[\x{0300}-\x{036f}]/u, "")
+    |> String.trim()
+  end
+
+  # The language to name countries in, falling back the way the catalogue does.
+  defp language(locale) when is_binary(locale) do
+    if Map.has_key?(@countries["BR"], locale), do: locale, else: @default_locale
+  end
+
+  defp language(_), do: @default_locale
 
   # Derived index data rather than editor input, so it is set where a country is
   # persisted instead of in the changeset, which also shapes the codec's nested

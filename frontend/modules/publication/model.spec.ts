@@ -9,11 +9,22 @@ import {
   merged,
 } from "./model";
 import type { Publication } from "./model";
-import { countriesIn } from "modules/country";
+import { Country, rememberCountries } from "modules/country";
 import { routing } from "i18n/routing";
 
-// The specs are written in the default locale, so countries are named in it.
-const COUNTRIES = countriesIn(routing.defaultLocale);
+vi.mock("modules/country", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("modules/country")>()),
+  Country: { REMOTE: { search: vi.fn(), all: vi.fn() } },
+}));
+
+// The server names countries; the specs are written in the default locale, so
+// they hand over the handful they name a country by.
+const COUNTRIES = {
+  BR: { id: "BR", label: "Brazil" },
+  NL: { id: "NL", label: "Netherlands", article: "the" },
+};
+
+rememberCountries(routing.defaultLocale, Object.values(COUNTRIES));
 
 describe("empty", () => {
   test("returns a publication with every attribute blank", () => {
@@ -38,19 +49,13 @@ describe("empty", () => {
 });
 
 describe("describeValue", () => {
-  const knownCode = Object.keys(COUNTRIES)[0];
-
   test("maps a country code to its label", () => {
-    expect(describeValue(knownCode, "countries")).toBe(
-      COUNTRIES[knownCode].label,
-    );
+    expect(describeValue("BR", "countries")).toBe("Brazil");
   });
 
   test("describes every code of a list — what a merged record holds", () => {
-    const [first, second] = Object.keys(COUNTRIES);
-
-    expect(describeAttribute([first, second], "countries")).toBe(
-      `${COUNTRIES[first].label}, ${COUNTRIES[second].label}`,
+    expect(describeAttribute(["BR", "NL"], "countries")).toBe(
+      "Brazil, Netherlands",
     );
   });
 
@@ -61,8 +66,8 @@ describe("describeValue", () => {
     expect(warn).toHaveBeenCalled();
 
     // One unknown code in a list does not cost the others their labels.
-    expect(describeAttribute([knownCode, "__nope__"], "countries")).toBe(
-      `${COUNTRIES[knownCode].label}, __nope__`,
+    expect(describeAttribute(["BR", "__nope__"], "countries")).toBe(
+      "Brazil, __nope__",
     );
 
     warn.mockRestore();
@@ -114,26 +119,26 @@ describe("define", () => {
 });
 
 describe("autocomplete", () => {
-  test("filters countries by a case-insensitive label prefix", async () => {
-    const [sample] = Object.values(COUNTRIES);
-    const prefix = sample.label.slice(0, 3);
+  // Which countries a term finds is the server's to decide — it is the only
+  // side that knows every name a country goes by. See the Country specs.
+  test("asks the server for the countries a term finds, in the reader's language", async () => {
+    vi.mocked(Country.REMOTE.search).mockResolvedValue([COUNTRIES.NL]);
 
-    const results = await autocomplete(prefix, "countries");
-
-    expect(results.length).toBeGreaterThan(0);
-    results.forEach((country) =>
-      expect(country.label.toLowerCase()).toContain(prefix.toLowerCase()),
-    );
-    // Case doesn't matter — the same prefix lowercased matches the same set.
-    expect((await autocomplete(prefix.toLowerCase(), "countries")).length).toBe(
-      results.length,
-    );
+    await expect(autocomplete("holanda", "countries", "pt")).resolves.toEqual([
+      COUNTRIES.NL,
+    ]);
+    expect(Country.REMOTE.search).toHaveBeenCalledWith("holanda", "pt");
   });
 
-  test("returns every country for an empty query", async () => {
-    const results = await autocomplete("", "countries");
+  test("asks in the default language when none is given", async () => {
+    vi.mocked(Country.REMOTE.search).mockResolvedValue([]);
 
-    expect(results).toHaveLength(Object.keys(COUNTRIES).length);
+    await autocomplete("anything", "countries");
+
+    expect(Country.REMOTE.search).toHaveBeenCalledWith(
+      "anything",
+      routing.defaultLocale,
+    );
   });
 
   test("resolves to an empty list for attributes without suggestions", async () => {

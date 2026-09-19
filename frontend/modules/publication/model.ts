@@ -1,6 +1,6 @@
 import { isString } from "lodash";
 import { Author } from "modules/author";
-import { countriesIn, countryName, Country } from "modules/country";
+import { Country, countryName } from "modules/country";
 import { routing } from "i18n/routing";
 import { OriginalBook, type OriginalBookValue } from "modules/original-book";
 import { Publisher } from "modules/publisher";
@@ -366,25 +366,8 @@ function autocomplete(
     case "originalTitle":
       return OriginalBook.REMOTE.search(value);
 
-    case "countries": {
-      const all = Object.values(countriesIn(locale ?? routing.defaultLocale));
-      const term = value.toLowerCase();
-
-      // One country's name can begin another's — "United States" begins
-      // "United States Minor Outlying Islands" — so a name typed in full is
-      // offered first rather than behind the longer names it starts.
-      const found = value
-        ? all
-            .filter((opt) => opt.label.toLowerCase().startsWith(term))
-            .sort(
-              (one, other) =>
-                Number(other.label.toLowerCase() === term) -
-                Number(one.label.toLowerCase() === term),
-            )
-        : all;
-
-      return new Promise<Country[]>((resolve) => resolve(found));
-    }
+    case "countries":
+      return Country.REMOTE.search(value, locale ?? routing.defaultLocale);
     default:
       return new Promise<[]>((resolve) => resolve([]));
   }
@@ -415,7 +398,6 @@ export {
   ATTRIBUTE_TYPES,
   ATTRIBUTES,
   autocomplete,
-  countriesIn,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
   describe,
