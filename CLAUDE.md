@@ -48,9 +48,9 @@ A comment must make sense to someone reading the file cold, a year from now, who
 - **Restating the code** — a comment that says what the next line plainly says.
 - **Teaching the stack** — "a server component", "this is a hook", "an async component runs on the server". The reader knows the framework; the file already says which it is. Explain the *decision*, if there is one to explain, and only where it is not obvious.
 
-Write "only the open modal answers Escape", not "this used to fire on closed modals too, which put the parameter back". The same applies to docstrings, story descriptions and test comments: say what the behaviour *is*, or what property a test protects — not the incident that led to it.
+The same applies to docstrings, story descriptions and test comments: say what the behaviour *is*, or what property a test protects, not the incident that led to it.
 
-Use the same plain, technical register as commit messages. Name what a function takes and returns, which column a query filters, what a value parses into. Write "Splits one alternative's tokens into the operators and the free words", not "What a reader typed, read as a question".
+Use the same plain, technical register as commit messages. Name what a function takes and returns, which column a query filters, what a value parses into.
 
 Write **ordinary explanatory sentences**. The failure here is not jargon, it is compression: prose squeezed until the reader has to unpack it.
 
