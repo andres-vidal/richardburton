@@ -19,19 +19,27 @@ import TextEnumDataInput from "./TextEnumDataInput";
 import TextNumberDataInput from "./TextNumberDataInput";
 import Tooltip from "./Tooltip";
 
+/** The attribute types whose value is several strings rather than one. */
+type ListKeyType = "array" | "enumArray";
+
 /**
  * An attribute's type picks the component that edits it, and the same choice
- * decides whether its value is one string or several — `array` and `enumArray`
- * take a list, the rest take a single value. That pairing is what these casts
- * stand on, and this table is the only place it is stated.
+ * decides whether its value is one string or several. Writing the table this
+ * way makes each entry answer for its own value shape, so wiring a list type to
+ * an input that takes a single value is a type error here rather than a
+ * surprise at the call site.
  */
-const COMPONENTS_PER_TYPE: Record<PublicationKeyType, FC<Props>> = {
-  text: TextDataInput as FC<Props>,
-  enum: TextEnumDataInput as FC<Props>,
-  enumArray: TextEnumArrayDataInput as FC<Props>,
-  number: TextNumberDataInput as FC<Props>,
-  array: TextArrayDataInput as FC<Props>,
-  book: OriginalBookDataInput as FC<Props>,
+const COMPONENTS_PER_TYPE: {
+  [T in PublicationKeyType]: T extends ListKeyType
+    ? FC<ListProps>
+    : FC<ScalarProps>;
+} = {
+  text: TextDataInput,
+  enum: TextEnumDataInput,
+  enumArray: TextEnumArrayDataInput,
+  number: TextNumberDataInput,
+  array: TextArrayDataInput,
+  book: OriginalBookDataInput,
 };
 
 /**
@@ -87,7 +95,9 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   } = props;
 
   const type = Publication.ATTRIBUTE_TYPES[props.colId];
-  const Component = COMPONENTS_PER_TYPE[type];
+  // `type` is only known at runtime, so the value shape the table pairs with it
+  // cannot be carried through the lookup. This is the one place that is asserted.
+  const Component = COMPONENTS_PER_TYPE[type] as FC<Props>;
   const placeholder = Publication.ATTRIBUTE_LABELS[colId];
 
   const store = usePublicationStore();
