@@ -127,16 +127,6 @@ const ATTRIBUTES: PublicationKey[] = [
   "publishers",
 ];
 
-const ATTRIBUTE_LABELS: Record<PublicationKey, string> = {
-  authors: "Translators",
-  originalAuthors: "Original Authors",
-  originalTitle: "Original Title",
-  countries: "Countries",
-  publishers: "Publishers",
-  title: "Title",
-  year: "Year",
-};
-
 const ATTRIBUTE_TYPES: Record<PublicationKey, PublicationKeyType> = {
   authors: "array",
   originalAuthors: "array",
@@ -394,7 +384,6 @@ function autocomplete(
 // components already use (a type and a value can share the name in TS).
 const Publication = {
   ATTRIBUTES,
-  ATTRIBUTE_LABELS,
   ATTRIBUTE_TYPES,
   ATTRIBUTE_IS_TOGGLEABLE,
   autocomplete,
@@ -411,7 +400,6 @@ const Publication = {
 
 export {
   ATTRIBUTE_IS_TOGGLEABLE,
-  ATTRIBUTE_LABELS,
   ATTRIBUTE_TYPES,
   ATTRIBUTES,
   autocomplete,

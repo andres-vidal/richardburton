@@ -55,18 +55,28 @@
     "pendingRole": "Your role is Reader, which carries nothing to do here — the database is open to everyone, signed in or not.",
     "pendingUpgrade": "An administrator can give you a role that adds and corrects publications. Once they do, sign in again.",
     "errorTitle": "Error",
-    "accessDeniedTitle": "You need an invitation",
-    "accessDeniedMessage": "Signing in worked, but this address has not been invited, so no account has been created.",
-    "accessDeniedSuggestion": "Ask an administrator to invite this address, then sign in again.",
-    "verificationTitle": "Verification error",
-    "verificationMessage": "Seems like your token is expired or has already been used. Please contact support.",
-    "configurationTitle": "Configuration error",
-    "configurationMessage": "Seems like the server is not configured correctly. Please contact support.",
-    "defaultTitle": "Something went wrong...",
-    "defaultMessage": "Seems like the app is not working correctly. Please contact support.",
     "tryAgain": "Try again",
     "googleButton": "Sign in with Google",
-    "pendingPageTitle": "Access pending"
+    "pendingPageTitle": "Access pending",
+    "errors": {
+      "AccessDenied": {
+        "title": "You need an invitation",
+        "message": "Signing in worked, but this address has not been invited, so no account has been created.",
+        "suggestion": "Ask an administrator to invite this address, then sign in again."
+      },
+      "Verification": {
+        "title": "Verification error",
+        "message": "Seems like your token is expired or has already been used. Please contact support."
+      },
+      "Configuration": {
+        "title": "Configuration error",
+        "message": "Seems like the server is not configured correctly. Please contact support."
+      },
+      "Default": {
+        "title": "Something went wrong...",
+        "message": "Seems like the app is not working correctly. Please contact support."
+      }
+    }
   },
   "searchHelp": {
     "title": "How to search",

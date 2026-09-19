@@ -11,15 +11,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("auth"))("errorTitle") };
 }
 
-type ErrorCode = "AccessDenied" | "Verification" | "Default" | "Configuration";
-/** What each error is called in the catalogue, and whether it suggests a way out. */
-const ERROR_MESSAGES: Record<ErrorCode, { key: string; suggests?: true }> = {
-  AccessDenied: { key: "accessDenied", suggests: true },
-  Verification: { key: "verification" },
-  Configuration: { key: "configuration" },
-  Default: { key: "default" },
-};
-
 export default async function AuthErrorPage({
   searchParams,
 }: {
@@ -34,15 +25,19 @@ export default async function AuthErrorPage({
   }
 
   const t = await getTranslations("auth");
+  const errors = await getTranslations("auth.errors");
   const { error } = await searchParams;
-  const described = error
-    ? (ERROR_MESSAGES[error as ErrorCode] ?? ERROR_MESSAGES.Default)
-    : null;
-  const description = described && {
-    title: t(`${described.key}Title`),
-    message: t(`${described.key}Message`),
-    suggestion: described.suggests
-      ? t(`${described.key}Suggestion`)
+
+  // The provider names the error and the catalogue is keyed by that name, so
+  // there is nothing in between to keep in step. One it has no words for is
+  // told as the general failure, and one it has no way out of says none.
+  const named = error && (errors.has(`${error}.title`) ? error : "Default");
+
+  const description = named && {
+    title: errors(`${named}.title`),
+    message: errors(`${named}.message`),
+    suggestion: errors.has(`${named}.suggestion`)
+      ? errors(`${named}.suggestion`)
       : undefined,
   };
 

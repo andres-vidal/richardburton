@@ -55,18 +55,28 @@
     "pendingRole": "Seu perfil é Leitor, que não tem nada a fazer por aqui — a base de dados é aberta a todos, com ou sem conta.",
     "pendingUpgrade": "Um administrador pode lhe dar um perfil que adiciona e corrige publicações. Assim que fizer, entre novamente.",
     "errorTitle": "Erro",
-    "accessDeniedTitle": "Você precisa de um convite",
-    "accessDeniedMessage": "O login funcionou, mas este endereço não foi convidado, então nenhuma conta foi criada.",
-    "accessDeniedSuggestion": "Peça a um administrador que convide este endereço e entre novamente.",
-    "verificationTitle": "Erro de verificação",
-    "verificationMessage": "Parece que seu token expirou ou já foi usado. Entre em contato com o suporte.",
-    "configurationTitle": "Erro de configuração",
-    "configurationMessage": "Parece que o servidor não está configurado corretamente. Entre em contato com o suporte.",
-    "defaultTitle": "Algo deu errado...",
-    "defaultMessage": "Parece que o aplicativo não está funcionando corretamente. Entre em contato com o suporte.",
     "tryAgain": "Tentar novamente",
     "googleButton": "Entrar com o Google",
-    "pendingPageTitle": "Acesso pendente"
+    "pendingPageTitle": "Acesso pendente",
+    "errors": {
+      "AccessDenied": {
+        "title": "Você precisa de um convite",
+        "message": "O login funcionou, mas este endereço não foi convidado, então nenhuma conta foi criada.",
+        "suggestion": "Peça a um administrador que convide este endereço e entre novamente."
+      },
+      "Verification": {
+        "title": "Erro de verificação",
+        "message": "Parece que seu token expirou ou já foi usado. Entre em contato com o suporte."
+      },
+      "Configuration": {
+        "title": "Erro de configuração",
+        "message": "Parece que o servidor não está configurado corretamente. Entre em contato com o suporte."
+      },
+      "Default": {
+        "title": "Algo deu errado...",
+        "message": "Parece que o aplicativo não está funcionando corretamente. Entre em contato com o suporte."
+      }
+    }
   },
   "searchHelp": {
     "title": "Como pesquisar",
