@@ -261,8 +261,7 @@
     "cancel": "Cancel",
     "send": "Send",
     "sent": "Your message has been sent!",
-    "failed": "Something went wrong.",
-    "required": "Required"
+    "failed": "Something went wrong."
   },
   "about": {
     "label": "About the platform",
@@ -427,5 +426,9 @@
     "restored": "Restored",
     "merged": "Merged",
     "unmerged": "Unmerged"
+  },
+  "validation": {
+    "required": "Required",
+    "email": "Enter a valid email address"
   }
 }

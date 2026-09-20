@@ -2,7 +2,7 @@
 
 import { GOOGLE_RECAPTCHA_SITEKEY, http } from "app";
 import { isAxiosError } from "axios";
-import { FC, useMemo, useRef, useState } from "react";
+import { FC, useRef, useState } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useForm } from "utils/useForm";
 import { z } from "zod";
@@ -17,15 +17,14 @@ import TextInput from "./TextInput";
 
 const CONTACT_MODAL_KEY = "contact";
 
-/** The form's shape, built where its messages can be read. */
-const contactSchema = (required: string) =>
-  z.object({
-    name: z.string().trim().min(1, required),
-    institution: z.string().optional(),
-    address: z.string().trim().email().min(1, required),
-    subject: z.string().trim().min(1, required),
-    message: z.string().trim().min(1, required),
-  });
+/** What the form accepts. Why it refuses is `useForm`'s to say. */
+const CONTACT = z.object({
+  name: z.string().trim().min(1),
+  institution: z.string().optional(),
+  address: z.string().trim().email(),
+  subject: z.string().trim().min(1),
+  message: z.string().trim().min(1),
+});
 
 const ContactForm: FC = () => {
   const t = useTranslations("contact");
@@ -35,8 +34,7 @@ const ContactForm: FC = () => {
 
   const [loading, setLoading] = useState(false);
 
-  const Contact = useMemo(() => contactSchema(t("required")), [t]);
-  const { inputs, form } = useForm(Contact, {
+  const { inputs, form } = useForm(CONTACT, {
     disabled: loading,
     async onSubmit(values, { setErrors }) {
       setLoading(true);

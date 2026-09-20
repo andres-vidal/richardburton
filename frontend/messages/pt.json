@@ -261,8 +261,7 @@
     "cancel": "Cancelar",
     "send": "Enviar",
     "sent": "Sua mensagem foi enviada!",
-    "failed": "Algo deu errado.",
-    "required": "Obrigatório"
+    "failed": "Algo deu errado."
   },
   "about": {
     "label": "Sobre a plataforma",
@@ -427,5 +426,9 @@
     "restored": "Restaurada",
     "merged": "Unida",
     "unmerged": "Separada"
+  },
+  "validation": {
+    "required": "Obrigatório",
+    "email": "Digite um endereço de e-mail válido"
   }
 }
