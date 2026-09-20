@@ -864,6 +864,19 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Excerpt.resolution("year:1950-1960") == []
     end
 
+    # The operator resolves its value to the countries it names; it never asks
+    # the indexed words. Reporting them described a search that did not happen —
+    # "us" was said to have matched "usa", "us" and "useful".
+    test "a country reports nothing, being resolved rather than widened" do
+      assert Excerpt.resolution("country:us") == []
+      assert Excerpt.resolution("country:US") == []
+      assert Excerpt.resolution("pais:Holanda") == []
+    end
+
+    test "a country alongside a widened word leaves that word reported" do
+      assert [%{field: nil, typed: "Maries"}] = Excerpt.resolution("Maries country:us")
+    end
+
     test "a spelled-out term is read by Postgres, and reports nothing" do
       assert Excerpt.resolution(~s("Berkeley")) == []
     end
