@@ -102,21 +102,98 @@ defmodule RichardBurton.CountryTest do
   end
 
   describe "names_for/1" do
-    test "carries the official name and the ISO translations" do
-      names = Country.names_for("US")
+    test "carries both ISO codes" do
+      names = Country.names_for("NL")
 
-      assert "United States of America" in names
-      assert "Estados Unidos" in names
+      assert "NL" in names
+      assert "NLD" in names
     end
 
-    test "carries the curated abbreviations the ISO data lacks" do
+    test "carries the name the country is shown under in each language" do
+      names = Country.names_for("NL")
+
+      assert "Netherlands" in names
+      assert "Pa\u00edses Baixos" in names
+    end
+
+    test "carries the other names readers type for it" do
+      assert "Holanda" in Country.names_for("NL")
       assert "USA" in Country.names_for("US")
       assert "EUA" in Country.names_for("US")
       assert "UK" in Country.names_for("GB")
     end
 
-    test "an unknown code has no names" do
-      assert [] == Country.names_for("XX")
+    test "an unknown code is searchable by the code itself" do
+      assert ["XX"] == Country.names_for("XX")
+    end
+  end
+
+  describe "search/2" do
+    test "finds a country by either of its ISO codes" do
+      assert [%{id: "NL"} | _] = Country.search("NL", "en")
+      assert [%{id: "NL"} | _] = Country.search("NLD", "en")
+    end
+
+    test "finds a country by the name it is shown under in either language" do
+      assert [%{id: "NL"} | _] = Country.search("Netherlands", "pt")
+      assert [%{id: "NL"} | _] = Country.search("Pa\u00edses Baixos", "en")
+    end
+
+    test "finds a country by one of the other names readers type for it" do
+      assert [%{id: "NL"}] = Country.search("Holanda", "pt")
+      assert [%{id: "US"} | _] = Country.search("EUA", "pt")
+    end
+
+    test "an accent a reader leaves out still finds the country" do
+      assert [%{id: "NL"} | _] = Country.search("paises baixos", "pt")
+    end
+
+    test "names it in the language asked for" do
+      assert [%{id: "NL", label: "Pa\u00edses Baixos"} | _] = Country.search("NL", "pt")
+      assert [%{id: "NL", label: "Netherlands"} | _] = Country.search("NL", "en")
+    end
+
+    test "carries the article the name takes, for a sentence that places it" do
+      assert [%{id: "NL", article: "os"} | _] = Country.search("NL", "pt")
+      assert [%{id: "BR", article: nil} | _] = Country.search("BR", "en")
+    end
+
+    test "a name typed in full comes before the longer names it begins" do
+      assert [%{id: "US"} | _] = Country.search("United States", "en")
+    end
+
+    test "an empty term finds every country" do
+      assert length(Country.search("", "en")) == length(Country.known("en"))
+    end
+
+    test "a term nothing answers to finds nothing" do
+      assert [] == Country.search("zzzzz", "en")
+    end
+  end
+
+  describe "known/1" do
+    test "names every country in the language asked for" do
+      labels = Country.known("pt") |> Enum.map(& &1.label)
+
+      assert "Alemanha" in labels
+      assert "Pa\u00edses Baixos" in labels
+      assert length(labels) == length(Country.known("en"))
+    end
+
+    test "orders them by the name that language calls them, accents aside" do
+      labels = Country.known("pt") |> Enum.map(& &1.label)
+
+      # "\u00c1frica do Sul" sorts under A, where a reader looks for it, rather
+      # than after Z where its accented first letter would otherwise put it.
+      assert Enum.find_index(labels, &(&1 == "Afeganist\u00e3o")) <
+               Enum.find_index(labels, &(&1 == "\u00c1frica do Sul"))
+
+      assert Enum.find_index(labels, &(&1 == "\u00c1frica do Sul")) <
+               Enum.find_index(labels, &(&1 == "Alb\u00e2nia"))
+    end
+
+    test "a language it has no names for is answered in the default one" do
+      assert Country.known("de") == Country.known("en")
     end
   end
 
