@@ -14,7 +14,10 @@ import PublicationSearch from "components/PublicationSearch";
 import { SearchHelpModal } from "components/SearchHelpModal";
 import SignInButton from "components/SignInButton";
 import type { PublicationIndex } from "app/publications/read";
-import { usePublicationIndexCount } from "modules/publication/hooks";
+import {
+  useMatchingCount,
+  usePublicationIndexCount,
+} from "modules/publication/hooks";
 import { receiveIndex } from "modules/publication/store";
 import {
   PublicationStoreProvider,
@@ -49,6 +52,7 @@ function Database({ index }: Props) {
   const store = usePublicationStore();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
+  const matching = useMatchingCount();
 
   const received = useRef(index);
 
@@ -90,7 +94,11 @@ function Database({ index }: Props) {
         <div className="py-4 space-y-4">
           <div className="flex items-center justify-center gap-3 text-sm text-indigo-700">
             <span className="border-b grow h-fit" />
-            <span>{t("count", { count })}</span>
+            <span>
+              {search
+                ? t("matching", { count: matching })
+                : t("count", { count })}
+            </span>
             <span className="border-b grow h-fit" />
           </div>
           <div className="flex gap-2 items-start pr-3 md:pr-0">

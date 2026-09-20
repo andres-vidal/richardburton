@@ -158,6 +158,13 @@ export async function expectPublicationCount(page: Page, n: number) {
   ).toBeVisible();
 }
 
+/** What the same line says once a search has narrowed the database. */
+export async function expectMatchCount(page: Page, n: number) {
+  const said = n === 0 ? "No publications found" : `${n} publications found`;
+
+  await expect(page.getByText(new RegExp(`^${said}$`))).toBeVisible();
+}
+
 /** The desktop index table (scope every index assertion here — a mobile copy of
  * every row also lives in the DOM). */
 export function indexTable(page: Page) {

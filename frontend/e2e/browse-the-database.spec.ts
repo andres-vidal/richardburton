@@ -9,6 +9,7 @@ import {
   expectPublicationCount,
   CORPUS_SIZE,
   CSV_HEADER,
+  expectMatchCount,
   PAGED_CSV,
   PAGED_SIZE,
 } from "./helpers";
@@ -360,6 +361,29 @@ test("a search link in an open publication takes the reader to that search", asy
   const rows = indexTable(page).getByRole("row");
   await expect(rows.filter({ hasText: "Dom Casmurro" }).first()).toBeVisible();
   await expect(rows.filter({ hasText: "The Hour of the Star" })).toHaveCount(0);
+});
+
+test("the count says how many a search found, not how many exist", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+
+  // With nothing searched the line stands for the database itself.
+  await expectPublicationCount(page, CORPUS_SIZE);
+
+  const search = page.getByRole("textbox", { name: "Search publications" });
+
+  // Three of the seven are Machado de Assis.
+  await search.fill("Machado");
+  await expectMatchCount(page, 3);
+
+  await search.fill("zzzznomatchqqq");
+  await expectMatchCount(page, 0);
+
+  // Clearing it gives the database back.
+  await search.fill("");
+  await expectPublicationCount(page, CORPUS_SIZE);
 });
 
 test("a row answered by its sources says so", async ({ page }) => {
