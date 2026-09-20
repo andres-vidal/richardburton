@@ -31,6 +31,7 @@
   },
   "home": {
     "count": "{count, plural, one {# publication registered so far} other {# publications registered so far}}",
+    "matching": "{count, plural, =0 {No publications found} one {# publication found} other {# publications found}}",
     "admin": "Admin"
   },
   "search": {
