@@ -211,12 +211,10 @@ function merged(winner: Publication, losers: Publication[]): Publication {
  * with the model. `year` is an integer on the backend and text in a form, so it
  * arrives here as either.
  *
- * A country listed in `matched` has its whole name wrapped in the same `[[ ]]`
- * the index wraps matched words in. The whole name is wrapped rather than part
- * of it, because the name that matched is often not the name on the page: a
- * reader searching "Holanda" matched a name that neither English nor Portuguese
- * displays. Which countries matched is decided by the index and passed in here,
- * so this function never works out for itself what to highlight.
+ * A country listed in `matched` gets its whole name wrapped in the index's own
+ * `[[ ]]`. The whole name, because what matched is often not what is displayed:
+ * "Holanda" matches a name neither language shows. The index decides which
+ * countries matched; nothing here works that out.
  */
 function shown(
   values: unknown[],
@@ -303,14 +301,13 @@ type Marking = {
 };
 
 /**
- * How a publication reads to someone reading in `locale`, who names countries
- * the way `country` does.
+ * How a publication reads to one reader: their language, and how they name a
+ * country.
  *
- * Both of those are the reader's, not the record's: the same publication reads
- * differently to someone reading in Portuguese. Taking them once and answering
- * about any field is what keeps the language out of every call, and what lets
- * something outside React — a Jotai atom, a spec — read a publication by saying
- * which reader it is reading as.
+ * Both belong to the reader, not the record — the same publication reads
+ * differently in Portuguese. Taking them once keeps the language out of every
+ * call, and lets code outside React read a publication by saying who is
+ * reading.
  */
 function marking(locale: string, country: CountryNaming): Marking {
   return {

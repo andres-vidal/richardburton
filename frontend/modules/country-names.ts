@@ -13,15 +13,13 @@ type CountryNaming = {
 /**
  * How to name a country, in the language the page is being read in.
  *
- * A country is stored as its code and read as a name, and the name comes from
- * the `countryNames` catalogue the server fills — see `i18n/request`. This
- * returns functions rather than a single name so that a caller can read the
- * catalogue once and then name a whole list, or hand the naming to
- * `Publication.markedValue`.
+ * Reads the `countryNames` and `countryArticles` catalogues the server fills —
+ * see `i18n/request`. Functions rather than one name, so a caller reads the
+ * catalogue once and then names a whole list, or hands the naming to
+ * `Publication.marking`.
  *
- * A code the catalogue has no name for is shown as the code itself. That case
- * is a record holding a country the platform no longer knows about, and showing
- * what is stored is more useful than showing nothing.
+ * A code with no name is shown as itself: the record holds a country the
+ * platform no longer knows, and what is stored beats nothing.
  */
 function useCountryNaming(): CountryNaming {
   const names = useTranslations("countryNames");

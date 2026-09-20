@@ -90,19 +90,13 @@ defmodule RichardBurton.Country do
   @doc """
   The ISO alpha-2 code a value names, or nil where it names no country.
 
-  A value names a country when it is written out as one of the names that
-  country goes by: either ISO code, the name in either language, or one of the
-  other names readers have for it. A spreadsheet saying "UK" or "AUS" is saying
-  the United Kingdom and Australia, and is filed under `GB` and `AU`.
+  The value has to be a complete name the country goes by: either ISO code, the
+  name in either language, or one of the other names readers use. A name only
+  begun returns nil, as does one two countries share.
 
-  The value has to be a complete name. "Braz" returns nil, even though the
-  search would offer Brazil for it, because the search is suggesting and this is
-  deciding where a record is stored. A half-written name that resolved to a
-  country would file the record under a country nobody chose.
-
-  A value two countries share also returns nil, for the same reason. "São
-  Martinho" is both Sint Maarten and Saint Martin, and picking one of them would
-  be a guess.
+  Stricter than the search, which offers what a fragment could still become.
+  This decides where a record is filed, and a guess files it under a country
+  nobody chose.
 
   ## Examples
 
@@ -132,15 +126,14 @@ defmodule RichardBurton.Country do
   def code_for(_value), do: nil
 
   @doc """
-  Files each country a changeset holds under the code that names it.
+  Replaces each country in a changeset with its ISO code: "UK" becomes `GB`,
+  "Brasil" becomes `BR`.
 
-  A person writing a country down writes what they call it, and a bulk import
-  carries whatever the spreadsheet said. A value naming exactly one country
-  becomes that country's code; anything else is left as written, so
-  `validate_countries/1` refuses it and says what it refused.
+  A value naming no country, or more than one, is left as written for
+  `validate_countries/1` to refuse by name.
 
-  This runs before the record is validated or fingerprinted, so two rows that
-  say "UK" and "GB" are the same row rather than two.
+  Runs before validation and fingerprinting, so rows saying "UK" and "GB" are
+  one row rather than two.
   """
   def resolve_countries(changeset = %Ecto.Changeset{}) do
     case get_change(changeset, :countries) do
@@ -156,13 +149,11 @@ defmodule RichardBurton.Country do
   @doc """
   The codes of the countries a `country:` operator's value names.
 
-  A name matched in full answers alone, and only where nothing matches in full
-  does a name merely beginning with the value answer. Writing a country out
-  therefore names that country and not the longer names it starts: `country:US`
-  is the United States, not every country with a name beginning "us".
+  A complete name answers alone; failing that, every name the value begins. So
+  `country:US` is the United States, not every country whose name starts "us".
 
-  A value no name begins answers with nothing, which is a filter nothing
-  satisfies rather than one everything does.
+  A value naming nothing answers with nothing — a filter no row satisfies, not
+  one every row does.
 
   ## Examples
 
@@ -184,9 +175,8 @@ defmodule RichardBurton.Country do
 
   def answering(_value), do: []
 
-  # The countries that answer `normalized` as well as any of them does: those
-  # matching it in full where any does, and otherwise those it begins the name
-  # of. A country it only appears inside of does not answer it at all.
+  # The best answers to `normalized`: complete matches if there are any, else
+  # names it begins. A name it merely appears inside does not answer.
   defp best_answering(normalized) do
     named =
       @countries
@@ -203,22 +193,13 @@ defmodule RichardBurton.Country do
   @doc """
   The codes of the countries a term names outright.
 
-  A country is named when one of the names it is called appears in the term as a
-  run of consecutive words. "machado brazil" names Brazil, and "United States
-  Kingdom" names the United States but not the United Kingdom, whose name it
-  does not contain.
+  A name counts when its words appear in the term consecutively, case, accents
+  and punctuation folded away. Consecutive, not merely present, so that
+  "United States Kingdom" names the United States and not the United Kingdom.
 
-  The words have to be consecutive rather than merely present, which is how two
-  countries that share a word are told apart: "Reino Unido" contains both words
-  of the United Kingdom's Portuguese name in order, and shares only "Unido" with
-  "Estados Unidos". Case, accents and punctuation are folded away first, so
-  "paises baixos" names the same country "Países Baixos" does.
-
-  A code names a country when the term writes it in capitals, or when the term
-  is that code and nothing else. Two-letter codes often spell common words, and
-  capitals are what tell the two apart: "machado DE" asks for Germany, while
-  "machado de assis" uses "de" as a Portuguese preposition and asks for no
-  country at all.
+  A code counts when the term writes it in capitals, or is that code and nothing
+  else. Two-letter codes spell common words, and the capitals are what separate
+  them: "machado DE" asks for Germany, "machado de assis" does not.
 
   ## Examples
 
@@ -243,18 +224,12 @@ defmodule RichardBurton.Country do
   @doc """
   The codes of the countries a term reaches.
 
-  A term is read in two passes. First `named_in/1` asks which countries the term
-  names outright; if any does, those are the answer and nothing else is tried.
-  So "Reino Unido" reaches the United Kingdom alone, and not the "Estados
-  Unidos" it shares a word with, and "United States Kingdom" reaches the United
-  States alone.
+  Whatever `named_in/1` finds, if anything. Failing that, every country the whole
+  term begins the name of, so "United" reaches both the United States and the
+  United Kingdom.
 
-  Only when the term names no country does the second pass run, which treats the
-  whole term as a name the reader has not finished typing. "United" reaches
-  every country whose name begins with it.
-
-  The order matters: a term that already says which country it means must not
-  also reach the countries it only partly resembles.
+  Names first, so a term that says which country it means does not also reach the
+  ones it only resembles.
 
   ## Examples
 
@@ -282,31 +257,22 @@ defmodule RichardBurton.Country do
     Enum.any?(called(code), &run_of?(words(&1), said)) or coded?(code, said, as_typed)
   end
 
-  # Whether a term says one of this country's codes. It counts when the term
-  # writes the code in capitals, and when the term is that code and nothing
-  # else, in whatever case.
+  # Whether a term says one of this country's codes: written in capitals, or
+  # standing as the whole term in any case.
   #
-  # Two-letter codes often spell common words. "DE" is Germany's code and "de"
-  # is a Portuguese preposition, so the capitals are the only thing separating
-  # them: "machado DE" asks for Germany, "machado de assis" does not, and "de"
-  # on its own asks for nothing but Germany because there is nothing else in it.
+  # Two-letter codes spell common words, so capitals are what separate "machado
+  # DE" from "machado de assis".
   defp coded?(code, said, as_typed) do
     codes = coded(code)
 
     Enum.any?(codes, &(&1 in as_typed)) or Enum.any?(codes, &(words(&1) == said))
   end
 
-  # The countries whose names begin with `said`, treating the whole of it as a
-  # name the reader has not finished typing.
+  # The countries whose names begin with the whole of `said`, already folded.
   #
-  # The fragment has to be the entire term. If any word of a longer term counted,
-  # "machado de assis" would reach four countries, because "de" begins Germany's
-  # name in German, Denmark's in English, and two more. A word sitting inside a
-  # longer term is being used as a word, not as a country someone is partway
-  # through typing.
-  #
-  # Codes are not tried here. A code is already a complete name, so `named?/3`
-  # has settled it. The words arrive already folded.
+  # The whole term, because "de" begins four countries' names and counting any
+  # word of a longer one would have "machado de assis" reach all four. Codes are
+  # left to `named?/3`, being complete names already.
   defp beginning([]), do: []
 
   defp beginning(said) do
