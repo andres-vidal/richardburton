@@ -1,4 +1,4 @@
-import AuthCard, { AUTH_CARD_BODY } from "components/AuthCard";
+import AuthCard from "components/AuthCard";
 import Layout from "components/Layout";
 import type { Metadata } from "next";
 import { Link } from "i18n/navigation";
@@ -28,15 +28,13 @@ export default async function AccessPendingPage() {
     <Layout
       content={
         <AuthCard
-          title={t("pendingTitle")}
+          copy="auth.pending"
           action={
             <Link href="/" className="anchor">
               {t("pendingBrowse")}
             </Link>
           }
-        >
-          {t.rich("pendingBody", AUTH_CARD_BODY)}
-        </AuthCard>
+        />
       }
     />
   );

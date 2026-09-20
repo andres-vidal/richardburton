@@ -48,9 +48,10 @@
     "shown": "{shown}/{total}"
   },
   "auth": {
-    "signIn": "Sign in",
-    "signInWithGoogle": "Sign in with your Google account to access the platform.",
-    "pendingTitle": "Your account is ready",
+    "signIn": {
+      "title": "Sign in",
+      "body": "<message>Sign in with your Google account to access the platform.</message>"
+    },
     "pendingBrowse": "Browse the database",
     "errorTitle": "Error",
     "tryAgain": "Try again",
@@ -74,7 +75,10 @@
         "body": "<message>Seems like the app is not working correctly. Please contact support.</message>"
       }
     },
-    "pendingBody": "<message>Your role is Reader, which carries nothing to do here — the database is open to everyone, signed in or not.</message><suggestion>An administrator can give you a role that adds and corrects publications. Once they do, sign in again.</suggestion>"
+    "pending": {
+      "title": "Your account is ready",
+      "body": "<message>Your role is Reader, which carries nothing to do here — the database is open to everyone, signed in or not.</message><suggestion>An administrator can give you a role that adds and corrects publications. Once they do, sign in again.</suggestion>"
+    }
   },
   "searchHelp": {
     "title": "How to search",

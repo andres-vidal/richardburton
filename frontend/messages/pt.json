@@ -48,9 +48,10 @@
     "shown": "{shown}/{total}"
   },
   "auth": {
-    "signIn": "Entrar",
-    "signInWithGoogle": "Entre com sua conta Google para acessar a plataforma.",
-    "pendingTitle": "Sua conta está pronta",
+    "signIn": {
+      "title": "Entrar",
+      "body": "<message>Entre com sua conta Google para acessar a plataforma.</message>"
+    },
     "pendingBrowse": "Explorar a base de dados",
     "errorTitle": "Erro",
     "tryAgain": "Tentar novamente",
@@ -74,7 +75,10 @@
         "body": "<message>Parece que o aplicativo não está funcionando corretamente. Entre em contato com o suporte.</message>"
       }
     },
-    "pendingBody": "<message>Seu perfil é Leitor, que não tem nada a fazer por aqui — a base de dados é aberta a todos, com ou sem conta.</message><suggestion>Um administrador pode lhe dar um perfil que adiciona e corrige publicações. Assim que fizer, entre novamente.</suggestion>"
+    "pending": {
+      "title": "Sua conta está pronta",
+      "body": "<message>Seu perfil é Leitor, que não tem nada a fazer por aqui — a base de dados é aberta a todos, com ou sem conta.</message><suggestion>Um administrador pode lhe dar um perfil que adiciona e corrige publicações. Assim que fizer, entre novamente.</suggestion>"
+    }
   },
   "searchHelp": {
     "title": "Como pesquisar",

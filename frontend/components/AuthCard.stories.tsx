@@ -4,12 +4,13 @@ import { expect, fn, screen, userEvent } from "storybook/test";
 import AuthCard from "./AuthCard";
 import Button from "./Button";
 
+// The card is named rather than written out, so a story names one of the cards
+// the app actually shows.
 const meta = {
   title: "Auth/Auth card",
   component: AuthCard,
   args: {
-    title: "Something happened",
-    children: <p className="text-lg">One line saying what it was.</p>,
+    copy: "auth.errors.Verification",
     action: <Button label="Do the next thing" width="fit" onClick={fn()} />,
   },
   parameters: { layout: "fullscreen" },
@@ -23,7 +24,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async () => {
     await expect(
-      screen.getByRole("heading", { level: 1, name: "Something happened" }),
+      screen.getByRole("heading", { level: 1, name: "Verification error" }),
     ).toBeVisible();
 
     const action = screen.getByRole("button", { name: "Do the next thing" });
@@ -32,20 +33,22 @@ export const Default: Story = {
   },
 };
 
-/** A second, quieter line saying what it means for the reader. */
-export const WithASecondLine: Story = {
-  args: {
-    children: (
-      <>
-        <p className="text-lg">One line saying what it was.</p>
-        <p className="text-sm">
-          A quieter one saying what it means for whoever is reading.
-        </p>
-      </>
-    ),
-  },
+/** A body that suggests a way out says so in a second, quieter line. */
+export const WithASuggestion: Story = {
+  args: { copy: "auth.errors.AccessDenied" },
   play: async () => {
-    await expect(screen.getByText(/what it means/)).toBeVisible();
+    await expect(
+      screen.getByRole("heading", { name: "You need an invitation" }),
+    ).toBeVisible();
+    await expect(screen.getByText(/Ask an administrator/)).toBeVisible();
+  },
+};
+
+/** A body with nothing to suggest is the one line, and nothing quieter under it. */
+export const WithoutASuggestion: Story = {
+  play: async () => {
+    await expect(screen.getByText(/token is expired/)).toBeVisible();
+    await expect(screen.queryByText(/Ask an administrator/)).toBeNull();
   },
 };
 
@@ -54,7 +57,7 @@ export const WithoutAnAction: Story = {
   args: { action: undefined },
   play: async () => {
     await expect(
-      screen.getByRole("heading", { name: "Something happened" }),
+      screen.getByRole("heading", { name: "Verification error" }),
     ).toBeVisible();
     await expect(screen.queryByRole("button")).toBeNull();
   },

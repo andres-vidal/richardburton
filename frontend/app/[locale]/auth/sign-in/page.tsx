@@ -7,7 +7,7 @@ import { redirect } from "i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations("auth"))("signIn") };
+  return { title: (await getTranslations("auth"))("signIn.title") };
 }
 
 export default async function SignInPage({
@@ -26,23 +26,20 @@ export default async function SignInPage({
     });
   }
 
-  const t = await getTranslations("auth");
   const next = callbackUrl ?? "/";
 
   return (
     <Layout
       content={
         <AuthCard
-          title={t("signIn")}
+          copy="auth.signIn"
           action={
             <div className="flex flex-col gap-3 items-center">
               <SignInButton next={next} />
               {process.env.NODE_ENV === "development" && <DevSignInButton />}
             </div>
           }
-        >
-          <p className="text-lg">{t("signInWithGoogle")}</p>
-        </AuthCard>
+        />
       }
     />
   );

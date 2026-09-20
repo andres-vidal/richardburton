@@ -1,36 +1,37 @@
+import { useTranslations } from "next-intl";
 import { FC, ReactNode } from "react";
-
-/**
- * The parts a card's body is written in, for `t.rich` to render the message
- * with: what happened, and what to do about it where there is anything.
- *
- * Which of the two a card has is the message's to say, and how each one reads
- * is the card's, which is why the message names them and this gives them their
- * type.
- */
-const AUTH_CARD_BODY = {
-  message: (chunks: ReactNode) => <p className="text-lg">{chunks}</p>,
-  suggestion: (chunks: ReactNode) => <p className="text-sm">{chunks}</p>,
-};
 
 /**
  * A square panel centred on an otherwise empty page: a title, what happened,
  * and the one thing to do about it.
+ *
+ * The card is named rather than written out: it is given the name its copy goes
+ * by, and reads the title and the body from there. Which of the two parts a
+ * body has is the message's to say — one with nothing to suggest names no
+ * suggestion — and how each part reads is the card's.
  */
 const AuthCard: FC<{
-  title: string;
-  children: ReactNode;
+  /** Names the card's copy in the catalogue, whole: `auth.pending`. */
+  copy: string;
   /** What to do next, at the foot of the card. */
   action?: ReactNode;
-}> = ({ title, children, action }) => (
-  <div className="flex justify-center items-center py-32 w-full">
-    <section className="flex flex-col justify-between p-7 w-96 text-center rounded shadow aspect-square">
-      <h1 className="text-2xl">{title}</h1>
-      <div className="space-y-4">{children}</div>
-      <div className="mx-auto">{action}</div>
-    </section>
-  </div>
-);
+}> = ({ copy, action }) => {
+  const t = useTranslations(copy);
+
+  return (
+    <div className="flex justify-center items-center py-32 w-full">
+      <section className="flex flex-col justify-between p-7 w-96 text-center rounded shadow aspect-square">
+        <h1 className="text-2xl">{t("title")}</h1>
+        <div className="space-y-4">
+          {t.rich("body", {
+            message: (chunks) => <p className="text-lg">{chunks}</p>,
+            suggestion: (chunks) => <p className="text-sm">{chunks}</p>,
+          })}
+        </div>
+        <div className="mx-auto">{action}</div>
+      </section>
+    </div>
+  );
+};
 
 export default AuthCard;
-export { AUTH_CARD_BODY };
