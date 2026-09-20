@@ -1,3 +1,4 @@
+import { routing } from "i18n/routing";
 import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
@@ -265,7 +266,13 @@ const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
  * a pending edit does not leak into the read-only table.
  */
 const markedFieldFamily = cellFamily(({ id, key, locale }) =>
-  atom((get) => markedValue(get(publicationFamily(id)), key, locale)),
+  atom((get) =>
+    markedValue(
+      get(publicationFamily(id)),
+      key,
+      locale ?? routing.defaultLocale,
+    ),
+  ),
 );
 
 // --- Family lifecycle -------------------------------------------------------

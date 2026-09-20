@@ -206,7 +206,7 @@ function merged(winner: Publication, losers: Publication[]): Publication {
 function describeValue(
   value: unknown,
   attribute: PublicationKey,
-  locale: string = routing.defaultLocale,
+  locale: string,
 ): string {
   const text = String(value ?? "");
 
@@ -228,7 +228,7 @@ function describeValue(
 function markedValue(
   publication: Publication,
   attribute: PublicationKey,
-  locale?: string,
+  locale: string,
 ): string {
   return (
     publication.excerpts?.[attribute] ??
@@ -247,7 +247,7 @@ function markedValue(
 function markedItems(
   publication: Publication,
   attribute: PublicationKey,
-  locale?: string,
+  locale: string,
 ): { value: string; label: string }[] {
   const values = (publication[attribute] ?? []) as string[];
   const excerpt = publication.excerpts?.[attribute];
@@ -281,7 +281,7 @@ function markedSources(publication: Publication): string[] {
 function describe(
   value: PublicationValue,
   attribute: PublicationKey,
-  locale: string = routing.defaultLocale,
+  locale: string,
 ): string {
   return Array.isArray(value)
     ? new Intl.ListFormat(locale, { style: "long", type: "unit" }).format(

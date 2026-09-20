@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "utils/testRender";
 
+import { routing } from "i18n/routing";
 import { Publication } from "modules/publication/model";
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
 
@@ -15,8 +16,16 @@ describe("TextEnumArrayDataInput", () => {
     "aria-label": "Countries",
   } as const;
 
-  const brLabel = Publication.describeValue("BR", "countries");
-  const usLabel = Publication.describeValue("US", "countries");
+  const brLabel = Publication.describeValue(
+    "BR",
+    "countries",
+    routing.defaultLocale,
+  );
+  const usLabel = Publication.describeValue(
+    "US",
+    "countries",
+    routing.defaultLocale,
+  );
 
   test("renders each id as its human label", () => {
     render(

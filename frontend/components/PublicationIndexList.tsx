@@ -16,11 +16,17 @@ import { ListSkeleton } from "./ListSkeleton";
 const Marked: FC<{ publication: Publication; attribute: PublicationKey }> = ({
   publication,
   attribute,
-}) => (
-  <span className="font-normal">
-    <Highlight>{Publication.markedValue(publication, attribute)}</Highlight>
-  </span>
-);
+}) => {
+  const locale = useLocale();
+
+  return (
+    <span className="font-normal">
+      <Highlight>
+        {Publication.markedValue(publication, attribute, locale)}
+      </Highlight>
+    </span>
+  );
+};
 
 const PublicationItem: FC<{ id: number }> = ({ id }) => {
   const t = useTranslations("publication");
@@ -34,7 +40,7 @@ const PublicationItem: FC<{ id: number }> = ({ id }) => {
           <div>
             <span className="font-normal">
               <Highlight>
-                {Publication.markedValue(publication, "title")}
+                {Publication.markedValue(publication, "title", locale)}
               </Highlight>
             </span>
             <br className="sm:hidden" />
@@ -42,7 +48,7 @@ const PublicationItem: FC<{ id: number }> = ({ id }) => {
               {" "}
               (
               <Highlight>
-                {Publication.markedValue(publication, "authors")}
+                {Publication.markedValue(publication, "authors", locale)}
               </Highlight>
               )
             </span>

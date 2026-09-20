@@ -184,7 +184,7 @@ const Candidate: FC<{
             <span className="font-normal text-gray-600">({p.year})</span>
           </p>
           <p className="text-xs text-gray-600">
-            {Publication.describe(p.authors, "authors")}
+            {Publication.describe(p.authors, "authors", locale)}
           </p>
         </div>
       </div>
@@ -206,7 +206,7 @@ const Candidate: FC<{
         </dd>
         <dt className="text-gray-600">{attribute("publishers")}</dt>
         <dd className="text-gray-800">
-          {Publication.describe(p.publishers, "publishers")}
+          {Publication.describe(p.publishers, "publishers", locale)}
         </dd>
         <dt className="text-gray-600">{attribute("sources")}</dt>
         <dd className="text-gray-800">

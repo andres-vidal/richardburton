@@ -41,7 +41,7 @@ describe("describeValue", () => {
   const knownCode = Object.keys(COUNTRIES)[0];
 
   test("maps a country code to its label", () => {
-    expect(describeValue(knownCode, "countries")).toBe(
+    expect(describeValue(knownCode, "countries", routing.defaultLocale)).toBe(
       COUNTRIES[knownCode].label,
     );
   });
@@ -49,28 +49,36 @@ describe("describeValue", () => {
   test("describes every code of a list — what a merged record holds", () => {
     const [first, second] = Object.keys(COUNTRIES);
 
-    expect(describeAttribute([first, second], "countries")).toBe(
-      `${COUNTRIES[first].label}, ${COUNTRIES[second].label}`,
-    );
+    expect(
+      describeAttribute([first, second], "countries", routing.defaultLocale),
+    ).toBe(`${COUNTRIES[first].label}, ${COUNTRIES[second].label}`);
   });
 
   test("returns an unknown country code unchanged", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-    expect(describeValue("__nope__", "countries")).toBe("__nope__");
+    expect(describeValue("__nope__", "countries", routing.defaultLocale)).toBe(
+      "__nope__",
+    );
     expect(warn).toHaveBeenCalled();
 
     // One unknown code in a list does not cost the others their labels.
-    expect(describeAttribute([knownCode, "__nope__"], "countries")).toBe(
-      `${COUNTRIES[knownCode].label}, __nope__`,
-    );
+    expect(
+      describeAttribute(
+        [knownCode, "__nope__"],
+        "countries",
+        routing.defaultLocale,
+      ),
+    ).toBe(`${COUNTRIES[knownCode].label}, __nope__`);
 
     warn.mockRestore();
   });
 
   test("passes non-country values through untouched", () => {
-    expect(describeValue("1953", "year")).toBe("1953");
-    expect(describeValue("Helen Caldwell", "authors")).toBe("Helen Caldwell");
+    expect(describeValue("1953", "year", routing.defaultLocale)).toBe("1953");
+    expect(
+      describeValue("Helen Caldwell", "authors", routing.defaultLocale),
+    ).toBe("Helen Caldwell");
   });
 });
 

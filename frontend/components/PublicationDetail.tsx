@@ -83,19 +83,22 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
   publication,
 }) => {
   const t = useTranslations("publication");
+  const locale = useLocale();
 
   return (
     <div className="flex flex-col w-full text-2xl font-normal sm:gap-2 sm:items-center sm:flex-row">
       <Tooltip variant="info" message={t("translationTitle")}>
         <span className="w-full truncate sm:w-min whitespace-nowrap">
-          <Highlight>{Publication.markedValue(publication, "title")}</Highlight>
+          <Highlight>
+            {Publication.markedValue(publication, "title", locale)}
+          </Highlight>
         </span>
       </Tooltip>
       <Tooltip variant="info" message={t("whoTranslated")}>
         <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl whitespace-nowrap">
           (
           <Highlight>
-            {Publication.markedValue(publication, "authors")}
+            {Publication.markedValue(publication, "authors", locale)}
           </Highlight>
           )
         </span>
@@ -142,13 +145,13 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
         title: () => (
           <Searchable
             value={p.title}
-            label={Publication.markedValue(p, "title")}
+            label={Publication.markedValue(p, "title", locale)}
           />
         ),
         originalTitle: () => (
           <Searchable
             value={p.originalTitle}
-            label={Publication.markedValue(p, "originalTitle")}
+            label={Publication.markedValue(p, "originalTitle", locale)}
           />
         ),
         originalAuthors: list("originalAuthors"),
