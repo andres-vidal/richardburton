@@ -4,7 +4,10 @@ import { routing } from "i18n/routing";
 import { NextIntlClientProvider } from "next-intl";
 import { PublicationStoreProvider } from "modules/publication/workspace";
 import { store } from "modules/store";
+import { Author } from "modules/author";
 import { Country } from "modules/country";
+import { OriginalBook } from "modules/original-book";
+import { Publisher } from "modules/publisher";
 import { COUNTRIES, messages } from "utils/messages";
 
 import "../styles/globals.css";
@@ -16,6 +19,19 @@ Country.REMOTE.search = async (term) =>
   COUNTRIES.filter((country) =>
     country.label.toLowerCase().includes(term.toLowerCase()),
   );
+
+/**
+ * Every other field answers with nothing, so that no story can reach the
+ * network.
+ *
+ * A story that needs suggestions replaces the one it is about, and puts back
+ * whatever it found — which is one of these rather than the real call. That
+ * matters because the fields debounce: a story can finish with a request still
+ * to be made, and it is made against whatever the module holds by then.
+ */
+Author.REMOTE.search = async () => [];
+Publisher.REMOTE.search = async () => [];
+OriginalBook.REMOTE.search = async () => [];
 
 const preview: Preview = {
   decorators: [
