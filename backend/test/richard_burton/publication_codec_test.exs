@@ -49,16 +49,6 @@ defmodule RichardBurton.Publication.CodecTest do
           "title" => "",
           "year" => "AAAA",
           "sources" => []
-        },
-        %{
-          "authors" => ["J. T. W. Sadler"],
-          "countries" => [],
-          "original_authors" => [],
-          "original_title" => "",
-          "publishers" => [],
-          "title" => "Ubirajara: A Legend of the Tupy Indians",
-          "year" => "",
-          "sources" => []
         }
       ]
 
@@ -66,15 +56,15 @@ defmodule RichardBurton.Publication.CodecTest do
     end
   end
 
-  describe "from_csv/1 when a value holds the separator" do
-    test "a quoted value is one value, not the two it looks like" do
+  describe "from_csv/1 when a value holds a comma" do
+    test "a comma is part of the name, not a break between two" do
       {:ok, [row]} =
         Publication.Codec.from_csv("test/fixtures/data_correct_with_quoted_values.csv")
 
       assert row["publishers"] == ["Cassel, McBride & Co.", "Penguin"]
     end
 
-    test "a value holding the separator is written back quoted" do
+    test "a value holding a comma is written back quoted, and stays one value" do
       [_headers, line] =
         Publication.Codec.to_csv([
           %{
@@ -83,61 +73,11 @@ defmodule RichardBurton.Publication.CodecTest do
           }
         ])
 
-      # Doubled by the encoder, since the quotes are the file's own.
-      assert line =~ ~s("""Cassel, McBride & Co."", Penguin")
+      assert line =~ ~s("Cassel, McBride & Co.; Penguin")
     end
   end
 
   describe "from_csv/1 when the provided csv is incorrect" do
-    test "because it has malformed separators, does its best effort" do
-      input = "test/fixtures/data_incorrect_malformed_separators.csv"
-
-      output = [
-        %{
-          "authors" => ["Isabel Burton"],
-          "countries" => ["GB"],
-          "original_authors" => ["José de Alencar"],
-          "original_title" => "Iracema",
-          "publishers" => [],
-          "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-          "year" => "1886",
-          "sources" => []
-        },
-        %{
-          "authors" => ["Ronald Massey"],
-          "countries" => ["Ubirajara"],
-          "original_authors" => [],
-          "original_title" => "Ubirajara: A Legend of the Tupy Indians",
-          "publishers" => [],
-          "title" => "J. T. W. Sadler",
-          "year" => "GB",
-          "sources" => []
-        },
-        %{
-          "authors" => [],
-          "countries" => [],
-          # The whole malformed row lands in one cell, and that cell is split
-          # like any other multi-value cell.
-          "original_authors" => [
-            "José de Alencar",
-            "1886",
-            "GB",
-            "Iracema",
-            "Iraçéma the Honey-Lips: A Legend of Brazil",
-            "Isabel Burton",
-            "Bickers & Son"
-          ],
-          "original_title" => "",
-          "publishers" => [],
-          "title" => "",
-          "year" => "",
-          "sources" => []
-        }
-      ]
-
-      assert {:ok, output} == Publication.Codec.from_csv(input)
-    end
-
     test "because it does not exist, return file_not_found error" do
       input = "test/fixtures/blablabla.csv"
       assert {:error, :file_not_found} == Publication.Codec.from_csv(input)

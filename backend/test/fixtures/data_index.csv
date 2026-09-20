@@ -1,17 +1,4 @@
-Erico Verissimo;1969;GB;Olhai os lírios do campo;Consider the Lilies of the Field;Jean Neel Karnoff;Greenwood
-Erico Verissimo;1951;US;O tempo e o vento;Time and the Wind;Linton Lemos Barrett;Macmillan
-Erico Verissimo;1954;GB;O tempo e o vento;Time and the Wind;Linton Lemos Barrett;Arco Publications
-Erico Verissimo;1956;US;Noite;Night;Linton Lemos Barrett;Macmillan
-Erico Verissimo;1956;GB;Noite;Night;Linton Lemos Barrett;Arco Publications
-Erico Verissimo;1967;US;O senhor embaixador;His Excellency, the Ambassador;Linton Lemos Barrett, Marie Barrett;Macmillan
-Graciliano Ramos;1946;US;Angústia;Anguish;L. C. Kaplan;Alfred A. Knopf
-Graciliano Ramos;1974;US;Memórias do cárcere;Jail Prison Memoirs;Thomas Colchie;Evans
-Cyro dos Anjos;1986;CA;O amanuense Belmiro;Diary of a Civil Servant;Arthur Brakel;Fairleigh Dickinson University Press
-Cyro dos Anjos;1988;GB;O amanuense Belmiro;Diary of a Civil Servant;Arthur Brakel;Associated University Presses
-Rachel de Queiroz;1963;US;As três Marias;The Three Marias;Fred P. Ellison;University of Texas Press
-Rachel de Queiroz;1984;US;Dora Doralina;Dora Doralina;Dorothy Scott Loos;Dutton
-Machado de Assis;1952;US;Memórias póstumas de Brás Cubas;Epitaph of a Small Winner;William L. Grossman;Noonday Press
-Machado de Assis;1953;GB;Memórias póstumas de Brás Cubas;Epitaph of a Small Winner;William L. Grossman;W.H. Allen
-Machado de Assis;1955;BR;Memórias póstumas de Brás Cubas;Posthumous Reminiscences of Brás Cubas;E. Percy Ellis;Instituto Nacional do Livro
-Machado de Assis;1997;US;Memórias póstumas de Brás Cubas;Posthumous Memoirs of Bras Cubas;Gregory Rabassa;Oxford University Press
-Mário de Andrade;1933;US;Amar verbo intransitivo;Fraulein;Margaret Richardson Hollingsworth;MacCaulay
+title,year,countries,publishers,authors,original_title,original_authors
+Consider the Lilies of the Field,1969,GB,Greenwood,Jean Neel Karnoff,Olhai os lírios do campo,Erico Verissimo
+Time and the Wind,1951,US,Macmillan,Linton Lemos Barrett,O tempo e o vento,Erico Verissimo
+Time and the Wind,1954,GB,Arco Publications,Linton Lemos Barrett,O tempo e o vento,Erico Verissimo

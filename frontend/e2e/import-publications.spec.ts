@@ -10,13 +10,12 @@ import {
   expectPublicationCount,
   expectPublicationRow,
   PUBLICATIONS,
+  CSV_HEADER,
   type PublicationInput,
 } from "./helpers";
 
-// One row, 8 semicolon-separated columns in codec order:
-// original_authors; year; countries; original_title; title; authors; publishers; sources
-const CSV_ROW =
-  "Machado de Assis;1899;BR;Dom Casmurro;Dom Casmurro (CSV);Helen Caldwell;Noonday Press;A source\n";
+// One row under the header every fixture writes.
+const CSV_ROW = `${CSV_HEADER}\nDom Casmurro (CSV),1899,BR,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,A source\n`;
 
 const [FIRST, SOURCED, DUPLICATED] = PUBLICATIONS;
 
@@ -220,7 +219,7 @@ test("a malformed CSV is rejected with an error and imports nothing", async ({
   await page.locator("#upload-csv").setInputFiles({
     name: "broken.csv",
     mimeType: "text/csv",
-    buffer: Buffer.from('Machado de Assis;1899;BR;Dom;"unterminated\n'),
+    buffer: Buffer.from(`${CSV_HEADER}\nDom,1899,BR,P,T,O,"unterminated\n`),
   });
 
   await expect(

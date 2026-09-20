@@ -8,6 +8,7 @@ import {
   indexTable,
   expectPublicationCount,
   CORPUS_SIZE,
+  CSV_HEADER,
   PAGED_CSV,
   PAGED_SIZE,
 } from "./helpers";
@@ -85,11 +86,14 @@ test("a search that matches nothing shows the empty state, not an error", async 
 // Titles carry the index so a far-away row is addressable.
 const BULK_SIZE = 20;
 const BULK_CSV =
-  Array.from(
-    { length: BULK_SIZE },
-    (_, i) =>
-      `Author ${i};${1900 + i};US;Original ${i};Bulk Title ${i};Translator ${i};Publisher ${i};`,
-  ).join("\n") + "\n";
+  [
+    CSV_HEADER,
+    ...Array.from(
+      { length: BULK_SIZE },
+      (_, i) =>
+        `Bulk Title ${i},${1900 + i},US,Publisher ${i},Translator ${i},Original ${i},Author ${i},`,
+    ),
+  ].join("\n") + "\n";
 
 test("the database arrives with the page, not after it", async ({
   page,
