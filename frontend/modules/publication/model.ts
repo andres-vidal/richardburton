@@ -196,29 +196,30 @@ function merged(winner: Publication, losers: Publication[]): Publication {
 }
 
 /**
- * One value of an attribute, as a reader should see it: a country code becomes
- * a country name, and anything else is its own text. Countries are the only
+ * An attribute's values as a reader should see them: country codes become
+ * country names, and anything else is its own text. Countries are the only
  * attribute a publication stores as something other than what is read.
  *
- * Takes an unknown rather than a string because the wire does not always agree
+ * Takes unknowns rather than strings because the wire does not always agree
  * with the model. `year` is an integer on the backend and text in a form, so it
  * arrives here as either.
  */
-function describeValue(
-  value: unknown,
+function shown(
+  values: unknown[],
   attribute: PublicationKey,
   locale: string,
-): string {
-  const text = String(value ?? "");
+): string[] {
+  const text = values.map((value) => String(value ?? ""));
 
-  if (attribute === "countries") {
-    const name = countryName(text, locale);
+  if (attribute !== "countries") return text;
+
+  return text.map((code) => {
+    const name = countryName(code, locale);
     if (name) return name;
 
-    console.warn("Unknown country code: ", text);
-  }
-
-  return text;
+    console.warn("Unknown country code: ", code);
+    return code;
+  });
 }
 
 /**
@@ -231,10 +232,21 @@ function markedValue(
   attribute: PublicationKey,
   locale: string,
 ): string {
-  return (
-    publication.excerpts?.[attribute] ??
-    describe(publication[attribute], attribute, locale)
+  const excerpt = publication.excerpts?.[attribute];
+  if (excerpt) return excerpt;
+
+  const value = publication[attribute];
+  const values = shown(
+    Array.isArray(value) ? value : [value],
+    attribute,
+    locale,
   );
+
+  return Array.isArray(value)
+    ? new Intl.ListFormat(locale, { style: "long", type: "unit" }).format(
+        values,
+      )
+    : values[0];
 }
 
 /**
@@ -259,7 +271,7 @@ function markedItems(
     label:
       marked?.length === values.length
         ? marked[index]
-        : describeValue(value, attribute, locale),
+        : shown([value], attribute, locale)[0],
   }));
 }
 
@@ -273,22 +285,6 @@ function markedSources(publication: Publication): string[] {
   return sources.map(
     (source, index) => publication.markedSources?.[index] ?? source,
   );
-}
-
-/**
- * A whole attribute in one line — for the places that show a record at a
- * glance rather than value by value.
- */
-function describe(
-  value: PublicationValue,
-  attribute: PublicationKey,
-  locale: string,
-): string {
-  return Array.isArray(value)
-    ? new Intl.ListFormat(locale, { style: "long", type: "unit" }).format(
-        value.map((one) => describeValue(one, attribute, locale)),
-      )
-    : describeValue(value, attribute, locale);
 }
 
 /**
@@ -389,7 +385,6 @@ const Publication = {
   ATTRIBUTE_IS_TOGGLEABLE,
   autocomplete,
   define,
-  describe,
   errorCode,
   markedValue,
   markedItems,
@@ -406,9 +401,7 @@ export {
   countriesIn,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
-  describe,
   errorCode,
-  describeValue,
   empty,
   HISTORY_ACTIONS,
   markedValue,

@@ -184,7 +184,7 @@ const Candidate: FC<{
             <span className="font-normal text-gray-600">({p.year})</span>
           </p>
           <p className="text-xs text-gray-600">
-            {Publication.describe(p.authors, "authors", locale)}
+            {Publication.markedValue(p, "authors", locale)}
           </p>
         </div>
       </div>
@@ -193,20 +193,16 @@ const Candidate: FC<{
         <dd className="text-gray-800">
           {t("originalLine", {
             title: p.originalTitle,
-            authors: Publication.describe(
-              p.originalAuthors,
-              "originalAuthors",
-              locale,
-            ),
+            authors: Publication.markedValue(p, "originalAuthors", locale),
           })}
         </dd>
         <dt className="text-gray-600">{attribute("countries")}</dt>
         <dd className="text-gray-800">
-          {Publication.describe(p.countries, "countries", locale)}
+          {Publication.markedValue(p, "countries", locale)}
         </dd>
         <dt className="text-gray-600">{attribute("publishers")}</dt>
         <dd className="text-gray-800">
-          {Publication.describe(p.publishers, "publishers", locale)}
+          {Publication.markedValue(p, "publishers", locale)}
         </dd>
         <dt className="text-gray-600">{attribute("sources")}</dt>
         <dd className="text-gray-800">

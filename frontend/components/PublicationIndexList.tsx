@@ -71,7 +71,7 @@ const PublicationItem: FC<{ id: number }> = ({ id }) => {
         <div className="p-2">
           <div>{publication.year}</div>
           <div className="ml-1 text-xs text-center">
-            {Publication.describe(publication.countries, "countries", locale)}
+            {Publication.markedValue(publication, "countries", locale)}
           </div>
         </div>
       </div>

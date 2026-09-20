@@ -2,10 +2,9 @@ import {
   ATTRIBUTES,
   autocomplete,
   define,
-  describe as describeAttribute,
-  describeValue,
   empty,
   errorCode,
+  markedValue,
   merged,
 } from "./model";
 import type { Publication } from "./model";
@@ -37,48 +36,74 @@ describe("empty", () => {
   });
 });
 
-describe("describeValue", () => {
-  const knownCode = Object.keys(COUNTRIES)[0];
+describe("markedValue", () => {
+  const [first, second] = Object.keys(COUNTRIES);
 
-  test("maps a country code to its label", () => {
-    expect(describeValue(knownCode, "countries", routing.defaultLocale)).toBe(
-      COUNTRIES[knownCode].label,
-    );
-  });
+  function holding(fields: Partial<Publication>): Publication {
+    return { ...empty(), ...fields };
+  }
 
-  test("describes every code of a list — what a merged record holds", () => {
-    const [first, second] = Object.keys(COUNTRIES);
-
+  test("names the country a code stands for", () => {
     expect(
-      describeAttribute([first, second], "countries", routing.defaultLocale),
-    ).toBe(`${COUNTRIES[first].label}, ${COUNTRIES[second].label}`);
-  });
-
-  test("returns an unknown country code unchanged", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-
-    expect(describeValue("__nope__", "countries", routing.defaultLocale)).toBe(
-      "__nope__",
-    );
-    expect(warn).toHaveBeenCalled();
-
-    // One unknown code in a list does not cost the others their labels.
-    expect(
-      describeAttribute(
-        [knownCode, "__nope__"],
+      markedValue(
+        holding({ countries: [first] }),
         "countries",
         routing.defaultLocale,
       ),
-    ).toBe(`${COUNTRIES[knownCode].label}, __nope__`);
+    ).toBe(COUNTRIES[first].label);
+  });
+
+  test("names every code of a list — what a merged record holds", () => {
+    expect(
+      markedValue(
+        holding({ countries: [first, second] }),
+        "countries",
+        routing.defaultLocale,
+      ),
+    ).toBe(`${COUNTRIES[first].label}, ${COUNTRIES[second].label}`);
+  });
+
+  test("a code it has no name for is read as the code", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    // One unknown code in a list does not cost the others their names.
+    expect(
+      markedValue(
+        holding({ countries: [first, "__nope__"] }),
+        "countries",
+        routing.defaultLocale,
+      ),
+    ).toBe(`${COUNTRIES[first].label}, __nope__`);
+    expect(warn).toHaveBeenCalled();
 
     warn.mockRestore();
   });
 
   test("passes non-country values through untouched", () => {
-    expect(describeValue("1953", "year", routing.defaultLocale)).toBe("1953");
     expect(
-      describeValue("Helen Caldwell", "authors", routing.defaultLocale),
+      markedValue(holding({ year: "1953" }), "year", routing.defaultLocale),
+    ).toBe("1953");
+
+    expect(
+      markedValue(
+        holding({ authors: ["Helen Caldwell"] }),
+        "authors",
+        routing.defaultLocale,
+      ),
     ).toBe("Helen Caldwell");
+  });
+
+  test("the index's marks win over the stored value", () => {
+    expect(
+      markedValue(
+        holding({
+          authors: ["Helen Caldwell"],
+          excerpts: { authors: "Helen [[Caldwell]]" },
+        }),
+        "authors",
+        routing.defaultLocale,
+      ),
+    ).toBe("Helen [[Caldwell]]");
   });
 });
 

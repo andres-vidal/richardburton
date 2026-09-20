@@ -155,19 +155,19 @@ export const BackfillStep: FC<{
           <div className="mt-1 text-sm text-gray-600">
             {t("line", {
               originalTitle: publication.originalTitle,
-              originalAuthors: Publication.describe(
-                publication.originalAuthors,
+              originalAuthors: Publication.markedValue(
+                publication,
                 "originalAuthors",
                 locale,
               ),
               year: publication.year,
-              countries: Publication.describe(
-                publication.countries,
+              countries: Publication.markedValue(
+                publication,
                 "countries",
                 locale,
               ),
-              publishers: Publication.describe(
-                publication.publishers,
+              publishers: Publication.markedValue(
+                publication,
                 "publishers",
                 locale,
               ),

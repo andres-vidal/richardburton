@@ -58,14 +58,14 @@ const DeletedPublications: FC<{
                 </span>
                 <span className="text-sm text-gray-600 truncate">
                   {t("recordLine", {
-                    authors: Publication.describe(
-                      publication.authors,
+                    authors: Publication.markedValue(
+                      publication,
                       "authors",
                       locale,
                     ),
                     year: publication.year,
-                    publishers: Publication.describe(
-                      publication.publishers,
+                    publishers: Publication.markedValue(
+                      publication,
                       "publishers",
                       locale,
                     ),

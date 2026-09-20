@@ -49,7 +49,7 @@ const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
       </p>
       <dl className="mt-0.5 text-xs text-gray-600">
         {DETAILED.map((key) => {
-          const value = Publication.describe(p[key], key, locale);
+          const value = Publication.markedValue(p, key, locale);
 
           return value ? (
             <div key={key} className="flex gap-1">
