@@ -72,6 +72,7 @@ defmodule RichardBurtonWeb.Router do
       get("/history", PublicationController, :history)
       get("/deleted", PublicationController, :index_deleted)
       get("/duplicates", PublicationController, :duplicates)
+      post("/duplicates/resemblances", PublicationController, :resemblances)
       post("/duplicates/distinguish", PublicationController, :distinguish)
       get("/duplicates/distinctions", PublicationController, :distinctions)
       post("/duplicates/reconsider", PublicationController, :reconsider)

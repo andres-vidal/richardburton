@@ -9,9 +9,16 @@ import type { Publication, PublicationHistoryEntry } from "./model";
 import {
   PublicationError,
   PublicationId,
+  Resemblance,
   ValidationResult,
   errorCode,
 } from "./model";
+
+/** One row of the answer, named by the position the request sent it in. */
+type ResemblanceEntry = Omit<Resemblance, "others"> & {
+  position: number;
+  others: number[];
+};
 import {
   createId,
   errorFamily,
@@ -24,6 +31,7 @@ import {
   resetAll,
   setAll,
   setErrors,
+  setResemblances,
   visibleIdsAtom,
   visiblePublicationFamily,
 } from "./store";
@@ -389,6 +397,40 @@ async function validate(store: Store, ids: PublicationId[]): Promise<void> {
   });
 }
 
+/**
+ * Ask what the working set looks like, and record it on each row.
+ *
+ * Rows are sent in order and named by their position, since a row has no id the
+ * server knows. Nothing is written: the answer is a likeness for a person to
+ * judge, and a row keeps its place in the workspace whatever it resembles.
+ */
+async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
+  return run(async (http) => {
+    const rows = ids.map((id) => store.get(visiblePublicationFamily(id)));
+
+    const { data } = await http.post<{ entries: ResemblanceEntry[] }>(
+      "publications/duplicates/resemblances",
+      rows,
+    );
+
+    setResemblances(
+      store,
+      ids,
+      new Map(
+        data.entries.map((entry) => [
+          ids[entry.position],
+          {
+            stored: entry.stored,
+            // Positions name rows only for the length of the call; the workspace
+            // addresses them by id.
+            others: entry.others.map((position) => ids[position]),
+          },
+        ]),
+      ),
+    );
+  });
+}
+
 /** Replace the working set from an uploaded CSV (validated server-side). */
 async function upload(store: Store, payload: FormData): Promise<void> {
   return run(async (http) => {
@@ -416,6 +458,7 @@ export {
   loadDetails,
   merge,
   reconsider,
+  resemblances,
   restore,
   search,
   undo,

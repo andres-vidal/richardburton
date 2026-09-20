@@ -1,0 +1,60 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationResemblanceCounterStories from "./PublicationResemblanceCounter.stories";
+
+<Meta of={PublicationResemblanceCounterStories} />
+
+# Resemblance counter
+
+How many rows of an import look like a publication already known, and the way
+into them. It sits in the workspace footer beside the
+[error counter](?path=/docs/publications-publication-error-counter--docs).
+
+The composite key already rejects a row that repeats a stored record exactly.
+What this catches is the near-miss it cannot: a typo, a dropped accent, a
+translator entered as "R. Burton" once and "Richard Burton" the next time. Left
+alone those rows import cleanly and turn up later in the
+[duplicate review](?path=/docs/publications-duplicate-review--docs), after they
+are already in the database.
+
+A row is measured against two things: the stored records, and the other rows of
+the same import. The second half matters because a CSV can hold its own
+near-duplicates, and neither of them is in the database for the review to find.
+
+## Why it is asked for
+
+The check is a button rather than something that runs as rows change. It
+measures every row against the whole table, which is worth doing once a set is
+assembled and wasteful on every keystroke — and validation already runs on every
+blur.
+
+What counts as checked is therefore a property of the rows, not of the button
+having been pressed: the count stands only while every visible row is one the
+check measured. Discarding a row leaves it standing, since the rest were still
+measured. Adding or editing one does not.
+
+<Canvas of={PublicationResemblanceCounterStories.Found} />
+
+## Props
+
+- `check` — how the check is run. Defaults to asking the server; a story passes
+  its own.
+
+## States
+
+- **Unchecked** — the button offers to run the check. There is no count yet, and
+  a zero would claim one.
+- **Found** — the count, and the way into the review.
+- **None found** — a green check rather than a red zero, the same way the error
+  counter reports a set with no errors.
+- **Stale after an addition** — a row added or edited since the check goes back
+  to offering it. The count is only allowed to speak for rows it has measured.
+
+<Canvas of={PublicationResemblanceCounterStories.NoneFound} />
+
+## What it is not
+
+A look-alike is not an error. It does not make a row invalid and it does not
+hold back a submit: two editions of one book resemble each other and are both
+worth having. Nothing is written either — a row has no id yet, so there is no
+pair to rule apart the way the duplicate review does.

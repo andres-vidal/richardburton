@@ -431,5 +431,23 @@
   "validation": {
     "required": "Required",
     "email": "Enter a valid email address"
+  },
+  "resemblances": {
+    "label": "Possible duplicates in this import",
+    "check": "Check for duplicates",
+    "checkHint": "Measure every row against the database and against each other.",
+    "found": "{count, plural, one {# row looks like a publication already known} other {# rows look like publications already known}}",
+    "noneFound": "No row looks like anything already known",
+    "rowLooksLike": "This row looks like a publication already known",
+    "beingImported": "The row being imported",
+    "alreadyStored": "Already in the database",
+    "elsewhereInImport": "Elsewhere in this import",
+    "discard": "Discard this row",
+    "keep": "Keep it — they are different",
+    "allAnswered": "Every look-alike answered",
+    "allAnsweredDetail": "No row of this import is left looking like something already known. Discarded rows can be brought back from the footer.",
+    "done": "Done",
+    "looksLikeStored": "{count, plural, one {Resembles one record already in the database.} other {Resembles # records already in the database.}}",
+    "looksLikeRows": "{count, plural, one {Resembles one other row of this import.} other {Resembles # other rows of this import.}}"
   }
 }

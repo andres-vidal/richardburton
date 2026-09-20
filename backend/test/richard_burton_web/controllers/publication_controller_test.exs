@@ -559,6 +559,67 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
   end
 
+  describe "POST /publications/duplicates/resemblances" do
+    test "reports the stored record a row being imported resembles", meta do
+      expect_auth_authorize_admin()
+      stored = insert_publication(@publication_attrs)
+
+      rows = [
+        %{@publication_attrs | "title" => "Iracema the Honey-Lips: A Legend of Brazil"}
+      ]
+
+      assert %{"entries" => [entry], "threshold" => threshold} =
+               meta.conn
+               |> post(publication_path(meta.conn, :resemblances), %{"_json" => rows})
+               |> json_response(200)
+
+      assert is_float(threshold)
+      assert 0 == entry["position"]
+      assert [found] = entry["stored"]
+      assert found["id"] == stored.id
+      assert [] == entry["others"]
+    end
+
+    test "reports two rows that resemble each other and nothing stored", meta do
+      expect_auth_authorize_admin()
+
+      rows = [
+        @publication_attrs,
+        %{@publication_attrs | "title" => "Iracema the Honey-Lips: A Legend of Brazil"}
+      ]
+
+      assert %{"entries" => entries} =
+               meta.conn
+               |> post(publication_path(meta.conn, :resemblances), %{"_json" => rows})
+               |> json_response(200)
+
+      assert [
+               %{"position" => 0, "others" => [1], "stored" => []},
+               %{"position" => 1, "others" => [0], "stored" => []}
+             ] = entries
+    end
+
+    test "a row unlike anything is not reported at all", meta do
+      expect_auth_authorize_admin()
+      insert_publication(@publication_attrs)
+
+      rows = [
+        %{
+          @publication_attrs
+          | "title" => "Dom Casmurro",
+            "authors" => ["Helen Caldwell"],
+            "original_title" => "Dom Casmurro",
+            "original_authors" => ["Machado de Assis"]
+        }
+      ]
+
+      assert %{"entries" => []} =
+               meta.conn
+               |> post(publication_path(meta.conn, :resemblances), %{"_json" => rows})
+               |> json_response(200)
+    end
+  end
+
   describe "POST /publications/duplicates/distinguish" do
     test "remembers the records ruled apart, so they are not offered again", meta do
       expect_auth_authorize_admin(3)

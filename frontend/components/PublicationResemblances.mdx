@@ -1,0 +1,51 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationResemblancesStories from "./PublicationResemblances.stories";
+
+<Meta of={PublicationResemblancesStories} />
+
+# Resemblance review
+
+Steps through the rows of an import that look like something already known, one
+question at a time. Opened from the
+[resemblance counter](?path=/docs/publications-resemblance-counter--docs) in the
+workspace footer.
+
+Each question shows the row being imported against everything it resembles —
+records already in the database, other rows of the same import, or both. The
+evidence card is the one the
+[duplicate review](?path=/docs/publications-duplicate-review--docs) uses, so a
+reviewer who has stepped through that one reads this the same way.
+
+## The two answers
+
+**Discard this row** takes it out of the import, the same discard the footer can
+undo. **Keep it** leaves the row where it is and stops the question being asked
+again in this workspace.
+
+Neither is written down. The duplicate review records a _distinction_ against a
+pair of stored ids; a row being imported has no id, so there is nothing to record
+it against. Keeping a row is an answer for this sitting only — once the row is
+saved, the duplicate review asks about it again with a real pair to remember.
+
+<Canvas of={PublicationResemblancesStories.AgainstTheDatabase} />
+
+## Props
+
+- `isOpen` / `onClose` — the dialog's own state, owned by the counter that opens
+  it.
+
+## States
+
+- **Against the database** — the row resembles a stored record.
+- **Within the import** — the row resembles another row of the same import.
+  Neither is stored, so this review is the only place the pair is put together.
+- **All answered** — every question in the queue has an answer.
+
+<Canvas of={PublicationResemblancesStories.WithinTheImport} />
+
+## The queue
+
+The questions are snapshotted when the dialog opens. Answering one takes the row
+out of the live list, and counting progress against a list that shrinks
+underneath would renumber the total after every answer.

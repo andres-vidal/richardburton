@@ -30,6 +30,10 @@ import {
   matchingCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
+  isResemblanceCheckedAtom,
+  resemblanceFamily,
+  resemblingCountAtom,
+  resemblingIdsAtom,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
@@ -157,6 +161,25 @@ function useValidPublicationCount() {
   return useAtomValue(validCountAtom);
 }
 
+/** What this row resembles, or null where it resembles nothing. */
+function usePublicationResemblance(id: PublicationId) {
+  return useAtomValue(resemblanceFamily(id));
+}
+
+/** The rows raising a look-alike nobody has accepted yet. */
+function useResemblingPublicationIds() {
+  return useAtomValue(resemblingIdsAtom);
+}
+
+/** Whether the check covers the working set as it now stands. */
+function useIsResemblanceChecked() {
+  return useAtomValue(isResemblanceCheckedAtom);
+}
+
+function useResemblingPublicationCount() {
+  return useAtomValue(resemblingCountAtom);
+}
+
 function useDiscardedPublicationCount() {
   return useAtomValue(discardedCountAtom);
 }
@@ -237,6 +260,10 @@ export {
   useStoredPublicationSources,
   useTotalPublicationCount,
   useUnsourcedPublicationCount,
+  useIsResemblanceChecked,
+  usePublicationResemblance,
+  useResemblingPublicationCount,
+  useResemblingPublicationIds,
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,

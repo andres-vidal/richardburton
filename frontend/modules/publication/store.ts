@@ -11,6 +11,7 @@ import {
   PublicationError,
   PublicationId,
   PublicationKey,
+  Resemblance,
   errorCode,
   empty,
 } from "./model";
@@ -73,6 +74,10 @@ const isValidatingAtom = atom(false);
 const areRowIdsVisibleAtom = atom(false);
 const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
 
+/** The rows the look-alike check has measured, so a row it has not reached can
+ * say so. */
+const measuredIdsAtom = atomWithReset<PublicationId[]>([]);
+
 // --- Per-publication families ----------------------------------------------
 
 const publicationFamily = atomFamily((id: PublicationId) =>
@@ -97,6 +102,20 @@ const discardedFamily = atomFamily((_id: PublicationId) =>
 
 const lastValidatedFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<string | undefined>(undefined),
+);
+
+/**
+ * What the row resembles, or `null` where it resembles nothing. Held apart from
+ * `errorFamily` because it is not an error: it does not make a row invalid and
+ * it does not hold back a submit.
+ */
+const resemblanceFamily = atomFamily((_id: PublicationId) =>
+  atomWithReset<Resemblance | null>(null),
+);
+
+/** Set once a look-alike has been seen and accepted, so it stops being raised. */
+const acceptedFamily = atomFamily((_id: PublicationId) =>
+  atomWithReset<boolean>(false),
 );
 
 const attributeVisibleFamily = atomFamily((key: PublicationKey) =>
@@ -127,6 +146,27 @@ const visibleCountAtom = atom((get) => get(visibleIdsAtom)?.length || 0);
 const discardedCountAtom = atom((get) => get(discardedIdsAtom)?.length || 0);
 const overriddenCountAtom = atom((get) => get(overriddenIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
+
+// The rows raising a look-alike nobody has accepted yet. Discarded rows are out
+// of it: a row on its way out of the import is not a question any more.
+const resemblingIdsAtom = atom((get) =>
+  get(visibleIdsAtom)?.filter(
+    (id) => get(resemblanceFamily(id)) && !get(acceptedFamily(id)),
+  ),
+);
+
+const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
+
+// Whether the answer covers the working set as it now stands. Discarding a row
+// leaves it standing, since the rest were still measured. Adding or editing one
+// does not, since that row has never been asked about.
+const isResemblanceCheckedAtom = atom((get) => {
+  const measured = new Set(get(measuredIdsAtom));
+  const visible = get(visibleIdsAtom) ?? [];
+
+  return visible.length > 0 && visible.every((id) => measured.has(id));
+});
+
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
 
 const visibleAttributesAtom = atom((get) =>
@@ -269,6 +309,8 @@ const PUBLICATION_FAMILIES = [
   storedSourcesFamily,
   isValidFamily,
   errorCodeFamily,
+  resemblanceFamily,
+  acceptedFamily,
 ];
 
 const CELL_FAMILIES = [
@@ -404,6 +446,28 @@ function setErrors(store: Store, entries: PublicationEntry[]): void {
   entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
 }
 
+/**
+ * Replace what every row of the working set resembles. Rows absent from
+ * `found` resemble nothing, so a row that has stopped looking like anything
+ * stops saying so.
+ */
+function setResemblances(
+  store: Store,
+  ids: PublicationId[],
+  found: Map<PublicationId, Resemblance>,
+): void {
+  store.set(measuredIdsAtom, ids);
+  ids.forEach((id) => {
+    store.set(resemblanceFamily(id), found.get(id) ?? RESET);
+    if (!found.has(id)) store.set(acceptedFamily(id), RESET);
+  });
+}
+
+/** Accept a row's look-alike: keep the row, and stop raising it. */
+function acceptResemblance(store: Store, id: PublicationId): void {
+  store.set(acceptedFamily(id), true);
+}
+
 function setDiscarded(
   store: Store,
   ids: PublicationId[],
@@ -424,6 +488,18 @@ function overrideField<K extends PublicationKey>(
 ): void {
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
+  forgetResemblance(store, id);
+}
+
+// An edited row is no longer the row that was measured, so what it resembled is
+// dropped rather than left to describe a value that has changed.
+function forgetResemblance(store: Store, id: PublicationId): void {
+  store.set(resemblanceFamily(id), RESET);
+  store.set(acceptedFamily(id), RESET);
+  store.set(
+    measuredIdsAtom,
+    store.get(measuredIdsAtom).filter((measured) => measured !== id),
+  );
 }
 
 /** Overlay the whole provenance list (sources are edited as a unit, not per
@@ -435,6 +511,7 @@ function overrideSources(
 ): void {
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, sources });
+  forgetResemblance(store, id);
 }
 
 /** Drop a single row's pending edits and errors (cancelling an edit). */
@@ -511,10 +588,13 @@ function resetAll(store: Store): void {
     store.set(errorFamily(id), RESET);
     store.set(discardedFamily(id), RESET);
     store.set(lastValidatedFamily(id), RESET);
+    store.set(resemblanceFamily(id), RESET);
+    store.set(acceptedFamily(id), RESET);
   });
 
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
+  store.set(measuredIdsAtom, RESET);
 }
 
 function resetDiscarded(store: Store): void {
@@ -586,6 +666,8 @@ export {
   discardEdit,
   drawnCountAtom,
   duplicate,
+  acceptResemblance,
+  acceptedFamily,
   errorCodeFamily,
   errorFamily,
   fieldErrorCodeFamily,
@@ -619,12 +701,17 @@ export {
   resetAll,
   resetAttributes,
   resetDiscarded,
+  isResemblanceCheckedAtom,
+  resemblanceFamily,
+  resemblingCountAtom,
+  resemblingIdsAtom,
   resetOverridden,
   setAll,
   setAttributesVisible,
   setDiscarded,
   setErrors,
   setFocusedRowId,
+  setResemblances,
   storedFieldValueFamily,
   storedSourcesFamily,
   totalCountAtom,

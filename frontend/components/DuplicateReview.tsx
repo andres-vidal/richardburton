@@ -147,13 +147,12 @@ const QueueOption: FC<{
   );
 };
 
-/** One record of the cluster, with the choice to keep it. */
 /**
  * One record's evidence. `onKeep` is what makes it a choice — without it the
  * card is the same evidence with nothing to decide, which is what a decision
  * already made looks like.
  */
-const Candidate: FC<{
+export const Candidate: FC<{
   publication: Publication;
   kept?: boolean;
   onKeep?: () => void;

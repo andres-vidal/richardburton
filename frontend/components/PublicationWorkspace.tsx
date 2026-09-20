@@ -3,6 +3,7 @@
 import { Key } from "app";
 import AddCircleIcon from "assets/add-circle.svg";
 import ErrorIcon from "assets/error.svg";
+import WarningIcon from "assets/warning.svg";
 import {
   Column,
   ColumnHeader,
@@ -20,6 +21,7 @@ import {
   useIsPublicationFocused,
   useIsPublicationValid,
   usePublicationErrorDescription,
+  usePublicationResemblance,
   usePublicationField,
   usePublicationFieldError,
   useVisiblePublicationIds,
@@ -85,8 +87,10 @@ const ExtendedColumnHeader: typeof ColumnHeader = (props) => {
 };
 
 const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
+  const t = useTranslations("resemblances");
   const isValid = useIsPublicationValid(rowId);
   const isFocused = useIsPublicationFocused(rowId);
+  const resemblance = usePublicationResemblance(rowId);
 
   const isSelected = useIsSelected(rowId);
   const [isIdVisible] = useAreRowIdsVisible();
@@ -104,6 +108,13 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
         data-error={!isValid}
       >
         {!isValid && <ErrorIcon className="w-5 aspect-square" />}
+        {isValid && resemblance && (
+          <WarningIcon
+            role="img"
+            aria-label={t("rowLooksLike")}
+            className="w-5 text-amber-500 aspect-square"
+          />
+        )}
         {isIdVisible && rowId + 1}
       </span>
     </SignalColumn>
