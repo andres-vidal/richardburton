@@ -145,8 +145,9 @@ defmodule RichardBurton.Country do
   @doc """
   The codes of the countries a `country:` operator's value names.
 
-  A complete name answers alone; failing that, every name the value begins. So
-  `country:US` is the United States, not every country whose name starts "us".
+  A value that is a complete name reaches that country alone. Otherwise it
+  reaches every country whose name starts with it. So `country:US` is the United
+  States, not every country whose name begins "us".
 
   An empty list is a filter no row satisfies, not the absence of one.
 
@@ -189,12 +190,13 @@ defmodule RichardBurton.Country do
   @doc """
   The codes of the countries a term names outright.
 
-  A name counts when its words appear in the term consecutively, case, accents
-  and punctuation folded away — so "United States Kingdom" names the United
-  States and not the United Kingdom.
+  A name counts when its words appear consecutively in the term, with case,
+  accents and punctuation folded away. So "United States Kingdom" names the
+  United States and not the United Kingdom.
 
-  A code counts when the term writes it in capitals, or is that code and nothing
-  else: "machado DE" asks for Germany, "machado de assis" does not.
+  A code counts when the term writes it in capitals, or when the term is that
+  code and nothing else. So "machado DE" asks for Germany and "machado de assis"
+  does not.
 
   ## Examples
 
@@ -219,9 +221,10 @@ defmodule RichardBurton.Country do
   @doc """
   The codes of the countries a term reaches.
 
-  Whatever `named_in/1` finds. Failing that, every country the whole term begins
-  the name of, so "United" reaches both the United States and the United
-  Kingdom.
+  A term that names countries outright reaches those, and `named_in/1` decides
+  which. Otherwise the whole term is read as a name being typed, and every
+  country whose name starts with it is reached: "United" reaches both the United
+  States and the United Kingdom.
 
   ## Examples
 
