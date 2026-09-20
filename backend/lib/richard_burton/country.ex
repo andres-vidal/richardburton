@@ -93,9 +93,6 @@ defmodule RichardBurton.Country do
   The value has to be a complete name the country goes by: either ISO code, the
   name in either language, or one of the other names readers use.
 
-  Stricter than the search, which offers what a fragment could still become,
-  because this decides where a record is filed.
-
   ## Examples
 
     iex> RichardBurton.Country.code_for("UK")
@@ -195,8 +192,7 @@ defmodule RichardBurton.Country do
   States and not the United Kingdom.
 
   A code counts when the term writes it in capitals, or is that code and nothing
-  else. Two-letter codes spell common words, and the capitals are what separate
-  them: "machado DE" asks for Germany, "machado de assis" does not.
+  else: "machado DE" asks for Germany, "machado de assis" does not.
 
   ## Examples
 
@@ -222,10 +218,8 @@ defmodule RichardBurton.Country do
   The codes of the countries a term reaches.
 
   Whatever `named_in/1` finds. Failing that, every country the whole term begins
-  the name of, so "United" reaches both the United States and the United Kingdom.
-
-  Names first, so a term that says which country it means does not also reach the
-  ones it only resembles.
+  the name of, so "United" reaches both the United States and the United
+  Kingdom.
 
   ## Examples
 
