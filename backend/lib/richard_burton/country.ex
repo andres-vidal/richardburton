@@ -461,9 +461,7 @@ defmodule RichardBurton.Country do
     end
   end
 
-  @spec fingerprint(binary() | maybe_improper_list()) :: binary()
-  def fingerprint(countries) when is_binary(countries), do: countries |> nest() |> fingerprint()
-
+  @spec fingerprint(maybe_improper_list()) :: binary()
   def fingerprint(countries) when is_list(countries) do
     countries
     |> Enum.map(&get_code/1)
@@ -508,21 +506,15 @@ defmodule RichardBurton.Country do
   @doc ~S"""
   Nest country codes into the maps the schema casts.
 
-  A list is the shape the client and the flat schema speak in; a
-  comma-separated string is CSV's, and is split on the way through.
+  Takes the list the client and the flat schema both speak in. Splitting a
+  written-down string into values is the CSV codec's, and is done before a value
+  reaches here.
 
   ## Examples
 
     iex> RichardBurton.Country.nest(["BR", "US"])
     [%{"code" => "BR"}, %{"code" => "US"}]
-
-    iex> RichardBurton.Country.nest("BR, US")
-    [%{"code" => "BR"}, %{"code" => "US"}]
   """
-  def nest(countries) when is_binary(countries) do
-    countries |> String.split(",") |> Enum.map(&String.trim/1) |> nest()
-  end
-
   def nest(countries) when is_list(countries),
     do: Enum.map(countries, &%{"code" => resolved(get_code(&1))})
 

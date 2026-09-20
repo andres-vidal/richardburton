@@ -172,9 +172,9 @@ defmodule RichardBurton.Publication.Codec do
     iex> nested =
     ...>   RichardBurton.Publication.Codec.nest(%{
     ...>     "title" => "Dom Casmurro",
-    ...>     "authors" => "Helen Caldwell",
+    ...>     "authors" => ["Helen Caldwell"],
     ...>     "original_title" => "Dom Casmurro",
-    ...>     "original_authors" => "Machado de Assis"
+    ...>     "original_authors" => ["Machado de Assis"]
     ...>   })
     iex> nested["translated_book"]["authors"]
     [%{"name" => "Helen Caldwell"}]
