@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "utils/testRender";
+import { fireEvent, render, screen } from "test/render";
 
 import TextArrayDataInput from "./TextArrayDataInput";
 

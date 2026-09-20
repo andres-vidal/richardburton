@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "utils/testRender";
+import { fireEvent, render, screen } from "test/render";
 
-import { messages } from "utils/testMessages";
+import { messages } from "test/messages";
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
 
 // The enum-array cell editor (countries) stores raw ids (e.g. "BR,US") but shows

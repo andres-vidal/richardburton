@@ -8,7 +8,7 @@ import { Author } from "modules/author";
 import { Country } from "modules/country";
 import { OriginalBook } from "modules/original-book";
 import { Publisher } from "modules/publisher";
-import { COUNTRIES, messages } from "utils/testMessages";
+import { COUNTRIES, messages } from "test/messages";
 
 import "../styles/globals.css";
 import "./preview.css";
