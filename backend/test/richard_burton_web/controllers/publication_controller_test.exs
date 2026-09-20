@@ -158,7 +158,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> get("#{publication_path(meta.conn, :show, publication.id)}?search=berkeley")
         |> json_response(200)
 
-      assert [marked, unmatched] = body["marked_sources"]
+      assert [marked, unmatched] = body["marked"]["sources"]
       assert marked =~ "[[Berkeley]]"
       # The whole source comes back, not a window over it, so a page showing
       # the provenance list can show each entry in full.
@@ -174,7 +174,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> get("#{publication_path(meta.conn, :show, meta.publication.id)}?search=Reino+Unido")
         |> json_response(200)
 
-      assert body["matched_countries"] == ["GB"]
+      assert body["marked"]["countries"] == ["GB"]
     end
 
     test "reports no countries when the search did not name one", meta do
@@ -185,7 +185,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> get("#{publication_path(meta.conn, :show, meta.publication.id)}?search=Iracema")
         |> json_response(200)
 
-      assert body["matched_countries"] == []
+      assert body["marked"]["countries"] == [nil]
     end
 
     test "reports no countries at all when nothing was searched", meta do
@@ -194,7 +194,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> get(publication_path(meta.conn, :show, meta.publication.id))
         |> json_response(200)
 
-      assert body["matched_countries"] == nil
+      assert body["marked"] == nil
     end
 
     test "returns 404 for a publication that never existed", meta do
@@ -742,8 +742,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                    "id",
                    "sources",
                    "excerpts",
-                   "marked_sources",
-                   "matched_countries"
+                   "marked"
                  ])
                )
     end
@@ -846,8 +845,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                    "id",
                    "sources",
                    "excerpts",
-                   "marked_sources",
-                   "matched_countries"
+                   "marked"
                  ])
                )
     end
@@ -934,8 +932,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                    "id",
                    "sources",
                    "excerpts",
-                   "marked_sources",
-                   "matched_countries"
+                   "marked"
                  ])
                )
     end

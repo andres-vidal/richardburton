@@ -22,18 +22,19 @@ type Publication = {
   // wrapped in `[[ ]]`. Only present on search results, and null for any field
   // the search did not match. `countries` and `year` never carry one.
   excerpts?: Partial<Record<PublicationKey | "sources", string | null>>;
-  // Each source with its matched words wrapped, or null where the search did
-  // not match that one. Only present on a record read with a search.
-  markedSources?: (string | null)[];
-  // Which of the row's countries the search matched, as codes. Only on a record
-  // read with a search. A set, not a list lined up with `countries`, and with no
-  // marked text: what matched is often not what is shown.
-  matchedCountries?: string[];
+  // What matched, value by value: a list lined up with the field's own, holding
+  // each value's matching text and null where that value did not match. Only
+  // present on a record read with a search, and `sources` only where the whole
+  // provenance list is shown.
+  //
+  // `countries` holds the matched country's code rather than marked text, since
+  // naming a country needs a locale the index does not have.
+  marked?: Partial<Record<PublicationListKey | "sources", (string | null)[]>>;
 };
 
 type PublicationKey = keyof Omit<
   Publication,
-  "id" | "sources" | "excerpts" | "markedSources" | "matchedCountries"
+  "id" | "sources" | "excerpts" | "marked"
 >;
 
 /**
@@ -250,7 +251,7 @@ function markedValue(
     Array.isArray(value) ? value : [value],
     attribute,
     country,
-    publication.matchedCountries,
+    matchedCountries(publication),
   );
 
   return Array.isArray(value)
@@ -264,9 +265,11 @@ function markedValue(
  * Each value a field holds, paired with that value as the index marked it. The
  * value is what a term would search for, the label what is shown.
  *
- * The excerpt covers the whole field as one comma-joined string, so splitting it
- * lines the marks back up with the values. If the two disagree on how many there
- * are, every value stands unmarked rather than marked in the wrong places.
+ * The index marks each value separately, so a value carrying a comma is no
+ * trouble. A value the search did not match reads as it is stored.
+ *
+ * Countries are the exception: `marked.countries` holds a code rather than
+ * marked text, so `shown` is what wraps their names.
  */
 function markedItems(
   publication: Publication,
@@ -275,15 +278,16 @@ function markedItems(
   country: CountryNaming,
 ): { value: string; label: string }[] {
   const values = (publication[attribute] ?? []) as string[];
-  const excerpt = publication.excerpts?.[attribute];
-  const marked = excerpt?.split(",").map((one) => one.trim());
+  const read = shown(values, attribute, country, matchedCountries(publication));
+
+  const marked =
+    attribute === "countries"
+      ? undefined
+      : publication.marked?.[attribute as PublicationListKey];
 
   return values.map((value, index) => ({
     value,
-    label:
-      marked?.length === values.length
-        ? marked[index]
-        : shown([value], attribute, country, publication.matchedCountries)[0],
+    label: marked?.[index] ?? read[index],
   }));
 }
 
@@ -320,9 +324,15 @@ function marking(locale: string, country: CountryNaming): Marking {
  */
 function markedSources(publication: Publication): string[] {
   const sources = publication.sources ?? [];
+  const marked = publication.marked?.sources;
 
-  return sources.map(
-    (source, index) => publication.markedSources?.[index] ?? source,
+  return sources.map((source, index) => marked?.[index] ?? source);
+}
+
+/** The codes of the countries the search matched, dropping the ones it did not. */
+function matchedCountries(publication: Publication): string[] {
+  return (publication.marked?.countries ?? []).filter(
+    (code): code is string => code !== null,
   );
 }
 

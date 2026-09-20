@@ -111,12 +111,7 @@ defmodule RichardBurtonWeb.PublicationController do
   defp excerpted(flat, search) do
     case Publication.Index.detail(flat.id, search) do
       [indexed] ->
-        %{
-          flat
-          | excerpts: indexed.excerpts,
-            marked_sources: indexed.marked_sources,
-            matched_countries: indexed.matched_countries
-        }
+        %{flat | excerpts: indexed.excerpts, marked: indexed.marked}
 
       [] ->
         flat

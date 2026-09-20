@@ -67,6 +67,68 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     quote do: fragment("rb_joined(?)", unquote(column))
   end
 
+  # The `excerpts` map: one excerpt per field.
+  defmacrop excerpts(row, queries) do
+    quote do
+      %{
+        title: excerpt(unquote(row).title, ^unquote(queries).title, @whole),
+        original_title:
+          excerpt(unquote(row).original_title, ^unquote(queries).original_title, @whole),
+        authors: excerpt(joined(unquote(row).authors), ^unquote(queries).authors, @whole),
+        original_authors:
+          excerpt(
+            joined(unquote(row).original_authors),
+            ^unquote(queries).original_authors,
+            @whole
+          ),
+        publishers:
+          excerpt(joined(unquote(row).publishers), ^unquote(queries).publishers, @whole),
+        sources: excerpt(joined(unquote(row).sources), ^unquote(queries).sources, @window)
+      }
+    end
+  end
+
+  # Each value of a list column with its matched words wrapped, or nil where that
+  # value did not match. Lined up with the column, so a caller can pair them.
+  defmacrop marked_values(column, query) do
+    quote do
+      fragment(
+        """
+        ARRAY(
+          SELECT CASE WHEN to_tsvector('rb_search', v) @@ to_tsquery('rb_search', ?)
+          THEN ts_headline('rb_search', v, to_tsquery('rb_search', ?), ?) END
+          FROM unnest(?) AS t(v)
+        )
+        """,
+        unquote(query),
+        unquote(query),
+        @whole,
+        unquote(column)
+      )
+    end
+  end
+
+  # Each of the row's countries, as its code where the term matched it and nil
+  # where it did not. Tried against `countries.names`, the column the search
+  # document is built from.
+  defmacrop marked_countries(column, query) do
+    quote do
+      fragment(
+        """
+        ARRAY(
+          SELECT CASE WHEN EXISTS (
+            SELECT 1 FROM countries c WHERE c.code = t.code
+            AND to_tsvector('rb_search', array_to_string(c.names, ' ')) @@ to_tsquery('rb_search', ?)
+          ) THEN t.code END
+          FROM unnest(?) AS t(code)
+        )
+        """,
+        unquote(query),
+        unquote(column)
+      )
+    end
+  end
+
   # Builds one field's excerpt, or nil. When the field has no tsquery, `to_tsquery`
   # receives nil, nothing matches, and the CASE yields nil. This is a macro
   # because a fragment's SQL must be a literal string, so it cannot be built in a
@@ -152,91 +214,54 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   defp report(field, word, words), do: [%{field: field, typed: word, words: words}]
 
   @doc """
-  Adds the `excerpts` map to a query, one excerpt per field, and the
-  `matched_countries` list.
+  Adds the `excerpts` and `marked` maps to a query.
 
-  Takes only the term, reading it the same way the search did. A field no part of
-  the term searched gets no tsquery, and so no excerpt.
+  `excerpts` answers per field: the matching text of the whole field, or nil
+  where the search did not match it. `marked` answers per value: a list lined up
+  with the field's own, holding each value's matching text, or nil where that
+  value did not match.
 
-  `matched_countries` is the set of codes the term matched — which countries
-  answered, not where in them. A country answers to either ISO code and to a name
-  in any language, so what matched is often not what is shown.
+  Both come from the term alone, read the way the search read it. A field no part
+  of the term searched gets no tsquery, and so neither an excerpt nor marks.
+
+  `marked.countries` holds the matched country's code rather than marked text,
+  since naming a country needs a locale the index does not have. `marked.sources`
+  is included only when `sources: true`, the entries being long and wanted only
+  where the whole provenance list is shown.
   """
-  @spec select(Ecto.Query.t(), String.t()) :: Ecto.Query.t()
-  def select(query, term) do
+  @spec select(Ecto.Query.t(), String.t(), keyword) :: Ecto.Query.t()
+  def select(query, term, opts \\ []) do
     queries = field_queries(term)
 
-    query
-    |> select_countries(queries.countries)
-    |> select_merge([p], %{
-      excerpts: %{
-        title: excerpt(p.title, ^queries.title, @whole),
-        original_title: excerpt(p.original_title, ^queries.original_title, @whole),
-        authors: excerpt(joined(p.authors), ^queries.authors, @whole),
-        original_authors: excerpt(joined(p.original_authors), ^queries.original_authors, @whole),
-        publishers: excerpt(joined(p.publishers), ^queries.publishers, @whole),
-        sources:
-          excerpt(
-            joined(p.sources),
-            ^queries.sources,
-            @window
-          )
+    if Keyword.get(opts, :sources, false),
+      do: select_all(query, queries),
+      else: select_without_sources(query, queries)
+  end
+
+  # The two differ only in whether `marked` carries the sources. A fragment's SQL
+  # has to be a literal, so the map cannot be assembled conditionally.
+  defp select_all(query, queries) do
+    select_merge(query, [p], %{
+      excerpts: excerpts(p, queries),
+      marked: %{
+        authors: marked_values(p.authors, ^queries.authors),
+        original_authors: marked_values(p.original_authors, ^queries.original_authors),
+        publishers: marked_values(p.publishers, ^queries.publishers),
+        countries: marked_countries(p.countries, ^queries.countries),
+        sources: marked_values(p.sources, ^queries.sources)
       }
     })
   end
 
-  # Adds `matched_countries`: the codes among the row's countries the term
-  # matched, tried against `countries.names` — the same column the search
-  # document is built from.
-  #
-  # A term searching no country gets a nil tsquery, and the list comes back
-  # empty.
-  defp select_countries(query, countries) do
+  defp select_without_sources(query, queries) do
     select_merge(query, [p], %{
-      matched_countries:
-        fragment(
-          """
-          ARRAY(
-            SELECT c.code FROM countries c
-            WHERE c.code = ANY(?)
-            AND to_tsvector('rb_search', array_to_string(c.names, ' ')) @@ to_tsquery('rb_search', ?)
-          )
-          """,
-          p.countries,
-          ^countries
-        )
-    })
-  end
-
-  @doc """
-  Adds the `marked_sources` list to a query: each of the row's sources with
-  the matched words wrapped, or nil where the search did not match that one.
-
-  The `sources` excerpt in `select/2` answers a different question. It is one
-  short window over the whole bibliography joined together, which says that a row
-  matched on its provenance but not which entry did. This marks the entries
-  themselves, in the order they are stored, so each can be shown beside the
-  source it belongs to.
-  """
-  @spec select_sources(Ecto.Query.t(), String.t()) :: Ecto.Query.t()
-  def select_sources(query, term) do
-    sources = field_queries(term).sources
-
-    select_merge(query, [p], %{
-      marked_sources:
-        fragment(
-          """
-          ARRAY(
-            SELECT CASE WHEN to_tsvector('rb_search', r) @@ to_tsquery('rb_search', ?)
-            THEN ts_headline('rb_search', r, to_tsquery('rb_search', ?), ?) END
-            FROM unnest(?) AS r
-          )
-          """,
-          ^sources,
-          ^sources,
-          @whole,
-          p.sources
-        )
+      excerpts: excerpts(p, queries),
+      marked: %{
+        authors: marked_values(p.authors, ^queries.authors),
+        original_authors: marked_values(p.original_authors, ^queries.original_authors),
+        publishers: marked_values(p.publishers, ^queries.publishers),
+        countries: marked_countries(p.countries, ^queries.countries)
+      }
     })
   end
 

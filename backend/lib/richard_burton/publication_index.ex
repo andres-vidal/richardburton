@@ -188,8 +188,7 @@ defmodule RichardBurton.Publication.Index do
 
   def detail(id, term) when is_binary(term) do
     from(fp in FlatPublication, where: fp.id == ^id)
-    |> Excerpt.select(term)
-    |> Excerpt.select_sources(term)
+    |> Excerpt.select(term, sources: true)
     |> Repo.all()
   end
 
