@@ -171,6 +171,106 @@ defmodule RichardBurton.CountryTest do
     end
   end
 
+  describe "answering/1" do
+    test "a name written in full names that country alone" do
+      assert Country.answering("US") == ["US"]
+      assert Country.answering("USA") == ["US"]
+      assert Country.answering("Brasil") == ["BR"]
+      assert Country.answering("Holanda") == ["NL"]
+      assert Country.answering("Reino Unido") == ["GB"]
+    end
+
+    # "BR" begins "Britain", which the United Kingdom goes by, but it *is*
+    # Brazil's code. A country written out reaches itself and not the longer
+    # names it starts.
+    test "a name written in full beats the longer names it begins" do
+      assert Country.answering("BR") == ["BR"]
+    end
+
+    test "a name only begun reaches every country it could still become" do
+      begun = Country.answering("United")
+
+      assert "US" in begun
+      assert "GB" in begun
+    end
+
+    test "a value no name answers to names nothing" do
+      assert Country.answering("zzzzqqqq") == []
+      assert Country.answering("") == []
+    end
+  end
+
+  describe "named_in/1" do
+    test "a term naming a country alongside something else still names it" do
+      assert Country.named_in("machado brazil") == ["BR"]
+    end
+
+    # "United States Kingdom" holds the name "United States" as a run of words
+    # and "United Kingdom" not at all, so the two countries are told apart even
+    # though each shares a word with the term.
+    test "a name has to appear as a run of words, not as words scattered about" do
+      assert Country.named_in("United States Kingdom") == ["US"]
+      assert Country.named_in("Reino Unido") == ["GB"]
+    end
+
+    test "a term naming several countries names all of them" do
+      assert Country.named_in("brasil e portugal") == ["BR", "PT"]
+    end
+
+    test "quotes and punctuation are not read as part of a name" do
+      assert Country.named_in(~s("United Kingdom")) == ["GB"]
+    end
+
+    test "a term naming no country in full names none" do
+      assert Country.named_in("United") == []
+      assert Country.named_in("a study of translation") == []
+    end
+
+    test "either ISO code names the country it stands for" do
+      assert Country.named_in("US") == ["US"]
+      assert Country.named_in("GBR") == ["GB"]
+      assert "US" in Country.named_in("machado USA")
+    end
+
+    # "de" is Germany's code and a Portuguese preposition. What tells them apart
+    # is that a code is written as one.
+    test "a code spelling a common word has to be written as a code" do
+      assert Country.named_in("machado de assis") == []
+      assert Country.named_in("machado DE") == ["DE"]
+    end
+
+    test "a term that is nothing but a code names it whatever the case" do
+      assert Country.named_in("de") == ["DE"]
+      assert Country.named_in("usa") == ["US"]
+    end
+  end
+
+  describe "reached_by/1" do
+    test "a term naming a country outright reaches that one alone" do
+      assert Country.reached_by("machado brazil") == ["BR"]
+      assert Country.reached_by("Reino Unido") == ["GB"]
+      assert Country.reached_by("United States Kingdom") == ["US"]
+    end
+
+    test "a term naming none is read a word at a time" do
+      reached = Country.reached_by("United")
+
+      assert "US" in reached
+      assert "GB" in reached
+    end
+
+    # A half-written name has to be the whole term: "de" begins four countries'
+    # names, and is a Portuguese preposition besides.
+    test "a word inside a longer term is a word, not a country half-typed" do
+      assert Country.reached_by("machado de assis") == []
+      assert Country.reached_by("machado united") == []
+    end
+
+    test "a code written as one is reached from anywhere in the term" do
+      assert Country.reached_by("machado USA") == ["US"]
+    end
+  end
+
   describe "known/1" do
     test "names every country in the language asked for" do
       labels = Country.known("pt") |> Enum.map(& &1.label)

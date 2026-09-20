@@ -660,6 +660,78 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
+  describe "details/2 matched countries" do
+    # The countries each returned row answered with, by title.
+    defp answering_countries(term) do
+      term
+      |> Publication.Index.search_order()
+      |> Publication.Index.details(term)
+      |> Map.new(&{&1.title, &1.matched_countries})
+    end
+
+    test "a country's name reports that country" do
+      assert %{"Posthumous Reminiscences of Brás Cubas" => ["BR"]} =
+               answering_countries("Brazil")
+    end
+
+    test "a row reports the country that answered and not the ones beside it" do
+      # Dora Doralina is published in both GB and US, and only one was named.
+      assert %{"Dora Doralina" => ["GB"]} = answering_countries("United Kingdom")
+    end
+
+    # "Estados Unidos" shares a word with "Reino Unido", and a country is
+    # reported whole, so sharing one is not answering.
+    test "a country sharing a word with the one named does not answer" do
+      assert %{"Dora Doralina" => ["GB"]} = answering_countries("Reino Unido")
+    end
+
+    test "a country named alongside something else is still reported" do
+      assert %{"Posthumous Reminiscences of Brás Cubas" => ["BR"]} =
+               answering_countries("machado brazil")
+    end
+
+    test "a country an operator names is reported by the name it was written with" do
+      assert %{"Dora Doralina" => ["GB"]} = answering_countries("pais:(Reino Unido)")
+    end
+
+    # A term that names no country outright is read a word at a time, so a
+    # half-written name still says which countries answered it.
+    test "a name only begun reports every country it could still be" do
+      assert %{"Dora Doralina" => ["GB", "US"]} = answering_countries("United")
+    end
+
+    test "a country answers to a name readers use for it but no language does" do
+      assert %{"Dora Doralina" => ["US"]} = answering_countries("USA")
+    end
+
+    test "a country answers to either of its ISO codes" do
+      assert %{"Dora Doralina" => ["GB"]} = answering_countries("GBR")
+    end
+
+    test "a term that answered another field reports no country" do
+      rows = answering_countries("machado")
+
+      refute Enum.empty?(rows)
+      assert Enum.all?(Map.values(rows), &(&1 == []))
+    end
+
+    test "a negated country reports none, having excluded rather than answered" do
+      rows = answering_countries("machado -country:US")
+
+      refute Enum.empty?(rows)
+      assert Enum.all?(Map.values(rows), &(&1 == []))
+    end
+
+    test "a plain listing reports no countries at all" do
+      [row | _] =
+        Publication.Index.all_order()
+        |> Enum.take(1)
+        |> Publication.Index.details()
+
+      assert row.matched_countries == nil
+    end
+  end
+
   describe "search/1 by country" do
     test "a country's name finds the records that store its code" do
       assert {:ok, publications} = Publication.Index.search("Brazil")
@@ -1007,6 +1079,33 @@ defmodule RichardBurton.Publication.IndexTest do
       refute Enum.empty?(narrowed)
       assert length(narrowed) < length(loose)
       assert Enum.all?(narrowed, &("US" in &1.countries))
+    end
+
+    test "a country operator answers to a name, not only to the stored code" do
+      by_code = found("country:GB")
+
+      refute Enum.empty?(by_code)
+      assert Enum.all?(by_code, &("GB" in &1.countries))
+
+      for named <- ["country:GBR", ~s(country:"United Kingdom"), "pais:(Reino Unido)"] do
+        assert Enum.map(found(named), & &1.id) == Enum.map(by_code, & &1.id),
+               "#{named} did not reach the country it names"
+      end
+    end
+
+    test "a country operator answers to a name readers use that no page writes" do
+      assert Enum.all?(found("country:USA"), &("US" in &1.countries))
+      refute Enum.empty?(found("country:USA"))
+    end
+
+    # "Brazil" begins no other country's name, but "BR" begins "Britain", which
+    # GB goes by. Writing a country out in full names that one alone.
+    test "a country written in full names it alone, not the names it begins" do
+      assert Enum.all?(found("country:BR"), &("BR" in &1.countries))
+    end
+
+    test "a country no name answers to narrows the term to nothing" do
+      assert found("country:zzzzqqqq") == []
     end
 
     test "an operator applies to its own alternative only" do

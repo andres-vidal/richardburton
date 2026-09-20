@@ -88,6 +88,195 @@ defmodule RichardBurton.Country do
   def all_known, do: @countries
 
   @doc """
+  The codes of the countries a `country:` operator's value names.
+
+  A name matched in full answers alone, and only where nothing matches in full
+  does a name merely beginning with the value answer. Writing a country out
+  therefore names that country and not the longer names it starts: `country:US`
+  is the United States, not every country with a name beginning "us".
+
+  A value no name begins answers with nothing, which is a filter nothing
+  satisfies rather than one everything does.
+
+  ## Examples
+
+    iex> RichardBurton.Country.answering("Reino Unido")
+    ["GB"]
+
+    iex> RichardBurton.Country.answering("BRA")
+    ["BR"]
+
+    iex> RichardBurton.Country.answering("zzzz")
+    []
+  """
+  def answering(value) when is_binary(value) do
+    case normalize(value) do
+      "" ->
+        []
+
+      normalized ->
+        named =
+          @countries
+          |> Map.keys()
+          |> Enum.map(&{&1, rank(&1, normalized)})
+          |> Enum.reject(fn {_code, rank} -> is_nil(rank) or rank > 1 end)
+
+        case Enum.min_by(named, &elem(&1, 1), fn -> nil end) do
+          nil -> []
+          {_code, best} -> for {code, ^best} <- named, do: code
+        end
+    end
+  end
+
+  def answering(_value), do: []
+
+  @doc """
+  The codes of the countries a term names outright.
+
+  A country is named when one of the names it is called appears in the term as a
+  run of consecutive words. "machado brazil" names Brazil, and "United States
+  Kingdom" names the United States but not the United Kingdom, whose name it
+  does not contain.
+
+  A run, rather than the words in any order, is what keeps two countries that
+  share a word apart. Case, accents and punctuation are folded away first, so
+  "paises baixos" names the country "Países Baixos" does.
+
+  A code names a country when the term writes it as one, in capitals, or when
+  the term is that code and nothing else. A two-letter code often spells a
+  common word: "machado DE" asks for Germany and "machado de assis" does not.
+
+  ## Examples
+
+    iex> RichardBurton.Country.named_in("machado brazil")
+    ["BR"]
+
+    iex> RichardBurton.Country.named_in("a study of translation")
+    []
+  """
+  def named_in(term) when is_binary(term) do
+    said = words(term)
+    as_typed = split(term)
+
+    @countries
+    |> Map.keys()
+    |> Enum.filter(&named?(&1, said, as_typed))
+    |> Enum.sort()
+  end
+
+  def named_in(_term), do: []
+
+  @doc """
+  The codes of the countries a term reaches.
+
+  A term that names a country outright reaches that one alone, so "Reino Unido"
+  reaches the United Kingdom and not the Estados Unidos it shares a word with,
+  and "United States Kingdom" reaches the United States and not the United
+  Kingdom. A term that names none is read a word at a time, the way a
+  reader is still typing it, so "United" reaches every country whose name begins
+  that way.
+
+  Reading the term whole first is what keeps a term that says which country it
+  means from also reaching the ones it merely brushes against.
+
+  ## Examples
+
+    iex> RichardBurton.Country.reached_by("machado brazil")
+    ["BR"]
+
+    iex> RichardBurton.Country.reached_by("United States Kingdom")
+    ["US"]
+
+    iex> RichardBurton.Country.reached_by("machado de assis")
+    []
+  """
+  def reached_by(term) when is_binary(term) do
+    case named_in(term) do
+      [] -> term |> words() |> beginning()
+      named -> named
+    end
+  end
+
+  def reached_by(_term), do: []
+
+  # Whether a term names this country: one of the names it is called appears in
+  # `said` as a run of words, or the term says one of its codes.
+  defp named?(code, said, as_typed) do
+    Enum.any?(called(code), &run_of?(words(&1), said)) or coded?(code, said, as_typed)
+  end
+
+  # Whether a term says one of this country's codes: written as a code, in
+  # capitals, or standing as the whole term in whatever case.
+  #
+  # Two-letter codes spell common words. "de" is Germany's code and a Portuguese
+  # preposition both, so "machado de assis" is about neither Germany nor any
+  # country — while "machado DE", which writes it as a code, and "de", which
+  # asks for nothing else, can only be about it.
+  defp coded?(code, said, as_typed) do
+    codes = coded(code)
+
+    Enum.any?(codes, &(&1 in as_typed)) or Enum.any?(codes, &(words(&1) == said))
+  end
+
+  # The countries a half-written name could still become.
+  #
+  # The whole term has to be that fragment. A short word inside a longer term is
+  # a word rather than a country half-typed, and "de" alone begins the names of
+  # four of them, so "machado de assis" would otherwise reach all four.
+  #
+  # Only what a country is called is tried, since a code is a whole name already
+  # and `named?/2` has had its chance at it. The words arrive already folded.
+  defp beginning([]), do: []
+
+  defp beginning(said) do
+    fragment = Enum.join(said, " ")
+
+    @countries
+    |> Map.keys()
+    |> Enum.filter(fn code ->
+      Enum.any?(called(code), &String.starts_with?(Enum.join(words(&1), " "), fragment))
+    end)
+    |> Enum.sort()
+  end
+
+  # What a country is called: its name in each language, and the other names
+  # readers have for it.
+  defp called(code) do
+    country = Map.fetch!(@countries, code)
+
+    [country["en"]["name"], country["pt"]["name"] | country["aliases"] || []]
+    |> Enum.filter(&is_binary/1)
+  end
+
+  # The codes a country is filed under, rather than called by.
+  defp coded(code) do
+    [code, Map.fetch!(@countries, code)["alpha3"]] |> Enum.filter(&is_binary/1)
+  end
+
+  # Whether `name` appears in `said` as a run of consecutive words. A name of no
+  # words is in nothing, rather than in everything.
+  defp run_of?([], _said), do: false
+
+  defp run_of?(name, said) do
+    Enum.any?(0..(length(said) - length(name))//1, fn at ->
+      Enum.slice(said, at, length(name)) == name
+    end)
+  end
+
+  # The words of a phrase, as they compare. Split on everything that is neither
+  # a letter nor a digit, so the quotes and colons a search term carries are not
+  # read as part of a word, and a name written with a hyphen is the same two
+  # words whichever side writes it.
+  defp words(phrase) do
+    phrase |> normalize() |> split()
+  end
+
+  # A phrase cut into words, left as it was written. What tells a code from the
+  # word it spells is the capitals, so the code check reads this rather than the
+  # folded form.
+  defp split(phrase), do: String.split(phrase, ~r/[^\p{L}\p{N}]+/u, trim: true)
+
+  @doc """
   Every country the platform knows, named in `locale`, ordered by that name.
 
   The shape the editor's country field reads: the code is what a publication
