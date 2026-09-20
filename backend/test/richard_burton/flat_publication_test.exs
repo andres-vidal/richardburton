@@ -102,6 +102,54 @@ defmodule RichardBurton.FlatPublicationTest do
       refute changeset.valid?
       assert :conflict == Validation.get_errors(changeset)
     end
+
+    # A spreadsheet says what a person calls a country, not what the database
+    # files it under.
+    test "a country written by name or by a code readers use is filed under its own" do
+      for {written, code} <- [
+            {"UK", "GB"},
+            {"AUS", "AU"},
+            {"Brasil", "BR"},
+            {"Estados Unidos", "US"},
+            {"UK ", "GB"}
+          ] do
+        changeset = change_valid(%{"countries" => [written]})
+
+        assert changeset.valid?, "#{written} was refused"
+        assert get_change(changeset, :countries) == [code]
+      end
+    end
+
+    test "a value naming no country is still refused, and says which" do
+      changeset = change_valid(%{"countries" => ["Narnia"]})
+
+      refute changeset.valid?
+      assert %{countries: [message]} = errors_on(changeset)
+      assert message =~ "Narnia"
+    end
+
+    # "São Martinho" is both Sint Maarten and Saint Martin, and a record filed
+    # under a guess would be filed somewhere nobody chose.
+    test "a name two countries share is refused rather than guessed at" do
+      refute change_valid(%{"countries" => ["São Martinho"]}).valid?
+    end
+
+    test "a name half-written names nothing, unlike a search" do
+      refute change_valid(%{"countries" => ["Braz"]}).valid?
+    end
+
+    # The whole point of filing it under the code: an import that says "UK" and
+    # one that says "GB" are the same record, and the second is a duplicate.
+    test "a record imported as UK is the record imported as GB" do
+      {:ok, publication} = insert(Map.put(@valid_attrs, "countries", ["UK"]))
+
+      codes =
+        publication |> Repo.preload(:countries) |> Map.get(:countries) |> Enum.map(& &1.code)
+
+      assert codes == ["GB"]
+      assert {:error, changeset} = insert(Map.put(@valid_attrs, "countries", ["GB"]))
+      assert :conflict == Validation.get_errors(changeset)
+    end
   end
 
   describe "validate/1" do

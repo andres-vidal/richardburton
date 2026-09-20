@@ -69,6 +69,7 @@ defmodule RichardBurton.FlatPublication do
     |> cast(attrs, @writable_attributes)
     |> validate_required(@required_attributes)
     |> validate_any_values()
+    |> Country.resolve_countries()
     |> Country.validate_countries()
     |> Country.link_fingerprint()
     |> Publisher.link_fingerprint()

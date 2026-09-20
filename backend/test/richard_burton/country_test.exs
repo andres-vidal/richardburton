@@ -341,44 +341,38 @@ defmodule RichardBurton.CountryTest do
       assert errors == [countries: {"can't be blank", [validation: :required]}]
     end
 
-    test "when countries is valid alpha3 code, is invalid" do
-      %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => ["USA"]}
-        |> WithFlatCountries.changeset()
-        |> Country.validate_countries()
+    # A written record says what a person calls a country. Every name a country
+    # goes by is filed under its own code, so these are the country rather than
+    # a spelling of it to be refused.
+    test "when countries is a name or a code readers use, is valid" do
+      for written <- ["USA", "EUA", "UK", "AUS", "Brasil", "Estados Unidos"] do
+        %Ecto.Changeset{valid?: valid} =
+          %{"countries" => [written]}
+          |> WithFlatCountries.changeset()
+          |> Country.validate_countries()
 
-      refute valid
-      assert errors == [countries: {"Invalid countries: USA", [validation: :alpha2]}]
+        assert valid, "#{written} was refused"
+      end
     end
 
-    test "when countries is invalid 3 digit code, is invalid" do
+    test "when countries is multiple names nothing answers to, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => ["EUA"]}
+        %{"countries" => ["Narnia", "Cimmeria"]}
         |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
-      assert errors == [countries: {"Invalid countries: EUA", [validation: :alpha2]}]
+      assert errors == [countries: {"Invalid countries: Narnia, Cimmeria", [validation: :alpha2]}]
     end
 
-    test "when countries is multiple, comma separated, invalid codes, is invalid" do
+    test "when countries has at least one name nothing answers to, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => ["USA", "GBR"]}
+        %{"countries" => ["Narnia", "GB"]}
         |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
-      assert errors == [countries: {"Invalid countries: USA, GBR", [validation: :alpha2]}]
-    end
-
-    test "when countries has at least one invalid code, is invalid" do
-      %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => ["USA", "GB"]}
-        |> WithFlatCountries.changeset()
-        |> Country.validate_countries()
-
-      refute valid
-      assert errors == [countries: {"Invalid countries: USA", [validation: :alpha2]}]
+      assert errors == [countries: {"Invalid countries: Narnia", [validation: :alpha2]}]
     end
 
     test "when countries is invalid 2 digit code, is invalid" do

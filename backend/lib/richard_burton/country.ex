@@ -88,6 +88,68 @@ defmodule RichardBurton.Country do
   def all_known, do: @countries
 
   @doc """
+  The ISO alpha-2 code a value names, or nil where it names no country.
+
+  A value names a country when it is written out as one of the names that
+  country goes by: either ISO code, the name in either language, or one of the
+  other names readers have for it. A spreadsheet saying "UK" or "AUS" is saying
+  the United Kingdom and Australia, and is filed under `GB` and `AU`.
+
+  Unlike the search, a name half-written names nothing. A record is filed under
+  what this returns, and a fragment that resolved to a country would file it
+  somewhere nobody chose. A name two countries share names neither, for the same
+  reason.
+
+  ## Examples
+
+    iex> RichardBurton.Country.code_for("UK")
+    "GB"
+
+    iex> RichardBurton.Country.code_for("Estados Unidos")
+    "US"
+
+    iex> RichardBurton.Country.code_for("Braz")
+    nil
+  """
+  def code_for(value) when is_binary(value) do
+    written = normalize(value)
+
+    named =
+      @countries
+      |> Map.keys()
+      |> Enum.filter(fn code -> Enum.any?(names_for(code), &(normalize(&1) == written)) end)
+
+    case named do
+      [code] -> code
+      _ -> nil
+    end
+  end
+
+  def code_for(_value), do: nil
+
+  @doc """
+  Files each country a changeset holds under the code that names it.
+
+  A person writing a country down writes what they call it, and a bulk import
+  carries whatever the spreadsheet said. A value naming exactly one country
+  becomes that country's code; anything else is left as written, so
+  `validate_countries/1` refuses it and says what it refused.
+
+  This runs before the record is validated or fingerprinted, so two rows that
+  say "UK" and "GB" are the same row rather than two.
+  """
+  def resolve_countries(changeset = %Ecto.Changeset{}) do
+    case get_change(changeset, :countries) do
+      nil -> changeset
+      countries -> put_change(changeset, :countries, Enum.map(countries, &resolved/1))
+    end
+  end
+
+  # A value as the code it names, or as written where it names no one country.
+  defp resolved(value) when is_binary(value), do: code_for(value) || value
+  defp resolved(value), do: value
+
+  @doc """
   The codes of the countries a `country:` operator's value names.
 
   A name matched in full answers alone, and only where nothing matches in full
@@ -481,7 +543,8 @@ defmodule RichardBurton.Country do
     countries |> String.split(",") |> Enum.map(&String.trim/1) |> nest()
   end
 
-  def nest(countries) when is_list(countries), do: Enum.map(countries, &%{"code" => get_code(&1)})
+  def nest(countries) when is_list(countries),
+    do: Enum.map(countries, &%{"code" => resolved(get_code(&1))})
 
   @doc ~S"""
   Flatten countries to the codes they are. A value that is not a list is

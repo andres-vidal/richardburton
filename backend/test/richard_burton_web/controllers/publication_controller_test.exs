@@ -1073,7 +1073,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     @correct_input_5 %{
       "title" => "Ubirajara: A Legend of the Tupy Indians",
       "year" => "",
-      "countries" => ["USA"],
+      "countries" => ["Narnia"],
       "publishers" => [],
       "authors" => ["J. T. W. Sadler"],
       "original_authors" => [],
