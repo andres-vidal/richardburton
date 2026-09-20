@@ -178,17 +178,14 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  The full row for one id, or an empty list when there is none.
-
-  Gives what `details/2` gives, and for a search also marks each source on its
-  own, which a page showing the whole provenance list needs and a page listing
-  rows does not.
+  The full row for one id, or an empty list when there is none. Gives what
+  `details/2` gives, for a single publication.
   """
   def detail(id, nil), do: details([id], nil)
 
   def detail(id, term) when is_binary(term) do
     from(fp in FlatPublication, where: fp.id == ^id)
-    |> Excerpt.select(term, sources: true)
+    |> Excerpt.select(term)
     |> Repo.all()
   end
 

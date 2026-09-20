@@ -67,27 +67,6 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     quote do: fragment("rb_joined(?)", unquote(column))
   end
 
-  # The `excerpts` map: one excerpt per field.
-  defmacrop excerpts(row, queries) do
-    quote do
-      %{
-        title: excerpt(unquote(row).title, ^unquote(queries).title, @whole),
-        original_title:
-          excerpt(unquote(row).original_title, ^unquote(queries).original_title, @whole),
-        authors: excerpt(joined(unquote(row).authors), ^unquote(queries).authors, @whole),
-        original_authors:
-          excerpt(
-            joined(unquote(row).original_authors),
-            ^unquote(queries).original_authors,
-            @whole
-          ),
-        publishers:
-          excerpt(joined(unquote(row).publishers), ^unquote(queries).publishers, @whole),
-        sources: excerpt(joined(unquote(row).sources), ^unquote(queries).sources, @window)
-      }
-    end
-  end
-
   # Each value of a list column with its matched words wrapped, or nil where that
   # value did not match. Lined up with the column, so a caller can pair them.
   defmacrop marked_values(column, query) do
@@ -225,42 +204,27 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   of the term searched gets no tsquery, and so neither an excerpt nor marks.
 
   `marked.countries` holds the matched country's code rather than marked text,
-  since naming a country needs a locale the index does not have. `marked.sources`
-  is included only when `sources: true`, the entries being long and wanted only
-  where the whole provenance list is shown.
+  since naming a country needs a locale the index does not have.
   """
-  @spec select(Ecto.Query.t(), String.t(), keyword) :: Ecto.Query.t()
-  def select(query, term, opts \\ []) do
+  @spec select(Ecto.Query.t(), String.t()) :: Ecto.Query.t()
+  def select(query, term) do
     queries = field_queries(term)
 
-    if Keyword.get(opts, :sources, false),
-      do: select_all(query, queries),
-      else: select_without_sources(query, queries)
-  end
-
-  # The two differ only in whether `marked` carries the sources. A fragment's SQL
-  # has to be a literal, so the map cannot be assembled conditionally.
-  defp select_all(query, queries) do
     select_merge(query, [p], %{
-      excerpts: excerpts(p, queries),
+      excerpts: %{
+        title: excerpt(p.title, ^queries.title, @whole),
+        original_title: excerpt(p.original_title, ^queries.original_title, @whole),
+        authors: excerpt(joined(p.authors), ^queries.authors, @whole),
+        original_authors: excerpt(joined(p.original_authors), ^queries.original_authors, @whole),
+        publishers: excerpt(joined(p.publishers), ^queries.publishers, @whole),
+        sources: excerpt(joined(p.sources), ^queries.sources, @window)
+      },
       marked: %{
         authors: marked_values(p.authors, ^queries.authors),
         original_authors: marked_values(p.original_authors, ^queries.original_authors),
         publishers: marked_values(p.publishers, ^queries.publishers),
         countries: marked_countries(p.countries, ^queries.countries),
         sources: marked_values(p.sources, ^queries.sources)
-      }
-    })
-  end
-
-  defp select_without_sources(query, queries) do
-    select_merge(query, [p], %{
-      excerpts: excerpts(p, queries),
-      marked: %{
-        authors: marked_values(p.authors, ^queries.authors),
-        original_authors: marked_values(p.original_authors, ^queries.original_authors),
-        publishers: marked_values(p.publishers, ^queries.publishers),
-        countries: marked_countries(p.countries, ^queries.countries)
       }
     })
   end

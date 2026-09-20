@@ -202,33 +202,35 @@ function merged(winner: Publication, losers: Publication[]): Publication {
 }
 
 /**
- * An attribute's values as a reader should see them: country codes become
- * country names, and anything else is its own text. Countries are the only
- * attribute a publication stores as something other than what is read.
+ * An attribute's values as a reader sees them: each value's marked text where
+ * the search matched it, and the value itself where it did not.
  *
  * Takes unknowns rather than strings because the wire does not always agree
  * with the model. `year` is an integer on the backend and text in a form, so it
  * arrives here as either.
  *
- * A country listed in `matched` gets its whole name wrapped in the index's own
- * `[[ ]]`. The whole name, because what matched is often not what is displayed:
- * "Holanda" matches a name neither language shows. The index decides which
- * countries matched; nothing here works that out.
+ * Countries are the one attribute stored as something other than what is read,
+ * and `marked.countries` holds a code rather than marked text, so their names
+ * are wrapped here. The whole name, because what matched is often not what is
+ * displayed: "Holanda" matches a name neither language shows. This is the only
+ * place that knows countries differ.
  */
 function shown(
   values: unknown[],
   attribute: PublicationKey,
   country: CountryNaming,
-  matched?: string[],
+  marked?: Publication["marked"],
 ): string[] {
-  const text = values.map((value) => String(value ?? ""));
+  const per = marked?.[attribute as PublicationListKey];
 
-  if (attribute !== "countries") return text;
+  if (attribute !== "countries") {
+    return values.map((value, index) => per?.[index] ?? String(value ?? ""));
+  }
 
-  return text.map((code) => {
-    const name = country.name(code);
+  return values.map((value, index) => {
+    const name = country.name(String(value ?? ""));
 
-    return matched?.includes(code) ? `[[${name}]]` : name;
+    return per?.[index] ? `[[${name}]]` : name;
   });
 }
 
@@ -251,7 +253,7 @@ function markedValue(
     Array.isArray(value) ? value : [value],
     attribute,
     country,
-    matchedCountries(publication),
+    publication.marked,
   );
 
   return Array.isArray(value)
@@ -278,17 +280,9 @@ function markedItems(
   country: CountryNaming,
 ): { value: string; label: string }[] {
   const values = (publication[attribute] ?? []) as string[];
-  const read = shown(values, attribute, country, matchedCountries(publication));
+  const labels = shown(values, attribute, country, publication.marked);
 
-  const marked =
-    attribute === "countries"
-      ? undefined
-      : publication.marked?.[attribute as PublicationListKey];
-
-  return values.map((value, index) => ({
-    value,
-    label: marked?.[index] ?? read[index],
-  }));
+  return values.map((value, index) => ({ value, label: labels[index] }));
 }
 
 /** How a publication's fields read to one reader — see `marking`. */
@@ -327,13 +321,6 @@ function markedSources(publication: Publication): string[] {
   const marked = publication.marked?.sources;
 
   return sources.map((source, index) => marked?.[index] ?? source);
-}
-
-/** The codes of the countries the search matched, dropping the ones it did not. */
-function matchedCountries(publication: Publication): string[] {
-  return (publication.marked?.countries ?? []).filter(
-    (code): code is string => code !== null,
-  );
 }
 
 /**
