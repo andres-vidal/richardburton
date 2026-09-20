@@ -434,5 +434,15 @@
   "validation": {
     "required": "Required",
     "email": "Enter a valid email address"
+  },
+  "workspaces": {
+    "title": "Workspaces",
+    "description": "Bulk-import work that is kept, and can be shared.",
+    "nameLabel": "Name",
+    "namePlaceholder": "What this batch is",
+    "start": "Start a workspace",
+    "loading": "Reading your workspaces…",
+    "none": "No workspaces yet. Start one above.",
+    "rows": "{count, plural, =0 {Empty} one {# row} other {# rows}}"
   }
 }
