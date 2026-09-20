@@ -197,7 +197,8 @@ function merged(winner: Publication, losers: Publication[]): Publication {
 
 /**
  * One value of an attribute, as a reader should see it: a country code becomes
- * a country name, and anything else is its own text.
+ * a country name, and anything else is its own text. Countries are the only
+ * attribute a publication stores as something other than what is read.
  *
  * Takes an unknown rather than a string because the wire does not always agree
  * with the model. `year` is an integer on the backend and text in a form, so it
@@ -390,7 +391,6 @@ const Publication = {
   define,
   describe,
   errorCode,
-  describeValue,
   markedValue,
   markedItems,
   markedSources,

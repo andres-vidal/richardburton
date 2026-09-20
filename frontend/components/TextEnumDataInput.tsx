@@ -1,5 +1,6 @@
 "use client";
 
+import { countryName } from "modules/country";
 import { Publication } from "modules/publication/model";
 import { useLocale } from "next-intl";
 import pDebounce from "p-debounce";
@@ -37,12 +38,9 @@ export default forwardRef<HTMLInputElement, ScalarDataInputProps>(
     const selectedOption = useMemo(
       () =>
         value
-          ? {
-              id: value,
-              label: Publication.describeValue(value, colId, locale),
-            }
+          ? { id: value, label: countryName(value, locale) ?? value }
           : undefined,
-      [value, colId, locale],
+      [value, locale],
     );
 
     return (

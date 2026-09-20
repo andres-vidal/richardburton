@@ -1,5 +1,6 @@
 "use client";
 
+import { countryName } from "modules/country";
 import { Publication } from "modules/publication/model";
 import pDebounce from "p-debounce";
 import { useLocale } from "next-intl";
@@ -24,10 +25,8 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
     const locale = useLocale();
 
     const toEnum = useCallback(
-      (id: string): Enum => {
-        return { id, label: Publication.describeValue(id, colId, locale) };
-      },
-      [colId, locale],
+      (id: string): Enum => ({ id, label: countryName(id, locale) ?? id }),
+      [locale],
     );
 
     const items = useMemo(() => value.map(toEnum), [value, toEnum]);

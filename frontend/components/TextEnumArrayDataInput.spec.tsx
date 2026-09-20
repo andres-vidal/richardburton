@@ -1,13 +1,13 @@
 import { fireEvent, render, screen } from "utils/testRender";
 
 import { routing } from "i18n/routing";
-import { Publication } from "modules/publication/model";
+import { countryName } from "modules/country";
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
 
 // The enum-array cell editor (countries) stores raw ids (e.g. "BR,US") but shows
-// each as a human label via `Publication.describeValue`, and emits the raw ids
-// re-joined on change. These specs drive the non-network paths — render and pill
-// removal — so they never trigger the autocomplete network call.
+// each as the country's name, and emits the raw ids re-joined on change. These
+// specs drive the non-network paths — render and pill removal — so they never
+// trigger the autocomplete network call.
 describe("TextEnumArrayDataInput", () => {
   const props = {
     rowId: 1,
@@ -16,16 +16,8 @@ describe("TextEnumArrayDataInput", () => {
     "aria-label": "Countries",
   } as const;
 
-  const brLabel = Publication.describeValue(
-    "BR",
-    "countries",
-    routing.defaultLocale,
-  );
-  const usLabel = Publication.describeValue(
-    "US",
-    "countries",
-    routing.defaultLocale,
-  );
+  const brLabel = countryName("BR", routing.defaultLocale)!;
+  const usLabel = countryName("US", routing.defaultLocale)!;
 
   test("renders each id as its human label", () => {
     render(
