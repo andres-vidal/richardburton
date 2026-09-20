@@ -121,7 +121,7 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
   for (const value of [
     "Brazil",
     "United Kingdom",
-    "United States of America",
+    "United States",
     "Noonday Press",
     "W. H. Allen",
     "Livraria Garnier",

@@ -69,16 +69,12 @@ export const WithValues: Story = {
   args: { value: ["US"] },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText("United States of America"),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText("United States")).toBeInTheDocument();
 
     await userEvent.click(
-      canvas.getByRole("button", { name: "Remove United States of America" }),
+      canvas.getByRole("button", { name: "Remove United States" }),
     );
-    await expect(
-      canvas.queryByText("United States of America"),
-    ).not.toBeInTheDocument();
+    await expect(canvas.queryByText("United States")).not.toBeInTheDocument();
     await expect(args.onChange).toHaveBeenCalledWith([]);
   },
 };

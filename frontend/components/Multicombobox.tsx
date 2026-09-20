@@ -5,6 +5,7 @@ import Pill from "./Pill";
 
 import { Key } from "app";
 import { isString } from "lodash";
+import { useTranslations } from "next-intl";
 import { z } from "zod";
 import MenuProvider from "./MenuProvider";
 import TextInput from "./TextInput";
@@ -61,9 +62,10 @@ export default function Multicombobox<ItemType extends string | Item>({
   onKeyDown,
   error,
   forwardedRef,
-  emptyMessage = "No matches",
+  emptyMessage,
   ...props
 }: Props<ItemType>) {
+  const t = useTranslations("common");
   const [inputValue, setInputValue] = useState("");
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [options, setOptions] = useState<ItemType[]>([]);
@@ -159,7 +161,7 @@ export default function Multicombobox<ItemType extends string | Item>({
       setActiveIndex={setActiveIndex}
       onSelect={handleOptionSelect}
       bordered={props.bordered}
-      emptyMessage={emptyMessage}
+      emptyMessage={emptyMessage ?? t("noMatches")}
     >
       <TextInput
         {...props}
@@ -167,7 +169,7 @@ export default function Multicombobox<ItemType extends string | Item>({
         inputRef={inputRef}
         value={inputValue}
         error={error}
-        placeholder={value.length === 0 ? placeholder : "Add another"}
+        placeholder={value.length === 0 ? placeholder : t("addAnother")}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         aria-autocomplete="list"

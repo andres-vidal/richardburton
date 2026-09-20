@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { FC } from "react";
 import Button from "./Button";
 import TextInput from "./TextInput";
@@ -33,6 +34,7 @@ const SourcesEditor: FC<{
   onChange: (sources: string[]) => void;
   label?: string;
 }> = ({ value, onChange, label = "Sources" }) => {
+  const t = useTranslations("admin");
   const setAt = (index: number, content: string) =>
     onChange(value.map((entry, i) => (i === index ? content : entry)));
 
@@ -52,13 +54,11 @@ const SourcesEditor: FC<{
     <section className="flex flex-col gap-2">
       <div className="flex flex-col gap-0.5">
         <span className="text-sm text-gray-600">{label}</span>
-        <span className="text-xs text-gray-500">
-          Sources that back this record, so a reader can verify it.
-        </span>
+        <span className="text-xs text-gray-500">{t("sourcesHint")}</span>
       </div>
 
       {value.length === 0 ? (
-        <p className="text-sm italic text-gray-500">No sources yet.</p>
+        <p className="text-sm italic text-gray-500">{t("noSources")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {value.map((content, index) => (
@@ -70,25 +70,25 @@ const SourcesEditor: FC<{
                 fill
                 value={content}
                 onChange={(next) => setAt(index, next)}
-                aria-label={`Source ${index + 1}`}
-                placeholder="A citation, URL, or note"
+                aria-label={t("sourceNumber", { number: index + 1 })}
+                placeholder={t("sourcePlaceholder")}
               />
               <RowButton
-                label={`Move source ${index + 1} up`}
+                label={t("moveSourceUp", { number: index + 1 })}
                 onClick={() => move(index, -1)}
                 disabled={index === 0}
               >
                 ↑
               </RowButton>
               <RowButton
-                label={`Move source ${index + 1} down`}
+                label={t("moveSourceDown", { number: index + 1 })}
                 onClick={() => move(index, 1)}
                 disabled={index === value.length - 1}
               >
                 ↓
               </RowButton>
               <RowButton
-                label={`Remove source ${index + 1}`}
+                label={t("removeSource", { number: index + 1 })}
                 onClick={() => removeAt(index)}
               >
                 ✕
@@ -100,7 +100,7 @@ const SourcesEditor: FC<{
 
       <div>
         <Button
-          label="Add source"
+          label={t("addSource")}
           variant="outline"
           width="fit"
           size="small"

@@ -1,4 +1,5 @@
-import { act, fireEvent, render, renderHook } from "@testing-library/react";
+import { act, fireEvent, renderHook } from "@testing-library/react";
+import { render } from "test/render";
 import { Key } from "app";
 import React from "react";
 import { Modal, useModal, useURLQueryModal } from "./Modal";
@@ -26,6 +27,13 @@ const nav = vi.hoisted(() => {
     },
   };
 });
+
+// The components navigate through `i18n/navigation`, so that is what is stood
+// in for. `useSearchParams` still comes from Next itself.
+vi.mock("i18n/navigation", () => ({
+  useRouter: () => ({ replace: nav.replace }),
+  usePathname: () => "/",
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: nav.replace }),

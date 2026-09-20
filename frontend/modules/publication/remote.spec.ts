@@ -208,11 +208,11 @@ describe("undo", () => {
 
     expect(ok).toBe(false);
     // The detail is where the explanation lives — the headline says what
-    // failed, the detail says why.
+    // failed, the detail says why. Both name their copy; the card writes it.
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({
         level: "warning",
-        detail: expect.stringContaining("later change would be lost"),
+        detail: "notify.undoOutpacedDetail",
       }),
     );
   });
@@ -241,7 +241,7 @@ describe("restore", () => {
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({
         level: "warning",
-        detail: expect.stringContaining("imported again while deleted"),
+        detail: "notify.restoreOutpacedDetail",
       }),
     );
   });
@@ -302,7 +302,7 @@ describe("merge", () => {
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({
         level: "warning",
-        detail: expect.stringContaining("already holds"),
+        detail: "notify.mergeOutpacedDetail",
       }),
     );
   });
@@ -475,13 +475,13 @@ describe("upload", () => {
 });
 
 describe("run (error handling)", () => {
-  test("notifies with a friendly message and re-throws on failure", async () => {
+  test("names the error's copy and re-throws on failure", async () => {
     mockRequest.mockRejectedValueOnce("conflict");
 
     await expect(bulk(store)).rejects.toBe("conflict");
 
     expect(mockNotify).toHaveBeenCalledWith({
-      message: "A publication with this data already exists",
+      message: "publicationError.conflict",
       level: "warning",
     });
   });

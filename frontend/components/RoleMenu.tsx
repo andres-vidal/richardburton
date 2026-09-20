@@ -1,14 +1,11 @@
 "use client";
 
 import ChevronDownIcon from "assets/chevron-down.svg";
-import { ROLE_LABELS, ROLES, type UserRole } from "modules/users";
+import { ROLES, type UserRole } from "modules/users";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
 import MenuProvider from "./MenuProvider";
-
-// The option carries the role as its id and its name as the label, so what is
-// picked stays the stored value while what is read is the name.
-const OPTIONS = ROLES.map((role) => ({ id: role, label: ROLE_LABELS[role] }));
 
 /**
  * Pick a role, from a list short enough and fixed enough that there is nothing
@@ -27,12 +24,15 @@ const RoleMenu: FC<{
   disabled?: boolean;
   onChange: (role: UserRole) => void;
 }> = ({ value, label, disabled, onChange }) => {
+  const t = useTranslations("roles");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
+  const options = ROLES.map((role) => ({ id: role, label: t(role) }));
+
   return (
     <MenuProvider
-      options={OPTIONS}
+      options={options}
       isOpen={isOpen}
       activeIndex={activeIndex}
       setIsOpen={setIsOpen}
@@ -43,7 +43,7 @@ const RoleMenu: FC<{
       bordered
     >
       <Button
-        label={ROLE_LABELS[value]}
+        label={t(value)}
         aria-label={label}
         aria-haspopup="listbox"
         aria-expanded={isOpen}

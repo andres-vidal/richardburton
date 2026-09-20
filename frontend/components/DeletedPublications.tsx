@@ -1,13 +1,15 @@
 "use client";
 
 import RestoreTrashIcon from "assets/restore-trash.svg";
-import type {
-  DeletedPublicationEntry,
-  PublicationId,
+import {
+  type DeletedPublicationEntry,
+  type PublicationId,
 } from "modules/publication/model";
-import { formatDate } from "modules/dates";
+import { useFormatDate } from "modules/dates";
+import { usePublicationMarking } from "modules/publication/hooks";
 import { restore } from "modules/publication/remote";
-import { useRouter } from "next/navigation";
+import { useRouter } from "i18n/navigation";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
 
@@ -24,6 +26,9 @@ const DeletedPublications: FC<{
   entries: DeletedPublicationEntry[];
   onRestore?: (id: PublicationId) => Promise<boolean>;
 }> = ({ entries, onRestore = restore }) => {
+  const t = useTranslations("admin");
+  const marked = usePublicationMarking();
+  const formatDate = useFormatDate();
   const [restoringId, setRestoringId] = useState<PublicationId>();
   const router = useRouter();
 
@@ -39,9 +44,7 @@ const DeletedPublications: FC<{
   return (
     <div>
       {entries.length === 0 ? (
-        <p className="text-sm text-gray-600">
-          Nothing here — no publication is currently deleted.
-        </p>
+        <p className="text-sm text-gray-600">{t("nothingDeleted")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {entries.map(({ publication, deletedAt }) => (
@@ -54,15 +57,18 @@ const DeletedPublications: FC<{
                   {publication.title}
                 </span>
                 <span className="text-sm text-gray-600 truncate">
-                  {publication.authors} · {publication.year} ·{" "}
-                  {publication.publishers}
+                  {t("recordLine", {
+                    authors: marked.value(publication, "authors"),
+                    year: publication.year,
+                    publishers: marked.value(publication, "publishers"),
+                  })}
                 </span>
                 <span className="text-xs text-gray-500">
-                  Deleted {formatDate(deletedAt)}
+                  {t("deletedOn", { date: formatDate(deletedAt) })}
                 </span>
               </div>
               <Button
-                label="Restore"
+                label={t("restore")}
                 variant="outline-primary"
                 width="fit"
                 size="medium"

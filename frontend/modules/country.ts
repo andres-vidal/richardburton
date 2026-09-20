@@ -1,19 +1,32 @@
-import countries from "i18n-iso-countries";
-import countriesEN from "i18n-iso-countries/langs/en.json";
+import { request } from "app";
 
-//TODO: decouple this component from countries
-countries.registerLocale(countriesEN);
+/** A country as it is stored and as it is read: the code, and its name. */
 type Country = { id: string; label: string };
 
-const COUNTRIES: Record<Country["id"], Country> = Object.entries(
-  countries.getNames("en", { select: "official" }),
-).reduce(
-  (acc, [key, label]) => ({
-    ...acc,
-    [key]: { id: key, label: label },
-  }),
-  {},
-);
+interface CountryModule {
+  REMOTE: {
+    /**
+     * The countries a term finds, named in `locale`.
+     *
+     * Asked of the server, so the field offers a country under every name the
+     * search would find it by: either ISO code, either language, or an alias.
+     */
+    search(term: string, locale: string): Promise<Country[]>;
+  };
+}
 
-export type { Country };
-export { COUNTRIES };
+const Country: CountryModule = {
+  REMOTE: {
+    search(term, locale) {
+      return request(async (http) => {
+        const { data } = await http.get<Country[]>("/countries", {
+          params: { search: term, locale },
+        });
+
+        return data;
+      });
+    },
+  },
+};
+
+export { Country };

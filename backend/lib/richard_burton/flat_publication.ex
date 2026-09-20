@@ -33,9 +33,15 @@ defmodule RichardBurton.FlatPublication do
   # length of its own.
   @multivalued_attributes [:countries, :publishers, :authors, :original_authors]
 
-  # What in each field answered a search, keyed by field, and each source on
-  # its own. Both are null outside a search.
-  @readable_attributes [:id, :excerpts, :marked_sources | @writable_attributes]
+  # What in each field answered a search, keyed by field, each source on its
+  # own, and which of the countries the search matched. All three are null
+  # outside a search.
+  @readable_attributes [
+    :id,
+    :excerpts,
+    :marked_sources,
+    :matched_countries | @writable_attributes
+  ]
 
   @derive {Jason.Encoder, only: @readable_attributes}
   schema "flat_publications" do
@@ -54,6 +60,7 @@ defmodule RichardBurton.FlatPublication do
 
     field(:excerpts, :map, virtual: true)
     field(:marked_sources, {:array, :string}, virtual: true)
+    field(:matched_countries, {:array, :string}, virtual: true)
   end
 
   @doc false
@@ -62,6 +69,7 @@ defmodule RichardBurton.FlatPublication do
     |> cast(attrs, @writable_attributes)
     |> validate_required(@required_attributes)
     |> validate_any_values()
+    |> Country.resolve_countries()
     |> Country.validate_countries()
     |> Country.link_fingerprint()
     |> Publisher.link_fingerprint()

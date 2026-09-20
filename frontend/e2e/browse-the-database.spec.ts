@@ -148,8 +148,12 @@ test("reloading with a publication open keeps it open, over the search that foun
   await page
     .getByRole("textbox", { name: "Search publications" })
     .fill("Machado");
-  // Wait for the query to actually land — the unfiltered database contains this
-  // title too, so its presence proves nothing until the others are gone.
+  // Wait for the query to actually land. A row has to be there before its
+  // absence means anything: rows render as they scroll into view, so an empty
+  // table satisfies a count of zero without having answered the search yet.
+  await expect(
+    indexTable(page).getByText("Dom Casmurro").first(),
+  ).toBeVisible();
   await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
     0,
   );
@@ -176,10 +180,10 @@ test("reloading with a publication open keeps it open, over the search that foun
       // Let the press settle before judging it: going back is asynchronous, and
       // pressing again while it lands would step past the search too.
       await page
-        .waitForURL(/\/\?search=Machado$/, { timeout: 2000 })
+        .waitForURL(/\/en\?search=Machado$/, { timeout: 2000 })
         .catch(() => {});
     }
-    expect(page.url()).toMatch(/\/\?search=Machado$/);
+    expect(page.url()).toMatch(/\/en\?search=Machado$/);
   }).toPass();
   await expect(indexTable(page).getByText("The Hour of the Star")).toHaveCount(
     0,
@@ -393,6 +397,54 @@ test("what a search matched is picked out, in the index and in the record", asyn
   // reader here, so the record shows which of it answered.
   const dialog = await openPublicationModal(page, "Dom Casmurro");
   await expect(dialog.locator("mark").first()).toHaveText("Machado");
+});
+
+test("a country is picked out by whichever of its names was searched", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+
+  const iracema = () =>
+    indexTable(page).getByRole("row").filter({ hasText: "Iraçéma" }).first();
+
+  // The name this page writes the country by.
+  await page.goto("/?search=United+Kingdom");
+  await expect(iracema().locator("mark")).toHaveText("United Kingdom");
+
+  // Either ISO code reaches it, and the name is picked out rather than the
+  // code, which is not on the page at all.
+  await page.goto("/?search=GBR");
+  await expect(iracema().locator("mark")).toHaveText("United Kingdom");
+
+  // A name readers use that neither language writes. The whole name is picked
+  // out, since what actually matched is nowhere on the page to pick out.
+  await page.goto("/?search=USA");
+
+  await expect(
+    indexTable(page)
+      .getByRole("row")
+      .filter({ hasText: "Dom Casmurro" })
+      .first()
+      .locator("mark"),
+  ).toHaveText("United States");
+});
+
+test("a row answered on another field picks out no country", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/?search=Machado");
+
+  const row = indexTable(page)
+    .getByRole("row")
+    .filter({ hasText: "Dom Casmurro" })
+    .first();
+
+  await expect(row.locator("mark").first()).toHaveText("Machado");
+  await expect(row).toContainText("United States");
+  await expect(
+    row.locator("mark").filter({ hasText: "United States" }),
+  ).toHaveCount(0);
 });
 
 test("a search without accents picks out the word that carries them", async ({

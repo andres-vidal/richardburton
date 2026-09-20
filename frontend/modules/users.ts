@@ -18,36 +18,6 @@ type UserRecord = User & {
  */
 const ROLES: UserRole[] = ["reader", "contributor", "admin"];
 
-/**
- * How a role is named to a reader.
- *
- * The value in the enum is what the database calls it, and reads like it —
- * nothing else in the app shows a stored value raw, and a role should not
- * either.
- */
-const ROLE_LABELS: Record<UserRole, string> = {
-  reader: "Reader",
-  contributor: "Contributor",
-  admin: "Administrator",
-};
-
-/** What a role admits, said to whoever is handing it out. */
-const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
-  reader: "Can browse the database, like anyone else.",
-  contributor: "Can add and correct publications.",
-  admin: "Can do that, and decide who else may.",
-};
-
-/**
- * A role named for the middle of a sentence, article and all: "is now an
- * Administrator". Which article a role takes is a property of its name, so it
- * is decided here rather than at each place that writes one.
- */
-function describeRole(role: UserRole): string {
-  const label = ROLE_LABELS[role];
-  return `${/^[aeiou]/i.test(label) ? "an" : "a"} ${label}`;
-}
-
 interface UserModule {
   /** Whether a session — possibly none at all — holds `required`, or outranks it. */
   holds(session: User | null | undefined, required: UserRole): boolean;
@@ -76,5 +46,5 @@ const User: UserModule = {
   },
 };
 
-export { describeRole, ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES, User };
+export { ROLES, User };
 export type { UserRecord, UserRole };

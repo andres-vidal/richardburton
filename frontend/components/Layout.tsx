@@ -3,9 +3,11 @@
 import Dot from "assets/dot.svg";
 import Logo from "assets/logo.svg";
 import { signOut, useIsAuthenticated } from "modules/session";
-import Link from "next/link";
+import { Link } from "i18n/navigation";
+import { useTranslations } from "next-intl";
 import { FC, ReactNode, useEffect, useRef } from "react";
 import Anchor from "./Anchor";
+import LanguageSwitcher from "./LanguageSwitcher";
 import { CONTACT_MODAL_KEY } from "./ContactModal";
 import { LEARN_MORE_MODAL_KEY } from "./LearnMoreModal";
 
@@ -26,9 +28,6 @@ type Props = {
   measure?: "full" | "aligned";
 };
 
-const HEADING_TEXT = "Richard & Isabel Burton Platform";
-const SUBHEADING_TEXT = "A database about Brazilian literature in translation";
-
 // `title` is set per-route via the App Router `metadata` export, not here — the
 // prop is kept so existing callers still typecheck during the migration.
 const Layout: FC<Props> = ({
@@ -38,6 +37,7 @@ const Layout: FC<Props> = ({
   leftAside,
   measure = "full",
 }) => {
+  const t = useTranslations("layout");
   const headerRef = useRef<HTMLElement>(null);
   const isAuthenticated = useIsAuthenticated();
 
@@ -64,30 +64,39 @@ const Layout: FC<Props> = ({
   return (
     <div className="flex flex-col min-h-screen">
       <header ref={headerRef} className="sticky top-0 z-30 bg-gray-100">
-        <h1 className="select-none py-1.5 text-center text-white bg-indigo-600 flex items-center justify-center">
-          <div className="flex flex-col items-center justify-center shrink transition-colors md:flex-row md:gap-4 shadow-white">
+        <div className="relative flex justify-center items-center py-1.5 text-white bg-indigo-600 select-none">
+          <h1 className="flex flex-col items-center justify-center shrink text-center transition-colors md:flex-row md:gap-4 shadow-white">
             <Link href="/" className="px-3 py-0.5 rounded hover:bg-indigo-500">
               <span className="inline-flex items-center gap-3 py-1 pr-5 text-lg font-medium md:pr-0">
                 <Logo className="h-8" />
-                {HEADING_TEXT}
+                {t("appName")}
               </span>
             </Link>
             <hr className="w-0.5 mr-2 h-8 bg-current border-none hidden md:block" />
-            <div className="inline text-base">{SUBHEADING_TEXT}</div>
+            {/* Supporting copy, not navigation: on a narrow screen it would
+                take a line of its own above the links. */}
+            <div className="hidden text-base md:inline">{t("tagline")}</div>
             <hr className="w-0.5 h-8 mx-2 bg-current border-none hidden md:block" />
             <div className="flex items-center gap-2 mt-2 md:contents md:mt-0">
-              <Anchor query={`${LEARN_MORE_MODAL_KEY}=true`}>Learn More</Anchor>
+              <Anchor query={`${LEARN_MORE_MODAL_KEY}=true`}>
+                {t("learnMore")}
+              </Anchor>
               <Dot className="size-1" />
-              <Anchor query={`${CONTACT_MODAL_KEY}=true`}>Contact Us</Anchor>
+              <Anchor query={`${CONTACT_MODAL_KEY}=true`}>
+                {t("contactUs")}
+              </Anchor>
               {isAuthenticated && (
                 <>
                   <Dot className="size-1" />
-                  <Anchor onClick={signOut}>Sign out</Anchor>
+                  <Anchor onClick={signOut}>{t("signOut")}</Anchor>
                 </>
               )}
             </div>
+          </h1>
+          <div className="absolute right-2 text-sm md:right-4">
+            <LanguageSwitcher />
           </div>
-        </h1>
+        </div>
         <div
           data-measure={measure}
           className="px-1 md:px-8 data-[measure=aligned]:w-full data-[measure=aligned]:max-w-5xl"
@@ -114,4 +123,3 @@ const Layout: FC<Props> = ({
 };
 
 export default Layout;
-export { SUBHEADING_TEXT };

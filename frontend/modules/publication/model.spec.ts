@@ -1,15 +1,34 @@
 import {
   ATTRIBUTES,
-  COUNTRIES,
   autocomplete,
   define,
-  describeError,
-  describe as describeAttribute,
-  describeValue,
   empty,
+  errorCode,
+  marking,
   merged,
 } from "./model";
 import type { Publication } from "./model";
+import { Country } from "modules/country";
+import { routing } from "i18n/routing";
+import { messages } from "test/messages";
+
+vi.mock("modules/country", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("modules/country")>()),
+  Country: { REMOTE: { search: vi.fn() } },
+}));
+
+const COUNTRIES = messages.countryNames;
+
+// A reader reading in the default locale, who names countries the way the
+// server does. The naming is a function rather than a hook, so what a reader
+// sees can be checked without rendering anything.
+const read = marking(routing.defaultLocale, {
+  name: (code) => COUNTRIES[code as keyof typeof COUNTRIES] ?? code,
+  article: () => "",
+});
+
+const markedValue = read.value;
+const markedItems = read.items;
 
 describe("empty", () => {
   test("returns a publication with every attribute blank", () => {
@@ -33,78 +52,136 @@ describe("empty", () => {
   });
 });
 
-describe("describeValue", () => {
-  const knownCode = Object.keys(COUNTRIES)[0];
+describe("markedValue", () => {
+  const [first, second] = Object.keys(COUNTRIES);
 
-  test("maps a country code to its label", () => {
-    expect(describeValue(knownCode, "countries")).toBe(
-      COUNTRIES[knownCode].label,
+  function holding(fields: Partial<Publication>): Publication {
+    return { ...empty(), ...fields };
+  }
+
+  test("names the country a code stands for", () => {
+    expect(markedValue(holding({ countries: [first] }), "countries")).toBe(
+      COUNTRIES[first],
     );
   });
 
-  test("describes every code of a list — what a merged record holds", () => {
-    const [first, second] = Object.keys(COUNTRIES);
-
-    expect(describeAttribute([first, second], "countries")).toBe(
-      `${COUNTRIES[first].label}, ${COUNTRIES[second].label}`,
-    );
+  test("names every code of a list — what a merged record holds", () => {
+    expect(
+      markedValue(holding({ countries: [first, second] }), "countries"),
+    ).toBe(`${COUNTRIES[first]}, ${COUNTRIES[second]}`);
   });
 
-  test("returns an unknown country code unchanged", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-
-    expect(describeValue("__nope__", "countries")).toBe("__nope__");
-    expect(warn).toHaveBeenCalled();
-
-    // One unknown code in a list does not cost the others their labels.
-    expect(describeAttribute([knownCode, "__nope__"], "countries")).toBe(
-      `${COUNTRIES[knownCode].label}, __nope__`,
-    );
-
-    warn.mockRestore();
+  test("a code it has no name for is read as the code", () => {
+    // One unknown code in a list does not cost the others their names.
+    expect(
+      markedValue(holding({ countries: [first, "__nope__"] }), "countries"),
+    ).toBe(`${COUNTRIES[first]}, __nope__`);
   });
 
   test("passes non-country values through untouched", () => {
-    expect(describeValue("1953", "year")).toBe("1953");
-    expect(describeValue("Helen Caldwell", "authors")).toBe("Helen Caldwell");
+    expect(markedValue(holding({ year: "1953" }), "year")).toBe("1953");
+
+    expect(
+      markedValue(holding({ authors: ["Helen Caldwell"] }), "authors"),
+    ).toBe("Helen Caldwell");
+  });
+
+  test("the index's marks win over the stored value", () => {
+    expect(
+      markedValue(
+        holding({
+          authors: ["Helen Caldwell"],
+          excerpts: { authors: "Helen [[Caldwell]]" },
+        }),
+        "authors",
+      ),
+    ).toBe("Helen [[Caldwell]]");
+  });
+
+  // The index says which countries answered a search; the whole name is marked,
+  // since the name that matched is not always the name being read.
+  test("marks the country the index says answered the search", () => {
+    expect(
+      markedValue(
+        holding({ countries: [first], matchedCountries: [first] }),
+        "countries",
+      ),
+    ).toBe(`[[${COUNTRIES[first]}]]`);
+  });
+
+  test("leaves the countries beside it unmarked", () => {
+    expect(
+      markedValue(
+        holding({ countries: [first, second], matchedCountries: [second] }),
+        "countries",
+      ),
+    ).toBe(`${COUNTRIES[first]}, [[${COUNTRIES[second]}]]`);
+  });
+
+  test("marks nothing when the search answered on another field", () => {
+    expect(
+      markedValue(
+        holding({ countries: [first], matchedCountries: [] }),
+        "countries",
+      ),
+    ).toBe(COUNTRIES[first]);
   });
 });
 
-describe("describeError", () => {
-  test("no error describes to an empty string, with or without a scope", () => {
-    expect(describeError(null)).toBe("");
-    expect(describeError(null, "title")).toBe("");
+describe("markedItems", () => {
+  const [first, second] = Object.keys(COUNTRIES);
+
+  function holding(fields: Partial<Publication>): Publication {
+    return { ...empty(), ...fields };
+  }
+
+  test("pairs each country's code with its name", () => {
+    expect(
+      markedItems(holding({ countries: [first, second] }), "countries"),
+    ).toEqual([
+      { value: first, label: COUNTRIES[first] },
+      { value: second, label: COUNTRIES[second] },
+    ]);
   });
 
-  test("a row-level string error maps to a human message when unscoped", () => {
-    expect(describeError("conflict")).toBe(
-      "A publication with this data already exists",
-    );
+  test("marks only the country that answered, keeping its code addressable", () => {
+    expect(
+      markedItems(
+        holding({ countries: [first, second], matchedCountries: [first] }),
+        "countries",
+      ),
+    ).toEqual([
+      { value: first, label: `[[${COUNTRIES[first]}]]` },
+      { value: second, label: COUNTRIES[second] },
+    ]);
+  });
+});
+
+describe("errorCode", () => {
+  test("no error is an empty code, with or without a scope", () => {
+    expect(errorCode(null)).toBe("");
+    expect(errorCode(null, "title")).toBe("");
   });
 
-  test("an unknown error code falls back to the raw code", () => {
-    expect(describeError("mystery")).toBe("mystery");
+  test("a row-level error answers its code when unscoped", () => {
+    expect(errorCode("conflict")).toBe("conflict");
   });
 
-  test("a row-level string error is silent when asked about a field", () => {
+  test("a row-level error is silent when asked about a field", () => {
     // String = whole-row error; it must not leak into an individual cell.
-    expect(describeError("conflict", "title")).toBe("");
+    expect(errorCode("conflict", "title")).toBe("");
   });
 
   test("a field-error map is silent at the row level", () => {
-    // Record = per-field errors; there is no single row message to show.
-    expect(describeError({ title: "required" } as never)).toBe("");
+    // Record = per-field errors; there is no single row code to show.
+    expect(errorCode({ title: "required" } as never)).toBe("");
   });
 
-  test("a field-error map describes the message for the scoped field", () => {
+  test("a field-error map answers the code for the scoped field", () => {
     const errors = { title: "required", year: "integer" } as never;
 
-    expect(describeError(errors, "title")).toBe(
-      "This field is required and cannot be blank",
-    );
-    expect(describeError(errors, "year")).toBe(
-      "This field should be an integer",
-    );
+    expect(errorCode(errors, "title")).toBe("required");
+    expect(errorCode(errors, "year")).toBe("integer");
   });
 });
 
@@ -120,26 +197,27 @@ describe("define", () => {
 });
 
 describe("autocomplete", () => {
-  test("filters countries by a case-insensitive label prefix", async () => {
-    const [sample] = Object.values(COUNTRIES);
-    const prefix = sample.label.slice(0, 3);
+  // Which countries a term finds is the server's to decide — it is the only
+  // side that knows every name a country goes by. See the Country specs.
+  test("asks the server for the countries a term finds, in the reader's language", async () => {
+    const netherlands = { id: "NL", label: "Países Baixos" };
+    vi.mocked(Country.REMOTE.search).mockResolvedValue([netherlands]);
 
-    const results = await autocomplete(prefix, "countries");
-
-    expect(results.length).toBeGreaterThan(0);
-    results.forEach((country) =>
-      expect(country.label.toLowerCase()).toContain(prefix.toLowerCase()),
-    );
-    // Case doesn't matter — the same prefix lowercased matches the same set.
-    expect((await autocomplete(prefix.toLowerCase(), "countries")).length).toBe(
-      results.length,
-    );
+    await expect(autocomplete("holanda", "countries", "pt")).resolves.toEqual([
+      netherlands,
+    ]);
+    expect(Country.REMOTE.search).toHaveBeenCalledWith("holanda", "pt");
   });
 
-  test("returns every country for an empty query", async () => {
-    const results = await autocomplete("", "countries");
+  test("asks in the default language when none is given", async () => {
+    vi.mocked(Country.REMOTE.search).mockResolvedValue([]);
 
-    expect(results).toHaveLength(Object.keys(COUNTRIES).length);
+    await autocomplete("anything", "countries");
+
+    expect(Country.REMOTE.search).toHaveBeenCalledWith(
+      "anything",
+      routing.defaultLocale,
+    );
   });
 
   test("resolves to an empty list for attributes without suggestions", async () => {

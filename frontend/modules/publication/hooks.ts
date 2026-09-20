@@ -1,13 +1,16 @@
 import type { SetStateAction } from "jotai";
 import { atom, useAtom, useAtomValue } from "jotai";
-import { Publication, PublicationId, PublicationKey } from "./model";
+import { useLocale, useTranslations } from "next-intl";
+import { useCountryNaming } from "modules/country-names";
+import { Publication, PublicationId, PublicationKey, marking } from "./model";
+import type { Marking } from "./model";
 import {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
   discardedCountAtom,
-  errorDescriptionFamily,
+  errorCodeFamily,
   errorFamily,
-  fieldErrorDescriptionFamily,
+  fieldErrorCodeFamily,
   fieldValueFamily,
   focusedRowIdAtom,
   hiddenAttributesAtom,
@@ -20,7 +23,7 @@ import {
   publicationOrNullFamily,
   publicationSourcesFamily,
   publicationExcerptsFamily,
-  markedFieldFamily,
+  publicationFamily,
   storedFieldValueFamily,
   storedSourcesFamily,
   totalCountAtom,
@@ -76,9 +79,26 @@ function usePublicationStoredField<K extends PublicationKey>(
   return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
 }
 
-/** A single cell as the index marked it — see `markedFieldFamily`. */
+/**
+ * How a publication reads on this page: in its language, naming countries from
+ * the catalogue. Taken once and asked about any field.
+ */
+function usePublicationMarking(): Marking {
+  const locale = useLocale();
+  const country = useCountryNaming();
+
+  return marking(locale, country);
+}
+
+/**
+ * A single cell as the index marked it, or as stored where the search did not
+ * match. Reads the *stored* publication, so a pending edit does not leak into
+ * the read-only table.
+ */
 function usePublicationMarkedField(id: PublicationId, key: PublicationKey) {
-  return useAtomValue(markedFieldFamily({ id, key }));
+  const publication = useAtomValue(publicationFamily(id));
+
+  return usePublicationMarking().value(publication, key);
 }
 
 function usePublicationExcerpts(id: PublicationId) {
@@ -98,12 +118,23 @@ function usePublicationError(id: PublicationId) {
   return useAtomValue(errorFamily(id));
 }
 
+/** An error code as a sentence, or the code itself where there is none for it. */
+function useErrorSentence(code: string): string {
+  const t = useTranslations("publicationError");
+  return code && t.has(code) ? t(code) : code;
+}
+
+/**
+ * What is wrong with a publication, in words. A code with no sentence for it is
+ * shown as the code, so an error newer than this catalogue still reaches the
+ * reader.
+ */
 function usePublicationErrorDescription(id: PublicationId) {
-  return useAtomValue(errorDescriptionFamily(id));
+  return useErrorSentence(useAtomValue(errorCodeFamily(id)));
 }
 
 function usePublicationFieldError(id: PublicationId, key: PublicationKey) {
-  return useAtomValue(fieldErrorDescriptionFamily({ id, key }));
+  return useErrorSentence(useAtomValue(fieldErrorCodeFamily({ id, key })));
 }
 
 function usePublicationOverride(id: PublicationId) {
@@ -201,6 +232,7 @@ export {
   usePublicationSources,
   usePublicationExcerpts,
   usePublicationMarkedField,
+  usePublicationMarking,
   usePublicationStoredField,
   useStoredPublicationSources,
   useTotalPublicationCount,

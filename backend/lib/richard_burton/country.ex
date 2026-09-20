@@ -88,6 +88,237 @@ defmodule RichardBurton.Country do
   def all_known, do: @countries
 
   @doc """
+  The ISO alpha-2 code a value names, or nil where it names no country.
+
+  The value has to be a complete name the country goes by: either ISO code, the
+  name in either language, or one of the other names readers use.
+
+  ## Examples
+
+    iex> RichardBurton.Country.code_for("UK")
+    "GB"
+
+    iex> RichardBurton.Country.code_for("Estados Unidos")
+    "US"
+
+    iex> RichardBurton.Country.code_for("Braz")
+    nil
+  """
+  def code_for(value) when is_binary(value) do
+    written = normalize(value)
+
+    named =
+      @countries
+      |> Map.keys()
+      |> Enum.filter(fn code -> Enum.any?(names_for(code), &(normalize(&1) == written)) end)
+
+    case named do
+      [code] -> code
+      _ -> nil
+    end
+  end
+
+  def code_for(_value), do: nil
+
+  @doc """
+  Replaces each country in a changeset with its ISO code: "UK" becomes `GB`,
+  "Brasil" becomes `BR`.
+
+  A value naming no country, or more than one, is left as written for
+  `validate_countries/1` to refuse by name.
+
+  Runs before validation and fingerprinting, so rows saying "UK" and "GB" are
+  one row rather than two.
+  """
+  def resolve_countries(changeset = %Ecto.Changeset{}) do
+    case get_change(changeset, :countries) do
+      nil -> changeset
+      countries -> put_change(changeset, :countries, Enum.map(countries, &resolved/1))
+    end
+  end
+
+  # The code a value names, or the value unchanged where it names no single
+  # country.
+  defp resolved(value) when is_binary(value), do: code_for(value) || value
+  defp resolved(value), do: value
+
+  @doc """
+  The codes of the countries a `country:` operator's value names.
+
+  A value that is a complete name reaches that country alone. Otherwise it
+  reaches every country whose name starts with it. So `country:US` is the United
+  States, not every country whose name begins "us".
+
+  An empty list is a filter no row satisfies, not the absence of one.
+
+  ## Examples
+
+    iex> RichardBurton.Country.answering("Reino Unido")
+    ["GB"]
+
+    iex> RichardBurton.Country.answering("BRA")
+    ["BR"]
+
+    iex> RichardBurton.Country.answering("zzzz")
+    []
+  """
+  def answering(value) when is_binary(value) do
+    case normalize(value) do
+      "" -> []
+      normalized -> best_answering(normalized)
+    end
+  end
+
+  def answering(_value), do: []
+
+  # The countries matching `normalized` most closely: those with a name equal to
+  # it, or, where there are none, those with a name beginning with it. A name
+  # that merely contains it does not count.
+  defp best_answering(normalized) do
+    named =
+      @countries
+      |> Map.keys()
+      |> Enum.map(&{&1, rank(&1, normalized)})
+      |> Enum.reject(fn {_code, rank} -> is_nil(rank) or rank > 1 end)
+
+    case Enum.min_by(named, &elem(&1, 1), fn -> nil end) do
+      nil -> []
+      {_code, best} -> for {code, ^best} <- named, do: code
+    end
+  end
+
+  @doc """
+  The codes of the countries a term names outright.
+
+  A name counts when its words appear consecutively in the term, with case,
+  accents and punctuation folded away. So "United States Kingdom" names the
+  United States and not the United Kingdom.
+
+  A code counts when the term writes it in capitals, or when the term is that
+  code and nothing else. So "machado DE" asks for Germany and "machado de assis"
+  does not.
+
+  ## Examples
+
+    iex> RichardBurton.Country.named_in("machado brazil")
+    ["BR"]
+
+    iex> RichardBurton.Country.named_in("a study of translation")
+    []
+  """
+  def named_in(term) when is_binary(term) do
+    said = words(term)
+    as_typed = split(term)
+
+    @countries
+    |> Map.keys()
+    |> Enum.filter(&named?(&1, said, as_typed))
+    |> Enum.sort()
+  end
+
+  def named_in(_term), do: []
+
+  @doc """
+  The codes of the countries a term reaches.
+
+  A term that names countries outright reaches those, and `named_in/1` decides
+  which. Otherwise the whole term is read as a name being typed, and every
+  country whose name starts with it is reached: "United" reaches both the United
+  States and the United Kingdom.
+
+  ## Examples
+
+    iex> RichardBurton.Country.reached_by("machado brazil")
+    ["BR"]
+
+    iex> RichardBurton.Country.reached_by("United States Kingdom")
+    ["US"]
+
+    iex> RichardBurton.Country.reached_by("machado de assis")
+    []
+  """
+  def reached_by(term) when is_binary(term) do
+    case named_in(term) do
+      [] -> term |> words() |> beginning()
+      named -> named
+    end
+  end
+
+  def reached_by(_term), do: []
+
+  # Whether the term names this country, either by one of its names appearing in
+  # `said` as a run of words, or by saying one of its codes.
+  defp named?(code, said, as_typed) do
+    Enum.any?(called(code), &consecutive_in?(words(&1), said)) or
+      code_written?(code, said, as_typed)
+  end
+
+  # Whether a term says one of this country's codes: written in capitals, or
+  # standing as the whole term in any case.
+  #
+  # Two-letter codes spell common words, so capitals are what separate "machado
+  # DE" from "machado de assis".
+  defp code_written?(code, said, as_typed) do
+    codes = codes_for(code)
+
+    Enum.any?(codes, &(&1 in as_typed)) or Enum.any?(codes, &(words(&1) == said))
+  end
+
+  # The countries with a name beginning with all of `said`, which arrives folded.
+  #
+  # All of it, because "de" begins four countries' names: counting single words
+  # of a longer term would have "machado de assis" reach every one of them. Codes
+  # are complete names, so `named?/3` handles those.
+  defp beginning([]), do: []
+
+  defp beginning(said) do
+    fragment = Enum.join(said, " ")
+
+    @countries
+    |> Map.keys()
+    |> Enum.filter(fn code ->
+      Enum.any?(called(code), &String.starts_with?(Enum.join(words(&1), " "), fragment))
+    end)
+    |> Enum.sort()
+  end
+
+  # What a country is called: its name in each language, and the other names
+  # readers have for it.
+  defp called(code) do
+    country = Map.fetch!(@countries, code)
+
+    [country["en"]["name"], country["pt"]["name"] | country["aliases"] || []]
+    |> Enum.filter(&is_binary/1)
+  end
+
+  # The codes a country is filed under, rather than called by.
+  defp codes_for(code) do
+    [code, Map.fetch!(@countries, code)["alpha3"]] |> Enum.filter(&is_binary/1)
+  end
+
+  # Whether the words of `name` appear consecutively somewhere in `said`. A name
+  # with no words appears in nothing, rather than in everything.
+  defp consecutive_in?([], _said), do: false
+
+  defp consecutive_in?(name, said) do
+    Enum.any?(0..(length(said) - length(name))//1, fn at ->
+      Enum.slice(said, at, length(name)) == name
+    end)
+  end
+
+  # The words of a phrase, folded for comparison. Splitting on everything that is
+  # neither a letter nor a digit keeps the quotes and colons of a search term out
+  # of the words, and makes a hyphenated name two words on both sides.
+  defp words(phrase) do
+    phrase |> normalize() |> split()
+  end
+
+  # A phrase cut into words, with its case intact. The code check reads this
+  # rather than the folded form, since capitals are what distinguish a code from
+  # the word it spells.
+  defp split(phrase), do: String.split(phrase, ~r/[^\p{L}\p{N}]+/u, trim: true)
+
+  @doc """
   Every country the platform knows, named in `locale`, ordered by that name.
 
   The shape the editor's country field reads: the code is what a publication
@@ -292,7 +523,8 @@ defmodule RichardBurton.Country do
     countries |> String.split(",") |> Enum.map(&String.trim/1) |> nest()
   end
 
-  def nest(countries) when is_list(countries), do: Enum.map(countries, &%{"code" => get_code(&1)})
+  def nest(countries) when is_list(countries),
+    do: Enum.map(countries, &%{"code" => resolved(get_code(&1))})
 
   @doc ~S"""
   Flatten countries to the codes they are. A value that is not a list is

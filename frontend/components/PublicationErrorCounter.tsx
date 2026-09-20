@@ -9,11 +9,13 @@ import {
 } from "modules/publication/hooks";
 import { focusNextInvalid } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
+import { useTranslations } from "next-intl";
 import { FC } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";
 
 const PublicationErrorCounter: FC = () => {
+  const t = useTranslations("admin");
   const store = usePublicationStore();
   const publicationCount = useVisiblePublicationCount();
   const validPublicationCount = useValidPublicationCount();
@@ -25,10 +27,10 @@ const PublicationErrorCounter: FC = () => {
   // All valid — a green check reassures instead of showing a red "0".
   if (invalidPublicationCount === 0) {
     return (
-      <Tooltip variant="info" message="All publications are valid">
+      <Tooltip variant="info" message={t("allValid")}>
         <span
           role="status"
-          aria-label="All publications are valid"
+          aria-label={t("allValid")}
           className="flex items-center rounded bg-green-600 px-2 py-1.5 text-white shadow-sm"
         >
           <CheckIcon className="w-4 h-4" />
@@ -40,9 +42,7 @@ const PublicationErrorCounter: FC = () => {
   return (
     <Tooltip
       variant="error"
-      message={`${invalidPublicationCount} ${
-        invalidPublicationCount === 1 ? "publication" : "publications"
-      } with errors`}
+      message={t("withErrors", { count: invalidPublicationCount })}
     >
       <Button
         variant="danger"
@@ -50,7 +50,9 @@ const PublicationErrorCounter: FC = () => {
         alignment="left"
         Icon={ErrorCircleIcon}
         label={toString(invalidPublicationCount)}
-        aria-label={`${invalidPublicationCount} invalid publications`}
+        aria-label={t("invalidPublications", {
+          count: invalidPublicationCount,
+        })}
         onClick={() => focusNextInvalid(store)}
       />
     </Tooltip>

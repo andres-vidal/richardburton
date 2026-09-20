@@ -1,6 +1,7 @@
 "use client";
 
-import { ROLE_LABELS, ROLES } from "modules/users";
+import { ROLES } from "modules/users";
+import { useTranslations } from "next-intl";
 import { FC } from "react";
 
 const signInAs = (role: (typeof ROLES)[number]) => {
@@ -18,20 +19,25 @@ const signInAs = (role: (typeof ROLES)[number]) => {
 // A button each, because what an admin can reach and what a contributor can is
 // the difference worth being able to look at. Each role has its own account, so
 // signing in as one does not demote the other.
-const DevSignInButton: FC = () => (
-  <span className="flex gap-3 items-baseline text-sm text-gray-600">
-    <span>Dev sign-in:</span>
-    {ROLES.map((role) => (
-      <button
-        key={role}
-        type="button"
-        onClick={() => signInAs(role)}
-        className="rounded underline hover:text-indigo-600 focus-ring"
-      >
-        {ROLE_LABELS[role]}
-      </button>
-    ))}
-  </span>
-);
+const DevSignInButton: FC = () => {
+  const t = useTranslations("admin");
+  const roleName = useTranslations("roles");
+
+  return (
+    <span className="flex gap-3 items-baseline text-sm text-gray-600">
+      <span>{t("devSignIn")}</span>
+      {ROLES.map((role) => (
+        <button
+          key={role}
+          type="button"
+          onClick={() => signInAs(role)}
+          className="rounded underline hover:text-indigo-600 focus-ring"
+        >
+          {roleName(role)}
+        </button>
+      ))}
+    </span>
+  );
+};
 
 export default DevSignInButton;

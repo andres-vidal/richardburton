@@ -4,6 +4,7 @@ import { Key } from "app";
 import ChevronDownIcon from "assets/chevron-down.svg";
 import ChevronUpIcon from "assets/chevron-up.svg";
 import { clamp, isString, parseInt, toString } from "lodash";
+import { useTranslations } from "next-intl";
 import { FC, forwardRef, HTMLProps, KeyboardEvent, ReactNode } from "react";
 import TextInput from "./TextInput";
 
@@ -37,6 +38,8 @@ export default forwardRef<HTMLDivElement, Props>(function NumberInput(
   { value, onChange, max = Infinity, min = -Infinity, error, ...props },
   ref,
 ) {
+  const t = useTranslations("common");
+
   function fit(value: number) {
     const lower = isString(min) ? parseInt(min) : min;
     const upper = isString(max) ? parseInt(max) : max;
@@ -80,13 +83,13 @@ export default forwardRef<HTMLDivElement, Props>(function NumberInput(
           <IncrementButton
             onClick={() => increment(value, 1)}
             icon={<ChevronUpIcon className="w-3 aspect-square" />}
-            label="Increase"
+            label={t("increase")}
             error={error}
           />
           <IncrementButton
             onClick={() => increment(value, -1)}
             icon={<ChevronDownIcon className="w-3 aspect-square" />}
-            label="Decrease"
+            label={t("decrease")}
             error={error}
           />
         </div>

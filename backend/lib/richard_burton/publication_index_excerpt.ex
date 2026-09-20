@@ -29,6 +29,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
 
   import Ecto.Query
 
+  alias RichardBurton.Country
   alias RichardBurton.Publication.Index.Keywords
   alias RichardBurton.Publication.Index.Query
   alias RichardBurton.Publication.Index.Term
@@ -151,18 +152,23 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   defp report(field, word, words), do: [%{field: field, typed: word, words: words}]
 
   @doc """
-  Adds the `excerpts` map to a query, one excerpt per field.
+  Adds the `excerpts` map to a query, one excerpt per field, and the
+  `matched_countries` list.
 
-  The term is read from scratch here, the same way the search read it, so this
-  needs nothing but the term itself. None of what the search resolved earlier has
-  to be carried along. A field that no part of the term searched gets no tsquery,
-  and so gets no excerpt.
+  Takes only the term, reading it the same way the search did. A field no part of
+  the term searched gets no tsquery, and so no excerpt.
+
+  `matched_countries` is the set of codes the term matched — which countries
+  answered, not where in them. A country answers to either ISO code and to a name
+  in any language, so what matched is often not what is shown.
   """
   @spec select(Ecto.Query.t(), String.t()) :: Ecto.Query.t()
   def select(query, term) do
     queries = field_queries(term)
 
-    select_merge(query, [p], %{
+    query
+    |> select_countries(queries.countries)
+    |> select_merge([p], %{
       excerpts: %{
         title: excerpt(p.title, ^queries.title, @whole),
         original_title: excerpt(p.original_title, ^queries.original_title, @whole),
@@ -176,6 +182,29 @@ defmodule RichardBurton.Publication.Index.Excerpt do
             @window
           )
       }
+    })
+  end
+
+  # Adds `matched_countries`: the codes among the row's countries the term
+  # matched, tried against `countries.names` — the same column the search
+  # document is built from.
+  #
+  # A term searching no country gets a nil tsquery, and the list comes back
+  # empty.
+  defp select_countries(query, countries) do
+    select_merge(query, [p], %{
+      matched_countries:
+        fragment(
+          """
+          ARRAY(
+            SELECT c.code FROM countries c
+            WHERE c.code = ANY(?)
+            AND to_tsvector('rb_search', array_to_string(c.names, ' ')) @@ to_tsquery('rb_search', ?)
+          )
+          """,
+          p.countries,
+          ^countries
+        )
     })
   end
 
@@ -226,7 +255,9 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   defp spelled_out_queries(term) do
     %{rows: [[query]]} = Repo.query!("SELECT websearch_to_tsquery('rb_search', $1)::text", [term])
 
-    Map.new(@fields, &{&1, query})
+    @fields
+    |> Map.new(&{&1, query})
+    |> Map.put(:countries, codes_query(Country.reached_by(term)))
   end
 
   # The tsquery per field for a parsed term. Free words are searched in every
@@ -236,8 +267,36 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     words = alternatives |> Enum.flat_map(& &1.words) |> Enum.map(&Query.word_query/1) |> any_of()
     filters = alternatives |> Enum.flat_map(& &1.filters) |> Enum.reduce(%{}, &filter/2)
 
-    Map.new(@fields, &{&1, any_of([words, filters[&1]])})
+    @fields
+    |> Map.new(&{&1, any_of([words, filters[&1]])})
+    |> Map.put(:countries, codes_query(country_codes(alternatives)))
   end
+
+  # The countries a term reaches: what its free words reach, plus what its
+  # `country:` operators name.
+  #
+  # Other fields mark whichever of the term's words appear, which is fine when
+  # the mark lands on the word itself. A country is marked whole, so a shared
+  # word would mark the wrong one — "Reino Unido" shares "Unido" with "Estados
+  # Unidos". `Country.reached_by/1` is what tells them apart.
+  defp country_codes(alternatives) do
+    alternatives
+    |> Enum.flat_map(fn alternative ->
+      reached = alternative.words |> Enum.join(" ") |> Country.reached_by()
+
+      operated =
+        alternative.filters
+        |> Enum.filter(&(&1.field == :countries and not &1.negated))
+        |> Enum.flat_map(&Country.answering(&1.value))
+
+      reached ++ operated
+    end)
+    |> Enum.uniq()
+  end
+
+  # Codes as a tsquery over `countries.names`, which holds them, so each matches
+  # only the country it came from.
+  defp codes_query(codes), do: codes |> Enum.map(&Query.lexeme/1) |> any_of()
 
   # Adds an operator's value under the field it names. Negated operators are
   # skipped, since the reader asked not to see those words and they cannot be why a
@@ -245,6 +304,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # highlight.
   defp filter(%{negated: true}, acc), do: acc
   defp filter(%{field: :year}, acc), do: acc
+
+  # `country_codes/1` handles the country operator, resolving it to codes rather
+  # than to words to mark.
+  defp filter(%{field: :countries}, acc), do: acc
 
   defp filter(%{field: field, value: value, exact: exact}, acc) do
     query = value_query(value, exact)

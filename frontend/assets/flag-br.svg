@@ -1,0 +1,14 @@
+<svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg"
+  preserveAspectRatio="xMidYMid slice" role="presentation">
+  <clipPath id="flag-br-globe">
+    <circle cx="14" cy="10" r="4.2" />
+  </clipPath>
+  <rect width="28" height="20" fill="#009C3B" />
+  <path d="M14 2.6 L25.4 10 L14 17.4 L2.6 10 Z" fill="#FFDF00" />
+  <circle cx="14" cy="10" r="4.2" fill="#002776" />
+  <path
+    d="M8 12.4 Q14 7.6 20 12.4 L20 14 Q14 9.2 8 14 Z"
+    fill="#FFFFFF"
+    clip-path="url(#flag-br-globe)"
+  />
+</svg>

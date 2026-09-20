@@ -10,7 +10,7 @@ import {
   PublicationError,
   PublicationId,
   ValidationResult,
-  describeError,
+  errorCode,
 } from "./model";
 import {
   createId,
@@ -45,8 +45,11 @@ async function run<T>(op: (http: AxiosInstance) => Promise<T>): Promise<T> {
   try {
     return await request(op);
   } catch (error) {
-    const message = describeError(error as PublicationError) || error;
-    notify({ message: message as string, level: "warning" });
+    const code = errorCode(error as PublicationError);
+    notify({
+      message: code ? `publicationError.${code}` : String(error),
+      level: "warning",
+    });
     throw error;
   }
 }
@@ -99,8 +102,9 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
     store.set(overrideFamily(id), RESET);
     store.set(errorFamily(id), RESET);
     notify({
-      message: "Publication updated",
-      detail: `"${data.title}" is saved.`,
+      message: "notify.publicationUpdated",
+      detail: "notify.publicationUpdatedDetail",
+      values: { title: data.title },
       level: "success",
     });
     return true;
@@ -109,9 +113,8 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
 
     if (isConflict(error)) {
       notify({
-        message: describeError("conflict"),
-        detail:
-          "Change one of the keyed fields — title, year, countries, publishers or the original book.",
+        message: "publicationError.conflict",
+        detail: "notify.conflictDetail",
         level: "warning",
       });
     } else if (response?.status === 400) {
@@ -119,9 +122,8 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
       store.set(errorFamily(id), response.data?.errors ?? null);
     } else {
       notify({
-        message: "Could not save the publication",
-        detail:
-          "Your edits are still here. Check your connection and try again.",
+        message: "notify.saveFailed",
+        detail: "notify.saveFailedDetail",
         level: "warning",
       });
     }
@@ -144,15 +146,17 @@ async function deletePublication(
 
     removePublication(store, id);
     notify({
-      message: "Publication deleted",
-      detail: `“${title}” is out of the database. Restore it from Deleted publications.`,
+      message: "notify.publicationDeleted",
+      detail: "notify.publicationDeletedDetail",
+      values: { title },
       level: "success",
     });
     return true;
   } catch {
     notify({
-      message: "Could not delete the publication",
-      detail: `“${title}” is unchanged. Check your connection and try again.`,
+      message: "notify.deleteFailed",
+      detail: "notify.deleteFailedDetail",
+      values: { title },
       level: "warning",
     });
     return false;
@@ -174,16 +178,14 @@ async function undo(
       http.post(`publications/${id}/history/${version}/undo`),
     );
 
-    notify({ message: "Change undone", level: "success" });
+    notify({ message: "notify.changeUndone", level: "success" });
     return true;
   } catch (error) {
     notify({
-      message: isConflict(error)
-        ? "Could not undo — the record has moved on since"
-        : "Could not undo the change",
+      message: isConflict(error) ? "notify.undoOutpaced" : "notify.undoFailed",
       detail: isConflict(error)
-        ? "A later change would be lost, or another publication now holds that data."
-        : "Nothing changed. Check your connection and try again.",
+        ? "notify.undoOutpacedDetail"
+        : "notify.nothingChanged",
       level: "warning",
     });
     return false;
@@ -200,19 +202,19 @@ async function restore(id: PublicationId): Promise<boolean> {
     await request((http) => http.post(`publications/${id}/restore`));
 
     notify({
-      message: "Publication restored",
-      detail: "It is back in the database and in search results.",
+      message: "notify.publicationRestored",
+      detail: "notify.publicationRestoredDetail",
       level: "success",
     });
     return true;
   } catch (error) {
     notify({
       message: isConflict(error)
-        ? "Could not restore — the record exists again"
-        : "Could not restore the publication",
+        ? "notify.restoreOutpaced"
+        : "notify.restoreFailed",
       detail: isConflict(error)
-        ? "It was imported again while deleted, so restoring would duplicate it. Delete the newer copy first, or leave this one deleted."
-        : "Nothing changed. Check your connection and try again.",
+        ? "notify.restoreOutpacedDetail"
+        : "notify.nothingChanged",
       level: "warning",
     });
     return false;
@@ -257,19 +259,20 @@ async function merge(
 
     ids.forEach((id) => removePublication(store, id));
     notify({
-      message: `Merged ${ids.length === 1 ? "1 publication" : `${ids.length} publications`}`,
-      detail: `“${winner.title}” now holds what they said.`,
+      message: "notify.merged",
+      detail: "notify.mergedDetail",
+      values: { count: ids.length, title: winner.title },
       level: "success",
     });
     return true;
   } catch (error) {
     notify({
       message: isConflict(error)
-        ? "Could not merge — the result already exists"
-        : "Could not merge the publications",
+        ? "notify.mergeOutpaced"
+        : "notify.mergeFailed",
       detail: isConflict(error)
-        ? "Another publication already holds what the merged record would. Merge that one instead."
-        : "Nothing changed. Check your connection and try again.",
+        ? "notify.mergeOutpacedDetail"
+        : "notify.nothingChanged",
       level: "warning",
     });
     return false;
@@ -291,15 +294,15 @@ async function reconsider(ids: PublicationId[]): Promise<boolean> {
     );
 
     notify({
-      message: "Back among the questions",
-      detail: "These will be offered as possible duplicates again.",
+      message: "notify.reconsidered",
+      detail: "notify.reconsideredDetail",
       level: "success",
     });
     return true;
   } catch {
     notify({
-      message: "Could not put them back",
-      detail: "Nothing changed. Check your connection and try again.",
+      message: "notify.reconsiderFailed",
+      detail: "notify.nothingChanged",
       level: "warning",
     });
     return false;
@@ -313,15 +316,15 @@ async function distinguish(ids: PublicationId[]): Promise<boolean> {
     );
 
     notify({
-      message: "Kept apart",
-      detail: "These will not be offered as duplicates again.",
+      message: "notify.distinguished",
+      detail: "notify.distinguishedDetail",
       level: "success",
     });
     return true;
   } catch {
     notify({
-      message: "Could not keep them apart",
-      detail: "Nothing changed. Check your connection and try again.",
+      message: "notify.distinguishFailed",
+      detail: "notify.nothingChanged",
       level: "warning",
     });
     return false;

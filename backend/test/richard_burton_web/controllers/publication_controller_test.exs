@@ -166,6 +166,37 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert unmatched == nil
     end
 
+    test "reports the country a search matched, by code", meta do
+      Publication.Index.Refresher.refresh()
+
+      body =
+        meta.conn
+        |> get("#{publication_path(meta.conn, :show, meta.publication.id)}?search=Reino+Unido")
+        |> json_response(200)
+
+      assert body["matched_countries"] == ["GB"]
+    end
+
+    test "reports no countries when the search did not name one", meta do
+      Publication.Index.Refresher.refresh()
+
+      body =
+        meta.conn
+        |> get("#{publication_path(meta.conn, :show, meta.publication.id)}?search=Iracema")
+        |> json_response(200)
+
+      assert body["matched_countries"] == []
+    end
+
+    test "reports no countries at all when nothing was searched", meta do
+      body =
+        meta.conn
+        |> get(publication_path(meta.conn, :show, meta.publication.id))
+        |> json_response(200)
+
+      assert body["matched_countries"] == nil
+    end
+
     test "returns 404 for a publication that never existed", meta do
       conn = get(meta.conn, publication_path(meta.conn, :show, -1))
       assert json_response(conn, 404) == %{"error" => "not_found"}
@@ -707,7 +738,13 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert publications ==
                Enum.map(
                  result,
-                 &Map.drop(&1, ["id", "sources", "excerpts", "marked_sources"])
+                 &Map.drop(&1, [
+                   "id",
+                   "sources",
+                   "excerpts",
+                   "marked_sources",
+                   "matched_countries"
+                 ])
                )
     end
 
@@ -805,7 +842,13 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert output ==
                Enum.map(
                  result,
-                 &Map.drop(&1, ["id", "sources", "excerpts", "marked_sources"])
+                 &Map.drop(&1, [
+                   "id",
+                   "sources",
+                   "excerpts",
+                   "marked_sources",
+                   "matched_countries"
+                 ])
                )
     end
 
@@ -887,7 +930,13 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert output ==
                Enum.map(
                  result,
-                 &Map.drop(&1, ["id", "sources", "excerpts", "marked_sources"])
+                 &Map.drop(&1, [
+                   "id",
+                   "sources",
+                   "excerpts",
+                   "marked_sources",
+                   "matched_countries"
+                 ])
                )
     end
 
@@ -1024,7 +1073,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     @correct_input_5 %{
       "title" => "Ubirajara: A Legend of the Tupy Indians",
       "year" => "",
-      "countries" => ["USA"],
+      "countries" => ["Narnia"],
       "publishers" => [],
       "authors" => ["J. T. W. Sadler"],
       "original_authors" => [],

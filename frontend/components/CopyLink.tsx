@@ -2,6 +2,7 @@
 
 import CopyIcon from "assets/copy.svg";
 import { notify } from "components/Notifications";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Tooltip from "./Tooltip";
 
@@ -10,10 +11,8 @@ import Tooltip from "./Tooltip";
  * else. For places where the address is not on screen — inside an overlay, the
  * URL bar still shows the page underneath.
  */
-const CopyLink: FC<{ href: string; label?: string }> = ({
-  href,
-  label = "Copy link",
-}) => {
+const CopyLink: FC<{ href: string }> = ({ href }) => {
+  const t = useTranslations("link");
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -23,21 +22,27 @@ const CopyLink: FC<{ href: string; label?: string }> = ({
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      notify({ message: "Link copied", detail: url, level: "success" });
+      notify({
+        message: "link.copiedMessage",
+        detail: "link.copiedDetail",
+        values: { url },
+        level: "success",
+      });
     } catch {
       notify({
-        message: "Could not copy the link",
-        detail: "Your browser did not allow it — the address is " + url,
+        message: "link.failed",
+        detail: "link.failedDetail",
+        values: { url },
         level: "warning",
       });
     }
   }
 
   return (
-    <Tooltip variant="info" message={copied ? "Copied" : label}>
+    <Tooltip variant="info" message={t("action", { copied: String(copied) })}>
       <button
         type="button"
-        aria-label={copied ? "Copied" : label}
+        aria-label={t("action", { copied: String(copied) })}
         data-copied={copied}
         className="
           flex p-1.5 rounded transition-colors shrink-0 focus-ring

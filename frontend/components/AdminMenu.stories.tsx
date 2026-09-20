@@ -37,24 +37,24 @@ export const Default: Story = {
 
     await expect(
       canvas.getByRole("link", { name: /Add publications/ }),
-    ).toHaveAttribute("href", "/admin/publications/new");
+    ).toHaveAttribute("href", "/en/admin/publications/new");
 
     await expect(
       canvas.getByRole("link", { name: /Backfill sources/ }),
-    ).toHaveAttribute("href", "/admin/publications/sources");
+    ).toHaveAttribute("href", "/en/admin/publications/sources");
 
     await expect(canvas.getByRole("link", { name: /History/ })).toHaveAttribute(
       "href",
-      "/admin/publications/history",
+      "/en/admin/publications/history",
     );
 
     await expect(
       canvas.getByRole("link", { name: /Deleted publications/ }),
-    ).toHaveAttribute("href", "/admin/publications/deleted");
+    ).toHaveAttribute("href", "/en/admin/publications/deleted");
 
     await expect(canvas.getByRole("link", { name: /Access/ })).toHaveAttribute(
       "href",
-      "/admin/users",
+      "/en/admin/users",
     );
   },
 };

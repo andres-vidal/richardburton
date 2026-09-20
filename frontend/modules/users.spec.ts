@@ -1,17 +1,4 @@
-import { describeRole, User } from "./users";
-
-describe("describeRole", () => {
-  test("names a role for the middle of a sentence", () => {
-    expect(`Ana is now ${describeRole("contributor")}.`).toBe(
-      "Ana is now a Contributor.",
-    );
-  });
-
-  test("takes the article its name calls for", () => {
-    expect(describeRole("admin")).toBe("an Administrator");
-    expect(describeRole("reader")).toBe("a Reader");
-  });
-});
+import { User } from "./users";
 
 describe("User", () => {
   describe("canEditPublications", () => {

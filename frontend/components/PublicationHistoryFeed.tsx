@@ -7,7 +7,8 @@ import type {
   PublicationHistoryAction,
 } from "modules/publication/model";
 import { HISTORY_ACTIONS } from "modules/publication/model";
-import { useRouter } from "next/navigation";
+import { useRouter } from "i18n/navigation";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import { undo } from "modules/publication/remote";
 import { Entry, UNDO_DISABLED } from "./PublicationHistory";
@@ -40,6 +41,8 @@ const PublicationHistoryFeed: FC<{
   entries,
   onUndo = (entry) => undo(entry.publicationId, entry.version),
 }) => {
+  const t = useTranslations("admin");
+  const actionName = useTranslations("historyActions");
   const [filter, setFilter] = useState<Filter>({ actions: [], query: "" });
   const router = useRouter();
   const [undoing, setUndoing] = useState(false);
@@ -84,19 +87,19 @@ const PublicationHistoryFeed: FC<{
             data-active={filter.actions.includes(action)}
             aria-pressed={filter.actions.includes(action)}
             className="
-              px-2.5 py-1 text-xs font-medium capitalize rounded-full border transition-colors focus-ring
+              px-2.5 py-1 text-xs font-medium rounded-full border transition-colors focus-ring
               border-gray-400 text-gray-700 hover:border-indigo-600
               data-[active=true]:border-indigo-600 data-[active=true]:bg-indigo-600 data-[active=true]:text-white
             "
             onClick={() => toggleAction(action)}
           >
-            {action}
+            {actionName(action)}
           </button>
         ))}
         <input
           type="text"
-          aria-label="Filter by title or user"
-          placeholder="Filter by title or user"
+          aria-label={t("filter")}
+          placeholder={t("filter")}
           value={filter.query}
           className="px-3 py-1 ml-auto text-sm rounded border border-gray-400 placeholder:text-gray-600"
           onChange={(event) =>
@@ -106,9 +109,7 @@ const PublicationHistoryFeed: FC<{
       </div>
       {visible.length === 0 ? (
         <p className="text-sm text-gray-600">
-          {entries.length === 0
-            ? "No changes recorded yet."
-            : "No entries match the current filters."}
+          {entries.length === 0 ? t("noChangesYet") : t("noMatchingEntries")}
         </p>
       ) : (
         <ol className="space-y-2">

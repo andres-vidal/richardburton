@@ -2,13 +2,10 @@
 
 import { revoke, setRole } from "modules/access/remote";
 import { useSession } from "modules/session";
-import { formatDate } from "modules/dates";
-import {
-  ROLE_DESCRIPTIONS,
-  type UserRecord,
-  type UserRole,
-} from "modules/users";
-import { useRouter } from "next/navigation";
+import { useFormatDate } from "modules/dates";
+import type { UserRecord, UserRole } from "modules/users";
+import { useRouter } from "i18n/navigation";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
 import ConfirmationModal from "./ConfirmationModal";
@@ -16,6 +13,8 @@ import { useModal } from "./Modal";
 import RoleMenu from "./RoleMenu";
 
 const Entry: FC<{ user: UserRecord }> = ({ user }) => {
+  const t = useTranslations("admin");
+  const formatDate = useFormatDate();
   const router = useRouter();
   const confirmation = useModal();
   const [working, setWorking] = useState(false);
@@ -41,22 +40,27 @@ const Entry: FC<{ user: UserRecord }> = ({ user }) => {
       <div className="min-w-0 grow">
         <p className="font-medium text-gray-800 wrap-break-words">
           {user.email}
-          {isSelf && <span className="ml-2 text-xs text-gray-500">(you)</span>}
+          {isSelf && (
+            <span className="ml-2 text-xs text-gray-500">{t("you")}</span>
+          )}
         </p>
         <p className="text-xs text-gray-500">
-          {ROLE_DESCRIPTIONS[user.role]} · joined {formatDate(user.insertedAt)}
+          {t("roleAndJoined", {
+            role: user.role,
+            date: formatDate(user.insertedAt),
+          })}
         </p>
       </div>
 
       <RoleMenu
         value={user.role}
-        label={`Role for ${user.email}`}
+        label={t("roleFor", { email: user.email })}
         disabled={working || isSelf}
         onChange={change}
       />
 
       <Button
-        label="Revoke"
+        label={t("revoke")}
         variant="danger"
         width="fit"
         size="field"
@@ -67,9 +71,9 @@ const Entry: FC<{ user: UserRecord }> = ({ user }) => {
 
       <ConfirmationModal
         isOpen={confirmation.isOpen}
-        title="Revoke this access?"
-        message={`${user.email} will be signed out and will not be able to sign in again until they are invited back.`}
-        confirmLabel="Revoke"
+        title={t("revokeTitle")}
+        message={t("revokeMessage", { email: user.email })}
+        confirmLabel={t("revoke")}
         loading={working}
         onConfirm={remove}
         onCancel={confirmation.close}

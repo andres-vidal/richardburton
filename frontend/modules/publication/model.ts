@@ -1,6 +1,8 @@
 import { isString } from "lodash";
 import { Author } from "modules/author";
-import { COUNTRIES, Country } from "modules/country";
+import { Country } from "modules/country";
+import type { CountryNaming } from "modules/country-names";
+import { routing } from "i18n/routing";
 import { OriginalBook, type OriginalBookValue } from "modules/original-book";
 import { Publisher } from "modules/publisher";
 
@@ -23,11 +25,15 @@ type Publication = {
   // Each source with its matched words wrapped, or null where the search did
   // not match that one. Only present on a record read with a search.
   markedSources?: (string | null)[];
+  // Which of the row's countries the search matched, as codes. Only on a record
+  // read with a search. A set, not a list lined up with `countries`, and with no
+  // marked text: what matched is often not what is shown.
+  matchedCountries?: string[];
 };
 
 type PublicationKey = keyof Omit<
   Publication,
-  "id" | "sources" | "excerpts" | "markedSources"
+  "id" | "sources" | "excerpts" | "markedSources" | "matchedCountries"
 >;
 
 /**
@@ -126,16 +132,6 @@ const ATTRIBUTES: PublicationKey[] = [
   "publishers",
 ];
 
-const ATTRIBUTE_LABELS: Record<PublicationKey, string> = {
-  authors: "Translators",
-  originalAuthors: "Original Authors",
-  originalTitle: "Original Title",
-  countries: "Countries",
-  publishers: "Publishers",
-  title: "Title",
-  year: "Year",
-};
-
 const ATTRIBUTE_TYPES: Record<PublicationKey, PublicationKeyType> = {
   authors: "array",
   originalAuthors: "array",
@@ -164,18 +160,6 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
   authors: true,
   originalTitle: true,
   originalAuthors: true,
-};
-
-const ERROR_MESSAGES: Record<string, string> = {
-  conflict: `A publication with this data already exists`,
-  required: `This field is required and cannot be blank`,
-  integer: `This field should be an integer`,
-  incorrect_row_length: `Expected a different number of columns in csv`,
-  invalid_format: `Could not parse publications from the provided file`,
-  invalid_escape_sequence: `Could not parse publications from the provided file`,
-  stray_escape_character: `Could not parse publications from the provided file`,
-  alpha2: `This field should be a valid ISO 3166-1 alpha 2 country code`,
-  duplicate: `This field cannot repeat the same entry`,
 };
 
 function empty(): Publication {
@@ -217,24 +201,34 @@ function merged(winner: Publication, losers: Publication[]): Publication {
 }
 
 /**
- * One value of an attribute, as a reader should see it: a country code becomes
- * a country name, and anything else is its own text.
+ * An attribute's values as a reader should see them: country codes become
+ * country names, and anything else is its own text. Countries are the only
+ * attribute a publication stores as something other than what is read.
  *
- * Takes an unknown rather than a string because the wire does not always agree
+ * Takes unknowns rather than strings because the wire does not always agree
  * with the model. `year` is an integer on the backend and text in a form, so it
  * arrives here as either.
+ *
+ * A country listed in `matched` gets its whole name wrapped in the index's own
+ * `[[ ]]`. The whole name, because what matched is often not what is displayed:
+ * "Holanda" matches a name neither language shows. The index decides which
+ * countries matched; nothing here works that out.
  */
-function describeValue(value: unknown, attribute: PublicationKey): string {
-  const text = String(value ?? "");
+function shown(
+  values: unknown[],
+  attribute: PublicationKey,
+  country: CountryNaming,
+  matched?: string[],
+): string[] {
+  const text = values.map((value) => String(value ?? ""));
 
-  if (attribute === "countries") {
-    const country = COUNTRIES[text];
-    if (country) return country.label;
+  if (attribute !== "countries") return text;
 
-    console.warn("Unknown country code: ", text);
-  }
+  return text.map((code) => {
+    const name = country.name(code);
 
-  return text;
+    return matched?.includes(code) ? `[[${name}]]` : name;
+  });
 }
 
 /**
@@ -245,11 +239,25 @@ function describeValue(value: unknown, attribute: PublicationKey): string {
 function markedValue(
   publication: Publication,
   attribute: PublicationKey,
+  locale: string,
+  country: CountryNaming,
 ): string {
-  return (
-    publication.excerpts?.[attribute] ??
-    describe(publication[attribute], attribute)
+  const excerpt = publication.excerpts?.[attribute];
+  if (excerpt) return excerpt;
+
+  const value = publication[attribute];
+  const values = shown(
+    Array.isArray(value) ? value : [value],
+    attribute,
+    country,
+    publication.matchedCountries,
   );
+
+  return Array.isArray(value)
+    ? new Intl.ListFormat(locale, { style: "long", type: "unit" }).format(
+        values,
+      )
+    : values[0];
 }
 
 /**
@@ -263,6 +271,8 @@ function markedValue(
 function markedItems(
   publication: Publication,
   attribute: PublicationKey,
+  locale: string,
+  country: CountryNaming,
 ): { value: string; label: string }[] {
   const values = (publication[attribute] ?? []) as string[];
   const excerpt = publication.excerpts?.[attribute];
@@ -273,8 +283,35 @@ function markedItems(
     label:
       marked?.length === values.length
         ? marked[index]
-        : describeValue(value, attribute),
+        : shown([value], attribute, country, publication.matchedCountries)[0],
   }));
+}
+
+/** How a publication's fields read to one reader — see `marking`. */
+type Marking = {
+  /** A whole field, its values joined as that reader's language joins a list. */
+  value(publication: Publication, attribute: PublicationKey): string;
+  /** Each of a field's values on its own, paired with how it reads. */
+  items(
+    publication: Publication,
+    attribute: PublicationKey,
+  ): { value: string; label: string }[];
+};
+
+/**
+ * How a publication reads to one reader: their language, and how they name a
+ * country.
+ *
+ * Both belong to the reader, not the record. Taking them once keeps the
+ * language out of every call, and lets code outside React say who is reading.
+ */
+function marking(locale: string, country: CountryNaming): Marking {
+  return {
+    value: (publication, attribute) =>
+      markedValue(publication, attribute, locale, country),
+    items: (publication, attribute) =>
+      markedItems(publication, attribute, locale, country),
+  };
 }
 
 /**
@@ -290,33 +327,23 @@ function markedSources(publication: Publication): string[] {
 }
 
 /**
- * A whole attribute in one line — for the places that show a record at a
- * glance rather than value by value.
+ * The code for what is wrong, empty where nothing is.
+ *
+ * A code, not a sentence: this module is read outside React, with no locale to
+ * write one in. The sentence lives in the `publicationError` catalogue under
+ * this code.
+ *
+ * Unscoped answers the publication's own error, scoped the field's. A
+ * publication has one kind or the other, so asking for the absent kind is empty
+ * rather than wrong.
  */
-function describe(value: PublicationValue, attribute: PublicationKey): string {
-  return Array.isArray(value)
-    ? value.map((one) => describeValue(one, attribute)).join(", ")
-    : describeValue(value, attribute);
-}
-
-function describeError(
-  error: PublicationError,
-  scope?: PublicationKey,
-): string {
+function errorCode(error: PublicationError, scope?: PublicationKey): string {
   if (!error) {
     return "";
   } else if (!scope) {
-    if (isString(error)) {
-      return ERROR_MESSAGES[error] || error;
-    } else {
-      return "";
-    }
+    return isString(error) ? error : "";
   } else {
-    if (isString(error)) {
-      return "";
-    } else {
-      return ERROR_MESSAGES[error[scope]] || error[scope];
-    }
+    return isString(error) ? "" : error[scope];
   }
 }
 
@@ -330,6 +357,7 @@ function define(attribute: PublicationKey): Record<string, unknown> {
 function autocomplete(
   value: string,
   attribute: "countries",
+  locale?: string,
 ): Promise<Country[]>;
 function autocomplete(
   value: string,
@@ -341,9 +369,17 @@ function autocomplete(
   attribute: "originalTitle",
 ): Promise<OriginalBookValue[]>;
 function autocomplete(value: string, attribute: "publishers"): Promise<[]>;
-function autocomplete(value: string, attribute: string): Promise<[]>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function autocomplete(value: string, attribute: string): Promise<any> {
+function autocomplete(
+  value: string,
+  attribute: string,
+  locale?: string,
+): Promise<[]>;
+function autocomplete(
+  value: string,
+  attribute: string,
+  locale?: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
   switch (attribute) {
     case "authors":
     case "originalAuthors":
@@ -356,16 +392,8 @@ function autocomplete(value: string, attribute: string): Promise<any> {
     case "originalTitle":
       return OriginalBook.REMOTE.search(value);
 
-    case "countries": {
-      const all = Object.values(COUNTRIES);
-      const countries = value
-        ? Object.values(COUNTRIES).filter((opt) =>
-            opt.label.toLowerCase().startsWith(value.toLowerCase()),
-          )
-        : all;
-
-      return new Promise<Country[]>((resolve) => resolve(countries));
-    }
+    case "countries":
+      return Country.REMOTE.search(value, locale ?? routing.defaultLocale);
     default:
       return new Promise<[]>((resolve) => resolve([]));
   }
@@ -375,16 +403,12 @@ function autocomplete(value: string, attribute: string): Promise<any> {
 // components already use (a type and a value can share the name in TS).
 const Publication = {
   ATTRIBUTES,
-  ATTRIBUTE_LABELS,
   ATTRIBUTE_TYPES,
   ATTRIBUTE_IS_TOGGLEABLE,
   autocomplete,
   define,
-  describe,
-  describeError,
-  describeValue,
-  markedValue,
-  markedItems,
+  errorCode,
+  marking,
   markedSources,
   empty,
   merged,
@@ -392,19 +416,15 @@ const Publication = {
 
 export {
   ATTRIBUTE_IS_TOGGLEABLE,
-  ATTRIBUTE_LABELS,
   ATTRIBUTE_TYPES,
   ATTRIBUTES,
   autocomplete,
-  COUNTRIES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
-  describe,
-  describeError,
-  describeValue,
+  errorCode,
   empty,
   HISTORY_ACTIONS,
-  markedValue,
+  marking,
   merged,
   Publication,
 };
@@ -418,6 +438,7 @@ export type {
   PublicationHistoryAction,
   PublicationHistoryEntry,
   PublicationId,
+  Marking,
   Matched,
   PublicationKey,
   PublicationKeyType,

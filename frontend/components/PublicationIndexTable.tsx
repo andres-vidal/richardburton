@@ -11,17 +11,21 @@ import {
   type PublicationId,
   type PublicationKey,
 } from "modules/publication/model";
+import { Link } from "i18n/navigation";
 import {
   AriaRole,
   FC,
   HTMLProps,
   MouseEvent,
   ReactNode,
+  createContext,
   forwardRef,
+  useContext,
   useMemo,
   useRef,
 } from "react";
 import { mergeRefs } from "react-merge-refs";
+import { useTranslations } from "next-intl";
 import useVisible from "utils/useVisible";
 import Highlight from "./Highlight";
 import { EmptySearchResults } from "./EmptySearchResults";
@@ -29,6 +33,15 @@ import { ListSkeleton } from "./ListSkeleton";
 
 type RowId = PublicationId;
 type ColId = PublicationKey;
+
+/**
+ * Where a row's record lives, for tables whose rows are pages.
+ *
+ * Given this, the title cell becomes an anchor — a row that only navigates on
+ * click is a dead end to a crawler. The workspace leaves it unset, its rows
+ * being drafts with no address.
+ */
+const RowHref = createContext<((id: RowId) => string) | null>(null);
 
 type DivProps = Omit<HTMLProps<HTMLDivElement>, "ref"> & {
   [dataAttribute: `data-${string}`]: string | number | boolean | undefined;
@@ -89,7 +102,8 @@ const useVisibleAttributes = (collapsible: boolean | undefined): ColId[] => {
 const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
   colId,
 }) => {
-  const label = Publication.ATTRIBUTE_LABELS[colId];
+  const t = useTranslations("attributes");
+  const label = t(colId);
   return (
     <Aria.ColumnHeader className="mx-0.5 px-3 py-2 font-semibold text-left truncate">
       {label}
@@ -119,11 +133,23 @@ const Content: FC<{
   // Read-only surface: the *stored* value. An editing surface injects its own
   // Content, which reads the edited value — see PublicationWorkspace.
   const marked = usePublicationMarkedField(rowId, colId);
+  const href = useContext(RowHref);
+  const isTitle = colId === "title";
 
   return (
     <div className="px-2 py-1 truncate">
-      <Highlight>{marked}</Highlight>
-      {colId === "title" && <SourceMatch rowId={rowId} />}
+      {isTitle && href ? (
+        <Link
+          href={href(rowId)}
+          onClick={(event) => event.preventDefault()}
+          className="hover:underline"
+        >
+          <Highlight>{marked}</Highlight>
+        </Link>
+      ) : (
+        <Highlight>{marked}</Highlight>
+      )}
+      {isTitle && <SourceMatch rowId={rowId} />}
     </div>
   );
 };
@@ -275,6 +301,8 @@ interface Props {
   ExtendedTrailingColumn?: FC<{ rowId: RowId }>;
   ExtraRow?: FC;
   onRowClick?: (id: RowId) => (event: MouseEvent) => void;
+  /** Where each row's record lives, when it has an address of its own. */
+  rowHref?: (id: RowId) => string;
   /** Whether the *text* in the table can be selected. Off while rows are
    * selected, so dragging across them does not highlight their content. */
   selectable?: boolean;
@@ -290,9 +318,11 @@ const PublicationIndexTable: FC<Props> = ({
   ExtendedTrailingColumn,
   ExtraRow,
   onRowClick,
+  rowHref,
   selectable = true,
   collapsible = true,
 }) => {
+  const t = useTranslations("attributes");
   const ids = useVisiblePublicationIds();
   const hasSignal = Boolean(ExtendedSignalColumn);
   const hasTrailing = Boolean(ExtendedTrailingColumn);
@@ -313,41 +343,43 @@ const PublicationIndexTable: FC<Props> = ({
   );
 
   return ids && (ids.length > 0 || ExtraRow) ? (
-    <Aria.Table
-      aria-label="Publications"
-      data-selectable={selectable}
-      style={{ gridTemplateColumns }}
-      className="grid relative justify-start w-full h-fit data-[selectable=false]:select-none"
-    >
-      <Aria.Row className="grid sticky top-(--app-header-h) z-20 col-span-full bg-gray-100 grid-cols-subgrid">
-        {ExtendedSignalColumn && (
-          <Aria.ColumnHeader>
-            <span className="sr-only">Status</span>
-          </Aria.ColumnHeader>
-        )}
-        {visibleAttributes.map((key) => (
-          <ExtendedColumnHeader key={key} colId={key} />
+    <RowHref.Provider value={rowHref ?? null}>
+      <Aria.Table
+        aria-label={t("publications")}
+        data-selectable={selectable}
+        style={{ gridTemplateColumns }}
+        className="grid relative justify-start w-full h-fit data-[selectable=false]:select-none"
+      >
+        <Aria.Row className="grid sticky top-(--app-header-h) z-20 col-span-full bg-gray-100 grid-cols-subgrid">
+          {ExtendedSignalColumn && (
+            <Aria.ColumnHeader>
+              <span className="sr-only">{t("status")}</span>
+            </Aria.ColumnHeader>
+          )}
+          {visibleAttributes.map((key) => (
+            <ExtendedColumnHeader key={key} colId={key} />
+          ))}
+          {ExtendedTrailingColumn && (
+            <Aria.ColumnHeader>
+              <span className="sr-only">{t("sources")}</span>
+            </Aria.ColumnHeader>
+          )}
+        </Aria.Row>
+        {ids.map((id) => (
+          <ExtendedRow
+            key={id}
+            rowId={id}
+            Column={ExtendedColumn}
+            SignalColumn={ExtendedSignalColumn}
+            TrailingColumn={ExtendedTrailingColumn}
+            Content={ExtendedContent}
+            collapsible={collapsible}
+            onClick={onRowClick?.(id)}
+          />
         ))}
-        {ExtendedTrailingColumn && (
-          <Aria.ColumnHeader>
-            <span className="sr-only">Sources</span>
-          </Aria.ColumnHeader>
-        )}
-      </Aria.Row>
-      {ids.map((id) => (
-        <ExtendedRow
-          key={id}
-          rowId={id}
-          Column={ExtendedColumn}
-          SignalColumn={ExtendedSignalColumn}
-          TrailingColumn={ExtendedTrailingColumn}
-          Content={ExtendedContent}
-          collapsible={collapsible}
-          onClick={onRowClick?.(id)}
-        />
-      ))}
-      {ExtraRow && <ExtraRow />}
-    </Aria.Table>
+        {ExtraRow && <ExtraRow />}
+      </Aria.Table>
+    </RowHref.Provider>
   ) : ids ? (
     <EmptySearchResults />
   ) : (

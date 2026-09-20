@@ -5,6 +5,7 @@ import {
   SetStateAction,
   useState,
 } from "react";
+import { useTranslations } from "next-intl";
 import { z } from "zod";
 
 function stripDefaults<T extends z.ZodObject<z.ZodRawShape>>(
@@ -28,6 +29,29 @@ function stripDefaults<T extends z.ZodObject<z.ZodRawShape>>(
   return [defaults as z.infer<T>, z.object(s) as unknown as T] as const;
 }
 
+/**
+ * Why a value was rejected, in words, for the rejections a form makes.
+ *
+ * A schema says what it accepts; this says how a refusal reads. No schema
+ * carries copy, and every form refuses in the same words. A rejection with
+ * nothing written for it keeps zod's own.
+ */
+type Refusal = Parameters<z.ZodType["safeParse"]>[1];
+
+function refusalIn(t: (key: string) => string): Refusal {
+  return {
+    error: (issue) => {
+      if (issue.code === "invalid_type") return t("required");
+      if (issue.code === "too_small" && issue.minimum === 1)
+        return t("required");
+      if (issue.code === "invalid_format" && issue.format === "email")
+        return t("email");
+
+      return undefined;
+    },
+  };
+}
+
 interface ValidateOptions {
   all: boolean;
 }
@@ -36,6 +60,7 @@ function validate<T extends z.ZodObject<z.ZodRawShape>>(
   schema: T,
   input: Partial<z.infer<T>>,
   { all }: ValidateOptions,
+  refusal: Refusal,
 ): [Partial<z.infer<T>>, Partial<Record<keyof z.infer<T>, string>>] {
   const parsed: Record<string, string> = {};
   const errors: Record<string, string> = {};
@@ -47,7 +72,7 @@ function validate<T extends z.ZodObject<z.ZodRawShape>>(
       continue;
     }
 
-    const result = field.safeParse(input[key]);
+    const result = field.safeParse(input[key], refusal);
 
     if (result.success) {
       parsed[key] = result.data as string;
@@ -87,6 +112,7 @@ export function useForm<T extends z.ZodObject<z.ZodRawShape>>(
   form: { onSubmit: FormEventHandler };
 } {
   const { onSubmit, disabled } = options ?? {};
+  const refusal = refusalIn(useTranslations("validation"));
 
   const [defaults, strict] = stripDefaults(schema);
   const [values, setValues] = useState<Partial<z.infer<T>>>({});
@@ -104,7 +130,7 @@ export function useForm<T extends z.ZodObject<z.ZodRawShape>>(
 
   function handleBlur(key: keyof z.infer<T>) {
     return () => {
-      const [, errors] = validate(strict, input, { all: false });
+      const [, errors] = validate(strict, input, { all: false }, refusal);
       setErrors((prev) => ({ ...prev, [key]: errors[key] }));
     };
   }
@@ -112,10 +138,10 @@ export function useForm<T extends z.ZodObject<z.ZodRawShape>>(
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    const result = schema.safeParse(input);
+    const result = schema.safeParse(input, refusal);
 
     if (!result.success) {
-      const [, errors] = validate(strict, input, { all: true });
+      const [, errors] = validate(strict, input, { all: true }, refusal);
       setErrors(errors);
       return;
     }

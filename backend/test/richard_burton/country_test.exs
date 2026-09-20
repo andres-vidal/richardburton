@@ -171,6 +171,107 @@ defmodule RichardBurton.CountryTest do
     end
   end
 
+  describe "answering/1" do
+    test "a name written in full names that country alone" do
+      assert Country.answering("US") == ["US"]
+      assert Country.answering("USA") == ["US"]
+      assert Country.answering("Brasil") == ["BR"]
+      assert Country.answering("Holanda") == ["NL"]
+      assert Country.answering("Reino Unido") == ["GB"]
+    end
+
+    # "BR" begins "Britain", which the United Kingdom goes by, but "BR" is also
+    # Brazil's code in full. A complete name wins over the longer names it is
+    # only the start of.
+    test "a complete name wins over the longer names it begins" do
+      assert Country.answering("BR") == ["BR"]
+    end
+
+    test "a name only begun reaches every country it could still become" do
+      begun = Country.answering("United")
+
+      assert "US" in begun
+      assert "GB" in begun
+    end
+
+    test "a value matching no name at all answers with nothing" do
+      assert Country.answering("zzzzqqqq") == []
+      assert Country.answering("") == []
+    end
+  end
+
+  describe "named_in/1" do
+    test "a term naming a country alongside something else still names it" do
+      assert Country.named_in("machado brazil") == ["BR"]
+    end
+
+    # "United States Kingdom" holds the name "United States" as a run of words
+    # and "United Kingdom" not at all, so the two countries are told apart even
+    # though each shares a word with the term.
+    test "a name has to appear as a run of words, not as words scattered about" do
+      assert Country.named_in("United States Kingdom") == ["US"]
+      assert Country.named_in("Reino Unido") == ["GB"]
+    end
+
+    test "a term naming several countries names all of them" do
+      assert Country.named_in("brasil e portugal") == ["BR", "PT"]
+    end
+
+    test "quotes and punctuation are not read as part of a name" do
+      assert Country.named_in(~s("United Kingdom")) == ["GB"]
+    end
+
+    test "a term with no complete name in it names no country" do
+      assert Country.named_in("United") == []
+      assert Country.named_in("a study of translation") == []
+    end
+
+    test "either ISO code names the country it stands for" do
+      assert Country.named_in("US") == ["US"]
+      assert Country.named_in("GBR") == ["GB"]
+      assert "US" in Country.named_in("machado USA")
+    end
+
+    # "DE" is Germany's code and "de" is a Portuguese preposition. The capitals
+    # are the only thing separating them.
+    test "a code spelling a common word has to be written as a code" do
+      assert Country.named_in("machado de assis") == []
+      assert Country.named_in("machado DE") == ["DE"]
+    end
+
+    test "a term that is nothing but a code names it whatever the case" do
+      assert Country.named_in("de") == ["DE"]
+      assert Country.named_in("usa") == ["US"]
+    end
+  end
+
+  describe "reached_by/1" do
+    test "a term naming a country outright reaches that one alone" do
+      assert Country.reached_by("machado brazil") == ["BR"]
+      assert Country.reached_by("Reino Unido") == ["GB"]
+      assert Country.reached_by("United States Kingdom") == ["US"]
+    end
+
+    test "a term naming no country is read as a name still being typed" do
+      reached = Country.reached_by("United")
+
+      assert "US" in reached
+      assert "GB" in reached
+    end
+
+    # The fragment has to be the entire term. "de" begins four countries' names
+    # and is also a Portuguese preposition, so counting any word of a longer term
+    # would reach all four.
+    test "a word sitting inside a longer term reaches nothing" do
+      assert Country.reached_by("machado de assis") == []
+      assert Country.reached_by("machado united") == []
+    end
+
+    test "a code written as one is reached from anywhere in the term" do
+      assert Country.reached_by("machado USA") == ["US"]
+    end
+  end
+
   describe "known/1" do
     test "names every country in the language asked for" do
       labels = Country.known("pt") |> Enum.map(& &1.label)
@@ -241,44 +342,38 @@ defmodule RichardBurton.CountryTest do
       assert errors == [countries: {"can't be blank", [validation: :required]}]
     end
 
-    test "when countries is valid alpha3 code, is invalid" do
-      %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => ["USA"]}
-        |> WithFlatCountries.changeset()
-        |> Country.validate_countries()
+    # A written record says what a person calls a country. Every name a country
+    # goes by is filed under its own code, so these are the country rather than
+    # a spelling of it to be refused.
+    test "when countries is a name or a code readers use, is valid" do
+      for written <- ["USA", "EUA", "UK", "AUS", "Brasil", "Estados Unidos"] do
+        %Ecto.Changeset{valid?: valid} =
+          %{"countries" => [written]}
+          |> WithFlatCountries.changeset()
+          |> Country.validate_countries()
 
-      refute valid
-      assert errors == [countries: {"Invalid countries: USA", [validation: :alpha2]}]
+        assert valid, "#{written} was refused"
+      end
     end
 
-    test "when countries is invalid 3 digit code, is invalid" do
+    test "when countries is multiple names nothing answers to, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => ["EUA"]}
+        %{"countries" => ["Narnia", "Cimmeria"]}
         |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
-      assert errors == [countries: {"Invalid countries: EUA", [validation: :alpha2]}]
+      assert errors == [countries: {"Invalid countries: Narnia, Cimmeria", [validation: :alpha2]}]
     end
 
-    test "when countries is multiple, comma separated, invalid codes, is invalid" do
+    test "when countries has at least one name nothing answers to, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => ["USA", "GBR"]}
+        %{"countries" => ["Narnia", "GB"]}
         |> WithFlatCountries.changeset()
         |> Country.validate_countries()
 
       refute valid
-      assert errors == [countries: {"Invalid countries: USA, GBR", [validation: :alpha2]}]
-    end
-
-    test "when countries has at least one invalid code, is invalid" do
-      %Ecto.Changeset{errors: errors, valid?: valid} =
-        %{"countries" => ["USA", "GB"]}
-        |> WithFlatCountries.changeset()
-        |> Country.validate_countries()
-
-      refute valid
-      assert errors == [countries: {"Invalid countries: USA", [validation: :alpha2]}]
+      assert errors == [countries: {"Invalid countries: Narnia", [validation: :alpha2]}]
     end
 
     test "when countries is invalid 2 digit code, is invalid" do

@@ -21,11 +21,14 @@ defmodule RichardBurton.Publication.Index.Query do
 
   import Ecto.Query
 
+  alias RichardBurton.Country
   alias RichardBurton.Publication.Index.Keywords
   alias RichardBurton.Publication.Index.Term
 
   # The columns holding several values, which are matched as one joined string.
-  @list_fields [:sources, :countries, :publishers, :authors, :original_authors]
+  # `countries` holds several values too, but is matched by resolving the value
+  # to codes rather than as text — see `text_predicate/2`.
+  @list_fields [:sources, :publishers, :authors, :original_authors]
 
   @doc """
   A parsed term as criteria: for each alternative, the tsquery for its free words
@@ -158,8 +161,24 @@ defmodule RichardBurton.Publication.Index.Query do
     end
   end
 
+  defp filter_predicate(%{field: :countries, value: value, negated: negated}) do
+    negate(countries_predicate(Country.answering(value)), negated)
+  end
+
   defp filter_predicate(%{field: field, value: value, exact: exact, negated: negated}) do
     negate(text_predicate(field, value_query(value, exact)), negated)
+  end
+
+  # The column holds codes and the reader writes a name, so the value is
+  # resolved to codes first. That is how `country:GBR`, `country:Brasil` and
+  # `country:Holanda` all reach their country.
+  #
+  # A value naming none matches nothing. Dropping the operator instead would
+  # widen a term the reader narrowed.
+  defp countries_predicate([]), do: dynamic(false)
+
+  defp countries_predicate(codes) do
+    dynamic([p], fragment("? && ?", p.countries, ^codes))
   end
 
   # A filter written with a leading minus excludes what it would otherwise match.
@@ -209,9 +228,8 @@ defmodule RichardBurton.Publication.Index.Query do
   #
   # The prefix is kept even when the keyword view knows nothing of the word, where
   # a free word would be dropped instead. That view is built from the search
-  # document, while a value is matched against a single column, and a column holds
-  # words the document does not. `countries` holds `GB` where the document holds
-  # `United Kingdom`.
+  # document, so it holds only countries some publication uses, while an
+  # operator is answered from the whole country table.
   defp value_word_query(word) do
     prefix = "#{lexeme(word)}:*"
 

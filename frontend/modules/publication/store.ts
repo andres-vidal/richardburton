@@ -11,9 +11,8 @@ import {
   PublicationError,
   PublicationId,
   PublicationKey,
-  describeError,
+  errorCode,
   empty,
-  markedValue,
 } from "./model";
 
 /**
@@ -186,10 +185,13 @@ const isValidFamily = atomFamily((id: PublicationId) =>
   atom((get) => !get(errorFamily(id))),
 );
 
-const errorDescriptionFamily = atomFamily((id: PublicationId) =>
-  atom((get) => describeError(get(errorFamily(id)))),
+const errorCodeFamily = atomFamily((id: PublicationId) =>
+  atom((get) => errorCode(get(errorFamily(id)))),
 );
 
+/**
+ * Which cell an atom belongs to: the publication, and the attribute of it.
+ */
 type FieldKey = { id: PublicationId; key: PublicationKey };
 type CellKey = `${PublicationId}:${PublicationKey}`;
 
@@ -197,6 +199,7 @@ const cellKey = ({ id, key }: FieldKey): CellKey => `${id}:${key}`;
 
 const fieldKey = (cell: CellKey): FieldKey => {
   const separator = cell.indexOf(":");
+
   return {
     id: Number(cell.slice(0, separator)),
     key: cell.slice(separator + 1) as PublicationKey,
@@ -242,17 +245,8 @@ const storedFieldValueFamily = cellFamily(({ id, key }) =>
   atom((get) => get(publicationFamily(id))[key]),
 );
 
-const fieldErrorDescriptionFamily = cellFamily(({ id, key }) =>
-  atom((get) => describeError(get(errorFamily(id)), key)),
-);
-
-/**
- * A single cell as the index marked it, or as it is stored where the search did
- * not match it. Reads the *stored* publication, like `storedFieldValueFamily`, so
- * a pending edit does not leak into the read-only table.
- */
-const markedFieldFamily = cellFamily(({ id, key }) =>
-  atom((get) => markedValue(get(publicationFamily(id)), key)),
+const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
+  atom((get) => errorCode(get(errorFamily(id)), key)),
 );
 
 // --- Family lifecycle -------------------------------------------------------
@@ -274,14 +268,13 @@ const PUBLICATION_FAMILIES = [
   publicationSourcesFamily,
   storedSourcesFamily,
   isValidFamily,
-  errorDescriptionFamily,
+  errorCodeFamily,
 ];
 
 const CELL_FAMILIES = [
   fieldValueFamily,
   storedFieldValueFamily,
-  fieldErrorDescriptionFamily,
-  markedFieldFamily,
+  fieldErrorCodeFamily,
 ];
 
 /**
@@ -593,9 +586,9 @@ export {
   discardEdit,
   drawnCountAtom,
   duplicate,
-  errorDescriptionFamily,
+  errorCodeFamily,
   errorFamily,
-  fieldErrorDescriptionFamily,
+  fieldErrorCodeFamily,
   fieldValueFamily,
   focusNextInvalid,
   focusedRowIdAtom,
@@ -633,7 +626,6 @@ export {
   setErrors,
   setFocusedRowId,
   storedFieldValueFamily,
-  markedFieldFamily,
   storedSourcesFamily,
   totalCountAtom,
   matchingCountAtom,

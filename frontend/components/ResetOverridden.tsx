@@ -8,11 +8,13 @@ import {
 import { resetOverridden } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { validate } from "modules/publication/remote";
+import { useTranslations } from "next-intl";
 import { FC } from "react";
 import { clearSelection } from "modules/selection";
 import Button from "./Button";
 
 const ResetOverridden: FC = () => {
+  const t = useTranslations("admin");
   const overriddenCount = useOverriddenPublicationCount();
 
   const overriddenIds = useOverriddenPublicationIds();
@@ -29,7 +31,7 @@ const ResetOverridden: FC = () => {
 
   return overriddenCount !== 0 ? (
     <Button
-      label={`Reset ${overriddenCount} overriden`}
+      label={t("resetOverridden", { count: overriddenCount })}
       variant="outline"
       Icon={RestorePageIcon}
       alignment="left"

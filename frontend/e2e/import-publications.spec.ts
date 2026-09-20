@@ -141,7 +141,7 @@ test("an invalid row blocks submission until it is fixed", async ({ page }) => {
   // Commit a row without its publisher: it validates as invalid, the error
   // counter appears, and Submit stays disabled.
   await addPublicationRow(page, { ...INCOMPLETE, publisher: "" });
-  await expect(page.getByLabel("1 invalid publications")).toBeVisible();
+  await expect(page.getByLabel("1 invalid publication")).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit" })).toBeDisabled();
 
   // Filling the missing field revalidates the row and unblocks the submit.
@@ -169,7 +169,7 @@ test("a duplicate of an existing publication is flagged as a conflict", async ({
   await addPublicationRow(page, DUPLICATE);
 
   // The duplicate is flagged against the database before anything is submitted.
-  await expect(page.getByLabel("1 invalid publications")).toBeVisible();
+  await expect(page.getByLabel("1 invalid publication")).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit" })).toBeDisabled();
 
   // Drop the conflicting row. Row-selection clicks must land on the signal cell

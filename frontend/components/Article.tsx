@@ -3,6 +3,8 @@ import { FC, ReactNode } from "react";
 
 interface Props {
   heading: ReactNode;
+  /** A line under the heading, pinned with it rather than scrolling away. */
+  subheading?: ReactNode;
   content: ReactNode;
   aside?: ReactNode;
   asideHeading?: ReactNode;
@@ -12,6 +14,7 @@ interface Props {
 const Article: FC<Props> = ({
   content,
   heading,
+  subheading,
   aside,
   asideHeading,
   noSeparator,
@@ -24,12 +27,15 @@ const Article: FC<Props> = ({
         data-separator={!noSeparator}
         className="flex sticky top-0 z-40 gap-5 -mx-8 -mt-8 px-8 pt-8 pb-2 border-gray-200 backdrop-blur-xl bg-white/70 data-[separator=true]:border-b"
       >
-        <h1
+        <div
           data-aside={Boolean(aside)}
-          className="flex gap-2 items-center w-full text-2xl font-normal data-[aside=true]:sm:w-7/12"
+          className="space-y-1 w-full data-[aside=true]:sm:w-7/12"
         >
-          {heading}
-        </h1>
+          <h1 className="flex gap-2 items-center text-2xl font-normal">
+            {heading}
+          </h1>
+          {subheading && <p className="text-sm text-gray-600">{subheading}</p>}
+        </div>
         {asideHeading && (
           <div className="hidden text-lg sm:block sm:w-5/12">
             {asideHeading}
