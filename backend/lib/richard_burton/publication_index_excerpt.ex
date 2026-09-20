@@ -163,12 +163,17 @@ defmodule RichardBurton.Publication.Index.Excerpt do
 
   # The widenings among the words of each operator's value, reported under the name
   # the operator is written with so the entry can be written back into a term.
-  # Three kinds are skipped: a negated operator excludes rather than matches, a
-  # `year` contains no words, and a quoted value is matched exactly.
+  #
+  # Four kinds are skipped. A negated operator excludes rather than matches, a
+  # `year` contains no words, and a quoted value is matched exactly. A `country`
+  # is resolved to the codes it names rather than matched against the indexed
+  # words, so reporting those words would describe a search that did not happen:
+  # `country:us` reaches the United States, and has nothing to do with the
+  # "useful" that "us" begins.
   defp scoped_widenings(alternatives) do
     alternatives
     |> Enum.flat_map(& &1.filters)
-    |> Enum.reject(&(&1.negated or &1.field == :year or &1.exact))
+    |> Enum.reject(&(&1.negated or &1.field in [:year, :countries] or &1.exact))
     |> Enum.flat_map(fn filter ->
       filter.value
       |> Keywords.words()
