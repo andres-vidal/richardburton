@@ -1,5 +1,5 @@
 import { get } from "app/api";
-import type { NamedCountry } from "modules/country";
+import type { Country } from "modules/country";
 import { cache } from "react";
 
 /**
@@ -11,6 +11,6 @@ import { cache } from "react";
  * reader of a language, which is what `cache` is for.
  */
 export const readCountries = cache(
-  async (locale: string): Promise<NamedCountry[]> =>
-    get<NamedCountry[]>("/countries", { locale }).catch(() => []),
+  async (locale: string): Promise<Country[]> =>
+    get<Country[]>("/countries", { locale }).catch(() => []),
 );

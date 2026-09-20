@@ -1,10 +1,14 @@
 import { request } from "app";
 
-/** A country as it is stored and as it is read: the code, and its name. */
-type Country = { id: string; label: string };
-
-/** A country as the server names it, with the article its name takes. */
-type NamedCountry = Country & { article?: string | null };
+/**
+ * A country as both the things that travel: the code a publication stores, the
+ * name a reader is shown, and the article that name takes in a sentence.
+ *
+ * Which article a name takes is a property of the name, so it differs by
+ * language and comes from the server with the name. A name that takes no
+ * article has none.
+ */
+type Country = { id: string; label: string; article?: string | null };
 
 /**
  * Every country, named in one language, by the code a publication stores.
@@ -15,27 +19,26 @@ type NamedCountry = Country & { article?: string | null };
  * request. The names are the same for every reader of a language, which is why
  * one cache serves them all.
  */
-const NAMED_BY_LOCALE = new Map<string, Record<string, NamedCountry>>();
+const NAMED_BY_LOCALE = new Map<string, Record<string, Country>>();
 
 /**
- * Take in the countries the server named, for the language it named them in.
+ * Takes in the countries the server named, for the language it named them in.
  *
  * Called where a page is assembled, before anything that shows a country
- * renders. A language taken in twice keeps what it was given last.
+ * renders. A language already taken in keeps the names it has: the names do not
+ * change while the app is running, so a second call carries the same list the
+ * first one did.
  */
-function rememberCountries(locale: string, countries: NamedCountry[]): void {
+function setCountryNames(countries: Country[], locale: string): void {
+  if (NAMED_BY_LOCALE.has(locale)) return;
+
   NAMED_BY_LOCALE.set(
     locale,
     Object.fromEntries(countries.map((country) => [country.id, country])),
   );
 }
 
-/** Whether the countries for a language have been taken in yet. */
-function knowsCountries(locale: string): boolean {
-  return NAMED_BY_LOCALE.has(locale);
-}
-
-function named(code: string, locale: string): NamedCountry | undefined {
+function named(code: string, locale: string): Country | undefined {
   return NAMED_BY_LOCALE.get(locale)?.[code];
 }
 
@@ -71,7 +74,7 @@ interface CountryModule {
      */
     search(term: string, locale: string): Promise<Country[]>;
     /** Every country, named in `locale`. */
-    all(locale: string): Promise<NamedCountry[]>;
+    all(locale: string): Promise<Country[]>;
   };
 }
 
@@ -89,7 +92,7 @@ const Country: CountryModule = {
 
     all(locale) {
       return request(async (http) => {
-        const { data } = await http.get<NamedCountry[]>("/countries", {
+        const { data } = await http.get<Country[]>("/countries", {
           params: { locale },
         });
 
@@ -99,13 +102,11 @@ const Country: CountryModule = {
   },
 };
 
-export type { NamedCountry };
 export {
   // Both the type and the module, as `Author` and `Publisher` are exported.
   Country,
   countriesIn,
   countryArticle,
   countryName,
-  knowsCountries,
-  rememberCountries,
+  setCountryNames,
 };

@@ -8,7 +8,7 @@ import {
   merged,
 } from "./model";
 import type { Publication } from "./model";
-import { Country, countriesIn, rememberCountries } from "modules/country";
+import { Country, countriesIn, setCountryNames } from "modules/country";
 import { routing } from "i18n/routing";
 
 vi.mock("modules/country", async (importOriginal) => ({
@@ -18,10 +18,13 @@ vi.mock("modules/country", async (importOriginal) => ({
 
 // The server names countries; the specs are written in the default locale, so
 // they hand over the few they name one by.
-rememberCountries(routing.defaultLocale, [
-  { id: "BR", label: "Brazil" },
-  { id: "NL", label: "Netherlands", article: "the" },
-]);
+setCountryNames(
+  [
+    { id: "BR", label: "Brazil" },
+    { id: "NL", label: "Netherlands", article: "the" },
+  ],
+  routing.defaultLocale,
+);
 
 const COUNTRIES = countriesIn(routing.defaultLocale);
 

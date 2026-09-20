@@ -5,7 +5,7 @@ import messages from "../messages/en.json";
 import { NextIntlClientProvider } from "next-intl";
 import { PublicationStoreProvider } from "modules/publication/workspace";
 import { store } from "modules/store";
-import { Country, rememberCountries } from "modules/country";
+import { Country, setCountryNames } from "modules/country";
 
 import "../styles/globals.css";
 import "./preview.css";
@@ -20,7 +20,7 @@ const COUNTRIES = [
   { id: "US", label: "United States", article: "the" },
 ];
 
-rememberCountries(routing.defaultLocale, COUNTRIES);
+setCountryNames(COUNTRIES, routing.defaultLocale);
 
 Country.REMOTE.all = async () => COUNTRIES;
 Country.REMOTE.search = async (term) =>
