@@ -29,5 +29,4 @@ const Country: CountryModule = {
   },
 };
 
-// Both the type and the module, as `Author` and `Publisher` are exported.
 export { Country };
