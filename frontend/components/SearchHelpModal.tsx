@@ -39,10 +39,9 @@ const Group: FC<{ title: string; children: ReactNode }> = ({
 );
 
 /**
- * The groups, and the rows in each. A row's example and its description are
- * both written per language, so a reader sees the operator names they would
- * type — `titulo:` in Portuguese — and the last group offers the other
- * language's names rather than always offering Portuguese.
+ * The groups and their rows. Examples are written per language, so a reader
+ * sees the operators they would type — `titulo:` in Portuguese — and the last
+ * group offers the other language's names.
  */
 const GROUPS = [
   { title: "spelling", rows: ["accents", "misspelling", "prefix"] },

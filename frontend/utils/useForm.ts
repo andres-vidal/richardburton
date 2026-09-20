@@ -32,9 +32,9 @@ function stripDefaults<T extends z.ZodObject<z.ZodRawShape>>(
 /**
  * Why a value was rejected, in words, for the rejections a form makes.
  *
- * A schema says what it accepts and this says how a refusal reads, so no schema
- * carries copy and every form refuses in the same words. A rejection with
- * nothing written for it keeps what zod said.
+ * A schema says what it accepts; this says how a refusal reads. No schema
+ * carries copy, and every form refuses in the same words. A rejection with
+ * nothing written for it keeps zod's own.
  */
 type Refusal = Parameters<z.ZodType["safeParse"]>[1];
 

@@ -5,10 +5,9 @@ import { FC, ReactNode } from "react";
  * A square panel centred on an otherwise empty page: a title, what happened,
  * and the one thing to do about it.
  *
- * The card is named rather than written out: it is given the name its copy goes
- * by, and reads the title and the body from there. Which of the two parts a
- * body has is the message's to say — one with nothing to suggest names no
- * suggestion — and how each part reads is the card's.
+ * Given the name its copy goes by, it reads the title and body from the
+ * catalogue. The message decides which parts the body has; the card decides how
+ * each one reads.
  */
 const AuthCard: FC<{
   /** Names the card's copy in the catalogue, whole: `auth.pending`. */

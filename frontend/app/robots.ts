@@ -1,8 +1,8 @@
 import { appUrl } from "modules/app-url";
 import type { MetadataRoute } from "next";
 
-// Where the app answers is the deployment's to say, so this is written where
-// it runs rather than baked in where it is built.
+// The address belongs to the deployment, so this renders at request time rather
+// than being baked into the build.
 export const dynamic = "force-dynamic";
 
 /**

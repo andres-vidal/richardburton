@@ -6,9 +6,8 @@ import { readIndex } from "app/publications/read";
 // Suspense-wrapped because it reads `useSearchParams()` (App Router requires the
 // boundary so static rendering can bail to the client cleanly).
 //
-// The database is read here, for the query in the address, so the rows are in
-// the first response rather than fetched again once it lands. A publication
-// shown *over* this page is its own route — see app/@modal.
+// The database is read here, for the query in the address, so the rows arrive
+// with the page. A publication shown *over* it is its own route — see app/@modal.
 export default async function Page({
   searchParams,
 }: {

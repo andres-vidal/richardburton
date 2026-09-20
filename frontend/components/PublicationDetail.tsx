@@ -63,8 +63,8 @@ const Searchable: FC<{ label: string; value: string }> = ({ value, label }) => (
 /**
  * Several things read as one sentence would say them: "A, B and C".
  *
- * How a language joins a list is `Intl.ListFormat`'s to know, so the commas and
- * the final conjunction are not written here.
+ * `Intl.ListFormat` supplies the commas and the final conjunction, which differ
+ * by language.
  */
 const SentenceList: FC<{ items: { key: string; node: ReactNode }[] }> = ({
   items,
