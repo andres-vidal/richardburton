@@ -215,9 +215,9 @@
     "recordLine": "{authors} · {year} · {publishers}"
   },
   "link": {
-    "copy": "Copy link",
-    "copied": "Copied",
+    "action": "{copied, select, true {Copied} other {Copy link}}",
     "copiedMessage": "Link copied",
+    "copiedDetail": "{url}",
     "failed": "Could not copy the link",
     "failedDetail": "Your browser did not allow it — the address is {url}"
   },

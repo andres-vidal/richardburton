@@ -11,7 +11,7 @@ import Tooltip from "./Tooltip";
  * else. For places where the address is not on screen — inside an overlay, the
  * URL bar still shows the page underneath.
  */
-const CopyLink: FC<{ href: string; label?: string }> = ({ href, label }) => {
+const CopyLink: FC<{ href: string }> = ({ href }) => {
   const t = useTranslations("link");
   const [copied, setCopied] = useState(false);
 
@@ -22,24 +22,27 @@ const CopyLink: FC<{ href: string; label?: string }> = ({ href, label }) => {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      notify({ message: t("copiedMessage"), detail: url, level: "success" });
+      notify({
+        message: "link.copiedMessage",
+        detail: "link.copiedDetail",
+        values: { url },
+        level: "success",
+      });
     } catch {
       notify({
-        message: t("failed"),
-        detail: t("failedDetail", { url }),
+        message: "link.failed",
+        detail: "link.failedDetail",
+        values: { url },
         level: "warning",
       });
     }
   }
 
   return (
-    <Tooltip
-      variant="info"
-      message={copied ? t("copied") : (label ?? t("copy"))}
-    >
+    <Tooltip variant="info" message={t("action", { copied: String(copied) })}>
       <button
         type="button"
-        aria-label={copied ? t("copied") : (label ?? t("copy"))}
+        aria-label={t("action", { copied: String(copied) })}
         data-copied={copied}
         className="
           flex p-1.5 rounded transition-colors shrink-0 focus-ring
