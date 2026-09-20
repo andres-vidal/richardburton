@@ -1,4 +1,4 @@
-import AuthCard from "components/AuthCard";
+import AuthCard, { AUTH_CARD_BODY } from "components/AuthCard";
 import Layout from "components/Layout";
 import SignInButton from "components/SignInButton";
 import { SESSION_COOKIE } from "modules/api";
@@ -38,10 +38,7 @@ export default async function AuthErrorPage({
             title={errors(`${named}.title`)}
             action={<SignInButton label={t("tryAgain")} centered />}
           >
-            {errors.rich(`${named}.body`, {
-              message: (chunks) => <p className="text-lg">{chunks}</p>,
-              suggestion: (chunks) => <p className="text-sm">{chunks}</p>,
-            })}
+            {errors.rich(`${named}.body`, AUTH_CARD_BODY)}
           </AuthCard>
         ) : null
       }
