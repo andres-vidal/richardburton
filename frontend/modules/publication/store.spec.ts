@@ -4,6 +4,7 @@ import { RESET } from "jotai/utils";
 import {
   PublicationEntry,
   PublicationError,
+  PublicationId,
   PublicationKey,
   empty,
 } from "./model";
@@ -55,7 +56,7 @@ type Fields = Partial<ReturnType<typeof empty>>;
 
 /** Build an entry with sensible defaults, mirroring what the remote layer emits. */
 function entry(
-  id: number,
+  id: PublicationId,
   fields: Fields = {},
   errors: PublicationError = null,
 ): PublicationEntry {
@@ -112,16 +113,42 @@ describe("setAll", () => {
     );
   });
 
-  test("a cell key survives the negative ids minted for unsaved rows", () => {
-    const a = createId();
-    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
+  test("a cell key survives every namespace a row key comes from", () => {
+    const minted = createId();
+    setAll(store, [
+      // A row the server has written, a row being worked on, and the draft.
+      entry(7, { title: "Dom Casmurro" }),
+      entry(minted, { title: "Iracema" }),
+      entry(DRAFT_ID, { title: "Barren Lives" }),
+    ]);
 
-    // Ids are packed into a `<id>:<key>` string; a negative id carries its own
-    // "-", so splitting on the wrong separator would misread the id.
-    expect(a).toBeLessThan(0);
-    expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
+    // A cell is cached under an `<id>:<key>` string, so the id has to survive
+    // being written into one and read back out.
+    expect(store.get(fieldValueFamily({ id: 7, key: "title" }))).toBe(
       "Dom Casmurro",
     );
+    expect(store.get(fieldValueFamily({ id: minted, key: "title" }))).toBe(
+      "Iracema",
+    );
+    expect(store.get(fieldValueFamily({ id: DRAFT_ID, key: "title" }))).toBe(
+      "Barren Lives",
+    );
+  });
+
+  test("forgetting a row reaches the cells of every kind of key", () => {
+    const minted = createId();
+    setAll(store, [entry(7, { title: "Dom Casmurro" }), entry(minted)]);
+
+    // Read both, so each has a cell atom cached under its own string key.
+    store.get(fieldValueFamily({ id: 7, key: "title" }));
+    store.get(fieldValueFamily({ id: minted, key: "title" }));
+
+    forget([7, minted]);
+
+    // A cell key is text, and matching it back to the row it belongs to is what
+    // decides whether the cell is dropped with the row or outlives it.
+    expect(knownIds().has(7)).toBe(false);
+    expect(knownIds().has(minted)).toBe(false);
   });
 });
 
@@ -314,12 +341,43 @@ describe("focusNextInvalid", () => {
 });
 
 describe("ids and the draft", () => {
-  test("createId hands out unique, negative ids (never collide with server ids)", () => {
+  test("createId hands out keys no other browser could mint", () => {
     const a = createId();
     const b = createId();
+
     expect(a).not.toBe(b);
-    expect(a).toBeLessThan(0);
-    expect(b).toBeLessThan(0);
+
+    // A UUID rather than a counter: a counter restarts at the same value in
+    // every browser, and two people entering a row would claim one key.
+    expect(a).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
+
+    // Never a number, so a row key can never be read as a server id.
+    expect(typeof a).toBe("string");
+  });
+
+  test("a key is still minted where randomUUID is not defined", () => {
+    // `crypto.randomUUID` is defined only in a secure context, so a page served
+    // over plain http has none and minting a row key would otherwise throw.
+    const held = crypto.randomUUID;
+    Reflect.deleteProperty(crypto, "randomUUID");
+
+    try {
+      const id = createId();
+
+      // A v4 UUID: the version nibble and the variant bits are what make it one.
+      expect(id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
+      expect(createId()).not.toBe(id);
+    } finally {
+      Object.defineProperty(crypto, "randomUUID", {
+        value: held,
+        configurable: true,
+        writable: true,
+      });
+    }
   });
 
   test("the draft row starts empty", () => {

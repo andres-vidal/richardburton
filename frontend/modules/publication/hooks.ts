@@ -30,6 +30,7 @@ import {
   matchingCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
+  rowNumberFamily,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
@@ -149,6 +150,11 @@ function useIsPublicationFocused(id: PublicationId) {
   return id === useAtomValue(focusedRowIdAtom);
 }
 
+/** Where the row sits in the working set, counting from one. */
+function usePublicationRowNumber(id: PublicationId) {
+  return useAtomValue(rowNumberFamily(id));
+}
+
 function useVisiblePublicationCount() {
   return useAtomValue(visibleCountAtom);
 }
@@ -237,6 +243,7 @@ export {
   useStoredPublicationSources,
   useTotalPublicationCount,
   useUnsourcedPublicationCount,
+  usePublicationRowNumber,
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,

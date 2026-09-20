@@ -16,21 +16,49 @@ import {
 } from "./model";
 
 /**
- * Well-known id for the always-present "new publication" draft row. Persisted
- * rows are addressed by their server id (the publication PK, positive) and
- * unsaved rows by a client-minted id (negative, see `createId`), so `0` never
- * collides with either.
+ * Well-known key for the always-present "new publication" draft row. Persisted
+ * rows are addressed by their server id (a number) and unsaved rows by a UUID,
+ * so a reserved word collides with neither.
  */
-const DRAFT_ID: PublicationId = 0;
+const DRAFT_ID: PublicationId = "draft";
 
-let sequence = -1;
 /**
- * Mint a client id for an unsaved row (upload/review/duplicate). Negative and
- * descending so it can never collide with a server id (positive) or the draft
- * (`0`); persisted rows are addressed by their real server id instead.
+ * Mint a key for an unsaved row (upload, review, duplicate).
+ *
+ * A UUID rather than a counter, because the key has to name the same row to two
+ * people editing a workspace at once: a counter restarts at the same value in
+ * every browser, so two rows entered separately would claim one key. Persisted
+ * rows are addressed by their real server id instead.
  */
 function createId(): PublicationId {
-  return sequence--;
+  return crypto.randomUUID?.() ?? randomUuid();
+}
+
+/**
+ * A version 4 UUID built from 16 random bytes.
+ *
+ * `crypto.randomUUID` is defined only in a secure context, so a page served over
+ * plain http has none and minting a row key would throw. `getRandomValues` is
+ * defined in both, and a v4 UUID is a formatting of what it returns.
+ */
+function randomUuid(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+
+  // The version and variant bits are what make it a v4 UUID rather than 16
+  // arbitrary bytes.
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0"));
+  const group = (from: number, to: number) => hex.slice(from, to).join("");
+
+  return [
+    group(0, 4),
+    group(4, 6),
+    group(6, 8),
+    group(8, 10),
+    group(10, 16),
+  ].join("-");
 }
 
 // --- Base atoms -------------------------------------------------------------
@@ -124,6 +152,17 @@ const validIdsAtom = atom((get) =>
 );
 
 const visibleCountAtom = atom((get) => get(visibleIdsAtom)?.length || 0);
+
+/**
+ * Where a row sits in the working set, counting from one, or 0 for a row that is
+ * not in it.
+ *
+ * Counted from the order rather than read off the key: a key names a row without
+ * saying where it sits, and an unsaved row’s key is a UUID.
+ */
+const rowNumberFamily = atomFamily((id: PublicationId) =>
+  atom<number>((get) => (get(visibleIdsAtom)?.indexOf(id) ?? -1) + 1),
+);
 const discardedCountAtom = atom((get) => get(discardedIdsAtom)?.length || 0);
 const overriddenCountAtom = atom((get) => get(overriddenIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
@@ -199,9 +238,13 @@ const cellKey = ({ id, key }: FieldKey): CellKey => `${id}:${key}`;
 
 const fieldKey = (cell: CellKey): FieldKey => {
   const separator = cell.indexOf(":");
+  const id = cell.slice(0, separator);
 
   return {
-    id: Number(cell.slice(0, separator)),
+    // The key has to come back as the value it went in as, because it is
+    // compared against the ids the store holds. A server id is written as
+    // digits and is revived as a number; every other key is already text.
+    id: /^\d+$/.test(id) ? Number(id) : id,
     key: cell.slice(separator + 1) as PublicationKey,
   };
 };
@@ -269,6 +312,7 @@ const PUBLICATION_FAMILIES = [
   storedSourcesFamily,
   isValidFamily,
   errorCodeFamily,
+  rowNumberFamily,
 ];
 
 const CELL_FAMILIES = [
@@ -325,7 +369,9 @@ function knownIds(): Set<PublicationId> {
  * a search running behind an open editor must not discard what is being typed.
  */
 function hydrate(store: Store, publications: Publication[]): PublicationId[] {
-  const ids = publications.map((publication) => publication.id!);
+  const ids: PublicationId[] = publications.map(
+    (publication) => publication.id!,
+  );
   const arriving = new Set(ids);
 
   forget(
@@ -620,6 +666,7 @@ export {
   resetAttributes,
   resetDiscarded,
   resetOverridden,
+  rowNumberFamily,
   setAll,
   setAttributesVisible,
   setDiscarded,

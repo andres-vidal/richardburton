@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { fieldErrors, seed } from "modules/publication/fixtures";
+import { areRowIdsVisibleAtom } from "modules/publication/store";
 import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationWorkspace from "./PublicationWorkspace";
@@ -177,5 +178,34 @@ export const EditCell: Story = {
     await userEvent.type(title, "The Posthumous Memoirs");
 
     await waitFor(() => expect(title).toHaveValue("The Posthumous Memoirs"));
+  },
+};
+
+/**
+ * Row numbers count the rows, so they read 1, 2, 3 whatever the rows are keyed
+ * by. An unsaved row is keyed by a UUID, which says nothing about where the row
+ * sits, and a saved one by a server id, which says nothing about it either.
+ */
+export const RowNumbers: Story = {
+  beforeEach: () => {
+    seed(store, [
+      { title: "Dom Casmurro", year: "1953" },
+      { title: "Iracema", year: "1886" },
+      { title: "Barren Lives", year: "1965" },
+    ]);
+    store.set(areRowIdsVisibleAtom, true);
+  },
+  play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelectorAll("[data-selects-row=true]").length,
+      ).toBe(3),
+    );
+
+    const numbers = Array.from(
+      canvasElement.querySelectorAll("[data-selects-row=true]"),
+    ).map((cell) => cell.textContent?.trim());
+
+    await expect(numbers).toEqual(["1", "2", "3"]);
   },
 };
