@@ -249,7 +249,8 @@ defmodule RichardBurton.Country do
   # Whether the term names this country, either by one of its names appearing in
   # `said` as a run of words, or by saying one of its codes.
   defp named?(code, said, as_typed) do
-    Enum.any?(called(code), &run_of?(words(&1), said)) or coded?(code, said, as_typed)
+    Enum.any?(called(code), &consecutive_in?(words(&1), said)) or
+      code_written?(code, said, as_typed)
   end
 
   # Whether a term says one of this country's codes: written in capitals, or
@@ -257,8 +258,8 @@ defmodule RichardBurton.Country do
   #
   # Two-letter codes spell common words, so capitals are what separate "machado
   # DE" from "machado de assis".
-  defp coded?(code, said, as_typed) do
-    codes = coded(code)
+  defp code_written?(code, said, as_typed) do
+    codes = codes_for(code)
 
     Enum.any?(codes, &(&1 in as_typed)) or Enum.any?(codes, &(words(&1) == said))
   end
@@ -291,15 +292,15 @@ defmodule RichardBurton.Country do
   end
 
   # The codes a country is filed under, rather than called by.
-  defp coded(code) do
+  defp codes_for(code) do
     [code, Map.fetch!(@countries, code)["alpha3"]] |> Enum.filter(&is_binary/1)
   end
 
-  # Whether `name` appears in `said` as a run of consecutive words. A name with
-  # no words appears in nothing, rather than in everything.
-  defp run_of?([], _said), do: false
+  # Whether the words of `name` appear consecutively somewhere in `said`. A name
+  # with no words appears in nothing, rather than in everything.
+  defp consecutive_in?([], _said), do: false
 
-  defp run_of?(name, said) do
+  defp consecutive_in?(name, said) do
     Enum.any?(0..(length(said) - length(name))//1, fn at ->
       Enum.slice(said, at, length(name)) == name
     end)
