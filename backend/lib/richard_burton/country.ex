@@ -173,24 +173,28 @@ defmodule RichardBurton.Country do
   """
   def answering(value) when is_binary(value) do
     case normalize(value) do
-      "" ->
-        []
-
-      normalized ->
-        named =
-          @countries
-          |> Map.keys()
-          |> Enum.map(&{&1, rank(&1, normalized)})
-          |> Enum.reject(fn {_code, rank} -> is_nil(rank) or rank > 1 end)
-
-        case Enum.min_by(named, &elem(&1, 1), fn -> nil end) do
-          nil -> []
-          {_code, best} -> for {code, ^best} <- named, do: code
-        end
+      "" -> []
+      normalized -> best_answering(normalized)
     end
   end
 
   def answering(_value), do: []
+
+  # The countries that answer `normalized` as well as any of them does: those
+  # matching it in full where any does, and otherwise those it begins the name
+  # of. A country it only appears inside of does not answer it at all.
+  defp best_answering(normalized) do
+    named =
+      @countries
+      |> Map.keys()
+      |> Enum.map(&{&1, rank(&1, normalized)})
+      |> Enum.reject(fn {_code, rank} -> is_nil(rank) or rank > 1 end)
+
+    case Enum.min_by(named, &elem(&1, 1), fn -> nil end) do
+      nil -> []
+      {_code, best} -> for {code, ^best} <- named, do: code
+    end
+  end
 
   @doc """
   The codes of the countries a term names outright.
