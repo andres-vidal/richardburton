@@ -137,7 +137,8 @@ defmodule RichardBurton.Country do
     end
   end
 
-  # A value as the code it names, or as written where it names no one country.
+  # The code a value names, or the value unchanged where it names no single
+  # country.
   defp resolved(value) when is_binary(value), do: code_for(value) || value
   defp resolved(value), do: value
 
@@ -169,8 +170,9 @@ defmodule RichardBurton.Country do
 
   def answering(_value), do: []
 
-  # The best answers to `normalized`: complete matches if there are any, else
-  # names it begins. A name it merely appears inside does not answer.
+  # The countries matching `normalized` most closely: those with a name equal to
+  # it, or, where there are none, those with a name beginning with it. A name
+  # that merely contains it does not count.
   defp best_answering(normalized) do
     named =
       @countries
@@ -241,8 +243,8 @@ defmodule RichardBurton.Country do
 
   def reached_by(_term), do: []
 
-  # Whether a term names this country: one of the names it is called appears in
-  # `said` as a run of words, or the term says one of its codes.
+  # Whether the term names this country, either by one of its names appearing in
+  # `said` as a run of words, or by saying one of its codes.
   defp named?(code, said, as_typed) do
     Enum.any?(called(code), &run_of?(words(&1), said)) or coded?(code, said, as_typed)
   end
@@ -258,11 +260,11 @@ defmodule RichardBurton.Country do
     Enum.any?(codes, &(&1 in as_typed)) or Enum.any?(codes, &(words(&1) == said))
   end
 
-  # The countries whose names begin with the whole of `said`, already folded.
+  # The countries with a name beginning with all of `said`, which arrives folded.
   #
-  # The whole term, because "de" begins four countries' names and counting any
-  # word of a longer one would have "machado de assis" reach all four. Codes are
-  # left to `named?/3`, being complete names already.
+  # All of it, because "de" begins four countries' names: counting single words
+  # of a longer term would have "machado de assis" reach every one of them. Codes
+  # are complete names, so `named?/3` handles those.
   defp beginning([]), do: []
 
   defp beginning(said) do
@@ -290,8 +292,8 @@ defmodule RichardBurton.Country do
     [code, Map.fetch!(@countries, code)["alpha3"]] |> Enum.filter(&is_binary/1)
   end
 
-  # Whether `name` appears in `said` as a run of consecutive words. A name of no
-  # words is in nothing, rather than in everything.
+  # Whether `name` appears in `said` as a run of consecutive words. A name with
+  # no words appears in nothing, rather than in everything.
   defp run_of?([], _said), do: false
 
   defp run_of?(name, said) do
@@ -300,17 +302,16 @@ defmodule RichardBurton.Country do
     end)
   end
 
-  # The words of a phrase, as they compare. Split on everything that is neither
-  # a letter nor a digit, so the quotes and colons a search term carries are not
-  # read as part of a word, and a name written with a hyphen is the same two
-  # words whichever side writes it.
+  # The words of a phrase, folded for comparison. Splitting on everything that is
+  # neither a letter nor a digit keeps the quotes and colons of a search term out
+  # of the words, and makes a hyphenated name two words on both sides.
   defp words(phrase) do
     phrase |> normalize() |> split()
   end
 
-  # A phrase cut into words, left as it was written. What tells a code from the
-  # word it spells is the capitals, so the code check reads this rather than the
-  # folded form.
+  # A phrase cut into words, with its case intact. The code check reads this
+  # rather than the folded form, since capitals are what distinguish a code from
+  # the word it spells.
   defp split(phrase), do: String.split(phrase, ~r/[^\p{L}\p{N}]+/u, trim: true)
 
   @doc """
