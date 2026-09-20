@@ -551,16 +551,43 @@ function overrideField<K extends PublicationKey>(
 ): void {
   const workspace = workspaceDoc(store);
 
-  // The draft row is not in the document: it is a row nobody has added yet, and
-  // typing into it should not reach the people sharing the workspace. It is
-  // buffered locally until `addNew` makes it a row.
-  if (workspace && Doc.holds(workspace.doc, id)) {
-    Doc.setField(workspace.doc, id, attribute, value);
+  if (workspace) {
+    writeToWorkspace(store, workspace, id, { [attribute]: value });
     return;
   }
 
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
+}
+
+/**
+ * An edit in a workspace, written where that row lives.
+ *
+ * A row the document holds is edited in the document, and the edit is the value
+ * — there is nothing uncommitted for an overlay to hold apart. The draft row is
+ * not in the document, because a row nobody has added yet should not reach the
+ * people sharing the workspace; what is typed into it is simply the row, kept
+ * here until `addNew` hands it over.
+ */
+function writeToWorkspace(
+  store: Store,
+  workspace: WorkspaceDoc,
+  id: PublicationId,
+  fields: Partial<Publication>,
+): void {
+  if (Doc.holds(workspace.doc, id)) {
+    Object.entries(fields).forEach(([attribute, value]) =>
+      attribute === "sources"
+        ? Doc.setSources(workspace.doc, id, value as string[])
+        : Doc.setField(workspace.doc, id, attribute, value),
+    );
+    return;
+  }
+
+  store.set(publicationFamily(id), {
+    ...store.get(publicationFamily(id)),
+    ...fields,
+  });
 }
 
 /** Overlay the whole provenance list (sources are edited as a unit, not per
@@ -572,8 +599,8 @@ function overrideSources(
 ): void {
   const workspace = workspaceDoc(store);
 
-  if (workspace && Doc.holds(workspace.doc, id)) {
-    Doc.setSources(workspace.doc, id, sources);
+  if (workspace) {
+    writeToWorkspace(store, workspace, id, { sources });
     return;
   }
 
@@ -608,12 +635,12 @@ function addNew(store: Store): PublicationId {
     Doc.addRow(workspace.doc, id, draft);
     // Adding a row and typing into it are different steps to walk back.
     workspace.undo.stopCapturing();
+    store.set(publicationFamily(DRAFT_ID), empty());
   } else {
     store.set(publicationIdsAtom, [...ids, id]);
     store.set(publicationFamily(id), draft);
+    store.set(overrideFamily(DRAFT_ID), RESET);
   }
-
-  store.set(overrideFamily(DRAFT_ID), RESET);
 
   return id;
 }

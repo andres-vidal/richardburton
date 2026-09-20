@@ -5,12 +5,14 @@ import * as Y from "yjs";
 import type { Store } from "modules/store";
 import { empty, type Publication, type PublicationId } from "./model";
 import {
+  DRAFT_ID,
   addNew,
   duplicate,
   forget,
   knownIds,
   openWorkspace,
   overrideField,
+  overrideFamily,
   overrideSources,
   publicationIdsAtom,
   removePublication,
@@ -221,5 +223,49 @@ describe("two people in one workspace", () => {
     expect(yours.store.get(visiblePublicationFamily("a")).sources).toEqual(
       kept,
     );
+  });
+});
+
+describe("the draft row", () => {
+  test("is typed into without reaching the document", () => {
+    const { store, doc } = opened();
+
+    overrideField(store, DRAFT_ID, "title", "Dom Casmurro");
+
+    // A row nobody has added yet is nobody else's business.
+    expect(doc.getArray("order").toArray()).toEqual([]);
+    expect(titleOf(store, DRAFT_ID)).toBe("Dom Casmurro");
+  });
+
+  test("is handed to the document whole when it is added", () => {
+    const { store, doc } = opened();
+
+    overrideField(store, DRAFT_ID, "title", "Dom Casmurro");
+    overrideField(store, DRAFT_ID, "year", "1953");
+    const id = addNew(store);
+
+    expect(doc.getArray("order").toArray()).toEqual([String(id)]);
+    expect(store.get(visiblePublicationFamily(id))).toMatchObject({
+      title: "Dom Casmurro",
+      year: "1953",
+    });
+
+    // And the draft is empty again, ready for the next row.
+    expect(titleOf(store, DRAFT_ID)).toBe("");
+  });
+
+  test("nothing in a workspace is held in the override overlay", () => {
+    const { store } = opened();
+
+    setAll(store, [entry("a", { title: "Dom Casmuro" })]);
+    overrideField(store, "a", "title", "Dom Casmurro");
+    overrideSources(store, "a", ["Caldwell, Helen. Introduction, 1953."]);
+    overrideField(store, DRAFT_ID, "title", "Iracema");
+
+    // The overlay exists for surfaces with an edit that can be cancelled —
+    // the modal over the database. A workspace has no such thing: an edit is
+    // the value, and walking it back is what undo is for.
+    expect(store.get(overrideFamily("a"))).toBeUndefined();
+    expect(store.get(overrideFamily(DRAFT_ID))).toBeUndefined();
   });
 });
