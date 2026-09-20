@@ -33,11 +33,9 @@ export default async function AuthErrorPage({
   return (
     <Layout
       content={
-        error ? (
-          <AuthCard copy={`auth.errors.${named}`}>
-            <SignInButton label={t("tryAgain")} centered />
-          </AuthCard>
-        ) : null
+        <AuthCard copy={`auth.errors.${named}`}>
+          <SignInButton label={t("tryAgain")} centered />
+        </AuthCard>
       }
     />
   );
