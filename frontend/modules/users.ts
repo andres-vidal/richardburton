@@ -18,11 +18,6 @@ type UserRecord = User & {
  */
 const ROLES: UserRole[] = ["reader", "contributor", "admin"];
 
-// How a role is named to a reader, and what it admits, are in the `roles`
-// catalogue under the very name the database uses. A role in the middle of a
-// sentence takes an article there too, since which article it takes is a
-// property of the name and so differs by language.
-
 interface UserModule {
   /** Whether a session — possibly none at all — holds `required`, or outranks it. */
   holds(session: User | null | undefined, required: UserRole): boolean;
