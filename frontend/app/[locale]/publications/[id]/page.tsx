@@ -52,15 +52,11 @@ export async function generateMetadata({
 /**
  * A publication at its own address.
  *
- * The same address serves two things, and the URL says which: on its own it is
- * the record's page, and marked `?modal` it is the record shown over the
- * database — what the reader was looking at when they followed a row. Following
- * a row is intercepted into an overlay and never reaches here; reloading it does,
- * and finds the mark, so the reader gets back what they were looking at instead
- * of losing the database behind them.
+ * `?modal` means it is shown over the database. Following a row is intercepted
+ * into an overlay and never reaches here; reloading one does, and the mark is
+ * what restores the database behind it.
  *
- * A link shared from the copy button carries no mark: someone opening it cold
- * has no database to be shown over, and gets the record itself.
+ * A shared link carries no mark, so it opens the page itself.
  */
 export default async function PublicationPage({
   params,

@@ -1,12 +1,7 @@
 import written from "messages/en.json";
 
-/**
- * A handful of countries, the way the server names them.
- *
- * Which countries a term finds, and what each is called, are settled on the
- * server and checked in its own specs. A story or a spec needs only enough of
- * them to render a field, so it gets these.
- */
+/** Enough countries to render a field. What a term finds is the server's, and
+ * is checked there. */
 const COUNTRIES = [
   { id: "BR", label: "Brazil" },
   { id: "CA", label: "Canada" },
@@ -15,12 +10,8 @@ const COUNTRIES = [
 ];
 
 /**
- * The messages a story or a spec reads.
- *
- * `messages/en.json` outside a running app, plus the two country catalogues
- * that a running app reads from the backend — see `i18n/request`. A component
- * that names a country reads it from these, so it has to be given them here
- * too.
+ * The messages a story or a spec reads: `messages/en.json`, plus the country
+ * catalogues a running app fetches from the backend — see `i18n/request`.
  */
 const messages = {
   ...written,

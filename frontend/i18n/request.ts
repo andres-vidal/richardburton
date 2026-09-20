@@ -7,12 +7,9 @@ import { routing } from "./routing";
 /**
  * The messages a server render reads, for whichever locale the URL names.
  *
- * Most of them are written here, in `messages/<locale>.json`. The
- * `countryNames` and `countryArticles` catalogues are not: the server names
- * countries, and it is the names it answers with that a search matches on, so
- * writing them here as well would let the two drift. They are read from the
- * backend and joined to the rest, which is why a reader will not find them in
- * the message files.
+ * `messages/<locale>.json`, plus `countryNames` and `countryArticles` fetched
+ * from the backend — so they are not in the message files. The server owns
+ * country names because a search matches on the very names it answers with.
  */
 export default getRequestConfig(async ({ requestLocale }) => {
   const requested = await requestLocale;

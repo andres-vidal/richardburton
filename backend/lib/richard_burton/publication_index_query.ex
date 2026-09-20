@@ -169,14 +169,12 @@ defmodule RichardBurton.Publication.Index.Query do
     negate(text_predicate(field, value_query(value, exact)), negated)
   end
 
-  # `countries` holds codes while a reader writes the operator with whatever they
-  # call the country, so the value is resolved to the codes it names and the
-  # column is matched against those. That is what lets `country:US`,
-  # `country:GBR`, `country:Brasil` and `country:Holanda` all reach the country
-  # they name.
+  # The column holds codes and the reader writes a name, so the value is
+  # resolved to codes first. That is how `country:GBR`, `country:Brasil` and
+  # `country:Holanda` all reach their country.
   #
-  # A value naming no country matches nothing, rather than the operator being
-  # dropped, which would widen a term the reader narrowed.
+  # A value naming none matches nothing. Dropping the operator instead would
+  # widen a term the reader narrowed.
   defp countries_predicate([]), do: dynamic(false)
 
   defp countries_predicate(codes) do
@@ -230,8 +228,8 @@ defmodule RichardBurton.Publication.Index.Query do
   #
   # The prefix is kept even when the keyword view knows nothing of the word, where
   # a free word would be dropped instead. That view is built from the search
-  # document, so it holds only the words of countries some publication is
-  # published in, while an operator is answered from the whole country table.
+  # document, so it holds only countries some publication uses, while an
+  # operator is answered from the whole country table.
   defp value_word_query(word) do
     prefix = "#{lexeme(word)}:*"
 

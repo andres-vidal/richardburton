@@ -12,9 +12,8 @@ import { messages } from "./messages";
  * Renders a component with the copy it reads, the way the locale layout
  * supplies it.
  *
- * A component that calls `useTranslations` throws without a provider, so specs
- * use this in place of Testing Library's own `render`. Specs are written in the
- * default locale, so they get that one.
+ * `useTranslations` throws without a provider, so specs use this in place of
+ * Testing Library's `render`. They are written in the default locale.
  */
 const Wrapper = ({ children }: { children: ReactNode }) => (
   <NextIntlClientProvider

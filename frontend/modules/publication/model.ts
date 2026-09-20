@@ -25,11 +25,9 @@ type Publication = {
   // Each source with its matched words wrapped, or null where the search did
   // not match that one. Only present on a record read with a search.
   markedSources?: (string | null)[];
-  // Which of the row's countries the search matched, as codes. Only present on
-  // a record read with a search. A set rather than a list lined up with
-  // `countries`, and it carries no marked text: a country answers to either ISO
-  // code and to a name in any language, so the name that matched is often not
-  // the name that is shown.
+  // Which of the row's countries the search matched, as codes. Only on a record
+  // read with a search. A set, not a list lined up with `countries`, and with no
+  // marked text: what matched is often not what is shown.
   matchedCountries?: string[];
 };
 
@@ -304,10 +302,8 @@ type Marking = {
  * How a publication reads to one reader: their language, and how they name a
  * country.
  *
- * Both belong to the reader, not the record — the same publication reads
- * differently in Portuguese. Taking them once keeps the language out of every
- * call, and lets code outside React read a publication by saying who is
- * reading.
+ * Both belong to the reader, not the record. Taking them once keeps the
+ * language out of every call, and lets code outside React say who is reading.
  */
 function marking(locale: string, country: CountryNaming): Marking {
   return {
@@ -333,13 +329,13 @@ function markedSources(publication: Publication): string[] {
 /**
  * The code for what is wrong, empty where nothing is.
  *
- * A code, not a sentence: this module is read from outside React, where there
- * is no locale to write one in. The sentence is in the `publicationError`
- * catalogue, under this very code, and is written where the error is shown.
+ * A code, not a sentence: this module is read outside React, with no locale to
+ * write one in. The sentence lives in the `publicationError` catalogue under
+ * this code.
  *
- * Without a scope the answer is the error the whole publication carries, and
- * with one the error on that field — a publication has either kind, never both,
- * so asking for the kind that is not there is empty rather than wrong.
+ * Unscoped answers the publication's own error, scoped the field's. A
+ * publication has one kind or the other, so asking for the absent kind is empty
+ * rather than wrong.
  */
 function errorCode(error: PublicationError, scope?: PublicationKey): string {
   if (!error) {

@@ -35,15 +35,11 @@ type RowId = PublicationId;
 type ColId = PublicationKey;
 
 /**
- * How to write a row's own address, where its rows are pages in their own
- * right.
+ * Where a row's record lives, for tables whose rows are pages.
  *
- * The index lists publications that each have a page, and a crawler can only
- * follow what is written as a link — a row that navigates on click is a dead
- * end to it. Given this, the title cell becomes an anchor to the record.
- *
- * The workspace's rows are drafts with no address, so it leaves this unset and
- * its cells render as plain text.
+ * Given this, the title cell becomes an anchor — a row that only navigates on
+ * click is a dead end to a crawler. The workspace leaves it unset, its rows
+ * being drafts with no address.
  */
 const RowHref = createContext<((id: RowId) => string) | null>(null);
 

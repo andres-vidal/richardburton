@@ -8,35 +8,17 @@ import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { FC, useTransition } from "react";
 
-/**
- * The flag each language is offered under.
- *
- * A flag names a country rather than a language, which is a fair objection in
- * general. It holds here: `pt` is Brazilian Portuguese, for a Brazilian
- * audience. English has no country of its own to point at, so it takes the
- * conventional one.
- */
+/** The flag each language is offered under. `pt` is Brazilian Portuguese. */
 const FLAGS = { pt: BrazilFlag, en: BritishFlag };
 
-/**
- * The box every flag is drawn in.
- *
- * Brazil's flag is 10:7 and the United Kingdom's is 2:1, so a shared box keeps
- * the control from changing size when the language does. The wider one is
- * cropped to fill it rather than letterboxed.
- */
+/** One box for both flags, cropped to fill, so the control keeps its size. */
 const FLAG_SIZE = "w-5 h-3.5 rounded-xs";
 
 /**
- * Offers the interface in the other language it is written in.
+ * Offers the interface in the language it is not currently in.
  *
- * Only the language being offered is shown — the one in use is the page the
- * reader is already on. The flag carries no meaning on its own, so the language
- * names it and screen readers get that name rather than the picture.
- *
- * The locale lives in the address, so switching is a navigation to the same page
- * under the other prefix. `usePathname` gives the path without it, which is what
- * the router wants back.
+ * The locale is in the address, so switching navigates to the same page under
+ * the other prefix, query string and all.
  */
 const LanguageSwitcher: FC = () => {
   const t = useTranslations("language");

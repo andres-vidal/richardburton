@@ -21,13 +21,10 @@ Country.REMOTE.search = async (term) =>
   );
 
 /**
- * Every other field answers with nothing, so that no story can reach the
- * network.
+ * Every other field answers with nothing, so no story can reach the network.
  *
- * A story that needs suggestions replaces the one it is about, and puts back
- * whatever it found — which is one of these rather than the real call. That
- * matters because the fields debounce: a story can finish with a request still
- * to be made, and it is made against whatever the module holds by then.
+ * The fields debounce, so a story can end with a request still to be made. A
+ * story that stubs one of these puts back a stub rather than the real call.
  */
 Author.REMOTE.search = async () => [];
 Publisher.REMOTE.search = async () => [];

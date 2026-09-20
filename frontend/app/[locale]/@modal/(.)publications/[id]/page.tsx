@@ -5,14 +5,12 @@ import { readPublication } from "app/publications/read";
 /**
  * A publication read over whatever the reader was looking at.
  *
- * The same address as its own page — this intercepts it when the reader is
- * already in the app, so following a link from the database opens an overlay
- * while arriving at the address directly opens the page. Being its own route
- * segment, opening it renders *this* and leaves the database underneath alone:
- * the rows are not read again, and not sent again.
+ * Intercepts the record's own address when the reader is already in the app, so
+ * a row opens an overlay while the address itself opens the page. Its own route
+ * segment, so the database underneath is neither re-read nor re-sent.
  *
- * The read is handed over unawaited, so the overlay opens on the click and the
- * record streams into it.
+ * The read is passed unawaited: the overlay opens on the click and the record
+ * streams in.
  */
 export default async function InterceptedPublication({
   params,

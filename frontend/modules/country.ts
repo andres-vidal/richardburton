@@ -8,9 +8,8 @@ interface CountryModule {
     /**
      * The countries a term finds, named in `locale`.
      *
-     * Asked of the server rather than worked out here, so the field offers a
-     * country by every name the search would find it under: either ISO code,
-     * the name in any language, or one of the other names readers type for it.
+     * Asked of the server, so the field offers a country under every name the
+     * search would find it by: either ISO code, either language, or an alias.
      */
     search(term: string, locale: string): Promise<Country[]>;
   };

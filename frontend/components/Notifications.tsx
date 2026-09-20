@@ -11,9 +11,9 @@ import { v4 as uuid } from "uuid";
 import Notification, { isFailure, NotificationLevel } from "./Notification";
 
 /**
- * A notification names its copy rather than holding it. What raised it is
- * usually not a component — a remote call, a store write — and so has no locale
- * to write in; the card is rendered in React, where there is one.
+ * A notification names its copy rather than holding it: what raises one is
+ * usually a remote call or a store write, with no locale to write in. The card
+ * has one.
  */
 type NotificationEntry = {
   id: string;
@@ -54,9 +54,9 @@ function useNotify(): Notifier {
  * cards themselves are `Notification`.
  */
 const Notifications: FC = () => {
-  // Rooted, not scoped: a notification names its copy wherever in the catalogue
-  // that copy lives. A name the catalogue has nothing for falls back to its last
-  // part, which is how a code the server invented still reaches the reader.
+  // Rooted, not scoped, so a name can point anywhere in the catalogue. An
+  // unknown name falls back to its last part, so a code the server invented
+  // still reaches the reader.
   const t = useTranslations();
   const write = (key: string, values?: NotificationEntry["values"]) =>
     t.has(key) ? t(key, values) : (key.split(".").pop() ?? key);

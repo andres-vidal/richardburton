@@ -80,11 +80,8 @@ function usePublicationStoredField<K extends PublicationKey>(
 }
 
 /**
- * How a publication reads to whoever is reading this page: in the page's
- * language, naming countries out of the catalogue the server filled.
- *
- * A component takes this once and asks it about whichever fields it shows,
- * rather than carrying the language into every call.
+ * How a publication reads on this page: in its language, naming countries from
+ * the catalogue. Taken once and asked about any field.
  */
 function usePublicationMarking(): Marking {
   const locale = useLocale();
@@ -94,10 +91,9 @@ function usePublicationMarking(): Marking {
 }
 
 /**
- * A single cell as the index marked it, or as it is stored where the search did
- * not match it. Reads the *stored* publication, like
- * `usePublicationStoredField`, so a pending edit does not leak into the
- * read-only table.
+ * A single cell as the index marked it, or as stored where the search did not
+ * match. Reads the *stored* publication, so a pending edit does not leak into
+ * the read-only table.
  */
 function usePublicationMarkedField(id: PublicationId, key: PublicationKey) {
   const publication = useAtomValue(publicationFamily(id));
@@ -129,9 +125,9 @@ function useErrorSentence(code: string): string {
 }
 
 /**
- * What is wrong with a publication, in words. The store keeps the code the
- * server sent; a code it has no sentence for is shown as it is, so an error
- * invented after this catalogue was written still reaches the reader.
+ * What is wrong with a publication, in words. A code with no sentence for it is
+ * shown as the code, so an error newer than this catalogue still reaches the
+ * reader.
  */
 function usePublicationErrorDescription(id: PublicationId) {
   return useErrorSentence(useAtomValue(errorCodeFamily(id)));

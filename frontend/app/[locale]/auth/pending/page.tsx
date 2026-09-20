@@ -12,14 +12,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * Where someone lands when the sign-in worked and there is nothing yet to do
  * with it.
  *
- * They were invited, so an account exists, but it holds a reader's role, which
- * carries nothing they could not already do signed out. "Access denied" would
- * be twice wrong: they were not denied, and there is something they can do
- * about it, which is ask.
+ * An account exists, but with a reader's role, which grants nothing signing out
+ * would not. "Access denied" would be wrong twice over: nothing was denied, and
+ * asking is a way forward.
  *
- * It says nothing about who they are, because it cannot: the session cookie is
- * relayed only once the gate passes, so at this point there is no session to
- * read.
+ * The page names nobody — the session cookie is relayed only once the gate
+ * passes, so there is no session to read yet.
  */
 export default async function AccessPendingPage() {
   const t = await getTranslations("auth");

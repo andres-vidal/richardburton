@@ -155,16 +155,12 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   Adds the `excerpts` map to a query, one excerpt per field, and the
   `matched_countries` list.
 
-  The term is read from scratch here, the same way the search read it, so this
-  needs nothing but the term itself. None of what the search resolved earlier has
-  to be carried along. A field that no part of the term searched gets no tsquery,
-  and so gets no excerpt.
+  Takes only the term, reading it the same way the search did. A field no part of
+  the term searched gets no tsquery, and so no excerpt.
 
-  `matched_countries` holds the codes among the row's countries whose names the
-  term matched, as a set rather than a list lined up with `countries`. It says
-  which countries answered the search, and nothing about where in them: the name
-  that matched is often not the name that will be shown, since a country answers
-  to either ISO code and to a name in any language.
+  `matched_countries` is the set of codes the term matched — which countries
+  answered, not where in them. A country answers to either ISO code and to a name
+  in any language, so what matched is often not what is shown.
   """
   @spec select(Ecto.Query.t(), String.t()) :: Ecto.Query.t()
   def select(query, term) do
@@ -189,16 +185,12 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     })
   end
 
-  # Adds `matched_countries`: the codes among the row's countries whose names
-  # the term matched.
+  # Adds `matched_countries`: the codes among the row's countries the term
+  # matched, tried against `countries.names` — the same column the search
+  # document is built from.
   #
-  # A country is tried by every name it is searchable by, which is the column
-  # the search document is built from, so a country is reported here exactly
-  # when it is one of the reasons the row came back. Its ISO codes are among
-  # those names, which is what also answers a term written `country:US`.
-  #
-  # A term that searched no country gets a nil tsquery, which matches nothing
-  # and leaves the list empty.
+  # A term searching no country gets a nil tsquery, and the list comes back
+  # empty.
   defp select_countries(query, countries) do
     select_merge(query, [p], %{
       matched_countries:
@@ -280,16 +272,13 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     |> Map.put(:countries, codes_query(country_codes(alternatives)))
   end
 
-  # The countries a term reaches: the ones an alternative's free words reach,
-  # and the ones its `country:` operators name.
+  # The countries a term reaches: what its free words reach, plus what its
+  # `country:` operators name.
   #
-  # The other fields ask whether any of the term's words appears, because they
-  # mark the words themselves and one word marked on its own is still true. A
-  # country is reported whole, so a word it merely shares with the country that
-  # was named would report the wrong one — "Reino Unido" names the United
-  # Kingdom and shares a word with "Estados Unidos". Reading the term the way
-  # `Country.reached_by/1` does is what keeps those apart, while still reaching
-  # a country named beside something else and one named only in part.
+  # Other fields mark whichever of the term's words appear, which is fine when
+  # the mark lands on the word itself. A country is marked whole, so a shared
+  # word would mark the wrong one — "Reino Unido" shares "Unido" with "Estados
+  # Unidos". `Country.reached_by/1` is what tells them apart.
   defp country_codes(alternatives) do
     alternatives
     |> Enum.flat_map(fn alternative ->
@@ -305,9 +294,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
     |> Enum.uniq()
   end
 
-  # Country codes as a tsquery over the names a country is searchable by. Its
-  # codes are among those names, so this reports the country it was resolved
-  # from and no other.
+  # Codes as a tsquery over `countries.names`, which holds them, so each matches
+  # only the country it came from.
   defp codes_query(codes), do: codes |> Enum.map(&Query.lexeme/1) |> any_of()
 
   # Adds an operator's value under the field it names. Negated operators are
@@ -317,8 +305,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   defp filter(%{negated: true}, acc), do: acc
   defp filter(%{field: :year}, acc), do: acc
 
-  # A country operator is answered by `country_codes/1`, which resolves it to
-  # the countries it names rather than to words to mark.
+  # `country_codes/1` handles the country operator, resolving it to codes rather
+  # than to words to mark.
   defp filter(%{field: :countries}, acc), do: acc
 
   defp filter(%{field: field, value: value, exact: exact}, acc) do
