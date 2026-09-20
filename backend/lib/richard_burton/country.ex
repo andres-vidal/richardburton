@@ -95,10 +95,14 @@ defmodule RichardBurton.Country do
   other names readers have for it. A spreadsheet saying "UK" or "AUS" is saying
   the United Kingdom and Australia, and is filed under `GB` and `AU`.
 
-  Unlike the search, a name half-written names nothing. A record is filed under
-  what this returns, and a fragment that resolved to a country would file it
-  somewhere nobody chose. A name two countries share names neither, for the same
-  reason.
+  The value has to be a complete name. "Braz" returns nil, even though the
+  search would offer Brazil for it, because the search is suggesting and this is
+  deciding where a record is stored. A half-written name that resolved to a
+  country would file the record under a country nobody chose.
+
+  A value two countries share also returns nil, for the same reason. "São
+  Martinho" is both Sint Maarten and Saint Martin, and picking one of them would
+  be a guess.
 
   ## Examples
 
@@ -204,13 +208,17 @@ defmodule RichardBurton.Country do
   Kingdom" names the United States but not the United Kingdom, whose name it
   does not contain.
 
-  A run, rather than the words in any order, is what keeps two countries that
-  share a word apart. Case, accents and punctuation are folded away first, so
-  "paises baixos" names the country "Países Baixos" does.
+  The words have to be consecutive rather than merely present, which is how two
+  countries that share a word are told apart: "Reino Unido" contains both words
+  of the United Kingdom's Portuguese name in order, and shares only "Unido" with
+  "Estados Unidos". Case, accents and punctuation are folded away first, so
+  "paises baixos" names the same country "Países Baixos" does.
 
-  A code names a country when the term writes it as one, in capitals, or when
-  the term is that code and nothing else. A two-letter code often spells a
-  common word: "machado DE" asks for Germany and "machado de assis" does not.
+  A code names a country when the term writes it in capitals, or when the term
+  is that code and nothing else. Two-letter codes often spell common words, and
+  capitals are what tell the two apart: "machado DE" asks for Germany, while
+  "machado de assis" uses "de" as a Portuguese preposition and asks for no
+  country at all.
 
   ## Examples
 
@@ -235,15 +243,18 @@ defmodule RichardBurton.Country do
   @doc """
   The codes of the countries a term reaches.
 
-  A term that names a country outright reaches that one alone, so "Reino Unido"
-  reaches the United Kingdom and not the Estados Unidos it shares a word with,
-  and "United States Kingdom" reaches the United States and not the United
-  Kingdom. A term that names none is read a word at a time, the way a
-  reader is still typing it, so "United" reaches every country whose name begins
-  that way.
+  A term is read in two passes. First `named_in/1` asks which countries the term
+  names outright; if any does, those are the answer and nothing else is tried.
+  So "Reino Unido" reaches the United Kingdom alone, and not the "Estados
+  Unidos" it shares a word with, and "United States Kingdom" reaches the United
+  States alone.
 
-  Reading the term whole first is what keeps a term that says which country it
-  means from also reaching the ones it merely brushes against.
+  Only when the term names no country does the second pass run, which treats the
+  whole term as a name the reader has not finished typing. "United" reaches
+  every country whose name begins with it.
+
+  The order matters: a term that already says which country it means must not
+  also reach the countries it only partly resembles.
 
   ## Examples
 
@@ -271,27 +282,31 @@ defmodule RichardBurton.Country do
     Enum.any?(called(code), &run_of?(words(&1), said)) or coded?(code, said, as_typed)
   end
 
-  # Whether a term says one of this country's codes: written as a code, in
-  # capitals, or standing as the whole term in whatever case.
+  # Whether a term says one of this country's codes. It counts when the term
+  # writes the code in capitals, and when the term is that code and nothing
+  # else, in whatever case.
   #
-  # Two-letter codes spell common words. "de" is Germany's code and a Portuguese
-  # preposition both, so "machado de assis" is about neither Germany nor any
-  # country — while "machado DE", which writes it as a code, and "de", which
-  # asks for nothing else, can only be about it.
+  # Two-letter codes often spell common words. "DE" is Germany's code and "de"
+  # is a Portuguese preposition, so the capitals are the only thing separating
+  # them: "machado DE" asks for Germany, "machado de assis" does not, and "de"
+  # on its own asks for nothing but Germany because there is nothing else in it.
   defp coded?(code, said, as_typed) do
     codes = coded(code)
 
     Enum.any?(codes, &(&1 in as_typed)) or Enum.any?(codes, &(words(&1) == said))
   end
 
-  # The countries a half-written name could still become.
+  # The countries whose names begin with `said`, treating the whole of it as a
+  # name the reader has not finished typing.
   #
-  # The whole term has to be that fragment. A short word inside a longer term is
-  # a word rather than a country half-typed, and "de" alone begins the names of
-  # four of them, so "machado de assis" would otherwise reach all four.
+  # The fragment has to be the entire term. If any word of a longer term counted,
+  # "machado de assis" would reach four countries, because "de" begins Germany's
+  # name in German, Denmark's in English, and two more. A word sitting inside a
+  # longer term is being used as a word, not as a country someone is partway
+  # through typing.
   #
-  # Only what a country is called is tried, since a code is a whole name already
-  # and `named?/2` has had its chance at it. The words arrive already folded.
+  # Codes are not tried here. A code is already a complete name, so `named?/3`
+  # has settled it. The words arrive already folded.
   defp beginning([]), do: []
 
   defp beginning(said) do

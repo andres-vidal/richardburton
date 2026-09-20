@@ -128,13 +128,15 @@ defmodule RichardBurton.FlatPublicationTest do
       assert message =~ "Narnia"
     end
 
-    # "São Martinho" is both Sint Maarten and Saint Martin, and a record filed
-    # under a guess would be filed somewhere nobody chose.
+    # "São Martinho" is both Sint Maarten and Saint Martin. Picking one would be
+    # a guess, and the record would be filed under a country nobody chose.
     test "a name two countries share is refused rather than guessed at" do
       refute change_valid(%{"countries" => ["São Martinho"]}).valid?
     end
 
-    test "a name half-written names nothing, unlike a search" do
+    # The search would offer Brazil for "Braz". This decides where a record is
+    # stored, so it requires the complete name.
+    test "a name that is only begun is refused" do
       refute change_valid(%{"countries" => ["Braz"]}).valid?
     end
 

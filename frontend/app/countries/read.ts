@@ -13,9 +13,9 @@ type NamedCountry = { id: string; label: string; article?: string | null };
  * `useTranslations` every other piece of copy is read through, and the server
  * stays the only place a country is named.
  *
- * A country whose name takes no article is left out of `countryArticles`, which
- * is what `t.has` asks about. A backend that cannot be reached names nothing,
- * and a code is then read as itself.
+ * A country whose name takes no article is left out of `countryArticles`
+ * entirely, which is the absence `t.has` reports. If the backend cannot be
+ * reached, both catalogues come back empty and every code is shown as itself.
  */
 export const readCountryCatalogues = cache(async (locale: string) => {
   const countries = await get<NamedCountry[]>("/countries", { locale }).catch(

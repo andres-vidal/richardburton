@@ -180,10 +180,10 @@ defmodule RichardBurton.CountryTest do
       assert Country.answering("Reino Unido") == ["GB"]
     end
 
-    # "BR" begins "Britain", which the United Kingdom goes by, but it *is*
-    # Brazil's code. A country written out reaches itself and not the longer
-    # names it starts.
-    test "a name written in full beats the longer names it begins" do
+    # "BR" begins "Britain", which the United Kingdom goes by, but "BR" is also
+    # Brazil's code in full. A complete name wins over the longer names it is
+    # only the start of.
+    test "a complete name wins over the longer names it begins" do
       assert Country.answering("BR") == ["BR"]
     end
 
@@ -194,7 +194,7 @@ defmodule RichardBurton.CountryTest do
       assert "GB" in begun
     end
 
-    test "a value no name answers to names nothing" do
+    test "a value matching no name at all answers with nothing" do
       assert Country.answering("zzzzqqqq") == []
       assert Country.answering("") == []
     end
@@ -221,7 +221,7 @@ defmodule RichardBurton.CountryTest do
       assert Country.named_in(~s("United Kingdom")) == ["GB"]
     end
 
-    test "a term naming no country in full names none" do
+    test "a term with no complete name in it names no country" do
       assert Country.named_in("United") == []
       assert Country.named_in("a study of translation") == []
     end
@@ -232,8 +232,8 @@ defmodule RichardBurton.CountryTest do
       assert "US" in Country.named_in("machado USA")
     end
 
-    # "de" is Germany's code and a Portuguese preposition. What tells them apart
-    # is that a code is written as one.
+    # "DE" is Germany's code and "de" is a Portuguese preposition. The capitals
+    # are the only thing separating them.
     test "a code spelling a common word has to be written as a code" do
       assert Country.named_in("machado de assis") == []
       assert Country.named_in("machado DE") == ["DE"]
@@ -252,16 +252,17 @@ defmodule RichardBurton.CountryTest do
       assert Country.reached_by("United States Kingdom") == ["US"]
     end
 
-    test "a term naming none is read a word at a time" do
+    test "a term naming no country is read as a name still being typed" do
       reached = Country.reached_by("United")
 
       assert "US" in reached
       assert "GB" in reached
     end
 
-    # A half-written name has to be the whole term: "de" begins four countries'
-    # names, and is a Portuguese preposition besides.
-    test "a word inside a longer term is a word, not a country half-typed" do
+    # The fragment has to be the entire term. "de" begins four countries' names
+    # and is also a Portuguese preposition, so counting any word of a longer term
+    # would reach all four.
+    test "a word sitting inside a longer term reaches nothing" do
       assert Country.reached_by("machado de assis") == []
       assert Country.reached_by("machado united") == []
     end

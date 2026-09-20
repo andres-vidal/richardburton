@@ -211,11 +211,12 @@ function merged(winner: Publication, losers: Publication[]): Publication {
  * with the model. `year` is an integer on the backend and text in a form, so it
  * arrives here as either.
  *
- * A country in `matched` has its whole name wrapped in the same `[[ ]]` the
- * index wraps matched words in. The whole name, because the name that matched
- * is often not the name on the page: a reader searching "Holanda" matched a
- * name neither language shows. Which countries matched is still the index's
- * answer and not this module's, so nothing here decides what highlights.
+ * A country listed in `matched` has its whole name wrapped in the same `[[ ]]`
+ * the index wraps matched words in. The whole name is wrapped rather than part
+ * of it, because the name that matched is often not the name on the page: a
+ * reader searching "Holanda" matched a name that neither English nor Portuguese
+ * displays. Which countries matched is decided by the index and passed in here,
+ * so this function never works out for itself what to highlight.
  */
 function shown(
   values: unknown[],
