@@ -337,7 +337,7 @@ defmodule RichardBurton.PublicationTest do
       assert ["US"] == Enum.map(updated.countries, & &1.code)
       # The stored fingerprint reflects the new country, not the stale one.
       refute updated.countries_fingerprint == original_fingerprint
-      assert Country.fingerprint("US") == updated.countries_fingerprint
+      assert Country.fingerprint(["US"]) == updated.countries_fingerprint
     end
 
     test "repoints the translated book when the original fields change, leaving the old one" do
