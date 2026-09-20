@@ -7,7 +7,6 @@ import { ReactNode } from "react";
 import "styles/globals.css";
 import { getSession } from "app/session";
 import { readCountries } from "app/countries/read";
-import CountryNames from "components/CountryNames";
 import { appUrl } from "modules/app-url";
 import { Providers } from "./providers";
 
@@ -98,12 +97,10 @@ export default async function LocaleLayout({
     <html lang={locale} suppressHydrationWarning>
       <body>
         <NextIntlClientProvider>
-          <CountryNames locale={locale} countries={countries}>
-            <Providers session={session}>
-              {children}
-              {modal}
-            </Providers>
-          </CountryNames>
+          <Providers session={session} countries={countries} locale={locale}>
+            {children}
+            {modal}
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>
