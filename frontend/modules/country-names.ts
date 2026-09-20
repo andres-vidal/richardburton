@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 
 /** What a country code is called, and the article that name takes. */
 type CountryNaming = {
@@ -25,10 +26,13 @@ function useCountryNaming(): CountryNaming {
   const names = useTranslations("countryNames");
   const articles = useTranslations("countryArticles");
 
-  return {
-    name: (code) => (names.has(code) ? names(code) : code),
-    article: (code) => (articles.has(code) ? articles(code) : ""),
-  };
+  return useMemo(
+    () => ({
+      name: (code: string) => (names.has(code) ? names(code) : code),
+      article: (code: string) => (articles.has(code) ? articles(code) : ""),
+    }),
+    [names, articles],
+  );
 }
 
 export { useCountryNaming };

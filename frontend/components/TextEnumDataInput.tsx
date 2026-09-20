@@ -38,8 +38,7 @@ export default forwardRef<HTMLInputElement, ScalarDataInputProps>(
 
     const selectedOption = useMemo(
       () => (value ? { id: value, label: country.name(value) } : undefined),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [value, locale],
+      [value, country],
     );
 
     return (

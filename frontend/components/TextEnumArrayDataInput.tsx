@@ -27,8 +27,7 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
 
     const toEnum = useCallback(
       (id: string): Enum => ({ id, label: country.name(id) }),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [locale],
+      [country],
     );
 
     const items = useMemo(() => value.map(toEnum), [value, toEnum]);
