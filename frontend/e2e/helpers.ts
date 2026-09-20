@@ -237,20 +237,25 @@ export const PUBLICATIONS: PublicationInput[] = [
 ];
 
 // A realistic corpus seeded in one shot via CSV bulk-import (8 columns in codec
-// order: original_authors; year; countries; original_title; title; authors;
-// publishers; sources). Three works share an author (Machado de Assis) so
-// search narrows to several rows; three rows carry a source and four don't, so
+// A header names the columns, so their order is the file's own; a cell holding
+// a comma is quoted. Three works share an author (Machado de Assis) so search
+// narrows to several rows, and three rows carry a source while four do not, so
 // the backfill wizard sees a real queue.
 const CORPUS_ROWS = [
-  "Machado de Assis;1953;US;Dom Casmurro;Dom Casmurro;Helen Caldwell;Noonday Press;",
-  "Machado de Assis;1952;US;Memórias Póstumas;Epitaph of a Small Winner;William Grossman;Noonday Press;",
-  "Machado de Assis;1954;US;Quincas Borba;Philosopher or Dog?;Clotilde Wilson;Noonday Press;Caldwell, Helen. Machado de Assis.",
-  "José de Alencar;1886;GB;Iracema;Iraçéma the Honey-Lips;Isabel Burton;Bickers & Son;Burton, Isabel. Preface, 1886.",
-  "Jorge Amado;1962;US;Gabriela, Cravo e Canela;Gabriela, Clove and Cinnamon;James Taylor;Knopf;",
-  "Clarice Lispector;1986;GB;A Hora da Estrela;The Hour of the Star;Giovanni Pontiero;Carcanet;Pontiero, Giovanni. Afterword.",
-  "Graciliano Ramos;1965;US;Vidas Secas;Barren Lives;Ralph Dimmick;University of Texas Press;",
+  `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+  `Epitaph of a Small Winner,1952,US,Noonday Press,William Grossman,Memórias Póstumas,Machado de Assis,`,
+  `Philosopher or Dog?,1954,US,Noonday Press,Clotilde Wilson,Quincas Borba,Machado de Assis,"Caldwell, Helen. Machado de Assis."`,
+  `Iraçéma the Honey-Lips,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,"Burton, Isabel. Preface, 1886."`,
+  `"Gabriela, Clove and Cinnamon",1962,US,Knopf,James Taylor,"Gabriela, Cravo e Canela",Jorge Amado,`,
+  `The Hour of the Star,1986,GB,Carcanet,Giovanni Pontiero,A Hora da Estrela,Clarice Lispector,"Pontiero, Giovanni. Afterword."`,
+  `Barren Lives,1965,US,University of Texas Press,Ralph Dimmick,Vidas Secas,Graciliano Ramos,`,
 ];
-export const CORPUS_CSV = CORPUS_ROWS.join("\n") + "\n";
+
+/** The header every fixture in this suite writes. */
+export const CSV_HEADER =
+  "title,year,countries,publishers,authors,original_title,original_authors,sources";
+
+export const CORPUS_CSV = [CSV_HEADER, ...CORPUS_ROWS].join("\n") + "\n";
 export const CORPUS_SIZE = CORPUS_ROWS.length; // 7
 export const CORPUS_UNSOURCED = 4; // rows with an empty sources column
 
@@ -261,11 +266,14 @@ export const PAGED_SIZE = 25;
 /** A corpus that outgrows a page. Each row is its own work, so no two collide
  * on the composite key, and the titles sort predictably for the assertions. */
 export const PAGED_CSV =
-  Array.from(
-    { length: PAGED_SIZE },
-    (_, i) =>
-      `Paged Author ${i};19${10 + i};US;Original ${String(i).padStart(2, "0")};Paged Work ${String(i).padStart(2, "0")};Paged Translator ${i};Paged Press;`,
-  ).join("\n") + "\n";
+  [
+    CSV_HEADER,
+    ...Array.from(
+      { length: PAGED_SIZE },
+      (_, i) =>
+        `Paged Work ${String(i).padStart(2, "0")},19${10 + i},US,Paged Press,Paged Translator ${i},Original ${String(i).padStart(2, "0")},Paged Author ${i},`,
+    ),
+  ].join("\n") + "\n";
 
 /** Seed the corpus by bulk-importing it through the admin CSV upload + submit. */
 export async function seedCorpus(page: Page) {

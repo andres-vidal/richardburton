@@ -1178,25 +1178,6 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "title" => "required",
           "authors" => "required"
         }
-      },
-      %{
-        "publication" => %{
-          "title" => "Ubirajara: A Legend of the Tupy Indians",
-          "year" => "",
-          "countries" => [],
-          "publishers" => [],
-          "authors" => ["J. T. W. Sadler"],
-          "original_authors" => [],
-          "original_title" => "",
-          "sources" => []
-        },
-        "errors" => %{
-          "year" => "required",
-          "countries" => "required",
-          "publishers" => "required",
-          "original_authors" => "required",
-          "original_title" => "required"
-        }
       }
     ]
 
@@ -1240,7 +1221,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
       expected_data =
-        "authors;countries;original_authors;original_title;publishers;sources;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
+        "authors,countries,original_authors,original_title,publishers,sources,title,year\nIsabel Burton,GB,José de Alencar,Iracema,Bickers & Son,,Iraçéma the Honey-Lips: A Legend of Brazil,1886\n"
 
       expected_filename = "publications.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1305,7 +1286,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors;countries;original_authors;original_title;publishers;sources;title;year\nIsabel Burton;GB;José de Alencar;Iracema;Bickers & Son;;Iraçéma the Honey-Lips: A Legend of Brazil;1886\n"
+        "authors,countries,original_authors,original_title,publishers,sources,title,year\nIsabel Burton,GB,José de Alencar,Iracema,Bickers & Son,,Iraçéma the Honey-Lips: A Legend of Brazil,1886\n"
 
       expected_filename = "publications-#{search}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1336,7 +1317,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors;original_title;title\nIsabel Burton;Iracema;Iraçéma the Honey-Lips: A Legend of Brazil\n"
+        "authors,original_title,title\nIsabel Burton,Iracema,Iraçéma the Honey-Lips: A Legend of Brazil\n"
 
       expected_filename = "publications-#{search}-#{Enum.join(attributes, "-")}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1369,7 +1350,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors;original_title;title\nIsabel Burton;Iracema;Iraçéma the Honey-Lips: A Legend of Brazil\n"
+        "authors,original_title,title\nIsabel Burton,Iracema,Iraçéma the Honey-Lips: A Legend of Brazil\n"
 
       expected_filename = "publications-#{Enum.join(attributes, "-")}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]

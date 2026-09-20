@@ -22,35 +22,62 @@ defmodule RichardBurton.Publication.Codec do
     "original_authors" => ""
   }
 
+  # The columns a file may carry, by the name its header gives them. Singular
+  # names are accepted because a spreadsheet writes what a person would.
+  @csv_columns %{
+    "title" => "title",
+    "year" => "year",
+    "country" => "countries",
+    "countries" => "countries",
+    "publisher" => "publishers",
+    "publishers" => "publishers",
+    "authors" => "authors",
+    "translators" => "authors",
+    "original_title" => "original_title",
+    "original_authors" => "original_authors",
+    "sources" => "sources"
+  }
+
+  # The order an exported file writes its columns in.
   @csv_headers [
-    "original_authors",
+    "title",
     "year",
     "countries",
-    "original_title",
-    "title",
-    "authors",
     "publishers",
+    "authors",
+    "original_title",
+    "original_authors",
     "sources"
   ]
 
-  # The cells that hold several values: what separates them on the way in, and
-  # what joins them on the way out. A publication's countries, publishers and
-  # names are lists everywhere else — one cell per list is CSV's own convention,
-  # and this is the only place that knows it.
+  # The cells holding several values, and what separates them. A semicolon,
+  # because a comma separates the columns and appears inside names often enough
+  # that "Farrar, Straus and Giroux" has to stay one publisher.
+  #
+  # Sources keep the line break they are written with: a bibliographic entry
+  # carries semicolons of its own, and cannot carry a line break.
   @csv_lists %{
     "sources" => {"\n", "\n"},
-    "countries" => {",", ", "},
-    "publishers" => {",", ", "},
-    "authors" => {",", ", "},
-    "original_authors" => {",", ", "}
+    "countries" => {";", "; "},
+    "publishers" => {";", "; "},
+    "authors" => {";", "; "},
+    "original_authors" => {";", "; "}
   }
 
+  @doc """
+  Reads a CSV of publications: one row each, columns named by a header.
+
+  The header decides which column is which, so they may be written in any order
+  and a column the file does not carry reads as empty. A name the table does not
+  know is ignored, which is what lets a spreadsheet keep a column of its own.
+  """
   def from_csv(path) do
     try do
       publications =
         path
         |> File.stream!()
-        |> CSV.decode!(separator: ?;, headers: @csv_headers)
+        |> CSV.decode!(headers: true)
+        |> Enum.map(&rename_columns/1)
         |> Enum.map(&Util.deep_merge_maps(@empty_flat_attrs, &1))
         |> Enum.map(&parse_list_cells/1)
 
@@ -67,14 +94,37 @@ defmodule RichardBurton.Publication.Codec do
     end
   end
 
+  @doc """
+  Writes publications as a CSV with a header, in the shape `from_csv/1` reads.
+  """
   def to_csv(flat_publications) do
     flat_publications
     |> Enum.map(&Util.stringify_keys/1)
     |> Enum.map(&join_list_cells/1)
     |> Enum.map(&Map.take(&1, @csv_headers))
-    |> CSV.encode(separator: ?;, delimiter: "\n", headers: true)
+    |> CSV.encode(delimiter: "\n", headers: true)
     |> Enum.to_list()
   end
+
+  # A row under the names the rest of the application uses, dropping the columns
+  # the table does not know. Header names are matched trimmed and case-folded, so
+  # a stray space or a capital does not lose a column.
+  #
+  # Values are trimmed here rather than where each is read: a title written with
+  # a trailing space is the same title, and left alone it would be a record of
+  # its own.
+  defp rename_columns(row) do
+    row
+    |> Map.new(fn {column, value} -> {column_name(column), trimmed(value)} end)
+    |> Map.delete(nil)
+  end
+
+  defp column_name(column) do
+    Map.get(@csv_columns, column |> to_string() |> String.trim() |> String.downcase())
+  end
+
+  defp trimmed(value) when is_binary(value), do: String.trim(value)
+  defp trimmed(value), do: value
 
   # Each multi-value cell becomes the trimmed, blank-free list the rest of the
   # application speaks in; a column the file does not carry reads as empty.
@@ -84,15 +134,6 @@ defmodule RichardBurton.Publication.Codec do
     end)
   end
 
-  # A comma can be part of a name rather than a break between two — a publisher
-  # called "Cassel, McBride & Co." is one value. Quoting it says so, and is the
-  # only way the file can: the column separator is a semicolon, so a comma has
-  # no other reading available to it.
-  defp split_cell(content, ",") when is_binary(content) do
-    content |> outside_quotes() |> Enum.map(&unwrap/1) |> Enum.reject(&(&1 == ""))
-  end
-
-  # A line break cannot occur inside a source, so sources need no such escape.
   defp split_cell(content, separator) when is_binary(content) do
     content
     |> String.split(separator)
@@ -102,48 +143,15 @@ defmodule RichardBurton.Publication.Codec do
 
   defp split_cell(_absent, _separator), do: []
 
-  defp outside_quotes(content) do
-    {values, last, _} =
-      content
-      |> String.graphemes()
-      |> Enum.reduce({[], "", false}, fn
-        "\"", {values, current, quoted?} -> {values, current <> "\"", not quoted?}
-        ",", {values, current, false} -> {[current | values], "", false}
-        char, {values, current, quoted?} -> {values, current <> char, quoted?}
-      end)
-
-    Enum.reverse([last | values])
-  end
-
-  defp unwrap(value) do
-    trimmed = String.trim(value)
-
-    if String.length(trimmed) > 1 and String.starts_with?(trimmed, "\"") and
-         String.ends_with?(trimmed, "\"") do
-      trimmed |> String.slice(1..-2//1) |> String.trim()
-    else
-      trimmed
-    end
-  end
-
   # Only a cell that is there is joined: a `select`-limited export leaves some
   # columns out, and they must not reappear empty.
   defp join_list_cells(row) do
-    Enum.reduce(@csv_lists, row, fn {column, {split, separator}}, row ->
+    Enum.reduce(@csv_lists, row, fn {column, {_, separator}}, row ->
       case Map.get(row, column) do
-        values when is_list(values) ->
-          Map.put(row, column, Enum.map_join(values, separator, &quoted_if_split(&1, split)))
-
-        _ ->
-          row
+        values when is_list(values) -> Map.put(row, column, Enum.join(values, separator))
+        _ -> row
       end
     end)
-  end
-
-  # A value holding the separator goes out quoted, so reading the file back
-  # gives one value again rather than the two it would otherwise look like.
-  defp quoted_if_split(value, separator) do
-    if String.contains?(value, separator), do: ~s("#{value}"), else: value
   end
 
   def from_csv!(path) do
