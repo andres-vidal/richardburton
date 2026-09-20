@@ -14,8 +14,8 @@ const AuthCard: FC<{
   /** Names the card's copy in the catalogue, whole: `auth.pending`. */
   copy: string;
   /** What to do next, at the foot of the card. */
-  action?: ReactNode;
-}> = ({ copy, action }) => {
+  children?: ReactNode;
+}> = ({ copy, children }) => {
   const t = useTranslations(copy);
 
   return (
@@ -28,7 +28,7 @@ const AuthCard: FC<{
             suggestion: (chunks) => <p className="text-sm">{chunks}</p>,
           })}
         </div>
-        <div className="mx-auto">{action}</div>
+        <div className="mx-auto">{children}</div>
       </section>
     </div>
   );

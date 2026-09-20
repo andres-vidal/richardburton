@@ -11,7 +11,7 @@ const meta = {
   component: AuthCard,
   args: {
     copy: "auth.errors.Verification",
-    action: <Button label="Do the next thing" width="fit" onClick={fn()} />,
+    children: <Button label="Do the next thing" width="fit" onClick={fn()} />,
   },
   parameters: { layout: "fullscreen" },
 } satisfies Meta<typeof AuthCard>;
@@ -54,7 +54,7 @@ export const WithoutASuggestion: Story = {
 
 /** Nothing to do next: the foot is empty and the card keeps its shape. */
 export const WithoutAnAction: Story = {
-  args: { action: undefined },
+  args: { children: undefined },
   play: async () => {
     await expect(
       screen.getByRole("heading", { name: "Verification error" }),

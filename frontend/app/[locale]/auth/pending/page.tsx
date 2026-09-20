@@ -27,14 +27,11 @@ export default async function AccessPendingPage() {
   return (
     <Layout
       content={
-        <AuthCard
-          copy="auth.pending"
-          action={
-            <Link href="/" className="anchor">
-              {t("pendingBrowse")}
-            </Link>
-          }
-        />
+        <AuthCard copy="auth.pending">
+          <Link href="/" className="anchor">
+            {t("pendingBrowse")}
+          </Link>
+        </AuthCard>
       }
     />
   );

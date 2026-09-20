@@ -31,15 +31,12 @@ export default async function SignInPage({
   return (
     <Layout
       content={
-        <AuthCard
-          copy="auth.signIn"
-          action={
-            <div className="flex flex-col gap-3 items-center">
-              <SignInButton next={next} />
-              {process.env.NODE_ENV === "development" && <DevSignInButton />}
-            </div>
-          }
-        />
+        <AuthCard copy="auth.signIn">
+          <div className="flex flex-col gap-3 items-center">
+            <SignInButton next={next} />
+            {process.env.NODE_ENV === "development" && <DevSignInButton />}
+          </div>
+        </AuthCard>
       }
     />
   );
