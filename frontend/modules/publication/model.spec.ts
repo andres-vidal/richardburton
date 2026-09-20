@@ -4,29 +4,31 @@ import {
   define,
   empty,
   errorCode,
-  markedValue,
+  marking,
   merged,
 } from "./model";
 import type { Publication } from "./model";
-import { Country, countriesIn, setCountryNames } from "modules/country";
+import { Country } from "modules/country";
 import { routing } from "i18n/routing";
+import { messages } from "utils/messages";
 
 vi.mock("modules/country", async (importOriginal) => ({
   ...(await importOriginal<typeof import("modules/country")>()),
-  Country: { REMOTE: { search: vi.fn(), all: vi.fn() } },
+  Country: { REMOTE: { search: vi.fn() } },
 }));
 
-// The server names countries; the specs are written in the default locale, so
-// they hand over the few they name one by.
-setCountryNames(
-  [
-    { id: "BR", label: "Brazil" },
-    { id: "NL", label: "Netherlands", article: "the" },
-  ],
-  routing.defaultLocale,
-);
+const COUNTRIES = messages.countryNames;
 
-const COUNTRIES = countriesIn(routing.defaultLocale);
+// A reader reading in the default locale, who names countries the way the
+// server does. The naming is a function rather than a hook, so what a reader
+// sees can be checked without rendering anything.
+const read = marking(routing.defaultLocale, {
+  name: (code) => COUNTRIES[code as keyof typeof COUNTRIES] ?? code,
+  article: () => "",
+});
+
+const markedValue = read.value;
+const markedItems = read.items;
 
 describe("empty", () => {
   test("returns a publication with every attribute blank", () => {
@@ -58,52 +60,29 @@ describe("markedValue", () => {
   }
 
   test("names the country a code stands for", () => {
-    expect(
-      markedValue(
-        holding({ countries: [first] }),
-        "countries",
-        routing.defaultLocale,
-      ),
-    ).toBe(COUNTRIES[first].label);
+    expect(markedValue(holding({ countries: [first] }), "countries")).toBe(
+      COUNTRIES[first],
+    );
   });
 
   test("names every code of a list — what a merged record holds", () => {
     expect(
-      markedValue(
-        holding({ countries: [first, second] }),
-        "countries",
-        routing.defaultLocale,
-      ),
-    ).toBe(`${COUNTRIES[first].label}, ${COUNTRIES[second].label}`);
+      markedValue(holding({ countries: [first, second] }), "countries"),
+    ).toBe(`${COUNTRIES[first]}, ${COUNTRIES[second]}`);
   });
 
   test("a code it has no name for is read as the code", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-
     // One unknown code in a list does not cost the others their names.
     expect(
-      markedValue(
-        holding({ countries: [first, "__nope__"] }),
-        "countries",
-        routing.defaultLocale,
-      ),
-    ).toBe(`${COUNTRIES[first].label}, __nope__`);
-    expect(warn).toHaveBeenCalled();
-
-    warn.mockRestore();
+      markedValue(holding({ countries: [first, "__nope__"] }), "countries"),
+    ).toBe(`${COUNTRIES[first]}, __nope__`);
   });
 
   test("passes non-country values through untouched", () => {
-    expect(
-      markedValue(holding({ year: "1953" }), "year", routing.defaultLocale),
-    ).toBe("1953");
+    expect(markedValue(holding({ year: "1953" }), "year")).toBe("1953");
 
     expect(
-      markedValue(
-        holding({ authors: ["Helen Caldwell"] }),
-        "authors",
-        routing.defaultLocale,
-      ),
+      markedValue(holding({ authors: ["Helen Caldwell"] }), "authors"),
     ).toBe("Helen Caldwell");
   });
 
@@ -115,9 +94,66 @@ describe("markedValue", () => {
           excerpts: { authors: "Helen [[Caldwell]]" },
         }),
         "authors",
-        routing.defaultLocale,
       ),
     ).toBe("Helen [[Caldwell]]");
+  });
+
+  // The index says which countries answered a search; the whole name is marked,
+  // since the name that matched is not always the name being read.
+  test("marks the country the index says answered the search", () => {
+    expect(
+      markedValue(
+        holding({ countries: [first], matchedCountries: [first] }),
+        "countries",
+      ),
+    ).toBe(`[[${COUNTRIES[first]}]]`);
+  });
+
+  test("leaves the countries beside it unmarked", () => {
+    expect(
+      markedValue(
+        holding({ countries: [first, second], matchedCountries: [second] }),
+        "countries",
+      ),
+    ).toBe(`${COUNTRIES[first]}, [[${COUNTRIES[second]}]]`);
+  });
+
+  test("marks nothing when the search answered on another field", () => {
+    expect(
+      markedValue(
+        holding({ countries: [first], matchedCountries: [] }),
+        "countries",
+      ),
+    ).toBe(COUNTRIES[first]);
+  });
+});
+
+describe("markedItems", () => {
+  const [first, second] = Object.keys(COUNTRIES);
+
+  function holding(fields: Partial<Publication>): Publication {
+    return { ...empty(), ...fields };
+  }
+
+  test("pairs each country's code with its name", () => {
+    expect(
+      markedItems(holding({ countries: [first, second] }), "countries"),
+    ).toEqual([
+      { value: first, label: COUNTRIES[first] },
+      { value: second, label: COUNTRIES[second] },
+    ]);
+  });
+
+  test("marks only the country that answered, keeping its code addressable", () => {
+    expect(
+      markedItems(
+        holding({ countries: [first, second], matchedCountries: [first] }),
+        "countries",
+      ),
+    ).toEqual([
+      { value: first, label: `[[${COUNTRIES[first]}]]` },
+      { value: second, label: COUNTRIES[second] },
+    ]);
   });
 });
 
@@ -164,10 +200,11 @@ describe("autocomplete", () => {
   // Which countries a term finds is the server's to decide — it is the only
   // side that knows every name a country goes by. See the Country specs.
   test("asks the server for the countries a term finds, in the reader's language", async () => {
-    vi.mocked(Country.REMOTE.search).mockResolvedValue([COUNTRIES.NL]);
+    const netherlands = { id: "NL", label: "Países Baixos" };
+    vi.mocked(Country.REMOTE.search).mockResolvedValue([netherlands]);
 
     await expect(autocomplete("holanda", "countries", "pt")).resolves.toEqual([
-      COUNTRIES.NL,
+      netherlands,
     ]);
     expect(Country.REMOTE.search).toHaveBeenCalledWith("holanda", "pt");
   });

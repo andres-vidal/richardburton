@@ -399,6 +399,54 @@ test("what a search matched is picked out, in the index and in the record", asyn
   await expect(dialog.locator("mark").first()).toHaveText("Machado");
 });
 
+test("a country is picked out by whichever of its names was searched", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+
+  const iracema = () =>
+    indexTable(page).getByRole("row").filter({ hasText: "Iraçéma" }).first();
+
+  // The name this page writes the country by.
+  await page.goto("/?search=United+Kingdom");
+  await expect(iracema().locator("mark")).toHaveText("United Kingdom");
+
+  // Either ISO code reaches it, and the name is picked out rather than the
+  // code, which is not on the page at all.
+  await page.goto("/?search=GBR");
+  await expect(iracema().locator("mark")).toHaveText("United Kingdom");
+
+  // A name readers use that neither language writes. The whole name is picked
+  // out, since what actually matched is nowhere on the page to pick out.
+  await page.goto("/?search=USA");
+
+  await expect(
+    indexTable(page)
+      .getByRole("row")
+      .filter({ hasText: "Dom Casmurro" })
+      .first()
+      .locator("mark"),
+  ).toHaveText("United States");
+});
+
+test("a row answered on another field picks out no country", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/?search=Machado");
+
+  const row = indexTable(page)
+    .getByRole("row")
+    .filter({ hasText: "Dom Casmurro" })
+    .first();
+
+  await expect(row.locator("mark").first()).toHaveText("Machado");
+  await expect(row).toContainText("United States");
+  await expect(
+    row.locator("mark").filter({ hasText: "United States" }),
+  ).toHaveCount(0);
+});
+
 test("a search without accents picks out the word that carries them", async ({
   page,
 }) => {

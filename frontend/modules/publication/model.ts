@@ -1,6 +1,7 @@
 import { isString } from "lodash";
 import { Author } from "modules/author";
-import { Country, countryName } from "modules/country";
+import { Country } from "modules/country";
+import type { CountryNaming } from "modules/country-names";
 import { routing } from "i18n/routing";
 import { OriginalBook, type OriginalBookValue } from "modules/original-book";
 import { Publisher } from "modules/publisher";
@@ -24,11 +25,17 @@ type Publication = {
   // Each source with its matched words wrapped, or null where the search did
   // not match that one. Only present on a record read with a search.
   markedSources?: (string | null)[];
+  // Which of the row's countries the search matched, as codes. Only present on
+  // a record read with a search. A set rather than a list lined up with
+  // `countries`, and it carries no marked text: a country answers to either ISO
+  // code and to a name in any language, so the name that matched is often not
+  // the name that is shown.
+  matchedCountries?: string[];
 };
 
 type PublicationKey = keyof Omit<
   Publication,
-  "id" | "sources" | "excerpts" | "markedSources"
+  "id" | "sources" | "excerpts" | "markedSources" | "matchedCountries"
 >;
 
 /**
@@ -203,22 +210,27 @@ function merged(winner: Publication, losers: Publication[]): Publication {
  * Takes unknowns rather than strings because the wire does not always agree
  * with the model. `year` is an integer on the backend and text in a form, so it
  * arrives here as either.
+ *
+ * A country in `matched` has its whole name wrapped in the same `[[ ]]` the
+ * index wraps matched words in. The whole name, because the name that matched
+ * is often not the name on the page: a reader searching "Holanda" matched a
+ * name neither language shows. Which countries matched is still the index's
+ * answer and not this module's, so nothing here decides what highlights.
  */
 function shown(
   values: unknown[],
   attribute: PublicationKey,
-  locale: string,
+  country: CountryNaming,
+  matched?: string[],
 ): string[] {
   const text = values.map((value) => String(value ?? ""));
 
   if (attribute !== "countries") return text;
 
   return text.map((code) => {
-    const name = countryName(code, locale);
-    if (name) return name;
+    const name = country.name(code);
 
-    console.warn("Unknown country code: ", code);
-    return code;
+    return matched?.includes(code) ? `[[${name}]]` : name;
   });
 }
 
@@ -231,6 +243,7 @@ function markedValue(
   publication: Publication,
   attribute: PublicationKey,
   locale: string,
+  country: CountryNaming,
 ): string {
   const excerpt = publication.excerpts?.[attribute];
   if (excerpt) return excerpt;
@@ -239,7 +252,8 @@ function markedValue(
   const values = shown(
     Array.isArray(value) ? value : [value],
     attribute,
-    locale,
+    country,
+    publication.matchedCountries,
   );
 
   return Array.isArray(value)
@@ -261,6 +275,7 @@ function markedItems(
   publication: Publication,
   attribute: PublicationKey,
   locale: string,
+  country: CountryNaming,
 ): { value: string; label: string }[] {
   const values = (publication[attribute] ?? []) as string[];
   const excerpt = publication.excerpts?.[attribute];
@@ -271,8 +286,38 @@ function markedItems(
     label:
       marked?.length === values.length
         ? marked[index]
-        : shown([value], attribute, locale)[0],
+        : shown([value], attribute, country, publication.matchedCountries)[0],
   }));
+}
+
+/** How a publication's fields read to one reader — see `marking`. */
+type Marking = {
+  /** A whole field, its values joined as that reader's language joins a list. */
+  value(publication: Publication, attribute: PublicationKey): string;
+  /** Each of a field's values on its own, paired with how it reads. */
+  items(
+    publication: Publication,
+    attribute: PublicationKey,
+  ): { value: string; label: string }[];
+};
+
+/**
+ * How a publication reads to someone reading in `locale`, who names countries
+ * the way `country` does.
+ *
+ * Both of those are the reader's, not the record's: the same publication reads
+ * differently to someone reading in Portuguese. Taking them once and answering
+ * about any field is what keeps the language out of every call, and what lets
+ * something outside React — a Jotai atom, a spec — read a publication by saying
+ * which reader it is reading as.
+ */
+function marking(locale: string, country: CountryNaming): Marking {
+  return {
+    value: (publication, attribute) =>
+      markedValue(publication, attribute, locale, country),
+    items: (publication, attribute) =>
+      markedItems(publication, attribute, locale, country),
+  };
 }
 
 /**
@@ -369,8 +414,7 @@ const Publication = {
   autocomplete,
   define,
   errorCode,
-  markedValue,
-  markedItems,
+  marking,
   markedSources,
   empty,
   merged,
@@ -386,7 +430,7 @@ export {
   errorCode,
   empty,
   HISTORY_ACTIONS,
-  markedValue,
+  marking,
   merged,
   Publication,
 };
@@ -400,6 +444,7 @@ export type {
   PublicationHistoryAction,
   PublicationHistoryEntry,
   PublicationId,
+  Marking,
   Matched,
   PublicationKey,
   PublicationKeyType,
