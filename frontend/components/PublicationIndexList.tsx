@@ -2,10 +2,11 @@
 
 import {
   usePublication,
+  usePublicationMarking,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
 import { Publication, type PublicationKey } from "modules/publication/model";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { FC, MouseEvent } from "react";
 import { EmptySearchResults } from "./EmptySearchResults";
 import { Link } from "i18n/navigation";
@@ -17,20 +18,18 @@ const Marked: FC<{ publication: Publication; attribute: PublicationKey }> = ({
   publication,
   attribute,
 }) => {
-  const locale = useLocale();
+  const marked = usePublicationMarking();
 
   return (
     <span className="font-normal">
-      <Highlight>
-        {Publication.markedValue(publication, attribute, locale)}
-      </Highlight>
+      <Highlight>{marked.value(publication, attribute)}</Highlight>
     </span>
   );
 };
 
 const PublicationItem: FC<{ id: number }> = ({ id }) => {
   const t = useTranslations("publication");
-  const locale = useLocale();
+  const marked = usePublicationMarking();
   const publication = usePublication(id);
 
   return (
@@ -39,18 +38,12 @@ const PublicationItem: FC<{ id: number }> = ({ id }) => {
         <div className="p-2 space-y-4">
           <div>
             <span className="font-normal">
-              <Highlight>
-                {Publication.markedValue(publication, "title", locale)}
-              </Highlight>
+              <Highlight>{marked.value(publication, "title")}</Highlight>
             </span>
             <br className="sm:hidden" />
             <span className="whitespace-nowrap">
               {" "}
-              (
-              <Highlight>
-                {Publication.markedValue(publication, "authors", locale)}
-              </Highlight>
-              )
+              (<Highlight>{marked.value(publication, "authors")}</Highlight>)
             </span>
           </div>
           <div className="text-sm text-indigo-600">
@@ -71,7 +64,7 @@ const PublicationItem: FC<{ id: number }> = ({ id }) => {
         <div className="p-2">
           <div>{publication.year}</div>
           <div className="ml-1 text-xs text-center">
-            {Publication.markedValue(publication, "countries", locale)}
+            <Highlight>{marked.value(publication, "countries")}</Highlight>
           </div>
         </div>
       </div>

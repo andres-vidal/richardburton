@@ -1,12 +1,14 @@
 "use client";
 
+import { usePublicationMarking } from "modules/publication/hooks";
 import { Publication } from "modules/publication/model";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { merge, search } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { ChangeEventHandler, FC, useState } from "react";
 import useDebounce from "utils/useDebounce";
 import Button from "./Button";
+import Highlight from "./Highlight";
 import { Modal } from "./Modal";
 import SectionHeading from "./SectionHeading";
 
@@ -40,7 +42,7 @@ const DETAILED = Publication.ATTRIBUTES.filter(
  */
 const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
   const t = useTranslations("attributes");
-  const locale = useLocale();
+  const marked = usePublicationMarking();
 
   return (
     <div className="min-w-0">
@@ -49,12 +51,14 @@ const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
       </p>
       <dl className="mt-0.5 text-xs text-gray-600">
         {DETAILED.map((key) => {
-          const value = Publication.markedValue(p, key, locale);
+          const value = marked.value(p, key);
 
           return value ? (
             <div key={key} className="flex gap-1">
               <dt className="text-gray-600 shrink-0">{t(key)}:</dt>
-              <dd className="wrap-break-words">{value}</dd>
+              <dd className="wrap-break-words">
+                <Highlight>{value}</Highlight>
+              </dd>
             </div>
           ) : null;
         })}
