@@ -66,9 +66,6 @@ function Database({ index }: Props) {
     return () => router.push(`/publications/${id}?${query}`);
   }
 
-  // The record's own address, without the marks that make it an overlay. This is
-  // what a crawler follows and what the record names as its canonical URL; a
-  // reader clicking it is intercepted into the overlay just the same.
   const rowHref = (id: number) => `/publications/${id}`;
 
   return (

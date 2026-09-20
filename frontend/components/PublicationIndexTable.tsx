@@ -143,9 +143,6 @@ const Content: FC<{
   return (
     <div className="px-2 py-1 truncate">
       {isTitle && href ? (
-        // The href is the record's own address, which is what a crawler follows
-        // and what the record calls canonical. A reader's click is left to the
-        // row, which opens it over the database and remembers the search.
         <Link
           href={href(rowId)}
           onClick={(event) => event.preventDefault()}

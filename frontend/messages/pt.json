@@ -52,8 +52,6 @@
     "signInWithGoogle": "Entre com sua conta Google para acessar a plataforma.",
     "pendingTitle": "Sua conta está pronta",
     "pendingBrowse": "Explorar a base de dados",
-    "pendingRole": "Seu perfil é Leitor, que não tem nada a fazer por aqui — a base de dados é aberta a todos, com ou sem conta.",
-    "pendingUpgrade": "Um administrador pode lhe dar um perfil que adiciona e corrige publicações. Assim que fizer, entre novamente.",
     "errorTitle": "Erro",
     "tryAgain": "Tentar novamente",
     "googleButton": "Entrar com o Google",
@@ -75,7 +73,8 @@
         "title": "Algo deu errado...",
         "body": "<message>Parece que o aplicativo não está funcionando corretamente. Entre em contato com o suporte.</message>"
       }
-    }
+    },
+    "pendingBody": "<message>Seu perfil é Leitor, que não tem nada a fazer por aqui — a base de dados é aberta a todos, com ou sem conta.</message><suggestion>Um administrador pode lhe dar um perfil que adiciona e corrige publicações. Assim que fizer, entre novamente.</suggestion>"
   },
   "searchHelp": {
     "title": "Como pesquisar",

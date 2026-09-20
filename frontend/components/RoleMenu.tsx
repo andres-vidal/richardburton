@@ -28,8 +28,6 @@ const RoleMenu: FC<{
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  // An option carries the role as its id and its name as the label, so what is
-  // picked stays the stored value while what is read is the name.
   const options = ROLES.map((role) => ({ id: role, label: t(role) }));
 
   return (

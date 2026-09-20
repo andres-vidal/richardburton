@@ -122,10 +122,6 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
       );
     };
 
-  // A country is introduced by a preposition, and which one it takes depends on
-  // the name: "in Brazil" but "in the Netherlands", "no Brasil" but "nos Países
-  // Baixos". The preposition sits outside the link, so what is clickable is
-  // still the name alone.
   function Countries() {
     const items = Publication.markedItems(p, "countries", locale).map(
       (country) => ({

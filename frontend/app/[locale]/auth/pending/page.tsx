@@ -35,8 +35,10 @@ export default async function AccessPendingPage() {
             </Link>
           }
         >
-          <p className="text-lg">{t("pendingRole")}</p>
-          <p className="text-sm">{t("pendingUpgrade")}</p>
+          {t.rich("pendingBody", {
+            message: (chunks) => <p className="text-lg">{chunks}</p>,
+            suggestion: (chunks) => <p className="text-sm">{chunks}</p>,
+          })}
         </AuthCard>
       }
     />

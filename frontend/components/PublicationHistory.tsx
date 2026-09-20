@@ -69,8 +69,6 @@ const Entry: FC<{
   onUndo?: UndoHandler;
   variant?: Variant;
 }> = ({ entry, onUndo, variant = "card" }) => {
-  // A change names the attribute it is about; what that attribute is called is
-  // settled here.
   const attribute = useTranslations("attributes");
   const t = useTranslations("admin");
   const formatDate = useFormatDate();
