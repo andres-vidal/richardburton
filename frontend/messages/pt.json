@@ -11,6 +11,7 @@
     "switchTo": "Mudar para {language}"
   },
   "layout": {
+    "appName": "Plataforma Richard & Isabel Burton",
     "tagline": "Uma base de dados sobre a literatura brasileira em tradução",
     "learnMore": "Saiba Mais",
     "contactUs": "Fale Conosco",

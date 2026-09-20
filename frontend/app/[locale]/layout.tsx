@@ -8,8 +8,6 @@ import "styles/globals.css";
 import { getSession } from "app/session";
 import { Providers } from "./providers";
 
-const APP_NAME = "Richard & Isabel Burton Platform";
-
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
@@ -21,11 +19,14 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "metadata" });
+  const appName = (await getTranslations({ locale, namespace: "layout" }))(
+    "appName",
+  );
   const description = t("description");
 
   return {
     metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
-    title: APP_NAME,
+    title: appName,
     description,
     authors: [{ name: "Andrés Vidal" }],
     keywords: t("keywords")
@@ -42,14 +43,14 @@ export async function generateMetadata({
     },
     openGraph: {
       type: "website",
-      siteName: APP_NAME,
-      title: APP_NAME,
+      siteName: appName,
+      title: appName,
       description,
       locale: locale === "pt" ? "pt_BR" : "en_US",
       images: [
         {
           url: "/thumbnail.png",
-          alt: `${APP_NAME}: ${t("tagline")}`,
+          alt: `${appName}: ${t("tagline")}`,
           width: 1200,
           height: 627,
         },
@@ -57,9 +58,9 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title: APP_NAME,
+      title: appName,
       description,
-      images: [{ url: "/thumbnail.png", alt: `${APP_NAME}: ${t("tagline")}` }],
+      images: [{ url: "/thumbnail.png", alt: `${appName}: ${t("tagline")}` }],
     },
   };
 }

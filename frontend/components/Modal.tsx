@@ -12,6 +12,7 @@ import Logo from "assets/logo.svg";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useRouter } from "i18n/navigation";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   FC,
   MouseEvent,
@@ -69,18 +70,22 @@ function useURLQueryModal(param: string): URLModalInterface {
   return { isOpen: Boolean(value), value, open, close };
 }
 
-const Header: FC<{ onClose: Props["onClose"] }> = ({ onClose }) => (
-  <header className="flex sticky top-0 z-50 justify-between items-center text-white bg-indigo-700 sm:hidden">
-    <Logo className="p-2 h-11" />
-    <span className="font-normal">Richard & Isabel Burton Platform</span>
-    <button
-      className="flex z-50 justify-center items-center h-11 aspect-square"
-      onClick={onClose}
-    >
-      <CloseIcon className="h-8" />
-    </button>
-  </header>
-);
+const Header: FC<{ onClose: Props["onClose"] }> = ({ onClose }) => {
+  const t = useTranslations("layout");
+
+  return (
+    <header className="flex sticky top-0 z-50 justify-between items-center text-white bg-indigo-700 sm:hidden">
+      <Logo className="p-2 h-11" />
+      <span className="font-normal">{t("appName")}</span>
+      <button
+        className="flex z-50 justify-center items-center h-11 aspect-square"
+        onClick={onClose}
+      >
+        <CloseIcon className="h-8" />
+      </button>
+    </header>
+  );
+};
 
 interface Props extends PropsWithChildren {
   isOpen: boolean;

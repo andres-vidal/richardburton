@@ -28,8 +28,6 @@ type Props = {
   measure?: "full" | "aligned";
 };
 
-const HEADING_TEXT = "Richard & Isabel Burton Platform";
-
 // `title` is set per-route via the App Router `metadata` export, not here — the
 // prop is kept so existing callers still typecheck during the migration.
 const Layout: FC<Props> = ({
@@ -71,7 +69,7 @@ const Layout: FC<Props> = ({
             <Link href="/" className="px-3 py-0.5 rounded hover:bg-indigo-500">
               <span className="inline-flex items-center gap-3 py-1 pr-5 text-lg font-medium md:pr-0">
                 <Logo className="h-8" />
-                {HEADING_TEXT}
+                {t("appName")}
               </span>
             </Link>
             <hr className="w-0.5 mr-2 h-8 bg-current border-none hidden md:block" />

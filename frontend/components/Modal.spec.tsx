@@ -1,4 +1,5 @@
-import { act, fireEvent, render, renderHook } from "@testing-library/react";
+import { act, fireEvent, renderHook } from "@testing-library/react";
+import { render } from "utils/testRender";
 import { Key } from "app";
 import React from "react";
 import { Modal, useModal, useURLQueryModal } from "./Modal";

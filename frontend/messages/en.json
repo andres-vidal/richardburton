@@ -11,6 +11,7 @@
     "switchTo": "Switch to {language}"
   },
   "layout": {
+    "appName": "Richard & Isabel Burton Platform",
     "tagline": "A database about Brazilian literature in translation",
     "learnMore": "Learn More",
     "contactUs": "Contact Us",
