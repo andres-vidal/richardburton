@@ -29,7 +29,8 @@
     "status": "Situação"
   },
   "home": {
-    "count": "{count, plural, one {# publicação registrada até agora} other {# publicações registradas até agora}}"
+    "count": "{count, plural, one {# publicação registrada até agora} other {# publicações registradas até agora}}",
+    "admin": "Administração"
   },
   "search": {
     "placeholder": "Pesquise dados sobre a literatura brasileira em tradução",

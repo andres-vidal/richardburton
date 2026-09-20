@@ -46,7 +46,6 @@ function Database({ index }: Props) {
   const router = useRouter();
   const search = useSearchParams()?.get("search") ?? undefined;
   const t = useTranslations("home");
-  const admin = useTranslations("admin");
   const store = usePublicationStore();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
@@ -111,7 +110,7 @@ function Database({ index }: Props) {
               <PublicationDownload />
               <Link href="/admin">
                 <Button
-                  label={admin("admin")}
+                  label={t("admin")}
                   variant="outline"
                   Icon={DashboardIcon}
                   alignment="left"

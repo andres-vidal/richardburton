@@ -29,7 +29,8 @@
     "status": "Status"
   },
   "home": {
-    "count": "{count, plural, one {# publication registered so far} other {# publications registered so far}}"
+    "count": "{count, plural, one {# publication registered so far} other {# publications registered so far}}",
+    "admin": "Admin"
   },
   "search": {
     "placeholder": "Browse data about Brazilian literature in translation",
