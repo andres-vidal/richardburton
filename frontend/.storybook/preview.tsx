@@ -5,9 +5,28 @@ import messages from "../messages/en.json";
 import { NextIntlClientProvider } from "next-intl";
 import { PublicationStoreProvider } from "modules/publication/workspace";
 import { store } from "modules/store";
+import { Country, rememberCountries } from "modules/country";
 
 import "../styles/globals.css";
 import "./preview.css";
+
+// The server is the only place countries are named, and there is no server
+// here, so stories are given a few and the field is answered from them. Which
+// countries a term finds is settled in the Country specs, not in a story.
+const COUNTRIES = [
+  { id: "BR", label: "Brazil" },
+  { id: "CA", label: "Canada" },
+  { id: "NL", label: "Netherlands", article: "the" },
+  { id: "US", label: "United States", article: "the" },
+];
+
+rememberCountries(routing.defaultLocale, COUNTRIES);
+
+Country.REMOTE.all = async () => COUNTRIES;
+Country.REMOTE.search = async (term) =>
+  COUNTRIES.filter((country) =>
+    country.label.toLowerCase().includes(term.toLowerCase()),
+  );
 
 const preview: Preview = {
   decorators: [

@@ -1,7 +1,13 @@
 import { fireEvent, render, screen } from "utils/testRender";
 
 import { routing } from "i18n/routing";
-import { countryName } from "modules/country";
+import { countryName, rememberCountries } from "modules/country";
+
+// The server names countries, and there is none here.
+rememberCountries(routing.defaultLocale, [
+  { id: "BR", label: "Brazil" },
+  { id: "US", label: "United States", article: "the" },
+]);
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
 
 // The enum-array cell editor (countries) stores raw ids (e.g. "BR,US") but shows
