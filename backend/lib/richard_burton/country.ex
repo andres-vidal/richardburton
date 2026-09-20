@@ -91,12 +91,10 @@ defmodule RichardBurton.Country do
   The ISO alpha-2 code a value names, or nil where it names no country.
 
   The value has to be a complete name the country goes by: either ISO code, the
-  name in either language, or one of the other names readers use. A name only
-  begun returns nil, as does one two countries share.
+  name in either language, or one of the other names readers use.
 
-  Stricter than the search, which offers what a fragment could still become.
-  This decides where a record is filed, and a guess files it under a country
-  nobody chose.
+  Stricter than the search, which offers what a fragment could still become,
+  because this decides where a record is filed.
 
   ## Examples
 
@@ -152,8 +150,7 @@ defmodule RichardBurton.Country do
   A complete name answers alone; failing that, every name the value begins. So
   `country:US` is the United States, not every country whose name starts "us".
 
-  A value naming nothing answers with nothing — a filter no row satisfies, not
-  one every row does.
+  An empty list is a filter no row satisfies, not the absence of one.
 
   ## Examples
 
@@ -194,8 +191,8 @@ defmodule RichardBurton.Country do
   The codes of the countries a term names outright.
 
   A name counts when its words appear in the term consecutively, case, accents
-  and punctuation folded away. Consecutive, not merely present, so that
-  "United States Kingdom" names the United States and not the United Kingdom.
+  and punctuation folded away — so "United States Kingdom" names the United
+  States and not the United Kingdom.
 
   A code counts when the term writes it in capitals, or is that code and nothing
   else. Two-letter codes spell common words, and the capitals are what separate
@@ -224,9 +221,8 @@ defmodule RichardBurton.Country do
   @doc """
   The codes of the countries a term reaches.
 
-  Whatever `named_in/1` finds, if anything. Failing that, every country the whole
-  term begins the name of, so "United" reaches both the United States and the
-  United Kingdom.
+  Whatever `named_in/1` finds. Failing that, every country the whole term begins
+  the name of, so "United" reaches both the United States and the United Kingdom.
 
   Names first, so a term that says which country it means does not also reach the
   ones it only resembles.
