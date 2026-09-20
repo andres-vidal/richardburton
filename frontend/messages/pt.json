@@ -213,7 +213,10 @@
     "byActorOn": "{actor, select, system {pelo sistema} other {por {actor}}} · {date}",
     "deletedOn": "Excluída em {date}",
     "newPublications": "{count, plural, one {# nova publicação} other {# novas publicações}}",
-    "recordLine": "{authors} · {year} · {publishers}"
+    "recordLine": "{authors} · {year} · {publishers}",
+    "redo": "Refazer",
+    "undoHint": "Desfaz sua última alteração. As alterações de outras pessoas não são afetadas.",
+    "redoHint": "Refaz a alteração desfeita."
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",

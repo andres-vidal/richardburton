@@ -2,6 +2,8 @@ import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
 import type { Store } from "modules/store";
+import type * as Y from "yjs";
+import * as Doc from "./doc";
 import {
   ATTRIBUTES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
@@ -59,6 +61,73 @@ function randomUuid(): string {
     group(8, 10),
     group(10, 16),
   ].join("-");
+}
+
+/**
+ * The document a workspace's content lives in, and the undo that walks back
+ * this person's own edits to it.
+ */
+type WorkspaceDoc = { doc: Y.Doc; undo: Y.UndoManager };
+
+/**
+ * Which store holds which document.
+ *
+ * A store is the surface doing the work, and only the bulk workspace works in a
+ * shared document — the edit modal over the database keeps its own store and
+ * its base-and-override overlay. Holding the pairing here is what lets every
+ * action keep the signature it had: the action asks whether this store has a
+ * document rather than being handed one.
+ */
+const documents = new WeakMap<Store, WorkspaceDoc>();
+
+/** The document this store works in, or nothing where it works in atoms alone. */
+function workspaceDoc(store: Store): WorkspaceDoc | undefined {
+  return documents.get(store);
+}
+
+/**
+ * Put this store's content in a document, and keep the atoms reading it.
+ *
+ * One observer writes the document into the atoms, and nothing writes back, so
+ * there is no echo to break. Everything downstream is untouched: the families,
+ * the cells and the marking hooks go on reading atoms exactly as they did.
+ *
+ * Returns the way to take it apart again.
+ */
+function openWorkspace(store: Store, doc: Y.Doc): () => void {
+  const undo = Doc.undoManager(doc);
+  documents.set(store, { doc, undo });
+
+  const stop = Doc.observe(doc, {
+    onRows: (changed) =>
+      changed.forEach((id) => {
+        const row = Doc.readRow(doc, id);
+        if (row) store.set(publicationFamily(id), row);
+      }),
+    onOrder: () => store.set(publicationIdsAtom, Doc.keys(doc)),
+  });
+
+  // Whatever the document already holds, in case it was restored from disk or
+  // arrived from elsewhere before anything subscribed.
+  applyDoc(store, doc);
+
+  return () => {
+    stop();
+    undo.destroy();
+    documents.delete(store);
+  };
+}
+
+/** Read the whole document into the atoms. */
+function applyDoc(store: Store, doc: Y.Doc): void {
+  const ids = Doc.keys(doc);
+
+  ids.forEach((id) => {
+    const row = Doc.readRow(doc, id);
+    if (row) store.set(publicationFamily(id), row);
+  });
+
+  store.set(publicationIdsAtom, ids);
 }
 
 // --- Base atoms -------------------------------------------------------------
@@ -141,10 +210,6 @@ const discardedIdsAtom = atom((get) =>
   get(publicationIdsAtom)?.filter((id) => get(discardedFamily(id))),
 );
 
-const overriddenIdsAtom = atom((get) =>
-  get(visibleIdsAtom)?.filter((id) => get(overrideFamily(id))),
-);
-
 const validIdsAtom = atom((get) =>
   get(publicationIdsAtom)
     ?.filter((id) => !get(discardedFamily(id)))
@@ -164,7 +229,6 @@ const rowNumberFamily = atomFamily((id: PublicationId) =>
   atom<number>((get) => (get(visibleIdsAtom)?.indexOf(id) ?? -1) + 1),
 );
 const discardedCountAtom = atom((get) => get(discardedIdsAtom)?.length || 0);
-const overriddenCountAtom = atom((get) => get(overriddenIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
 
@@ -436,14 +500,31 @@ function appendIndex(store: Store, entries: Publication[]): void {
 }
 
 function setAll(store: Store, entries: PublicationEntry[]): void {
+  const workspace = workspaceDoc(store);
+
+  // Errors are never shared: they are what this person's copy was told when it
+  // last asked, and they stay in atoms whether the content is in a document or
+  // not.
+  entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
+
+  if (workspace) {
+    Doc.setAll(workspace.doc, entries);
+    workspace.undo.stopCapturing();
+
+    // Replacing an empty working set with another changes nothing, so the
+    // observer has nothing to report. The order is read off the document here
+    // rather than waited for.
+    store.set(publicationIdsAtom, Doc.keys(workspace.doc));
+    return;
+  }
+
   store.set(
     publicationIdsAtom,
     entries.map(({ id }) => id),
   );
-  entries.forEach(({ id, publication, errors }) => {
-    store.set(publicationFamily(id), publication);
-    store.set(errorFamily(id), errors);
-  });
+  entries.forEach(({ id, publication }) =>
+    store.set(publicationFamily(id), publication),
+  );
 }
 
 function setErrors(store: Store, entries: PublicationEntry[]): void {
@@ -468,6 +549,16 @@ function overrideField<K extends PublicationKey>(
   attribute: K,
   value: Publication[K],
 ): void {
+  const workspace = workspaceDoc(store);
+
+  // The draft row is not in the document: it is a row nobody has added yet, and
+  // typing into it should not reach the people sharing the workspace. It is
+  // buffered locally until `addNew` makes it a row.
+  if (workspace && Doc.holds(workspace.doc, id)) {
+    Doc.setField(workspace.doc, id, attribute, value);
+    return;
+  }
+
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
 }
@@ -479,6 +570,13 @@ function overrideSources(
   id: PublicationId,
   sources: string[],
 ): void {
+  const workspace = workspaceDoc(store);
+
+  if (workspace && Doc.holds(workspace.doc, id)) {
+    Doc.setSources(workspace.doc, id, sources);
+    return;
+  }
+
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, sources });
 }
@@ -504,9 +602,17 @@ function addNew(store: Store): PublicationId {
 
   const id = createId();
   const draft = store.get(visiblePublicationFamily(DRAFT_ID));
+  const workspace = workspaceDoc(store);
 
-  store.set(publicationIdsAtom, [...ids, id]);
-  store.set(publicationFamily(id), draft);
+  if (workspace) {
+    Doc.addRow(workspace.doc, id, draft);
+    // Adding a row and typing into it are different steps to walk back.
+    workspace.undo.stopCapturing();
+  } else {
+    store.set(publicationIdsAtom, [...ids, id]);
+    store.set(publicationFamily(id), draft);
+  }
+
   store.set(overrideFamily(DRAFT_ID), RESET);
 
   return id;
@@ -520,21 +626,40 @@ function duplicate(
   const ids = store.get(publicationIdsAtom);
   if (!ids) throw "Can not duplicate publications: entries not loaded.";
 
+  const workspace = workspaceDoc(store);
   const newIds: PublicationId[] = [];
+
   const orderedIds = ids.reduce<PublicationId[]>((acc, current) => {
     if (duplicateIds.has(current)) {
       const newId = createId();
       newIds.push(newId);
-      store.set(
-        publicationFamily(newId),
-        store.get(publicationFamily(current)),
-      );
+
+      if (workspace) {
+        Doc.addRowAfter(
+          workspace.doc,
+          current,
+          newId,
+          store.get(visiblePublicationFamily(current)),
+        );
+      } else {
+        store.set(
+          publicationFamily(newId),
+          store.get(publicationFamily(current)),
+        );
+      }
+
       return [...acc, current, newId];
     }
     return [...acc, current];
   }, []);
 
-  store.set(publicationIdsAtom, orderedIds);
+  if (workspace) {
+    // The document already carries the order, and the observer has applied it.
+    workspace.undo.stopCapturing();
+  } else {
+    store.set(publicationIdsAtom, orderedIds);
+  }
+
   return newIds;
 }
 
@@ -575,8 +700,13 @@ function resetDiscarded(store: Store): void {
  * from the workspace's `setDiscarded`, which only hides rows in memory.
  */
 function removePublication(store: Store, id: PublicationId): void {
+  const workspace = workspaceDoc(store);
   const ids = store.get(publicationIdsAtom);
-  if (ids) {
+
+  if (workspace) {
+    Doc.removeRow(workspace.doc, id);
+    workspace.undo.stopCapturing();
+  } else if (ids) {
     store.set(
       publicationIdsAtom,
       ids.filter((current) => current !== id),
@@ -594,12 +724,6 @@ function removePublication(store: Store, id: PublicationId): void {
   if (total !== null) {
     store.set(totalIndexCountAtom, total - 1);
   }
-}
-
-function resetOverridden(store: Store): void {
-  store
-    .get(publicationIdsAtom)
-    ?.forEach((id) => store.set(overrideFamily(id), RESET));
 }
 
 function resetAttributes(store: Store): void {
@@ -648,8 +772,6 @@ export {
   matchedAtom,
   isValidatingAtom,
   lastValidatedFamily,
-  overriddenCountAtom,
-  overriddenIdsAtom,
   overrideFamily,
   overrideField,
   overrideSources,
@@ -665,7 +787,7 @@ export {
   resetAll,
   resetAttributes,
   resetDiscarded,
-  resetOverridden,
+  openWorkspace,
   rowNumberFamily,
   setAll,
   setAttributesVisible,
@@ -684,5 +806,6 @@ export {
   visibleCountAtom,
   visibleIdsAtom,
   visiblePublicationFamily,
+  workspaceDoc,
 };
 export type { PublicationIndex };

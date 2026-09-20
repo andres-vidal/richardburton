@@ -24,8 +24,6 @@ import {
   focusedRowIdAtom,
   hiddenAttributesAtom,
   isValidFamily,
-  overriddenCountAtom,
-  overriddenIdsAtom,
   overrideFamily,
   overrideField,
   publicationFamily,
@@ -33,7 +31,6 @@ import {
   resetAll,
   resetAttributes,
   resetDiscarded,
-  resetOverridden,
   setAll,
   setAttributesVisible,
   setDiscarded,
@@ -225,35 +222,22 @@ describe("overrides", () => {
     );
     // ...but the underlying publication stays as loaded...
     expect(store.get(publicationFamily(a)).title).toBe("Dom Casmurro");
-    // ...and the row is now flagged as overridden.
-    expect(store.get(overriddenIdsAtom)).toEqual([a]);
-    expect(store.get(overriddenCountAtom)).toBe(1);
-  });
-
-  test("resetOverridden drops pending edits", () => {
-    const a = createId();
-    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
-    overrideField(store, a, "title", "changed");
-    expect(store.get(overriddenCountAtom)).toBe(1);
-
-    resetOverridden(store);
-
-    expect(store.get(overriddenCountAtom)).toBe(0);
-    expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
-      "Dom Casmurro",
-    );
+    // ...and the overlay is what holds the difference.
+    expect(store.get(overrideFamily(a))).toMatchObject({
+      title: "Dom Casmurro (rev.)",
+    });
   });
 
   test("discardEdit drops one row's pending edits and errors", () => {
     const a = createId();
     setAll(store, [entry(a, { title: "Dom Casmurro" }, "conflict")]);
     overrideField(store, a, "title", "changed");
-    expect(store.get(overriddenCountAtom)).toBe(1);
+    expect(store.get(overrideFamily(a))).toBeTruthy();
     expect(store.get(isValidFamily(a))).toBe(false);
 
     discardEdit(store, a);
 
-    expect(store.get(overriddenCountAtom)).toBe(0);
+    expect(store.get(overrideFamily(a))).toBeUndefined();
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
       "Dom Casmurro",
     );

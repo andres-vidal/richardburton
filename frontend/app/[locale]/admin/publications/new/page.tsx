@@ -13,16 +13,18 @@ import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
 import PublicationWorkspace from "components/PublicationWorkspace";
 import ResetDiscarded from "components/ResetDiscarded";
-import ResetOverridden from "components/ResetOverridden";
+import WorkspaceUndo from "components/WorkspaceUndo";
 import RowIdToggle from "components/RowIdToggle";
 import { Publication } from "modules/publication/model";
-import { setAll, setAttributesVisible } from "modules/publication/store";
+import { setAttributesVisible } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
+import { WorkspaceDocument } from "modules/publication/workspace-document";
 import type { Store } from "modules/store";
 import { useIsSelectionEmpty } from "modules/selection";
 
-function startEmpty(store: Store) {
-  setAll(store, []);
+// Which columns are on screen is this person’s own, not part of the content,
+// so it is set here rather than restored with the rows.
+function showEveryColumn(store: Store) {
   setAttributesVisible(store, Publication.ATTRIBUTES);
 }
 
@@ -52,7 +54,7 @@ function NewPublications() {
               <PublicationUpload />
               <PublicationCounter />
               <PublicationErrorCounter />
-              <ResetOverridden />
+              <WorkspaceUndo />
               <ResetDiscarded />
               <RowIdToggle />
               <PublicationSubmit />
@@ -72,8 +74,10 @@ function NewPublications() {
 
 export default function NewPublicationsPage() {
   return (
-    <PublicationStoreProvider initialize={startEmpty}>
-      <NewPublications />
+    <PublicationStoreProvider initialize={showEveryColumn}>
+      <WorkspaceDocument>
+        <NewPublications />
+      </WorkspaceDocument>
     </PublicationStoreProvider>
   );
 }

@@ -17,8 +17,6 @@ import {
   isValidFamily,
   matchedAtom,
   isValidatingAtom,
-  overriddenCountAtom,
-  overriddenIdsAtom,
   overrideFamily,
   publicationOrNullFamily,
   publicationSourcesFamily,
@@ -46,10 +44,6 @@ const NULL_PUBLICATION = atom<Publication | null>(null);
 
 function useVisiblePublicationIds() {
   return useAtomValue(visibleIdsAtom);
-}
-
-function useOverriddenPublicationIds() {
-  return useAtomValue(overriddenIdsAtom);
 }
 
 /** A publication with pending edits merged in (base ⊕ overrides). */
@@ -167,10 +161,6 @@ function useDiscardedPublicationCount() {
   return useAtomValue(discardedCountAtom);
 }
 
-function useOverriddenPublicationCount() {
-  return useAtomValue(overriddenCountAtom);
-}
-
 function useTotalPublicationCount() {
   return useAtomValue(totalCountAtom);
 }
@@ -225,8 +215,6 @@ export {
   useIsPublicationValid,
   useMatched,
   useIsValidating,
-  useOverriddenPublicationCount,
-  useOverriddenPublicationIds,
   usePublication,
   usePublicationError,
   usePublicationErrorDescription,

@@ -213,7 +213,10 @@
     "byActorOn": "{actor, select, system {by the system} other {by {actor}}} · {date}",
     "deletedOn": "Deleted {date}",
     "newPublications": "{count, plural, one {# new publication} other {# new publications}}",
-    "recordLine": "{authors} · {year} · {publishers}"
+    "recordLine": "{authors} · {year} · {publishers}",
+    "redo": "Redo",
+    "undoHint": "Walk back your last change. Edits made by others are left alone.",
+    "redoHint": "Put back the change you walked back."
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
