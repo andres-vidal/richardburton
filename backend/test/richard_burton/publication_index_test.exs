@@ -666,7 +666,7 @@ defmodule RichardBurton.Publication.IndexTest do
       term
       |> Publication.Index.search_order()
       |> Publication.Index.details(term)
-      |> Map.new(&{&1.title, &1.matched_countries})
+      |> Map.new(fn row -> {row.title, Enum.reject(row.marked.countries, &is_nil/1)} end)
     end
 
     test "a country's name reports that country" do
@@ -728,7 +728,7 @@ defmodule RichardBurton.Publication.IndexTest do
         |> Enum.take(1)
         |> Publication.Index.details()
 
-      assert row.matched_countries == nil
+      assert row.marked == nil
     end
   end
 

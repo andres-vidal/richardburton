@@ -103,7 +103,7 @@ describe("markedValue", () => {
   test("marks the country the index says answered the search", () => {
     expect(
       markedValue(
-        holding({ countries: [first], matchedCountries: [first] }),
+        holding({ countries: [first], marked: { countries: [first] } }),
         "countries",
       ),
     ).toBe(`[[${COUNTRIES[first]}]]`);
@@ -112,7 +112,10 @@ describe("markedValue", () => {
   test("leaves the countries beside it unmarked", () => {
     expect(
       markedValue(
-        holding({ countries: [first, second], matchedCountries: [second] }),
+        holding({
+          countries: [first, second],
+          marked: { countries: [null, second] },
+        }),
         "countries",
       ),
     ).toBe(`${COUNTRIES[first]}, [[${COUNTRIES[second]}]]`);
@@ -121,7 +124,7 @@ describe("markedValue", () => {
   test("marks nothing when the search answered on another field", () => {
     expect(
       markedValue(
-        holding({ countries: [first], matchedCountries: [] }),
+        holding({ countries: [first], marked: { countries: [null] } }),
         "countries",
       ),
     ).toBe(COUNTRIES[first]);
@@ -147,7 +150,10 @@ describe("markedItems", () => {
   test("marks only the country that answered, keeping its code addressable", () => {
     expect(
       markedItems(
-        holding({ countries: [first, second], matchedCountries: [first] }),
+        holding({
+          countries: [first, second],
+          marked: { countries: [first, null] },
+        }),
         "countries",
       ),
     ).toEqual([

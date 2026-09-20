@@ -22,18 +22,19 @@ type Publication = {
   // wrapped in `[[ ]]`. Only present on search results, and null for any field
   // the search did not match. `countries` and `year` never carry one.
   excerpts?: Partial<Record<PublicationKey | "sources", string | null>>;
-  // Each source with its matched words wrapped, or null where the search did
-  // not match that one. Only present on a record read with a search.
-  markedSources?: (string | null)[];
-  // Which of the row's countries the search matched, as codes. Only on a record
-  // read with a search. A set, not a list lined up with `countries`, and with no
-  // marked text: what matched is often not what is shown.
-  matchedCountries?: string[];
+  // What matched, value by value: a list lined up with the field's own, holding
+  // each value's matching text and null where that value did not match. Only
+  // present on a record read with a search, and `sources` only where the whole
+  // provenance list is shown.
+  //
+  // `countries` holds the matched country's code rather than marked text, since
+  // naming a country needs a locale the index does not have.
+  marked?: Partial<Record<PublicationListKey | "sources", (string | null)[]>>;
 };
 
 type PublicationKey = keyof Omit<
   Publication,
-  "id" | "sources" | "excerpts" | "markedSources" | "matchedCountries"
+  "id" | "sources" | "excerpts" | "marked"
 >;
 
 /**
@@ -201,33 +202,35 @@ function merged(winner: Publication, losers: Publication[]): Publication {
 }
 
 /**
- * An attribute's values as a reader should see them: country codes become
- * country names, and anything else is its own text. Countries are the only
- * attribute a publication stores as something other than what is read.
+ * An attribute's values as a reader sees them: each value's marked text where
+ * the search matched it, and the value itself where it did not.
  *
  * Takes unknowns rather than strings because the wire does not always agree
  * with the model. `year` is an integer on the backend and text in a form, so it
  * arrives here as either.
  *
- * A country listed in `matched` gets its whole name wrapped in the index's own
- * `[[ ]]`. The whole name, because what matched is often not what is displayed:
- * "Holanda" matches a name neither language shows. The index decides which
- * countries matched; nothing here works that out.
+ * Countries are the one attribute stored as something other than what is read,
+ * and `marked.countries` holds a code rather than marked text, so their names
+ * are wrapped here. The whole name, because what matched is often not what is
+ * displayed: "Holanda" matches a name neither language shows. This is the only
+ * place that knows countries differ.
  */
 function shown(
   values: unknown[],
   attribute: PublicationKey,
   country: CountryNaming,
-  matched?: string[],
+  marked?: Publication["marked"],
 ): string[] {
-  const text = values.map((value) => String(value ?? ""));
+  const per = marked?.[attribute as PublicationListKey];
 
-  if (attribute !== "countries") return text;
+  if (attribute !== "countries") {
+    return values.map((value, index) => per?.[index] ?? String(value ?? ""));
+  }
 
-  return text.map((code) => {
-    const name = country.name(code);
+  return values.map((value, index) => {
+    const name = country.name(String(value ?? ""));
 
-    return matched?.includes(code) ? `[[${name}]]` : name;
+    return per?.[index] ? `[[${name}]]` : name;
   });
 }
 
@@ -250,7 +253,7 @@ function markedValue(
     Array.isArray(value) ? value : [value],
     attribute,
     country,
-    publication.matchedCountries,
+    publication.marked,
   );
 
   return Array.isArray(value)
@@ -264,9 +267,11 @@ function markedValue(
  * Each value a field holds, paired with that value as the index marked it. The
  * value is what a term would search for, the label what is shown.
  *
- * The excerpt covers the whole field as one comma-joined string, so splitting it
- * lines the marks back up with the values. If the two disagree on how many there
- * are, every value stands unmarked rather than marked in the wrong places.
+ * The index marks each value separately, so a value carrying a comma is no
+ * trouble. A value the search did not match reads as it is stored.
+ *
+ * Countries are the exception: `marked.countries` holds a code rather than
+ * marked text, so `shown` is what wraps their names.
  */
 function markedItems(
   publication: Publication,
@@ -275,16 +280,9 @@ function markedItems(
   country: CountryNaming,
 ): { value: string; label: string }[] {
   const values = (publication[attribute] ?? []) as string[];
-  const excerpt = publication.excerpts?.[attribute];
-  const marked = excerpt?.split(",").map((one) => one.trim());
+  const labels = shown(values, attribute, country, publication.marked);
 
-  return values.map((value, index) => ({
-    value,
-    label:
-      marked?.length === values.length
-        ? marked[index]
-        : shown([value], attribute, country, publication.matchedCountries)[0],
-  }));
+  return values.map((value, index) => ({ value, label: labels[index] }));
 }
 
 /** How a publication's fields read to one reader — see `marking`. */
@@ -320,10 +318,9 @@ function marking(locale: string, country: CountryNaming): Marking {
  */
 function markedSources(publication: Publication): string[] {
   const sources = publication.sources ?? [];
+  const marked = publication.marked?.sources;
 
-  return sources.map(
-    (source, index) => publication.markedSources?.[index] ?? source,
-  );
+  return sources.map((source, index) => marked?.[index] ?? source);
 }
 
 /**
