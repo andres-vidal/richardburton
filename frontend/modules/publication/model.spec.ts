@@ -10,7 +10,7 @@ import {
 import type { Publication } from "./model";
 import { Country } from "modules/country";
 import { routing } from "i18n/routing";
-import { messages } from "utils/messages";
+import { messages } from "utils/testMessages";
 
 vi.mock("modules/country", async (importOriginal) => ({
   ...(await importOriginal<typeof import("modules/country")>()),
