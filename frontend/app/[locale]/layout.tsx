@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { ReactNode } from "react";
 import "styles/globals.css";
 import { getSession } from "app/session";
+import { appUrl } from "modules/app-url";
 import { Providers } from "./providers";
 
 export function generateStaticParams() {
@@ -25,7 +26,7 @@ export async function generateMetadata({
   const description = t("description");
 
   return {
-    metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
+    metadataBase: new URL(appUrl()),
     title: appName,
     description,
     authors: [{ name: "Andrés Vidal" }],

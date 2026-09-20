@@ -1,17 +1,18 @@
 import { routing } from "i18n/routing";
 import type { MetadataRoute } from "next";
+import { appUrl } from "modules/app-url";
 import { readIndex } from "./publications/read";
-
-const BASE = process.env.APP_URL ?? "http://localhost:3000";
 
 /** One entry per locale, each naming the others so they read as translations. */
 function entry(path: string, priority: number): MetadataRoute.Sitemap {
+  const base = appUrl();
+
   return routing.locales.map((locale) => ({
-    url: `${BASE}/${locale}${path}`,
+    url: `${base}/${locale}${path}`,
     priority,
     alternates: {
       languages: Object.fromEntries(
-        routing.locales.map((other) => [other, `${BASE}/${other}${path}`]),
+        routing.locales.map((other) => [other, `${base}/${other}${path}`]),
       ),
     },
   }));

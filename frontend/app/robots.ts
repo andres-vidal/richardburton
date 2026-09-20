@@ -1,6 +1,9 @@
+import { appUrl } from "modules/app-url";
 import type { MetadataRoute } from "next";
 
-const BASE = process.env.APP_URL ?? "http://localhost:3000";
+// Where the app answers is the deployment's to say, so this is written where
+// it runs rather than baked in where it is built.
+export const dynamic = "force-dynamic";
 
 /**
  * The database is open access and meant to be found, so everything is
@@ -14,6 +17,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/api/", "/*/admin/", "/*/auth/"],
     },
-    sitemap: `${BASE}/sitemap.xml`,
+    sitemap: `${appUrl()}/sitemap.xml`,
   };
 }
