@@ -87,14 +87,14 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
   const marked = usePublicationMarking();
 
   return (
-    <div className="flex flex-col w-full text-2xl font-normal sm:gap-2 sm:items-center sm:flex-row">
+    <div className="flex flex-col w-full min-w-0 text-2xl font-normal sm:gap-2 sm:items-center sm:flex-row">
       <Tooltip variant="info" message={t("translationTitle")}>
-        <span className="w-full truncate sm:w-min whitespace-nowrap">
+        <span className="w-full min-w-0 truncate">
           <Highlight>{marked.value(publication, "title")}</Highlight>
         </span>
       </Tooltip>
       <Tooltip variant="info" message={t("whoTranslated")}>
-        <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl whitespace-nowrap">
+        <span className="text-lg font-light tracking-tighter text-indigo-500 truncate sm:text-xl sm:shrink-0">
           (<Highlight>{marked.value(publication, "authors")}</Highlight>)
         </span>
       </Tooltip>
