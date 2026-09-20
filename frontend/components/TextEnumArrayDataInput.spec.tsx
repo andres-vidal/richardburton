@@ -1,16 +1,6 @@
 import { fireEvent, render, screen } from "utils/testRender";
 
-import { routing } from "i18n/routing";
-import { countryName, setCountryNames } from "modules/country";
-
-// The server names countries, and there is none here.
-setCountryNames(
-  [
-    { id: "BR", label: "Brazil" },
-    { id: "US", label: "United States", article: "the" },
-  ],
-  routing.defaultLocale,
-);
+import { messages } from "utils/messages";
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
 
 // The enum-array cell editor (countries) stores raw ids (e.g. "BR,US") but shows
@@ -25,8 +15,8 @@ describe("TextEnumArrayDataInput", () => {
     "aria-label": "Countries",
   } as const;
 
-  const brLabel = countryName("BR", routing.defaultLocale)!;
-  const usLabel = countryName("US", routing.defaultLocale)!;
+  const brLabel = messages.countryNames.BR;
+  const usLabel = messages.countryNames.US;
 
   test("renders each id as its human label", () => {
     render(

@@ -1,6 +1,6 @@
 "use client";
 
-import { countryName } from "modules/country";
+import { useCountryNaming } from "modules/country-names";
 import { Publication } from "modules/publication/model";
 import pDebounce from "p-debounce";
 import { useLocale } from "next-intl";
@@ -23,9 +23,11 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
     ref,
   ) {
     const locale = useLocale();
+    const country = useCountryNaming();
 
     const toEnum = useCallback(
-      (id: string): Enum => ({ id, label: countryName(id, locale) ?? id }),
+      (id: string): Enum => ({ id, label: country.name(id) }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [locale],
     );
 

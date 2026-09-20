@@ -2,14 +2,14 @@
 
 import RestoreTrashIcon from "assets/restore-trash.svg";
 import {
-  Publication,
   type DeletedPublicationEntry,
   type PublicationId,
 } from "modules/publication/model";
 import { useFormatDate } from "modules/dates";
+import { usePublicationMarking } from "modules/publication/hooks";
 import { restore } from "modules/publication/remote";
 import { useRouter } from "i18n/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
 
@@ -27,7 +27,7 @@ const DeletedPublications: FC<{
   onRestore?: (id: PublicationId) => Promise<boolean>;
 }> = ({ entries, onRestore = restore }) => {
   const t = useTranslations("admin");
-  const locale = useLocale();
+  const marked = usePublicationMarking();
   const formatDate = useFormatDate();
   const [restoringId, setRestoringId] = useState<PublicationId>();
   const router = useRouter();
@@ -58,17 +58,9 @@ const DeletedPublications: FC<{
                 </span>
                 <span className="text-sm text-gray-600 truncate">
                   {t("recordLine", {
-                    authors: Publication.markedValue(
-                      publication,
-                      "authors",
-                      locale,
-                    ),
+                    authors: marked.value(publication, "authors"),
                     year: publication.year,
-                    publishers: Publication.markedValue(
-                      publication,
-                      "publishers",
-                      locale,
-                    ),
+                    publishers: marked.value(publication, "publishers"),
                   })}
                 </span>
                 <span className="text-xs text-gray-500">

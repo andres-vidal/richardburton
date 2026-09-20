@@ -6,7 +6,6 @@ import { notFound } from "next/navigation";
 import { ReactNode } from "react";
 import "styles/globals.css";
 import { getSession } from "app/session";
-import { readCountries } from "app/countries/read";
 import { appUrl } from "modules/app-url";
 import { Providers } from "./providers";
 
@@ -88,16 +87,13 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale as Locale);
 
-  const [session, countries] = await Promise.all([
-    getSession(),
-    readCountries(locale),
-  ]);
+  const session = await getSession();
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body>
         <NextIntlClientProvider>
-          <Providers session={session} countries={countries} locale={locale}>
+          <Providers session={session}>
             {children}
             {modal}
           </Providers>

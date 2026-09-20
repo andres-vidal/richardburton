@@ -2,6 +2,7 @@
 
 import type { Distinction, DuplicateCluster } from "app/publications/read";
 import Button from "components/Button";
+import { usePublicationMarking } from "modules/publication/hooks";
 import { Publication } from "modules/publication/model";
 import { distinguish, merge, reconsider } from "modules/publication/remote";
 import {
@@ -9,7 +10,7 @@ import {
   usePublicationStore,
 } from "modules/publication/workspace";
 import { Link } from "i18n/navigation";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "i18n/navigation";
 import { FC, KeyboardEvent, useEffect, useRef, useState } from "react";
 
@@ -159,7 +160,7 @@ const Candidate: FC<{
 }> = ({ publication: p, kept = false, onKeep }) => {
   const t = useTranslations("duplicates");
   const attribute = useTranslations("attributes");
-  const locale = useLocale();
+  const marked = usePublicationMarking();
 
   return (
     <label
@@ -183,9 +184,7 @@ const Candidate: FC<{
             {p.title}{" "}
             <span className="font-normal text-gray-600">({p.year})</span>
           </p>
-          <p className="text-xs text-gray-600">
-            {Publication.markedValue(p, "authors", locale)}
-          </p>
+          <p className="text-xs text-gray-600">{marked.value(p, "authors")}</p>
         </div>
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
@@ -193,17 +192,13 @@ const Candidate: FC<{
         <dd className="text-gray-800">
           {t("originalLine", {
             title: p.originalTitle,
-            authors: Publication.markedValue(p, "originalAuthors", locale),
+            authors: marked.value(p, "originalAuthors"),
           })}
         </dd>
         <dt className="text-gray-600">{attribute("countries")}</dt>
-        <dd className="text-gray-800">
-          {Publication.markedValue(p, "countries", locale)}
-        </dd>
+        <dd className="text-gray-800">{marked.value(p, "countries")}</dd>
         <dt className="text-gray-600">{attribute("publishers")}</dt>
-        <dd className="text-gray-800">
-          {Publication.markedValue(p, "publishers", locale)}
-        </dd>
+        <dd className="text-gray-800">{marked.value(p, "publishers")}</dd>
         <dt className="text-gray-600">{attribute("sources")}</dt>
         <dd className="text-gray-800">
           {p.sources.length === 0 ? t("none") : p.sources.join("; ")}

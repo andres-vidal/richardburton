@@ -1,4 +1,3 @@
-import { routing } from "i18n/routing";
 import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
@@ -14,7 +13,6 @@ import {
   PublicationKey,
   errorCode,
   empty,
-  markedValue,
 } from "./model";
 
 /**
@@ -192,28 +190,19 @@ const errorCodeFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * Which cell, and — for the cells whose shown form depends on it — which
- * language. A country is stored as a code and read as a name, so the same cell
- * holds two different answers and each needs its own atom.
+ * Which cell an atom belongs to: the publication, and the attribute of it.
  */
-type FieldKey = { id: PublicationId; key: PublicationKey; locale?: string };
-type CellKey =
-  | `${PublicationId}:${PublicationKey}`
-  | `${PublicationId}:${PublicationKey}@${string}`;
+type FieldKey = { id: PublicationId; key: PublicationKey };
+type CellKey = `${PublicationId}:${PublicationKey}`;
 
-// An attribute never holds an "@", so it separates the cell from its language.
-const cellKey = ({ id, key, locale }: FieldKey): CellKey =>
-  locale ? `${id}:${key}@${locale}` : `${id}:${key}`;
+const cellKey = ({ id, key }: FieldKey): CellKey => `${id}:${key}`;
 
 const fieldKey = (cell: CellKey): FieldKey => {
   const separator = cell.indexOf(":");
-  const rest = cell.slice(separator + 1);
-  const at = rest.lastIndexOf("@");
 
   return {
     id: Number(cell.slice(0, separator)),
-    key: (at === -1 ? rest : rest.slice(0, at)) as PublicationKey,
-    locale: at === -1 ? undefined : rest.slice(at + 1),
+    key: cell.slice(separator + 1) as PublicationKey,
   };
 };
 
@@ -260,21 +249,6 @@ const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
   atom((get) => errorCode(get(errorFamily(id)), key)),
 );
 
-/**
- * A single cell as the index marked it, or as it is stored where the search did
- * not match it. Reads the *stored* publication, like `storedFieldValueFamily`, so
- * a pending edit does not leak into the read-only table.
- */
-const markedFieldFamily = cellFamily(({ id, key, locale }) =>
-  atom((get) =>
-    markedValue(
-      get(publicationFamily(id)),
-      key,
-      locale ?? routing.defaultLocale,
-    ),
-  ),
-);
-
 // --- Family lifecycle -------------------------------------------------------
 
 /**
@@ -301,7 +275,6 @@ const CELL_FAMILIES = [
   fieldValueFamily,
   storedFieldValueFamily,
   fieldErrorCodeFamily,
-  markedFieldFamily,
 ];
 
 /**
@@ -653,7 +626,6 @@ export {
   setErrors,
   setFocusedRowId,
   storedFieldValueFamily,
-  markedFieldFamily,
   storedSourcesFamily,
   totalCountAtom,
   matchingCountAtom,

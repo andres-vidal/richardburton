@@ -4,9 +4,9 @@ import {
 } from "@testing-library/react";
 import { formats } from "i18n/formats";
 import { routing } from "i18n/routing";
-import messages from "messages/en.json";
 import { NextIntlClientProvider } from "next-intl";
 import { ReactElement, ReactNode } from "react";
+import { messages } from "./messages";
 
 /**
  * Renders a component with the copy it reads, the way the locale layout

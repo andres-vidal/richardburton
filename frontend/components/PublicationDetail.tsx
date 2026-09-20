@@ -6,6 +6,7 @@ import {
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
+  usePublicationMarking,
   usePublicationSources,
 } from "modules/publication/hooks";
 import {
@@ -29,9 +30,9 @@ import {
   PublicationStoreProvider,
   usePublicationStore,
 } from "modules/publication/workspace";
-import { countryArticle } from "modules/country";
+import { useCountryNaming } from "modules/country-names";
 import { useCanEditPublications } from "modules/session";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { Link } from "i18n/navigation";
 import { useRouter } from "i18n/navigation";
 import {
@@ -83,24 +84,18 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
   publication,
 }) => {
   const t = useTranslations("publication");
-  const locale = useLocale();
+  const marked = usePublicationMarking();
 
   return (
     <div className="flex flex-col w-full text-2xl font-normal sm:gap-2 sm:items-center sm:flex-row">
       <Tooltip variant="info" message={t("translationTitle")}>
         <span className="w-full truncate sm:w-min whitespace-nowrap">
-          <Highlight>
-            {Publication.markedValue(publication, "title", locale)}
-          </Highlight>
+          <Highlight>{marked.value(publication, "title")}</Highlight>
         </span>
       </Tooltip>
       <Tooltip variant="info" message={t("whoTranslated")}>
         <span className="text-lg font-light tracking-tighter text-indigo-500 sm:text-xl whitespace-nowrap">
-          (
-          <Highlight>
-            {Publication.markedValue(publication, "authors", locale)}
-          </Highlight>
-          )
+          (<Highlight>{marked.value(publication, "authors")}</Highlight>)
         </span>
       </Tooltip>
     </div>
@@ -111,13 +106,14 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
   const t = useTranslations("publication");
-  const locale = useLocale();
+  const marked = usePublicationMarking();
+  const naming = useCountryNaming();
 
   const list = (key: PublicationListKey) =>
     function List() {
       return (
         <SentenceList
-          items={Publication.markedItems(p, key, locale).map((item) => ({
+          items={marked.items(p, key).map((item) => ({
             key: item.value,
             node: <Searchable {...item} />,
           }))}
@@ -126,15 +122,13 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
     };
 
   function Countries() {
-    const items = Publication.markedItems(p, "countries", locale).map(
-      (country) => ({
-        key: country.value,
-        node: t.rich("inCountry", {
-          article: countryArticle(country.value, locale),
-          name: () => <Searchable {...country} />,
-        }),
+    const items = marked.items(p, "countries").map((country) => ({
+      key: country.value,
+      node: t.rich("inCountry", {
+        article: naming.article(country.value),
+        name: () => <Searchable {...country} />,
       }),
-    );
+    }));
 
     return <SentenceList items={items} />;
   }
@@ -143,15 +137,12 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
     <div>
       {t.rich("description", {
         title: () => (
-          <Searchable
-            value={p.title}
-            label={Publication.markedValue(p, "title", locale)}
-          />
+          <Searchable value={p.title} label={marked.value(p, "title")} />
         ),
         originalTitle: () => (
           <Searchable
             value={p.originalTitle}
-            label={Publication.markedValue(p, "originalTitle", locale)}
+            label={marked.value(p, "originalTitle")}
           />
         ),
         originalAuthors: list("originalAuthors"),

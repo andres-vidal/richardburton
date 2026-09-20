@@ -1,6 +1,6 @@
 "use client";
 
-import { countryName } from "modules/country";
+import { useCountryNaming } from "modules/country-names";
 import { Publication } from "modules/publication/model";
 import { useLocale } from "next-intl";
 import pDebounce from "p-debounce";
@@ -25,6 +25,7 @@ export default forwardRef<HTMLInputElement, ScalarDataInputProps>(
     }
 
     const locale = useLocale();
+    const country = useCountryNaming();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const getOptions = useCallback(
@@ -36,10 +37,8 @@ export default forwardRef<HTMLInputElement, ScalarDataInputProps>(
     );
 
     const selectedOption = useMemo(
-      () =>
-        value
-          ? { id: value, label: countryName(value, locale) ?? value }
-          : undefined,
+      () => (value ? { id: value, label: country.name(value) } : undefined),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [value, locale],
     );
 

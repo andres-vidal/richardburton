@@ -4,11 +4,12 @@ import Button from "components/Button";
 import SourcesEditor from "components/SourcesEditor";
 import {
   usePublication,
+  usePublicationMarking,
   usePublicationSources,
   useStoredPublicationSources,
   useUnsourcedPublicationCount,
 } from "modules/publication/hooks";
-import { Publication, type PublicationId } from "modules/publication/model";
+import { type PublicationId } from "modules/publication/model";
 import { receiveIndex, type PublicationIndex } from "modules/publication/store";
 import {
   PublicationStoreProvider,
@@ -17,7 +18,7 @@ import {
 import { update } from "modules/publication/remote";
 import { discardEdit, overrideSources } from "modules/publication/store";
 import { Link } from "i18n/navigation";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { FC, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 const optionId = (id: PublicationId) => `sources-queue-option-${id}`;
@@ -134,7 +135,7 @@ export const BackfillStep: FC<{
 }> = ({ id, position, total, saving, onSave, onSkip }) => {
   const t = useTranslations("backfill");
   const common = useTranslations("common");
-  const locale = useLocale();
+  const marked = usePublicationMarking();
   const store = usePublicationStore();
   const publication = usePublication(id);
   const sources = usePublicationSources(id);
@@ -155,22 +156,10 @@ export const BackfillStep: FC<{
           <div className="mt-1 text-sm text-gray-600">
             {t("line", {
               originalTitle: publication.originalTitle,
-              originalAuthors: Publication.markedValue(
-                publication,
-                "originalAuthors",
-                locale,
-              ),
+              originalAuthors: marked.value(publication, "originalAuthors"),
               year: publication.year,
-              countries: Publication.markedValue(
-                publication,
-                "countries",
-                locale,
-              ),
-              publishers: Publication.markedValue(
-                publication,
-                "publishers",
-                locale,
-              ),
+              countries: marked.value(publication, "countries"),
+              publishers: marked.value(publication, "publishers"),
             })}
           </div>
         </div>

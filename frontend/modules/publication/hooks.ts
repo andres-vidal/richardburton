@@ -1,7 +1,9 @@
 import type { SetStateAction } from "jotai";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useLocale, useTranslations } from "next-intl";
-import { Publication, PublicationId, PublicationKey } from "./model";
+import { useCountryNaming } from "modules/country-names";
+import { Publication, PublicationId, PublicationKey, marking } from "./model";
+import type { Marking } from "./model";
 import {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
@@ -21,7 +23,7 @@ import {
   publicationOrNullFamily,
   publicationSourcesFamily,
   publicationExcerptsFamily,
-  markedFieldFamily,
+  publicationFamily,
   storedFieldValueFamily,
   storedSourcesFamily,
   totalCountAtom,
@@ -78,11 +80,29 @@ function usePublicationStoredField<K extends PublicationKey>(
 }
 
 /**
- * A single cell as the index marked it — see `markedFieldFamily`. A country is
- * named in the page's language, so the cell is keyed by it too.
+ * How a publication reads to whoever is reading this page: in the page's
+ * language, naming countries out of the catalogue the server filled.
+ *
+ * A component takes this once and asks it about whichever fields it shows,
+ * rather than carrying the language into every call.
+ */
+function usePublicationMarking(): Marking {
+  const locale = useLocale();
+  const country = useCountryNaming();
+
+  return marking(locale, country);
+}
+
+/**
+ * A single cell as the index marked it, or as it is stored where the search did
+ * not match it. Reads the *stored* publication, like
+ * `usePublicationStoredField`, so a pending edit does not leak into the
+ * read-only table.
  */
 function usePublicationMarkedField(id: PublicationId, key: PublicationKey) {
-  return useAtomValue(markedFieldFamily({ id, key, locale: useLocale() }));
+  const publication = useAtomValue(publicationFamily(id));
+
+  return usePublicationMarking().value(publication, key);
 }
 
 function usePublicationExcerpts(id: PublicationId) {
@@ -216,6 +236,7 @@ export {
   usePublicationSources,
   usePublicationExcerpts,
   usePublicationMarkedField,
+  usePublicationMarking,
   usePublicationStoredField,
   useStoredPublicationSources,
   useTotalPublicationCount,
