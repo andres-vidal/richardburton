@@ -317,8 +317,8 @@ defmodule RichardBurton.PublisherTest do
   end
 
   describe "nest/1" do
-    test "with a comma separated string, returns a list of maps with name key" do
-      publishers = "Noonday Press, Bickers & Son"
+    test "returns a list of maps with a name key" do
+      publishers = ["Noonday Press", "Bickers & Son"]
 
       assert [%{"name" => "Noonday Press"}, %{"name" => "Bickers & Son"}] =
                Publisher.nest(publishers)
