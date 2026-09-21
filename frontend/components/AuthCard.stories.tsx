@@ -52,6 +52,20 @@ export const WithoutASuggestion: Story = {
   },
 };
 
+/**
+ * The card is not only for sign-in: the 404 is the same shape, since it is also
+ * a title, what happened, and the one way on from it.
+ */
+export const APageThatIsNotThere: Story = {
+  args: { copy: "notFound", children: undefined },
+  play: async () => {
+    await expect(
+      screen.getByRole("heading", { level: 1, name: "No such page" }),
+    ).toBeVisible();
+    await expect(screen.getByText(/link may be out of date/)).toBeVisible();
+  },
+};
+
 /** Nothing to do next: the foot is empty and the card keeps its shape. */
 export const WithoutAnAction: Story = {
   args: { children: undefined },
