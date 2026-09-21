@@ -611,8 +611,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       loser =
         insert_publication(%{
           @publication_attrs
-          | "countries" => "US",
-            "publishers" => "Noonday Press"
+          | "countries" => ["US"],
+            "publishers" => ["Noonday Press"]
         })
 
       [winner: winner, loser: loser]
