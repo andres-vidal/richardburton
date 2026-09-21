@@ -14,7 +14,12 @@ test("a workspace kept on the server is opened again from another browser", asyn
   baseURL,
 }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/workspaces");
+
+  // Reached the way a person reaches it, rather than by its address: a page
+  // nothing links to is a page nobody finds.
+  await page.goto("/admin");
+  await page.getByRole("link", { name: /Workspaces/ }).click();
+  await expect(page).toHaveURL(/\/admin\/publications\/workspaces$/);
 
   // Nothing kept yet.
   await expect(

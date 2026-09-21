@@ -216,7 +216,9 @@
     "recordLine": "{authors} · {year} · {publishers}",
     "redo": "Redo",
     "undoHint": "Walk back your last change. Edits made by others are left alone.",
-    "redoHint": "Put back the change you walked back."
+    "redoHint": "Put back the change you walked back.",
+    "workspacesTitle": "Workspaces",
+    "workspacesDescription": "Import work that is kept between sittings, under a name, and can be opened from anywhere."
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",

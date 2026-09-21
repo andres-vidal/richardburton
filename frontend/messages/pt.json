@@ -216,7 +216,9 @@
     "recordLine": "{authors} · {year} · {publishers}",
     "redo": "Refazer",
     "undoHint": "Desfaz sua última alteração. As alterações de outras pessoas não são afetadas.",
-    "redoHint": "Refaz a alteração desfeita."
+    "redoHint": "Refaz a alteração desfeita.",
+    "workspacesTitle": "Áreas de trabalho",
+    "workspacesDescription": "Trabalho de importação guardado entre sessões, com um nome, que pode ser aberto de qualquer lugar."
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",

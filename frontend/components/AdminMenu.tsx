@@ -2,6 +2,7 @@
 
 import AddIcon from "assets/add-circle.svg";
 import DuplicateIcon from "assets/copy.svg";
+import WorkspacesIcon from "assets/dashboard.svg";
 import HistoryIcon from "assets/history.svg";
 import SourcesIcon from "assets/numbered-list.svg";
 import PeopleIcon from "assets/people.svg";
@@ -26,6 +27,12 @@ const ACTIONS: {
     href: "/admin/publications/new",
     Icon: AddIcon,
     key: "new",
+    role: "contributor",
+  },
+  {
+    href: "/admin/publications/workspaces",
+    Icon: WorkspacesIcon,
+    key: "workspaces",
     role: "contributor",
   },
   {
