@@ -55,6 +55,34 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     end
   end
 
+  describe "POST /vocabulary/:kind/resemblances" do
+    test "answers which names are held and which look like misspellings", meta do
+      insert()
+      expect_auth_authorize_admin()
+
+      assert %{"entries" => entries} =
+               meta.conn
+               |> post(vocabulary_path(meta.conn, :resemblances, "publishers"),
+                 names: ["Noonday Press", "noonday press", "Tagus Press"]
+               )
+               |> json_response(200)
+
+      assert [held, near, new] = entries
+
+      assert %{"name" => "Noonday Press", "held" => true, "resembles" => []} = held
+      assert %{"held" => false, "resembles" => [%{"name" => "Noonday Press"}]} = near
+      assert %{"name" => "Tagus Press", "held" => false, "resembles" => []} = new
+    end
+
+    test "404s on a kind it does not keep", meta do
+      expect_auth_authorize_admin()
+
+      assert meta.conn
+             |> post(vocabulary_path(meta.conn, :resemblances, "countries"), names: ["Brazil"])
+             |> json_response(404)
+    end
+  end
+
   describe "PATCH /vocabulary/:kind/:id" do
     test "correcting a spelling says it renamed", meta do
       insert()
@@ -69,7 +97,24 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
                |> json_response(200)
     end
 
-    test "renaming onto a name already taken says it merged", meta do
+    test "renaming onto a name already taken is refused until it is asked for", meta do
+      insert()
+      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
+
+      expect_auth_authorize_admin()
+
+      assert %{"error" => "would_fold", "into" => into} =
+               meta.conn
+               |> patch(
+                 vocabulary_path(meta.conn, :update, "publishers", id_of("Noonday press")),
+                 %{"name" => "Noonday Press"}
+               )
+               |> json_response(409)
+
+      assert %{"name" => "Noonday Press", "publications" => 1} = into
+    end
+
+    test "asking for the fold says it merged", meta do
       insert()
       insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
 
@@ -79,7 +124,7 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
                meta.conn
                |> patch(
                  vocabulary_path(meta.conn, :update, "publishers", id_of("Noonday press")),
-                 %{"name" => "Noonday Press"}
+                 %{"name" => "Noonday Press", "fold" => true}
                )
                |> json_response(200)
     end
@@ -94,7 +139,7 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
                meta.conn
                |> patch(
                  vocabulary_path(meta.conn, :update, "publishers", id_of("Noonday press")),
-                 %{"name" => "Noonday Press"}
+                 %{"name" => "Noonday Press", "fold" => true}
                )
                |> json_response(409)
 

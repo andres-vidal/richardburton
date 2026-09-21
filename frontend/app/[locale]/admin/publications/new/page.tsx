@@ -15,6 +15,7 @@ import PublicationWorkspace from "components/PublicationWorkspace";
 import ResetDiscarded from "components/ResetDiscarded";
 import ResetOverridden from "components/ResetOverridden";
 import RowIdToggle from "components/RowIdToggle";
+import WorkspaceNames from "components/WorkspaceNames";
 import { Publication } from "modules/publication/model";
 import { setAll, setAttributesVisible } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
@@ -52,6 +53,7 @@ function NewPublications() {
               <PublicationUpload />
               <PublicationCounter />
               <PublicationErrorCounter />
+              <WorkspaceNames />
               <ResetOverridden />
               <ResetDiscarded />
               <RowIdToggle />

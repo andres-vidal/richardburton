@@ -20,6 +20,7 @@ searched by name splits along it.
 Renaming is the only thing this screen does. Renaming to a name nothing else
 holds corrects a spelling; renaming to a name already taken folds the two
 together, moving every publication onto the survivor and deleting the other.
+The second is destructive, so it is confirmed before it happens.
 
 There is no separate merge, because both are the same gesture: somebody who has
 decided two names are one thing says so by writing the name they should share.
@@ -46,6 +47,31 @@ matches anywhere in a name, so a fragment brings the spellings together.
 
 <Canvas of={VocabularyListStories.FindingSpellings} />
 
+## Which names may be duplicates
+
+Sorting and filtering both need somebody to suspect a pair first. The list also
+says which names it finds near each other, so the pairs come to the reader
+rather than the reader hunting for them.
+
+Nearness is trigram similarity over the unaccented names, above a threshold
+chosen against the database rather than in the abstract. Houses that merely
+share a word sit around 0.6 — "Duke University Press" against "Texas University
+Press" — while genuine misspellings sit above 0.7 once accents are out of the
+way. Unaccenting matters because an accent is one of the ways a name gets
+entered twice: "Adelia Prado" beside "Adélia Prado" is one person, and on the
+raw strings that pair scores lower than two unrelated presses do.
+
+A marked name carries the ones it resembles, each with how many publications
+already use it, so the established spelling is visible rather than guessed at.
+
+<Canvas of={VocabularyListStories.NamesThatMayBeDuplicates} />
+
+Taking one writes it into the field and leaves the cursor there. It does not
+rename on the spot: folding two names cannot be undone, so the last press stays
+the reader's.
+
+<Canvas of={VocabularyListStories.OfferingTheOtherSpelling} />
+
 ## Editing in place
 
 The field is the whole interface. It commits on Enter or on leaving the field,
@@ -54,6 +80,30 @@ and Escape puts the original name back.
 <Canvas of={VocabularyListStories.RenamingCommitsOnEnter} />
 
 <Canvas of={VocabularyListStories.EscapeReverts} />
+
+## A fold is asked about first
+
+The two halves of the one verb are not equally undoable. Correcting a spelling
+onto a free name is undone by renaming back. Folding destroys a record and
+moves everything that was on it, and there is no undo for that at all.
+
+So a rename onto a taken name is refused until it has been asked for: the
+server writes nothing, says who holds the name and how many publications are on
+them, and the page puts that to the reader. Confirming sends the same rename
+again, this time saying the fold is what was wanted.
+
+The guard is on the server rather than here, because only the database knows
+whether a name is still free at the moment it is written — the page could
+decide from a list it read a minute ago and be wrong.
+
+<Canvas of={VocabularyListStories.AskingBeforeFolding} />
+
+Backing out leaves the name alone and puts the field back to what it is stored
+under, so a mistyped correction costs nothing.
+
+<Canvas of={VocabularyListStories.BackingOutOfAFold} />
+
+<Canvas of={VocabularyListStories.ConfirmingTheFold} />
 
 ## When the rename would uncover a duplicate
 

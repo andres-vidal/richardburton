@@ -129,6 +129,59 @@ const overriddenCountAtom = atom((get) => get(overriddenIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
 
+/**
+ * The attributes of each kind of name, in the words the vocabulary routes use.
+ *
+ * Translators and original authors are one kind because they are one table: a
+ * person who translated one book and wrote another is one name, and correcting
+ * the spelling corrects both.
+ */
+const NAME_ATTRIBUTES = {
+  authors: ["authors", "originalAuthors"],
+  publishers: ["publishers"],
+} as const satisfies Record<string, readonly PublicationKey[]>;
+
+type NameKind = keyof typeof NAME_ATTRIBUTES;
+
+/** One name the batch would enter, and the rows that carry it. */
+type BatchName = { name: string; rows: PublicationId[] };
+
+/**
+ * Every name the visible rows would enter, by kind, alphabetically.
+ *
+ * Blanks are dropped and a name a row carries twice counts as one row, so the
+ * count beside a name is how many publications would credit it.
+ */
+const batchNamesAtom = atom((get) => {
+  const ids = get(visibleIdsAtom) ?? [];
+
+  const gather = (attributes: readonly PublicationKey[]): BatchName[] => {
+    const rows = new Map<string, Set<PublicationId>>();
+
+    for (const id of ids) {
+      const publication = get(visiblePublicationFamily(id));
+
+      for (const attribute of attributes) {
+        for (const value of (publication[attribute] as string[]) ?? []) {
+          const name = value.trim();
+          if (name === "") continue;
+
+          rows.set(name, (rows.get(name) ?? new Set()).add(id));
+        }
+      }
+    }
+
+    return [...rows]
+      .map(([name, on]) => ({ name, rows: [...on] }))
+      .sort((one, other) => one.name.localeCompare(other.name));
+  };
+
+  return {
+    authors: gather(NAME_ATTRIBUTES.authors),
+    publishers: gather(NAME_ATTRIBUTES.publishers),
+  };
+});
+
 const visibleAttributesAtom = atom((get) =>
   ATTRIBUTES.filter((key) => get(attributeVisibleFamily(key))),
 );
@@ -437,6 +490,33 @@ function overrideSources(
   store.set(overrideFamily(id), { ...current, sources });
 }
 
+/**
+ * Write one name in place of another, in whichever of these rows carry it.
+ *
+ * Rows that do not carry it are left alone, so this can be handed the rows the
+ * name was found on without checking them again. A row that would end up with
+ * the same name twice keeps it once.
+ */
+function replaceName(
+  store: Store,
+  kind: NameKind,
+  ids: PublicationId[],
+  from: string,
+  to: string,
+): void {
+  for (const id of ids) {
+    const publication = store.get(visiblePublicationFamily(id));
+
+    for (const attribute of NAME_ATTRIBUTES[kind]) {
+      const values = publication[attribute] as string[];
+      if (!values?.includes(from)) continue;
+
+      const written = values.map((value) => (value === from ? to : value));
+      overrideField(store, id, attribute, [...new Set(written)]);
+    }
+  }
+}
+
 /** Drop a single row's pending edits and errors (cancelling an edit). */
 function discardEdit(store: Store, id: PublicationId): void {
   store.set(overrideFamily(id), RESET);
@@ -581,6 +661,7 @@ export {
   addNew,
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
+  batchNamesAtom,
   createId,
   discardedCountAtom,
   discardEdit,
@@ -616,6 +697,7 @@ export {
   receiveIndex,
   remember,
   removePublication,
+  replaceName,
   resetAll,
   resetAttributes,
   resetDiscarded,
@@ -638,4 +720,4 @@ export {
   visibleIdsAtom,
   visiblePublicationFamily,
 };
-export type { PublicationIndex };
+export type { BatchName, NameKind, PublicationIndex };

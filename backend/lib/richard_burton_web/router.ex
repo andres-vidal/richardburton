@@ -68,6 +68,7 @@ defmodule RichardBurtonWeb.Router do
 
     scope "/vocabulary" do
       get("/:kind", VocabularyController, :index)
+      post("/:kind/resemblances", VocabularyController, :resemblances)
       patch("/:kind/:id", VocabularyController, :update)
     end
 

@@ -9,6 +9,14 @@ const names = (page: Page) =>
 /** What the page said, scoped past Next's route announcer, also an alert. */
 const alert = (page: Page) => page.getByRole("main").getByRole("alert");
 
+/** Say yes to the fold the page asks about before performing it. */
+async function agreeToFold(page: Page) {
+  const asking = page.getByRole("dialog", { name: "Fold these two together?" });
+  await expect(asking).toBeVisible();
+
+  await asking.getByRole("button", { name: "Fold them" }).click();
+}
+
 test("an admin folds two spellings of a publisher into one", async ({
   page,
 }) => {
@@ -78,6 +86,9 @@ test("renaming onto a name already taken folds the two together", async ({
   await stray.fill("Penguin Books");
   await stray.press("Enter");
 
+  // The fold is not done until it is asked for.
+  await agreeToFold(page);
+
   await expect(
     page.getByText("Penguin books folded into Penguin Books"),
   ).toBeVisible();
@@ -85,6 +96,51 @@ test("renaming onto a name already taken folds the two together", async ({
   // One left, carrying both.
   await expect(names(page)).toHaveCount(1);
   await expect(names(page)).toContainText("2 publications");
+});
+
+test("a fold can be called off, and nothing moves", async ({ page }) => {
+  await signInAsAdmin(page);
+
+  await page.goto("/admin/publications/new");
+  await page.locator("#upload-csv").setInputFiles({
+    name: "spellings.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      [
+        CSV_HEADER,
+        `Dom Casmurro,1953,US,Penguin Books,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+        `Iracema,1886,GB,Penguin books,Isabel Burton,Iracema,José de Alencar,`,
+      ].join("\n") + "\n",
+    ),
+  });
+
+  const submit = page.getByRole("button", { name: "Submit" });
+  await expect(submit).toBeEnabled({ timeout: 30_000 });
+  await submit.click();
+  await expect(
+    page.getByText("2 publications inserted successfully"),
+  ).toBeVisible({ timeout: 30_000 });
+
+  await page.goto("/admin/vocabulary");
+  await page.getByLabel("Find").fill("Penguin");
+
+  const stray = page.getByLabel("Name, currently Penguin books", {
+    exact: true,
+  });
+  await stray.fill("Penguin Books");
+  await stray.press("Enter");
+
+  // It says what would go, what it would join, and that there is no undo.
+  const asking = page.getByRole("dialog", { name: "Fold these two together?" });
+  await expect(asking).toContainText("Penguin books (1 publication)");
+  await expect(asking).toContainText("Penguin Books (1 publication)");
+  await expect(asking).toContainText("There is no undo for this.");
+
+  await asking.getByRole("button", { name: "Cancel" }).click();
+
+  // Both spellings still stand, and the field shows the one it is stored under.
+  await expect(names(page)).toHaveCount(2);
+  await expect(stray).toHaveValue("Penguin books");
 });
 
 test("a rename that would leave two publications identical is refused", async ({
@@ -121,6 +177,7 @@ test("a rename that would leave two publications identical is refused", async ({
   });
   await stray.fill("Penguin Books");
   await stray.press("Enter");
+  await agreeToFold(page);
 
   // The database will not hold two records with one identity, so this says so
   // and names them rather than folding anything quietly.

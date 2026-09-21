@@ -34,6 +34,17 @@ defmodule RichardBurton.Vocabulary do
   The rename is refused, and says which publications clashed. Merging them is a
   separate act, with its own survivor to choose and its own undo, and doing it
   silently inside a spelling correction would be a fold nobody asked for.
+
+  ## Catching a misspelling before it is one
+
+  `resemblances/2` answers the same question from the other end: given names
+  that are about to be entered, which of them are close to a name already here
+  without being it. A name is *held* when the vocabulary already has it exactly,
+  and *resembles* another when trigram similarity puts them over the threshold
+  while the two strings differ.
+
+  Held is the good outcome and resembling is the doubtful one. A name that is
+  neither is simply new, which is how a vocabulary grows.
   """
 
   import Ecto.Query
@@ -48,21 +59,71 @@ defmodule RichardBurton.Vocabulary do
 
   @kinds %{"authors" => Author, "publishers" => Publisher}
 
+  # How alike two names must be for one to be worth raising as a possible
+  # misspelling of the other.
+  #
+  # Chosen against the database rather than in the abstract, because the two
+  # populations overlap on raw trigram distance. Houses that merely share a word
+  # sit around 0.6 — "Duke University Press" against "Texas University Press",
+  # "Arc Publications" against "Host Publications". Misspellings sit above 0.7
+  # once accents are out of the way: "Clifford E. Landers" against "Clifford
+  # Landers" is 0.89, and every dropped space or swapped case is 1.0.
+  @resemblance_threshold 0.7
+
+  # Whether two names are near enough to be the same name spelt twice.
+  #
+  # `%` is `similarity(a, b) > threshold`, reading the threshold from the setting
+  # `in_threshold/1` puts in place. It compares the unaccented names because an
+  # accent is one of the ways a name gets entered twice: "Adelia Prado" beside
+  # "Adélia Prado" is one person, and on the raw strings that pair scores lower
+  # than two unrelated presses do.
+  defmacrop alike(left, right) do
+    quote do: fragment("unaccent(?) % unaccent(?)", unquote(left), unquote(right))
+  end
+
   @doc """
   The kinds of name that can be managed, by the word the routes use.
   """
   def kinds, do: Map.keys(@kinds)
 
   @doc """
-  Every name of this kind, with how many publications it is on, alphabetically.
+  Every name of this kind, with how many publications it is on, alphabetically,
+  and which of the others it resembles.
 
   The count is what tells a name worth keeping from a stray: of the three
   spellings of one publisher, the one with nineteen publications is the one the
   others should become.
+
+  `resembles` holds ids rather than names, since the names they point at are in
+  this same list.
   """
-  def all("authors"), do: Repo.all(author_counts())
-  def all("publishers"), do: Repo.all(publisher_counts())
-  def all(_kind), do: {:error, :no_such_kind}
+  def all(kind) do
+    with {:ok, schema} <- kind_of(kind) do
+      schema |> counts() |> Repo.all() |> with_likenesses(schema)
+    end
+  end
+
+  defp counts(Author), do: author_counts()
+  defp counts(Publisher), do: publisher_counts()
+
+  # Which names are near which, over the vocabulary itself rather than against
+  # names arriving from elsewhere. Every pair appears twice, once from each side,
+  # so each name carries its own neighbours.
+  defp with_likenesses(entries, schema) do
+    near =
+      in_threshold(fn ->
+        Repo.all(
+          from(a in schema,
+            join: b in ^schema,
+            on: alike(a.name, b.name) and a.id != b.id,
+            select: %{id: a.id, other: b.id}
+          )
+        )
+      end)
+      |> Enum.group_by(& &1.id, & &1.other)
+
+    Enum.map(entries, &Map.put(&1, :resembles, Map.get(near, &1.id, [])))
+  end
 
   # A name may be a translator on one publication and the original author of
   # another, so the two paths are gathered before being counted. `union` rather
@@ -111,15 +172,111 @@ defmodule RichardBurton.Vocabulary do
   end
 
   @doc """
+  Which of these names the vocabulary already holds, and which look like
+  misspellings of one it holds.
+
+  Each name comes back as `%{name:, held:, resembles: [...]}`, where
+  `resembles` lists the existing names near it, most used first — the count is
+  what says which spelling the database has settled on.
+
+  Names are trimmed, blanks dropped and repeats collapsed, so a caller can pass
+  a column straight out of a spreadsheet.
+  """
+  def resemblances(kind, names) when is_list(names) do
+    with {:ok, schema} <- kind_of(kind) do
+      asked = names |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == "")) |> Enum.uniq()
+
+      {:ok, answer(schema, asked)}
+    end
+  end
+
+  defp answer(_schema, []), do: []
+
+  defp answer(schema, asked) do
+    held = held(schema, asked)
+    near = near(schema, asked)
+
+    Enum.map(asked, fn name ->
+      %{
+        name: name,
+        held: MapSet.member?(held, name),
+        resembles: Map.get(near, name, [])
+      }
+    end)
+  end
+
+  defp held(schema, asked) do
+    from(v in schema, where: v.name in ^asked, select: v.name)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  # The names each asked-for name is near, keyed by the name that was asked.
+  defp near(schema, asked) do
+    rows = in_threshold(fn -> Repo.all(resembling(schema, asked)) end)
+    counts = counts_of(schema, Enum.map(rows, & &1.id))
+
+    rows
+    |> Enum.group_by(& &1.asked, &Map.get(counts, &1.id))
+    |> Map.new(fn {asked, found} ->
+      {asked, found |> Enum.reject(&is_nil/1) |> Enum.sort_by(& &1.publications, :desc)}
+    end)
+  end
+
+  defp resembling(schema, asked) do
+    from(v in schema,
+      join: a in fragment("SELECT * FROM unnest(?::text[]) AS a(name)", ^asked),
+      on: alike(v.name, a.name) and v.name != a.name,
+      select: %{asked: a.name, id: v.id}
+    )
+  end
+
+  # Runs the query with the threshold `%` reads in place. `set_config` with
+  # `true` scopes the setting to the transaction rather than to the connection,
+  # which is pooled and would otherwise carry it to unrelated work.
+  defp in_threshold(query) do
+    {:ok, rows} =
+      Repo.transaction(fn ->
+        Repo.query!(
+          "SELECT set_config('pg_trgm.similarity_threshold', $1, true)",
+          [to_string(@resemblance_threshold)]
+        )
+
+        query.()
+      end)
+
+    rows
+  end
+
+  defp counts_of(Author, ids), do: by_id(author_counts(), ids)
+  defp counts_of(Publisher, ids), do: by_id(publisher_counts(), ids)
+
+  defp by_id(counts, ids) do
+    from(c in subquery(counts), where: c.id in ^ids)
+    |> Repo.all()
+    |> Map.new(&{&1.id, &1})
+  end
+
+  @doc """
   Rename one, folding it into another where the name is already taken.
 
   Returns `{:ok, :renamed}` or `{:ok, :merged}`, so a caller can say which
   happened — they look the same from here and not to the person who asked.
+
+  The two are not equally undoable, though, and a fold has to be asked for.
+  Where the name is already held and `folding?` is false, nothing is written and
+  `{:error, {:would_fold, keeper}}` says who holds it and how many publications
+  are on them. Correcting a spelling onto a free name needs no such permission:
+  renaming back undoes it.
+
+  Asked here rather than by whoever is calling, because only the database knows
+  whether the name is free at the moment it is written.
   """
-  def rename(kind, id, name) when is_binary(name) do
+  def rename(kind, id, name, folding? \\ false) when is_binary(name) do
     with {:ok, schema} <- kind_of(kind),
          {:ok, name} <- named(name),
-         {:ok, record} <- fetch(schema, id) do
+         {:ok, record} <- fetch(schema, id),
+         :ok <- permitted(schema, record, name, folding?) do
       Repo.transaction(fn ->
         outcome = write(schema, record, name)
         recompute(schema, record, name)
@@ -135,6 +292,24 @@ defmodule RichardBurton.Vocabulary do
           {:error, reason}
       end
     end
+  end
+
+  # Whether this rename is the one that was asked for. A rename that would fold
+  # needs saying so; one that would not is allowed through.
+  defp permitted(_schema, _record, _name, true), do: :ok
+
+  defp permitted(schema, record, name, false) do
+    case Repo.get_by(schema, name: name) do
+      nil -> :ok
+      %{id: same} when same == record.id -> :ok
+      keeper -> {:error, {:would_fold, counted(schema, keeper)}}
+    end
+  end
+
+  defp counted(schema, record) do
+    counts = counts_of(schema, [record.id])
+
+    Map.get(counts, record.id, %{id: record.id, name: record.name, publications: 0})
   end
 
   defp kind_of(kind) do

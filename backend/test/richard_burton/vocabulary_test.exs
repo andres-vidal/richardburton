@@ -83,6 +83,98 @@ defmodule RichardBurton.VocabularyTest do
     end
   end
 
+  describe "all/1, on the names resembling each other" do
+    test "each spelling points at the others, and says nothing where there are none" do
+      insert(%{"publishers" => [%{"name" => "Penguin Books"}]})
+      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Penguin books"}]})
+      insert(%{"title" => "Esau and Jacob", "publishers" => [%{"name" => "Peter Owen"}]})
+
+      names = Vocabulary.all("publishers")
+      by_name = Map.new(names, &{&1.name, &1})
+
+      assert by_name["Penguin Books"].resembles == [by_name["Penguin books"].id]
+      assert by_name["Penguin books"].resembles == [by_name["Penguin Books"].id]
+      assert by_name["Peter Owen"].resembles == []
+    end
+
+    test "refuses a kind it does not keep" do
+      assert {:error, :no_such_kind} = Vocabulary.all("countries")
+    end
+  end
+
+  describe "resemblances/2" do
+    test "says nothing about a name the vocabulary already holds exactly" do
+      insert()
+
+      {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Noonday Press"])
+
+      assert %{name: "Noonday Press", held: true, resembles: []} = entry
+    end
+
+    test "a name nothing here is near is simply new" do
+      insert()
+
+      {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Tagus Press"])
+
+      assert %{name: "Tagus Press", held: false, resembles: []} = entry
+    end
+
+    test "catches the spelling that differs only in case" do
+      insert()
+
+      {:ok, [entry]} = Vocabulary.resemblances("publishers", ["noonday press"])
+
+      assert %{held: false, resembles: [%{name: "Noonday Press", publications: 1}]} = entry
+    end
+
+    test "catches a dropped space, and says how much rests on the other spelling" do
+      insert(%{"publishers" => [%{"name" => "Alfred A. Knopf"}]})
+      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Alfred A. Knopf"}]})
+
+      {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Alfred A.Knopf"])
+
+      assert %{held: false, resembles: [%{name: "Alfred A. Knopf", publications: 2}]} = entry
+    end
+
+    test "a translator is found whether the name translated or wrote" do
+      insert()
+
+      {:ok, [translator, author]} =
+        Vocabulary.resemblances("authors", ["Helen Caldwel", "Machado de Assiz"])
+
+      assert %{resembles: [%{name: "Helen Caldwell"}]} = translator
+      assert %{resembles: [%{name: "Machado de Assis"}]} = author
+    end
+
+    test "the established spelling comes first" do
+      insert(%{"publishers" => [%{"name" => "Penguin Books"}]})
+      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Penguin Books"}]})
+      insert(%{"title" => "Esau and Jacob", "publishers" => [%{"name" => "Penguin Book"}]})
+
+      {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Penguin books"])
+
+      assert [%{name: "Penguin Books", publications: 2}, %{name: "Penguin Book", publications: 1}] =
+               entry.resembles
+    end
+
+    test "trims, drops blanks and asks about each name once" do
+      insert()
+
+      {:ok, entries} =
+        Vocabulary.resemblances("publishers", ["  Noonday Press  ", "", "Noonday Press", "   "])
+
+      assert [%{name: "Noonday Press", held: true}] = entries
+    end
+
+    test "nothing asked is nothing answered" do
+      assert {:ok, []} = Vocabulary.resemblances("publishers", [])
+    end
+
+    test "refuses a kind it does not keep" do
+      assert {:error, :no_such_kind} = Vocabulary.resemblances("countries", ["Brazil"])
+    end
+  end
+
   describe "rename/3 correcting a spelling" do
     test "the name changes and the publication's fingerprint follows" do
       publication = insert()
@@ -151,7 +243,8 @@ defmodule RichardBurton.VocabularyTest do
                Vocabulary.rename(
                  "publishers",
                  id_of(Publisher, "Noonday press"),
-                 "Noonday Press"
+                 "Noonday Press",
+                 true
                )
 
       # One publisher where there were two...
@@ -176,7 +269,8 @@ defmodule RichardBurton.VocabularyTest do
                Vocabulary.rename(
                  "publishers",
                  id_of(Publisher, "Noonday press"),
-                 "Noonday Press"
+                 "Noonday Press",
+                 true
                )
 
       reloaded = Repo.preload(Repo.get!(Publication, publication.id), :publishers)
@@ -192,12 +286,51 @@ defmodule RichardBurton.VocabularyTest do
       })
 
       assert {:ok, :merged} =
-               Vocabulary.rename("authors", id_of(Author, "helen caldwell"), "Helen Caldwell")
+               Vocabulary.rename(
+                 "authors",
+                 id_of(Author, "helen caldwell"),
+                 "Helen Caldwell",
+                 true
+               )
 
       assert Repo.get_by(Author, name: "helen caldwell") == nil
 
       assert %{publications: 2} =
                Enum.find(Vocabulary.all("authors"), &(&1.name == "Helen Caldwell"))
+    end
+  end
+
+  describe "rename/3 onto a name already taken, unasked" do
+    test "nothing is written, and it says who holds the name" do
+      insert()
+      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
+
+      assert {:error, {:would_fold, keeper}} =
+               Vocabulary.rename(
+                 "publishers",
+                 id_of(Publisher, "Noonday press"),
+                 "Noonday Press"
+               )
+
+      # Named and counted, which is what makes the question answerable.
+      assert %{name: "Noonday Press", publications: 1} = keeper
+
+      # Both spellings still stand.
+      assert Repo.aggregate(Publisher, :count) == 2
+    end
+
+    test "correcting onto a free name needs no such permission" do
+      insert()
+
+      assert {:ok, :renamed} =
+               Vocabulary.rename("publishers", id_of(Publisher, "Noonday Press"), "Noonday")
+    end
+
+    test "renaming a name to itself is not a fold" do
+      insert()
+      id = id_of(Publisher, "Noonday Press")
+
+      assert {:ok, :renamed} = Vocabulary.rename("publishers", id, "Noonday Press")
     end
   end
 
@@ -213,7 +346,8 @@ defmodule RichardBurton.VocabularyTest do
                Vocabulary.rename(
                  "publishers",
                  id_of(Publisher, "Noonday press"),
-                 "Noonday Press"
+                 "Noonday Press",
+                 true
                )
 
       # Both are named, so a person can go and look at them.
