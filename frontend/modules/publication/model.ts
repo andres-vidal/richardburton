@@ -66,14 +66,6 @@ type PublicationListKey = {
 
 type PublicationError = null | string | Record<PublicationKey, string>;
 
-/**
- * What one row of an import looks like: the stored records it resembles, and
- * the other rows of the same import it resembles.
- *
- * Neither is an error. The composite key already rejects an exact repeat, so
- * what this reports is a likeness a person has to judge — two editions of one
- * book resemble each other and are still two publications.
- */
 type Resemblance = { stored: Publication[]; others: PublicationId[] };
 
 type ValidationResult = { publication: Publication; errors: PublicationError };
