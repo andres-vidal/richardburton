@@ -1,13 +1,11 @@
+import Document from "app/document";
 import { routing, type Locale } from "i18n/routing";
 import type { Metadata, Viewport } from "next";
-import { hasLocale, NextIntlClientProvider } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { hasLocale } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { ReactNode } from "react";
-import "styles/globals.css";
-import { getSession } from "app/session";
 import { appUrl } from "modules/app-url";
-import { Providers } from "./providers";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -85,20 +83,10 @@ export default async function LocaleLayout({
 
   if (!hasLocale(routing.locales, locale)) notFound();
 
-  setRequestLocale(locale as Locale);
-
-  const session = await getSession();
-
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body>
-        <NextIntlClientProvider>
-          <Providers session={session}>
-            {children}
-            {modal}
-          </Providers>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <Document locale={locale as Locale}>
+      {children}
+      {modal}
+    </Document>
   );
 }
