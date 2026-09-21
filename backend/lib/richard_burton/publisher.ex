@@ -36,10 +36,7 @@ defmodule RichardBurton.Publisher do
     |> unique_constraint(:name)
   end
 
-  @spec fingerprint(binary() | maybe_improper_list()) :: binary()
-  def fingerprint(publishers) when is_binary(publishers),
-    do: publishers |> nest() |> fingerprint()
-
+  @spec fingerprint(maybe_improper_list()) :: binary()
   def fingerprint(publishers) when is_list(publishers) do
     publishers
     |> Enum.map(&get_name/1)
@@ -101,21 +98,15 @@ defmodule RichardBurton.Publisher do
   @doc ~S"""
   Nest publisher names into the maps the schema casts.
 
-  A list is the shape the client and the flat schema speak in; a
-  comma-separated string is CSV's, and is split on the way through.
+  Takes the list the client and the flat schema both speak in. Splitting a
+  written-down string into values is the CSV codec's, and is done before a value
+  reaches here.
 
   ## Examples
 
     iex> RichardBurton.Publisher.nest(["Noonday Press", "Penguin"])
     [%{"name" => "Noonday Press"}, %{"name" => "Penguin"}]
-
-    iex> RichardBurton.Publisher.nest("Noonday Press, Penguin")
-    [%{"name" => "Noonday Press"}, %{"name" => "Penguin"}]
   """
-  def nest(publishers) when is_binary(publishers) do
-    publishers |> String.split(",") |> Enum.map(&String.trim/1) |> nest()
-  end
-
   def nest(publishers) when is_list(publishers),
     do: Enum.map(publishers, &%{"name" => get_name(&1)})
 
