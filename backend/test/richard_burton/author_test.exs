@@ -308,8 +308,8 @@ defmodule RichardBurton.AuthorTest do
   end
 
   describe "nest/1" do
-    test "with a comma separated string, returns a list of maps with code key" do
-      authors = "Richard Burton, Isabel Burton"
+    test "returns a list of maps with a name key" do
+      authors = ["Richard Burton", "Isabel Burton"]
 
       assert [%{"name" => "Richard Burton"}, %{"name" => "Isabel Burton"}] = Author.nest(authors)
     end

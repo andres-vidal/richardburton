@@ -100,21 +100,15 @@ defmodule RichardBurton.Author do
   @doc ~S"""
   Nest author names into the maps the schema casts.
 
-  A list is the shape the client and the flat schema speak in; a
-  comma-separated string is CSV's, and is split on the way through.
+  Takes the list the client and the flat schema both speak in. Splitting a
+  written-down string into values is the CSV codec's, and is done before a value
+  reaches here.
 
   ## Examples
 
     iex> RichardBurton.Author.nest(["Machado de Assis", "Clarice Lispector"])
     [%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}]
-
-    iex> RichardBurton.Author.nest("Machado de Assis, Clarice Lispector")
-    [%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}]
   """
-  def nest(authors) when is_binary(authors) do
-    authors |> String.split(",") |> Enum.map(&String.trim/1) |> nest()
-  end
-
   def nest(authors) when is_list(authors), do: Enum.map(authors, &%{"name" => get_name(&1)})
 
   @doc ~S"""

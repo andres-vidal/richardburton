@@ -543,10 +543,8 @@ defmodule RichardBurton.CountryTest do
   end
 
   describe "nest/1" do
-    test "with a comma separated string, returns a list of maps with code key" do
-      countries = "GB, US"
-
-      assert [%{"code" => "GB"}, %{"code" => "US"}] = Country.nest(countries)
+    test "returns a list of maps with a code key, filed under the code each names" do
+      assert [%{"code" => "GB"}, %{"code" => "US"}] = Country.nest(["UK", "US"])
     end
   end
 end
