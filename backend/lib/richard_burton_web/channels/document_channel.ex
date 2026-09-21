@@ -20,10 +20,35 @@ defmodule RichardBurtonWeb.DocumentChannel do
   alias RichardBurton.Document
 
   @impl true
-  def join("document:" <> id, _params, socket) do
+  def join("document:" <> id, params, socket) do
     case Document.find(id) do
-      {:ok, document} -> {:ok, assign(socket, :document_id, document.id)}
-      {:error, :not_found} -> {:error, %{reason: "not_found"}}
+      {:ok, document} ->
+        # The client says which awareness entry is its own, so that its going
+        # can be announced on its behalf. A tab that is closed runs no cleanup
+        # of its own, and a person who has gone should not sit in everyone
+        # else's list until a timeout notices.
+        send(self(), :announce_arrival)
+        {:ok, assign(socket, document_id: document.id, client_id: params["clientId"])}
+
+      {:error, :not_found} ->
+        {:error, %{reason: "not_found"}}
+    end
+  end
+
+  # Tells everyone already here that somebody has arrived, so each of them says
+  # who they are again. Awareness is only ever broadcast when it changes, so
+  # without this the newcomer would see an empty room until somebody moved.
+  @impl true
+  def handle_info(:announce_arrival, socket) do
+    broadcast_from!(socket, "arrived", %{})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def terminate(_reason, socket) do
+    case socket.assigns[:client_id] do
+      nil -> :ok
+      client_id -> broadcast_from!(socket, "left", %{"clientId" => client_id})
     end
   end
 

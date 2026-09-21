@@ -173,3 +173,136 @@ test("two people with a document open see each other's edits as they happen", as
     await elsewhere.close();
   }
 });
+
+test("each person sees who else has the document open", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await signInAsAdmin(page);
+  await openDocument(page, "Who is here");
+  const address = page.url();
+
+  // Alone: nobody to show.
+  await expect(page.getByRole("list", { name: "Also here" })).toHaveCount(0);
+
+  const theirs = await browser.newContext({ baseURL });
+  const colleague = await theirs.newPage();
+
+  try {
+    await signInAsContributor(colleague);
+    await colleague.goto(address);
+
+    // Each is told about the other, by the address they signed in with.
+    await expect(page.getByLabel("dev-contributor@localhost")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(colleague.getByLabel("dev-admin@localhost")).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // Presence is true only while someone is looking: closing the page takes
+    // them off the other's list, without anything being stored or cleaned up.
+    await colleague.close();
+
+    await expect(page.getByLabel("dev-contributor@localhost")).toHaveCount(0, {
+      timeout: 15_000,
+    });
+  } finally {
+    await theirs.close();
+  }
+});
+
+test("each person sees which cell the other is in", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await signInAsAdmin(page);
+  await openDocument(page, "Where is everyone");
+  const address = page.url();
+
+  await page.locator("#upload-csv").setInputFiles({
+    name: "where.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(IMPORT_CSV),
+  });
+  await expect(
+    indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
+  ).toBeVisible();
+
+  const theirs = await browser.newContext({ baseURL });
+  const colleague = await theirs.newPage();
+
+  try {
+    await signInAsContributor(colleague);
+    await colleague.goto(address);
+    await expect(
+      indexTable(colleague).getByRole("row", { name: /Dom Casmurro/ }),
+    ).toBeVisible();
+
+    // Nobody is anywhere yet.
+    await expect(page.locator("[data-taken]")).toHaveCount(0);
+
+    // The colleague puts the cursor in the first title.
+    await indexTable(colleague)
+      .getByRole("textbox", { name: "Title" })
+      .first()
+      .focus();
+
+    // The owner is shown which cell that is, and — without hovering — whose.
+    const taken = page.locator("[data-taken]");
+    await expect(taken).toHaveCount(1, { timeout: 15_000 });
+    await expect(
+      page.getByLabel("dev-contributor@localhost has their cursor here"),
+    ).toBeVisible();
+
+    // Moving on takes the mark with them rather than leaving it behind.
+    await indexTable(colleague)
+      .getByRole("textbox", { name: "Year" })
+      .first()
+      .focus();
+
+    await expect(page.locator("[data-taken]")).toHaveCount(1, {
+      timeout: 15_000,
+    });
+  } finally {
+    await theirs.close();
+  }
+});
+
+test("one person with two tabs open is one person, not two", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await signInAsAdmin(page);
+  await openDocument(page, "Same person twice");
+  const address = page.url();
+
+  const theirs = await browser.newContext({ baseURL });
+  const colleague = await theirs.newPage();
+
+  try {
+    await signInAsContributor(colleague);
+    await colleague.goto(address);
+
+    await expect(page.getByLabel("dev-contributor@localhost")).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // The same person opens it again in a second tab. Awareness counts
+    // connections, so without folding them together they would appear twice.
+    const second = await theirs.newPage();
+    await second.goto(address);
+    await expect(
+      indexTable(second).getByRole("row", { name: /Title/ }).first(),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await expect(page.getByLabel("dev-contributor@localhost")).toHaveCount(1, {
+      timeout: 15_000,
+    });
+  } finally {
+    await theirs.close();
+  }
+});

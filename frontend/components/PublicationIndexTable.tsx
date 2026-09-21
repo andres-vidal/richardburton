@@ -29,6 +29,7 @@ import { useTranslations } from "next-intl";
 import useVisible from "utils/useVisible";
 import Highlight from "./Highlight";
 import { EmptySearchResults } from "./EmptySearchResults";
+import CellPresence from "./CellPresence";
 import { ListSkeleton } from "./ListSkeleton";
 
 type RowId = PublicationId;
@@ -161,6 +162,11 @@ const Column: FC<{
   focused?: boolean;
   invalid?: boolean;
   selected?: boolean;
+  /**
+   * Somebody else is in this cell, drawn in the colour they are known by.
+   * `null` when nobody is.
+   */
+  taken?: { colour: number; by: string } | null;
 }> = ({
   rowId,
   colId,
@@ -168,17 +174,34 @@ const Column: FC<{
   focused = false,
   invalid = false,
   selected = false,
+  taken = null,
 }) => {
   // `truncate` sets overflow:hidden, which zeroes the grid item's auto min-width so
   // the fixed-width track never expands to fit the content.
   return (
     <Aria.Cell
-      className="px-2 py-1 text-sm truncate transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
+      // A tint and a bar down the near edge, the way the table already says
+      // "selected" and "invalid" — rather than a ring, which nothing else here
+      // uses. The bar is a `before` element so it cannot move the text: the
+      // cell sits in a fixed grid track, and a border would.
+      className="
+        relative px-2 py-1 text-sm truncate transition-colors
+        group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100
+        selected:bg-amber-100 selected:focused:error:bg-amber-100
+        data-[taken]:before:absolute data-[taken]:before:inset-y-0.5 data-[taken]:before:left-0 data-[taken]:before:w-0.5 data-[taken]:before:rounded-full
+        data-[taken=0]:bg-indigo-50 data-[taken=0]:before:bg-indigo-500
+        data-[taken=1]:bg-emerald-50 data-[taken=1]:before:bg-emerald-500
+        data-[taken=2]:bg-amber-50 data-[taken=2]:before:bg-amber-500
+        data-[taken=3]:bg-rose-50 data-[taken=3]:before:bg-rose-500
+        data-[taken=4]:bg-sky-50 data-[taken=4]:before:bg-sky-500
+      "
       data-selected={selected}
       data-error={invalid}
       data-focused={focused}
+      data-taken={taken ? taken.colour : undefined}
     >
       <Content rowId={rowId} colId={colId} />
+      {taken && <CellPresence colour={taken.colour} by={taken.by} />}
     </Aria.Cell>
   );
 };

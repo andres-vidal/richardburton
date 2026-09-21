@@ -72,6 +72,13 @@ function live(
     channel?.push("update", { update: encode(update) });
   };
 
+  /** Say who this client is, and where it is looking. */
+  const announce = () => {
+    channel?.push("awareness", {
+      awareness: encode(encodeAwarenessUpdate(awareness, [doc.clientID])),
+    });
+  };
+
   const onAwareness = ({
     added,
     updated,
@@ -95,7 +102,7 @@ function live(
       socket = new Socket(socketUrl(), { params: { token } });
       socket.connect();
 
-      channel = socket.channel(`document:${id}`, {});
+      channel = socket.channel(`document:${id}`, { clientId: doc.clientID });
 
       channel.on("update", ({ update }: { update: string }) =>
         Y.applyUpdate(doc, decode(update), RELAYED),
@@ -105,12 +112,18 @@ function live(
         applyAwarenessUpdate(awareness, decode(state), RELAYED),
       );
 
-      channel.join().receive("ok", () =>
-        // Say who is here, so everyone already in sees the arrival.
-        channel?.push("awareness", {
-          awareness: encode(encodeAwarenessUpdate(awareness, [doc.clientID])),
-        }),
+      // Someone's connection has gone. Their awareness would otherwise sit in
+      // this list until it timed out, showing somebody who is not there.
+      channel.on("left", ({ clientId }: { clientId: number }) =>
+        removeAwarenessStates(awareness, [clientId], "left"),
       );
+
+      // Awareness is only sent when it changes, so somebody arriving would see
+      // an empty room until the next person moved. An arrival is answered by
+      // everyone saying who they are again.
+      channel.on("arrived", () => announce());
+
+      channel.join().receive("ok", announce);
 
       doc.on("update", onUpdate);
       awareness.on("update", onAwareness);
@@ -128,11 +141,12 @@ function live(
     stop: () => {
       stopped = true;
       doc.off("update", onUpdate);
-      awareness.off("update", onAwareness);
 
-      // Take this person off everyone else's list rather than leaving them
-      // there until a timeout notices.
+      // Said before the handler that carries it is taken away, so the others
+      // hear it. A tab that is simply closed never gets here at all, which is
+      // why the server announces a going too.
       removeAwarenessStates(awareness, [doc.clientID], "left");
+      awareness.off("update", onAwareness);
       awareness.destroy();
 
       channel?.leave();

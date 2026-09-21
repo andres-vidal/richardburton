@@ -48,7 +48,10 @@ const Workspace: FC<{ title: string; description: string }> = ({
       subheader={
         <>
           <Breadcrumb items={crumbs} />
-          <PageHeader title={title} description={description} />
+          <div className="flex gap-4 justify-between items-center">
+            <PageHeader title={title} description={description} />
+            <DocumentPresence />
+          </div>
         </>
       }
       content={<PublicationWorkspace />}
@@ -62,7 +65,6 @@ const Workspace: FC<{ title: string; description: string }> = ({
               <WorkspaceUndo />
               <ResetDiscarded />
               <RowIdToggle />
-              <DocumentPresence />
               <PublicationSubmit />
             </>
           ) : (

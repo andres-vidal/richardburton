@@ -445,6 +445,7 @@
     "none": "No documents yet. Start one above.",
     "rows": "{count, plural, =0 {Empty} one {# row} other {# rows}}",
     "hereNow": "Also here",
-    "alsoHere": "{who} is working on this too"
+    "alsoHere": "{who} is working on this too",
+    "editingHere": "{who} has their cursor here"
   }
 }

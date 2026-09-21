@@ -445,6 +445,7 @@
     "none": "Nenhum documento ainda. Crie um acima.",
     "rows": "{count, plural, =0 {Vazio} one {# linha} other {# linhas}}",
     "hereNow": "Também aqui",
-    "alsoHere": "{who} também está trabalhando nisto"
+    "alsoHere": "{who} também está trabalhando nisto",
+    "editingHere": "{who} está com o cursor aqui"
   }
 }

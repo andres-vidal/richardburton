@@ -25,6 +25,7 @@ import {
   usePublicationFieldError,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
+import { colourOf, useOnThisCell } from "modules/publication/presence";
 import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { DRAFT_ID, addNew } from "modules/publication/store";
@@ -49,11 +50,15 @@ import Tooltip from "./Tooltip";
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 const ExtendedColumn: typeof Column = (props) => {
-  const { rowId } = props;
+  const { rowId, colId } = props;
 
   const isSelected = useIsSelected(rowId);
   const isValid = useIsPublicationValid(rowId);
   const isFocused = useIsPublicationFocused(rowId);
+
+  // Somebody else editing this very cell, so it is plain where they are before
+  // anyone types over them.
+  const person = useOnThisCell(String(rowId), colId);
 
   return (
     <Column
@@ -61,6 +66,9 @@ const ExtendedColumn: typeof Column = (props) => {
       invalid={!isValid}
       focused={isFocused}
       selected={isSelected}
+      taken={
+        person ? { colour: colourOf(person.clientId), by: person.email } : null
+      }
     />
   );
 };

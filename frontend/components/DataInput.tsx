@@ -11,6 +11,7 @@ import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
 import { overrideField } from "modules/publication/store";
+import { useReportPosition } from "modules/publication/presence";
 import { FC, FocusEvent, HTMLProps, Ref, forwardRef } from "react";
 import OriginalBookDataInput from "./OriginalBookDataInput";
 import TextArrayDataInput from "./TextArrayDataInput";
@@ -103,6 +104,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   const placeholder = t(colId);
 
   const store = usePublicationStore();
+  const report = useReportPosition();
   const validateRow = onValidate ?? (() => validate(store, [rowId]));
 
   function doValidate() {
@@ -119,22 +121,31 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
 
   function handleBlur(event: FocusEvent<HTMLInputElement>) {
     doValidate();
+    report(null);
     onBlur?.(event);
   }
 
+  // Capture, because the focus lands on the input inside rather than here, and
+  // each cell type builds its own. `contents` keeps this wrapper out of the
+  // layout the cell depends on.
   const field = (
-    <Component
-      {...props}
-      {...Publication.define(colId)}
-      ref={ref}
-      value={data}
-      onBlur={handleBlur}
-      onChange={handleChange}
-      placeholder={placeholder}
-      error={error}
-      fill
-      bordered
-    />
+    <div
+      className="contents"
+      onFocusCapture={() => report({ row: String(rowId), field: colId })}
+    >
+      <Component
+        {...props}
+        {...Publication.define(colId)}
+        ref={ref}
+        value={data}
+        onBlur={handleBlur}
+        onChange={handleChange}
+        placeholder={placeholder}
+        error={error}
+        fill
+        bordered
+      />
+    </div>
   );
 
   return errorDisplay === "inline" ? (

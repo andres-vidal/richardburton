@@ -1,6 +1,6 @@
 "use client";
 
-import { useOthersPresent } from "modules/publication/presence";
+import { colourOf, useOthersPresent } from "modules/publication/presence";
 import { useTranslations } from "next-intl";
 import { FC } from "react";
 import Tooltip from "./Tooltip";
@@ -30,7 +30,14 @@ const DocumentPresence: FC = () => {
           >
             <span
               aria-label={person.email}
-              className="flex justify-center items-center text-xs font-medium text-white rounded-full ring-2 ring-white size-6 bg-indigo-500"
+              data-colour={colourOf(person.clientId)}
+              className="
+                flex justify-center items-center text-xs font-medium text-white
+                rounded-full ring-2 ring-white size-6
+                data-[colour=0]:bg-indigo-500 data-[colour=1]:bg-emerald-500
+                data-[colour=2]:bg-amber-500 data-[colour=3]:bg-rose-500
+                data-[colour=4]:bg-sky-500
+              "
             >
               {initial(person.email)}
             </span>
