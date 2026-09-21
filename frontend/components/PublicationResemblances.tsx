@@ -13,7 +13,7 @@ import {
 } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
-import { FC, useEffect, useState } from "react";
+import { FC, useState } from "react";
 import Button from "./Button";
 import { Modal } from "./Modal";
 import SectionHeading from "./SectionHeading";
@@ -122,26 +122,21 @@ const OtherRow: FC<{ id: PublicationId }> = ({ id }) => {
  * again in this workspace — two editions of one book resemble each other and
  * are both worth having.
  */
-const PublicationResemblances: FC<Props> = ({ isOpen, onClose }) => {
+/**
+ * The questions as they stood when the dialog opened, asked one at a time.
+ *
+ * The dialog renders its content only while it is open, so this mounts on
+ * opening — which is what fixes the queue. Answering a question takes its row
+ * out of the raised set, and a list that shrank underneath would renumber the
+ * progress after every answer. Taken at mount rather than watched for, so there
+ * is no later moment at which it could be taken again.
+ */
+const Queue: FC<{ onClose: () => void }> = ({ onClose }) => {
   const t = useTranslations("resemblances");
   const store = usePublicationStore();
 
-  // The questions as they stood when the dialog opened. Answering one takes the
-  // row out of the raised set, and stepping through a list that shrank
-  // underneath would renumber the progress after every answer.
-  //
-  // Read from the store rather than subscribed to, which is what keeps the
-  // snapshot a snapshot: there is no changing value here to reopen the queue,
-  // and answering a question does not redraw the dialog around it.
-  const [queue, setQueue] = useState<PublicationId[]>([]);
+  const [queue] = useState(() => store.get(resemblingIdsAtom) ?? []);
   const [position, setPosition] = useState(0);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    setQueue(store.get(resemblingIdsAtom) ?? []);
-    setPosition(0);
-  }, [isOpen, store]);
 
   const current = queue[position];
 
@@ -150,39 +145,40 @@ const PublicationResemblances: FC<Props> = ({ isOpen, onClose }) => {
     setPosition((at) => at + 1);
   }
 
-  function handleClose() {
-    setPosition(0);
-    onClose();
-  }
+  return current === undefined ? (
+    <div className="flex flex-col gap-3 justify-center items-center p-8 h-full text-center">
+      <h2 className="text-xl">{t("allAnswered")}</h2>
+      <p className="text-sm text-gray-600">{t("allAnsweredDetail")}</p>
+      <Button
+        label={t("done")}
+        variant="outline-primary"
+        width="fit"
+        size="medium"
+        onClick={onClose}
+      />
+    </div>
+  ) : (
+    <div className="overflow-y-auto flex-1">
+      <Question
+        // Keyed by the row, so each question is asked afresh.
+        key={current}
+        id={current}
+        position={position}
+        total={queue.length}
+        onKeep={() => answer(() => acceptResemblance(store, current))}
+        onDiscard={() => answer(() => setDiscarded(store, [current]))}
+      />
+    </div>
+  );
+};
+
+const PublicationResemblances: FC<Props> = ({ isOpen, onClose }) => {
+  const t = useTranslations("resemblances");
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} label={t("label")}>
+    <Modal isOpen={isOpen} onClose={onClose} label={t("label")}>
       <div className="flex flex-col w-full h-full sm:h-[70vh]">
-        {current === undefined ? (
-          <div className="flex flex-col gap-3 justify-center items-center p-8 h-full text-center">
-            <h2 className="text-xl">{t("allAnswered")}</h2>
-            <p className="text-sm text-gray-600">{t("allAnsweredDetail")}</p>
-            <Button
-              label={t("done")}
-              variant="outline-primary"
-              width="fit"
-              size="medium"
-              onClick={handleClose}
-            />
-          </div>
-        ) : (
-          <div className="overflow-y-auto flex-1">
-            <Question
-              // Keyed by the row, so each question is asked afresh.
-              key={current}
-              id={current}
-              position={position}
-              total={queue.length}
-              onKeep={() => answer(() => acceptResemblance(store, current))}
-              onDiscard={() => answer(() => setDiscarded(store, [current]))}
-            />
-          </div>
-        )}
+        <Queue onClose={onClose} />
       </div>
     </Modal>
   );
