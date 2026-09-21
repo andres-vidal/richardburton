@@ -83,6 +83,11 @@
       "body": "<message>Seu perfil é Leitor, que não tem nada a fazer por aqui — a base de dados é aberta a todos, com ou sem conta.</message><suggestion>Um administrador pode lhe dar um perfil que adiciona e corrige publicações. Assim que fizer, entre novamente.</suggestion>"
     }
   },
+  "notFound": {
+    "title": "Página inexistente",
+    "body": "<message>Nada responde a este endereço. O link pode estar desatualizado, ou o registro para o qual apontava pode ter sido excluído.</message><suggestion>Tudo o que está publicado pode ser alcançado a partir da própria base de dados.</suggestion>",
+    "browse": "Explorar a base de dados"
+  },
   "searchHelp": {
     "title": "Como pesquisar",
     "subtitle": "Pesquise por título, autor, tradutor, editora ou ano. Acrescentar palavras restringe os resultados.",
