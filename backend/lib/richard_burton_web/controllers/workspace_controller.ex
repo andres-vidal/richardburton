@@ -12,6 +12,17 @@ defmodule RichardBurtonWeb.WorkspaceController do
   alias RichardBurton.User
   alias RichardBurton.Workspace
 
+  @doc """
+  A short-lived token for this person to open a live connection with.
+
+  The session cookie is httpOnly, so the page cannot read it to hand over as a
+  connect parameter. This is minted behind the same authentication and says only
+  who is asking; which workspaces they may open is decided on joining.
+  """
+  def socket_token(conn, _params) do
+    json(conn, %{token: RichardBurtonWeb.WorkspaceSocket.sign(conn.assigns.subject_id)})
+  end
+
   def index(conn, _params) do
     json(conn, %{entries: Workspace.for_user(actor_id(conn))})
   end

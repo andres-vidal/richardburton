@@ -116,3 +116,60 @@ test("an edit made in one browser reaches the workspace in another", async ({
     await elsewhere.close();
   }
 });
+
+test("two people with the workspace open see each other's edits as they happen", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/publications/workspaces");
+
+  await page.getByLabel("Name").fill("Together");
+  await page.getByRole("button", { name: "Start a workspace" }).click();
+  await expect(page).toHaveURL(/\/admin\/publications\/workspaces\/\d+$/);
+  const address = page.url();
+
+  await page.locator("#upload-csv").setInputFiles({
+    name: "together.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(IMPORT_CSV),
+  });
+
+  const mine = indexTable(page);
+  await expect(mine.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();
+
+  // A second browser, with the same workspace open at the same time.
+  const elsewhere = await browser.newContext({ baseURL });
+  const other = await elsewhere.newPage();
+
+  try {
+    await signInAsAdmin(other);
+    await other.goto(address);
+
+    const theirs = indexTable(other);
+    await expect(
+      theirs.getByRole("row", { name: /Dom Casmurro/ }),
+    ).toBeVisible();
+
+    // Neither page is reloaded from here on.
+    const title = mine.getByRole("textbox", { name: "Title" }).first();
+    await title.fill("Dom Casmurro (revised)");
+    await title.blur();
+
+    await expect(
+      theirs.getByRole("row", { name: /Dom Casmurro \(revised\)/ }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // And the other way, so it is a conversation rather than a broadcast.
+    const back = theirs.getByRole("textbox", { name: "Title" }).nth(1);
+    await back.fill("Iracema (revised)");
+    await back.blur();
+
+    await expect(
+      mine.getByRole("row", { name: /Iracema \(revised\)/ }),
+    ).toBeVisible({ timeout: 15_000 });
+  } finally {
+    await elsewhere.close();
+  }
+});

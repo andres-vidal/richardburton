@@ -1,0 +1,142 @@
+import { Socket, type Channel } from "phoenix";
+import * as Y from "yjs";
+import {
+  Awareness,
+  applyAwarenessUpdate,
+  encodeAwarenessUpdate,
+  removeAwarenessStates,
+} from "y-protocols/awareness";
+
+import { request } from "app";
+import { decode, encode } from "./workspace-remote";
+
+/**
+ * The origin stamped on a change that arrived over the wire.
+ *
+ * Distinct from the one the stored updates carry, but used the same way: a
+ * change that came from elsewhere is not posted back, and is not this person's
+ * to undo.
+ */
+const RELAYED = Symbol("relayed");
+
+/** Where the socket lives, derived from wherever the API is. */
+function socketUrl(): string {
+  const api = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+  // The API is served under `/api` on the same host as the socket.
+  return `${api.replace(/\/api\/?$/, "")}/socket`;
+}
+
+/** A token to open a connection with, minted behind the session cookie. */
+async function socketToken(): Promise<string> {
+  return request(async (http) => {
+    const { data } = await http.post<{ token: string }>(
+      "workspaces/socket-token",
+    );
+
+    return data.token;
+  });
+}
+
+type Live = {
+  /** Who else is here, and where they are looking. */
+  awareness: Awareness;
+  stop: () => void;
+};
+
+/**
+ * Keep this document in step with the people who have the same one open.
+ *
+ * Changes cross as the opaque bytes they already are, so this is a transport
+ * for what is being written down anyway rather than a second way of recording
+ * it. A client that misses a message while away is not repaired from here: it
+ * reads the stored updates when it next opens the workspace.
+ *
+ * Awareness — who is here, and which cell they have focused — crosses the same
+ * connection but is never stored. It is true only while someone is looking.
+ */
+function live(
+  doc: Y.Doc,
+  id: number,
+  isLocal: (origin: unknown) => boolean,
+): Live {
+  const awareness = new Awareness(doc);
+
+  let socket: Socket | undefined;
+  let channel: Channel | undefined;
+  let stopped = false;
+
+  const onUpdate = (update: Uint8Array, origin: unknown) => {
+    if (!isLocal(origin)) return;
+
+    channel?.push("update", { update: encode(update) });
+  };
+
+  const onAwareness = ({
+    added,
+    updated,
+    removed,
+  }: {
+    added: number[];
+    updated: number[];
+    removed: number[];
+  }) => {
+    const changed = [...added, ...updated, ...removed];
+
+    channel?.push("awareness", {
+      awareness: encode(encodeAwarenessUpdate(awareness, changed)),
+    });
+  };
+
+  socketToken()
+    .then((token) => {
+      if (stopped) return;
+
+      socket = new Socket(socketUrl(), { params: { token } });
+      socket.connect();
+
+      channel = socket.channel(`workspace:${id}`, {});
+
+      channel.on("update", ({ update }: { update: string }) =>
+        Y.applyUpdate(doc, decode(update), RELAYED),
+      );
+
+      channel.on("awareness", ({ awareness: state }: { awareness: string }) =>
+        applyAwarenessUpdate(awareness, decode(state), RELAYED),
+      );
+
+      channel.join().receive("ok", () =>
+        // Say who is here, so everyone already in sees the arrival.
+        channel?.push("awareness", {
+          awareness: encode(encodeAwarenessUpdate(awareness, [doc.clientID])),
+        }),
+      );
+
+      doc.on("update", onUpdate);
+      awareness.on("update", onAwareness);
+    })
+    .catch(() => {
+      // No connection, so the workspace is edited alone: everything still
+      // saves, and what was missed arrives when it is next opened.
+    });
+
+  return {
+    awareness,
+    stop: () => {
+      stopped = true;
+      doc.off("update", onUpdate);
+      awareness.off("update", onAwareness);
+
+      // Take this person off everyone else's list rather than leaving them
+      // there until a timeout notices.
+      removeAwarenessStates(awareness, [doc.clientID], "left");
+      awareness.destroy();
+
+      channel?.leave();
+      socket?.disconnect();
+    },
+  };
+}
+
+export { RELAYED, live, socketUrl };
+export type { Live };

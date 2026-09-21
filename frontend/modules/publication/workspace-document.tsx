@@ -4,10 +4,12 @@ import { IndexeddbPersistence } from "y-indexeddb";
 import { FC, ReactNode, useEffect, useState } from "react";
 import * as Y from "yjs";
 
+import { LOCAL } from "./doc";
 import { keepDraft } from "./draft";
 import { validate } from "./remote";
 import { openWorkspace, visibleIdsAtom } from "./store";
 import { usePublicationStore } from "./workspace";
+import { live } from "./workspace-live";
 import { sync } from "./workspace-sync";
 
 /**
@@ -52,6 +54,14 @@ const WorkspaceDocument: FC<{
     const close = openWorkspace(store, doc);
     const stored = new IndexeddbPersistence(name, doc);
     const running = workspace === undefined ? undefined : sync(doc, workspace);
+
+    // Only a change made here crosses to the others. One that arrived — from
+    // the stored updates or from someone else — carries its own origin, so
+    // relaying it back would put it round the room forever.
+    const relayed =
+      workspace === undefined
+        ? undefined
+        : live(doc, workspace, (origin) => origin === LOCAL);
     const forgetDraft = keepDraft(store, name);
 
     setAttached(true);
@@ -74,6 +84,7 @@ const WorkspaceDocument: FC<{
 
     return () => {
       setAttached(false);
+      relayed?.stop();
       running?.stop();
       forgetDraft();
       close();

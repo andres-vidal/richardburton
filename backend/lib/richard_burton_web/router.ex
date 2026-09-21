@@ -68,6 +68,7 @@ defmodule RichardBurtonWeb.Router do
 
     scope "/workspaces" do
       get("/", WorkspaceController, :index)
+      post("/socket-token", WorkspaceController, :socket_token)
       post("/", WorkspaceController, :create)
       get("/:id", WorkspaceController, :show)
       get("/:id/updates", WorkspaceController, :updates)
