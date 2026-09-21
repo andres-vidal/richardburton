@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { signInAsAdmin, indexTable, CSV_HEADER } from "./helpers";
+import { signInAsAdmin, indexTable, CSV_HEADER, openDocument } from "./helpers";
 
 const IMPORT_CSV =
   [
@@ -8,11 +8,11 @@ const IMPORT_CSV =
     `Iracema,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,`,
   ].join("\n") + "\n";
 
-test("work in the bulk workspace survives closing the tab", async ({
+test("work in the import document survives closing the tab", async ({
   page,
 }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
   await page.locator("#upload-csv").setInputFiles({
     name: "resume.csv",
@@ -39,9 +39,9 @@ test("work in the bulk workspace survives closing the tab", async ({
   await expect(table.getByRole("row", { name: /Iracema/ })).toBeVisible();
 });
 
-test("a workspace resumed from disk still submits", async ({ page }) => {
+test("a document resumed from disk still submits", async ({ page }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
   await page.locator("#upload-csv").setInputFiles({
     name: "resume.csv",
@@ -66,9 +66,9 @@ test("a workspace resumed from disk still submits", async ({ page }) => {
   ).toBeVisible({ timeout: 30_000 });
 });
 
-test("a workspace resumes with the backend unavailable", async ({ page }) => {
+test("a document resumes with the backend unavailable", async ({ page }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
   await page.locator("#upload-csv").setInputFiles({
     name: "resume.csv",
@@ -79,7 +79,7 @@ test("a workspace resumes with the backend unavailable", async ({ page }) => {
   const table = indexTable(page);
   await expect(table.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();
 
-  // Take the API away entirely. Restoring the workspace is the browser reading
+  // Take the API away entirely. Restoring the document is the browser reading
   // its own disk, so it must not need the server to be there at all.
   await page.route("**/api/**", (route) => route.abort());
   await page.reload();
@@ -92,7 +92,7 @@ test("a row half-typed into the new-publication row survives a reload", async ({
   page,
 }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
   // The trailing row, typed into but never added.
   const table = indexTable(page);
@@ -108,11 +108,11 @@ test("a row half-typed into the new-publication row survives a reload", async ({
   ).toHaveValue("Iracema");
 });
 
-test("a resumed workspace asks again whether its rows are valid", async ({
+test("a resumed document asks again whether its rows are valid", async ({
   page,
 }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
   // A row with a title and nothing else: the database will refuse it.
   const table = indexTable(page);
@@ -124,7 +124,7 @@ test("a resumed workspace asks again whether its rows are valid", async ({
   await page.reload();
 
   // Whether a row is valid was the server's word and was never written down,
-  // so a resumed workspace asks again rather than calling every row valid.
+  // so a resumed document asks again rather than calling every row valid.
   await expect(page.getByLabel("1 invalid publication")).toBeVisible({
     timeout: 30_000,
   });

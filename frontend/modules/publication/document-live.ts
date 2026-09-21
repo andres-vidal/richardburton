@@ -8,7 +8,7 @@ import {
 } from "y-protocols/awareness";
 
 import { request } from "app";
-import { decode, encode } from "./workspace-remote";
+import { decode, encode } from "./document-remote";
 
 /**
  * The origin stamped on a change that arrived over the wire.
@@ -31,7 +31,7 @@ function socketUrl(): string {
 async function socketToken(): Promise<string> {
   return request(async (http) => {
     const { data } = await http.post<{ token: string }>(
-      "workspaces/socket-token",
+      "documents/socket-token",
     );
 
     return data.token;
@@ -45,12 +45,12 @@ type Live = {
 };
 
 /**
- * Keep this document in step with the people who have the same one open.
+ * Keep this document in step with the people who have it open.
  *
  * Changes cross as the opaque bytes they already are, so this is a transport
  * for what is being written down anyway rather than a second way of recording
  * it. A client that misses a message while away is not repaired from here: it
- * reads the stored updates when it next opens the workspace.
+ * reads the stored updates when it next opens the document.
  *
  * Awareness — who is here, and which cell they have focused — crosses the same
  * connection but is never stored. It is true only while someone is looking.
@@ -95,7 +95,7 @@ function live(
       socket = new Socket(socketUrl(), { params: { token } });
       socket.connect();
 
-      channel = socket.channel(`workspace:${id}`, {});
+      channel = socket.channel(`document:${id}`, {});
 
       channel.on("update", ({ update }: { update: string }) =>
         Y.applyUpdate(doc, decode(update), RELAYED),
@@ -115,9 +115,12 @@ function live(
       doc.on("update", onUpdate);
       awareness.on("update", onAwareness);
     })
-    .catch(() => {
-      // No connection, so the workspace is edited alone: everything still
-      // saves, and what was missed arrives when it is next opened.
+    .catch((reason) => {
+      // Editing goes on without it: changes still save, and what was missed
+      // arrives when the document is next opened. But a document that is
+      // quietly not live looks exactly like one nobody else is editing, so it
+      // says so rather than failing silently.
+      console.warn("This document is not receiving live changes.", reason);
     });
 
   return {

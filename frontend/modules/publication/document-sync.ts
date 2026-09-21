@@ -1,7 +1,7 @@
 import * as Y from "yjs";
 
 import { LOCAL, keys } from "./doc";
-import { append, updates } from "./workspace-remote";
+import { append, updates } from "./document-remote";
 
 /**
  * The origin stamped on a change that came from the server.
@@ -22,7 +22,7 @@ type Sync = {
 };
 
 /**
- * Keep a workspace's document and the server's copy of it in step.
+ * Keep a document and the server's copy of it in step.
  *
  * On opening, everything the server holds is applied. After that, each change
  * made here is posted as the opaque bytes it is. Changes are gathered for a
@@ -33,7 +33,7 @@ type Sync = {
  * carries its own origin, so applying it cannot start a round trip back.
  *
  * Nothing here blocks editing. The document needs no authority to accept a
- * change, so a slow connection makes the workspace save late rather than
+ * change, so a slow connection makes the document save late rather than
  * stall, and a failed post leaves the change in the document to be carried by
  * the next one.
  */
@@ -56,8 +56,8 @@ function sync(doc: Y.Doc, id: number): Sync {
       await append(id, Y.mergeUpdates(sending), keys(doc).length);
     } catch {
       // The change is still in the document, so the next post carries it. A
-      // workspace that cannot reach the server is a workspace being edited
-      // offline, not a workspace that has lost anything.
+      // document that cannot reach the server is one being edited offline, not
+      // one that has lost anything.
       pending = [...sending, ...pending];
     }
   };

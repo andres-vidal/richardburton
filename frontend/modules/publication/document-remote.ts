@@ -1,12 +1,12 @@
 import { request } from "app";
 import * as Y from "yjs";
 
-/** A workspace as the list of them shows it. */
-type WorkspaceSummary = {
+/** An import document as the list of them shows it. */
+type DocumentSummary = {
   id: number;
   name: string;
   /**
-   * How many rows it holds. The server does not read the document, so this is
+   * How many rows it holds. The server does not read the content, so this is
    * whatever the client last counted while writing to it.
    */
   rows: number;
@@ -27,44 +27,38 @@ const encode = (update: Uint8Array): string =>
 const decode = (update: string): Uint8Array =>
   Uint8Array.from(atob(update), (character) => character.charCodeAt(0));
 
-async function list(): Promise<WorkspaceSummary[]> {
+/** Every import document. The list is shared, so this is all of them. */
+async function list(): Promise<DocumentSummary[]> {
   return request(async (http) => {
-    const { data } = await http.get<{ entries: WorkspaceSummary[] }>(
-      "workspaces",
+    const { data } = await http.get<{ entries: DocumentSummary[] }>(
+      "documents",
     );
 
     return data.entries;
   });
 }
 
-async function create(name: string): Promise<WorkspaceSummary> {
+async function create(name: string): Promise<DocumentSummary> {
   return request(async (http) => {
-    const { data } = await http.post<WorkspaceSummary>("workspaces", { name });
+    const { data } = await http.post<DocumentSummary>("documents", { name });
 
     return data;
   });
 }
 
-/** One workspace, with who else may open it. */
-async function show(id: number): Promise<{
-  workspace: WorkspaceSummary;
-  members: { id: number; email: string }[];
-}> {
+async function show(id: number): Promise<DocumentSummary> {
   return request(async (http) => {
-    const { data } = await http.get<{
-      workspace: WorkspaceSummary;
-      members: { id: number; email: string }[];
-    }>(`workspaces/${id}`);
+    const { data } = await http.get<DocumentSummary>(`documents/${id}`);
 
     return data;
   });
 }
 
-/** Everything needed to rebuild the document, oldest first. */
+/** Everything needed to rebuild the content, oldest first. */
 async function updates(id: number): Promise<Uint8Array[]> {
   return request(async (http) => {
     const { data } = await http.get<{ entries: string[] }>(
-      `workspaces/${id}/updates`,
+      `documents/${id}/updates`,
     );
 
     return data.entries.map(decode);
@@ -78,7 +72,7 @@ async function append(
   rows: number,
 ): Promise<void> {
   return request(async (http) => {
-    await http.post(`workspaces/${id}/updates`, {
+    await http.post(`documents/${id}/updates`, {
       update: encode(update),
       rows,
     });
@@ -86,35 +80,18 @@ async function append(
 }
 
 /**
- * Replace the workspace's updates with one that means the same thing.
+ * Replace a document's updates with one that means the same thing.
  *
- * Only a client can do this, because only a client reads the document. The
+ * Only a client can do this, because only a client reads the content. The
  * merged update is the whole of it, encoded as one.
  */
 async function compact(id: number, doc: Y.Doc): Promise<void> {
   return request(async (http) => {
-    await http.post(`workspaces/${id}/compact`, {
+    await http.post(`documents/${id}/compact`, {
       update: encode(Y.encodeStateAsUpdate(doc)),
     });
   });
 }
 
-/** Let someone else open this workspace, by the address they signed in with. */
-async function addMember(id: number, email: string): Promise<void> {
-  return request(async (http) => {
-    await http.post(`workspaces/${id}/members`, { email });
-  });
-}
-
-export {
-  addMember,
-  append,
-  compact,
-  create,
-  decode,
-  encode,
-  list,
-  show,
-  updates,
-};
-export type { WorkspaceSummary };
+export { append, compact, create, decode, encode, list, show, updates };
+export type { DocumentSummary };

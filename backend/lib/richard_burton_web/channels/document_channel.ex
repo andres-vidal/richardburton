@@ -1,31 +1,29 @@
-defmodule RichardBurtonWeb.WorkspaceChannel do
+defmodule RichardBurtonWeb.DocumentChannel do
   @moduledoc """
-  Relays one workspace's changes between the people who have it open.
+  Relays one import document's changes between the people who have it open.
+
+  The list of documents is shared, so being connected is the permission: anyone
+  who may edit publications may join any document. Joining one that does not
+  exist is refused, which is the only thing there is to check.
 
   A change is an opaque Yjs update, the same bytes the endpoints persist — this
   is a transport for what is already being written down, not a second way of
   recording it. Nothing here parses one, and nothing here stores one: a client
   that misses a message while away gets it from the stored updates on opening.
 
-  Awareness is the other thing that crosses: who is here and which cell they
-  have focused. It is deliberately *not* persisted, because it is true only
-  while someone is looking.
+  Awareness is the other thing that crosses: who is here. It is deliberately
+  *not* persisted, because it is true only while someone is looking.
   """
 
   use Phoenix.Channel
 
-  alias RichardBurton.User
-  alias RichardBurton.Workspace
+  alias RichardBurton.Document
 
   @impl true
-  def join("workspace:" <> id, _params, socket) do
-    with %User{id: user_id} <- User.get(socket.assigns.subject_id),
-         {:ok, workspace} <- Workspace.find(id, user_id) do
-      {:ok, assign(socket, workspace_id: workspace.id, user_id: user_id)}
-    else
-      # A workspace this person may not open is not said to exist, the same
-      # answer the endpoint gives.
-      _ -> {:error, %{reason: "not_found"}}
+  def join("document:" <> id, _params, socket) do
+    case Document.find(id) do
+      {:ok, document} -> {:ok, assign(socket, :document_id, document.id)}
+      {:error, :not_found} -> {:error, %{reason: "not_found"}}
     end
   end
 

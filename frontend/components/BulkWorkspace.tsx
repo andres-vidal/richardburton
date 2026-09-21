@@ -13,13 +13,13 @@ import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
 import PublicationWorkspace from "components/PublicationWorkspace";
 import ResetDiscarded from "components/ResetDiscarded";
-import WorkspaceShare from "components/WorkspaceShare";
+import DocumentPresence from "components/DocumentPresence";
 import WorkspaceUndo from "components/WorkspaceUndo";
 import RowIdToggle from "components/RowIdToggle";
 import { Publication } from "modules/publication/model";
 import { setAttributesVisible } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
-import { WorkspaceDocument } from "modules/publication/workspace-document";
+import { DocumentProvider } from "modules/publication/document-provider";
 import type { Store } from "modules/store";
 import { useIsSelectionEmpty } from "modules/selection";
 import { FC } from "react";
@@ -62,7 +62,7 @@ const Workspace: FC<{ title: string; description: string }> = ({
               <WorkspaceUndo />
               <ResetDiscarded />
               <RowIdToggle />
-              <WorkspaceShare />
+              <DocumentPresence />
               <PublicationSubmit />
             </>
           ) : (
@@ -81,20 +81,19 @@ const Workspace: FC<{ title: string; description: string }> = ({
 /**
  * Rows being prepared for the database, and everything done to them.
  *
- * The same surface whether the work is this browser's alone or a workspace the
- * server holds — only where the document lives differs, which is
- * `WorkspaceDocument`'s business rather than any of these components'.
+ * Where the rows live is `DocumentProvider`'s business rather than any of these
+ * components': they read atoms, as they did before any of this was shared.
  */
 const BulkWorkspace: FC<{
   title: string;
   description: string;
-  /** The workspace on the server, where there is one. */
-  workspace?: number;
-}> = ({ title, description, workspace }) => (
+  /** The import document these rows belong to. */
+  document: number;
+}> = ({ title, description, document }) => (
   <PublicationStoreProvider initialize={showEveryColumn}>
-    <WorkspaceDocument workspace={workspace}>
+    <DocumentProvider document={document}>
       <Workspace title={title} description={description} />
-    </WorkspaceDocument>
+    </DocumentProvider>
   </PublicationStoreProvider>
 );
 

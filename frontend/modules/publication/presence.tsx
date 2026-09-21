@@ -3,12 +3,10 @@
 import type { Awareness } from "y-protocols/awareness";
 import { createContext, useContext, useEffect, useState } from "react";
 
-/** Someone who has this workspace open, as they say who they are. */
+/** Someone who has this document open, as they say who they are. */
 type Present = { clientId: number; email: string };
 
 type Live = {
-  /** The workspace on the server, where this surface belongs to one. */
-  workspace?: number;
   /** Who is here, or nothing where the surface is not connected. */
   awareness?: Awareness;
 };
@@ -17,13 +15,8 @@ const LiveContext = createContext<Live>({});
 
 const LiveProvider = LiveContext.Provider;
 
-/** The workspace this surface belongs to, where it belongs to one. */
-function useWorkspaceId(): number | undefined {
-  return useContext(LiveContext).workspace;
-}
-
 /**
- * Everyone else who has this workspace open.
+ * Everyone else who has this document open.
  *
  * Read from awareness rather than from the server, because it is true only
  * while someone is looking: it is never written down, and a person who closes
@@ -58,5 +51,5 @@ function useOthersPresent(): Present[] {
   return present;
 }
 
-export { LiveProvider, useOthersPresent, useWorkspaceId };
+export { LiveProvider, useOthersPresent };
 export type { Live, Present };

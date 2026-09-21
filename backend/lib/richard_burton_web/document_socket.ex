@@ -1,26 +1,26 @@
-defmodule RichardBurtonWeb.WorkspaceSocket do
+defmodule RichardBurtonWeb.DocumentSocket do
   @moduledoc """
-  The socket workspaces are edited live over.
+  The socket import documents are edited live over.
 
   It is authenticated by a short-lived token rather than by the `rb-session`
   cookie. The cookie is httpOnly, so the page cannot read it to pass as a
   connect parameter, and a token also survives a transport that carries no
   cookies at all.
 
-  The token says who, and nothing about which workspace: what a person may open
-  is decided when they join a channel, against the same rule the endpoints use.
+  The token says who is connecting, and no more: the list of documents is
+  shared, so being connected at all is the permission to join any of them.
   """
 
   use Phoenix.Socket
 
-  @salt "workspace socket"
+  @salt "document socket"
 
   # Long enough to be fetched and used, short enough that one left lying around
   # is worth little. It authenticates the connection, not the session: a socket
   # that stays open is not re-checked against it.
   @max_age 60
 
-  channel("workspace:*", RichardBurtonWeb.WorkspaceChannel)
+  channel("document:*", RichardBurtonWeb.DocumentChannel)
 
   @doc "A token for this subject to connect with."
   def sign(subject_id) do
@@ -41,5 +41,5 @@ defmodule RichardBurtonWeb.WorkspaceSocket do
   # Every socket a person has open, named together, so signing out or losing
   # access can close all of them at once.
   @impl true
-  def id(socket), do: "workspace_socket:#{socket.assigns.subject_id}"
+  def id(socket), do: "document_socket:#{socket.assigns.subject_id}"
 end

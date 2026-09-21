@@ -3,8 +3,8 @@ import * as Y from "yjs";
 
 import * as Doc from "./doc";
 import { empty } from "./model";
-import * as Remote from "./workspace-remote";
-import { SETTLE_MS, sync } from "./workspace-sync";
+import * as Remote from "./document-remote";
+import { SETTLE_MS, sync } from "./document-sync";
 
 const row = (title: string) => ({ ...empty(), title });
 

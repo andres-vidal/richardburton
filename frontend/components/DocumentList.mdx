@@ -1,8 +1,8 @@
 import { Canvas, Meta } from "@storybook/addon-docs/blocks";
 
-import * as WorkspaceHubStories from "./WorkspaceHub.stories";
+import * as DocumentListStories from "./DocumentList.stories";
 
-<Meta of={WorkspaceHubStories} />
+<Meta of={DocumentListStories} />
 
 # Workspace hub
 
@@ -13,7 +13,7 @@ the browser it was started in and can be handed to a colleague. The page at
 `/admin/publications/new` is the same surface without one: work kept on this
 browser's disk alone, which is enough until it is worth naming.
 
-<Canvas of={WorkspaceHubStories.Default} />
+<Canvas of={DocumentListStories.Default} />
 
 ## The row count is the client's word
 
@@ -37,4 +37,4 @@ Both are props so a story can stand in for the network.
 - **Needs a name** — a workspace cannot be started unnamed; the name is what the
   list calls it.
 
-<Canvas of={WorkspaceHubStories.Empty} />
+<Canvas of={DocumentListStories.Empty} />

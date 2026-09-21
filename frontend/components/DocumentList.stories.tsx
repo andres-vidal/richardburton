@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { WorkspaceSummary } from "modules/publication/workspace-remote";
+import type { DocumentSummary } from "modules/publication/document-remote";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
-import WorkspaceHub from "./WorkspaceHub";
+import DocumentList from "./DocumentList";
 
-const KEPT: WorkspaceSummary[] = [
+const KEPT: DocumentSummary[] = [
   {
     id: 1,
     name: "Second pass, 2026",
@@ -22,8 +22,8 @@ const KEPT: WorkspaceSummary[] = [
 ];
 
 const meta = {
-  title: "Publications/Workspace hub",
-  component: WorkspaceHub,
+  title: "Publications/Import documents",
+  component: DocumentList,
   args: {
     read: async () => KEPT,
     start: async (name: string) => ({
@@ -35,14 +35,14 @@ const meta = {
     }),
   },
   parameters: { layout: "fullscreen" },
-} satisfies Meta<typeof WorkspaceHub>;
+} satisfies Meta<typeof DocumentList>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
 /**
- * The workspaces a person may open. Each says what it holds, and the count is
+ * The documents a person may open. Each says what it holds, and the count is
  * the client's word — the server keeps the document as bytes it does not read,
  * so it cannot count rows in one.
  */
@@ -70,18 +70,18 @@ export const Empty: Story = {
   args: { read: async () => [] },
   play: async () => {
     await waitFor(() =>
-      expect(screen.getByText(/No workspaces yet/)).toBeVisible(),
+      expect(screen.getByText(/No documents yet/)).toBeVisible(),
     );
   },
 };
 
 /**
- * A workspace needs a name before it can be started — it is what the list will
+ * A document needs a name before it can be started — it is what the list will
  * call it, and an unnamed one could not be told from another.
  */
 export const NeedsAName: Story = {
   play: async () => {
-    const start = screen.getByRole("button", { name: "Start a workspace" });
+    const start = screen.getByRole("button", { name: "Start a document" });
     await expect(start).toBeDisabled();
 
     await userEvent.type(screen.getByLabelText("Name"), "Second pass");

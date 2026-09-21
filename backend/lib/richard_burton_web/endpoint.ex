@@ -19,7 +19,7 @@ defmodule RichardBurtonWeb.Endpoint do
 
   # Longpoll beside websockets: a proxy that will not upgrade makes a workspace
   # slower to keep in step rather than unable to.
-  socket("/socket", RichardBurtonWeb.WorkspaceSocket, websocket: true, longpoll: true)
+  socket("/socket", RichardBurtonWeb.DocumentSocket, websocket: true, longpoll: true)
 
   # Serve at "/" the static files from "priv/static" directory.
   #
