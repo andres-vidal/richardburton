@@ -13,17 +13,30 @@ happened, and the one thing to do about it.
 
 ## Props
 
-- `title` — the page's `h1`, at the top of the card.
-- `children` — what happened. Convention is a `text-lg` line saying it, and an
-  optional `text-sm` line saying what it means for the reader.
-- `action` — what to do next, at the foot. Optional.
+- `copy` — names the card's copy in the catalogue, whole: `auth.pending`. The
+  card reads `title` and `body` from there rather than being handed them, so
+  the wording of a page lives with the rest of the wording.
+- `children` — what to do next, at the foot. Optional.
 
-## A second line
+## What the body may say
 
-The card holds its shape whether the body is one line or two: the title stays
-at the top, the action at the foot, and the body between them.
+The body is rich text, and the message decides which parts it has: a
+`<message>` saying what happened, and an optional `<suggestion>` saying what to
+do about it. The card decides how each one reads — the suggestion is the
+smaller, quieter line.
 
-<Canvas of={AuthCardStories.WithASecondLine} />
+<Canvas of={AuthCardStories.WithASuggestion} />
+
+A body with nothing to suggest is the one line, and nothing under it.
+
+<Canvas of={AuthCardStories.WithoutASuggestion} />
+
+## Not only for signing in
+
+The 404 is the same shape, so it is the same card under a different name in the
+catalogue.
+
+<Canvas of={AuthCardStories.APageThatIsNotThere} />
 
 ## Without an action
 
