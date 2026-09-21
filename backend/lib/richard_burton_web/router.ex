@@ -66,6 +66,11 @@ defmodule RichardBurtonWeb.Router do
     get("/publishers", PublisherController, :index)
     get("/original-books", OriginalBookController, :index)
 
+    scope "/vocabulary" do
+      get("/:kind", VocabularyController, :index)
+      patch("/:kind/:id", VocabularyController, :update)
+    end
+
     scope "/publications" do
       post("/bulk", PublicationController, :create_all)
       post("/validate", PublicationController, :validate)

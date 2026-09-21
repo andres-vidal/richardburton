@@ -1,0 +1,79 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as VocabularyListStories from "./VocabularyList.stories";
+
+<Meta of={VocabularyListStories} />
+
+# Names
+
+The translators, original authors and publishers that publications are built
+from, on [the names page](/admin/vocabulary).
+
+These are typed in, one publication at a time, so they drift: "Penguin books"
+beside "Penguin Books", "Alfred A.Knopf" beside "Alfred A. Knopf". A name is
+not a label on a publication but a record shared by every publication that
+credits it, so a second spelling is a second record, and everything counted or
+searched by name splits along it.
+
+## One verb
+
+Renaming is the only thing this screen does. Renaming to a name nothing else
+holds corrects a spelling; renaming to a name already taken folds the two
+together, moving every publication onto the survivor and deleting the other.
+
+There is no separate merge, because both are the same gesture: somebody who has
+decided two names are one thing says so by writing the name they should share.
+Nothing distinguishes the two acts in advance either — whether a correction
+lands on a free name or an occupied one is only known once it is typed.
+
+Each row carries how many publications rest on it, which is what separates a
+name worth keeping from the stray beside it. A name nothing is on reads
+"unused" rather than "0 publications".
+
+<Canvas of={VocabularyListStories.Default} />
+
+Translators and original authors share one list, because they share one table:
+a person who translated one book and wrote another is one name, and appears
+once, counted across both.
+
+<Canvas of={VocabularyListStories.Authors} />
+
+## Finding the spellings
+
+The list is sorted by name, which puts most near-duplicates next to each other
+but not all — a typo early in a name sorts far from what it meant. The filter
+matches anywhere in a name, so a fragment brings the spellings together.
+
+<Canvas of={VocabularyListStories.FindingSpellings} />
+
+## Editing in place
+
+The field is the whole interface. It commits on Enter or on leaving the field,
+and Escape puts the original name back.
+
+<Canvas of={VocabularyListStories.RenamingCommitsOnEnter} />
+
+<Canvas of={VocabularyListStories.EscapeReverts} />
+
+## When the rename would uncover a duplicate
+
+Correcting a spelling can give two publications the same identity — the
+duplicate the misspelling was hiding. A publication's identity is its title,
+year, countries and the fingerprints of its publishers and translated book, and
+those fingerprints are built from the names, so a rename rewrites them.
+
+The composite key is a unique index, so there is no version of this that
+quietly succeeds. The rename is refused whole, and the publications that
+clashed are named: merging them is a separate decision, with its own survivor
+to choose and its own undo, and making it silently inside a spelling correction
+would be a fold nobody asked for. [Review duplicates](/admin/publications/duplicates)
+is where it belongs.
+
+<Canvas of={VocabularyListStories.WhenTwoPublicationsWouldCollide} />
+
+## Nothing matched
+
+Distinct from there being no names at all, which the same screen says
+differently.
+
+<Canvas of={VocabularyListStories.NothingMatches} />

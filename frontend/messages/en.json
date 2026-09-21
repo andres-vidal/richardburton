@@ -213,7 +213,9 @@
     "byActorOn": "{actor, select, system {by the system} other {by {actor}}} · {date}",
     "deletedOn": "Deleted {date}",
     "newPublications": "{count, plural, one {# new publication} other {# new publications}}",
-    "recordLine": "{authors} · {year} · {publishers}"
+    "recordLine": "{authors} · {year} · {publishers}",
+    "namesTitle": "Names",
+    "namesDescription": "Translators, authors and publishers — correct a spelling, or fold duplicates together."
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
@@ -431,5 +433,22 @@
   "validation": {
     "required": "Required",
     "email": "Enter a valid email address"
+  },
+  "vocabulary": {
+    "title": "Names",
+    "description": "The translators, authors and publishers publications are built from. Correct a spelling, or fold two spellings into one by giving them the same name.",
+    "authors": "Translators & authors",
+    "publishers": "Publishers",
+    "filterLabel": "Find",
+    "filterPlaceholder": "Part of a name",
+    "loading": "Reading the names…",
+    "none": "No names match.",
+    "nameOf": "Name, currently {name}",
+    "onPublications": "{count, plural, =0 {unused} one {# publication} other {# publications}}",
+    "renamed": "{from} is now {to}",
+    "merged": "{from} folded into {to}",
+    "collides": "That would leave two publications identical",
+    "collidesDetail": "The spelling was the only thing telling them apart. Merge or correct them first, then rename this.",
+    "dismiss": "Close"
   }
 }
