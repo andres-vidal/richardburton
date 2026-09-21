@@ -1,11 +1,15 @@
 "use client";
 
 import { IndexeddbPersistence } from "y-indexeddb";
+import type { Awareness } from "y-protocols/awareness";
 import { FC, ReactNode, useEffect, useState } from "react";
 import * as Y from "yjs";
 
+import { useSession } from "modules/session";
+
 import { LOCAL } from "./doc";
 import { keepDraft } from "./draft";
+import { LiveProvider } from "./presence";
 import { validate } from "./remote";
 import { openWorkspace, visibleIdsAtom } from "./store";
 import { usePublicationStore } from "./workspace";
@@ -44,7 +48,11 @@ const WorkspaceDocument: FC<{
   children: ReactNode;
 }> = ({ workspace, children }) => {
   const store = usePublicationStore();
+  const session = useSession();
+  const email = session?.email;
+
   const [attached, setAttached] = useState(false);
+  const [awareness, setAwareness] = useState<Awareness | undefined>();
 
   useEffect(() => {
     const name =
@@ -62,6 +70,11 @@ const WorkspaceDocument: FC<{
       workspace === undefined
         ? undefined
         : live(doc, workspace, (origin) => origin === LOCAL);
+
+    // Who this is, so everyone else's list of who is here can name them.
+    if (relayed && email)
+      relayed.awareness.setLocalStateField("user", { email });
+    setAwareness(relayed?.awareness);
     const forgetDraft = keepDraft(store, name);
 
     setAttached(true);
@@ -84,6 +97,7 @@ const WorkspaceDocument: FC<{
 
     return () => {
       setAttached(false);
+      setAwareness(undefined);
       relayed?.stop();
       running?.stop();
       forgetDraft();
@@ -91,11 +105,13 @@ const WorkspaceDocument: FC<{
       stored.destroy();
       doc.destroy();
     };
-  }, [store, workspace]);
+  }, [store, workspace, email]);
 
   // Held back for one paint, so nothing can write a row into the atoms before
   // the document is the place rows go.
-  return attached ? <>{children}</> : null;
+  return attached ? (
+    <LiveProvider value={{ workspace, awareness }}>{children}</LiveProvider>
+  ) : null;
 };
 
 export { WorkspaceDocument, LOCAL_WORKSPACE };

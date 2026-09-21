@@ -1,5 +1,10 @@
 import { test, expect } from "./fixtures";
-import { signInAsAdmin, indexTable, CSV_HEADER } from "./helpers";
+import {
+  signInAsAdmin,
+  signInAsContributor,
+  indexTable,
+  CSV_HEADER,
+} from "./helpers";
 
 const IMPORT_CSV =
   [
@@ -171,5 +176,70 @@ test("two people with the workspace open see each other's edits as they happen",
     ).toBeVisible({ timeout: 15_000 });
   } finally {
     await elsewhere.close();
+  }
+});
+
+test("a colleague is let in, and then edits the same workspace live", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  // The contributor signs in once first, so there is an account to let in —
+  // membership is by the address someone has actually signed in with.
+  const theirs = await browser.newContext({ baseURL });
+  const colleague = await theirs.newPage();
+  await signInAsContributor(colleague);
+
+  await signInAsAdmin(page);
+  await page.goto("/admin/publications/workspaces");
+  await page.getByLabel("Name").fill("Between us");
+  await page.getByRole("button", { name: "Start a workspace" }).click();
+  await expect(page).toHaveURL(/\/admin\/publications\/workspaces\/\d+$/);
+  const address = page.url();
+
+  await page.locator("#upload-csv").setInputFiles({
+    name: "between-us.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(IMPORT_CSV),
+  });
+  await expect(
+    indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
+  ).toBeVisible();
+
+  try {
+    // Before being let in, it is not theirs to open — and not said to exist.
+    await colleague.goto("/admin/publications/workspaces");
+    await expect(
+      colleague.getByText("No workspaces yet. Start one above."),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Share" }).click();
+    const share = page.getByRole("dialog", { name: "Share" });
+    await share.getByLabel("Their address").fill("dev-contributor@localhost");
+    await share.getByRole("button", { name: "Let them in" }).click();
+
+    await expect(share.getByText("dev-contributor@localhost")).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    // Now it is listed for them, and they can open it.
+    await colleague.reload();
+    await expect(
+      colleague.getByRole("link", { name: /Between us/ }),
+    ).toBeVisible();
+
+    await colleague.goto(address);
+    const ours = indexTable(colleague);
+    await expect(ours.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();
+
+    // And an edit of theirs reaches the owner without either page reloading.
+    const title = ours.getByRole("textbox", { name: "Title" }).first();
+    await title.fill("Dom Casmurro (theirs)");
+    await title.blur();
+
+    await expect(
+      indexTable(page).getByRole("row", { name: /Dom Casmurro \(theirs\)/ }),
+    ).toBeVisible({ timeout: 15_000 });
+  } finally {
+    await theirs.close();
   }
 });

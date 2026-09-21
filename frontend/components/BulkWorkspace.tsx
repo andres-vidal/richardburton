@@ -13,6 +13,7 @@ import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
 import PublicationWorkspace from "components/PublicationWorkspace";
 import ResetDiscarded from "components/ResetDiscarded";
+import WorkspaceShare from "components/WorkspaceShare";
 import WorkspaceUndo from "components/WorkspaceUndo";
 import RowIdToggle from "components/RowIdToggle";
 import { Publication } from "modules/publication/model";
@@ -61,6 +62,7 @@ const Workspace: FC<{ title: string; description: string }> = ({
               <WorkspaceUndo />
               <ResetDiscarded />
               <RowIdToggle />
+              <WorkspaceShare />
               <PublicationSubmit />
             </>
           ) : (

@@ -445,6 +445,16 @@
     "start": "Start a workspace",
     "loading": "Reading your workspaces…",
     "none": "No workspaces yet. Start one above.",
-    "rows": "{count, plural, =0 {Empty} one {# row} other {# rows}}"
+    "rows": "{count, plural, =0 {Empty} one {# row} other {# rows}}",
+    "share": "Share",
+    "shareHint": "Let someone else work in this workspace.",
+    "shareHeading": "Who can open this workspace",
+    "hereNow": "Here now",
+    "inviteLabel": "Their address",
+    "invitePlaceholder": "someone@example.com",
+    "invite": "Let them in",
+    "inviteFailed": "Nobody has signed in with that address yet.",
+    "members": "Members",
+    "noMembers": "Only you, so far."
   }
 }

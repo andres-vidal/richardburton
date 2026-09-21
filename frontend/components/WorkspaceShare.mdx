@@ -1,0 +1,44 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as WorkspaceShareStories from "./WorkspaceShare.stories";
+
+<Meta of={WorkspaceShareStories} />
+
+# Workspace share
+
+Who may open this workspace, who is looking at it right now, and how to let
+somebody else in. It sits in the workspace footer, and renders nothing at all on
+a surface that belongs to no workspace — `/admin/publications/new` is the same
+screen without one.
+
+## Membership and presence are different things
+
+**Membership** is what the server keeps. It decides who may open the workspace
+at all, and it outlives everyone closing the tab. Only the owner may add to it,
+and only by an address someone has actually signed in with — there is no
+invitation flow here, so an address nobody has used is refused rather than left
+pending.
+
+**Presence** is what awareness carries over the live connection. It is true only
+while someone has the workspace open, is never written down, and disappears when
+they leave. That is why the two are shown differently: members as a list in the
+dialog, presence as initials that come and go.
+
+<Canvas of={WorkspaceShareStories.SomeoneElseIsHere} />
+
+## Props
+
+- `invite` — how someone is let in. Defaults to asking the server.
+- `read` — how the members are read. Defaults to asking the server.
+
+Both are props so a story can stand in for the network.
+
+## States
+
+- **Default** — the members, and the field to add another.
+- **Nobody by that address** — membership is by an account that exists, so an
+  unknown address says so.
+- **Someone else is here** — another person has the workspace open.
+- **No workspace** — nothing to share, so no control.
+
+<Canvas of={WorkspaceShareStories.Default} />

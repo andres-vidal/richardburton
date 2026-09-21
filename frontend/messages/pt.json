@@ -445,6 +445,16 @@
     "start": "Criar área de trabalho",
     "loading": "Lendo suas áreas de trabalho…",
     "none": "Nenhuma área de trabalho ainda. Crie uma acima.",
-    "rows": "{count, plural, =0 {Vazia} one {# linha} other {# linhas}}"
+    "rows": "{count, plural, =0 {Vazia} one {# linha} other {# linhas}}",
+    "share": "Compartilhar",
+    "shareHint": "Permita que outra pessoa trabalhe nesta área.",
+    "shareHeading": "Quem pode abrir esta área de trabalho",
+    "hereNow": "Aqui agora",
+    "inviteLabel": "Endereço da pessoa",
+    "invitePlaceholder": "alguem@exemplo.com",
+    "invite": "Dar acesso",
+    "inviteFailed": "Ninguém entrou com esse endereço ainda.",
+    "members": "Participantes",
+    "noMembers": "Só você, por enquanto."
   }
 }
