@@ -67,7 +67,7 @@ const ExtendedColumn: typeof Column = (props) => {
       focused={isFocused}
       selected={isSelected}
       taken={
-        person ? { colour: colourOf(person.clientId), by: person.email } : null
+        person ? { colour: colourOf(person.email), by: person.email } : null
       }
     />
   );

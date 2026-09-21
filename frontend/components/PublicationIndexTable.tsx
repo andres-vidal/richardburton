@@ -180,7 +180,8 @@ const Column: FC<{
   // the fixed-width track never expands to fit the content.
   return (
     <Aria.Cell
-      // A tint and a bar down the near edge, the way the table already says
+      // A tint and a bar down the near edge, at the same strength the table
+      // already tints a selected or an invalid cell, the way it already says
       // "selected" and "invalid" — rather than a ring, which nothing else here
       // uses. The bar is a `before` element so it cannot move the text: the
       // cell sits in a fixed grid track, and a border would.
@@ -189,11 +190,11 @@ const Column: FC<{
         group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100
         selected:bg-amber-100 selected:focused:error:bg-amber-100
         data-[taken]:before:absolute data-[taken]:before:inset-y-0.5 data-[taken]:before:left-0 data-[taken]:before:w-0.5 data-[taken]:before:rounded-full
-        data-[taken=0]:bg-indigo-50 data-[taken=0]:before:bg-indigo-500
-        data-[taken=1]:bg-emerald-50 data-[taken=1]:before:bg-emerald-500
-        data-[taken=2]:bg-amber-50 data-[taken=2]:before:bg-amber-500
-        data-[taken=3]:bg-rose-50 data-[taken=3]:before:bg-rose-500
-        data-[taken=4]:bg-sky-50 data-[taken=4]:before:bg-sky-500
+        data-[taken=0]:bg-indigo-100 data-[taken=0]:before:bg-indigo-500
+        data-[taken=1]:bg-emerald-100 data-[taken=1]:before:bg-emerald-500
+        data-[taken=2]:bg-amber-100 data-[taken=2]:before:bg-amber-500
+        data-[taken=3]:bg-rose-100 data-[taken=3]:before:bg-rose-500
+        data-[taken=4]:bg-sky-100 data-[taken=4]:before:bg-sky-500
       "
       data-selected={selected}
       data-error={invalid}

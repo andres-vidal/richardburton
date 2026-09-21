@@ -24,8 +24,21 @@ type Present = { clientId: number; email: string; at?: At };
  */
 const COLOURS = 5;
 
-/** Which colour this person is drawn in, the same one everywhere they appear. */
-const colourOf = (clientId: number) => Math.abs(clientId) % COLOURS;
+/**
+ * Which colour this person is drawn in, the same one everywhere they appear.
+ *
+ * Taken from the address they signed in with rather than from the connection,
+ * so it is the same colour tomorrow and in every tab. A colour that changed on
+ * every reload would say nothing about who anybody is.
+ */
+const colourOf = (email: string) => {
+  let hash = 0;
+  for (let at = 0; at < email.length; at += 1) {
+    hash = (hash * 31 + email.charCodeAt(at)) | 0;
+  }
+
+  return Math.abs(hash) % COLOURS;
+};
 
 type Live = {
   /** Who is here, or nothing where the surface is not connected. */

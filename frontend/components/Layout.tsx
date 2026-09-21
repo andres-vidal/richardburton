@@ -8,8 +8,8 @@ import { useTranslations } from "next-intl";
 import { FC, ReactNode, useEffect, useRef } from "react";
 import Anchor from "./Anchor";
 import LanguageSwitcher from "./LanguageSwitcher";
-import { CONTACT_MODAL_KEY } from "./ContactModal";
-import { LEARN_MORE_MODAL_KEY } from "./LearnMoreModal";
+import { ContactModal, CONTACT_MODAL_KEY } from "./ContactModal";
+import { LearnMoreModal, LEARN_MORE_MODAL_KEY } from "./LearnMoreModal";
 
 type Props = {
   title?: string;
@@ -122,6 +122,12 @@ const Layout: FC<Props> = ({
           {footer}
         </footer>
       )}
+
+      {/* What the header's links open. They belong here rather than on a page,
+          because the links are here: rendered anywhere else, every other page
+          has a link that leads nowhere. */}
+      <ContactModal />
+      <LearnMoreModal />
     </div>
   );
 };

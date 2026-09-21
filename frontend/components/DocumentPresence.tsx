@@ -30,7 +30,7 @@ const DocumentPresence: FC = () => {
           >
             <span
               aria-label={person.email}
-              data-colour={colourOf(person.clientId)}
+              data-colour={colourOf(person.email)}
               className="
                 flex justify-center items-center text-xs font-medium text-white
                 rounded-full ring-2 ring-white size-6

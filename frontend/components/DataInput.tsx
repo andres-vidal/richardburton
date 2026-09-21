@@ -92,6 +92,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
     value: data,
     error,
     autoValidated,
+    onFocus,
     onBlur,
     onChange,
   } = props;
@@ -119,33 +120,33 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
     onChange?.(value);
   }
 
+  // Where this person is, so the others can see it. Paired with the blur
+  // below: a cell nobody is in should not go on claiming somebody.
+  function handleFocus(event: FocusEvent<HTMLInputElement>) {
+    report({ row: String(rowId), field: colId });
+    onFocus?.(event);
+  }
+
   function handleBlur(event: FocusEvent<HTMLInputElement>) {
     doValidate();
     report(null);
     onBlur?.(event);
   }
 
-  // Capture, because the focus lands on the input inside rather than here, and
-  // each cell type builds its own. `contents` keeps this wrapper out of the
-  // layout the cell depends on.
   const field = (
-    <div
-      className="contents"
-      onFocusCapture={() => report({ row: String(rowId), field: colId })}
-    >
-      <Component
-        {...props}
-        {...Publication.define(colId)}
-        ref={ref}
-        value={data}
-        onBlur={handleBlur}
-        onChange={handleChange}
-        placeholder={placeholder}
-        error={error}
-        fill
-        bordered
-      />
-    </div>
+    <Component
+      {...props}
+      {...Publication.define(colId)}
+      ref={ref}
+      value={data}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onChange={handleChange}
+      placeholder={placeholder}
+      error={error}
+      fill
+      bordered
+    />
   );
 
   return errorDisplay === "inline" ? (
