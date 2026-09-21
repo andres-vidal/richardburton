@@ -24,8 +24,12 @@ test("a workspace kept on the server is opened again from another browser", asyn
   await page.getByLabel("Name").fill("Second pass");
   await page.getByRole("button", { name: "Start a workspace" }).click();
 
-  // Starting one opens it.
+  // Starting one opens it, under the name it was given rather than a generic
+  // one — which is what tells one workspace from another.
   await expect(page).toHaveURL(/\/admin\/publications\/workspaces\/\d+$/);
+  await expect(
+    page.getByRole("heading", { name: "Second pass", level: 1 }),
+  ).toBeVisible();
   const address = page.url();
 
   await page.locator("#upload-csv").setInputFiles({

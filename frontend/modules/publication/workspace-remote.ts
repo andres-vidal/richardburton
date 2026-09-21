@@ -45,6 +45,21 @@ async function create(name: string): Promise<WorkspaceSummary> {
   });
 }
 
+/** One workspace, with who else may open it. */
+async function show(id: number): Promise<{
+  workspace: WorkspaceSummary;
+  members: { id: number; email: string }[];
+}> {
+  return request(async (http) => {
+    const { data } = await http.get<{
+      workspace: WorkspaceSummary;
+      members: { id: number; email: string }[];
+    }>(`workspaces/${id}`);
+
+    return data;
+  });
+}
+
 /** Everything needed to rebuild the document, oldest first. */
 async function updates(id: number): Promise<Uint8Array[]> {
   return request(async (http) => {
@@ -91,5 +106,15 @@ async function addMember(id: number, email: string): Promise<void> {
   });
 }
 
-export { addMember, append, compact, create, decode, encode, list, updates };
+export {
+  addMember,
+  append,
+  compact,
+  create,
+  decode,
+  encode,
+  list,
+  show,
+  updates,
+};
 export type { WorkspaceSummary };
