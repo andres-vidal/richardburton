@@ -3,11 +3,14 @@
 import { Candidate } from "components/DuplicateReview";
 import {
   usePublicationResemblance,
-  useResemblingPublicationIds,
   useVisiblePublication,
 } from "modules/publication/hooks";
 import type { PublicationId } from "modules/publication/model";
-import { acceptResemblance, setDiscarded } from "modules/publication/store";
+import {
+  acceptResemblance,
+  resemblingIdsAtom,
+  setDiscarded,
+} from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
 import { FC, useEffect, useState } from "react";
@@ -122,23 +125,23 @@ const OtherRow: FC<{ id: PublicationId }> = ({ id }) => {
 const PublicationResemblances: FC<Props> = ({ isOpen, onClose }) => {
   const t = useTranslations("resemblances");
   const store = usePublicationStore();
-  const raised = useResemblingPublicationIds() ?? [];
 
   // The questions as they stood when the dialog opened. Answering one takes the
-  // row out of `raised`, and stepping through a list that shrinks underneath
-  // would renumber the progress after every answer.
+  // row out of the raised set, and stepping through a list that shrank
+  // underneath would renumber the progress after every answer.
+  //
+  // Read from the store rather than subscribed to, which is what keeps the
+  // snapshot a snapshot: there is no changing value here to reopen the queue,
+  // and answering a question does not redraw the dialog around it.
   const [queue, setQueue] = useState<PublicationId[]>([]);
   const [position, setPosition] = useState(0);
 
   useEffect(() => {
-    if (isOpen) {
-      setQueue(raised);
-      setPosition(0);
-    }
-    // Only the opening is the moment to snapshot; `raised` changes as the
-    // questions are answered, which is exactly what must not restart the queue.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+    if (!isOpen) return;
+
+    setQueue(store.get(resemblingIdsAtom) ?? []);
+    setPosition(0);
+  }, [isOpen, store]);
 
   const current = queue[position];
 
