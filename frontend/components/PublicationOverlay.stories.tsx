@@ -344,3 +344,45 @@ export const EditingMenuAboveModal: Story = {
     );
   },
 };
+
+/**
+ * A long title does not push the copy link out of the header. The heading and
+ * the link share one flex row inside a container that clips its overflow, so
+ * the title gives way first: it truncates, and the link keeps its place.
+ */
+export const LongHeading: Story = {
+  args: {
+    view: Promise.resolve({
+      publication: {
+        ...PUBLICATION,
+        title:
+          "Gabriela, Clove and Cinnamon: A Novel of the Brazilian Northeast, Translated from the Portuguese with an Introduction",
+        authors: ["James L. Taylor", "William L. Grossman"],
+      },
+    }),
+  },
+  parameters: {
+    docs: { story: { inline: false, height: "30rem" } },
+  },
+  play: async () => {
+    const dialog = await screen.findByRole("dialog");
+    const article = dialog.querySelector("article")!;
+    const heading = screen.getByRole("heading", { level: 1 });
+    const link = screen.getByRole("button", { name: "Copy link" });
+
+    await waitFor(() => {
+      // The heading row lays out within its own width rather than spilling.
+      expect(heading.scrollWidth).toBeLessThanOrEqual(heading.clientWidth);
+
+      // The link stays inside the edge the article clips at. Both rectangles
+      // are read in the same space, so the modal's opening transform cancels.
+      const clipped =
+        article.getBoundingClientRect().right -
+        parseFloat(getComputedStyle(article).paddingRight);
+
+      expect(link.getBoundingClientRect().right).toBeLessThanOrEqual(
+        clipped + 1,
+      );
+    });
+  },
+};
