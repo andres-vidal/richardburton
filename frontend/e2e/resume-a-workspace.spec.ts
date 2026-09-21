@@ -87,3 +87,46 @@ test("a workspace resumes with the backend unavailable", async ({ page }) => {
   await expect(table.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();
   await expect(table.getByRole("row", { name: /Iracema/ })).toBeVisible();
 });
+
+test("a row half-typed into the new-publication row survives a reload", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/publications/new");
+
+  // The trailing row, typed into but never added.
+  const table = indexTable(page);
+  const draft = table.getByPlaceholder("Title", { exact: true }).last();
+  await draft.fill("Iracema");
+  await draft.blur();
+
+  await page.reload();
+
+  // It is unfinished, not discarded: it comes back where it was left.
+  await expect(
+    table.getByPlaceholder("Title", { exact: true }).last(),
+  ).toHaveValue("Iracema");
+});
+
+test("a resumed workspace asks again whether its rows are valid", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/publications/new");
+
+  // A row with a title and nothing else: the database will refuse it.
+  const table = indexTable(page);
+  await table.getByPlaceholder("Title", { exact: true }).last().fill("Iracema");
+  await page.getByRole("button", { name: "Add publication" }).click();
+
+  await expect(page.getByLabel("1 invalid publication")).toBeVisible();
+
+  await page.reload();
+
+  // Whether a row is valid was the server's word and was never written down,
+  // so a resumed workspace asks again rather than calling every row valid.
+  await expect(page.getByLabel("1 invalid publication")).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByRole("button", { name: "Submit" })).toBeDisabled();
+});
