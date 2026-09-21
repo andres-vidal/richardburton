@@ -83,6 +83,11 @@
       "body": "<message>Your role is Reader, which carries nothing to do here — the database is open to everyone, signed in or not.</message><suggestion>An administrator can give you a role that adds and corrects publications. Once they do, sign in again.</suggestion>"
     }
   },
+  "notFound": {
+    "title": "No such page",
+    "body": "<message>Nothing answers this address. The link may be out of date, or the record it pointed at may have been deleted.</message><suggestion>Everything published is reachable from the database itself.</suggestion>",
+    "browse": "Browse the database"
+  },
   "searchHelp": {
     "title": "How to search",
     "subtitle": "Search by title, author, translator, publisher or year. Adding words narrows the results.",
