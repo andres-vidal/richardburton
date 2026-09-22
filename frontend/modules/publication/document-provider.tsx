@@ -2,15 +2,15 @@
 
 import { IndexeddbPersistence } from "y-indexeddb";
 import type { Awareness } from "y-protocols/awareness";
-import { FC, ReactNode, useEffect, useState } from "react";
+import { FC, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import * as Y from "yjs";
 
 import { useSession } from "modules/session";
 
 import { LOCAL } from "./doc";
 import { keepDraft } from "./draft";
-import { live } from "./document-live";
-import { sync } from "./document-sync";
+import { live, type LiveState } from "./document-live";
+import { sync, type Status } from "./document-sync";
 import { LiveProvider } from "./presence";
 import { validate } from "./remote";
 import { openWorkspace, visibleIdsAtom } from "./store";
@@ -33,6 +33,11 @@ import { usePublicationStore } from "./workspace";
  * rather than content the document holds. Whether a row was ever validated is
  * not kept at all: it is what the server last said, and a document picked up
  * hours later asks again.
+ *
+ * The document is built once for the document being opened. Who is looking at
+ * it is a separate matter, told to the others through awareness — tearing down
+ * a document and its connections because a name arrived would throw away
+ * whatever had been typed in the meantime.
  */
 const DocumentProvider: FC<{ document: number; children: ReactNode }> = ({
   document: id,
@@ -44,20 +49,32 @@ const DocumentProvider: FC<{ document: number; children: ReactNode }> = ({
 
   const [attached, setAttached] = useState(false);
   const [awareness, setAwareness] = useState<Awareness | undefined>();
+  const [connection, setConnection] = useState<LiveState>("connecting");
+  const [saving, setSaving] = useState<Status>({
+    state: "saved",
+    failures: 0,
+  });
+
+  // Held rather than kept in state: the awareness this belongs to is rebuilt
+  // only when the document is, and who is looking must be able to change
+  // without that happening.
+  const held = useRef<Awareness | undefined>(undefined);
 
   useEffect(() => {
     const doc = new Y.Doc();
     const close = openWorkspace(store, doc);
     const stored = new IndexeddbPersistence(`document-${id}`, doc);
-    const running = sync(doc, id);
+    const running = sync(doc, id, setSaving);
 
     // Only a change made here crosses to the others. One that arrived — from
     // the stored updates or from someone else — carries its own origin, so
     // relaying it back would put it round the room forever.
-    const relayed = live(doc, id, (origin) => origin === LOCAL);
+    const relayed = live(doc, id, (origin) => origin === LOCAL, {
+      onStatus: setConnection,
+      onRejoin: () => void running.resync(),
+    });
 
-    // Who this is, so everyone else's list of who is here can name them.
-    if (email) relayed.awareness.setLocalStateField("user", { email });
+    held.current = relayed.awareness;
     setAwareness(relayed.awareness);
 
     const forgetDraft = keepDraft(store, `document-${id}`);
@@ -83,6 +100,7 @@ const DocumentProvider: FC<{ document: number; children: ReactNode }> = ({
     return () => {
       setAttached(false);
       setAwareness(undefined);
+      held.current = undefined;
       relayed.stop();
       running.stop();
       forgetDraft();
@@ -90,12 +108,23 @@ const DocumentProvider: FC<{ document: number; children: ReactNode }> = ({
       stored.destroy();
       doc.destroy();
     };
-  }, [store, id, email]);
+  }, [store, id]);
+
+  // Who this is, so everyone else's list of who is here can name them. Its own
+  // effect, because a name arriving is not a reason to rebuild a document.
+  useEffect(() => {
+    if (email) held.current?.setLocalStateField("user", { email });
+  }, [email, awareness]);
+
+  const value = useMemo(
+    () => ({ awareness, connection, saving }),
+    [awareness, connection, saving],
+  );
 
   // Held back for one paint, so nothing can write a row into the atoms before
   // the document is the place rows go.
   return attached ? (
-    <LiveProvider value={{ awareness }}>{children}</LiveProvider>
+    <LiveProvider value={value}>{children}</LiveProvider>
   ) : null;
 };
 

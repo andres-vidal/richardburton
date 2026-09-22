@@ -4,37 +4,59 @@ import * as DocumentListStories from "./DocumentList.stories";
 
 <Meta of={DocumentListStories} />
 
-# Workspace hub
+# Import documents
 
-The bulk-import workspaces a person may open, and the way to start another.
+The batches of import work a person may open, and the way to start another.
 
-A workspace is import work with a name and a home on the server, so it outlives
-the browser it was started in and can be handed to a colleague. The page at
-`/admin/publications/new` is the same surface without one: work kept on this
-browser's disk alone, which is enough until it is worth naming.
+A document is import work with a name and a home on the server, so it outlives
+the browser it was started in and can be picked up by a colleague. The list is
+shared: there is no owner and no membership, because the database being prepared
+is one database. That is why a name is asked for — it is what tells one batch
+from another once several people are keeping them.
 
 <Canvas of={DocumentListStories.Default} />
 
 ## The row count is the client's word
 
-Each entry says how many rows it holds. The server keeps a workspace as opaque
+Each entry says how many rows it holds. The server keeps a document as opaque
 Yjs updates it never parses — that is what keeps a precompiled native dependency
 out of the deployment — so it cannot count rows in one. The client counts them
 as it writes, and the server records what it is told.
 
+## Renaming happens in place
+
+A batch called "Second pass" that turns out to be the 1970s is a correction, and
+a correction should not need a dialog. Enter commits the new name and Escape
+leaves the old one.
+
+<Canvas of={DocumentListStories.RenamingInPlace} />
+
+## Archiving, not deleting
+
+What a document holds is a record of what was prepared, and a batch taken off
+the list by mistake is one somebody spent an afternoon on. Archiving retires it
+from the list and nothing else: the archived side of the list is readable, and
+anything on it can be put back.
+
+<Canvas of={DocumentListStories.PuttingOneBack} />
+
 ## Props
 
-- `read` — how the list is read. Defaults to asking the server.
-- `start` — how one is started. Defaults to asking the server.
+- `read` — how a page of the list is read, for either side of it. Defaults to
+  asking the server.
+- `start` — how one is started.
+- `rename`, `archive`, `restore` — the three things that can be done to one.
 
-Both are props so a story can stand in for the network.
+All of them are props so a story can stand in for the network.
 
 ## States
 
-- **Default** — the workspaces this person may open, most recently changed
-  first.
+- **Default** — the documents on offer, most recently changed first.
 - **Empty** — nothing kept yet, said rather than shown as an empty list.
-- **Needs a name** — a workspace cannot be started unnamed; the name is what the
-  list calls it.
+- **Needs a name** — a document cannot be started unnamed.
+- **Archived** — the other side of the list, where everything can be put back.
+- **More to show** — a workspace kept for years holds more documents than
+  anyone reads at once, so the list is a page of them.
 
 <Canvas of={DocumentListStories.Empty} />
+<Canvas of={DocumentListStories.MoreToShow} />

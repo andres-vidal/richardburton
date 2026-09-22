@@ -37,3 +37,12 @@ seed([]); // start from an empty store
   replaced. See the
   [With existing data](?path=/story/publications-upload--with-existing-data)
   story.
+
+## Replacing a shared document
+
+An upload replaces the whole working set. In a document that is only this
+person's, a tooltip warning is enough. In a shared one it would discard rows
+belonging to people who are not looking at this button, so it asks first and
+names how many would go.
+
+<Canvas of={UploadStories.ReplacingASharedDocument} />

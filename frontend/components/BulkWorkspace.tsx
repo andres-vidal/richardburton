@@ -14,6 +14,7 @@ import PublicationUpload from "components/PublicationUpload";
 import PublicationWorkspace from "components/PublicationWorkspace";
 import ResetDiscarded from "components/ResetDiscarded";
 import DocumentPresence from "components/DocumentPresence";
+import DocumentStatus from "components/DocumentStatus";
 import WorkspaceUndo from "components/WorkspaceUndo";
 import RowIdToggle from "components/RowIdToggle";
 import { Publication } from "modules/publication/model";
@@ -50,7 +51,10 @@ const Workspace: FC<{ title: string; description: string }> = ({
           <Breadcrumb items={crumbs} />
           <div className="flex gap-4 justify-between items-center">
             <PageHeader title={title} description={description} />
-            <DocumentPresence />
+            <span className="flex gap-3 items-center shrink-0">
+              <DocumentStatus />
+              <DocumentPresence />
+            </span>
           </div>
         </>
       }
