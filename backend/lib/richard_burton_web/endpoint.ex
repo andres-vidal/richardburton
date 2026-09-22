@@ -17,6 +17,10 @@ defmodule RichardBurtonWeb.Endpoint do
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
+  # Longpoll beside websockets: a proxy that will not upgrade makes a workspace
+  # slower to keep in step rather than unable to.
+  socket("/socket", RichardBurtonWeb.DocumentSocket, websocket: true, longpoll: true)
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # You should set gzip to true if you are running phx.digest

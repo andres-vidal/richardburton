@@ -2,6 +2,8 @@ import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
 import type { Store } from "modules/store";
+import type * as Y from "yjs";
+import * as Doc from "./doc";
 import {
   ATTRIBUTES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
@@ -11,26 +13,122 @@ import {
   PublicationError,
   PublicationId,
   PublicationKey,
+  Resemblance,
   errorCode,
   empty,
 } from "./model";
 
 /**
- * Well-known id for the always-present "new publication" draft row. Persisted
- * rows are addressed by their server id (the publication PK, positive) and
- * unsaved rows by a client-minted id (negative, see `createId`), so `0` never
- * collides with either.
+ * Well-known key for the always-present "new publication" draft row. Persisted
+ * rows are addressed by their server id (a number) and unsaved rows by a UUID,
+ * so a reserved word collides with neither.
  */
-const DRAFT_ID: PublicationId = 0;
+const DRAFT_ID: PublicationId = "draft";
 
-let sequence = -1;
 /**
- * Mint a client id for an unsaved row (upload/review/duplicate). Negative and
- * descending so it can never collide with a server id (positive) or the draft
- * (`0`); persisted rows are addressed by their real server id instead.
+ * Mint a key for an unsaved row (upload, review, duplicate).
+ *
+ * A UUID rather than a counter, because the key has to name the same row to two
+ * people editing a workspace at once: a counter restarts at the same value in
+ * every browser, so two rows entered separately would claim one key. Persisted
+ * rows are addressed by their real server id instead.
  */
 function createId(): PublicationId {
-  return sequence--;
+  return crypto.randomUUID?.() ?? randomUuid();
+}
+
+/**
+ * A version 4 UUID built from 16 random bytes.
+ *
+ * `crypto.randomUUID` is defined only in a secure context, so a page served over
+ * plain http has none and minting a row key would throw. `getRandomValues` is
+ * defined in both, and a v4 UUID is a formatting of what it returns.
+ */
+function randomUuid(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+
+  // The version and variant bits are what make it a v4 UUID rather than 16
+  // arbitrary bytes.
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0"));
+  const group = (from: number, to: number) => hex.slice(from, to).join("");
+
+  return [
+    group(0, 4),
+    group(4, 6),
+    group(6, 8),
+    group(8, 10),
+    group(10, 16),
+  ].join("-");
+}
+
+/**
+ * The document a workspace's content lives in, and the undo that walks back
+ * this person's own edits to it.
+ */
+type WorkspaceDoc = { doc: Y.Doc; undo: Y.UndoManager };
+
+/**
+ * Which store holds which document.
+ *
+ * A store is the surface doing the work, and only the bulk workspace works in a
+ * shared document — the edit modal over the database keeps its own store and
+ * its base-and-override overlay. Holding the pairing here is what lets every
+ * action keep the signature it had: the action asks whether this store has a
+ * document rather than being handed one.
+ */
+const documents = new WeakMap<Store, WorkspaceDoc>();
+
+/** The document this store works in, or nothing where it works in atoms alone. */
+function workspaceDoc(store: Store): WorkspaceDoc | undefined {
+  return documents.get(store);
+}
+
+/**
+ * Put this store's content in a document, and keep the atoms reading it.
+ *
+ * One observer writes the document into the atoms, and nothing writes back, so
+ * there is no echo to break. Everything downstream is untouched: the families,
+ * the cells and the marking hooks go on reading atoms exactly as they did.
+ *
+ * Returns the way to take it apart again.
+ */
+function openWorkspace(store: Store, doc: Y.Doc): () => void {
+  const undo = Doc.undoManager(doc);
+  documents.set(store, { doc, undo });
+
+  const stop = Doc.observe(doc, {
+    onRows: (changed) =>
+      changed.forEach((id) => {
+        const row = Doc.readRow(doc, id);
+        if (row) store.set(publicationFamily(id), row);
+      }),
+    onOrder: () => store.set(publicationIdsAtom, Doc.keys(doc)),
+  });
+
+  // Whatever the document already holds, in case it was restored from disk or
+  // arrived from elsewhere before anything subscribed.
+  applyDoc(store, doc);
+
+  return () => {
+    stop();
+    undo.destroy();
+    documents.delete(store);
+  };
+}
+
+/** Read the whole document into the atoms. */
+function applyDoc(store: Store, doc: Y.Doc): void {
+  const ids = Doc.keys(doc);
+
+  ids.forEach((id) => {
+    const row = Doc.readRow(doc, id);
+    if (row) store.set(publicationFamily(id), row);
+  });
+
+  store.set(publicationIdsAtom, ids);
 }
 
 // --- Base atoms -------------------------------------------------------------
@@ -99,6 +197,17 @@ const lastValidatedFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<string | undefined>(undefined),
 );
 
+/**
+ * What the check answered about a row, beside the row it was asked about.
+ *
+ * The subject is kept with the answer so that an answer about a row that has
+ * since changed can be told from one that still describes it, however the row
+ * changed and whoever changed it. Read through `resemblanceFamily`.
+ */
+const measuredResemblanceFamily = atomFamily((_id: PublicationId) =>
+  atomWithReset<{ at: string; value: Resemblance } | null>(null),
+);
+
 const attributeVisibleFamily = atomFamily((key: PublicationKey) =>
   atomWithReset<boolean>(DEFAULT_ATTRIBUTE_VISIBILITY[key]),
 );
@@ -113,10 +222,6 @@ const discardedIdsAtom = atom((get) =>
   get(publicationIdsAtom)?.filter((id) => get(discardedFamily(id))),
 );
 
-const overriddenIdsAtom = atom((get) =>
-  get(visibleIdsAtom)?.filter((id) => get(overrideFamily(id))),
-);
-
 const validIdsAtom = atom((get) =>
   get(publicationIdsAtom)
     ?.filter((id) => !get(discardedFamily(id)))
@@ -129,9 +234,101 @@ const invalidIdsAtom = atom(
 );
 
 const visibleCountAtom = atom((get) => get(visibleIdsAtom)?.length || 0);
+
+/**
+ * Where a row sits in the working set, counting from one, or 0 for a row that is
+ * not in it.
+ *
+ * Counted from the order rather than read off the key: a key names a row without
+ * saying where it sits, and an unsaved row’s key is a UUID.
+ */
+const rowNumberFamily = atomFamily((id: PublicationId) =>
+  atom<number>((get) => (get(visibleIdsAtom)?.indexOf(id) ?? -1) + 1),
+);
 const discardedCountAtom = atom((get) => get(discardedIdsAtom)?.length || 0);
-const overriddenCountAtom = atom((get) => get(overriddenIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
+
+// The rows that look like something. Discarded rows are out of it: a row on its
+// way out of the import is not a question any more.
+const resemblingIdsAtom = atom((get) =>
+  get(visibleIdsAtom)?.filter((id) => get(resemblanceFamily(id))),
+);
+
+const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
+
+/**
+ * Which look-alike the review is open on: a row to open at, "first" to start at
+ * the beginning of the queue, or null while the review is closed.
+ *
+ * Held here rather than in the control that opens it, because the row's own
+ * warning opens it too — and so that clearing the working set closes a review
+ * of rows that are no longer there.
+ */
+const reviewingAtom = atomWithReset<PublicationId | "first" | null>(null);
+
+/**
+ * The attributes a look-alike is measured on, which are the title and the names
+ * — see `Publication.Duplicates`.
+ *
+ * One list, because two things read it and they must not disagree: what the
+ * check is re-run for, and what makes a row's answer stale. A field that made an
+ * answer stale without re-running the check would drop the answer for good.
+ */
+const RESEMBLANCE_ATTRIBUTES: PublicationKey[] = [
+  "title",
+  "authors",
+  "originalTitle",
+  "originalAuthors",
+];
+
+/**
+ * A row as the look-alike check reads it.
+ *
+ * Rows with the same subject are the same question, so a row whose subject has
+ * changed is a row the last answer was not about.
+ */
+const rowSubjectFamily = atomFamily((id: PublicationId) =>
+  atom((get) => {
+    const publication = get(visiblePublicationFamily(id));
+
+    return RESEMBLANCE_ATTRIBUTES.map((attribute) =>
+      [publication[attribute]].flat().join(" "),
+    ).join("\u0000");
+  }),
+);
+
+/**
+ * What the row resembles, or `null` where it resembles nothing and where the
+ * answer was measured on a value the row no longer holds.
+ *
+ * Held apart from `errorFamily` because it is not an error: it does not make a
+ * row invalid and it does not hold back a submit.
+ *
+ * Staleness is read rather than written, so an edit does not have to remember to
+ * clear anything. An edit that arrives from another person changes the row the
+ * same way, and drops the answer the same way.
+ */
+const resemblanceFamily = atomFamily((id: PublicationId) =>
+  atom<Resemblance | null>((get) => {
+    const measured = get(measuredResemblanceFamily(id));
+
+    return measured && measured.at === get(rowSubjectFamily(id))
+      ? measured.value
+      : null;
+  }),
+);
+
+/**
+ * The visible rows as the look-alike check reads them.
+ *
+ * What the check should be re-run for, so editing a year or a country does not
+ * ask the question again. Serialised by whoever watches it, since the value is
+ * rebuilt whenever any row changes and only its contents mean anything.
+ */
+const resemblanceSubjectAtom = atom((get) =>
+  (get(visibleIdsAtom) ?? []).map((id) => get(rowSubjectFamily(id))),
+);
+
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
 
 /**
@@ -257,9 +454,13 @@ const cellKey = ({ id, key }: FieldKey): CellKey => `${id}:${key}`;
 
 const fieldKey = (cell: CellKey): FieldKey => {
   const separator = cell.indexOf(":");
+  const id = cell.slice(0, separator);
 
   return {
-    id: Number(cell.slice(0, separator)),
+    // The key has to come back as the value it went in as, because it is
+    // compared against the ids the store holds. A server id is written as
+    // digits and is revived as a number; every other key is already text.
+    id: /^\d+$/.test(id) ? Number(id) : id,
     key: cell.slice(separator + 1) as PublicationKey,
   };
 };
@@ -327,6 +528,10 @@ const PUBLICATION_FAMILIES = [
   storedSourcesFamily,
   isValidFamily,
   errorCodeFamily,
+  measuredResemblanceFamily,
+  resemblanceFamily,
+  rowSubjectFamily,
+  rowNumberFamily,
 ];
 
 const CELL_FAMILIES = [
@@ -383,7 +588,9 @@ function knownIds(): Set<PublicationId> {
  * a search running behind an open editor must not discard what is being typed.
  */
 function hydrate(store: Store, publications: Publication[]): PublicationId[] {
-  const ids = publications.map((publication) => publication.id!);
+  const ids: PublicationId[] = publications.map(
+    (publication) => publication.id!,
+  );
   const arriving = new Set(ids);
 
   forget(
@@ -448,18 +655,64 @@ function appendIndex(store: Store, entries: Publication[]): void {
 }
 
 function setAll(store: Store, entries: PublicationEntry[]): void {
+  const workspace = workspaceDoc(store);
+
+  // Errors are never shared: they are what this person's copy was told when it
+  // last asked, and they stay in atoms whether the content is in a document or
+  // not.
+  entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
+
+  if (workspace) {
+    Doc.setAll(workspace.doc, entries);
+    workspace.undo.stopCapturing();
+
+    // Replacing an empty working set with another changes nothing, so the
+    // observer has nothing to report. The order is read off the document here
+    // rather than waited for.
+    store.set(publicationIdsAtom, Doc.keys(workspace.doc));
+    return;
+  }
+
   store.set(
     publicationIdsAtom,
     entries.map(({ id }) => id),
   );
-  entries.forEach(({ id, publication, errors }) => {
-    store.set(publicationFamily(id), publication);
-    store.set(errorFamily(id), errors);
-  });
+  entries.forEach(({ id, publication }) =>
+    store.set(publicationFamily(id), publication),
+  );
 }
 
 function setErrors(store: Store, entries: PublicationEntry[]): void {
   entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
+}
+
+/**
+ * Replace what every row of the working set resembles. Rows absent from
+ * `found` resemble nothing, so a row that has stopped looking like anything
+ * stops saying so.
+ */
+function setResemblances(
+  store: Store,
+  ids: PublicationId[],
+  found: Map<PublicationId, Resemblance>,
+): void {
+  ids.forEach((id) => {
+    const value = found.get(id);
+
+    store.set(
+      measuredResemblanceFamily(id),
+      value ? { at: store.get(rowSubjectFamily(id)), value } : RESET,
+    );
+  });
+}
+
+/** Open the review, on a given row or at the start of the queue. */
+function openReview(store: Store, at: PublicationId | "first"): void {
+  store.set(reviewingAtom, at);
+}
+
+function closeReview(store: Store): void {
+  store.set(reviewingAtom, RESET);
 }
 
 function setDiscarded(
@@ -480,8 +733,45 @@ function overrideField<K extends PublicationKey>(
   attribute: K,
   value: Publication[K],
 ): void {
+  const workspace = workspaceDoc(store);
+
+  if (workspace) {
+    writeToWorkspace(store, workspace, id, { [attribute]: value });
+    return;
+  }
+
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
+}
+
+/**
+ * An edit in a workspace, written where that row lives.
+ *
+ * A row the document holds is edited in the document, and the edit is the value
+ * — there is nothing uncommitted for an overlay to hold apart. The draft row is
+ * not in the document, because a row nobody has added yet should not reach the
+ * people sharing the workspace; what is typed into it is simply the row, kept
+ * here until `addNew` hands it over.
+ */
+function writeToWorkspace(
+  store: Store,
+  workspace: WorkspaceDoc,
+  id: PublicationId,
+  fields: Partial<Publication>,
+): void {
+  if (Doc.holds(workspace.doc, id)) {
+    Object.entries(fields).forEach(([attribute, value]) =>
+      attribute === "sources"
+        ? Doc.setSources(workspace.doc, id, value as string[])
+        : Doc.setField(workspace.doc, id, attribute, value),
+    );
+    return;
+  }
+
+  store.set(publicationFamily(id), {
+    ...store.get(publicationFamily(id)),
+    ...fields,
+  });
 }
 
 /** Overlay the whole provenance list (sources are edited as a unit, not per
@@ -491,6 +781,13 @@ function overrideSources(
   id: PublicationId,
   sources: string[],
 ): void {
+  const workspace = workspaceDoc(store);
+
+  if (workspace) {
+    writeToWorkspace(store, workspace, id, { sources });
+    return;
+  }
+
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, sources });
 }
@@ -543,10 +840,18 @@ function addNew(store: Store): PublicationId {
 
   const id = createId();
   const draft = store.get(visiblePublicationFamily(DRAFT_ID));
+  const workspace = workspaceDoc(store);
 
-  store.set(publicationIdsAtom, [...ids, id]);
-  store.set(publicationFamily(id), draft);
-  store.set(overrideFamily(DRAFT_ID), RESET);
+  if (workspace) {
+    Doc.addRow(workspace.doc, id, draft);
+    // Adding a row and typing into it are different steps to walk back.
+    workspace.undo.stopCapturing();
+    store.set(publicationFamily(DRAFT_ID), empty());
+  } else {
+    store.set(publicationIdsAtom, [...ids, id]);
+    store.set(publicationFamily(id), draft);
+    store.set(overrideFamily(DRAFT_ID), RESET);
+  }
 
   return id;
 }
@@ -559,21 +864,40 @@ function duplicate(
   const ids = store.get(publicationIdsAtom);
   if (!ids) throw "Can not duplicate publications: entries not loaded.";
 
+  const workspace = workspaceDoc(store);
   const newIds: PublicationId[] = [];
+
   const orderedIds = ids.reduce<PublicationId[]>((acc, current) => {
     if (duplicateIds.has(current)) {
       const newId = createId();
       newIds.push(newId);
-      store.set(
-        publicationFamily(newId),
-        store.get(publicationFamily(current)),
-      );
+
+      if (workspace) {
+        Doc.addRowAfter(
+          workspace.doc,
+          current,
+          newId,
+          store.get(visiblePublicationFamily(current)),
+        );
+      } else {
+        store.set(
+          publicationFamily(newId),
+          store.get(publicationFamily(current)),
+        );
+      }
+
       return [...acc, current, newId];
     }
     return [...acc, current];
   }, []);
 
-  store.set(publicationIdsAtom, orderedIds);
+  if (workspace) {
+    // The document already carries the order, and the observer has applied it.
+    workspace.undo.stopCapturing();
+  } else {
+    store.set(publicationIdsAtom, orderedIds);
+  }
+
   return newIds;
 }
 
@@ -596,10 +920,13 @@ function resetAll(store: Store): void {
     store.set(errorFamily(id), RESET);
     store.set(discardedFamily(id), RESET);
     store.set(lastValidatedFamily(id), RESET);
+    store.set(measuredResemblanceFamily(id), RESET);
   });
 
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
+  // A review of rows that no longer exist has nothing left to show.
+  store.set(reviewingAtom, RESET);
 }
 
 function resetDiscarded(store: Store): void {
@@ -614,8 +941,13 @@ function resetDiscarded(store: Store): void {
  * from the workspace's `setDiscarded`, which only hides rows in memory.
  */
 function removePublication(store: Store, id: PublicationId): void {
+  const workspace = workspaceDoc(store);
   const ids = store.get(publicationIdsAtom);
-  if (ids) {
+
+  if (workspace) {
+    Doc.removeRow(workspace.doc, id);
+    workspace.undo.stopCapturing();
+  } else if (ids) {
     store.set(
       publicationIdsAtom,
       ids.filter((current) => current !== id),
@@ -633,12 +965,6 @@ function removePublication(store: Store, id: PublicationId): void {
   if (total !== null) {
     store.set(totalIndexCountAtom, total - 1);
   }
-}
-
-function resetOverridden(store: Store): void {
-  store
-    .get(publicationIdsAtom)
-    ?.forEach((id) => store.set(overrideFamily(id), RESET));
 }
 
 function resetAttributes(store: Store): void {
@@ -672,6 +998,7 @@ export {
   discardEdit,
   drawnCountAtom,
   duplicate,
+  closeReview,
   errorCodeFamily,
   errorFamily,
   fieldErrorCodeFamily,
@@ -689,10 +1016,9 @@ export {
   matchedAtom,
   isValidatingAtom,
   lastValidatedFamily,
-  overriddenCountAtom,
-  overriddenIdsAtom,
   overrideFamily,
   overrideField,
+  openReview,
   overrideSources,
   orderAtom,
   publicationFamily,
@@ -707,12 +1033,20 @@ export {
   resetAll,
   resetAttributes,
   resetDiscarded,
-  resetOverridden,
+  reviewingAtom,
+  resemblanceFamily,
+  resemblanceSubjectAtom,
+  rowSubjectFamily,
+  resemblingCountAtom,
+  resemblingIdsAtom,
+  openWorkspace,
+  rowNumberFamily,
   setAll,
   setAttributesVisible,
   setDiscarded,
   setErrors,
   setFocusedRowId,
+  setResemblances,
   storedFieldValueFamily,
   storedSourcesFamily,
   totalCountAtom,
@@ -725,5 +1059,6 @@ export {
   visibleCountAtom,
   visibleIdsAtom,
   visiblePublicationFamily,
+  workspaceDoc,
 };
 export type { BatchName, NameKind, PublicationIndex };

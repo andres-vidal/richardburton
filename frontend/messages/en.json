@@ -165,7 +165,7 @@
     "home": "Home",
     "admin": "Admin",
     "adminTitle": "Admin tools",
-    "newPage": "Prepare new publications to be inserted in the database.",
+    "newPage": "Prepare new publications in an import document, then insert them into the database.",
     "historyPage": "Every change to the database — who did what, and when. Any change still reconcilable with the current state can be undone.",
     "sourcesPage": "Add sources to publications that are missing them.",
     "deletedPage": "Records removed from the database. Restoring brings one back exactly as it was.",
@@ -220,7 +220,10 @@
     "newPublications": "{count, plural, one {# new publication} other {# new publications}}",
     "recordLine": "{authors} · {year} · {publishers}",
     "namesTitle": "Names",
-    "namesDescription": "Translators, authors and publishers — correct a spelling, or fold duplicates together."
+    "namesDescription": "Translators, authors and publishers — correct a spelling, or fold duplicates together.",
+    "redo": "Redo",
+    "undoHint": "Walk back your last change. Edits made by others are left alone.",
+    "redoHint": "Put back the change you walked back."
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
@@ -253,7 +256,14 @@
     "ruledApartHeading": "Ruled apart",
     "keep": "Keep {title}",
     "none": "None",
-    "originalLine": "{title} — {authors}"
+    "originalLine": "{title} — {authors}",
+    "openRecord": "Open this record"
+  },
+  "errors": {
+    "title": "What is wrong with these rows",
+    "description": "{count, plural, one {# row cannot be inserted until it is corrected.} other {# rows cannot be inserted until they are corrected.}}",
+    "rowNumber": "Row {position}",
+    "goToRow": "Go to this row"
   },
   "errors": {
     "title": "What is wrong with these rows",
@@ -481,5 +491,33 @@
     "held": "already here",
     "new": "new",
     "noneOfThisKind": "None in this batch."
+  },
+  "resemblances": {
+    "label": "Possible duplicates in this import",
+    "found": "{count, plural, one {# row looks like a publication already known} other {# rows look like publications already known}}",
+    "beingImported": "The row being imported",
+    "alreadyStored": "Already in the database",
+    "elsewhereInImport": "Elsewhere in this import",
+    "looksLikeStored": "{count, plural, one {Resembles one record already in the database.} other {Resembles # records already in the database.}}",
+    "looksLikeRows": "{count, plural, one {Resembles one other row of this import.} other {Resembles # other rows of this import.}}",
+    "namedPublication": "{title} ({year})",
+    "looksLikeNamed": "Resembles {names}.",
+    "rowLooksLike": "This row looks like a publication already known",
+    "previous": "Previous",
+    "next": "Next",
+    "lookAlike": "Look-alike"
+  },
+  "documents": {
+    "title": "Import documents",
+    "description": "Batches of publications being prepared. Everyone can see and open all of them.",
+    "nameLabel": "Name",
+    "namePlaceholder": "What this batch is",
+    "start": "Start a document",
+    "loading": "Reading the documents…",
+    "none": "No documents yet. Start one above.",
+    "rows": "{count, plural, =0 {Empty} one {# row} other {# rows}}",
+    "hereNow": "Also here",
+    "alsoHere": "{who} is working on this too",
+    "editingHere": "{who} has their cursor here"
   }
 }

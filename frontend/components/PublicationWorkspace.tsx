@@ -13,20 +13,26 @@ import {
   RowProps,
   SignalColumn,
 } from "components/PublicationIndexTable";
+import CheckResemblances from "listeners/CheckResemblances";
 import ClearSelection from "listeners/ClearSelection";
 import { isElement } from "lodash";
+import WarningIcon from "assets/warning.svg";
 import {
   useAreRowIdsVisible,
   useIsPublicationFocused,
   useIsPublicationValid,
   usePublicationErrorDescription,
+  usePublicationResemblance,
+  usePublicationRowNumber,
   usePublicationField,
   usePublicationFieldError,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
-import { validate } from "modules/publication/remote";
+import { colourOf, useOnThisCell } from "modules/publication/presence";
+import { resemblances, validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { DRAFT_ID, addNew } from "modules/publication/store";
+import type { PublicationId } from "modules/publication/model";
 import {
   isSelectionGesture,
   select,
@@ -47,11 +53,15 @@ import Tooltip from "./Tooltip";
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 const ExtendedColumn: typeof Column = (props) => {
-  const { rowId } = props;
+  const { rowId, colId } = props;
 
   const isSelected = useIsSelected(rowId);
   const isValid = useIsPublicationValid(rowId);
   const isFocused = useIsPublicationFocused(rowId);
+
+  // Somebody else editing this very cell, so it is plain where they are before
+  // anyone types over them.
+  const person = useOnThisCell(String(rowId), colId);
 
   return (
     <Column
@@ -59,6 +69,9 @@ const ExtendedColumn: typeof Column = (props) => {
       invalid={!isValid}
       focused={isFocused}
       selected={isSelected}
+      taken={
+        person ? { colour: colourOf(person.email), by: person.email } : null
+      }
     />
   );
 };
@@ -85,8 +98,11 @@ const ExtendedColumnHeader: typeof ColumnHeader = (props) => {
 };
 
 const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
+  const t = useTranslations("resemblances");
   const isValid = useIsPublicationValid(rowId);
   const isFocused = useIsPublicationFocused(rowId);
+  const resemblance = usePublicationResemblance(rowId);
+  const rowNumber = usePublicationRowNumber(rowId);
 
   const isSelected = useIsSelected(rowId);
   const [isIdVisible] = useAreRowIdsVisible();
@@ -104,7 +120,18 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
         data-error={!isValid}
       >
         {!isValid && <ErrorIcon className="w-5 aspect-square" />}
-        {isIdVisible && rowId + 1}
+        {/* A marker, not a control: this cell is the row's selection handle,
+            and what to do about a look-alike is at the end of the row. It is
+            here because this column is the one that stays put, and a look-alike
+            should be as easy to spot down a long table as an error is. */}
+        {isValid && resemblance && (
+          <WarningIcon
+            role="img"
+            aria-label={t("rowLooksLike")}
+            className="w-5 text-amber-500 aspect-square"
+          />
+        )}
+        {isIdVisible && rowNumber}
       </span>
     </SignalColumn>
   );
@@ -223,7 +250,10 @@ const NewPublicationRow: FC = () => {
   );
 };
 
-const PublicationWorkspace: FC = () => {
+const PublicationWorkspace: FC<{
+  /** How the rows are measured for look-alikes. Defaults to asking the server. */
+  check?: typeof resemblances;
+}> = ({ check }) => {
   const store = usePublicationStore();
   const ids = useVisiblePublicationIds();
   const isSelectionEmpty = useIsSelectionEmpty();
@@ -231,7 +261,7 @@ const PublicationWorkspace: FC = () => {
   // Only a click on the row's handle selects it. The row hears every click in
   // it, including the ones that land in a field — those belong to the field, and
   // selecting on them would fight the person typing.
-  const toggleSelection = (id: number) => (event: MouseEvent) => {
+  const toggleSelection = (id: PublicationId) => (event: MouseEvent) => {
     if (!isSelectionGesture(event.target)) return;
 
     select(store, {
@@ -246,6 +276,7 @@ const PublicationWorkspace: FC = () => {
   return (
     <>
       <ClearSelection store={store} />
+      <CheckResemblances store={store} check={check} />
       <PublicationIndexTable
         ExtendedRow={ExtendedRow}
         ExtendedColumn={ExtendedColumn}

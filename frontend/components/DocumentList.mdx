@@ -1,0 +1,40 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DocumentListStories from "./DocumentList.stories";
+
+<Meta of={DocumentListStories} />
+
+# Workspace hub
+
+The bulk-import workspaces a person may open, and the way to start another.
+
+A workspace is import work with a name and a home on the server, so it outlives
+the browser it was started in and can be handed to a colleague. The page at
+`/admin/publications/new` is the same surface without one: work kept on this
+browser's disk alone, which is enough until it is worth naming.
+
+<Canvas of={DocumentListStories.Default} />
+
+## The row count is the client's word
+
+Each entry says how many rows it holds. The server keeps a workspace as opaque
+Yjs updates it never parses — that is what keeps a precompiled native dependency
+out of the deployment — so it cannot count rows in one. The client counts them
+as it writes, and the server records what it is told.
+
+## Props
+
+- `read` — how the list is read. Defaults to asking the server.
+- `start` — how one is started. Defaults to asking the server.
+
+Both are props so a story can stand in for the network.
+
+## States
+
+- **Default** — the workspaces this person may open, most recently changed
+  first.
+- **Empty** — nothing kept yet, said rather than shown as an empty list.
+- **Needs a name** — a workspace cannot be started unnamed; the name is what the
+  list calls it.
+
+<Canvas of={DocumentListStories.Empty} />

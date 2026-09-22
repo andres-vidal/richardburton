@@ -72,12 +72,23 @@ defmodule RichardBurtonWeb.Router do
       patch("/:kind/:id", VocabularyController, :update)
     end
 
+    scope "/documents" do
+      get("/", DocumentController, :index)
+      post("/", DocumentController, :create)
+      post("/socket-token", DocumentController, :socket_token)
+      get("/:id", DocumentController, :show)
+      get("/:id/updates", DocumentController, :updates)
+      post("/:id/updates", DocumentController, :append)
+      post("/:id/compact", DocumentController, :compact)
+    end
+
     scope "/publications" do
       post("/bulk", PublicationController, :create_all)
       post("/validate", PublicationController, :validate)
       get("/history", PublicationController, :history)
       get("/deleted", PublicationController, :index_deleted)
       get("/duplicates", PublicationController, :duplicates)
+      post("/duplicates/resemblances", PublicationController, :resemblances)
       post("/duplicates/distinguish", PublicationController, :distinguish)
       get("/duplicates/distinctions", PublicationController, :distinctions)
       post("/duplicates/reconsider", PublicationController, :reconsider)

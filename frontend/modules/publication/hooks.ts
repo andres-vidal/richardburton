@@ -19,8 +19,6 @@ import {
   isValidFamily,
   matchedAtom,
   isValidatingAtom,
-  overriddenCountAtom,
-  overriddenIdsAtom,
   overrideFamily,
   publicationOrNullFamily,
   publicationSourcesFamily,
@@ -32,6 +30,11 @@ import {
   matchingCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
+  resemblanceFamily,
+  reviewingAtom,
+  resemblingCountAtom,
+  resemblingIdsAtom,
+  rowNumberFamily,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
@@ -47,10 +50,6 @@ const NULL_PUBLICATION = atom<Publication | null>(null);
 
 function useVisiblePublicationIds() {
   return useAtomValue(visibleIdsAtom);
-}
-
-function useOverriddenPublicationIds() {
-  return useAtomValue(overriddenIdsAtom);
 }
 
 /** A publication with pending edits merged in (base ⊕ overrides). */
@@ -156,6 +155,11 @@ function useIsPublicationFocused(id: PublicationId) {
   return id === useAtomValue(focusedRowIdAtom);
 }
 
+/** Where the row sits in the working set, counting from one. */
+function usePublicationRowNumber(id: PublicationId) {
+  return useAtomValue(rowNumberFamily(id));
+}
+
 function useVisiblePublicationCount() {
   return useAtomValue(visibleCountAtom);
 }
@@ -164,12 +168,27 @@ function useValidPublicationCount() {
   return useAtomValue(validCountAtom);
 }
 
-function useDiscardedPublicationCount() {
-  return useAtomValue(discardedCountAtom);
+/** What this row resembles, or null where it resembles nothing. */
+function usePublicationResemblance(id: PublicationId) {
+  return useAtomValue(resemblanceFamily(id));
 }
 
-function useOverriddenPublicationCount() {
-  return useAtomValue(overriddenCountAtom);
+/** Which look-alike the review is open on, or null while it is closed. */
+function useReviewing() {
+  return useAtomValue(reviewingAtom);
+}
+
+/** The rows raising a look-alike nobody has accepted yet. */
+function useResemblingPublicationIds() {
+  return useAtomValue(resemblingIdsAtom);
+}
+
+function useResemblingPublicationCount() {
+  return useAtomValue(resemblingCountAtom);
+}
+
+function useDiscardedPublicationCount() {
+  return useAtomValue(discardedCountAtom);
 }
 
 function useTotalPublicationCount() {
@@ -231,8 +250,6 @@ export {
   useIsPublicationValid,
   useMatched,
   useIsValidating,
-  useOverriddenPublicationCount,
-  useOverriddenPublicationIds,
   usePublication,
   usePublicationError,
   usePublicationErrorDescription,
@@ -249,6 +266,11 @@ export {
   useStoredPublicationSources,
   useTotalPublicationCount,
   useUnsourcedPublicationCount,
+  usePublicationResemblance,
+  useResemblingPublicationCount,
+  useReviewing,
+  useResemblingPublicationIds,
+  usePublicationRowNumber,
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,

@@ -165,7 +165,7 @@
     "home": "Início",
     "admin": "Administração",
     "adminTitle": "Ferramentas de administração",
-    "newPage": "Prepare novas publicações para inserir na base de dados.",
+    "newPage": "Prepare novas publicações em um documento de importação e insira-as no banco de dados.",
     "historyPage": "Todas as mudanças na base de dados — quem fez o quê, e quando. Qualquer mudança ainda compatível com o estado atual pode ser desfeita.",
     "sourcesPage": "Acrescente fontes às publicações que não as têm.",
     "deletedPage": "Registros removidos da base de dados. Restaurar traz um de volta exatamente como estava.",
@@ -220,7 +220,10 @@
     "newPublications": "{count, plural, one {# nova publicação} other {# novas publicações}}",
     "recordLine": "{authors} · {year} · {publishers}",
     "namesTitle": "Nomes",
-    "namesDescription": "Tradutores, autores e editoras — corrija grafias ou una duplicatas."
+    "namesDescription": "Tradutores, autores e editoras — corrija grafias ou una duplicatas.",
+    "redo": "Refazer",
+    "undoHint": "Desfaz sua última alteração. As alterações de outras pessoas não são afetadas.",
+    "redoHint": "Refaz a alteração desfeita."
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",
@@ -253,7 +256,14 @@
     "ruledApartHeading": "Declarados diferentes",
     "keep": "Manter {title}",
     "none": "Nenhuma",
-    "originalLine": "{title} — {authors}"
+    "originalLine": "{title} — {authors}",
+    "openRecord": "Abrir este registro"
+  },
+  "errors": {
+    "title": "O que há de errado nestas linhas",
+    "description": "{count, plural, one {# linha não pode ser inserida até ser corrigida.} other {# linhas não podem ser inseridas até serem corrigidas.}}",
+    "rowNumber": "Linha {position}",
+    "goToRow": "Ir para esta linha"
   },
   "errors": {
     "title": "O que há de errado nestas linhas",
@@ -481,5 +491,33 @@
     "held": "já está aqui",
     "new": "novo",
     "noneOfThisKind": "Nenhum neste lote."
+  },
+  "resemblances": {
+    "label": "Possíveis duplicatas nesta importação",
+    "found": "{count, plural, one {# linha se parece com uma publicação já conhecida} other {# linhas se parecem com publicações já conhecidas}}",
+    "beingImported": "A linha sendo importada",
+    "alreadyStored": "Já no banco de dados",
+    "elsewhereInImport": "Em outro ponto desta importação",
+    "looksLikeStored": "{count, plural, one {Parece-se com um registro já no banco de dados.} other {Parece-se com # registros já no banco de dados.}}",
+    "looksLikeRows": "{count, plural, one {Parece-se com outra linha desta importação.} other {Parece-se com # outras linhas desta importação.}}",
+    "namedPublication": "{title} ({year})",
+    "looksLikeNamed": "Parece {names}.",
+    "rowLooksLike": "Esta linha parece uma publicação já conhecida",
+    "previous": "Anterior",
+    "next": "Próxima",
+    "lookAlike": "Semelhante"
+  },
+  "documents": {
+    "title": "Documentos de importação",
+    "description": "Lotes de publicações em preparação. Todos podem ver e abrir qualquer um.",
+    "nameLabel": "Nome",
+    "namePlaceholder": "O que é este lote",
+    "start": "Criar documento",
+    "loading": "Lendo os documentos…",
+    "none": "Nenhum documento ainda. Crie um acima.",
+    "rows": "{count, plural, =0 {Vazio} one {# linha} other {# linhas}}",
+    "hereNow": "Também aqui",
+    "alsoHere": "{who} também está trabalhando nisto",
+    "editingHere": "{who} está com o cursor aqui"
   }
 }

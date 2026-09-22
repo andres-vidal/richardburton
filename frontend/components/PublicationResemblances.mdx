@@ -1,0 +1,55 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationResemblancesStories from "./PublicationResemblances.stories";
+
+<Meta of={PublicationResemblancesStories} />
+
+# Resemblance review
+
+Reads through the rows of an import that look like something already known, one
+at a time. Opened from the
+[resemblance counter](?path=/docs/publications-resemblance-counter--docs) in the
+workspace footer, or from a row's own warning at the end of the row.
+
+Each one shows the row being imported against everything it resembles — records
+already in the database, other rows of the same import, or both. The evidence
+card is the one the
+[duplicate review](?path=/docs/publications-duplicate-review--docs) uses, so a
+reviewer who has stepped through that one reads this the same way.
+
+<Canvas of={PublicationResemblancesStories.AgainstTheDatabase} />
+
+## It reports, it does not ask
+
+There are no answers here. What to do about a look-alike — correcting the row,
+discarding it, leaving it alone because two editions of one book are two
+publications — is done to the row in the workspace, with the controls that
+already do those things.
+
+That also makes the count honest: it is a fact about the rows rather than a
+queue to burn down, and it falls when a row stops looking like something.
+
+Nothing here is written down either. The duplicate review records a
+_distinction_ against a pair of stored ids; a row being imported has no id, so
+there is nothing to record one against. Once the row is saved, the duplicate
+review asks about it again with a real pair to remember.
+
+## States
+
+- **Against the database** — the row resembles a stored record, which can be
+  followed through to in a tab of its own.
+- **Within the import** — the row resembles another row of the same import.
+  Neither is stored, so this is the only place the pair is put together.
+
+<Canvas of={PublicationResemblancesStories.WithinTheImport} />
+
+## Reading through
+
+The list is taken when the dialog opens. Editing a row while the dialog is over
+it would otherwise renumber the reader's place mid-read.
+
+Opened from a row's warning it starts on that row; opened from the count, at the
+beginning. The navigation goes both ways and stops at the ends, and is absent
+altogether when there is only one thing to read.
+
+<Canvas of={PublicationResemblancesStories.ReadingBothWays} />
