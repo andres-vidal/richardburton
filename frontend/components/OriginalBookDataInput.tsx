@@ -5,7 +5,7 @@ import { Publication } from "modules/publication/model";
 import { overrideField } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import pDebounce from "p-debounce";
-import { FC, forwardRef, useMemo, useRef, useState } from "react";
+import { FC, forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { ScalarDataInputProps } from "./DataInput";
 import MenuProvider from "./MenuProvider";
 import TextInput from "./TextInput";
@@ -42,10 +42,17 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
 
     // Which lookup the field is still interested in. A lookup outlives the
     // keystroke that asked for it, so one already on its way can arrive after a
-    // later keystroke or after a book has been chosen — and offering books
-    // again over a field that has just been filled reads as the choice not
-    // having been taken.
+    // later keystroke, after a book has been chosen — offering books again over
+    // a field just filled reads as the choice not having been taken — or after
+    // the field itself has gone, which is a write to something no longer there.
     const wanted = useRef(0);
+
+    useEffect(
+      () => () => {
+        wanted.current = -1;
+      },
+      [],
+    );
 
     const getBooks = useMemo(
       () =>
