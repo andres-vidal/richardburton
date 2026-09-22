@@ -5,7 +5,7 @@ import { Publication } from "modules/publication/model";
 import { overrideField } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import pDebounce from "p-debounce";
-import { FC, forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { FC, forwardRef, useMemo, useRef, useState } from "react";
 import { ScalarDataInputProps } from "./DataInput";
 import MenuProvider from "./MenuProvider";
 import TextInput from "./TextInput";
@@ -41,14 +41,7 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
     const [books, setBooks] = useState<OriginalBookValue[]>([]);
 
     const latest = useRef(0);
-
-    useEffect(
-      () => () => {
-        // No lookup holds -1, so every one still in flight is now stale.
-        latest.current = -1;
-      },
-      [],
-    );
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const getBooks = useMemo(
       () =>
@@ -73,7 +66,9 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
       // suggestions, and what is being typed is not worth interrupting.
       const found = await getBooks(typed.toLowerCase()).catch(() => []);
 
-      if (mine !== latest.current) return;
+      // Only the newest lookup writes, and only while the field is still on the
+      // page to hear it.
+      if (mine !== latest.current || !inputRef.current?.isConnected) return;
 
       setBooks(found);
       setActiveIndex(0);
@@ -110,6 +105,7 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
         <TextInput
           {...props}
           ref={ref}
+          inputRef={inputRef}
           value={value}
           onChange={handleChange}
           aria-autocomplete="list"

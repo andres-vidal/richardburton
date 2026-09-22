@@ -57,4 +57,8 @@ keeps it, and on answering may write what the field offers only if its number is
 still the current one. Choosing a book takes a number as well, which leaves
 every lookup still in flight holding a stale one.
 
+A lookup can also outlive the field itself, which is the same write to something
+that is no longer listening. Before writing, a lookup checks that the input is
+still in the document.
+
 <Canvas of={OriginalBookDataInputStories.AChoiceSurvivesALookupInFlight} />

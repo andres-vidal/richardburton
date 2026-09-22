@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  ForwardedRef,
-  KeyboardEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { ForwardedRef, KeyboardEvent, useRef, useState } from "react";
 import Pill from "./Pill";
 
 import { Key } from "app";
@@ -137,14 +131,7 @@ export default function Multicombobox<ItemType extends string | Item>({
   }
 
   const latest = useRef(0);
-
-  useEffect(
-    () => () => {
-      // No lookup holds -1, so every one still in flight is now stale.
-      latest.current = -1;
-    },
-    [],
-  );
+  const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleChange(v: string) {
     setInputValue(v);
@@ -158,7 +145,9 @@ export default function Multicombobox<ItemType extends string | Item>({
 
     const found = await getOptions(v.toLowerCase());
 
-    if (mine !== latest.current) return;
+    // Only the newest lookup writes, and only while the field is still on the
+    // page to hear it.
+    if (mine !== latest.current || !inputRef.current?.isConnected) return;
 
     setIsOpen(true);
     setActiveIndex(0);
@@ -171,8 +160,6 @@ export default function Multicombobox<ItemType extends string | Item>({
     setInputValue("");
     inputRef.current?.focus();
   }
-
-  const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <MenuProvider<ItemType>
