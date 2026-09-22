@@ -23,6 +23,10 @@ import Tooltip from "./Tooltip";
  * and find it. Pressing it opens the review on this row, where the records are
  * set out in full and can be followed through to.
  *
+ * It reads as a button, because it is one. The marker in the row's leading cell
+ * is what says a row has a look-alike; this is what to press about it, and the
+ * two should not be mistaken for each other.
+ *
  * It sits at the end of the row rather than in the leading cell because that
  * cell is the row's selection handle, and a control there would take the clicks
  * meant for selecting.
@@ -46,20 +50,23 @@ const RowResemblance: FC<{ rowId: RowId }> = ({ rowId }) => {
     .join(" ");
 
   return resemblance === null ? null : (
-    <Tooltip variant="warning" message={t("inspect")} placement="left">
-      <button
-        type="button"
+    <Tooltip variant="warning" message={message} placement="left">
+      <Button
+        variant="outline"
+        width="fit"
+        size="small"
+        // Handed over as a node rather than a component so it keeps the
+        // warning's colour; a button gives its own icons the variant's.
+        Icon={<WarningIcon className="size-4 text-amber-500" />}
+        label={t("lookAlike")}
         aria-label={message}
-        className="flex items-center text-amber-500 hover:text-amber-600"
         onClick={(event) => {
           // The row around this selects when it is clicked, and asking to see a
           // look-alike is not asking to select anything.
           event.stopPropagation();
           openReview(store, rowId);
         }}
-      >
-        <WarningIcon className="w-5 aspect-square" />
-      </button>
+      />
     </Tooltip>
   );
 };

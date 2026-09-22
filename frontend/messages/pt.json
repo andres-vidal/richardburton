@@ -454,9 +454,9 @@
     "looksLikeRows": "{count, plural, one {Parece-se com outra linha desta importação.} other {Parece-se com # outras linhas desta importação.}}",
     "namedPublication": "{title} ({year})",
     "looksLikeNamed": "Parece {names}.",
-    "inspect": "Examinar esta semelhança",
     "rowLooksLike": "Esta linha parece uma publicação já conhecida",
     "previous": "Anterior",
-    "next": "Próxima"
+    "next": "Próxima",
+    "lookAlike": "Semelhante"
   }
 }

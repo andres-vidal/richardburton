@@ -5,7 +5,7 @@ import { Publication } from "modules/publication/model";
 import { overrideField } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import pDebounce from "p-debounce";
-import { FC, forwardRef, useMemo, useState } from "react";
+import { FC, forwardRef, useMemo, useRef, useState } from "react";
 import { ScalarDataInputProps } from "./DataInput";
 import MenuProvider from "./MenuProvider";
 import TextInput from "./TextInput";
@@ -40,6 +40,13 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const [books, setBooks] = useState<OriginalBookValue[]>([]);
 
+    // Which lookup the field is still interested in. A lookup outlives the
+    // keystroke that asked for it, so one already on its way can arrive after a
+    // later keystroke or after a book has been chosen — and offering books
+    // again over a field that has just been filled reads as the choice not
+    // having been taken.
+    const wanted = useRef(0);
+
     const getBooks = useMemo(
       () =>
         pDebounce(
@@ -52,6 +59,8 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
     async function handleChange(typed: string) {
       onChange?.(typed);
 
+      const asking = ++wanted.current;
+
       if (!typed) {
         setIsOpen(false);
         return;
@@ -60,6 +69,9 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
       // A lookup that fails offers nothing: the field is usable without
       // suggestions, and what is being typed is not worth interrupting.
       const found = await getBooks(typed.toLowerCase()).catch(() => []);
+
+      if (asking !== wanted.current) return;
+
       setBooks(found);
       setActiveIndex(0);
       setIsOpen(found.length > 0);
@@ -73,6 +85,8 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
       // point of the suggestion is that the two never disagree.
       overrideField(store, rowId, "originalAuthors", book.authors);
       onChange?.(book.title);
+
+      wanted.current += 1;
       setIsOpen(false);
     }
 
