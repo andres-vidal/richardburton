@@ -70,9 +70,6 @@ export default forwardRef<HTMLDivElement, Props>(function TextInput(
       `}
     >
       {left}
-      {/* The input of a chip-bearing field carries the padding and border a
-          Pill does, so the field stands at chip height whether or not anything
-          has been chosen, and a row does not move as entries are added. */}
       <input
         {...props}
         ref={inputRef}
