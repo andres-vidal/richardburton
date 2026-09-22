@@ -44,3 +44,16 @@ what it is given. A lookup that fails offers nothing rather than interrupting.
 - **Free text stands** — an unknown book is simply typed.
 
 <Canvas of={OriginalBookDataInputStories.FillsBothFields} />
+
+## A lookup outlives its keystroke
+
+A lookup is asked for by a keystroke and answered some time later, so one
+already on its way can arrive after a further keystroke, or after a book has
+been chosen. Putting the books back up over a field that has just been filled
+reads as the choice not having been taken.
+
+Each lookup therefore carries a ticket, and only the newest one is allowed to
+write what the field offers. Choosing a book takes a ticket too, which is what
+retires whatever was in flight when it was chosen.
+
+<Canvas of={OriginalBookDataInputStories.AChoiceSurvivesALookupInFlight} />

@@ -1,6 +1,12 @@
 "use client";
 
-import { ForwardedRef, KeyboardEvent, useRef, useState } from "react";
+import {
+  ForwardedRef,
+  KeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Pill from "./Pill";
 
 import { Key } from "app";
@@ -130,21 +136,43 @@ export default function Multicombobox<ItemType extends string | Item>({
     onKeyDown?.(event);
   }
 
+  // Which lookup the field is still interested in.
+  //
+  // A lookup outlives the keystroke that asked for it, so one already on its
+  // way can arrive after a later keystroke, after an option has been taken, or
+  // after the field itself has gone — and writing what to offer then is a write
+  // to something no longer there. Retiring the ticket on the way out is what
+  // says so.
+  const wanted = useRef(0);
+
+  useEffect(
+    () => () => {
+      wanted.current = -1;
+    },
+    [],
+  );
+
   async function handleChange(v: string) {
     setInputValue(v);
 
-    if (v) {
-      const options = await getOptions(v.toLowerCase());
+    const asking = ++wanted.current;
 
-      setIsOpen(true);
-      setActiveIndex(0);
-      setOptions(options.filter((option) => !isSelected(option)));
-    } else {
+    if (!v) {
       setIsOpen(false);
+      return;
     }
+
+    const found = await getOptions(v.toLowerCase());
+
+    if (asking !== wanted.current) return;
+
+    setIsOpen(true);
+    setActiveIndex(0);
+    setOptions(found.filter((option) => !isSelected(option)));
   }
 
   function handleOptionSelect(option: ItemType) {
+    wanted.current += 1;
     select(option);
     setInputValue("");
     inputRef.current?.focus();
