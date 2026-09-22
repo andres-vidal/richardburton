@@ -36,12 +36,12 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
       onChange?.(value.map(({ id }) => id));
     }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const getOptions = useCallback(
-      pDebounce(
-        (search: string) => Publication.autocomplete(search, colId, locale),
-        350,
-      ),
+    const getOptions = useMemo(
+      () =>
+        pDebounce(
+          (search: string) => Publication.autocomplete(search, colId, locale),
+          350,
+        ),
       [colId, locale],
     );
 
