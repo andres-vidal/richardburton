@@ -6,46 +6,50 @@ import * as PublicationResemblancesStories from "./PublicationResemblances.stori
 
 # Resemblance review
 
-Steps through the rows of an import that look like something already known, one
-question at a time. Opened from the
+Reads through the rows of an import that look like something already known, one
+at a time. Opened from the
 [resemblance counter](?path=/docs/publications-resemblance-counter--docs) in the
-workspace footer.
+workspace footer, or from a row's own warning at the end of the row.
 
-Each question shows the row being imported against everything it resembles —
-records already in the database, other rows of the same import, or both. The
-evidence card is the one the
+Each one shows the row being imported against everything it resembles — records
+already in the database, other rows of the same import, or both. The evidence
+card is the one the
 [duplicate review](?path=/docs/publications-duplicate-review--docs) uses, so a
 reviewer who has stepped through that one reads this the same way.
 
-## The two answers
-
-**Discard this row** takes it out of the import, the same discard the footer can
-undo. **Keep it** leaves the row where it is and stops the question being asked
-again in this workspace.
-
-Neither is written down. The duplicate review records a _distinction_ against a
-pair of stored ids; a row being imported has no id, so there is nothing to record
-it against. Keeping a row is an answer for this sitting only — once the row is
-saved, the duplicate review asks about it again with a real pair to remember.
-
 <Canvas of={PublicationResemblancesStories.AgainstTheDatabase} />
 
-## Props
+## It reports, it does not ask
 
-- `isOpen` / `onClose` — the dialog's own state, owned by the counter that opens
-  it.
+There are no answers here. What to do about a look-alike — correcting the row,
+discarding it, leaving it alone because two editions of one book are two
+publications — is done to the row in the workspace, with the controls that
+already do those things.
+
+That also makes the count honest: it is a fact about the rows rather than a
+queue to burn down, and it falls when a row stops looking like something.
+
+Nothing here is written down either. The duplicate review records a
+_distinction_ against a pair of stored ids; a row being imported has no id, so
+there is nothing to record one against. Once the row is saved, the duplicate
+review asks about it again with a real pair to remember.
 
 ## States
 
-- **Against the database** — the row resembles a stored record.
+- **Against the database** — the row resembles a stored record, which can be
+  followed through to in a tab of its own.
 - **Within the import** — the row resembles another row of the same import.
-  Neither is stored, so this review is the only place the pair is put together.
-- **All answered** — every question in the queue has an answer.
+  Neither is stored, so this is the only place the pair is put together.
 
 <Canvas of={PublicationResemblancesStories.WithinTheImport} />
 
-## The queue
+## Reading through
 
-The questions are snapshotted when the dialog opens. Answering one takes the row
-out of the live list, and counting progress against a list that shrinks
-underneath would renumber the total after every answer.
+The list is taken when the dialog opens. Editing a row while the dialog is over
+it would otherwise renumber the reader's place mid-read.
+
+Opened from a row's warning it starts on that row; opened from the count, at the
+beginning. The navigation goes both ways and stops at the ends, and is absent
+altogether when there is only one thing to read.
+
+<Canvas of={PublicationResemblancesStories.ReadingBothWays} />

@@ -143,6 +143,19 @@ test("an invalid row blocks submission until it is fixed", async ({ page }) => {
   await expect(page.getByLabel("1 invalid publication")).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit" })).toBeDisabled();
 
+  // The counter opens the list of what is wrong, field by field, and leads back
+  // to the row it is about.
+  await page.getByLabel("1 invalid publication").click();
+  const errors = page.getByRole("dialog", {
+    name: "What is wrong with these rows",
+  });
+  await expect(errors).toContainText(
+    "1 row cannot be inserted until it is corrected.",
+  );
+  await expect(errors).toContainText("Publishers");
+  await errors.getByRole("button", { name: "Go to this row" }).click();
+  await expect(errors).not.toBeVisible();
+
   // Filling the missing field revalidates the row and unblocks the submit.
   const row = table.getByRole("row", { name: /Incomplete \(E2E\)/ });
   const input = row.getByPlaceholder("Publishers", { exact: true });

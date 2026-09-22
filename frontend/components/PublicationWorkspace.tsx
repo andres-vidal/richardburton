@@ -3,7 +3,6 @@
 import { Key } from "app";
 import AddCircleIcon from "assets/add-circle.svg";
 import ErrorIcon from "assets/error.svg";
-import WarningIcon from "assets/warning.svg";
 import {
   Column,
   ColumnHeader,
@@ -14,8 +13,10 @@ import {
   RowProps,
   SignalColumn,
 } from "components/PublicationIndexTable";
+import CheckResemblances from "listeners/CheckResemblances";
 import ClearSelection from "listeners/ClearSelection";
 import { isElement } from "lodash";
+import WarningIcon from "assets/warning.svg";
 import {
   useAreRowIdsVisible,
   useIsPublicationFocused,
@@ -26,7 +27,7 @@ import {
   usePublicationFieldError,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
-import { validate } from "modules/publication/remote";
+import { resemblances, validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { DRAFT_ID, addNew } from "modules/publication/store";
 import {
@@ -108,6 +109,10 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
         data-error={!isValid}
       >
         {!isValid && <ErrorIcon className="w-5 aspect-square" />}
+        {/* A marker, not a control: this cell is the row's selection handle,
+            and what to do about a look-alike is at the end of the row. It is
+            here because this column is the one that stays put, and a look-alike
+            should be as easy to spot down a long table as an error is. */}
         {isValid && resemblance && (
           <WarningIcon
             role="img"
@@ -234,7 +239,10 @@ const NewPublicationRow: FC = () => {
   );
 };
 
-const PublicationWorkspace: FC = () => {
+const PublicationWorkspace: FC<{
+  /** How the rows are measured for look-alikes. Defaults to asking the server. */
+  check?: typeof resemblances;
+}> = ({ check }) => {
   const store = usePublicationStore();
   const ids = useVisiblePublicationIds();
   const isSelectionEmpty = useIsSelectionEmpty();
@@ -257,6 +265,7 @@ const PublicationWorkspace: FC = () => {
   return (
     <>
       <ClearSelection store={store} />
+      <CheckResemblances store={store} check={check} />
       <PublicationIndexTable
         ExtendedRow={ExtendedRow}
         ExtendedColumn={ExtendedColumn}

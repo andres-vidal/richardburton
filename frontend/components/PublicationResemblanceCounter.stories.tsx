@@ -2,10 +2,10 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { empty } from "modules/publication/model";
 import {
-  addNew,
   createId,
   resetAll,
   setAll,
+  setDiscarded,
   setResemblances,
 } from "modules/publication/store";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
@@ -64,8 +64,8 @@ const ROWS = [
 
 const ids = ROWS.map(({ id }) => id);
 
-/** What the server would answer for those rows, without a server. */
-const found = async () =>
+/** What the server would have answered for those rows, without a server. */
+const found = () =>
   setResemblances(
     store,
     ids,
@@ -76,15 +76,13 @@ const found = async () =>
     ]),
   );
 
-const nothing = async () => setResemblances(store, ids, new Map());
-
 const meta = {
   title: "Publications/Resemblance counter",
   component: PublicationResemblanceCounter,
-  args: { check: found },
   beforeEach: () => {
     resetAll(store);
     setAll(store, ROWS);
+    found();
   },
   decorators: [
     (Story) => (
@@ -100,26 +98,11 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Before the check has been run there is nothing to report, so the button
- * offers to run it rather than showing a count of zero.
+ * The count, which is the way into the questions. All three rows are raised:
+ * one against the database, two against each other.
  */
-export const Unchecked: Story = {
-  play: async () => {
-    await expect(
-      screen.getByRole("button", { name: "Check for duplicates" }),
-    ).toBeVisible();
-  },
-};
-
-/** The check found look-alikes, and the count is the way into them. */
 export const Found: Story = {
   play: async () => {
-    await userEvent.click(
-      screen.getByRole("button", { name: "Check for duplicates" }),
-    );
-
-    // All three rows are raised: one against the database, two against each
-    // other.
     const button = await screen.findByRole("button", {
       name: "3 rows look like publications already known",
     });
@@ -137,47 +120,39 @@ export const Found: Story = {
 };
 
 /**
- * A set with nothing alike in it says so with a check, not a zero — the same
- * way the error counter reports a set with no errors.
+ * Nothing alike is nothing to say. There is no control at all rather than one
+ * reading zero: a look-alike is a question, and no question is not news.
  */
-export const NoneFound: Story = {
-  args: { check: nothing },
+export const NothingAlike: Story = {
+  beforeEach: () => {
+    resetAll(store);
+    setAll(store, ROWS);
+    setResemblances(store, ids, new Map());
+  },
   play: async () => {
-    await userEvent.click(
-      screen.getByRole("button", { name: "Check for duplicates" }),
-    );
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole("status", {
-          name: "No row looks like anything already known",
-        }),
-      ).toBeVisible(),
-    );
+    await waitFor(() => expect(screen.queryByRole("button")).toBeNull());
   },
 };
 
 /**
- * A row added after the check unsays the answer: it has never been measured, so
- * the count would be speaking for a working set it does not cover.
+ * The count is a fact about the rows, not a queue to burn down: it falls when a
+ * row stops looking like something, which happens by correcting or discarding
+ * the row itself.
  */
-export const StaleAfterAnAddition: Story = {
+export const DiscardingLowersIt: Story = {
   play: async () => {
-    await userEvent.click(
-      screen.getByRole("button", { name: "Check for duplicates" }),
-    );
     await expect(
       await screen.findByRole("button", {
         name: "3 rows look like publications already known",
       }),
     ).toBeVisible();
 
-    addNew(store);
+    setDiscarded(store, [ids[0]]);
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Check for duplicates" }),
-      ).toBeVisible(),
-    );
+    await expect(
+      await screen.findByRole("button", {
+        name: "2 rows look like publications already known",
+      }),
+    ).toBeVisible();
   },
 };

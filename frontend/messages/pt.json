@@ -251,7 +251,14 @@
     "ruledApartHeading": "Declarados diferentes",
     "keep": "Manter {title}",
     "none": "Nenhuma",
-    "originalLine": "{title} — {authors}"
+    "originalLine": "{title} — {authors}",
+    "openRecord": "Abrir este registro"
+  },
+  "errors": {
+    "title": "O que há de errado nestas linhas",
+    "description": "{count, plural, one {# linha não pode ser inserida até ser corrigida.} other {# linhas não podem ser inseridas até serem corrigidas.}}",
+    "rowNumber": "Linha {position}",
+    "goToRow": "Ir para esta linha"
   },
   "contact": {
     "heading": "Fale Conosco",
@@ -439,20 +446,17 @@
   },
   "resemblances": {
     "label": "Possíveis duplicatas nesta importação",
-    "check": "Verificar duplicatas",
-    "checkHint": "Compara cada linha com o banco de dados e com as demais linhas.",
     "found": "{count, plural, one {# linha se parece com uma publicação já conhecida} other {# linhas se parecem com publicações já conhecidas}}",
-    "noneFound": "Nenhuma linha se parece com algo já conhecido",
-    "rowLooksLike": "Esta linha se parece com uma publicação já conhecida",
     "beingImported": "A linha sendo importada",
     "alreadyStored": "Já no banco de dados",
     "elsewhereInImport": "Em outro ponto desta importação",
-    "discard": "Descartar esta linha",
-    "keep": "Manter — são diferentes",
-    "allAnswered": "Todas as semelhanças respondidas",
-    "allAnsweredDetail": "Nenhuma linha desta importação ainda se parece com algo já conhecido. Linhas descartadas podem ser recuperadas no rodapé.",
-    "done": "Concluído",
     "looksLikeStored": "{count, plural, one {Parece-se com um registro já no banco de dados.} other {Parece-se com # registros já no banco de dados.}}",
-    "looksLikeRows": "{count, plural, one {Parece-se com outra linha desta importação.} other {Parece-se com # outras linhas desta importação.}}"
+    "looksLikeRows": "{count, plural, one {Parece-se com outra linha desta importação.} other {Parece-se com # outras linhas desta importação.}}",
+    "namedPublication": "{title} ({year})",
+    "looksLikeNamed": "Parece {names}.",
+    "inspect": "Examinar esta semelhança",
+    "rowLooksLike": "Esta linha parece uma publicação já conhecida",
+    "previous": "Anterior",
+    "next": "Próxima"
   }
 }

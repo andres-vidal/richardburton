@@ -116,10 +116,7 @@ export const WithinTheImport: Story = {
   play: async () => {
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
 
-    // Answer the first question to reach the second.
-    await userEvent.click(
-      screen.getByRole("button", { name: "Keep it — they are different" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
 
     await waitFor(() =>
       expect(
@@ -132,30 +129,26 @@ export const WithinTheImport: Story = {
 };
 
 /**
- * Answering every question ends the review. The progress is counted against
- * the queue as it stood when the dialog opened, so answering does not renumber
- * what is left.
+ * The reading goes both ways and stops at the ends, so a reader can go back to
+ * something they have already passed.
  */
-export const AllAnswered: Story = {
+export const ReadingBothWays: Story = {
   play: async () => {
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Keep it — they are different" }),
-    );
-    await expect(await screen.findByText("2 / 3")).toBeVisible();
+    // Nothing before the first.
+    await expect(
+      screen.getByRole("button", { name: "Previous" }),
+    ).toBeDisabled();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Discard this row" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
     await expect(await screen.findByText("3 / 3")).toBeVisible();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Keep it — they are different" }),
-    );
+    // ...and nothing after the last.
+    await expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
 
-    await waitFor(() =>
-      expect(screen.getByText("Every look-alike answered")).toBeVisible(),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Previous" }));
+    await expect(await screen.findByText("2 / 3")).toBeVisible();
   },
 };

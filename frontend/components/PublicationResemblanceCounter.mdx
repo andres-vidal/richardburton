@@ -21,36 +21,60 @@ A row is measured against two things: the stored records, and the other rows of
 the same import. The second half matters because a CSV can hold its own
 near-duplicates, and neither of them is in the database for the review to find.
 
-## Why it is asked for
+## It counts, it does not ask
 
-The check is a button rather than something that runs as rows change. It
-measures every row against the whole table, which is worth doing once a set is
-assembled and wasteful on every keystroke — and validation already runs on every
-blur.
+The rows are measured as they are edited, the way they are validated — nothing
+has to be pressed. `CheckResemblances`, mounted by the workspace, watches the
+fields a resemblance is measured on and re-runs the check half a second after
+they settle. Editing a year or a country changes no answer, so it asks nothing.
 
-What counts as checked is therefore a property of the rows, not of the button
-having been pressed: the count stands only while every visible row is one the
-check measured. Discarding a row leaves it standing, since the rest were still
-measured. Adding or editing one does not.
+The whole set goes over each time rather than the row that changed, because a
+row is measured against the others as well as against the database: editing one
+row can make it the twin of another, and neither is stored for a query to find
+them by. That is the expensive half, and it grows with the square of the rows —
+see `Publication.Duplicates.resemblances/1`.
+
+An edited row drops what it resembled straight away rather than keeping an
+answer about values that have changed, so the count falls and then comes back.
 
 <Canvas of={PublicationResemblanceCounterStories.Found} />
 
-## Props
-
-- `check` — how the check is run. Defaults to asking the server; a story passes
-  its own.
-
 ## States
 
-- **Unchecked** — the button offers to run the check. There is no count yet, and
-  a zero would claim one.
 - **Found** — the count, and the way into the review.
-- **None found** — a green check rather than a red zero, the same way the error
-  counter reports a set with no errors.
-- **Stale after an addition** — a row added or edited since the check goes back
-  to offering it. The count is only allowed to speak for rows it has measured.
+- **Nothing alike** — no control at all. A look-alike is a question to answer,
+  and no question is not news; the error counter is what says a set is in good
+  order.
+- **Answering lowers it** — keeping or discarding a row takes it out of the
+  count.
 
-<Canvas of={PublicationResemblanceCounterStories.NoneFound} />
+<Canvas of={PublicationResemblanceCounterStories.NothingAlike} />
+
+<Canvas of={PublicationResemblanceCounterStories.AnsweringLowersIt} />
+
+The review itself is rendered whatever the count, because answering the last
+question takes the count to nought while the review is still open, saying so.
+
+## The row is a way in too
+
+A row marked "this resembles something" without saying what leaves the reader to
+go and find it, so the row carries its own control: it names the records by
+title and year, says how many other rows of the import it matches, and opens the
+review on that row rather than at the top of the queue.
+
+It sits at the end of the row, beside sources, rather than in the leading cell.
+That cell is the row's selection handle and is 2.5rem wide around a 1.25rem
+icon, so a control there takes the clicks meant for selecting the row.
+
+Which question the review is on therefore lives in the store rather than in this
+control, since this is no longer the only thing that opens it — and that is also
+what closes a review of rows the working set no longer holds.
+
+## Following a record out
+
+Each stored record in the review links to its own page, in a tab of its own: the
+reader is in the middle of a queue of questions, over a workspace of rows that
+nothing has saved yet.
 
 ## What it is not
 

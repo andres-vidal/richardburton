@@ -14,6 +14,7 @@ import {
   fieldValueFamily,
   focusedRowIdAtom,
   hiddenAttributesAtom,
+  invalidIdsAtom,
   isValidFamily,
   matchedAtom,
   isValidatingAtom,
@@ -30,8 +31,8 @@ import {
   matchingCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
-  isResemblanceCheckedAtom,
   resemblanceFamily,
+  reviewingAtom,
   resemblingCountAtom,
   resemblingIdsAtom,
   validCountAtom,
@@ -118,6 +119,11 @@ function useStoredPublicationSources(id: PublicationId) {
   return useAtomValue(storedSourcesFamily(id));
 }
 
+/** The rows something is wrong with, in the order they are shown. */
+function useInvalidPublicationIds() {
+  return useAtomValue(invalidIdsAtom);
+}
+
 function usePublicationError(id: PublicationId) {
   return useAtomValue(errorFamily(id));
 }
@@ -166,14 +172,14 @@ function usePublicationResemblance(id: PublicationId) {
   return useAtomValue(resemblanceFamily(id));
 }
 
+/** Which look-alike the review is open on, or null while it is closed. */
+function useReviewing() {
+  return useAtomValue(reviewingAtom);
+}
+
 /** The rows raising a look-alike nobody has accepted yet. */
 function useResemblingPublicationIds() {
   return useAtomValue(resemblingIdsAtom);
-}
-
-/** Whether the check covers the working set as it now stands. */
-function useIsResemblanceChecked() {
-  return useAtomValue(isResemblanceCheckedAtom);
 }
 
 function useResemblingPublicationCount() {
@@ -238,6 +244,7 @@ export {
   useDiscardedPublicationCount,
   useHiddenAttributes,
   useIsAttributeVisible,
+  useInvalidPublicationIds,
   useIsPublicationFocused,
   useIsPublicationValid,
   useMatched,
@@ -260,9 +267,9 @@ export {
   useStoredPublicationSources,
   useTotalPublicationCount,
   useUnsourcedPublicationCount,
-  useIsResemblanceChecked,
   usePublicationResemblance,
   useResemblingPublicationCount,
+  useReviewing,
   useResemblingPublicationIds,
   useValidPublicationCount,
   useVisibleAttributes,

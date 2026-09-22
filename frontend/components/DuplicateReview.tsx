@@ -184,6 +184,19 @@ export const Candidate: FC<{
             <span className="font-normal text-gray-600">({p.year})</span>
           </p>
           <p className="text-xs text-gray-600">{marked.value(p, "authors")}</p>
+          {/* A row on its way in has no id — and nothing to open. */}
+          {typeof p.id !== "number" ? null : (
+            // A new tab, because the reader is in the middle of something —
+            // a queue of questions, or a workspace of rows nothing has saved.
+            <a
+              href={`/publications/${p.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block mt-1 text-xs text-indigo-700 underline"
+            >
+              {t("openRecord")}
+            </a>
+          )}
         </div>
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">

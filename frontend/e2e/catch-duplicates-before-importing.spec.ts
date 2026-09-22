@@ -32,17 +32,52 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   const table = indexTable(page);
   await expect(table.getByRole("row", { name: /Dom Casmuro/ })).toBeVisible();
 
-  // Nothing is claimed before the check is run: the button offers to run it.
-  const check = page.getByRole("button", { name: "Check for duplicates" });
-  await expect(check).toBeVisible();
-  await check.click();
-
-  // Three of the four rows are raised — one against the database, two against
-  // each other — and the fourth, its own work, is not.
+  // The rows are measured as they arrive, so nothing has to be pressed. Three
+  // of the four are raised — one against the database, two against each other —
+  // and the fourth, its own work, is not.
   const found = page.getByRole("button", {
     name: "3 rows look like publications already known",
   });
   await expect(found).toBeVisible({ timeout: 30_000 });
+
+  // A row says what it looks like, rather than only that it looks like
+  // something. The one that resembles the corpus names the record by title and
+  // year; the one that resembles its neighbour says so.
+  // The row is marked where its status is — beside where an error would be —
+  // and says what it resembles at the end, where something can be done about it.
+  const casmuro = table.getByRole("row", { name: /Dom Casmuro/ });
+  await expect(
+    casmuro.getByRole("img", {
+      name: "This row looks like a publication already known",
+    }),
+  ).toBeVisible();
+  await expect(
+    casmuro.getByRole("button", { name: "Resembles Dom Casmurro (1953)." }),
+  ).toBeVisible();
+
+  // A marked row is still a row: the marker shares the leading cell with the
+  // error icon, and that cell is what selects.
+  await casmuro.getByRole("cell").first().click();
+  await expect(page.getByRole("button", { name: "Deselect 1" })).toBeVisible();
+  await page.getByRole("button", { name: "Deselect 1" }).click();
+
+  // Pressing a row's warning opens the review on that row, not at the top of
+  // the queue — and selecting the row still works, since the control inside the
+  // handle takes only its own clicks.
+  const marked = table
+    .getByRole("row", { name: /The Devil to Pay in the Backlands/ })
+    .getByRole("button", { name: "Resembles one other row of this import." });
+  await marked.click();
+
+  await expect(
+    page.getByRole("dialog", { name: "Possible duplicates in this import" }),
+  ).toBeVisible();
+  await expect(page.getByText("2 / 3")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "Possible duplicates in this import" }),
+  ).not.toBeVisible();
 
   await found.click();
   const review = page.getByRole("dialog", {
@@ -50,7 +85,13 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   });
   await expect(review).toBeVisible();
 
-  // The first question is the row against the record the corpus already holds.
+  // The stored record can be followed through to, in a tab of its own so the
+  // rows waiting here are not lost.
+  await expect(
+    review.getByRole("link", { name: "Open this record" }),
+  ).toHaveAttribute("target", "_blank");
+
+  // The first is the row against the record the corpus already holds.
   await expect(
     review.getByText("Resembles one record already in the database."),
   ).toBeVisible();
@@ -59,10 +100,11 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   ).toBeVisible();
   await expect(review.getByText("1 / 3")).toBeVisible();
 
-  // It is the same publication, so the row goes.
-  await review.getByRole("button", { name: "Discard this row" }).click();
+  // The review reads, it does not decide: it steps through what was found, both
+  // ways, and stops at the ends.
+  await expect(review.getByRole("button", { name: "Previous" })).toBeDisabled();
+  await review.getByRole("button", { name: "Next" }).click();
 
-  // The next question is the pair that only exists inside this import.
   await expect(review.getByText("2 / 3")).toBeVisible();
   await expect(
     review.getByText("Resembles one other row of this import."),
@@ -71,20 +113,32 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
     review.getByRole("heading", { name: "Elsewhere in this import" }),
   ).toBeVisible();
 
-  // They are two records of one edition, so one of them goes too.
-  await review.getByRole("button", { name: "Discard this row" }).click();
-
-  // The last question is its pair, now answered by the discard: keep it.
+  await review.getByRole("button", { name: "Next" }).click();
   await expect(review.getByText("3 / 3")).toBeVisible();
-  await review
-    .getByRole("button", { name: "Keep it — they are different" })
-    .click();
+  await expect(review.getByRole("button", { name: "Next" })).toBeDisabled();
 
-  await expect(review.getByText("Every look-alike answered")).toBeVisible();
-  await review.getByRole("button", { name: "Done" }).click();
+  await review.getByRole("button", { name: "Previous" }).click();
+  await expect(review.getByText("2 / 3")).toBeVisible();
+
+  await page.keyboard.press("Escape");
   await expect(review).not.toBeVisible();
 
-  // Both discarded rows left the working set; the work of its own never asked.
+  // Having read it, the rows are dealt with in the workspace itself — selected
+  // by their handles and discarded, the way any other row would be.
+  await table
+    .getByRole("row", { name: /Dom Casmuro/ })
+    .getByRole("cell")
+    .first()
+    .click();
+  await table
+    .getByRole("row", { name: /The Devil to Pay in the Backlands/ })
+    .getByRole("cell")
+    .first()
+    .click({ modifiers: ["Meta"] });
+  await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
+  await page.getByRole("button", { name: /^Discard/ }).click();
+
+  // Both left the working set; the work of its own never asked.
   await expect(table.getByRole("row", { name: /Dom Casmuro/ })).toHaveCount(0);
   await expect(
     table.getByRole("row", { name: /The Devil to Pay in the Backlands/ }),
@@ -96,4 +150,7 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await expect(
     table.getByRole("row", { name: /The Passion According to G\.H\./ }),
   ).toBeVisible();
+
+  // And nothing is left looking like anything, so the count goes.
+  await expect(page.getByRole("button", { name: /rows? look/ })).toHaveCount(0);
 });

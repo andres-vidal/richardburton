@@ -6,38 +6,39 @@ import {
   useVisiblePublication,
 } from "modules/publication/hooks";
 import type { PublicationId } from "modules/publication/model";
-import {
-  acceptResemblance,
-  resemblingIdsAtom,
-  setDiscarded,
-} from "modules/publication/store";
+import { resemblingIdsAtom } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
 import { Modal } from "./Modal";
+import ModalHeading from "./ModalHeading";
 import SectionHeading from "./SectionHeading";
 
 type Props = {
   isOpen: boolean;
+  /** The row to open on. Defaults to the first question of the queue. */
+  startAt?: PublicationId;
   onClose: () => void;
 };
 
 /**
- * One row's question: this row looks like something — is it the same
- * publication?
+ * One row set against everything it resembles, whether that is a stored record
+ * or another row of the same import. Both are the same evidence, so both are
+ * read the same way.
  *
- * The row is shown against everything it resembles, whether that is a stored
- * record or another row of the same import. Both are the same evidence, so both
- * are read the same way.
+ * It says what it found and stops there. What to do about it — correcting the
+ * row, discarding it, leaving it alone because two editions of one book are two
+ * publications — is done to the row in the workspace, with the controls that
+ * already do those things.
  */
 const Question: FC<{
   id: PublicationId;
   position: number;
   total: number;
-  onKeep: () => void;
-  onDiscard: () => void;
-}> = ({ id, position, total, onKeep, onDiscard }) => {
+  onPrevious?: () => void;
+  onNext?: () => void;
+}> = ({ id, position, total, onPrevious, onNext }) => {
   const t = useTranslations("resemblances");
   const common = useTranslations("common");
   const row = useVisiblePublication(id);
@@ -47,18 +48,16 @@ const Question: FC<{
 
   return (
     <div className="flex flex-col gap-6 p-8 w-full min-h-full">
-      <div className="flex gap-4 justify-between items-baseline pb-4 border-b border-gray-200">
-        <div className="min-w-0">
-          <h2 className="text-xl truncate">{row.title}</h2>
-          <p className="mt-1 text-sm text-gray-600">
+      <ModalHeading
+        heading={row.title}
+        subheading={
+          <>
             {stored > 0 && t("looksLikeStored", { count: stored })}{" "}
             {rows > 0 && t("looksLikeRows", { count: rows })}
-          </p>
-        </div>
-        <span className="text-sm text-gray-600 shrink-0 tabular-nums">
-          {common("progress", { position: position + 1, total })}
-        </span>
-      </div>
+          </>
+        }
+        aside={common("progress", { position: position + 1, total })}
+      />
 
       <section className="space-y-2">
         <SectionHeading>{t("beingImported")}</SectionHeading>
@@ -87,22 +86,26 @@ const Question: FC<{
         </section>
       )}
 
-      <div className="flex flex-wrap gap-3 justify-end mt-auto">
-        <Button
-          label={t("discard")}
-          variant="danger"
-          width="fit"
-          size="medium"
-          onClick={onDiscard}
-        />
-        <Button
-          label={t("keep")}
-          variant="outline-primary"
-          width="fit"
-          size="medium"
-          onClick={onKeep}
-        />
-      </div>
+      {total === 1 ? null : (
+        <div className="flex flex-wrap gap-3 justify-end mt-auto">
+          <Button
+            label={t("previous")}
+            variant="outline"
+            width="fit"
+            size="medium"
+            disabled={!onPrevious}
+            onClick={onPrevious}
+          />
+          <Button
+            label={t("next")}
+            variant="outline-primary"
+            width="fit"
+            size="medium"
+            disabled={!onNext}
+            onClick={onNext}
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -115,70 +118,53 @@ const OtherRow: FC<{ id: PublicationId }> = ({ id }) => {
 };
 
 /**
- * Step through the rows of an import that look like something already known.
- *
- * Nothing here is a decision the database keeps. A row is either dropped from
- * the import or kept in it, and keeping it only stops the question being asked
- * again in this workspace — two editions of one book resemble each other and
- * are both worth having.
- */
-/**
- * The questions as they stood when the dialog opened, asked one at a time.
+ * The rows that look like something, read one at a time.
  *
  * The dialog renders its content only while it is open, so this mounts on
- * opening — which is what fixes the queue. Answering a question takes its row
- * out of the raised set, and a list that shrank underneath would renumber the
- * progress after every answer. Taken at mount rather than watched for, so there
- * is no later moment at which it could be taken again.
+ * opening, and the list it steps through is taken then. Editing a row while the
+ * dialog is over it would otherwise renumber the reader's place mid-read.
  */
-const Queue: FC<{ onClose: () => void }> = ({ onClose }) => {
-  const t = useTranslations("resemblances");
+const Queue: FC<{ startAt?: PublicationId }> = ({ startAt }) => {
   const store = usePublicationStore();
 
   const [queue] = useState(() => store.get(resemblingIdsAtom) ?? []);
-  const [position, setPosition] = useState(0);
+
+  // Opened from a row's own warning the reading starts on that row; opened from
+  // the count, at the beginning.
+  const [position, setPosition] = useState(() =>
+    Math.max(0, queue.indexOf(startAt as PublicationId)),
+  );
 
   const current = queue[position];
 
-  function answer(answered: () => void) {
-    answered();
-    setPosition((at) => at + 1);
-  }
-
-  return current === undefined ? (
-    <div className="flex flex-col gap-3 justify-center items-center p-8 h-full text-center">
-      <h2 className="text-xl">{t("allAnswered")}</h2>
-      <p className="text-sm text-gray-600">{t("allAnsweredDetail")}</p>
-      <Button
-        label={t("done")}
-        variant="outline-primary"
-        width="fit"
-        size="medium"
-        onClick={onClose}
-      />
-    </div>
-  ) : (
+  return current === undefined ? null : (
     <div className="overflow-y-auto flex-1">
       <Question
-        // Keyed by the row, so each question is asked afresh.
+        // Keyed by the row, so each is read afresh.
         key={current}
         id={current}
         position={position}
         total={queue.length}
-        onKeep={() => answer(() => acceptResemblance(store, current))}
-        onDiscard={() => answer(() => setDiscarded(store, [current]))}
+        onPrevious={
+          position === 0 ? undefined : () => setPosition(position - 1)
+        }
+        onNext={
+          position === queue.length - 1
+            ? undefined
+            : () => setPosition(position + 1)
+        }
       />
     </div>
   );
 };
 
-const PublicationResemblances: FC<Props> = ({ isOpen, onClose }) => {
+const PublicationResemblances: FC<Props> = ({ isOpen, startAt, onClose }) => {
   const t = useTranslations("resemblances");
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} label={t("label")}>
       <div className="flex flex-col w-full h-full sm:h-[70vh]">
-        <Queue onClose={onClose} />
+        <Queue startAt={startAt} />
       </div>
     </Modal>
   );
