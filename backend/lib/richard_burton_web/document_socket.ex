@@ -41,5 +41,18 @@ defmodule RichardBurtonWeb.DocumentSocket do
   # Every socket a person has open, named together, so signing out or losing
   # access can close all of them at once.
   @impl true
-  def id(socket), do: "document_socket:#{socket.assigns.subject_id}"
+  def id(socket), do: topic(socket.assigns.subject_id)
+
+  @doc """
+  Close every live connection this person has open.
+
+  A token authorises a connection rather than the session behind it, and a
+  socket already open is never checked against it again. Signing out therefore
+  has to say so, or the document stays live in a tab that is signed out.
+  """
+  def disconnect(subject_id) do
+    RichardBurtonWeb.Endpoint.broadcast(topic(subject_id), "disconnect", %{})
+  end
+
+  defp topic(subject_id), do: "document_socket:#{subject_id}"
 end

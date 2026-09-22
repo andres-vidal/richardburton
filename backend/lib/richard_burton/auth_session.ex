@@ -71,6 +71,20 @@ defmodule RichardBurton.Auth.Session do
     end
   end
 
+  @doc """
+  Whose session this token is, without touching it.
+
+  `verify/1` slides the idle timeout and deletes what has expired, which is not
+  wanted where the session is about to be revoked anyway.
+  """
+  @spec subject_of(String.t()) :: {:ok, String.t()} | :error
+  def subject_of(token) do
+    case Repo.get_by(Session, token_hash: hash(token)) do
+      nil -> :error
+      session -> {:ok, session.subject_id}
+    end
+  end
+
   @doc "Revokes the session identified by `token` (deletes its row)."
   @spec revoke(String.t()) :: :ok
   def revoke(token) do
