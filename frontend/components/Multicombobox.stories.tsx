@@ -393,3 +393,45 @@ export const NavigatesOptionsWithArrowKeys: Story = {
     await expect(canvas.getByText("Essay")).toBeInTheDocument();
   },
 };
+
+/**
+ * A field is as tall empty as it is holding a chip, so a column of them does
+ * not move as entries are added.
+ */
+export const AChipDoesNotChangeTheHeight: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox");
+    const field = input.parentElement!;
+
+    const empty = field.getBoundingClientRect().height;
+
+    await userEvent.type(input, "Fiction{Enter}");
+    await expect(canvas.getByText("Fiction")).toBeInTheDocument();
+
+    await expect(field.getBoundingClientRect().height).toBe(empty);
+  },
+};
+
+/** The same holds for the outlined variant used in forms. */
+export const AChipDoesNotChangeTheHeightWhenBordered: Story = {
+  args: { bordered: true },
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox");
+    const field = input.parentElement!;
+
+    const empty = field.getBoundingClientRect().height;
+
+    await userEvent.type(input, "Fiction{Enter}");
+    await expect(canvas.getByText("Fiction")).toBeInTheDocument();
+
+    await expect(field.getBoundingClientRect().height).toBe(empty);
+  },
+};
