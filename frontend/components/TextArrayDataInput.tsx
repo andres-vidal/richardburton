@@ -21,9 +21,6 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
   ) {
     const t = useTranslations("admin");
 
-    // Memoised rather than wrapped in `useCallback`: what is kept is the
-    // debounced function itself, and a debounce only holds its timer while the
-    // same instance is kept.
     const getOptions = useMemo(
       () =>
         pDebounce(

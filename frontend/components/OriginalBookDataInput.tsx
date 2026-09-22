@@ -40,9 +40,6 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const [books, setBooks] = useState<OriginalBookValue[]>([]);
 
-    // Memoised rather than wrapped in `useCallback`: what is kept is the
-    // debounced function itself, and a debounce only holds its timer while the
-    // same instance is kept.
     const getBooks = useMemo(
       () =>
         pDebounce(
