@@ -3,7 +3,7 @@
 import SpellcheckIcon from "assets/spellcheck.svg";
 import { useBatchNames } from "modules/publication/hooks";
 import type { BatchName, NameKind } from "modules/publication/store";
-import { replaceName } from "modules/publication/store";
+import { batchNamesAtom, replaceName } from "modules/publication/store";
 import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { resemblances, type Resemblance } from "modules/vocabulary";
@@ -104,7 +104,8 @@ const WorkspaceNames: FC<{
   const [answers, setAnswers] = useState<Answers | null>(null);
 
   // The names themselves, so a change to a row that leaves them alone — a year,
-  // a title — does not ask again.
+  // a title — does not ask again. The batch is rebuilt on every edit and only
+  // its contents mean anything, so this string is what is watched.
   const asked = JSON.stringify(
     KINDS.map((kind) => batch[kind].map((one) => one.name)),
   );
@@ -116,11 +117,16 @@ const WorkspaceNames: FC<{
 
     let current = true;
     const timer = setTimeout(async () => {
+      // Read from the store rather than closed over: the names are rebuilt on
+      // every edit, and a value that changes on every edit cannot be what an
+      // effect depends on without asking on every edit too.
+      const asking = store.get(batchNamesAtom);
+
       const [authors, publishers] = await Promise.all(
         KINDS.map((kind) =>
           ask(
             kind,
-            batch[kind].map((one) => one.name),
+            asking[kind].map((one) => one.name),
           ),
         ),
       );
@@ -132,9 +138,7 @@ const WorkspaceNames: FC<{
       current = false;
       clearTimeout(timer);
     };
-    // `batch` is re-derived on every edit; `asked` is what actually changed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asked, anyNames, ask]);
+  }, [asked, anyNames, ask, store]);
 
   const entries = (kind: NameKind): Entry[] => {
     const said = new Map((answers?.[kind] ?? []).map((one) => [one.name, one]));
