@@ -43,8 +43,19 @@ defmodule RichardBurtonWeb.SessionController do
     conn = fetch_cookies(conn)
 
     case conn.cookies[Session.cookie_name()] do
-      nil -> :ok
-      token -> Session.revoke(token)
+      nil ->
+        :ok
+
+      token ->
+        # A live document connection outlives the cookie that authorised it: the
+        # token that opened it is checked once, and a socket already open is
+        # never checked again. Closing it here is what makes signing out mean
+        # signing out of the document too.
+        with {:ok, subject_id} <- Session.subject_of(token) do
+          RichardBurtonWeb.DocumentSocket.disconnect(subject_id)
+        end
+
+        Session.revoke(token)
     end
 
     conn

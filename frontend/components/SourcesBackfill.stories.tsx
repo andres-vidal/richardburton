@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { RESET } from "jotai/utils";
 import { store } from "modules/store";
-import { Publication } from "modules/publication/model";
+import { Publication, type PublicationId } from "modules/publication/model";
 import {
   discardEdit,
   overrideFamily,
@@ -78,7 +78,7 @@ type Story = StoryObj<typeof meta>;
  * override) to the stored publication and clear the edit — exactly the state
  * `update()` leaves behind. Dots and the count react to *stored* sources,
  * so they only change here, never while typing. */
-const persistDraft = (id: number) => {
+const persistDraft = (id: PublicationId) => {
   store.set(publicationFamily(id), store.get(visiblePublicationFamily(id)));
   store.set(overrideFamily(id), RESET);
 };

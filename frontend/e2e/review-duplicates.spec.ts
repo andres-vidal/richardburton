@@ -6,6 +6,7 @@ import {
   indexTable,
   seedCorpus,
   submitWorkspace,
+  openDocument,
 } from "./helpers";
 
 // The corpus already holds "Dom Casmurro" (Helen Caldwell, 1953). These three
@@ -47,7 +48,7 @@ test("an admin reviews the duplicates the composite key cannot catch, merging on
 }) => {
   await seedCorpus(page);
 
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await addPublicationRow(page, TYPO);
   await addPublicationRow(page, RETITLED);
   await addPublicationRow(page, ANOTHER_TRANSLATOR);
@@ -96,7 +97,7 @@ test("merging from the review collapses the cluster and takes it off the queue",
 }) => {
   await seedCorpus(page);
 
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await addPublicationRow(page, TYPO);
   await submitWorkspace(page, 1);
 
@@ -135,7 +136,7 @@ test("a decision to keep records apart can be taken back, and a merge takes it b
 }) => {
   await seedCorpus(page);
 
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await addPublicationRow(page, TYPO);
   await submitWorkspace(page, 1);
 

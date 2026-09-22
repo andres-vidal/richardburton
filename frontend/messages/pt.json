@@ -165,7 +165,7 @@
     "home": "Início",
     "admin": "Administração",
     "adminTitle": "Ferramentas de administração",
-    "newPage": "Prepare novas publicações para inserir na base de dados.",
+    "newPage": "Prepare novas publicações em um documento de importação e insira-as no banco de dados.",
     "historyPage": "Todas as mudanças na base de dados — quem fez o quê, e quando. Qualquer mudança ainda compatível com o estado atual pode ser desfeita.",
     "sourcesPage": "Acrescente fontes às publicações que não as têm.",
     "deletedPage": "Registros removidos da base de dados. Restaurar traz um de volta exatamente como estava.",
@@ -218,7 +218,14 @@
     "byActorOn": "{actor, select, system {pelo sistema} other {por {actor}}} · {date}",
     "deletedOn": "Excluída em {date}",
     "newPublications": "{count, plural, one {# nova publicação} other {# novas publicações}}",
-    "recordLine": "{authors} · {year} · {publishers}"
+    "recordLine": "{authors} · {year} · {publishers}",
+    "redo": "Refazer",
+    "undoHint": "Desfaz sua última alteração. As alterações de outras pessoas não são afetadas.",
+    "redoHint": "Refaz a alteração desfeita.",
+    "replaceTitle": "Substituir tudo neste documento?",
+    "replaceMessage": "{count, plural, one {A # linha aqui} other {Todas as # linhas aqui}} será descartada e o arquivo entrará no lugar. Todos que trabalham neste documento as perdem.",
+    "replaceConfirm": "Substituir",
+    "replaceCancel": "Manter"
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",
@@ -442,5 +449,39 @@
   "validation": {
     "required": "Obrigatório",
     "email": "Digite um endereço de e-mail válido"
+  },
+  "documents": {
+    "title": "Documentos de importação",
+    "description": "Lotes de publicações em preparação. Todos podem ver e abrir qualquer um.",
+    "nameLabel": "Nome",
+    "namePlaceholder": "O que é este lote",
+    "start": "Criar documento",
+    "loading": "Lendo os documentos…",
+    "none": "Nenhum documento ainda. Crie um acima.",
+    "rows": "{count, plural, =0 {Vazio} one {# linha} other {# linhas}}",
+    "hereNow": "Também aqui",
+    "alsoHere": "{who} também está trabalhando nisto",
+    "editingHere": "{who} está com o cursor aqui",
+    "rename": "Renomear",
+    "renameLabel": "Nome de {name}",
+    "archive": "Arquivar",
+    "restore": "Restaurar",
+    "which": "Quais documentos mostrar",
+    "onTheList": "Na lista",
+    "archivedList": "Arquivados",
+    "noneArchived": "Nada foi arquivado.",
+    "more": "Mostrar mais"
+  },
+  "documentStatus": {
+    "saved": "Salvo",
+    "savedDetail": "Tudo o que foi digitado aqui chegou ao servidor.",
+    "saving": "Salvando",
+    "savingDetail": "Enviando ao servidor o que foi digitado aqui.",
+    "connecting": "Reconectando",
+    "connectingDetail": "Procurando a conexão novamente. O que você digita é guardado e enviado quando ela voltar.",
+    "disconnected": "Sem conexão ao vivo",
+    "disconnectedDetail": "As alterações das outras pessoas não estão chegando. As suas continuam sendo salvas.",
+    "unsaved": "Não salvo",
+    "unsavedDetail": "O que você digitou está neste computador e não chegou ao servidor. Tentando novamente."
   }
 }

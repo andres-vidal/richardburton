@@ -1,0 +1,52 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as WorkspaceUndoStories from "./WorkspaceUndo.stories";
+
+<Meta of={WorkspaceUndoStories} />
+
+# Workspace undo
+
+Walks back an edit made in the bulk-import workspace, or puts it back.
+
+It replaces "Reset N edited rows". That button restored a row to what the CSV
+said, which it could do because the workspace kept the imported value and the
+typed value apart. The workspace's content is now a shared document holding one
+value per field, so there is no imported value left to go back to — and in a
+workspace two people are editing, "what the file said" is a poorer question than
+"what did I just change".
+
+## It is one person's, not the workspace's
+
+Every change this browser makes is stamped with a local origin, and the undo
+manager tracks only those. Walking back your last change therefore leaves what
+your collaborator typed alone, which is the whole reason undo is not simply "the
+document's previous state".
+
+The same rule is why a workspace picked up where it was left offers nothing:
+those rows arrived from disk rather than from an edit made in this sitting.
+
+<Canvas of={WorkspaceUndoStories.AfterAnEdit} />
+
+## What counts as one step
+
+Edits close together in time become one step, so a burst of typing is walked
+back as the word it was rather than a letter at a time.
+
+Adding a row is not an edit to it, so the workspace marks that boundary
+explicitly. Without it, one undo of a row you had just added and typed into
+would take the row away rather than the typing.
+
+## Props
+
+None. It reads the document of the workspace it renders in, and renders nothing
+where there is no document — the edit modal over the database keeps its own
+store and its own base-and-override overlay, and has nothing to walk back.
+
+## States
+
+- **Nothing to undo** — a resumed workspace, or one nobody has edited yet. No
+  button at all, rather than a disabled one.
+- **After an edit** — undo is offered, and returns the row to what it said.
+- **And back again** — redo appears once something has been walked back.
+
+<Canvas of={WorkspaceUndoStories.AndBackAgain} />

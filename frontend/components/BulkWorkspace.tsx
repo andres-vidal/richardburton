@@ -13,27 +13,35 @@ import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
 import PublicationWorkspace from "components/PublicationWorkspace";
 import ResetDiscarded from "components/ResetDiscarded";
-import ResetOverridden from "components/ResetOverridden";
+import DocumentPresence from "components/DocumentPresence";
+import DocumentStatus from "components/DocumentStatus";
+import WorkspaceUndo from "components/WorkspaceUndo";
 import RowIdToggle from "components/RowIdToggle";
 import { Publication } from "modules/publication/model";
-import { setAll, setAttributesVisible } from "modules/publication/store";
+import { setAttributesVisible } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
+import { DocumentProvider } from "modules/publication/document-provider";
 import type { Store } from "modules/store";
 import { useIsSelectionEmpty } from "modules/selection";
+import { FC } from "react";
 
-function startEmpty(store: Store) {
-  setAll(store, []);
+// Which columns are on screen is this person’s own, not part of the content,
+// so it is set here rather than restored with the rows.
+function showEveryColumn(store: Store) {
   setAttributesVisible(store, Publication.ATTRIBUTES);
 }
 
-function NewPublications() {
+const Workspace: FC<{ title: string; description: string }> = ({
+  title,
+  description,
+}) => {
   const t = useTranslations("admin");
   const isSelectionEmpty = useIsSelectionEmpty();
 
   const crumbs = [
     { label: t("home"), href: "/" },
     { label: t("admin"), href: "/admin" },
-    { label: t("newTitle") },
+    { label: title },
   ];
 
   return (
@@ -41,7 +49,13 @@ function NewPublications() {
       subheader={
         <>
           <Breadcrumb items={crumbs} />
-          <PageHeader title={t("newTitle")} description={t("newPage")} />
+          <div className="flex gap-4 justify-between items-center">
+            <PageHeader title={title} description={description} />
+            <span className="flex gap-3 items-center shrink-0">
+              <DocumentStatus />
+              <DocumentPresence />
+            </span>
+          </div>
         </>
       }
       content={<PublicationWorkspace />}
@@ -52,7 +66,7 @@ function NewPublications() {
               <PublicationUpload />
               <PublicationCounter />
               <PublicationErrorCounter />
-              <ResetOverridden />
+              <WorkspaceUndo />
               <ResetDiscarded />
               <RowIdToggle />
               <PublicationSubmit />
@@ -68,12 +82,25 @@ function NewPublications() {
       }
     />
   );
-}
+};
 
-export default function NewPublicationsPage() {
-  return (
-    <PublicationStoreProvider initialize={startEmpty}>
-      <NewPublications />
-    </PublicationStoreProvider>
-  );
-}
+/**
+ * Rows being prepared for the database, and everything done to them.
+ *
+ * Where the rows live is `DocumentProvider`'s business rather than any of these
+ * components': they read atoms, as they did before any of this was shared.
+ */
+const BulkWorkspace: FC<{
+  title: string;
+  description: string;
+  /** The import document these rows belong to. */
+  document: number;
+}> = ({ title, description, document }) => (
+  <PublicationStoreProvider initialize={showEveryColumn}>
+    <DocumentProvider document={document}>
+      <Workspace title={title} description={description} />
+    </DocumentProvider>
+  </PublicationStoreProvider>
+);
+
+export default BulkWorkspace;

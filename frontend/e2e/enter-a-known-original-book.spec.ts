@@ -9,6 +9,7 @@ import {
   selectEnumOption,
   submitWorkspace,
   CORPUS_SIZE,
+  openDocument,
 } from "./helpers";
 
 // A second translation of a book the corpus already holds. Its original title
@@ -26,7 +27,7 @@ test("entering a translation of a book already in the database completes it from
   page,
 }) => {
   await seedCorpus(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
   const row = draftRow(page);
   const originalTitle = row.getByPlaceholder("Original Title", { exact: true });
@@ -92,7 +93,7 @@ test("entering a translation of a book already in the database completes it from
 
 test("a book nobody has entered yet is simply typed", async ({ page }) => {
   await seedCorpus(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
   const row = draftRow(page);
   const originalTitle = row.getByPlaceholder("Original Title", { exact: true });

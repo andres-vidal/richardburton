@@ -12,6 +12,7 @@ import {
   expectMatchCount,
   PAGED_CSV,
   PAGED_SIZE,
+  openDocument,
 } from "./helpers";
 
 // Browse / search / columns against a seeded corpus, all through the UI.
@@ -270,7 +271,7 @@ test("a large index virtualizes: far rows render as they scroll into view", asyn
   test.slow();
 
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "bulk.csv",
     mimeType: "text/csv",
@@ -492,7 +493,7 @@ test("the database grows as the reader scrolls to its foot", async ({
   page,
 }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "paged.csv",
     mimeType: "text/csv",

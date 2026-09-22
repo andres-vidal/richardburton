@@ -66,8 +66,20 @@ type PublicationListKey = {
 
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
-type PublicationEntry = ValidationResult & { id: number };
-type PublicationId = NonNullable<Publication["id"]>;
+type PublicationEntry = ValidationResult & { id: PublicationId };
+/**
+ * How the store addresses a row.
+ *
+ * A row the server has written is addressed by its publication id. A row being
+ * worked on in a workspace is addressed by a client-minted UUID, which is
+ * unique across browsers, so the same row can be named to two people editing it
+ * at once. The draft row has a well-known key of its own.
+ *
+ * The two namespaces cannot collide, which is what lets one store hold both.
+ * Reach for \`Publication["id"]\` rather than this where a server record is meant:
+ * an endpoint addressing a stored publication takes that, not a row key.
+ */
+type PublicationId = number | string;
 type PublicationKeyType =
   "array" | "text" | "enum" | "enumArray" | "number" | "book";
 /** Every act the log records, in the order a reader meets them. */

@@ -165,7 +165,7 @@
     "home": "Home",
     "admin": "Admin",
     "adminTitle": "Admin tools",
-    "newPage": "Prepare new publications to be inserted in the database.",
+    "newPage": "Prepare new publications in an import document, then insert them into the database.",
     "historyPage": "Every change to the database — who did what, and when. Any change still reconcilable with the current state can be undone.",
     "sourcesPage": "Add sources to publications that are missing them.",
     "deletedPage": "Records removed from the database. Restoring brings one back exactly as it was.",
@@ -218,7 +218,14 @@
     "byActorOn": "{actor, select, system {by the system} other {by {actor}}} · {date}",
     "deletedOn": "Deleted {date}",
     "newPublications": "{count, plural, one {# new publication} other {# new publications}}",
-    "recordLine": "{authors} · {year} · {publishers}"
+    "recordLine": "{authors} · {year} · {publishers}",
+    "redo": "Redo",
+    "undoHint": "Walk back your last change. Edits made by others are left alone.",
+    "redoHint": "Put back the change you walked back.",
+    "replaceTitle": "Replace everything in this document?",
+    "replaceMessage": "{count, plural, one {The # row here} other {All # rows here}} will be discarded and the file put in their place. Everyone working on this document loses them.",
+    "replaceConfirm": "Replace them",
+    "replaceCancel": "Keep them"
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
@@ -442,5 +449,39 @@
   "validation": {
     "required": "Required",
     "email": "Enter a valid email address"
+  },
+  "documents": {
+    "title": "Import documents",
+    "description": "Batches of publications being prepared. Everyone can see and open all of them.",
+    "nameLabel": "Name",
+    "namePlaceholder": "What this batch is",
+    "start": "Start a document",
+    "loading": "Reading the documents…",
+    "none": "No documents yet. Start one above.",
+    "rows": "{count, plural, =0 {Empty} one {# row} other {# rows}}",
+    "hereNow": "Also here",
+    "alsoHere": "{who} is working on this too",
+    "editingHere": "{who} has their cursor here",
+    "rename": "Rename",
+    "renameLabel": "Name of {name}",
+    "archive": "Archive",
+    "restore": "Put it back",
+    "which": "Which documents to show",
+    "onTheList": "On the list",
+    "archivedList": "Archived",
+    "noneArchived": "Nothing has been archived.",
+    "more": "Show more"
+  },
+  "documentStatus": {
+    "saved": "Saved",
+    "savedDetail": "Everything typed here has reached the server.",
+    "saving": "Saving",
+    "savingDetail": "Sending what was typed here to the server.",
+    "connecting": "Reconnecting",
+    "connectingDetail": "Looking for the connection again. What you type is kept and sent when it comes back.",
+    "disconnected": "Not live",
+    "disconnectedDetail": "Other people's changes are not arriving. Yours are still being saved.",
+    "unsaved": "Not saved",
+    "unsavedDetail": "What you typed is on this computer and has not reached the server. Trying again."
   }
 }

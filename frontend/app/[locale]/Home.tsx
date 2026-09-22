@@ -3,9 +3,7 @@
 import DashboardIcon from "assets/dashboard.svg";
 import Button from "components/Button";
 import ColumnMenu from "components/ColumnMenu";
-import { ContactModal } from "components/ContactModal";
 import Layout from "components/Layout";
-import { LearnMoreModal } from "components/LearnMoreModal";
 import PublicationDownload from "components/PublicationDownload";
 import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
@@ -19,6 +17,7 @@ import {
   usePublicationIndexCount,
 } from "modules/publication/hooks";
 import { receiveIndex } from "modules/publication/store";
+import type { PublicationId } from "modules/publication/model";
 import {
   PublicationStoreProvider,
   usePublicationStore,
@@ -62,14 +61,14 @@ function Database({ index }: Props) {
     receiveIndex(store, index);
   }, [store, index]);
 
-  function handleRowClick(id: number) {
+  function handleRowClick(id: PublicationId) {
     const query = new URLSearchParams({ modal: "" });
     if (search) query.set("search", search);
 
     return () => router.push(`/publications/${id}?${query}`);
   }
 
-  const rowHref = (id: number) => `/publications/${id}`;
+  const rowHref = (id: PublicationId) => `/publications/${id}`;
 
   return (
     <Layout
@@ -132,8 +131,6 @@ function Database({ index }: Props) {
             </div>
           )}
 
-          <ContactModal />
-          <LearnMoreModal />
           <SearchHelpModal />
         </div>
       }
