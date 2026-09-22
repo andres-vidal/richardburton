@@ -74,7 +74,10 @@ export default forwardRef<HTMLDivElement, Props>(function TextInput(
         {...props}
         ref={inputRef}
         value={value}
-        className="px-1 w-full bg-transparent outline-none peer shrink grow placeholder:text-xs disabled:cursor-not-allowed"
+        className="
+          px-1 w-full bg-transparent outline-none peer shrink grow placeholder:text-xs disabled:cursor-not-allowed
+          data-[multiselect-input=true]:py-0.5 data-[multiselect-input=true]:border data-[multiselect-input=true]:border-transparent
+        "
         onChange={handleChange}
         data-error={Boolean(error)}
         placeholder={label ? "" : props.placeholder}
