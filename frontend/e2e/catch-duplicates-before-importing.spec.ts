@@ -1,5 +1,12 @@
 import { test, expect } from "./fixtures";
-import { seedCorpus, indexTable, CSV_HEADER } from "./helpers";
+import {
+  seedCorpus,
+  indexTable,
+  draftRow,
+  commitMulti,
+  selectEnumOption,
+  CSV_HEADER,
+} from "./helpers";
 
 /**
  * A second import of the same material, entered by a different hand.
@@ -18,6 +25,51 @@ const IMPORT_CSV =
     `The Devil to Pay in the Backland,1963,GB,Knopf,James L Taylor,Grande Sertao Veredas,João Guimarães Rosa,`,
     `The Passion According to G.H.,1988,US,Minnesota,Ronald Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
   ].join("\n") + "\n";
+
+test("a row keeps its look-alike while the rest of it is filled in", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/admin/publications/new");
+
+  // Only what a look-alike is measured on: the title and the names. The rest of
+  // the row comes after, which is the point of the test.
+  const draft = draftRow(page);
+  await draft.getByPlaceholder("Title", { exact: true }).fill("Dom Casmuro");
+  await draft
+    .getByPlaceholder("Original Title", { exact: true })
+    .fill("Dom Casmurro");
+  await commitMulti(draft, "Translators", "Helen Caldwell");
+  await commitMulti(draft, "Original Authors", "Machado de Assis");
+  await draft.getByRole("button", { name: "Add publication" }).click();
+
+  const row = indexTable(page).getByRole("row", { name: /Dom Casmuro/ });
+  const marked = row.getByRole("button", { name: /^Resembles / });
+  await expect(marked).toBeVisible({ timeout: 30_000 });
+
+  // Filling the rest changes nothing about what the row resembles, so the
+  // answer has to survive it: a field that made the answer stale without asking
+  // again would drop it for good.
+  await row.getByPlaceholder("Year", { exact: true }).fill("1953");
+  await page.keyboard.press("Tab");
+  await expect(marked).toBeVisible();
+
+  await selectEnumOption(row, "Countries", "United States");
+  await expect(marked).toBeVisible();
+
+  await commitMulti(row, "Publishers", "Noonday Press");
+  await page.keyboard.press("Tab");
+
+  // The row is valid now, and still says what it looks like — in the leading
+  // cell, where a marked row is spotted, as well as at its end.
+  await expect(page.getByLabel("All publications are valid")).toBeVisible();
+  await expect(marked).toBeVisible();
+  await expect(
+    row.getByRole("img", {
+      name: "This row looks like a publication already known",
+    }),
+  ).toBeVisible();
+});
 
 test("an admin catches look-alikes before importing them", async ({ page }) => {
   await seedCorpus(page);

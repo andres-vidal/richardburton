@@ -162,8 +162,22 @@ const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
 const reviewingAtom = atomWithReset<PublicationId | "first" | null>(null);
 
 /**
- * The visible rows as the look-alike check reads them: only the fields a
- * resemblance is measured on.
+ * The attributes a look-alike is measured on, which are the title and the names
+ * — see `Publication.Duplicates`.
+ *
+ * One list, because two things read it and they must not disagree: what the
+ * check is re-run for, and what makes a row's answer stale. A field that made an
+ * answer stale without re-running the check would drop the answer for good.
+ */
+const RESEMBLANCE_ATTRIBUTES: PublicationKey[] = [
+  "title",
+  "authors",
+  "originalTitle",
+  "originalAuthors",
+];
+
+/**
+ * The visible rows as the look-alike check reads them.
  *
  * What the check should be re-run for, so editing a year or a country does not
  * ask the question again. Serialised by whoever watches it, since the value is
@@ -173,12 +187,9 @@ const resemblanceSubjectAtom = atom((get) =>
   (get(visibleIdsAtom) ?? []).map((id) => {
     const publication = get(visiblePublicationFamily(id));
 
-    return [
-      publication.title,
-      publication.authors.join(" "),
-      publication.originalTitle,
-      publication.originalAuthors.join(" "),
-    ];
+    return RESEMBLANCE_ATTRIBUTES.map((attribute) =>
+      [publication[attribute]].flat().join(" "),
+    );
   }),
 );
 
@@ -502,12 +513,14 @@ function overrideField<K extends PublicationKey>(
 ): void {
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
-  forgetResemblance(store, id);
+
+  if (RESEMBLANCE_ATTRIBUTES.includes(attribute)) forgetResemblance(store, id);
 }
 
 // An edited row is no longer the row that was measured, so what it resembled is
-// dropped rather than left to describe a value that has changed. The check runs
-// again on its own and fills it back in.
+// dropped rather than left to describe a value that has changed. Only for the
+// fields it was measured on: the check is re-run for those, and dropping an
+// answer nothing will ask for again drops it for good.
 function forgetResemblance(store: Store, id: PublicationId): void {
   store.set(resemblanceFamily(id), RESET);
 }
@@ -521,7 +534,6 @@ function overrideSources(
 ): void {
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, sources });
-  forgetResemblance(store, id);
 }
 
 /** Drop a single row's pending edits and errors (cancelling an edit). */
