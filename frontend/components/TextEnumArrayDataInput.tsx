@@ -36,12 +36,15 @@ export default forwardRef<HTMLDivElement, ListDataInputProps>(
       onChange?.(value.map(({ id }) => id));
     }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const getOptions = useCallback(
-      pDebounce(
-        (search: string) => Publication.autocomplete(search, colId, locale),
-        350,
-      ),
+    // Memoised rather than wrapped in `useCallback`: what is kept is the
+    // debounced function itself, and a debounce only holds its timer while the
+    // same instance is kept.
+    const getOptions = useMemo(
+      () =>
+        pDebounce(
+          (search: string) => Publication.autocomplete(search, colId, locale),
+          350,
+        ),
       [colId, locale],
     );
 

@@ -4,7 +4,7 @@ import { useCountryNaming } from "modules/country-names";
 import { Publication } from "modules/publication/model";
 import { useLocale } from "next-intl";
 import pDebounce from "p-debounce";
-import { FC, forwardRef, useCallback, useMemo } from "react";
+import { FC, forwardRef, useMemo } from "react";
 import { ScalarDataInputProps } from "./DataInput";
 import Select, { SelectOption } from "./Select";
 
@@ -27,12 +27,15 @@ export default forwardRef<HTMLInputElement, ScalarDataInputProps>(
     const locale = useLocale();
     const country = useCountryNaming();
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const getOptions = useCallback(
-      pDebounce(
-        (search: string) => Publication.autocomplete(search, colId, locale),
-        350,
-      ),
+    // Memoised rather than wrapped in `useCallback`: what is kept is the
+    // debounced function itself, and a debounce only holds its timer while the
+    // same instance is kept.
+    const getOptions = useMemo(
+      () =>
+        pDebounce(
+          (search: string) => Publication.autocomplete(search, colId, locale),
+          350,
+        ),
       [colId, locale],
     );
 
