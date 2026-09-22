@@ -6,6 +6,7 @@ import {
   commitMulti,
   selectEnumOption,
   CSV_HEADER,
+  openDocument,
 } from "./helpers";
 
 /**
@@ -30,7 +31,7 @@ test("a row keeps its look-alike while the rest of it is filled in", async ({
   page,
 }) => {
   await seedCorpus(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
   // Only what a look-alike is measured on: the title and the names. The rest of
   // the row comes after, which is the point of the test.
@@ -74,7 +75,7 @@ test("a row keeps its look-alike while the rest of it is filled in", async ({
 test("an admin catches look-alikes before importing them", async ({ page }) => {
   await seedCorpus(page);
 
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "second-pass.csv",
     mimeType: "text/csv",

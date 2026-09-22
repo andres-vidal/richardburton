@@ -80,8 +80,8 @@ export function draftRow(page: Page) {
 
 /**
  * Fill the workspace draft row (fields are keyed by placeholder — the grid has no
- * <label>s) and materialize it into the working set. Assumes the page is already
- * on /admin/publications/new.
+ * <label>s) and materialize it into the working set. Assumes a workspace document
+ * is already open.
  */
 export async function addPublicationRow(page: Page, pub: PublicationInput) {
   const row = draftRow(page);
