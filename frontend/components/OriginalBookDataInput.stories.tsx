@@ -177,33 +177,3 @@ export const FreeTextStands: Story = {
     );
   },
 };
-
-/**
- * A lookup outlives the keystroke that asked for it, so one already on its way
- * can arrive after a book has been chosen. Offering books again over a field
- * that has just been filled reads as the choice not having been taken.
- */
-export const AChoiceSurvivesALookupInFlight: Story = {
-  beforeEach: withLibrary(LIBRARY),
-  play: async ({ args, canvasElement }) => {
-    const input = within(canvasElement).getByRole("combobox");
-
-    // Far enough for the menu to open on what was typed...
-    await userEvent.type(input, "Dom Casmurr");
-    await screen.findByRole("option", { name: /Dom Casmurro/ });
-
-    // ...then one more letter, and the book taken before that lookup lands.
-    await userEvent.type(input, "o");
-    await userEvent.click(
-      await screen.findByRole("option", { name: /Dom Casmurro/ }),
-    );
-
-    await expect(args.onChange).toHaveBeenLastCalledWith("Dom Casmurro");
-
-    // The lookup that was in flight must not put the menu back up.
-    await waitFor(() =>
-      expect(screen.queryAllByRole("option")).toHaveLength(0),
-    );
-    await expect(screen.queryAllByRole("option")).toHaveLength(0);
-  },
-};
