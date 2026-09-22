@@ -219,6 +219,8 @@
     "deletedOn": "Deleted {date}",
     "newPublications": "{count, plural, one {# new publication} other {# new publications}}",
     "recordLine": "{authors} · {year} · {publishers}",
+    "namesTitle": "Names",
+    "namesDescription": "Translators, authors and publishers — correct a spelling, or fold duplicates together.",
     "redo": "Redo",
     "undoHint": "Walk back your last change. Edits made by others are left alone.",
     "redoHint": "Put back the change you walked back."
@@ -452,6 +454,43 @@
   "validation": {
     "required": "Required",
     "email": "Enter a valid email address"
+  },
+  "vocabulary": {
+    "title": "Names",
+    "description": "The translators, authors and publishers publications are built from. Correct a spelling, or fold two spellings into one by giving them the same name.",
+    "authors": "Translators & authors",
+    "publishers": "Publishers",
+    "filterLabel": "Find",
+    "filterPlaceholder": "Part of a name",
+    "loading": "Reading the names…",
+    "none": "No names match.",
+    "nameOf": "Name, currently {name}",
+    "onPublications": "{count, plural, =0 {unused} one {# publication} other {# publications}}",
+    "renamed": "{from} is now {to}",
+    "merged": "{from} folded into {to}",
+    "collides": "That would leave two publications identical",
+    "collidesDetail": "The spelling was the only thing telling them apart. Merge or correct them first, then rename this.",
+    "dismiss": "Close",
+    "alsoSpelt": "Also here as",
+    "onlyDoubtful": "{count, plural, one {# name may be a duplicate} other {# names may be duplicates}}",
+    "foldTitle": "Fold these two together?",
+    "foldMessage": "{from} ({moving, plural, =0 {nothing on it} one {# publication} other {# publications}}) would stop existing, and everything on it would be credited to {into} ({held, plural, =0 {nothing on it} one {# publication} other {# publications}}) instead. There is no undo for this.",
+    "foldConfirm": "Fold them"
+  },
+  "workspaceNames": {
+    "title": "Names in this batch",
+    "description": "The translators, authors and publishers these rows would enter. A name spelt a second way is a second record, so correcting it here saves folding it later.",
+    "authors": "Translators & authors",
+    "publishers": "Publishers",
+    "count": "{count, plural, one {# name} other {# names}}",
+    "doubtfulCount": "{count, plural, one {# name may be misspelt} other {# names may be misspelt}}",
+    "onRows": "{count, plural, one {# row} other {# rows}}",
+    "onPublications": "{count, plural, =0 {unused} one {# publication} other {# publications}}",
+    "didYouMean": "Already here as",
+    "doubtful": "may be misspelt",
+    "held": "already here",
+    "new": "new",
+    "noneOfThisKind": "None in this batch."
   },
   "resemblances": {
     "label": "Possible duplicates in this import",

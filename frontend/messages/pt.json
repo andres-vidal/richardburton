@@ -219,6 +219,8 @@
     "deletedOn": "Excluída em {date}",
     "newPublications": "{count, plural, one {# nova publicação} other {# novas publicações}}",
     "recordLine": "{authors} · {year} · {publishers}",
+    "namesTitle": "Nomes",
+    "namesDescription": "Tradutores, autores e editoras — corrija grafias ou una duplicatas.",
     "redo": "Refazer",
     "undoHint": "Desfaz sua última alteração. As alterações de outras pessoas não são afetadas.",
     "redoHint": "Refaz a alteração desfeita."
@@ -452,6 +454,43 @@
   "validation": {
     "required": "Obrigatório",
     "email": "Digite um endereço de e-mail válido"
+  },
+  "vocabulary": {
+    "title": "Nomes",
+    "description": "Os tradutores, autores e editoras que compõem as publicações. Corrija uma grafia ou una duas grafias dando o mesmo nome a ambas.",
+    "authors": "Tradutores e autores",
+    "publishers": "Editoras",
+    "filterLabel": "Buscar",
+    "filterPlaceholder": "Parte de um nome",
+    "loading": "Lendo os nomes…",
+    "none": "Nenhum nome corresponde.",
+    "nameOf": "Nome, atualmente {name}",
+    "onPublications": "{count, plural, =0 {sem uso} one {# publicação} other {# publicações}}",
+    "renamed": "{from} agora é {to}",
+    "merged": "{from} unido a {to}",
+    "collides": "Isso deixaria duas publicações idênticas",
+    "collidesDetail": "A grafia era a única coisa que as distinguia. Una ou corrija essas publicações antes de renomear esta.",
+    "dismiss": "Fechar",
+    "alsoSpelt": "Também aqui como",
+    "onlyDoubtful": "{count, plural, one {# nome pode ser duplicata} other {# nomes podem ser duplicatas}}",
+    "foldTitle": "Unir os dois?",
+    "foldMessage": "{from} ({moving, plural, =0 {sem uso} one {# publicação} other {# publicações}}) deixaria de existir, e tudo que está nele passaria a {into} ({held, plural, =0 {sem uso} one {# publicação} other {# publicações}}). Não há como desfazer isso.",
+    "foldConfirm": "Unir"
+  },
+  "workspaceNames": {
+    "title": "Nomes neste lote",
+    "description": "Os tradutores, autores e editoras que estas linhas entrariam. Um nome grafado de outra forma é outro registro, então corrigi-lo aqui evita uni-lo depois.",
+    "authors": "Tradutores e autores",
+    "publishers": "Editoras",
+    "count": "{count, plural, one {# nome} other {# nomes}}",
+    "doubtfulCount": "{count, plural, one {# nome pode estar grafado errado} other {# nomes podem estar grafados errado}}",
+    "onRows": "{count, plural, one {# linha} other {# linhas}}",
+    "onPublications": "{count, plural, =0 {sem uso} one {# publicação} other {# publicações}}",
+    "didYouMean": "Já aqui como",
+    "doubtful": "pode estar errado",
+    "held": "já está aqui",
+    "new": "novo",
+    "noneOfThisKind": "Nenhum neste lote."
   },
   "resemblances": {
     "label": "Possíveis duplicatas nesta importação",

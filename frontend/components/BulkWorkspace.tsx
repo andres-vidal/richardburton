@@ -17,6 +17,7 @@ import ResetDiscarded from "components/ResetDiscarded";
 import DocumentPresence from "components/DocumentPresence";
 import WorkspaceUndo from "components/WorkspaceUndo";
 import RowIdToggle from "components/RowIdToggle";
+import WorkspaceNames from "components/WorkspaceNames";
 import { Publication } from "modules/publication/model";
 import { setAttributesVisible } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
@@ -63,6 +64,7 @@ const Workspace: FC<{ title: string; description: string }> = ({
               <PublicationUpload />
               <PublicationCounter />
               <PublicationErrorCounter />
+              <WorkspaceNames />
               <PublicationResemblanceCounter />
               <WorkspaceUndo />
               <ResetDiscarded />

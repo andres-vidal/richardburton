@@ -4,6 +4,7 @@ import AddIcon from "assets/add-circle.svg";
 import DuplicateIcon from "assets/copy.svg";
 import HistoryIcon from "assets/history.svg";
 import SourcesIcon from "assets/numbered-list.svg";
+import NamesIcon from "assets/spellcheck.svg";
 import PeopleIcon from "assets/people.svg";
 import RestoreTrashIcon from "assets/restore-trash.svg";
 import { useSession } from "modules/session";
@@ -50,6 +51,12 @@ const ACTIONS: {
     href: "/admin/publications/deleted",
     Icon: RestoreTrashIcon,
     key: "deleted",
+    role: "contributor",
+  },
+  {
+    href: "/admin/vocabulary",
+    Icon: NamesIcon,
+    key: "names",
     role: "contributor",
   },
   {
