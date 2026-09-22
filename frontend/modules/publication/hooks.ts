@@ -18,8 +18,6 @@ import {
   isValidFamily,
   matchedAtom,
   isValidatingAtom,
-  overriddenCountAtom,
-  overriddenIdsAtom,
   overrideFamily,
   publicationOrNullFamily,
   publicationSourcesFamily,
@@ -35,6 +33,7 @@ import {
   reviewingAtom,
   resemblingCountAtom,
   resemblingIdsAtom,
+  rowNumberFamily,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
@@ -50,10 +49,6 @@ const NULL_PUBLICATION = atom<Publication | null>(null);
 
 function useVisiblePublicationIds() {
   return useAtomValue(visibleIdsAtom);
-}
-
-function useOverriddenPublicationIds() {
-  return useAtomValue(overriddenIdsAtom);
 }
 
 /** A publication with pending edits merged in (base ⊕ overrides). */
@@ -159,6 +154,11 @@ function useIsPublicationFocused(id: PublicationId) {
   return id === useAtomValue(focusedRowIdAtom);
 }
 
+/** Where the row sits in the working set, counting from one. */
+function usePublicationRowNumber(id: PublicationId) {
+  return useAtomValue(rowNumberFamily(id));
+}
+
 function useVisiblePublicationCount() {
   return useAtomValue(visibleCountAtom);
 }
@@ -188,10 +188,6 @@ function useResemblingPublicationCount() {
 
 function useDiscardedPublicationCount() {
   return useAtomValue(discardedCountAtom);
-}
-
-function useOverriddenPublicationCount() {
-  return useAtomValue(overriddenCountAtom);
 }
 
 function useTotalPublicationCount() {
@@ -249,8 +245,6 @@ export {
   useIsPublicationValid,
   useMatched,
   useIsValidating,
-  useOverriddenPublicationCount,
-  useOverriddenPublicationIds,
   usePublication,
   usePublicationError,
   usePublicationErrorDescription,
@@ -271,6 +265,7 @@ export {
   useResemblingPublicationCount,
   useReviewing,
   useResemblingPublicationIds,
+  usePublicationRowNumber,
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,

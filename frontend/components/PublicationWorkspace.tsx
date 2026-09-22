@@ -23,13 +23,16 @@ import {
   useIsPublicationValid,
   usePublicationErrorDescription,
   usePublicationResemblance,
+  usePublicationRowNumber,
   usePublicationField,
   usePublicationFieldError,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
+import { colourOf, useOnThisCell } from "modules/publication/presence";
 import { resemblances, validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { DRAFT_ID, addNew } from "modules/publication/store";
+import type { PublicationId } from "modules/publication/model";
 import {
   isSelectionGesture,
   select,
@@ -50,11 +53,15 @@ import Tooltip from "./Tooltip";
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 const ExtendedColumn: typeof Column = (props) => {
-  const { rowId } = props;
+  const { rowId, colId } = props;
 
   const isSelected = useIsSelected(rowId);
   const isValid = useIsPublicationValid(rowId);
   const isFocused = useIsPublicationFocused(rowId);
+
+  // Somebody else editing this very cell, so it is plain where they are before
+  // anyone types over them.
+  const person = useOnThisCell(String(rowId), colId);
 
   return (
     <Column
@@ -62,6 +69,9 @@ const ExtendedColumn: typeof Column = (props) => {
       invalid={!isValid}
       focused={isFocused}
       selected={isSelected}
+      taken={
+        person ? { colour: colourOf(person.email), by: person.email } : null
+      }
     />
   );
 };
@@ -92,6 +102,7 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
   const isValid = useIsPublicationValid(rowId);
   const isFocused = useIsPublicationFocused(rowId);
   const resemblance = usePublicationResemblance(rowId);
+  const rowNumber = usePublicationRowNumber(rowId);
 
   const isSelected = useIsSelected(rowId);
   const [isIdVisible] = useAreRowIdsVisible();
@@ -120,7 +131,7 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
             className="w-5 text-amber-500 aspect-square"
           />
         )}
-        {isIdVisible && rowId + 1}
+        {isIdVisible && rowNumber}
       </span>
     </SignalColumn>
   );
@@ -250,7 +261,7 @@ const PublicationWorkspace: FC<{
   // Only a click on the row's handle selects it. The row hears every click in
   // it, including the ones that land in a field — those belong to the field, and
   // selecting on them would fight the person typing.
-  const toggleSelection = (id: number) => (event: MouseEvent) => {
+  const toggleSelection = (id: PublicationId) => (event: MouseEvent) => {
     if (!isSelectionGesture(event.target)) return;
 
     select(store, {

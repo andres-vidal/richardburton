@@ -8,8 +8,8 @@ import { useTranslations } from "next-intl";
 import { FC, ReactNode, useEffect, useRef } from "react";
 import Anchor from "./Anchor";
 import LanguageSwitcher from "./LanguageSwitcher";
-import { CONTACT_MODAL_KEY } from "./ContactModal";
-import { LEARN_MORE_MODAL_KEY } from "./LearnMoreModal";
+import { ContactModal, CONTACT_MODAL_KEY } from "./ContactModal";
+import { LearnMoreModal, LEARN_MORE_MODAL_KEY } from "./LearnMoreModal";
 
 type Props = {
   title?: string;
@@ -65,18 +65,22 @@ const Layout: FC<Props> = ({
     <div className="flex flex-col min-h-screen">
       <header ref={headerRef} className="sticky top-0 z-30 bg-gray-100">
         <div className="relative flex justify-center items-center py-1.5 text-white bg-indigo-600 select-none">
-          <h1 className="flex flex-col items-center justify-center shrink text-center transition-colors md:flex-row md:gap-4 shadow-white">
+          {/* Padded on both sides to clear the language switcher, which is
+              positioned over this row rather than laid out beside it. Equal on
+              each side, so the heading stays centred on the page. */}
+          <h1 className="flex flex-col items-center justify-center px-10 shrink text-center transition-colors md:px-12 md:flex-row md:gap-4 shadow-white">
             <Link href="/" className="px-3 py-0.5 rounded hover:bg-indigo-500">
               <span className="inline-flex items-center gap-3 py-1 pr-5 text-lg font-medium md:pr-0">
                 <Logo className="h-8" />
                 {t("appName")}
               </span>
             </Link>
-            <hr className="w-0.5 mr-2 h-8 bg-current border-none hidden md:block" />
-            {/* Supporting copy, not navigation: on a narrow screen it would
-                take a line of its own above the links. */}
-            <div className="hidden text-base md:inline">{t("tagline")}</div>
-            <hr className="w-0.5 h-8 mx-2 bg-current border-none hidden md:block" />
+            <hr className="w-0.5 mr-2 h-8 bg-current border-none hidden xl:block" />
+            {/* Supporting copy, not navigation: it is the first thing to go when
+                the row runs out of width, so the links and the language
+                switcher never have to share a line with it or each other. */}
+            <div className="hidden text-base xl:inline">{t("tagline")}</div>
+            <hr className="w-0.5 h-8 mx-2 bg-current border-none hidden xl:block" />
             <div className="flex items-center gap-2 mt-2 md:contents md:mt-0">
               <Anchor query={`${LEARN_MORE_MODAL_KEY}=true`}>
                 {t("learnMore")}
@@ -118,6 +122,12 @@ const Layout: FC<Props> = ({
           {footer}
         </footer>
       )}
+
+      {/* What the header's links open. They belong here rather than on a page,
+          because the links are here: rendered anywhere else, every other page
+          has a link that leads nowhere. */}
+      <ContactModal />
+      <LearnMoreModal />
     </div>
   );
 };

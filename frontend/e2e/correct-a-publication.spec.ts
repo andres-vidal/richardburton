@@ -5,6 +5,7 @@ import {
   indexTable,
   addPublicationRow,
   submitWorkspace,
+  openDocument,
 } from "./helpers";
 
 test("an admin edits a publication's title and sources in a corpus", async ({
@@ -134,7 +135,7 @@ test("editing a publication into a copy of another is rejected as a conflict", a
 
   // A sibling that matches "Dom Casmurro" in everything but the title, so a
   // single title edit is all it takes to collide.
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await addPublicationRow(page, {
     title: "Dom Casmurro (copy)",
     originalTitle: "Dom Casmurro",

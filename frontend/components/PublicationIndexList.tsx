@@ -5,7 +5,11 @@ import {
   usePublicationMarking,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
-import { Publication, type PublicationKey } from "modules/publication/model";
+import {
+  Publication,
+  type PublicationId,
+  type PublicationKey,
+} from "modules/publication/model";
 import { useTranslations } from "next-intl";
 import { FC, MouseEvent } from "react";
 import { EmptySearchResults } from "./EmptySearchResults";
@@ -27,7 +31,7 @@ const Marked: FC<{ publication: Publication; attribute: PublicationKey }> = ({
   );
 };
 
-const PublicationItem: FC<{ id: number }> = ({ id }) => {
+const PublicationItem: FC<{ id: PublicationId }> = ({ id }) => {
   const t = useTranslations("publication");
   const marked = usePublicationMarking();
   const publication = usePublication(id);
@@ -73,9 +77,9 @@ const PublicationItem: FC<{ id: number }> = ({ id }) => {
 };
 
 interface Props {
-  onItemClick: (id: number) => (event: MouseEvent) => void;
+  onItemClick: (id: PublicationId) => (event: MouseEvent) => void;
   /** Where each record lives, so the list is a set of links and not a dead end. */
-  itemHref?: (id: number) => string;
+  itemHref?: (id: PublicationId) => string;
 }
 
 const PublicationIndexList: FC<Props> = ({ onItemClick, itemHref }) => {

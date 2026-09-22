@@ -282,10 +282,23 @@ export const PAGED_CSV =
     ),
   ].join("\n") + "\n";
 
+/**
+ * Start an import document and open it.
+ *
+ * Rows are prepared in a document, so a journey that enters rows needs one
+ * first. The name only has to tell it from another in the shared list.
+ */
+export async function openDocument(page: Page, name = "E2E batch") {
+  await page.goto("/admin/publications/documents");
+  await page.getByLabel("Name").fill(name);
+  await page.getByRole("button", { name: "Start a document" }).click();
+  await expect(page).toHaveURL(/\/admin\/publications\/documents\/\d+$/);
+}
+
 /** Seed the corpus by bulk-importing it through the admin CSV upload + submit. */
 export async function seedCorpus(page: Page) {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page, "Corpus");
 
   await page.locator("#upload-csv").setInputFiles({
     name: "corpus.csv",
