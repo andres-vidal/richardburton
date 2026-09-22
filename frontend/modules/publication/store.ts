@@ -216,6 +216,11 @@ const validIdsAtom = atom((get) =>
     .filter((id) => !get(errorFamily(id))),
 );
 
+/** The rows something is wrong with, in the order they are shown. */
+const invalidIdsAtom = atom(
+  (get) => get(visibleIdsAtom)?.filter((id) => get(errorFamily(id))) ?? [],
+);
+
 const visibleCountAtom = atom((get) => get(visibleIdsAtom)?.length || 0);
 
 /**
@@ -794,6 +799,7 @@ export {
   appendIndex,
   knownIds,
   hiddenAttributesAtom,
+  invalidIdsAtom,
   isLoadingMoreAtom,
   isValidFamily,
   matchedAtom,

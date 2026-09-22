@@ -1,0 +1,48 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ModalHeadingStories from "./ModalHeading.stories";
+
+<Meta of={ModalHeadingStories} />
+
+# Modal heading
+
+What a dialog is called, pinned to the top of it while its content scrolls.
+
+A dialog that scrolls takes its heading out of view with everything else, and a
+list of thirty things is exactly where the reader most needs to be told what
+they are reading and how much of it there is.
+
+<Canvas of={ModalHeadingStories.Default} />
+
+## Props
+
+- `heading` — what the dialog is called. Rendered as its `h1`.
+- `subheading` — a line under it, pinned with it rather than scrolling away.
+  Usually how much the dialog holds.
+- `aside` — set against the heading at the end of the bar, for a dialog that is
+  one of a queue.
+
+<Canvas of={ModalHeadingStories.WithASubheading} />
+
+<Canvas of={ModalHeadingStories.WithAPosition} />
+
+## Where it can sit
+
+It spans the dialog's padding with negative margins, so it has to sit directly
+inside a `p-8` body. Outside one it will hang over the edges.
+
+The background is translucent and blurred rather than opaque, so content reads
+as passing underneath rather than stopping at an edge.
+
+A heading longer than the bar is cut rather than allowed to wrap it open, since
+a bar that grows as the reader moves through a queue is a bar that moves the
+content under it.
+
+<Canvas of={ModalHeadingStories.ALongHeading} />
+
+## Not yet shared with `Article`
+
+[Article](?path=/docs/layout-article--docs) carries the same pinned bar inline,
+along with a watermark and an aside column. The two should be one; they are not
+yet, because `Article` is what Learn More and Contact are built from and this
+was not the change to move them.

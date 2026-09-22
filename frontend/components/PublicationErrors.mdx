@@ -1,0 +1,47 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationErrorsStories from "./PublicationErrors.stories";
+
+<Meta of={PublicationErrorsStories} />
+
+# Errors
+
+Everything the workspace refuses, in one place. Opened from the
+[error counter](?path=/docs/publications-publication-error-counter--docs) in the
+footer.
+
+The workspace already says which rows are wrong, by marking them, and which
+fields, by marking the cells. Neither reads as a list. A set assembled from a
+spreadsheet can be wrong in thirty places at once, and finding them by scrolling
+a table sideways is not finding them.
+
+<Canvas of={PublicationErrorsStories.Default} />
+
+Only the refused rows are listed. This is what has to be dealt with before the
+set can be inserted, not a report on the set — what is in good order is the
+counter's business, and it says so with a green check.
+
+## Two shapes of refusal
+
+A row refused **field by field** names each field and what it wanted. The fields
+read in the order the table shows them rather than the order the server happened
+to answer in, so the list and the row agree.
+
+<Canvas of={PublicationErrorsStories.FieldByField} />
+
+A row refused **as a whole** — one that collides with a record already stored —
+carries the row's own sentence and no list of fields, because no one field is
+wrong with it.
+
+<Canvas of={PublicationErrorsStories.RefusedAsAWhole} />
+
+## Getting to the row
+
+Each entry leads back to the row it is about: it focuses that row, which scrolls
+it into view, and closes on the way out. Reading a list of what is wrong is only
+useful if the thing that is wrong is one press away.
+
+<Canvas of={PublicationErrorsStories.GoingToTheRow} />
+
+A row is named by its position and its title, since a row whose title is the
+thing that is missing has nothing else to be called.
