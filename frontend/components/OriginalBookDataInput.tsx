@@ -5,7 +5,7 @@ import { Publication } from "modules/publication/model";
 import { overrideField } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import pDebounce from "p-debounce";
-import { FC, forwardRef, useMemo, useState } from "react";
+import { FC, forwardRef, useMemo, useRef, useState } from "react";
 import { ScalarDataInputProps } from "./DataInput";
 import MenuProvider from "./MenuProvider";
 import TextInput from "./TextInput";
@@ -40,6 +40,9 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const [books, setBooks] = useState<OriginalBookValue[]>([]);
 
+    const latest = useRef(0);
+    const inputRef = useRef<HTMLInputElement>(null);
+
     const getBooks = useMemo(
       () =>
         pDebounce(
@@ -52,6 +55,8 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
     async function handleChange(typed: string) {
       onChange?.(typed);
 
+      const mine = ++latest.current;
+
       if (!typed) {
         setIsOpen(false);
         return;
@@ -60,6 +65,11 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
       // A lookup that fails offers nothing: the field is usable without
       // suggestions, and what is being typed is not worth interrupting.
       const found = await getBooks(typed.toLowerCase()).catch(() => []);
+
+      // Only the newest lookup writes, and only while the field is still on the
+      // page to hear it.
+      if (mine !== latest.current || !inputRef.current?.isConnected) return;
+
       setBooks(found);
       setActiveIndex(0);
       setIsOpen(found.length > 0);
@@ -73,6 +83,8 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
       // point of the suggestion is that the two never disagree.
       overrideField(store, rowId, "originalAuthors", book.authors);
       onChange?.(book.title);
+
+      latest.current += 1;
       setIsOpen(false);
     }
 
@@ -93,6 +105,7 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
         <TextInput
           {...props}
           ref={ref}
+          inputRef={inputRef}
           value={value}
           onChange={handleChange}
           aria-autocomplete="list"
