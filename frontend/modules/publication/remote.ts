@@ -29,6 +29,7 @@ import {
   publicationIdsAtom,
   removePublication,
   resetAll,
+  rowSubjectFamily,
   setAll,
   setErrors,
   setResemblances,
@@ -406,12 +407,22 @@ async function validate(store: Store, ids: PublicationId[]): Promise<void> {
  */
 async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
   return run(async (http) => {
+    const asked = ids.map((id) => store.get(rowSubjectFamily(id)));
     const rows = ids.map((id) => store.get(visiblePublicationFamily(id)));
 
     const { data } = await http.post<{ entries: ResemblanceEntry[] }>(
       "publications/duplicates/resemblances",
       rows,
     );
+
+    // The rows moved while the answer was on its way, so it is an answer about
+    // rows that are no longer there. Whatever changed them has already asked
+    // again.
+    const moved = ids.some(
+      (id, index) => store.get(rowSubjectFamily(id)) !== asked[index],
+    );
+
+    if (moved) return;
 
     setResemblances(
       store,

@@ -198,12 +198,14 @@ const lastValidatedFamily = atomFamily((_id: PublicationId) =>
 );
 
 /**
- * What the row resembles, or `null` where it resembles nothing. Held apart from
- * `errorFamily` because it is not an error: it does not make a row invalid and
- * it does not hold back a submit.
+ * What the check answered about a row, beside the row it was asked about.
+ *
+ * The subject is kept with the answer so that an answer about a row that has
+ * since changed can be told from one that still describes it, however the row
+ * changed and whoever changed it. Read through `resemblanceFamily`.
  */
-const resemblanceFamily = atomFamily((_id: PublicationId) =>
-  atomWithReset<Resemblance | null>(null),
+const measuredResemblanceFamily = atomFamily((_id: PublicationId) =>
+  atomWithReset<{ at: string; value: Resemblance } | null>(null),
 );
 
 const attributeVisibleFamily = atomFamily((key: PublicationKey) =>
@@ -280,6 +282,43 @@ const RESEMBLANCE_ATTRIBUTES: PublicationKey[] = [
 ];
 
 /**
+ * A row as the look-alike check reads it.
+ *
+ * Rows with the same subject are the same question, so a row whose subject has
+ * changed is a row the last answer was not about.
+ */
+const rowSubjectFamily = atomFamily((id: PublicationId) =>
+  atom((get) => {
+    const publication = get(visiblePublicationFamily(id));
+
+    return RESEMBLANCE_ATTRIBUTES.map((attribute) =>
+      [publication[attribute]].flat().join(" "),
+    ).join("\u0000");
+  }),
+);
+
+/**
+ * What the row resembles, or `null` where it resembles nothing and where the
+ * answer was measured on a value the row no longer holds.
+ *
+ * Held apart from `errorFamily` because it is not an error: it does not make a
+ * row invalid and it does not hold back a submit.
+ *
+ * Staleness is read rather than written, so an edit does not have to remember to
+ * clear anything. An edit that arrives from another person changes the row the
+ * same way, and drops the answer the same way.
+ */
+const resemblanceFamily = atomFamily((id: PublicationId) =>
+  atom<Resemblance | null>((get) => {
+    const measured = get(measuredResemblanceFamily(id));
+
+    return measured && measured.at === get(rowSubjectFamily(id))
+      ? measured.value
+      : null;
+  }),
+);
+
+/**
  * The visible rows as the look-alike check reads them.
  *
  * What the check should be re-run for, so editing a year or a country does not
@@ -287,13 +326,7 @@ const RESEMBLANCE_ATTRIBUTES: PublicationKey[] = [
  * rebuilt whenever any row changes and only its contents mean anything.
  */
 const resemblanceSubjectAtom = atom((get) =>
-  (get(visibleIdsAtom) ?? []).map((id) => {
-    const publication = get(visiblePublicationFamily(id));
-
-    return RESEMBLANCE_ATTRIBUTES.map((attribute) =>
-      [publication[attribute]].flat().join(" "),
-    );
-  }),
+  (get(visibleIdsAtom) ?? []).map((id) => get(rowSubjectFamily(id))),
 );
 
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
@@ -442,7 +475,9 @@ const PUBLICATION_FAMILIES = [
   storedSourcesFamily,
   isValidFamily,
   errorCodeFamily,
+  measuredResemblanceFamily,
   resemblanceFamily,
+  rowSubjectFamily,
   rowNumberFamily,
 ];
 
@@ -608,7 +643,14 @@ function setResemblances(
   ids: PublicationId[],
   found: Map<PublicationId, Resemblance>,
 ): void {
-  ids.forEach((id) => store.set(resemblanceFamily(id), found.get(id) ?? RESET));
+  ids.forEach((id) => {
+    const value = found.get(id);
+
+    store.set(
+      measuredResemblanceFamily(id),
+      value ? { at: store.get(rowSubjectFamily(id)), value } : RESET,
+    );
+  });
 }
 
 /** Open the review, on a given row or at the start of the queue. */
@@ -647,16 +689,6 @@ function overrideField<K extends PublicationKey>(
 
   const current = store.get(overrideFamily(id));
   store.set(overrideFamily(id), { ...current, [attribute]: value });
-
-  if (RESEMBLANCE_ATTRIBUTES.includes(attribute)) forgetResemblance(store, id);
-}
-
-// An edited row is no longer the row that was measured, so what it resembled is
-// dropped rather than left to describe a value that has changed. Only for the
-// fields it was measured on: the check is re-run for those, and dropping an
-// answer nothing will ask for again drops it for good.
-function forgetResemblance(store: Store, id: PublicationId): void {
-  store.set(resemblanceFamily(id), RESET);
 }
 
 /**
@@ -808,7 +840,7 @@ function resetAll(store: Store): void {
     store.set(errorFamily(id), RESET);
     store.set(discardedFamily(id), RESET);
     store.set(lastValidatedFamily(id), RESET);
-    store.set(resemblanceFamily(id), RESET);
+    store.set(measuredResemblanceFamily(id), RESET);
   });
 
   store.set(publicationIdsAtom, RESET);
@@ -922,6 +954,7 @@ export {
   reviewingAtom,
   resemblanceFamily,
   resemblanceSubjectAtom,
+  rowSubjectFamily,
   resemblingCountAtom,
   resemblingIdsAtom,
   openWorkspace,
