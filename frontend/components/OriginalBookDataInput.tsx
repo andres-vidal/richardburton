@@ -5,7 +5,7 @@ import { Publication } from "modules/publication/model";
 import { overrideField } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import pDebounce from "p-debounce";
-import { FC, forwardRef, useCallback, useState } from "react";
+import { FC, forwardRef, useMemo, useState } from "react";
 import { ScalarDataInputProps } from "./DataInput";
 import MenuProvider from "./MenuProvider";
 import TextInput from "./TextInput";
@@ -40,12 +40,12 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const [books, setBooks] = useState<OriginalBookValue[]>([]);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const getBooks = useCallback(
-      pDebounce(
-        (search: string) => Publication.autocomplete(search, "originalTitle"),
-        350,
-      ),
+    const getBooks = useMemo(
+      () =>
+        pDebounce(
+          (search: string) => Publication.autocomplete(search, "originalTitle"),
+          350,
+        ),
       [],
     );
 
