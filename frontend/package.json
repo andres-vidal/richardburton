@@ -22,7 +22,7 @@
     "arctic": "^3.7.0",
     "axios": "^1.20.0",
     "axios-case-converter": "^2.0.1",
-    "framer-motion": "^13.2.0",
+    "framer-motion": "^13.4.0",
     "is-hotkey": "^0.2.0",
     "jotai": "^3.0.0",
     "jotai-family": "^1.1.0",
@@ -45,7 +45,7 @@
     "y-indexeddb": "^9.0.12",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.32",
-    "zod": "^4.6.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
@@ -72,11 +72,11 @@
     "colord": "^2.10.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.3.5",
-    "jsdom": "^30.0.1",
+    "jsdom": "^30.1.0",
     "next-router-mock": "^1.0.5",
     "playwright": "^1.62.0",
     "postcss": "^8.5.28",
-    "prettier": "3.9.6",
+    "prettier": "3.9.8",
     "storybook": "^10.5.5",
     "stylelint": "^17.15.0",
     "stylelint-config-standard": "^40.0.0",
