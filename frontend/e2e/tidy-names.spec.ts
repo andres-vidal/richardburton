@@ -1,5 +1,11 @@
 import { test, expect } from "./fixtures";
-import { signInAsAdmin, seedCorpus, indexTable, CSV_HEADER } from "./helpers";
+import {
+  signInAsAdmin,
+  seedCorpus,
+  indexTable,
+  openDocument,
+  CSV_HEADER,
+} from "./helpers";
 import type { Page } from "@playwright/test";
 
 /** The names themselves, scoped past the breadcrumb, which is a list too. */
@@ -51,7 +57,7 @@ test("renaming onto a name already taken folds the two together", async ({
   await signInAsAdmin(page);
 
   // Two publications, one publisher each, spelled two ways.
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "spellings.csv",
     mimeType: "text/csv",
@@ -101,7 +107,7 @@ test("renaming onto a name already taken folds the two together", async ({
 test("a fold can be called off, and nothing moves", async ({ page }) => {
   await signInAsAdmin(page);
 
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "spellings.csv",
     mimeType: "text/csv",
@@ -149,7 +155,7 @@ test("a rename that would leave two publications identical is refused", async ({
   await signInAsAdmin(page);
 
   // The same publication twice, told apart only by how the publisher is spelt.
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "hidden.csv",
     mimeType: "text/csv",

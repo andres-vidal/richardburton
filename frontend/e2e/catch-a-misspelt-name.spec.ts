@@ -1,5 +1,11 @@
 import { test, expect } from "./fixtures";
-import { seedCorpus, submitWorkspace, indexTable, CSV_HEADER } from "./helpers";
+import {
+  seedCorpus,
+  submitWorkspace,
+  indexTable,
+  openDocument,
+  CSV_HEADER,
+} from "./helpers";
 
 /** A second batch, in which two of the corpus's names are spelt a second way. */
 const SECOND_BATCH =
@@ -16,7 +22,7 @@ test("the workspace names the spellings a batch would add, and corrects them in 
   // Noonday Press and the rest.
   await seedCorpus(page);
 
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "second-batch.csv",
     mimeType: "text/csv",
@@ -78,7 +84,7 @@ test("a batch of names the database already holds raises nothing", async ({
 }) => {
   await seedCorpus(page);
 
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "same-names.csv",
     mimeType: "text/csv",
@@ -109,7 +115,7 @@ test("the names view marks which of the names it holds may be the same name twic
   await seedCorpus(page);
 
   // A second batch that does add a misspelling, so the database now holds both.
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "second-batch.csv",
     mimeType: "text/csv",
