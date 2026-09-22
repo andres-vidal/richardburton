@@ -130,27 +130,36 @@ export default function Multicombobox<ItemType extends string | Item>({
     onKeyDown?.(event);
   }
 
+  const latest = useRef(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   async function handleChange(v: string) {
     setInputValue(v);
 
-    if (v) {
-      const options = await getOptions(v.toLowerCase());
+    const mine = ++latest.current;
 
-      setIsOpen(true);
-      setActiveIndex(0);
-      setOptions(options.filter((option) => !isSelected(option)));
-    } else {
+    if (!v) {
       setIsOpen(false);
+      return;
     }
+
+    const found = await getOptions(v.toLowerCase());
+
+    // Only the newest lookup writes, and only while the field is still on the
+    // page to hear it.
+    if (mine !== latest.current || !inputRef.current?.isConnected) return;
+
+    setIsOpen(true);
+    setActiveIndex(0);
+    setOptions(found.filter((option) => !isSelected(option)));
   }
 
   function handleOptionSelect(option: ItemType) {
+    latest.current += 1;
     select(option);
     setInputValue("");
     inputRef.current?.focus();
   }
-
-  const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <MenuProvider<ItemType>
