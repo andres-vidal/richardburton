@@ -136,18 +136,12 @@ export default function Multicombobox<ItemType extends string | Item>({
     onKeyDown?.(event);
   }
 
-  // Which lookup the field is still interested in.
-  //
-  // A lookup outlives the keystroke that asked for it, so one already on its
-  // way can arrive after a later keystroke, after an option has been taken, or
-  // after the field itself has gone — and writing what to offer then is a write
-  // to something no longer there. Retiring the ticket on the way out is what
-  // says so.
-  const wanted = useRef(0);
+  const latest = useRef(0);
 
   useEffect(
     () => () => {
-      wanted.current = -1;
+      // No lookup holds -1, so every one still in flight is now stale.
+      latest.current = -1;
     },
     [],
   );
@@ -155,7 +149,7 @@ export default function Multicombobox<ItemType extends string | Item>({
   async function handleChange(v: string) {
     setInputValue(v);
 
-    const asking = ++wanted.current;
+    const mine = ++latest.current;
 
     if (!v) {
       setIsOpen(false);
@@ -164,7 +158,7 @@ export default function Multicombobox<ItemType extends string | Item>({
 
     const found = await getOptions(v.toLowerCase());
 
-    if (asking !== wanted.current) return;
+    if (mine !== latest.current) return;
 
     setIsOpen(true);
     setActiveIndex(0);
@@ -172,7 +166,7 @@ export default function Multicombobox<ItemType extends string | Item>({
   }
 
   function handleOptionSelect(option: ItemType) {
-    wanted.current += 1;
+    latest.current += 1;
     select(option);
     setInputValue("");
     inputRef.current?.focus();

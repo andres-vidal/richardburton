@@ -40,16 +40,12 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const [books, setBooks] = useState<OriginalBookValue[]>([]);
 
-    // Which lookup the field is still interested in. A lookup outlives the
-    // keystroke that asked for it, so one already on its way can arrive after a
-    // later keystroke, after a book has been chosen — offering books again over
-    // a field just filled reads as the choice not having been taken — or after
-    // the field itself has gone, which is a write to something no longer there.
-    const wanted = useRef(0);
+    const latest = useRef(0);
 
     useEffect(
       () => () => {
-        wanted.current = -1;
+        // No lookup holds -1, so every one still in flight is now stale.
+        latest.current = -1;
       },
       [],
     );
@@ -66,7 +62,7 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
     async function handleChange(typed: string) {
       onChange?.(typed);
 
-      const asking = ++wanted.current;
+      const mine = ++latest.current;
 
       if (!typed) {
         setIsOpen(false);
@@ -77,7 +73,7 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
       // suggestions, and what is being typed is not worth interrupting.
       const found = await getBooks(typed.toLowerCase()).catch(() => []);
 
-      if (asking !== wanted.current) return;
+      if (mine !== latest.current) return;
 
       setBooks(found);
       setActiveIndex(0);
@@ -93,7 +89,7 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
       overrideField(store, rowId, "originalAuthors", book.authors);
       onChange?.(book.title);
 
-      wanted.current += 1;
+      latest.current += 1;
       setIsOpen(false);
     }
 

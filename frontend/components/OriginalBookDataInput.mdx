@@ -52,8 +52,9 @@ already on its way can arrive after a further keystroke, or after a book has
 been chosen. Putting the books back up over a field that has just been filled
 reads as the choice not having been taken.
 
-Each lookup therefore carries a ticket, and only the newest one is allowed to
-write what the field offers. Choosing a book takes a ticket too, which is what
-retires whatever was in flight when it was chosen.
+A counter therefore numbers the lookups. Each one takes the next number and
+keeps it, and on answering may write what the field offers only if its number is
+still the current one. Choosing a book takes a number as well, which leaves
+every lookup still in flight holding a stale one.
 
 <Canvas of={OriginalBookDataInputStories.AChoiceSurvivesALookupInFlight} />
