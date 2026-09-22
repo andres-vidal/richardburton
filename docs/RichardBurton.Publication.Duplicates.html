@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Publication.Duplicates — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-36F7BCA0.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Publication.<wbr />Duplicates</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Finds publications that are likely the same record entered twice.</p><p>The composite key already blocks exact duplicates, so what remains are the
+near-matches it cannot catch: a typo, a dropped accent, <code class="inline">St.</code> for <code class="inline">Saint</code>, a
+translator entered as &quot;R. Burton&quot; once and &quot;Richard Burton&quot; the next time.</p><p>Four words carry specific meanings here:</p><ul><li><strong>candidate pair</strong> — two publications similar enough to be worth review.</li><li><strong>cluster</strong> — a connected component of the candidate graph. If A matches B
+and B matches C, all three form one cluster, because merging them is one
+operation.</li><li><strong>distinction</strong> — a stored record that two publications are not the same,
+so the review stops offering them. See <code class="inline">Distinction</code>.</li><li><strong>ruled apart</strong> — the state of a pair that has a distinction.</li></ul><p>Similarity is trigram distance, the measure the author lookup also uses, over
+the fields a duplicate would agree on. A pair is a candidate when the
+translators are similar and either the titles are, or the original books are.</p><p>The translators are the required half because this is a database of
+translations: two people translating one book is the subject matter, not an
+error. &quot;Dom Casmurro&quot; translated by Helen Caldwell and by John Gledson share a
+title and an original book and are two distinct publications.</p><p>Similarity cannot distinguish two editions of one book from two records of one
+edition, so it proposes and a reviewer decides. Distinctions persist that
+decision, which is what makes the queue converge.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#clusters/0" data-no-tooltip="" translate="no">clusters()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The clusters worth reviewing, likeliest first.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#reconsider/1" data-no-tooltip="" translate="no">reconsider(ids)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Deletes the distinctions among these publications, returning the pair or
+cluster to the review queue.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#rule_apart/2" data-no-tooltip="" translate="no">rule_apart(ids, actor)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Record that these publications are not the same record twice, so the reviewer
+is not asked about them again. Every pair among them is ruled apart: the answer
+is about the cluster the reviewer was shown.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#ruled_apart/0" data-no-tooltip="" translate="no">ruled_apart()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The pairs someone has ruled apart, newest first, with the records themselves.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#threshold/0" data-no-tooltip="" translate="no">threshold()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>How alike two records must be to be worth asking about, between 0 and 1.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="clusters/0">
+
+  <div class="detail-header">
+    <a href="#clusters/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">clusters()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>The clusters worth reviewing, likeliest first.</p><p>A cluster is a set of records joined by likeness: if A looks like B and B looks
+like C, all three are one question, because merging them is one act. Pairs
+already ruled apart are not edges, so ruling one out can split a cluster rather
+than merely shrinking it.</p>
+  </section>
+</section>
+<section class="detail" id="reconsider/1">
+
+  <div class="detail-header">
+    <a href="#reconsider/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">reconsider(ids)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Deletes the distinctions among these publications, returning the pair or
+cluster to the review queue.</p><p>Every pair among the ids is deleted, mirroring how <a href="#rule_apart/2"><code class="inline">rule_apart/2</code></a> records
+them: the decision covered the cluster, so reversing it does too.</p>
+  </section>
+</section>
+<section class="detail" id="rule_apart/2">
+
+  <div class="detail-header">
+    <a href="#rule_apart/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">rule_apart(ids, actor)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Record that these publications are not the same record twice, so the reviewer
+is not asked about them again. Every pair among them is ruled apart: the answer
+is about the cluster the reviewer was shown.</p>
+  </section>
+</section>
+<section class="detail" id="ruled_apart/0">
+
+  <div class="detail-header">
+    <a href="#ruled_apart/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">ruled_apart()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>The pairs someone has ruled apart, newest first, with the records themselves.</p><p>A decision that cannot be seen cannot be taken back, and this is what a
+reviewer looks at to find one worth reconsidering.</p>
+  </section>
+</section>
+<section class="detail" id="threshold/0">
+
+  <div class="detail-header">
+    <a href="#threshold/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">threshold()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>How alike two records must be to be worth asking about, between 0 and 1.</p><p>Read at run time from <code class="inline">:duplicate_threshold</code>, so the sensitivity can be tuned
+against real data — too low floods the reviewer with false clusters, too high
+misses real duplicates — without changing any code.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
