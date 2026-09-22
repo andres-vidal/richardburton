@@ -15,6 +15,7 @@ import {
   fieldValueFamily,
   focusedRowIdAtom,
   hiddenAttributesAtom,
+  invalidIdsAtom,
   isValidFamily,
   matchedAtom,
   isValidatingAtom,
@@ -113,6 +114,11 @@ function usePublicationSources(id: PublicationId) {
 /** The persisted sources only — drafts don't show until saved. */
 function useStoredPublicationSources(id: PublicationId) {
   return useAtomValue(storedSourcesFamily(id));
+}
+
+/** The rows something is wrong with, in the order they are shown. */
+function useInvalidPublicationIds() {
+  return useAtomValue(invalidIdsAtom);
 }
 
 function usePublicationError(id: PublicationId) {
@@ -220,6 +226,7 @@ export {
   useDiscardedPublicationCount,
   useHiddenAttributes,
   useIsAttributeVisible,
+  useInvalidPublicationIds,
   useIsPublicationFocused,
   useIsPublicationValid,
   useMatched,
