@@ -253,6 +253,12 @@
     "none": "Nenhuma",
     "originalLine": "{title} — {authors}"
   },
+  "errors": {
+    "title": "O que há de errado nestas linhas",
+    "description": "{count, plural, one {# linha não pode ser inserida até ser corrigida.} other {# linhas não podem ser inseridas até serem corrigidas.}}",
+    "rowNumber": "Linha {position}",
+    "goToRow": "Ir para esta linha"
+  },
   "contact": {
     "heading": "Fale Conosco",
     "label": "Fale conosco",

@@ -253,6 +253,12 @@
     "none": "None",
     "originalLine": "{title} — {authors}"
   },
+  "errors": {
+    "title": "What is wrong with these rows",
+    "description": "{count, plural, one {# row cannot be inserted until it is corrected.} other {# rows cannot be inserted until they are corrected.}}",
+    "rowNumber": "Row {position}",
+    "goToRow": "Go to this row"
+  },
   "contact": {
     "heading": "Contact Us",
     "label": "Contact us",

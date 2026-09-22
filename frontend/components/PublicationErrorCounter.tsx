@@ -7,16 +7,15 @@ import {
   useValidPublicationCount,
   useVisiblePublicationCount,
 } from "modules/publication/hooks";
-import { focusNextInvalid } from "modules/publication/store";
-import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
-import { FC } from "react";
+import { FC, useState } from "react";
 import Button from "./Button";
+import PublicationErrors from "./PublicationErrors";
 import Tooltip from "./Tooltip";
 
 const PublicationErrorCounter: FC = () => {
   const t = useTranslations("admin");
-  const store = usePublicationStore();
+  const [isOpen, setOpen] = useState(false);
   const publicationCount = useVisiblePublicationCount();
   const validPublicationCount = useValidPublicationCount();
   const invalidPublicationCount = publicationCount - validPublicationCount;
@@ -40,22 +39,26 @@ const PublicationErrorCounter: FC = () => {
   }
 
   return (
-    <Tooltip
-      variant="error"
-      message={t("withErrors", { count: invalidPublicationCount })}
-    >
-      <Button
-        variant="danger"
-        width="fit"
-        alignment="left"
-        Icon={ErrorCircleIcon}
-        label={toString(invalidPublicationCount)}
-        aria-label={t("invalidPublications", {
-          count: invalidPublicationCount,
-        })}
-        onClick={() => focusNextInvalid(store)}
-      />
-    </Tooltip>
+    <>
+      <Tooltip
+        variant="error"
+        message={t("withErrors", { count: invalidPublicationCount })}
+      >
+        <Button
+          variant="danger"
+          width="fit"
+          alignment="left"
+          Icon={ErrorCircleIcon}
+          label={toString(invalidPublicationCount)}
+          aria-label={t("invalidPublications", {
+            count: invalidPublicationCount,
+          })}
+          onClick={() => setOpen(true)}
+        />
+      </Tooltip>
+
+      <PublicationErrors isOpen={isOpen} onClose={() => setOpen(false)} />
+    </>
   );
 };
 
