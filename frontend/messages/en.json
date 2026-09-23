@@ -258,7 +258,14 @@
     "ruledApartHeading": "Ruled apart",
     "keep": "Keep {title}",
     "none": "None",
-    "originalLine": "{title} — {authors}"
+    "originalLine": "{title} — {authors}",
+    "openRecord": "Open this record"
+  },
+  "errors": {
+    "title": "What is wrong with these rows",
+    "description": "{count, plural, one {# row cannot be inserted until it is corrected.} other {# rows cannot be inserted until they are corrected.}}",
+    "rowNumber": "Row {position}",
+    "goToRow": "Go to this row"
   },
   "errors": {
     "title": "What is wrong with these rows",
@@ -449,6 +456,21 @@
   "validation": {
     "required": "Required",
     "email": "Enter a valid email address"
+  },
+  "resemblances": {
+    "label": "Possible duplicates in this import",
+    "found": "{count, plural, one {# row looks like a publication already known} other {# rows look like publications already known}}",
+    "beingImported": "The row being imported",
+    "alreadyStored": "Already in the database",
+    "elsewhereInImport": "Elsewhere in this import",
+    "looksLikeStored": "{count, plural, one {Resembles one record already in the database.} other {Resembles # records already in the database.}}",
+    "looksLikeRows": "{count, plural, one {Resembles one other row of this import.} other {Resembles # other rows of this import.}}",
+    "namedPublication": "{title} ({year})",
+    "looksLikeNamed": "Resembles {names}.",
+    "rowLooksLike": "This row looks like a publication already known",
+    "previous": "Previous",
+    "next": "Next",
+    "lookAlike": "Look-alike"
   },
   "documents": {
     "title": "Import documents",

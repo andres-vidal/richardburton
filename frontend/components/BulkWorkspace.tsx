@@ -9,6 +9,7 @@ import PublicationDiscard from "components/PublicationDiscard";
 import PublicationDeselect from "components/PublicationDeselect";
 import PublicationDuplicate from "components/PublicationDuplicate";
 import PublicationErrorCounter from "components/PublicationErrorCounter";
+import PublicationResemblanceCounter from "components/PublicationResemblanceCounter";
 import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
 import PublicationWorkspace from "components/PublicationWorkspace";
@@ -66,6 +67,7 @@ const Workspace: FC<{ title: string; description: string }> = ({
               <PublicationUpload />
               <PublicationCounter />
               <PublicationErrorCounter />
+              <PublicationResemblanceCounter />
               <WorkspaceUndo />
               <ResetDiscarded />
               <RowIdToggle />

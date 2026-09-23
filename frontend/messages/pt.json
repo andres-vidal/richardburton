@@ -258,7 +258,14 @@
     "ruledApartHeading": "Declarados diferentes",
     "keep": "Manter {title}",
     "none": "Nenhuma",
-    "originalLine": "{title} — {authors}"
+    "originalLine": "{title} — {authors}",
+    "openRecord": "Abrir este registro"
+  },
+  "errors": {
+    "title": "O que há de errado nestas linhas",
+    "description": "{count, plural, one {# linha não pode ser inserida até ser corrigida.} other {# linhas não podem ser inseridas até serem corrigidas.}}",
+    "rowNumber": "Linha {position}",
+    "goToRow": "Ir para esta linha"
   },
   "errors": {
     "title": "O que há de errado nestas linhas",
@@ -449,6 +456,21 @@
   "validation": {
     "required": "Obrigatório",
     "email": "Digite um endereço de e-mail válido"
+  },
+  "resemblances": {
+    "label": "Possíveis duplicatas nesta importação",
+    "found": "{count, plural, one {# linha se parece com uma publicação já conhecida} other {# linhas se parecem com publicações já conhecidas}}",
+    "beingImported": "A linha sendo importada",
+    "alreadyStored": "Já no banco de dados",
+    "elsewhereInImport": "Em outro ponto desta importação",
+    "looksLikeStored": "{count, plural, one {Parece-se com um registro já no banco de dados.} other {Parece-se com # registros já no banco de dados.}}",
+    "looksLikeRows": "{count, plural, one {Parece-se com outra linha desta importação.} other {Parece-se com # outras linhas desta importação.}}",
+    "namedPublication": "{title} ({year})",
+    "looksLikeNamed": "Parece {names}.",
+    "rowLooksLike": "Esta linha parece uma publicação já conhecida",
+    "previous": "Anterior",
+    "next": "Próxima",
+    "lookAlike": "Semelhante"
   },
   "documents": {
     "title": "Documentos de importação",

@@ -65,6 +65,9 @@ type PublicationListKey = {
 }[PublicationKey];
 
 type PublicationError = null | string | Record<PublicationKey, string>;
+
+type Resemblance = { stored: Publication[]; others: PublicationId[] };
+
 type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: PublicationId };
 /**
@@ -452,6 +455,7 @@ export type {
   PublicationKey,
   PublicationKeyType,
   PublicationListKey,
+  Resemblance,
   SnapshotDiff,
   ValidationResult,
 };

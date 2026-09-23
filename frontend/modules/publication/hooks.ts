@@ -29,6 +29,10 @@ import {
   matchingCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
+  resemblanceFamily,
+  reviewingAtom,
+  resemblingCountAtom,
+  resemblingIdsAtom,
   rowNumberFamily,
   validCountAtom,
   visibleAttributesAtom,
@@ -163,6 +167,25 @@ function useValidPublicationCount() {
   return useAtomValue(validCountAtom);
 }
 
+/** What this row resembles, or null where it resembles nothing. */
+function usePublicationResemblance(id: PublicationId) {
+  return useAtomValue(resemblanceFamily(id));
+}
+
+/** Which look-alike the review is open on, or null while it is closed. */
+function useReviewing() {
+  return useAtomValue(reviewingAtom);
+}
+
+/** The rows raising a look-alike nobody has accepted yet. */
+function useResemblingPublicationIds() {
+  return useAtomValue(resemblingIdsAtom);
+}
+
+function useResemblingPublicationCount() {
+  return useAtomValue(resemblingCountAtom);
+}
+
 function useDiscardedPublicationCount() {
   return useAtomValue(discardedCountAtom);
 }
@@ -238,6 +261,10 @@ export {
   useStoredPublicationSources,
   useTotalPublicationCount,
   useUnsourcedPublicationCount,
+  usePublicationResemblance,
+  useResemblingPublicationCount,
+  useReviewing,
+  useResemblingPublicationIds,
   usePublicationRowNumber,
   useValidPublicationCount,
   useVisibleAttributes,

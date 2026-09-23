@@ -13,6 +13,7 @@ import {
   PublicationError,
   PublicationId,
   PublicationKey,
+  Resemblance,
   errorCode,
   empty,
 } from "./model";
@@ -196,6 +197,17 @@ const lastValidatedFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<string | undefined>(undefined),
 );
 
+/**
+ * What the check answered about a row, beside the row it was asked about.
+ *
+ * The subject is kept with the answer so that an answer about a row that has
+ * since changed can be told from one that still describes it, however the row
+ * changed and whoever changed it. Read through `resemblanceFamily`.
+ */
+const measuredResemblanceFamily = atomFamily((_id: PublicationId) =>
+  atomWithReset<{ at: string; value: Resemblance } | null>(null),
+);
+
 const attributeVisibleFamily = atomFamily((key: PublicationKey) =>
   atomWithReset<boolean>(DEFAULT_ATTRIBUTE_VISIBILITY[key]),
 );
@@ -235,6 +247,88 @@ const rowNumberFamily = atomFamily((id: PublicationId) =>
 );
 const discardedCountAtom = atom((get) => get(discardedIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
+
+// The rows that look like something. Discarded rows are out of it: a row on its
+// way out of the import is not a question any more.
+const resemblingIdsAtom = atom((get) =>
+  get(visibleIdsAtom)?.filter((id) => get(resemblanceFamily(id))),
+);
+
+const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
+
+/**
+ * Which look-alike the review is open on: a row to open at, "first" to start at
+ * the beginning of the queue, or null while the review is closed.
+ *
+ * Held here rather than in the control that opens it, because the row's own
+ * warning opens it too — and so that clearing the working set closes a review
+ * of rows that are no longer there.
+ */
+const reviewingAtom = atomWithReset<PublicationId | "first" | null>(null);
+
+/**
+ * The attributes a look-alike is measured on, which are the title and the names
+ * — see `Publication.Duplicates`.
+ *
+ * One list, because two things read it and they must not disagree: what the
+ * check is re-run for, and what makes a row's answer stale. A field that made an
+ * answer stale without re-running the check would drop the answer for good.
+ */
+const RESEMBLANCE_ATTRIBUTES: PublicationKey[] = [
+  "title",
+  "authors",
+  "originalTitle",
+  "originalAuthors",
+];
+
+/**
+ * A row as the look-alike check reads it.
+ *
+ * Rows with the same subject are the same question, so a row whose subject has
+ * changed is a row the last answer was not about.
+ */
+const rowSubjectFamily = atomFamily((id: PublicationId) =>
+  atom((get) => {
+    const publication = get(visiblePublicationFamily(id));
+
+    return RESEMBLANCE_ATTRIBUTES.map((attribute) =>
+      [publication[attribute]].flat().join(" "),
+    ).join("\u0000");
+  }),
+);
+
+/**
+ * What the row resembles, or `null` where it resembles nothing and where the
+ * answer was measured on a value the row no longer holds.
+ *
+ * Held apart from `errorFamily` because it is not an error: it does not make a
+ * row invalid and it does not hold back a submit.
+ *
+ * Staleness is read rather than written, so an edit does not have to remember to
+ * clear anything. An edit that arrives from another person changes the row the
+ * same way, and drops the answer the same way.
+ */
+const resemblanceFamily = atomFamily((id: PublicationId) =>
+  atom<Resemblance | null>((get) => {
+    const measured = get(measuredResemblanceFamily(id));
+
+    return measured && measured.at === get(rowSubjectFamily(id))
+      ? measured.value
+      : null;
+  }),
+);
+
+/**
+ * The visible rows as the look-alike check reads them.
+ *
+ * What the check should be re-run for, so editing a year or a country does not
+ * ask the question again. Serialised by whoever watches it, since the value is
+ * rebuilt whenever any row changes and only its contents mean anything.
+ */
+const resemblanceSubjectAtom = atom((get) =>
+  (get(visibleIdsAtom) ?? []).map((id) => get(rowSubjectFamily(id))),
+);
+
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
 
 const visibleAttributesAtom = atom((get) =>
@@ -381,6 +475,9 @@ const PUBLICATION_FAMILIES = [
   storedSourcesFamily,
   isValidFamily,
   errorCodeFamily,
+  measuredResemblanceFamily,
+  resemblanceFamily,
+  rowSubjectFamily,
   rowNumberFamily,
 ];
 
@@ -534,6 +631,35 @@ function setAll(store: Store, entries: PublicationEntry[]): void {
 
 function setErrors(store: Store, entries: PublicationEntry[]): void {
   entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
+}
+
+/**
+ * Replace what every row of the working set resembles. Rows absent from
+ * `found` resemble nothing, so a row that has stopped looking like anything
+ * stops saying so.
+ */
+function setResemblances(
+  store: Store,
+  ids: PublicationId[],
+  found: Map<PublicationId, Resemblance>,
+): void {
+  ids.forEach((id) => {
+    const value = found.get(id);
+
+    store.set(
+      measuredResemblanceFamily(id),
+      value ? { at: store.get(rowSubjectFamily(id)), value } : RESET,
+    );
+  });
+}
+
+/** Open the review, on a given row or at the start of the queue. */
+function openReview(store: Store, at: PublicationId | "first"): void {
+  store.set(reviewingAtom, at);
+}
+
+function closeReview(store: Store): void {
+  store.set(reviewingAtom, RESET);
 }
 
 function setDiscarded(
@@ -714,10 +840,13 @@ function resetAll(store: Store): void {
     store.set(errorFamily(id), RESET);
     store.set(discardedFamily(id), RESET);
     store.set(lastValidatedFamily(id), RESET);
+    store.set(measuredResemblanceFamily(id), RESET);
   });
 
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
+  // A review of rows that no longer exist has nothing left to show.
+  store.set(reviewingAtom, RESET);
 }
 
 function resetDiscarded(store: Store): void {
@@ -788,6 +917,7 @@ export {
   discardEdit,
   drawnCountAtom,
   duplicate,
+  closeReview,
   errorCodeFamily,
   errorFamily,
   fieldErrorCodeFamily,
@@ -807,6 +937,7 @@ export {
   lastValidatedFamily,
   overrideFamily,
   overrideField,
+  openReview,
   overrideSources,
   orderAtom,
   publicationFamily,
@@ -820,6 +951,12 @@ export {
   resetAll,
   resetAttributes,
   resetDiscarded,
+  reviewingAtom,
+  resemblanceFamily,
+  resemblanceSubjectAtom,
+  rowSubjectFamily,
+  resemblingCountAtom,
+  resemblingIdsAtom,
   openWorkspace,
   rowNumberFamily,
   setAll,
@@ -827,6 +964,7 @@ export {
   setDiscarded,
   setErrors,
   setFocusedRowId,
+  setResemblances,
   storedFieldValueFamily,
   storedSourcesFamily,
   totalCountAtom,
