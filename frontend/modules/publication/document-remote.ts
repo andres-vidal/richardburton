@@ -10,8 +10,28 @@ type DocumentSummary = {
    * whatever the client last counted while writing to it.
    */
   rows: number;
+  /** When it was taken off the list, or null while it is still on it. */
+  archivedAt: string | null;
   insertedAt: string;
   updatedAt: string;
+};
+
+/** A page of the list, and how many documents there are in all. */
+type DocumentPage = {
+  entries: DocumentSummary[];
+  total: number;
+};
+
+/**
+ * Everything needed to rebuild a document's content, and how far it reaches.
+ *
+ * `through` is the id of the last update the read includes. A compaction names
+ * it, so that whatever was appended while the merge was being made is left
+ * alone rather than swept up with what the merge replaces.
+ */
+type Held = {
+  updates: Uint8Array[];
+  through: number;
 };
 
 /**
@@ -27,14 +47,25 @@ const encode = (update: Uint8Array): string =>
 const decode = (update: string): Uint8Array =>
   Uint8Array.from(atob(update), (character) => character.charCodeAt(0));
 
-/** Every import document. The list is shared, so this is all of them. */
-async function list(): Promise<DocumentSummary[]> {
+/**
+ * A page of the import documents. The list is shared, so this is not scoped to
+ * anyone; archived ones are left out.
+ */
+async function list(
+  {
+    limit,
+    offset,
+    archived,
+  }: { limit?: number; offset?: number; archived?: boolean } = {},
+  signal?: AbortSignal,
+): Promise<DocumentPage> {
   return request(async (http) => {
-    const { data } = await http.get<{ entries: DocumentSummary[] }>(
-      "documents",
-    );
+    const { data } = await http.get<DocumentPage>("documents", {
+      params: { limit, offset, archived },
+      signal,
+    });
 
-    return data.entries;
+    return data;
   });
 }
 
@@ -54,14 +85,50 @@ async function show(id: number): Promise<DocumentSummary> {
   });
 }
 
-/** Everything needed to rebuild the content, oldest first. */
-async function updates(id: number): Promise<Uint8Array[]> {
+/** Give a document a different name. */
+async function rename(id: number, name: string): Promise<DocumentSummary> {
   return request(async (http) => {
-    const { data } = await http.get<{ entries: string[] }>(
+    const { data } = await http.patch<DocumentSummary>(`documents/${id}`, {
+      name,
+    });
+
+    return data;
+  });
+}
+
+/**
+ * Take a document off the list, keeping what it holds.
+ *
+ * Archiving rather than deleting: the rows are a record of what was prepared,
+ * and one taken off the list can be put back.
+ */
+async function archive(id: number): Promise<DocumentSummary> {
+  return request(async (http) => {
+    const { data } = await http.delete<DocumentSummary>(`documents/${id}`);
+
+    return data;
+  });
+}
+
+/** Put an archived document back on the list. */
+async function unarchive(id: number): Promise<DocumentSummary> {
+  return request(async (http) => {
+    const { data } = await http.post<DocumentSummary>(
+      `documents/${id}/restore`,
+    );
+
+    return data;
+  });
+}
+
+/** Everything needed to rebuild the content, and how far the read reaches. */
+async function updates(id: number): Promise<Held> {
+  return request(async (http) => {
+    const { data } = await http.get<{ entries: string[]; through: number }>(
       `documents/${id}/updates`,
     );
 
-    return data.entries.map(decode);
+    return { updates: data.entries.map(decode), through: data.through };
   });
 }
 
@@ -80,18 +147,33 @@ async function append(
 }
 
 /**
- * Replace a document's updates with one that means the same thing.
+ * Write one merged update in place of every update up to `through`.
  *
  * Only a client can do this, because only a client reads the content. The
- * merged update is the whole of it, encoded as one.
+ * merged update is the whole of what this client holds, encoded as one, and
+ * `through` is how far the read it merged from reached — anything appended past
+ * that point is not this merge's to replace.
  */
-async function compact(id: number, doc: Y.Doc): Promise<void> {
+async function compact(id: number, doc: Y.Doc, through: number): Promise<void> {
   return request(async (http) => {
     await http.post(`documents/${id}/compact`, {
       update: encode(Y.encodeStateAsUpdate(doc)),
+      through,
     });
   });
 }
 
-export { append, compact, create, decode, encode, list, show, updates };
-export type { DocumentSummary };
+export {
+  append,
+  archive,
+  compact,
+  create,
+  decode,
+  encode,
+  list,
+  rename,
+  show,
+  unarchive,
+  updates,
+};
+export type { DocumentPage, DocumentSummary, Held };

@@ -13,6 +13,14 @@ defmodule RichardBurtonWeb.DocumentChannel do
 
   Awareness is the other thing that crosses: who is here. It is deliberately
   *not* persisted, because it is true only while someone is looking.
+
+  Awareness is taken on trust. A client says which entry is its own when it
+  joins, and says who it is in the updates it broadcasts, and neither claim is
+  checked — checking one would mean parsing Yjs awareness here, which is the
+  native dependency this design exists to avoid. Everyone who can reach this
+  channel may already edit every publication, so the trust costs nothing that
+  was not already given; what it means is that presence is a convenience and
+  not a record of who did what.
   """
 
   use Phoenix.Channel

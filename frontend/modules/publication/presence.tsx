@@ -1,6 +1,9 @@
 "use client";
 
 import type { Awareness } from "y-protocols/awareness";
+
+import type { LiveState } from "./document-live";
+import type { Status } from "./document-sync";
 import {
   createContext,
   useCallback,
@@ -43,6 +46,10 @@ const colourOf = (email: string) => {
 type Live = {
   /** Who is here, or nothing where the surface is not connected. */
   awareness?: Awareness;
+  /** Whether changes are crossing to the others. */
+  connection?: LiveState;
+  /** Where the work stands with the server. */
+  saving?: Status;
 };
 
 const LiveContext = createContext<Live>({});
@@ -135,10 +142,25 @@ function useReportPosition(): (at: At | null) => void {
   );
 }
 
+/**
+ * How this document stands: whether changes are crossing, and whether what was
+ * written here has reached the server.
+ *
+ * Both are undefined on a surface that is not a document — the edit modal over
+ * the database is one person editing one record, and has nothing to say about
+ * either.
+ */
+function useDocumentHealth(): { connection?: LiveState; saving?: Status } {
+  const { connection, saving } = useContext(LiveContext);
+
+  return { connection, saving };
+}
+
 export {
   COLOURS,
   LiveProvider,
   colourOf,
+  useDocumentHealth,
   useOnThisCell,
   useOthersPresent,
   useReportPosition,

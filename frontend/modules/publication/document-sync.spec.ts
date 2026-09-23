@@ -4,7 +4,7 @@ import * as Y from "yjs";
 import * as Doc from "./doc";
 import { empty } from "./model";
 import * as Remote from "./document-remote";
-import { SETTLE_MS, sync } from "./document-sync";
+import { RETRY_MS, SETTLE_MS, sync } from "./document-sync";
 
 const row = (title: string) => ({ ...empty(), title });
 
@@ -22,14 +22,20 @@ async function settle() {
   await vi.advanceTimersByTimeAsync(SETTLE_MS + 1);
 }
 
+/** Let the wait before a failed post is tried again pass. */
+async function retry() {
+  await vi.advanceTimersByTimeAsync(RETRY_MS + 1);
+}
+
 describe("opening", () => {
   test("applies everything the server holds", async () => {
     const held = new Y.Doc();
     Doc.addRow(held, "a", row("Dom Casmurro"));
 
-    vi.spyOn(Remote, "updates").mockResolvedValue([
-      Y.encodeStateAsUpdate(held),
-    ]);
+    vi.spyOn(Remote, "updates").mockResolvedValue({
+      updates: [Y.encodeStateAsUpdate(held)],
+      through: 1,
+    });
     vi.spyOn(Remote, "append").mockResolvedValue(undefined);
 
     const doc = new Y.Doc();
@@ -45,9 +51,10 @@ describe("opening", () => {
     const held = new Y.Doc();
     Doc.addRow(held, "a", row("Dom Casmurro"));
 
-    vi.spyOn(Remote, "updates").mockResolvedValue([
-      Y.encodeStateAsUpdate(held),
-    ]);
+    vi.spyOn(Remote, "updates").mockResolvedValue({
+      updates: [Y.encodeStateAsUpdate(held)],
+      through: 1,
+    });
     const posted = vi.spyOn(Remote, "append").mockResolvedValue(undefined);
 
     const doc = new Y.Doc();
@@ -65,9 +72,10 @@ describe("opening", () => {
     const held = new Y.Doc();
     Doc.addRow(held, "a", row("Dom Casmurro"));
 
-    vi.spyOn(Remote, "updates").mockResolvedValue([
-      Y.encodeStateAsUpdate(held),
-    ]);
+    vi.spyOn(Remote, "updates").mockResolvedValue({
+      updates: [Y.encodeStateAsUpdate(held)],
+      through: 1,
+    });
     vi.spyOn(Remote, "append").mockResolvedValue(undefined);
 
     const doc = new Y.Doc();
@@ -83,7 +91,7 @@ describe("opening", () => {
 
 describe("posting what is changed here", () => {
   test("a change made here is posted, with the row count", async () => {
-    vi.spyOn(Remote, "updates").mockResolvedValue([]);
+    vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
     const posted = vi.spyOn(Remote, "append").mockResolvedValue(undefined);
 
     const doc = new Y.Doc();
@@ -103,7 +111,7 @@ describe("posting what is changed here", () => {
   });
 
   test("a burst of changes is one request, not one each", async () => {
-    vi.spyOn(Remote, "updates").mockResolvedValue([]);
+    vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
     const posted = vi.spyOn(Remote, "append").mockResolvedValue(undefined);
 
     const doc = new Y.Doc();
@@ -126,7 +134,7 @@ describe("posting what is changed here", () => {
   });
 
   test("a post that fails is carried by the next one", async () => {
-    vi.spyOn(Remote, "updates").mockResolvedValue([]);
+    vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
     const posted = vi
       .spyOn(Remote, "append")
       .mockRejectedValueOnce(new Error("offline"))
@@ -143,7 +151,7 @@ describe("posting what is changed here", () => {
     expect(posted).toHaveBeenCalledTimes(1);
 
     Doc.addRow(doc, "b", row("Iracema"));
-    await settle();
+    await retry();
 
     expect(posted).toHaveBeenCalledTimes(2);
 
@@ -156,7 +164,7 @@ describe("posting what is changed here", () => {
   });
 
   test("nothing is posted once it has stopped", async () => {
-    vi.spyOn(Remote, "updates").mockResolvedValue([]);
+    vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
     const posted = vi.spyOn(Remote, "append").mockResolvedValue(undefined);
 
     const doc = new Y.Doc();
@@ -168,5 +176,125 @@ describe("posting what is changed here", () => {
     await settle();
 
     expect(posted).not.toHaveBeenCalled();
+  });
+});
+
+describe("work that only this machine holds", () => {
+  // What a document restored from this browser's disk looks like: content the
+  // document holds that was never stamped as a local change, because applying
+  // it was not one.
+  const fromDisk = (doc: Y.Doc, title: string) => {
+    const disk = new Y.Doc();
+    Doc.addRow(disk, "a", row(title));
+
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(disk), "disk");
+  };
+
+  test("is offered to the server on opening", async () => {
+    vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
+    const posted = vi.spyOn(Remote, "append").mockResolvedValue(undefined);
+
+    const doc = new Y.Doc();
+    fromDisk(doc, "Dom Casmurro");
+
+    const running = sync(doc, 1);
+    await running.ready;
+    await settle();
+
+    expect(posted).toHaveBeenCalledTimes(1);
+
+    const elsewhere = new Y.Doc();
+    Y.applyUpdate(elsewhere, posted.mock.calls[0][1]);
+    expect(Doc.readRow(elsewhere, "a")?.title).toBe("Dom Casmurro");
+
+    running.stop();
+  });
+
+  test("nothing is offered where the server already holds everything", async () => {
+    const held = new Y.Doc();
+    Doc.addRow(held, "a", row("Dom Casmurro"));
+
+    vi.spyOn(Remote, "updates").mockResolvedValue({
+      updates: [Y.encodeStateAsUpdate(held)],
+      through: 3,
+    });
+    const posted = vi.spyOn(Remote, "append").mockResolvedValue(undefined);
+
+    const doc = new Y.Doc();
+    const running = sync(doc, 1);
+    await running.ready;
+    await settle();
+
+    expect(posted).not.toHaveBeenCalled();
+
+    running.stop();
+  });
+});
+
+describe("saying where the work stands", () => {
+  test("saving while there is something to post, saved once there is not", async () => {
+    vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
+    vi.spyOn(Remote, "append").mockResolvedValue(undefined);
+
+    const seen: string[] = [];
+    const doc = new Y.Doc();
+    const running = sync(doc, 1, (status) => seen.push(status.state));
+
+    await running.ready;
+    Doc.addRow(doc, "a", row("Dom Casmurro"));
+    await settle();
+
+    expect(seen).toEqual(["saving", "saved"]);
+    expect(running.status().savedAt).toBeDefined();
+
+    running.stop();
+  });
+
+  test("offline while a post keeps failing, and saved once one lands", async () => {
+    vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
+    vi.spyOn(Remote, "append")
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(undefined);
+
+    const doc = new Y.Doc();
+    const running = sync(doc, 1);
+    await running.ready;
+
+    Doc.addRow(doc, "a", row("Dom Casmurro"));
+    await settle();
+
+    expect(running.status().state).toBe("offline");
+    expect(running.status().failures).toBe(1);
+
+    await retry();
+
+    expect(running.status().state).toBe("saved");
+    expect(running.status().failures).toBe(0);
+
+    running.stop();
+  });
+
+  test("a failed post is tried again without anyone typing", async () => {
+    vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
+    const posted = vi
+      .spyOn(Remote, "append")
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(undefined);
+
+    const doc = new Y.Doc();
+    const running = sync(doc, 1);
+    await running.ready;
+
+    Doc.addRow(doc, "a", row("Dom Casmurro"));
+    await settle();
+    expect(posted).toHaveBeenCalledTimes(1);
+
+    // Nobody types. The person may have stopped precisely because they had
+    // finished, and what they wrote is still not on the server.
+    await retry();
+
+    expect(posted).toHaveBeenCalledTimes(2);
+
+    running.stop();
   });
 });
