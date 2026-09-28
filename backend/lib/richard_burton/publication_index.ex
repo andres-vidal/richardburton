@@ -192,12 +192,36 @@ defmodule RichardBurton.Publication.Index do
   @doc "How many publications a page holds."
   def per_page, do: @per_page
 
+  @doc """
+  A query for the publications a term matches, in no particular order, or for
+  every publication when the term is `nil`.
+
+  A term that matches nothing gives a query that returns no rows, so a caller
+  can count over the result without asking first whether there is one.
+  """
+  def matching(nil), do: from(fp in FlatPublication)
+
+  def matching(term) when is_binary(term) do
+    case criteria(term) do
+      :none -> from(fp in FlatPublication, where: false)
+      criteria -> matched(criteria)
+    end
+  end
+
   # The criteria that answer a term and the ids they matched, or `:none` if nothing
   # in the index matches.
+  defp answering(term) do
+    case criteria(term) do
+      :none -> :none
+      criteria -> {criteria, order_ids(criteria)}
+    end
+  end
+
+  # The criteria a term is read into, or `:none` when it holds nothing to match.
   #
   # A term that quotes a phrase or excludes a word with `-` is saying exactly what
   # it wants, so it is passed to Postgres as written and never widened.
-  defp answering(term) do
+  defp criteria(term) do
     alternatives = Term.parse(term)
 
     cond do
@@ -206,15 +230,11 @@ defmodule RichardBurton.Publication.Index do
 
       # Quotes or exclusions, with no operator: passed to Postgres as written.
       Term.plain?(alternatives) and Query.spelled_out?(term) ->
-        criteria = {:spelled_out, term}
-        {criteria, order_ids(criteria)}
+        {:spelled_out, term}
 
       true ->
         criteria = Query.criteria(alternatives)
-
-        if Query.empty?(criteria),
-          do: :none,
-          else: {criteria, order_ids(criteria)}
+        if Query.empty?(criteria), do: :none, else: criteria
     end
   end
 
@@ -226,11 +246,18 @@ defmodule RichardBurton.Publication.Index do
   # id. Rows with the same rank have to sort the same way every time, or paging
   # through the results would repeat or skip some.
   defp ranked(criteria) do
+    criteria
+    |> matched()
+    |> order_by(^[desc: Query.ranking(criteria), asc: :title, asc: :id])
+  end
+
+  # The publications the criteria match, joined to the search document the
+  # criteria are tested against.
+  defp matched(criteria) do
     from(p in FlatPublication,
       join: d in SearchDocument,
       on: d.id == p.id,
-      where: ^Query.matches(criteria),
-      order_by: ^[desc: Query.ranking(criteria), asc: :title, asc: :id]
+      where: ^Query.matches(criteria)
     )
   end
 
