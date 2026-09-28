@@ -19,6 +19,20 @@ defmodule RichardBurtonWeb.VocabularyController do
   end
 
   @doc """
+  Which of the names given are already here, and which look like misspellings of
+  a name already here.
+
+  A question rather than a change, but it is posted: a batch being entered can
+  carry more names than a URL should.
+  """
+  def resemblances(conn, %{"kind" => kind, "names" => names}) when is_list(names) do
+    case Vocabulary.resemblances(kind, names) do
+      {:ok, entries} -> json(conn, %{entries: entries})
+      {:error, :no_such_kind} -> not_found(conn)
+    end
+  end
+
+  @doc """
   Rename one.
 
   Renaming to a name nothing else holds corrects a spelling; renaming to one

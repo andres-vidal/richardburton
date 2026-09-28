@@ -24,6 +24,16 @@ type Outcome = "renamed" | "merged";
 /** A publication caught in a clash, named so it can be gone and looked at. */
 type Clashing = { id: number; title: string; year: string };
 
+/**
+ * One name a batch would enter, answered against what is already here.
+ *
+ * `held` says the vocabulary has this name exactly, so entering it joins what
+ * is there rather than adding to it. `resembles` lists the names near it, most
+ * used first, which is how a misspelling shows: not held, but close to
+ * something that is.
+ */
+type Resemblance = { name: string; held: boolean; resembles: Name[] };
+
 async function list(kind: Kind): Promise<Name[]> {
   return request(async (http) => {
     const { data } = await http.get<{ entries: Name[] }>(`vocabulary/${kind}`);
@@ -90,5 +100,25 @@ function refused(error: unknown) {
   return response?.status === 409 ? (response.data ?? {}) : null;
 }
 
-export { list, rename };
-export type { Clashing, Kind, Name, Outcome };
+/**
+ * Ask about a batch of names at once.
+ *
+ * Posted rather than queried, because a batch being entered can carry more
+ * names than a URL should. Nothing is written.
+ */
+async function resemblances(
+  kind: Kind,
+  names: string[],
+): Promise<Resemblance[]> {
+  return request(async (http) => {
+    const { data } = await http.post<{ entries: Resemblance[] }>(
+      `vocabulary/${kind}/resemblances`,
+      { names },
+    );
+
+    return data.entries;
+  });
+}
+
+export { list, rename, resemblances };
+export type { Clashing, Kind, Name, Outcome, Resemblance };

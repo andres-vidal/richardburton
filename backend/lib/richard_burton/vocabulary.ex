@@ -34,6 +34,17 @@ defmodule RichardBurton.Vocabulary do
   The rename is refused, and says which publications clashed. Merging them is a
   separate act, with its own survivor to choose and its own undo, and doing it
   silently inside a spelling correction would be a fold nobody asked for.
+
+  ## Catching a misspelling before it is one
+
+  `resemblances/2` answers the same question from the other end: given names
+  that are about to be entered, which of them are close to a name already here
+  without being it. A name is *held* when the vocabulary already has it exactly,
+  and *resembles* another when trigram similarity puts them over the threshold
+  while the two strings differ.
+
+  Held is the good outcome and resembling is the doubtful one. A name that is
+  neither is simply new, which is how a vocabulary grows.
   """
 
   import Ecto.Query
@@ -157,6 +168,66 @@ defmodule RichardBurton.Vocabulary do
       group_by: [p.id, p.name],
       order_by: [asc: p.name],
       select: %{id: p.id, name: p.name, publications: count(pub.id)}
+    )
+  end
+
+  @doc """
+  Which of these names the vocabulary already holds, and which look like
+  misspellings of one it holds.
+
+  Each name comes back as `%{name:, held:, resembles: [...]}`, where
+  `resembles` lists the existing names near it, most used first — the count is
+  what says which spelling the database has settled on.
+
+  Names are trimmed, blanks dropped and repeats collapsed, so a caller can pass
+  a column straight out of a spreadsheet.
+  """
+  def resemblances(kind, names) when is_list(names) do
+    with {:ok, schema} <- kind_of(kind) do
+      asked = names |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == "")) |> Enum.uniq()
+
+      {:ok, answer(schema, asked)}
+    end
+  end
+
+  defp answer(_schema, []), do: []
+
+  defp answer(schema, asked) do
+    held = held(schema, asked)
+    near = near(schema, asked)
+
+    Enum.map(asked, fn name ->
+      %{
+        name: name,
+        held: MapSet.member?(held, name),
+        resembles: Map.get(near, name, [])
+      }
+    end)
+  end
+
+  defp held(schema, asked) do
+    from(v in schema, where: v.name in ^asked, select: v.name)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  # The names each asked-for name is near, keyed by the name that was asked.
+  defp near(schema, asked) do
+    rows = in_threshold(fn -> Repo.all(resembling(schema, asked)) end)
+    counts = counts_of(schema, Enum.map(rows, & &1.id))
+
+    rows
+    |> Enum.group_by(& &1.asked, &Map.get(counts, &1.id))
+    |> Map.new(fn {asked, found} ->
+      {asked, found |> Enum.reject(&is_nil/1) |> Enum.sort_by(& &1.publications, :desc)}
+    end)
+  end
+
+  defp resembling(schema, asked) do
+    from(v in schema,
+      join: a in fragment("SELECT * FROM unnest(?::text[]) AS a(name)", ^asked),
+      on: alike(v.name, a.name) and v.name != a.name,
+      select: %{asked: a.name, id: v.id}
     )
   end
 

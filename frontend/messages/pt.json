@@ -477,6 +477,21 @@
     "foldMessage": "{from} ({moving, plural, =0 {sem uso} one {# publicação} other {# publicações}}) deixaria de existir, e tudo que está nele passaria a {into} ({held, plural, =0 {sem uso} one {# publicação} other {# publicações}}). Não há como desfazer isso.",
     "foldConfirm": "Unir"
   },
+  "workspaceNames": {
+    "title": "Nomes neste lote",
+    "description": "Os tradutores, autores e editoras que estas linhas entrariam. Um nome grafado de outra forma é outro registro, então corrigi-lo aqui evita uni-lo depois.",
+    "authors": "Tradutores e autores",
+    "publishers": "Editoras",
+    "count": "{count, plural, one {# nome} other {# nomes}}",
+    "doubtfulCount": "{count, plural, one {# nome pode estar grafado errado} other {# nomes podem estar grafados errado}}",
+    "onRows": "{count, plural, one {# linha} other {# linhas}}",
+    "onPublications": "{count, plural, =0 {sem uso} one {# publicação} other {# publicações}}",
+    "didYouMean": "Já aqui como",
+    "doubtful": "pode estar errado",
+    "held": "já está aqui",
+    "new": "novo",
+    "noneOfThisKind": "Nenhum neste lote."
+  },
   "resemblances": {
     "label": "Possíveis duplicatas nesta importação",
     "found": "{count, plural, one {# linha se parece com uma publicação já conhecida} other {# linhas se parecem com publicações já conhecidas}}",
