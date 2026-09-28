@@ -1,4 +1,13 @@
+import {
+  Awareness,
+  applyAwarenessUpdate,
+  encodeAwarenessUpdate,
+} from "y-protocols/awareness";
+import * as Y from "yjs";
+
 import { Publication, PublicationError, PublicationKey, empty } from "./model";
+import type { PresenceList } from "./document-live";
+import type { At } from "./presence";
 import { clearSelection } from "modules/selection";
 import type { Store } from "modules/store";
 import { createId, hydrate, resetAll, resetAttributes, setAll } from "./store";
@@ -107,8 +116,44 @@ function seedIndex(
   );
 }
 
+/**
+ * A shared document for a story to render inside, with whoever is named as
+ * being here and the cell each of them is in.
+ *
+ * Each person is a connection of their own, as they would be in a tab of their
+ * own: known to presence by the address the server holds for them, and heard
+ * over the wire saying where they are looking.
+ */
+function aDocumentWith(others: { email: string; at?: At }[] = []): {
+  awareness: Awareness;
+  presence: PresenceList;
+} {
+  const awareness = new Awareness(new Y.Doc());
+  const connections = new Map<number, string>();
+
+  others.forEach(({ email, at }) => {
+    const theirs = new Awareness(new Y.Doc());
+    theirs.setLocalState({ at });
+    connections.set(theirs.clientID, email);
+
+    applyAwarenessUpdate(
+      awareness,
+      encodeAwarenessUpdate(theirs, [theirs.clientID]),
+      "elsewhere",
+    );
+
+    theirs.destroy();
+  });
+
+  return {
+    awareness,
+    presence: { subscribe: () => () => {}, connections: () => connections },
+  };
+}
+
 export {
   SAMPLE_PUBLICATIONS,
+  aDocumentWith,
   fieldErrors,
   sampleManyPublications,
   seed,

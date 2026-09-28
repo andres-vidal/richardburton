@@ -66,6 +66,45 @@ body {
   @apply font-normal text-indigo-600 underline visited:text-indigo-700;
 }
 
+/*
+  The colour each person present in a document is drawn in, by the index
+  `colourOf` gives them in modules/publication/presence.tsx, which also holds how
+  many there are. An element names the index in `data-colour`, or in
+  `data-taken` on a cell somebody has their cursor in. It reads the colour back
+  as `--presence`, and a pale wash of it as `--presence-tint`.
+*/
+@layer base {
+  [data-colour="0"],
+  [data-taken="0"] {
+    --presence: var(--color-indigo-500);
+    --presence-tint: var(--color-indigo-100);
+  }
+
+  [data-colour="1"],
+  [data-taken="1"] {
+    --presence: var(--color-emerald-500);
+    --presence-tint: var(--color-emerald-100);
+  }
+
+  [data-colour="2"],
+  [data-taken="2"] {
+    --presence: var(--color-amber-500);
+    --presence-tint: var(--color-amber-100);
+  }
+
+  [data-colour="3"],
+  [data-taken="3"] {
+    --presence: var(--color-rose-500);
+    --presence-tint: var(--color-rose-100);
+  }
+
+  [data-colour="4"],
+  [data-taken="4"] {
+    --presence: var(--color-sky-500);
+    --presence-tint: var(--color-sky-100);
+  }
+}
+
 @utility focus-ring {
   @apply outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white;
 }
