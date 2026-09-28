@@ -201,6 +201,16 @@ defmodule RichardBurtonWeb.PublicationController do
 
   def distinguish(_conn, _params), do: {:error, :not_enough}
 
+  # What rows being imported look like, so a duplicate can be caught before it
+  # is written rather than found in the review afterwards. Rows are named by
+  # their position in the list, since none of them has an id yet.
+  def resemblances(conn, %{"_json" => rows}) do
+    json(conn, %{
+      entries: Publication.Duplicates.resemblances(rows),
+      threshold: Publication.Duplicates.threshold()
+    })
+  end
+
   # What has been ruled apart, so a reviewer can see a decision and take it back.
   def distinctions(conn, _params) do
     json(conn, %{entries: Publication.Duplicates.ruled_apart()})
