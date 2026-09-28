@@ -17,15 +17,14 @@ import {
   errorFamily,
   isValidatingAtom,
   lastValidatedFamily,
-  overrideFamily,
   publicationFamily,
   publicationIdsAtom,
+  remember,
   removePublication,
   resetAll,
   setAll,
   setErrors,
   visibleIdsAtom,
-  visiblePublicationFamily,
 } from "./store";
 
 /**
@@ -71,9 +70,7 @@ async function loadDetails(
 async function bulk(store: Store): Promise<Publication[]> {
   return run(async (http) => {
     const ids = store.get(visibleIdsAtom);
-    const publications = ids?.map((id) =>
-      store.get(visiblePublicationFamily(id)),
-    );
+    const publications = ids?.map((id) => store.get(publicationFamily(id)));
 
     store.set(publicationIdsAtom, RESET);
 
@@ -90,16 +87,15 @@ async function bulk(store: Store): Promise<Publication[]> {
  * on a conflict or validation error the row keeps its edits so they can be fixed.
  */
 async function update(store: Store, id: PublicationId): Promise<boolean> {
-  const publication = store.get(visiblePublicationFamily(id));
+  const publication = store.get(publicationFamily(id));
 
   try {
     const { data } = await request((http) =>
       http.put<Publication>(`publications/${id}`, publication),
     );
 
-    // Replace the row with the server's canonical value and clear the edit.
-    store.set(publicationFamily(id), data);
-    store.set(overrideFamily(id), RESET);
+    // The server's value is now both the saved copy and the row.
+    remember(store, data);
     store.set(errorFamily(id), RESET);
     notify({
       message: "notify.publicationUpdated",
@@ -336,7 +332,7 @@ async function distinguish(ids: PublicationId[]): Promise<boolean> {
  * conflict check so an in-place edit doesn't collide with itself.
  */
 async function validateUpdate(store: Store, id: PublicationId): Promise<void> {
-  const publication = store.get(visiblePublicationFamily(id));
+  const publication = store.get(publicationFamily(id));
   const fingerprint = hash(publication);
 
   // Same dedup as `validate`: this runs on every blur (and on every change for
@@ -361,7 +357,7 @@ async function validate(store: Store, ids: PublicationId[]): Promise<void> {
       const pending = ids
         .map((id) => ({
           id,
-          publication: store.get(visiblePublicationFamily(id)),
+          publication: store.get(publicationFamily(id)),
         }))
         .map((entry) => ({ ...entry, hash: hash(entry.publication) }))
         .filter(({ id, hash: h }) => h !== store.get(lastValidatedFamily(id)))

@@ -54,8 +54,8 @@ save lands, never to an unsaved draft.
 
 The detail pane shows the publication's context and progress. **Save & next** is
 disabled until a source is added — **Skip** moves past a publication you can't
-source. Edits write to the row's override overlay and are persisted by `update`
-on save. On the last publication in the queue the button reads just **Save** —
+source. Edits write to the row in the store and are persisted by `update` on
+save. Skipping puts the row back the way it was saved. On the last publication in the queue the button reads just **Save** —
 there is no next to advance to.
 
 <Canvas of={SourcesBackfillStories.Step} />

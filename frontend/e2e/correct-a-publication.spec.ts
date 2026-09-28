@@ -127,6 +127,60 @@ test("an admin edits a publication's title and sources in a corpus", async ({
   await expect(row.getByText("1987", { exact: true })).toBeVisible();
 });
 
+test("an edit thought better of changes nothing, in the editor or the database behind it", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+
+  const dialog = await openPublicationModal(page, "The Hour of the Star");
+  await dialog.getByRole("button", { name: "Edit" }).click();
+
+  const title = dialog.getByRole("textbox", { name: "Title", exact: true });
+  await title.fill("The Hour of the Star (abandoned)");
+  await title.blur();
+
+  // The database behind the open editor shows what is saved, not what is being
+  // typed. Text rather than role: the open dialog takes the rest of the page out
+  // of the accessibility tree.
+  await expect(page.getByText("The Hour of the Star (abandoned)")).toHaveCount(
+    0,
+  );
+
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+
+  // Editing again starts from what is saved, not from what was abandoned.
+  await dialog.getByRole("button", { name: "Edit" }).click();
+  await expect(title).toHaveValue("The Hour of the Star");
+
+  // Closing the view mid-edit abandons it the same way.
+  await title.fill("The Hour of the Star (abandoned again)");
+  await title.blur();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+
+  const reopened = await openPublicationModal(page, "The Hour of the Star");
+  await reopened.getByRole("button", { name: "Edit" }).click();
+  await expect(
+    reopened.getByRole("textbox", { name: "Title", exact: true }),
+  ).toHaveValue("The Hour of the Star");
+  await page.keyboard.press("Escape");
+
+  // None of it reached the server: the record reads as it did, and its log
+  // holds the import alone.
+  await page.reload();
+  const again = await openPublicationModal(page, "The Hour of the Star");
+  await again.getByText("History", { exact: true }).click();
+  await expect(again.getByText("Created")).toBeVisible();
+  await expect(again.getByText("Updated")).toHaveCount(0);
+
+  await page.keyboard.press("Escape");
+  await expect(
+    indexTable(page).getByText("The Hour of the Star", { exact: true }),
+  ).toBeVisible();
+  await expect(indexTable(page).getByText(/abandoned/)).toHaveCount(0);
+});
+
 test("editing a publication into a copy of another is rejected as a conflict", async ({
   page,
 }) => {

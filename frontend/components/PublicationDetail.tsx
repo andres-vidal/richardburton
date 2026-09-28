@@ -21,11 +21,7 @@ import {
   update,
   validateUpdate,
 } from "modules/publication/remote";
-import {
-  discardEdit,
-  overrideSources,
-  remember,
-} from "modules/publication/store";
+import { discardEdit, setSources, remember } from "modules/publication/store";
 import {
   PublicationStoreProvider,
   usePublicationStore,
@@ -269,7 +265,7 @@ const PublicationEditForm: FC<{
       </div>
       <SourcesEditor
         value={sources}
-        onChange={(next) => overrideSources(store, id, next)}
+        onChange={(next) => setSources(store, id, next)}
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 justify-end">
@@ -348,8 +344,8 @@ const Detail: FC<PublicationDetailProps> = ({
   const [deleting, setDeleting] = useState(false);
   const mergeDialog = useModal();
 
-  // An edit abandoned by closing the view is dropped, not kept: the overlay it
-  // writes to is the same one the row behind it reads around.
+  // An edit abandoned by closing the view is dropped, not kept: the row goes
+  // back to the way it was saved, and its errors are cleared.
   useEffect(
     () => (editing ? () => discardEdit(store, id) : undefined),
     [editing, id, store],

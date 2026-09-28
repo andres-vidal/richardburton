@@ -16,7 +16,7 @@ import {
   usePublicationStore,
 } from "modules/publication/workspace";
 import { update } from "modules/publication/remote";
-import { discardEdit, overrideSources } from "modules/publication/store";
+import { discardEdit, setSources } from "modules/publication/store";
 import { Link } from "i18n/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { FC, KeyboardEvent, useEffect, useRef, useState } from "react";
@@ -167,7 +167,7 @@ export const BackfillStep: FC<{
 
       <SourcesEditor
         value={sources}
-        onChange={(next) => overrideSources(store, id, next)}
+        onChange={(next) => setSources(store, id, next)}
       />
 
       <div className="flex gap-3 justify-end mt-auto">

@@ -18,49 +18,42 @@ import {
   isValidFamily,
   matchedAtom,
   isValidatingAtom,
-  overriddenCountAtom,
-  overriddenIdsAtom,
-  overrideFamily,
-  publicationOrNullFamily,
   publicationSourcesFamily,
   publicationExcerptsFamily,
   publicationFamily,
+  savedFamily,
   storedFieldValueFamily,
   storedSourcesFamily,
   totalCountAtom,
   matchingCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
+  rowNumberFamily,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
   visibleIdsAtom,
-  visiblePublicationFamily,
 } from "./store";
 
 // Reads are thin `useAtomValue` wrappers; writes are the plain action functions
 // exported from ./store (they operate on the module store directly, so they
 // don't need to be hooks). Components read with these and call actions inline.
 
-const NULL_PUBLICATION = atom<Publication | null>(null);
+const NO_PUBLICATION = atom<Publication | undefined>(undefined);
 
 function useVisiblePublicationIds() {
   return useAtomValue(visibleIdsAtom);
 }
 
-function useOverriddenPublicationIds() {
-  return useAtomValue(overriddenIdsAtom);
-}
-
-/** A publication with pending edits merged in (base ⊕ overrides). */
+/** A row as it is being edited, with any unsaved edit in it. */
 function useVisiblePublication(id: PublicationId) {
-  return useAtomValue(visiblePublicationFamily(id));
+  return useAtomValue(publicationFamily(id));
 }
 
-/** The stored (unedited) publication, or null — accepts an undefined id. */
+/** The saved publication, or null where there is none. Accepts an undefined id. */
 function usePublication(id: PublicationId | undefined) {
-  return useAtomValue(
-    id !== undefined ? publicationOrNullFamily(id) : NULL_PUBLICATION,
+  return (
+    useAtomValue(id !== undefined ? savedFamily(id) : NO_PUBLICATION) ?? null
   );
 }
 
@@ -72,7 +65,7 @@ function usePublicationField<K extends PublicationKey>(
   return useAtomValue(fieldValueFamily({ id, key })) as Publication[K];
 }
 
-/** A single cell's stored value, ignoring pending edits — its own subscription. */
+/** A single cell's saved value, ignoring any unsaved edit — its own subscription. */
 function usePublicationStoredField<K extends PublicationKey>(
   id: PublicationId,
   key: K,
@@ -92,14 +85,15 @@ function usePublicationMarking(): Marking {
 }
 
 /**
- * A single cell as the index marked it, or as stored where the search did not
- * match. Reads the *stored* publication, so a pending edit does not leak into
- * the read-only table.
+ * A single cell as the index marked it, or as saved where the search did not
+ * match. It reads the saved publication, so an unsaved edit does not show in
+ * the read-only table. A row with no saved copy reads as empty.
  */
 function usePublicationMarkedField(id: PublicationId, key: PublicationKey) {
-  const publication = useAtomValue(publicationFamily(id));
+  const publication = useAtomValue(savedFamily(id));
+  const marking = usePublicationMarking();
 
-  return usePublicationMarking().value(publication, key);
+  return publication ? marking.value(publication, key) : "";
 }
 
 function usePublicationExcerpts(id: PublicationId) {
@@ -110,7 +104,7 @@ function usePublicationSources(id: PublicationId) {
   return useAtomValue(publicationSourcesFamily(id));
 }
 
-/** The persisted sources only — drafts don't show until saved. */
+/** The saved sources only. An unsaved edit to them does not show until it is saved. */
 function useStoredPublicationSources(id: PublicationId) {
   return useAtomValue(storedSourcesFamily(id));
 }
@@ -143,16 +137,17 @@ function usePublicationFieldError(id: PublicationId, key: PublicationKey) {
   return useErrorSentence(useAtomValue(fieldErrorCodeFamily({ id, key })));
 }
 
-function usePublicationOverride(id: PublicationId) {
-  return useAtomValue(overrideFamily(id));
-}
-
 function useIsPublicationValid(id: PublicationId) {
   return useAtomValue(isValidFamily(id));
 }
 
 function useIsPublicationFocused(id: PublicationId) {
   return id === useAtomValue(focusedRowIdAtom);
+}
+
+/** Where the row sits in the working set, counting from one. */
+function usePublicationRowNumber(id: PublicationId) {
+  return useAtomValue(rowNumberFamily(id));
 }
 
 function useVisiblePublicationCount() {
@@ -165,10 +160,6 @@ function useValidPublicationCount() {
 
 function useDiscardedPublicationCount() {
   return useAtomValue(discardedCountAtom);
-}
-
-function useOverriddenPublicationCount() {
-  return useAtomValue(overriddenCountAtom);
 }
 
 function useTotalPublicationCount() {
@@ -226,8 +217,6 @@ export {
   useIsPublicationValid,
   useMatched,
   useIsValidating,
-  useOverriddenPublicationCount,
-  useOverriddenPublicationIds,
   usePublication,
   usePublicationError,
   usePublicationErrorDescription,
@@ -235,7 +224,6 @@ export {
   usePublicationFieldError,
   useMatchingCount,
   usePublicationIndexCount,
-  usePublicationOverride,
   usePublicationSources,
   usePublicationExcerpts,
   usePublicationMarkedField,
@@ -244,6 +232,7 @@ export {
   useStoredPublicationSources,
   useTotalPublicationCount,
   useUnsourcedPublicationCount,
+  usePublicationRowNumber,
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,

@@ -19,6 +19,7 @@ import {
   usePublicationIndexCount,
 } from "modules/publication/hooks";
 import { receiveIndex } from "modules/publication/store";
+import type { PublicationId } from "modules/publication/model";
 import {
   PublicationStoreProvider,
   usePublicationStore,
@@ -62,14 +63,14 @@ function Database({ index }: Props) {
     receiveIndex(store, index);
   }, [store, index]);
 
-  function handleRowClick(id: number) {
+  function handleRowClick(id: PublicationId) {
     const query = new URLSearchParams({ modal: "" });
     if (search) query.set("search", search);
 
     return () => router.push(`/publications/${id}?${query}`);
   }
 
-  const rowHref = (id: number) => `/publications/${id}`;
+  const rowHref = (id: PublicationId) => `/publications/${id}`;
 
   return (
     <Layout

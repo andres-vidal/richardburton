@@ -18,7 +18,7 @@ which is the only `book` column and fills its neighbour as well as itself.
 
 `DataInput` keeps the live edit in local state but treats the incoming `value`
 as the source of truth: an effect re-syncs when the store's value changes. On
-every edit it calls `overrideField(rowId, colId, value)` to write the change
+every edit it calls `setField(rowId, colId, value)` to write the change
 back into the publication store, then re-emits through `onChange`. For `array`
 and `enum` columns it also revalidates the row; the other types validate on
 blur. Any `error` prop marks the cell invalid.

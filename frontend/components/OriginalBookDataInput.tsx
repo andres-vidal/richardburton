@@ -2,7 +2,7 @@
 
 import type { OriginalBookValue } from "modules/original-book";
 import { Publication } from "modules/publication/model";
-import { overrideField } from "modules/publication/store";
+import { setField } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import pDebounce from "p-debounce";
 import { FC, forwardRef, useMemo, useRef, useState } from "react";
@@ -81,7 +81,7 @@ export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
 
       // The other half of the book, written straight to its own field — the
       // point of the suggestion is that the two never disagree.
-      overrideField(store, rowId, "originalAuthors", book.authors);
+      setField(store, rowId, "originalAuthors", book.authors);
       onChange?.(book.title);
 
       latest.current += 1;

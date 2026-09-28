@@ -1,14 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { RESET } from "jotai/utils";
 import { store } from "modules/store";
-import { Publication } from "modules/publication/model";
+import { Publication, type PublicationId } from "modules/publication/model";
 import {
   discardEdit,
-  overrideFamily,
+  hydrate,
   publicationFamily,
+  remember,
   resetAll,
-  setAll,
-  visiblePublicationFamily,
 } from "modules/publication/store";
 import { ComponentProps, FC, useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
@@ -19,8 +17,9 @@ import {
   SourcesQueue,
 } from "./SourcesBackfill";
 
-const publication = (title: string, sources: string[] = []) => ({
+const publication = (id: number, title: string, sources: string[] = []) => ({
   ...Publication.empty(),
+  id,
   title,
   authors: ["Helen Caldwell"],
   originalTitle: "Dom Casmurro",
@@ -33,14 +32,10 @@ const publication = (title: string, sources: string[] = []) => ({
 
 const seedQueue = () => {
   resetAll(store);
-  setAll(store, [
-    { id: 1, publication: publication("Dom Casmurro"), errors: null },
-    {
-      id: 2,
-      publication: publication("The Hour of the Star", ["A source"]),
-      errors: null,
-    },
-    { id: 3, publication: publication("The Devil to Pay"), errors: null },
+  hydrate(store, [
+    publication(1, "Dom Casmurro"),
+    publication(2, "The Hour of the Star", ["A source"]),
+    publication(3, "The Devil to Pay"),
   ]);
 };
 
@@ -74,14 +69,11 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Mimic a successful save without a server: promote the draft (base ⊕
- * override) to the stored publication and clear the edit — exactly the state
- * `update()` leaves behind. Dots and the count react to *stored* sources,
- * so they only change here, never while typing. */
-const persistDraft = (id: number) => {
-  store.set(publicationFamily(id), store.get(visiblePublicationFamily(id)));
-  store.set(overrideFamily(id), RESET);
-};
+/** Mimic a successful save without a server: the edited row becomes the saved
+ * copy, which is the state `update()` leaves behind. Dots and the count read
+ * the saved sources, so they only change here, never while typing. */
+const persistDraft = (id: PublicationId) =>
+  remember(store, store.get(publicationFamily(id)));
 
 /**
  * Recreates the orchestrator's local state around the presentational view, so

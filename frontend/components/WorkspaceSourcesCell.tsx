@@ -2,7 +2,7 @@
 
 import { usePublicationSources } from "modules/publication/hooks";
 import { usePublicationStore } from "modules/publication/workspace";
-import { overrideSources } from "modules/publication/store";
+import { setSources } from "modules/publication/store";
 import { useTranslations } from "next-intl";
 import { FC, MouseEvent, useState } from "react";
 import Button from "./Button";
@@ -13,8 +13,8 @@ import SourcesEditor from "./SourcesEditor";
 /**
  * The trailing "sources" cell for a workspace row. Sources is a list, not a
  * scalar cell, so it lives outside the attribute grid: a button shows the count
- * and opens the list editor in a modal. Edits write to the row's override overlay,
- * so they ride the bulk insert with everything else — no separate save.
+ * and opens the list editor in a modal. Edits write to the row itself, so they
+ * ride the bulk insert with everything else — no separate save.
  *
  * The row-state props mirror the attribute cells so the cell shares the row's
  * hover / error / selected background. The workspace supplies them for committed
@@ -66,7 +66,7 @@ const WorkspaceSourcesCell: FC<{
           <h1 className="text-xl font-normal">{t("sourcesEditor")}</h1>
           <SourcesEditor
             value={sources}
-            onChange={(next) => overrideSources(store, rowId, next)}
+            onChange={(next) => setSources(store, rowId, next)}
           />
         </div>
       </Modal>

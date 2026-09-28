@@ -1,7 +1,7 @@
 import { Publication, PublicationError, PublicationKey, empty } from "./model";
 import { clearSelection } from "modules/selection";
 import type { Store } from "modules/store";
-import { createId, resetAll, resetAttributes, setAll } from "./store";
+import { createId, hydrate, resetAll, resetAttributes, setAll } from "./store";
 
 type SeedEntry = Partial<Publication> & { errors?: PublicationError };
 
@@ -58,19 +58,25 @@ function sampleManyPublications(count: number): Partial<Publication>[] {
   });
 }
 
-/**
- * Reset a store and seed it with the given publications (defaults to samples).
- * Each entry may carry an `errors` value to render an invalid row.
- *
- * Takes the store so a story can seed the one it is about to hand its provider,
- * rather than a shared singleton.
- */
-function seed(store: Store, entries: SeedEntry[] = SAMPLE_PUBLICATIONS): void {
+/** Empty a store, including what a story before it left selected or hidden. */
+function clear(store: Store): void {
   resetAll(store);
   clearSelection(store);
   // Column visibility survives resetAll (it's a UI preference in the app), so
   // reset it here too — otherwise a column hidden in one story stays hidden.
   resetAttributes(store);
+}
+
+/**
+ * Reset a store and seed it with the given publications (defaults to samples),
+ * as the rows of an import workspace. Each entry may carry an `errors` value to
+ * render an invalid row.
+ *
+ * Takes the store so a story can seed the one it is about to hand its provider,
+ * rather than a shared singleton.
+ */
+function seed(store: Store, entries: SeedEntry[] = SAMPLE_PUBLICATIONS): void {
+  clear(store);
   setAll(
     store,
     entries.map(({ errors = null, ...publication }) => ({
@@ -81,4 +87,30 @@ function seed(store: Store, entries: SeedEntry[] = SAMPLE_PUBLICATIONS): void {
   );
 }
 
-export { SAMPLE_PUBLICATIONS, fieldErrors, sampleManyPublications, seed };
+/**
+ * Reset a store and seed it with the given publications (defaults to samples),
+ * as the database holds them. This is what the read-only index shows, since it
+ * reads the saved copy of each row. Each gets a server id, counting from one.
+ */
+function seedIndex(
+  store: Store,
+  entries: Partial<Publication>[] = SAMPLE_PUBLICATIONS,
+): void {
+  clear(store);
+  hydrate(
+    store,
+    entries.map((publication, index) => ({
+      ...empty(),
+      ...publication,
+      id: index + 1,
+    })),
+  );
+}
+
+export {
+  SAMPLE_PUBLICATIONS,
+  fieldErrors,
+  sampleManyPublications,
+  seed,
+  seedIndex,
+};

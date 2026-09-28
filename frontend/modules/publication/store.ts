@@ -1,7 +1,10 @@
+import { v4 as uuid } from "uuid";
 import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
 import type { Store } from "modules/store";
+import * as Y from "yjs";
+import * as Doc from "./doc";
 import {
   ATTRIBUTES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
@@ -13,24 +16,120 @@ import {
   PublicationKey,
   errorCode,
   empty,
+  idFromText,
 } from "./model";
 
 /**
- * Well-known id for the always-present "new publication" draft row. Persisted
- * rows are addressed by their server id (the publication PK, positive) and
- * unsaved rows by a client-minted id (negative, see `createId`), so `0` never
- * collides with either.
+ * Well-known key for the always-present "new publication" draft row. Persisted
+ * rows are addressed by their server id (a number) and unsaved rows by a UUID,
+ * so a reserved word collides with neither.
  */
-const DRAFT_ID: PublicationId = 0;
+const DRAFT_ID: PublicationId = "draft";
 
-let sequence = -1;
 /**
- * Mint a client id for an unsaved row (upload/review/duplicate). Negative and
- * descending so it can never collide with a server id (positive) or the draft
- * (`0`); persisted rows are addressed by their real server id instead.
+ * Mint a key for an unsaved row (upload, review, duplicate).
+ *
+ * A UUID rather than a counter, because the key has to name the same row to two
+ * people editing a workspace at once: a counter restarts at the same value in
+ * every browser, so two rows entered separately would claim one key. Persisted
+ * rows are addressed by their real server id instead.
  */
 function createId(): PublicationId {
-  return sequence--;
+  return uuid();
+}
+
+/**
+ * The document a store's rows live in, and the undo that walks back this
+ * person's own edits to it.
+ */
+type StoreDocument = { doc: Y.Doc; undo: Y.UndoManager };
+
+/**
+ * A store's document, with the way to stop the atoms following it.
+ *
+ * `owned` is true when the store made the document itself, and false when it
+ * was handed one to work in. Only a document the store owns is the store's to
+ * throw away.
+ */
+type Binding = StoreDocument & { stop: () => void; owned: boolean };
+
+/**
+ * Which store holds which document.
+ *
+ * Every store has one. The store of an import document is handed that document
+ * by `openWorkspace`. Any other store makes a document of its own the first
+ * time it needs one. Holding the pairing here is what lets every action take
+ * only the store.
+ */
+const documents = new WeakMap<Store, Binding>();
+
+/** The document this store works in, made on first use where it was handed none. */
+function documentOf(store: Store): StoreDocument {
+  return documents.get(store) ?? bind(store, new Y.Doc(), true);
+}
+
+/**
+ * Make `doc` the document this store works in, and keep the atoms reading it.
+ *
+ * One observer writes the document into the atoms, and nothing writes back, so
+ * there is no echo to break. Everything downstream reads atoms: the families,
+ * the cells and the marking hooks never see the document.
+ *
+ * The document the store worked in before, if any, stops being followed, so no
+ * two observers write one store.
+ */
+function bind(store: Store, doc: Y.Doc, owned: boolean): Binding {
+  documents.get(store)?.stop();
+
+  const undo = Doc.undoManager(doc);
+
+  const onRows = (changed: PublicationId[]) =>
+    changed.forEach((id) => {
+      const row = Doc.readRow(doc, id);
+      if (row) store.set(publicationFamily(id), row);
+    });
+
+  const onOrder = () => store.set(publicationIdsAtom, Doc.keys(doc));
+
+  const stopObserving = Doc.observe(doc, { onRows, onOrder });
+
+  // A document the store was handed may already hold rows, restored from disk
+  // or arrived from elsewhere before anything subscribed. One it has just made
+  // holds nothing, and reading it would claim a working set nobody loaded.
+  if (!owned) {
+    onRows(Doc.keys(doc));
+    onOrder();
+  }
+
+  const binding: Binding = {
+    doc,
+    undo,
+    owned,
+    stop: () => {
+      stopObserving();
+      undo.destroy();
+    },
+  };
+
+  documents.set(store, binding);
+
+  return binding;
+}
+
+/**
+ * Work in an import document: one this store was handed, which other people
+ * may be editing too.
+ *
+ * Returns the way to stop. The document stays the caller's, and is left as it
+ * is.
+ */
+function openWorkspace(store: Store, doc: Y.Doc): () => void {
+  const binding = bind(store, doc, false);
+
+  return () => {
+    binding.stop();
+    if (documents.get(store) === binding) documents.delete(store);
+  };
 }
 
 // --- Base atoms -------------------------------------------------------------
@@ -75,16 +174,29 @@ const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
 
 // --- Per-publication families ----------------------------------------------
 
+/**
+ * Each row as the store's document holds it, with any edit made to it.
+ *
+ * A row the document does not hold reads as `undefined`, although it is typed
+ * as a Publication. The draft row is not held in the document, and starts empty
+ * so it can be typed into immediately.
+ */
 const publicationFamily = atomFamily((id: PublicationId) =>
-  // Unset rows read as `undefined` (typed as Publication, matching the old
-  // model); the draft row starts empty so it can be typed into immediately.
   atomWithReset<Publication>(
     id === DRAFT_ID ? empty() : (undefined as unknown as Publication),
   ),
 );
 
-const overrideFamily = atomFamily((_id: PublicationId) =>
-  atomWithReset<Partial<Publication> | undefined>(undefined),
+/**
+ * Each publication as the database last returned it.
+ *
+ * The row in the document is the one being edited, so while an edit is unsaved
+ * the two differ. Reading this instead is how a read-only view of the database
+ * keeps showing what is saved while an editor over it holds something else. A
+ * row that was never saved, as in an import document, has none.
+ */
+const savedFamily = atomFamily((_id: PublicationId) =>
+  atomWithReset<Publication | undefined>(undefined),
 );
 
 const errorFamily = atomFamily((_id: PublicationId) =>
@@ -113,10 +225,6 @@ const discardedIdsAtom = atom((get) =>
   get(publicationIdsAtom)?.filter((id) => get(discardedFamily(id))),
 );
 
-const overriddenIdsAtom = atom((get) =>
-  get(visibleIdsAtom)?.filter((id) => get(overrideFamily(id))),
-);
-
 const validIdsAtom = atom((get) =>
   get(publicationIdsAtom)
     ?.filter((id) => !get(discardedFamily(id)))
@@ -129,8 +237,29 @@ const invalidIdsAtom = atom(
 );
 
 const visibleCountAtom = atom((get) => get(visibleIdsAtom)?.length || 0);
+
+/** Each visible row's place in the working set, counting from one. */
+const rowOrderAtom = atom((get) => {
+  const at = new Map<PublicationId, number>();
+
+  (get(visibleIdsAtom) ?? []).forEach((id, index) => at.set(id, index + 1));
+
+  return at;
+});
+
+/**
+ * Where a row sits in the working set, counting from one, or 0 for a row that is
+ * not in it.
+ *
+ * Counted from the order rather than read off the key: a key names a row without
+ * saying where it sits, and an unsaved row’s key is a UUID. It is looked up in
+ * one map of every row's place rather than searched for in the list, since a
+ * search per row is the whole list per row and every row on screen asks at once.
+ */
+const rowNumberFamily = atomFamily((id: PublicationId) =>
+  atom<number>((get) => get(rowOrderAtom).get(id) ?? 0),
+);
 const discardedCountAtom = atom((get) => get(discardedIdsAtom)?.length || 0);
-const overriddenCountAtom = atom((get) => get(overriddenIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
 
@@ -144,21 +273,9 @@ const hiddenAttributesAtom = atom((get) =>
 
 // --- Derived families -------------------------------------------------------
 
-/** A publication with its pending edits (overrides) merged over the base value. */
-const visiblePublicationFamily = atomFamily((id: PublicationId) =>
-  atom<Publication>((get) => ({
-    ...get(publicationFamily(id)),
-    ...(get(overrideFamily(id)) || {}),
-  })),
-);
-
-const publicationOrNullFamily = atomFamily((id: PublicationId) =>
-  atom<Publication | null>((get) => get(publicationFamily(id)) || null),
-);
-
-/** A publication's provenance list (base ⊕ override), never undefined. */
+/** A row's provenance list, edits and all, and never undefined. */
 const publicationSourcesFamily = atomFamily((id: PublicationId) =>
-  atom<string[]>((get) => get(visiblePublicationFamily(id)).sources ?? []),
+  atom<string[]>((get) => get(publicationFamily(id))?.sources ?? []),
 );
 
 /** The matching text of each of a publication's fields, with the matched words
@@ -166,14 +283,14 @@ const publicationSourcesFamily = atomFamily((id: PublicationId) =>
  * search did not match. */
 const publicationExcerptsFamily = atomFamily((id: PublicationId) =>
   atom<Record<string, string | null> | undefined>(
-    (get) => get(publicationFamily(id))?.excerpts,
+    (get) => get(savedFamily(id))?.excerpts,
   ),
 );
 
-/** A publication's *persisted* provenance list — ignores in-progress drafts,
- * the same stored-vs-visible distinction as `storedFieldValueFamily`. */
+/** A publication's saved provenance list, ignoring any unsaved edit to it, and
+ * never undefined. */
 const storedSourcesFamily = atomFamily((id: PublicationId) =>
-  atom<string[]>((get) => get(publicationFamily(id))?.sources ?? []),
+  atom<string[]>((get) => get(savedFamily(id))?.sources ?? []),
 );
 
 /** How many loaded publications still have no *saved* sources — drives the
@@ -206,7 +323,7 @@ const fieldKey = (cell: CellKey): FieldKey => {
   const separator = cell.indexOf(":");
 
   return {
-    id: Number(cell.slice(0, separator)),
+    id: idFromText(cell.slice(0, separator)),
     key: cell.slice(separator + 1) as PublicationKey,
   };
 };
@@ -238,16 +355,16 @@ function cellFamily<T>(initialize: (field: FieldKey) => Atom<T>) {
 
 /** A single cell's value — its own subscription, so editing one cell is cheap. */
 const fieldValueFamily = cellFamily(({ id, key }) =>
-  atom((get) => get(visiblePublicationFamily(id))[key]),
+  atom((get) => get(publicationFamily(id))?.[key]),
 );
 
 /**
- * A single cell's *stored* value, ignoring pending edits — what the server last
- * returned. The read-only index reads this so an in-progress edit (the modal's
- * draft lives in the same override overlay) doesn't leak into the table beneath.
+ * A single cell's saved value, ignoring any unsaved edit: what the server last
+ * returned. The read-only index reads this, since an editor open over it edits
+ * the same rows.
  */
 const storedFieldValueFamily = cellFamily(({ id, key }) =>
-  atom((get) => get(publicationFamily(id))[key]),
+  atom((get) => get(savedFamily(id))?.[key]),
 );
 
 const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
@@ -264,16 +381,16 @@ const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
  */
 const PUBLICATION_FAMILIES = [
   publicationFamily,
-  overrideFamily,
+  savedFamily,
   errorFamily,
   discardedFamily,
   lastValidatedFamily,
-  visiblePublicationFamily,
-  publicationOrNullFamily,
   publicationSourcesFamily,
+  publicationExcerptsFamily,
   storedSourcesFamily,
   isValidFamily,
   errorCodeFamily,
+  rowNumberFamily,
 ];
 
 const CELL_FAMILIES = [
@@ -321,40 +438,98 @@ function knownIds(): Set<PublicationId> {
 
 // --- Actions (imperative; operate on the module `store`) --------------------
 
+/** The fields a person edits, which are the ones that tell an edited row from its saved copy. */
+const EDITED_FIELDS = [...ATTRIBUTES, "sources"] as const;
+
+/** A publication's edited fields as text, in a fixed order, so that two copies compare by value. */
+function contentOf(publication: Publication): string {
+  const complete = { ...empty(), ...publication };
+
+  return JSON.stringify(EDITED_FIELDS.map((field) => complete[field]));
+}
+
+/**
+ * Whether a row holds an edit the database does not have yet.
+ *
+ * A row is edited when the document's copy differs from the saved one in a
+ * field a person edits. A row with no saved copy has nothing to differ from,
+ * so it is never counted as edited.
+ */
+function isEdited(store: Store, id: PublicationId): boolean {
+  const saved = store.get(savedFamily(id));
+  const row = store.get(publicationFamily(id));
+
+  return (
+    saved !== undefined &&
+    row !== undefined &&
+    contentOf(row) !== contentOf(saved)
+  );
+}
+
+/**
+ * Hold publications as the database has them: each one's saved copy, and its
+ * row in the document. It is called inside `Doc.hold`, alongside the change to
+ * the reading order that goes with it.
+ *
+ * A row with an unsaved edit keeps the edit, and only its saved copy moves, so
+ * results arriving behind an open editor do not undo what is being typed.
+ */
+function holdSaved(
+  store: Store,
+  doc: Y.Doc,
+  publications: Publication[],
+): void {
+  publications.forEach((publication) => {
+    const id = publication.id!;
+
+    if (!isEdited(store, id)) Doc.putRow(doc, id, publication);
+    store.set(savedFamily(id), publication);
+  });
+}
+
 /**
  * Seed the store with publications the backend has already saved, keyed by
  * their server ids — the one definition of "these rows are now the working set".
  *
  * Ids that leave the set are forgotten, so searching does not accumulate every
- * publication seen this session. A row with a pending edit is kept regardless:
- * a search running behind an open editor must not discard what is being typed.
+ * publication seen this session. A row with an unsaved edit is kept, outside
+ * the reading order: a search running behind an open editor must not discard
+ * what is being typed.
  */
 function hydrate(store: Store, publications: Publication[]): PublicationId[] {
-  const ids = publications.map((publication) => publication.id!);
+  const { doc } = documentOf(store);
+  const ids: PublicationId[] = publications.map(
+    (publication) => publication.id!,
+  );
   const arriving = new Set(ids);
 
-  forget(
-    [...knownIds()]
-      .filter((id) => id !== DRAFT_ID && !arriving.has(id))
-      .filter((id) => !store.get(overrideFamily(id))),
-  );
+  const leaving = [...knownIds()]
+    .filter((id) => id !== DRAFT_ID && !arriving.has(id))
+    .filter((id) => !isEdited(store, id));
 
-  store.set(publicationIdsAtom, ids);
-  publications.forEach((publication, index) =>
-    store.set(publicationFamily(ids[index]), publication),
-  );
+  Doc.hold(doc, () => {
+    Doc.dropRows(doc, leaving);
+    holdSaved(store, doc, publications);
+    Doc.setOrder(doc, ids);
+  });
+
+  forget(leaving);
 
   return ids;
 }
 
 /**
  * Make one saved publication known to the store without claiming it is the
- * working set — the counterpart of `forget`, and what a surface showing a single
- * record (a publication's own page) needs before it can be edited, since the
- * form edits the store's copy.
+ * working set: its saved copy, and its row in the document, replacing whatever
+ * the row held. It is the counterpart of `forget`. A surface showing a single
+ * record (a publication's own page) needs it before the record can be edited,
+ * since the form edits the store's row.
  */
 function remember(store: Store, publication: Publication): void {
-  store.set(publicationFamily(publication.id!), publication);
+  const { doc } = documentOf(store);
+
+  store.set(savedFamily(publication.id!), publication);
+  Doc.hold(doc, () => Doc.putRow(doc, publication.id!, publication));
 }
 
 /**
@@ -384,25 +559,34 @@ function receiveIndex(
  * (a deletion between fetches) is never doubled.
  */
 function appendIndex(store: Store, entries: Publication[]): void {
-  const loaded = store.get(publicationIdsAtom) ?? [];
-  const present = new Set(loaded);
+  const { doc } = documentOf(store);
+  const present = new Set(Doc.keys(doc));
   const fresh = entries.filter((publication) => !present.has(publication.id!));
 
-  fresh.forEach((publication) =>
-    store.set(publicationFamily(publication.id!), publication),
-  );
-  store.set(publicationIdsAtom, [...loaded, ...fresh.map(({ id }) => id!)]);
+  Doc.hold(doc, () => {
+    holdSaved(store, doc, fresh);
+    Doc.appendOrder(
+      doc,
+      fresh.map(({ id }) => id!),
+    );
+  });
 }
 
 function setAll(store: Store, entries: PublicationEntry[]): void {
-  store.set(
-    publicationIdsAtom,
-    entries.map(({ id }) => id),
-  );
-  entries.forEach(({ id, publication, errors }) => {
-    store.set(publicationFamily(id), publication);
-    store.set(errorFamily(id), errors);
-  });
+  const { doc, undo } = documentOf(store);
+
+  // Errors are never shared: they are what this person's copy was told when it
+  // last asked, so they stay in atoms.
+  entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
+
+  Doc.setAll(doc, entries);
+  undo.stopCapturing();
+
+  // Replacing an empty working set with another changes nothing, so the
+  // observer has nothing to report and the order has to be cleared here.
+  // Anything else the observer has already written, and writing it twice
+  // redraws the whole table for the second one.
+  if (entries.length === 0) store.set(publicationIdsAtom, []);
 }
 
 function setErrors(store: Store, entries: PublicationEntry[]): void {
@@ -421,30 +605,64 @@ function setFocusedRowId(store: Store, id: PublicationId | undefined): void {
   store.set(focusedRowIdAtom, id);
 }
 
-function overrideField<K extends PublicationKey>(
+/** Edit one field of a row. */
+function setField<K extends PublicationKey>(
   store: Store,
   id: PublicationId,
   attribute: K,
   value: Publication[K],
 ): void {
-  const current = store.get(overrideFamily(id));
-  store.set(overrideFamily(id), { ...current, [attribute]: value });
+  writeRow(store, id, { [attribute]: value });
 }
 
-/** Overlay the whole provenance list (sources are edited as a unit, not per
- * cell), reusing the same override overlay as the scalar fields. */
-function overrideSources(
+/** Edit a row's whole provenance list, which is edited as a unit rather than
+ * per cell. */
+function setSources(store: Store, id: PublicationId, sources: string[]): void {
+  writeRow(store, id, { sources });
+}
+
+/**
+ * Write an edit to a row, in the place that row lives.
+ *
+ * A row is edited in the store's document, and the edit is its value. The
+ * draft row is the one row kept out of the document, because a row nobody has
+ * added yet should not reach the people sharing an import document. What is
+ * typed into it stays in its atom until `addNew` hands it over.
+ *
+ * An edit to a row the document no longer holds, such as one a collaborator
+ * removed, changes nothing.
+ */
+function writeRow(
   store: Store,
   id: PublicationId,
-  sources: string[],
+  fields: Partial<Publication>,
 ): void {
-  const current = store.get(overrideFamily(id));
-  store.set(overrideFamily(id), { ...current, sources });
+  if (id === DRAFT_ID) {
+    store.set(publicationFamily(DRAFT_ID), {
+      ...store.get(publicationFamily(DRAFT_ID)),
+      ...fields,
+    });
+    return;
+  }
+
+  const { doc } = documentOf(store);
+
+  Doc.write(doc, () =>
+    Object.entries(fields).forEach(([attribute, value]) =>
+      Doc.setField(doc, id, attribute, value),
+    ),
+  );
 }
 
-/** Drop a single row's pending edits and errors (cancelling an edit). */
+/**
+ * Cancel an edit: put a row back the way it was saved, and drop its errors.
+ * A row that was never saved has nothing to go back to, and keeps what it
+ * holds.
+ */
 function discardEdit(store: Store, id: PublicationId): void {
-  store.set(overrideFamily(id), RESET);
+  const saved = store.get(savedFamily(id));
+
+  if (saved) remember(store, saved);
   store.set(errorFamily(id), RESET);
 }
 
@@ -461,12 +679,13 @@ function addNew(store: Store): PublicationId {
   const ids = store.get(publicationIdsAtom);
   if (!ids) throw "Can not add new publications: entries not loaded.";
 
+  const { doc, undo } = documentOf(store);
   const id = createId();
-  const draft = store.get(visiblePublicationFamily(DRAFT_ID));
 
-  store.set(publicationIdsAtom, [...ids, id]);
-  store.set(publicationFamily(id), draft);
-  store.set(overrideFamily(DRAFT_ID), RESET);
+  Doc.addRow(doc, id, store.get(publicationFamily(DRAFT_ID)));
+  // Adding a row and typing into it are different steps to walk back.
+  undo.stopCapturing();
+  store.set(publicationFamily(DRAFT_ID), empty());
 
   return id;
 }
@@ -479,22 +698,22 @@ function duplicate(
   const ids = store.get(publicationIdsAtom);
   if (!ids) throw "Can not duplicate publications: entries not loaded.";
 
-  const newIds: PublicationId[] = [];
-  const orderedIds = ids.reduce<PublicationId[]>((acc, current) => {
-    if (duplicateIds.has(current)) {
-      const newId = createId();
-      newIds.push(newId);
-      store.set(
-        publicationFamily(newId),
-        store.get(publicationFamily(current)),
-      );
-      return [...acc, current, newId];
-    }
-    return [...acc, current];
-  }, []);
+  const { doc, undo } = documentOf(store);
+  const copies = new Map(
+    ids.filter((id) => duplicateIds.has(id)).map((id) => [id, createId()]),
+  );
 
-  store.set(publicationIdsAtom, orderedIds);
-  return newIds;
+  // One transaction for the lot: the observer rebuilds the lists once, the
+  // copies are saved and relayed as one change, and undoing takes them all
+  // back in one step, the way they were made.
+  Doc.write(doc, () =>
+    copies.forEach((copy, source) =>
+      Doc.addRowAfter(doc, source, copy, store.get(publicationFamily(source))),
+    ),
+  );
+  undo.stopCapturing();
+
+  return [...copies.values()];
 }
 
 /**
@@ -508,11 +727,16 @@ function duplicate(
  *
  * Every id the families know, not just the ones currently listed: a value set
  * directly — as the specs do — would otherwise survive teardown.
+ *
+ * A document the store made for itself is dropped with the rest, and the next
+ * write makes a fresh one. A document the store was handed is left as it is.
+ * Emptying that one would be an edit everyone sharing it sees, and `setAll`
+ * replaces its rows as one step when the store fills again.
  */
 function resetAll(store: Store): void {
   knownIds().forEach((id) => {
     store.set(publicationFamily(id), RESET);
-    store.set(overrideFamily(id), RESET);
+    store.set(savedFamily(id), RESET);
     store.set(errorFamily(id), RESET);
     store.set(discardedFamily(id), RESET);
     store.set(lastValidatedFamily(id), RESET);
@@ -520,6 +744,13 @@ function resetAll(store: Store): void {
 
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
+
+  const binding = documents.get(store);
+
+  if (binding?.owned) {
+    binding.stop();
+    documents.delete(store);
+  }
 }
 
 function resetDiscarded(store: Store): void {
@@ -534,16 +765,13 @@ function resetDiscarded(store: Store): void {
  * from the workspace's `setDiscarded`, which only hides rows in memory.
  */
 function removePublication(store: Store, id: PublicationId): void {
-  const ids = store.get(publicationIdsAtom);
-  if (ids) {
-    store.set(
-      publicationIdsAtom,
-      ids.filter((current) => current !== id),
-    );
-  }
+  const { doc, undo } = documentOf(store);
+
+  Doc.removeRow(doc, id);
+  undo.stopCapturing();
 
   store.set(publicationFamily(id), RESET);
-  store.set(overrideFamily(id), RESET);
+  store.set(savedFamily(id), RESET);
   store.set(errorFamily(id), RESET);
   store.set(discardedFamily(id), RESET);
   store.set(lastValidatedFamily(id), RESET);
@@ -553,12 +781,6 @@ function removePublication(store: Store, id: PublicationId): void {
   if (total !== null) {
     store.set(totalIndexCountAtom, total - 1);
   }
-}
-
-function resetOverridden(store: Store): void {
-  store
-    .get(publicationIdsAtom)
-    ?.forEach((id) => store.set(overrideFamily(id), RESET));
 }
 
 function resetAttributes(store: Store): void {
@@ -582,66 +804,64 @@ function focusNextInvalid(store: Store): void {
 }
 
 export {
-  DRAFT_ID,
   addNew,
+  appendIndex,
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
   createId,
   discardedCountAtom,
   discardEdit,
+  documentOf,
+  DRAFT_ID,
   drawnCountAtom,
   duplicate,
   errorCodeFamily,
   errorFamily,
   fieldErrorCodeFamily,
   fieldValueFamily,
-  focusNextInvalid,
   focusedRowIdAtom,
+  focusNextInvalid,
   forget,
-  hydrate,
-  appendIndex,
-  knownIds,
   hiddenAttributesAtom,
+  hydrate,
   invalidIdsAtom,
   isLoadingMoreAtom,
-  isValidFamily,
-  matchedAtom,
   isValidatingAtom,
+  isValidFamily,
+  knownIds,
   lastValidatedFamily,
-  overriddenCountAtom,
-  overriddenIdsAtom,
-  overrideFamily,
-  overrideField,
-  overrideSources,
+  matchedAtom,
+  matchingCountAtom,
+  openWorkspace,
   orderAtom,
+  perPageAtom,
+  publicationExcerptsFamily,
   publicationFamily,
   publicationIdsAtom,
-  publicationOrNullFamily,
   publicationSourcesFamily,
-  publicationExcerptsFamily,
   receiveIndex,
   remember,
   removePublication,
   resetAll,
   resetAttributes,
   resetDiscarded,
-  resetOverridden,
+  rowNumberFamily,
+  savedFamily,
   setAll,
   setAttributesVisible,
   setDiscarded,
   setErrors,
+  setField,
   setFocusedRowId,
+  setSources,
   storedFieldValueFamily,
   storedSourcesFamily,
   totalCountAtom,
-  matchingCountAtom,
-  perPageAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
   visibleIdsAtom,
-  visiblePublicationFamily,
 };
 export type { PublicationIndex };

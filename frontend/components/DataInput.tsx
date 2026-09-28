@@ -10,7 +10,7 @@ import {
 import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
-import { overrideField } from "modules/publication/store";
+import { setField } from "modules/publication/store";
 import { FC, FocusEvent, HTMLProps, Ref, forwardRef } from "react";
 import OriginalBookDataInput from "./OriginalBookDataInput";
 import TextArrayDataInput from "./TextArrayDataInput";
@@ -110,7 +110,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   }
 
   function handleChange(value: PublicationValue) {
-    overrideField(store, rowId, colId, value);
+    setField(store, rowId, colId, value);
     if (VALIDATES_ON_CHANGE.includes(type)) {
       doValidate();
     }
