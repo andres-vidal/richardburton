@@ -40,3 +40,28 @@ the row.
 Note: the stories wrap the cell in a plain `role="row"` for valid ARIA, so it
 sits at its natural height there; in the real workspace grid the button stretches
 to fill the row.
+
+## The look-alike button
+
+A second button follows the sources one when the row resembles something,
+reading "Look-alike" behind a warning icon. Pressing it opens the duplicate
+review on this row, where the records are set out in full and can be followed
+through to.
+
+<Canvas of={WorkspaceSourcesCellStories.LooksLikeAStoredRecord} />
+
+Its accessible name and its tooltip both say what the row looks like, rather
+than only that something matched. Records already in the database are named by
+title and year; other rows of the same import are counted, since they have no
+stored title to name.
+
+- **Resembles a stored record** — "Resembles Dom Casmurro (1953)."
+- **Resembles other rows of the import** — "Resembles 2 other rows of this
+  import."
+- **Resembles nothing** — the button is absent.
+
+It sits at the end of the row rather than in the leading cell because that cell
+is the row's selection handle, and a control placed there takes the clicks meant
+for selecting. The warning marker in that leading cell is what says a row has a
+look-alike; this is what to press about it. For the same reason the button stops
+its own click from reaching the row, which would otherwise select it.

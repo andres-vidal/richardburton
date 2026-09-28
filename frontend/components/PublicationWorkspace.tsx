@@ -16,11 +16,13 @@ import {
 import CheckResemblances from "listeners/CheckResemblances";
 import ClearSelection from "listeners/ClearSelection";
 import { isElement } from "lodash";
+import WarningIcon from "assets/warning.svg";
 import {
   useAreRowIdsVisible,
   useIsPublicationFocused,
   useIsPublicationValid,
   usePublicationErrorDescription,
+  usePublicationResemblance,
   usePublicationRowNumber,
   usePublicationField,
   usePublicationFieldError,
@@ -93,8 +95,10 @@ const ExtendedColumnHeader: typeof ColumnHeader = (props) => {
 };
 
 const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
+  const t = useTranslations("resemblances");
   const isValid = useIsPublicationValid(rowId);
   const isFocused = useIsPublicationFocused(rowId);
+  const resemblance = usePublicationResemblance(rowId);
   const rowNumber = usePublicationRowNumber(rowId);
 
   const isSelected = useIsSelected(rowId);
@@ -113,6 +117,17 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
         data-error={!isValid}
       >
         {!isValid && <ErrorIcon className="w-5 aspect-square" />}
+        {/* A marker, not a control: this cell is the row's selection handle,
+            and what to do about a look-alike is at the end of the row. It is
+            here because this column is the one that stays put, and a look-alike
+            should be as easy to spot down a long table as an error is. */}
+        {isValid && resemblance && (
+          <WarningIcon
+            role="img"
+            aria-label={t("rowLooksLike")}
+            className="w-5 text-amber-500 aspect-square"
+          />
+        )}
         {isIdVisible && rowNumber}
       </span>
     </SignalColumn>
