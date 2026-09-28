@@ -66,6 +66,18 @@ defmodule RichardBurtonWeb.Router do
     get("/publishers", PublisherController, :index)
     get("/original-books", OriginalBookController, :index)
 
+    scope "/documents" do
+      get("/", DocumentController, :index)
+      post("/", DocumentController, :create)
+      get("/:id", DocumentController, :show)
+      patch("/:id", DocumentController, :update)
+      delete("/:id", DocumentController, :archive)
+      post("/:id/restore", DocumentController, :unarchive)
+      get("/:id/updates", DocumentController, :updates)
+      post("/:id/updates", DocumentController, :append)
+      post("/:id/compact", DocumentController, :compact)
+    end
+
     scope "/publications" do
       post("/bulk", PublicationController, :create_all)
       post("/validate", PublicationController, :validate)
