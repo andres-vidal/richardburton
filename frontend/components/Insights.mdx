@@ -1,0 +1,51 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightsStories from "./Insights.stories";
+
+<Meta of={InsightsStories} />
+
+# Insights
+
+What the database holds, counted: every publication in it, or the ones a search
+matches. It is the content of the insights page, at `/insights`, and
+`InsightsHeading` is the page's subheader.
+
+<Canvas of={InsightsStories.Everything} />
+
+## Props
+
+Both take a single `insights` prop, the description the backend returns for the
+publications being counted. Every figure in it counts publications, so a book
+published twice counts twice.
+
+- **Figures** — see [Insight figures](?path=/docs/insights-insight-figures--docs).
+- **Publications by decade** — every decade from the first to the last, a
+  decade with none included.
+- **Most translated authors**, **translators** and **publishers** — the ten
+  names in each field that most publications name.
+- **Countries of publication** — every country, named in the reader's language.
+- **Works translated more than once** — a work is an original book, and a
+  translation is one rendering of it by the people who translated it. The list
+  counts translations, not publications, so a translation published twice
+  counts once.
+
+## Nothing to count
+
+A list with nothing in it is left out, which only happens to the works
+translated more than once.
+
+<Canvas of={InsightsStories.NoWorkTranslatedTwice} />
+
+A search that matches nothing leaves nothing to count, and the page says so
+instead of showing empty lists.
+
+<Canvas of={InsightsStories.NothingMatched} />
+
+## Heading
+
+`InsightsHeading` says how many publications are counted, links to the list of
+them, and holds the search box that narrows them. The search reads the way the
+index reads it. How it was read comes with the figures, and is handed to the
+search box as its report.
+
+<Canvas of={InsightsStories.Heading} />

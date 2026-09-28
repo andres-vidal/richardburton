@@ -36,6 +36,12 @@ wrap to as many lines as it needs. The control is offered whenever there is a
 report, since whether the line is actually clipped is a question only measuring
 the rendered text answers, and the answer changes with every resize.
 
+A page with no publication store hands the report in through the `matched`
+prop, which wins over the store. The insights page does this, since it reads
+the report from the same response as its figures.
+
+<Canvas of={SearchStories.GivenMatches} />
+
 In stories the store is seeded through the shared fixtures:
 
 ```tsx
