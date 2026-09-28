@@ -107,6 +107,7 @@ defmodule RichardBurtonWeb.Router do
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)
     get("/countries", CountryController, :index)
+    get("/insights", InsightsController, :show)
     get("/publications", PublicationController, :index)
     get("/publications/:id", PublicationController, :show)
     get("/users/me", UserController, :me)
