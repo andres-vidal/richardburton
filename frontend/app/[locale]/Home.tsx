@@ -3,9 +3,7 @@
 import DashboardIcon from "assets/dashboard.svg";
 import Button from "components/Button";
 import ColumnMenu from "components/ColumnMenu";
-import { ContactModal } from "components/ContactModal";
 import Layout from "components/Layout";
-import { LearnMoreModal } from "components/LearnMoreModal";
 import PublicationDownload from "components/PublicationDownload";
 import { PublicationIndexList } from "components/PublicationIndexList";
 import { PublicationIndexTable } from "components/PublicationIndexTable";
@@ -133,8 +131,6 @@ function Database({ index }: Props) {
             </div>
           )}
 
-          <ContactModal />
-          <LearnMoreModal />
           <SearchHelpModal />
         </div>
       }
