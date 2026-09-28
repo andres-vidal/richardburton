@@ -13,6 +13,7 @@ import {
   RowProps,
   SignalColumn,
 } from "components/PublicationIndexTable";
+import CheckResemblances from "listeners/CheckResemblances";
 import ClearSelection from "listeners/ClearSelection";
 import { isElement } from "lodash";
 import {
@@ -26,7 +27,7 @@ import {
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
 import { colourOf, useOnThisCell } from "modules/publication/presence";
-import { validate } from "modules/publication/remote";
+import { resemblances, validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { DRAFT_ID, addNew } from "modules/publication/store";
 import type { PublicationId } from "modules/publication/model";
@@ -231,7 +232,10 @@ const NewPublicationRow: FC = () => {
   );
 };
 
-const PublicationWorkspace: FC = () => {
+const PublicationWorkspace: FC<{
+  /** How the rows are measured for look-alikes. Defaults to asking the server. */
+  check?: typeof resemblances;
+}> = ({ check }) => {
   const store = usePublicationStore();
   const ids = useVisiblePublicationIds();
   const isSelectionEmpty = useIsSelectionEmpty();
@@ -254,6 +258,7 @@ const PublicationWorkspace: FC = () => {
   return (
     <>
       <ClearSelection store={store} />
+      <CheckResemblances store={store} check={check} />
       <PublicationIndexTable
         ExtendedRow={ExtendedRow}
         ExtendedColumn={ExtendedColumn}

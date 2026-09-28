@@ -25,6 +25,7 @@ import {
   isValidFamily,
   publicationFamily,
   publicationIdsAtom,
+  resemblanceFamily,
   resetAll,
   resetAttributes,
   resetDiscarded,
@@ -34,6 +35,7 @@ import {
   setDiscarded,
   setErrors,
   setField,
+  setResemblances,
   storedFieldValueFamily,
   totalCountAtom,
   validCountAtom,
@@ -460,5 +462,52 @@ describe("appendIndex", () => {
   test("appends onto an empty set", () => {
     appendIndex(store, [saved(1)]);
     expect(store.get(publicationIdsAtom)).toEqual([1]);
+  });
+});
+
+describe("look-alikes", () => {
+  const RESEMBLES = {
+    stored: [{ ...empty(), id: 7, title: "Dom Casmurro" }],
+    others: [],
+  };
+
+  function measured() {
+    setAll(store, [
+      entry(1, { title: "Dom Casmurro", authors: ["Helen Caldwell"] }),
+    ]);
+    setResemblances(store, [1], new Map([[1, RESEMBLES]]));
+  }
+
+  test("stands while the row is the one it was measured on", () => {
+    measured();
+
+    expect(store.get(resemblanceFamily(1))).toEqual(RESEMBLES);
+  });
+
+  test("goes when a field the check reads is edited", () => {
+    measured();
+    setField(store, 1, "title", "Dom Casmuro");
+
+    expect(store.get(resemblanceFamily(1))).toBeNull();
+  });
+
+  test("stands when a field the check does not read is edited", () => {
+    measured();
+    setField(store, 1, "year", "1953");
+
+    expect(store.get(resemblanceFamily(1))).toEqual(RESEMBLES);
+  });
+
+  // A row edited by somebody else arrives as a new value for the row, not as a
+  // call to `setField`, so nothing on that path can be what drops the
+  // answer.
+  test("goes when the row is replaced outright, as an edit from elsewhere arrives", () => {
+    measured();
+    store.set(publicationFamily(1), {
+      ...store.get(publicationFamily(1)),
+      title: "Dom Casmuro",
+    });
+
+    expect(store.get(resemblanceFamily(1))).toBeNull();
   });
 });
