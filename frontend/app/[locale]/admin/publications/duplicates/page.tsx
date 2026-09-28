@@ -5,7 +5,11 @@ import DuplicateReview from "components/DuplicateReview";
 import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
 
+import { admitEditors } from "../../guard";
+
 export default async function DuplicateReviewPage() {
+  await admitEditors();
+
   const t = await getTranslations("admin");
 
   const crumbs = [

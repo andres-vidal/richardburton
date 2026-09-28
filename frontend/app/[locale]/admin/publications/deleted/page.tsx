@@ -6,8 +6,11 @@ import type { DeletedPublicationEntry } from "modules/publication/model";
 
 import { get } from "app/api";
 import DeletedPublications from "components/DeletedPublications";
+import { admitEditors } from "../../guard";
 
 export default async function DeletedPublicationsPage() {
+  await admitEditors();
+
   const t = await getTranslations("admin");
 
   const crumbs = [

@@ -61,3 +61,23 @@ test("a signed-out visitor cannot reach the admin workspace", async ({
     page.getByRole("heading", { name: "Import documents" }),
   ).toHaveCount(0);
 });
+
+test("a signed-out visitor is turned back from every admin page that reads the database", async ({
+  page,
+}) => {
+  // Each of these reads from the backend while it renders, which is what the
+  // guard has to stop before it happens.
+  const pages = [
+    { address: "/admin/publications/deleted", title: "Deleted publications" },
+    { address: "/admin/publications/history", title: "History" },
+    { address: "/admin/publications/duplicates", title: "Review duplicates" },
+    { address: "/admin/publications/sources", title: "Backfill sources" },
+  ];
+
+  for (const { address, title } of pages) {
+    await page.goto(address);
+
+    await expect(page).toHaveURL("/en");
+    await expect(page.getByRole("heading", { name: title })).toHaveCount(0);
+  }
+});
