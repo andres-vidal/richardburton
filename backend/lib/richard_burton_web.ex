@@ -22,7 +22,10 @@ defmodule RichardBurtonWeb do
       use Phoenix.Controller, formats: [:json]
 
       import Plug.Conn
+      import RichardBurtonWeb.FallbackController, only: [found: 1]
       alias RichardBurtonWeb.Router.Helpers, as: Routes
+
+      action_fallback(RichardBurtonWeb.FallbackController)
     end
   end
 

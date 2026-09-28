@@ -92,13 +92,9 @@ defmodule RichardBurtonWeb.PublicationController do
   # the reader arrived from a search, that search is sent along too, so the record
   # highlights what matched exactly as the index did.
   def show(conn, params = %{"id" => id}) do
-    case Publication.find(id) do
-      nil ->
-        conn |> put_status(:not_found) |> json(%{error: :not_found})
-
-      publication ->
-        flat = Publication.Codec.flatten(publication)
-        json(conn, excerpted(flat, Map.get(params, "search")))
+    with {:ok, publication} <- found(Publication.find(id)) do
+      flat = Publication.Codec.flatten(publication)
+      json(conn, excerpted(flat, Map.get(params, "search")))
     end
   end
 
@@ -176,26 +172,11 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   def update(conn, params = %{"id" => id}) do
-    {status, body} =
-      params
-      |> Map.delete("id")
-      |> Publication.Codec.nest()
-      |> then(&Publication.update(id, &1, actor(conn)))
-      |> case do
-        {:ok, publication} ->
-          {:ok, Publication.Codec.flatten(publication)}
+    attrs = params |> Map.delete("id") |> Publication.Codec.nest()
 
-        {:error, :not_found} ->
-          {:not_found, %{error: :not_found}}
-
-        {:error, :conflict} ->
-          {:conflict, %{errors: :conflict}}
-
-        {:error, errors} ->
-          {:bad_request, %{errors: errors}}
-      end
-
-    conn |> put_status(status) |> json(body)
+    with {:ok, publication} <- Publication.update(id, attrs, actor(conn)) do
+      json(conn, Publication.Codec.flatten(publication))
+    end
   end
 
   # The clusters of records that look like the same publication entered twice,
@@ -213,15 +194,12 @@ defmodule RichardBurtonWeb.PublicationController do
   # Remember that these are not the same record twice, so the review stops
   # asking. Naming fewer than two says nothing there is to remember.
   def distinguish(conn, %{"publications" => ids = [_, _ | _]}) do
-    case Publication.Duplicates.rule_apart(ids, actor(conn)) do
-      {:ok, _count} -> send_resp(conn, :no_content, "")
-      {:error, reason} -> conn |> put_status(:bad_request) |> json(%{error: reason})
+    with {:ok, _count} <- Publication.Duplicates.rule_apart(ids, actor(conn)) do
+      send_resp(conn, :no_content, "")
     end
   end
 
-  def distinguish(conn, _params) do
-    conn |> put_status(:bad_request) |> json(%{error: :not_enough})
-  end
+  def distinguish(_conn, _params), do: {:error, :not_enough}
 
   # What has been ruled apart, so a reviewer can see a decision and take it back.
   def distinctions(conn, _params) do
@@ -235,43 +213,33 @@ defmodule RichardBurtonWeb.PublicationController do
     send_resp(conn, :no_content, "")
   end
 
-  def reconsider(conn, _params) do
-    conn |> put_status(:bad_request) |> json(%{error: :not_enough})
-  end
+  def reconsider(_conn, _params), do: {:error, :not_enough}
 
   # Collapse publications into this one. The losers are named in the body, so
   # the address stays the surviving record's own.
+  #
+  # A `:conflict` means the merged record would be a publication that already
+  # exists.
   def merge(conn, %{"id" => id, "losers" => losers}) when is_list(losers) do
     case Publication.merge(id, losers, actor(conn)) do
       {:ok, publication} ->
         json(conn, Publication.Codec.flatten(publication))
 
-      {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: :not_found})
-
+      # Merging a record into itself, or into nothing, is a request that makes
+      # no sense, rather than one the state of the database refuses.
       {:error, reason} when reason in [:self, :no_losers] ->
-        conn |> put_status(:bad_request) |> json(%{error: reason})
+        {:error, :bad_request, reason}
 
-      # The merged record would be a publication that already exists.
-      {:error, :conflict} ->
-        conn |> put_status(:conflict) |> json(%{error: :conflict})
-
-      {:error, errors} ->
-        conn |> put_status(:bad_request) |> json(%{errors: errors})
+      error ->
+        error
     end
   end
 
-  def merge(conn, _params) do
-    conn |> put_status(:bad_request) |> json(%{error: :losers_required})
-  end
+  def merge(_conn, _params), do: {:error, :losers_required}
 
   def delete(conn, %{"id" => id}) do
-    case Publication.delete(id, actor(conn)) do
-      {:ok, _publication} ->
-        send_resp(conn, :no_content, "")
-
-      {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: :not_found})
+    with {:ok, _publication} <- Publication.delete(id, actor(conn)) do
+      send_resp(conn, :no_content, "")
     end
   end
 
@@ -288,20 +256,20 @@ defmodule RichardBurtonWeb.PublicationController do
 
   # Undo one recorded change. The server decides whether the entry is still
   # reconcilable and what the compensating action is; the client only names the
-  # entry. A version that is not a number cannot match a row, so it reads as a
-  # miss rather than an error.
+  # entry.
   def undo(conn, %{"id" => id, "version" => version}) do
-    case Integer.parse(version) do
-      {version, ""} ->
-        case Publication.undo(id, version, actor(conn)) do
-          {:ok, _publication} -> send_resp(conn, :no_content, "")
-          {:error, :not_found} -> conn |> put_status(:not_found) |> json(%{error: :not_found})
-          {:error, :conflict} -> conn |> put_status(:conflict) |> json(%{error: :conflict})
-          {:error, errors} -> conn |> put_status(:bad_request) |> json(%{errors: errors})
-        end
+    with {:ok, version} <- version_of(version),
+         {:ok, _publication} <- Publication.undo(id, version, actor(conn)) do
+      send_resp(conn, :no_content, "")
+    end
+  end
 
-      _ ->
-        conn |> put_status(:not_found) |> json(%{error: :not_found})
+  # A history version read from the path. One that is not a number cannot match
+  # an entry, so it reads as a miss rather than as a malformed request.
+  defp version_of(version) do
+    case Integer.parse(version) do
+      {version, ""} -> {:ok, version}
+      _ -> {:error, :not_found}
     end
   end
 
@@ -318,21 +286,13 @@ defmodule RichardBurtonWeb.PublicationController do
     json(conn, %{entries: entries})
   end
 
+  # Bring a deleted publication back. A `:conflict` means the same record was
+  # imported again while this one sat in the trash, and `:absorbed` that it is
+  # held inside another record, which an un-merge gives back and a restore
+  # cannot.
   def restore(conn, %{"id" => id}) do
-    case Publication.restore(id, actor(conn)) do
-      {:ok, _publication} ->
-        send_resp(conn, :no_content, "")
-
-      {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: :not_found})
-
-      # The same record was imported again while this one sat in the trash.
-      {:error, :conflict} ->
-        conn |> put_status(:conflict) |> json(%{error: :conflict})
-
-      # Held inside another record: an un-merge gives it back, a restore cannot.
-      {:error, :absorbed} ->
-        conn |> put_status(:conflict) |> json(%{error: :absorbed})
+    with {:ok, _publication} <- Publication.restore(id, actor(conn)) do
+      send_resp(conn, :no_content, "")
     end
   end
 
