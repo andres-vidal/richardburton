@@ -77,7 +77,15 @@ const SearchProgress: FC = () => {
   );
 };
 
-const PublicationSearch: FC = () => {
+type Props = {
+  /**
+   * How the search in the address was read. When absent, it is read from the
+   * publication store, where the index keeps it.
+   */
+  matched?: Matched[];
+};
+
+const PublicationSearch: FC<Props> = (props) => {
   const t = useTranslations("search");
   const router = useRouter();
   const pathname = usePathname() ?? "";
@@ -86,7 +94,8 @@ const PublicationSearch: FC = () => {
   // reader is still on the page they typed into.
   const address = useAddressPathname();
   const searchParams = useSearchParams();
-  const matched = useMatched();
+  const stored = useMatched();
+  const matched = props.matched ?? stored;
   const [isNavigating, startTransition] = useTransition();
 
   const searchUrlParam = searchParams?.get("search") ?? "";
