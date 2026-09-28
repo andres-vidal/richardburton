@@ -4,6 +4,7 @@ defmodule RichardBurton.Country do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Ecto.Query, only: [order_by: 2]
 
   alias RichardBurton.Country
   alias RichardBurton.Repo
@@ -475,8 +476,9 @@ defmodule RichardBurton.Country do
     |> Repo.maybe_insert!([:code])
   end
 
+  @doc "Every country the database holds, in the order each was first entered."
   def all do
-    Repo.all(Country)
+    Country |> order_by(:id) |> Repo.all()
   end
 
   def link(changeset = %{valid?: true}) do
