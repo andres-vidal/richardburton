@@ -17,6 +17,19 @@ defmodule RichardBurtonWeb.Endpoint do
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
+  # Longpoll beside websockets: a proxy that will not upgrade makes a workspace
+  # slower to keep in step rather than unable to.
+  # The token rides a header on both transports rather than the query string, so
+  # it is in no request log; see `RichardBurtonWeb.DocumentSocket`.
+  #
+  # `auth_token` is set here rather than on each transport: Phoenix copies the
+  # socket-wide value into both and would overwrite a per-transport one.
+  socket("/socket", RichardBurtonWeb.DocumentSocket,
+    websocket: true,
+    longpoll: true,
+    auth_token: true
+  )
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # You should set gzip to true if you are running phx.digest

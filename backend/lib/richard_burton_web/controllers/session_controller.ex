@@ -42,9 +42,10 @@ defmodule RichardBurtonWeb.SessionController do
   def delete(conn, _params) do
     conn = fetch_cookies(conn)
 
-    case conn.cookies[Session.cookie_name()] do
-      nil -> :ok
-      token -> Session.revoke(token)
+    # Revoking says so, and any document this session holds open closes on
+    # hearing it; see `RichardBurton.Auth.Access`.
+    with token when is_binary(token) <- conn.cookies[Session.cookie_name()] do
+      Session.revoke(token)
     end
 
     conn

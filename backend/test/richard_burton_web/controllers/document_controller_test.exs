@@ -323,4 +323,17 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
                |> json_response(404)
     end
   end
+
+  describe "POST /documents/socket-token" do
+    test "mints a token the socket accepts", meta do
+      expect_auth_authorize_admin()
+
+      assert %{"token" => token} =
+               meta.conn
+               |> post(document_path(meta.conn, :socket_token))
+               |> json_response(200)
+
+      assert is_binary(token)
+    end
+  end
 end

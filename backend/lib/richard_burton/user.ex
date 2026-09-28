@@ -101,8 +101,12 @@ defmodule RichardBurton.User do
       |> role_changeset(%{role: role})
       |> Repo.update()
       |> case do
-        {:ok, updated} -> {:ok, updated}
-        {:error, changeset} -> {:error, Validation.get_errors(changeset)}
+        {:ok, updated} ->
+          RichardBurton.Auth.Access.changed(updated.subject_id)
+          {:ok, updated}
+
+        {:error, changeset} ->
+          {:error, Validation.get_errors(changeset)}
       end
     end
   end

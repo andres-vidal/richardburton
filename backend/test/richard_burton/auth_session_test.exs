@@ -2,6 +2,7 @@ defmodule RichardBurton.Auth.SessionTest do
   @moduledoc "Tests for the app's server-side (DB-backed) sessions."
   use RichardBurton.DataCase, async: true
 
+  alias RichardBurton.Auth.Access
   alias RichardBurton.Auth.Session
 
   test "creates a session and verifies its token, returning the subject id" do
@@ -25,7 +26,7 @@ defmodule RichardBurton.Auth.SessionTest do
     {:ok, token} = Session.create("subject-123")
     assert Session.verify(token) == {:ok, "subject-123"}
 
-    assert Session.revoke(token) == :ok
+    assert {:ok, _subject_id} = Session.revoke(token)
     assert Session.verify(token) == :error
   end
 
@@ -66,5 +67,61 @@ defmodule RichardBurton.Auth.SessionTest do
     Repo.update_all(Session, set: [inserted_at: old, expires_at: future])
 
     assert Session.verify(token) == :error
+  end
+
+  describe "active?/1" do
+    test "a live session stands" do
+      {:ok, token} = Session.create("subject-123")
+      {:ok, session} = Session.verify_session(token)
+
+      assert Session.active?(session.id)
+    end
+
+    test "one that has been revoked does not" do
+      {:ok, token} = Session.create("subject-123")
+      {:ok, session} = Session.verify_session(token)
+      Session.revoke(token)
+
+      refute Session.active?(session.id)
+    end
+
+    test "one past its idle timeout does not, and is left for verify to prune" do
+      {:ok, token} = Session.create("subject-123")
+      {:ok, session} = Session.verify_session(token)
+      past = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.truncate(:second)
+      Repo.update_all(Session, set: [expires_at: past])
+
+      refute Session.active?(session.id)
+      assert Repo.aggregate(Session, :count) == 1
+    end
+  end
+
+  # What holds a connection open hears of a change rather than having to be
+  # found and closed by whoever made it.
+  describe "announcing a change of access" do
+    setup do
+      Phoenix.PubSub.subscribe(RichardBurton.PubSub, Access.topic("subject-123"))
+      :ok
+    end
+
+    test "revoking a session announces it" do
+      {:ok, token} = Session.create("subject-123")
+      Session.revoke(token)
+
+      assert_receive :access_changed
+    end
+
+    test "revoking all of a person's sessions announces it" do
+      Session.create("subject-123")
+      Session.revoke_all("subject-123")
+
+      assert_receive :access_changed
+    end
+
+    test "revoking a token that is no session announces nothing" do
+      Session.revoke("not a session")
+
+      refute_receive :access_changed, 50
+    end
   end
 end

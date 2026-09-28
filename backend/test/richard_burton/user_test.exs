@@ -76,4 +76,35 @@ defmodule RichardBurton.UserTest do
       assert :conflict == errors
     end
   end
+
+  describe "set_role/3" do
+    # The change is announced to every connection this person holds open, so a
+    # lower role reaches a document channel already joined, and not only the next
+    # request.
+    test "announces that the person's access changed" do
+      user = user_fixture("helen@example.com", :contributor)
+
+      Phoenix.PubSub.subscribe(
+        RichardBurton.PubSub,
+        RichardBurton.Auth.Access.topic(user.subject_id)
+      )
+
+      {:ok, _} = User.set_role(user, :reader)
+
+      assert_receive :access_changed
+    end
+
+    test "a change that is refused announces nothing" do
+      user = user_fixture("helen@example.com", :contributor)
+
+      Phoenix.PubSub.subscribe(
+        RichardBurton.PubSub,
+        RichardBurton.Auth.Access.topic(user.subject_id)
+      )
+
+      {:error, :invalid_role} = User.set_role(user, :emperor)
+
+      refute_receive :access_changed, 50
+    end
+  end
 end

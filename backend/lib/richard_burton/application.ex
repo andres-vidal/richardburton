@@ -14,6 +14,8 @@ defmodule RichardBurton.Application do
       RichardBurtonWeb.Telemetry,
       # Start the PubSub system
       {Phoenix.PubSub, name: RichardBurton.PubSub},
+      # Who has an import document open, tracked per connection
+      RichardBurtonWeb.Presence,
       # Start the Endpoint (http/https)
       RichardBurtonWeb.Endpoint,
       # Start the JWKS key store. Its provider is configured via :jwks_provider

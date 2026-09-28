@@ -13,6 +13,20 @@ defmodule RichardBurtonWeb.DocumentController do
   alias RichardBurton.Document
 
   @doc """
+  A short-lived token for this person to open a live connection with.
+
+  The session cookie is httpOnly, so the page cannot read it to hand over as a
+  connect parameter. This is minted behind the same authentication the rest of
+  these endpoints ask for, and names the session it was minted under, which is
+  what the socket asks about each time it is used.
+  """
+  def socket_token(conn, _params) do
+    %{subject_id: subject_id, session_id: session_id} = conn.assigns
+
+    json(conn, %{token: RichardBurtonWeb.DocumentSocket.sign(subject_id, session_id)})
+  end
+
+  @doc """
   A page of the documents on one side of the list, and whether more follow it.
 
   `after` is the cursor of the page before, given as the last document's
