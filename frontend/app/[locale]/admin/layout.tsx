@@ -1,8 +1,6 @@
-import { User } from "modules/users";
-import { redirect } from "i18n/navigation";
-import { getLocale } from "next-intl/server";
 import { ReactNode } from "react";
-import { getSession } from "app/session";
+
+import { admitEditors } from "./guard";
 
 // Server-side guard for every /admin route: whoever cannot edit publications
 // is bounced back to the public index before any admin UI renders. Deciding who
@@ -14,10 +12,7 @@ export default async function AdminLayout({
 }: {
   children: ReactNode;
 }) {
-  const session = await getSession();
-  if (!User.canEditPublications(session)) {
-    redirect({ href: "/", locale: await getLocale() });
-  }
+  await admitEditors();
 
   return children;
 }

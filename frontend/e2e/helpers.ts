@@ -282,16 +282,45 @@ export const PAGED_CSV =
     ),
   ].join("\n") + "\n";
 
+/**
+ * Start an import document and open it.
+ *
+ * Rows are prepared in a document, so a journey that enters rows needs one
+ * first. The name only has to tell it from another in the shared list.
+ */
+/**
+ * Two rows under the header: a batch small enough to see whole, which the
+ * document journeys import to have something to work on.
+ */
+export const IMPORT_CSV =
+  [
+    CSV_HEADER,
+    `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+    `Iracema,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,`,
+  ].join("\n") + "\n";
+
+/** Put a CSV into the workspace the way a person does, through the upload control. */
+export async function uploadCsv(page: Page, csv: string, name = "import.csv") {
+  await page.locator("#upload-csv").setInputFiles({
+    name,
+    mimeType: "text/csv",
+    buffer: Buffer.from(csv),
+  });
+}
+
+export async function openDocument(page: Page, name = "E2E batch") {
+  await page.goto("/admin/publications/documents");
+  await page.getByLabel("Name").fill(name);
+  await page.getByRole("button", { name: "Start a document" }).click();
+  await expect(page).toHaveURL(/\/admin\/publications\/documents\/\d+$/);
+}
+
 /** Seed the corpus by bulk-importing it through the admin CSV upload + submit. */
 export async function seedCorpus(page: Page) {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page, "Corpus");
 
-  await page.locator("#upload-csv").setInputFiles({
-    name: "corpus.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(CORPUS_CSV),
-  });
+  await uploadCsv(page, CORPUS_CSV, "corpus.csv");
 
   await submitWorkspace(page, CORPUS_SIZE);
 }

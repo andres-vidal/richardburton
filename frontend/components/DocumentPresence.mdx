@@ -1,0 +1,37 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DocumentPresenceStories from "./DocumentPresence.stories";
+
+<Meta of={DocumentPresenceStories} />
+
+# Document presence
+
+Who else has this document open right now, each as their initial in their own
+colour. It sits in the workspace header beside the document's status.
+
+<Canvas of={DocumentPresenceStories.OthersHere} />
+
+## Who is here, not who may be
+
+The list of documents is shared, so this says nothing about who is allowed in.
+The server keeps it, per connection and under the address it holds for each
+person, so nobody is shown on their own say-so and nobody lingers after their
+tab has gone. It is true only while somebody is looking, and is never written
+down.
+
+## One person, however many tabs
+
+The server counts connections, and one person may have the document open in
+several tabs. The list folds them together by the address they signed in with,
+so one person reading in two tabs is one face, not two.
+
+<Canvas of={DocumentPresenceStories.OnePersonInTwoTabs} />
+
+## Props
+
+None. It reads who is here from the document `LiveProvider` supplies, and says
+nothing where nobody else is.
+
+## States
+
+<Canvas of={DocumentPresenceStories.Alone} />

@@ -51,11 +51,13 @@ test("signing out works from a page that is not the index", async ({
 test("a signed-out visitor cannot reach the admin workspace", async ({
   page,
 }) => {
-  await page.goto("/admin/publications/new");
+  // Straight to the address, since the point is that the guard turns them back
+  // before there is anything to do there.
+  await page.goto("/admin/publications/documents");
 
   // The guard bounces the visitor back to the public index.
   await expect(page).toHaveURL("/en");
   await expect(
-    page.getByRole("heading", { name: "Add publications" }),
+    page.getByRole("heading", { name: "Import documents" }),
   ).toHaveCount(0);
 });

@@ -1,0 +1,47 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DocumentStatusStories from "./DocumentStatus.stories";
+
+<Meta of={DocumentStatusStories} />
+
+# Document status
+
+Where a shared import document stands: whether what was typed here has reached
+the server, and whether anyone else's changes are arriving. It sits in the
+workspace header, beside who else is present.
+
+<Canvas of={DocumentStatusStories.Saved} />
+
+## Two things, one word
+
+Saving and being live fail independently, and only one of them is about losing
+work. They are still reported as a single token, because a reader glancing at a
+header has one question — is this all right? — and two indicators make them work
+out the answer.
+
+When both are wrong, the one about work wins.
+
+- **Saved** — everything typed here has reached the server.
+- **Saving** — there is something written here the server has not taken yet.
+- **Reconnecting** — the connection is being looked for again. What is typed
+  meanwhile is kept and sent when it comes back.
+- **Not live** — saving is fine, but other people's changes are not arriving.
+- **Not saved** — what was typed is on this computer and has not reached the
+  server. The post is being retried on a widening delay.
+
+<Canvas of={DocumentStatusStories.NotSaved} />
+
+## Props
+
+None. It reads the document's health from the live context that
+`DocumentProvider` supplies, so it is silent anywhere that context is absent —
+the edit modal over the database is one person editing one record and has
+nothing to be connected to.
+
+<Canvas of={DocumentStatusStories.NotADocument} />
+
+## States
+
+<Canvas of={DocumentStatusStories.Saving} />
+<Canvas of={DocumentStatusStories.Reconnecting} />
+<Canvas of={DocumentStatusStories.NotLive} />

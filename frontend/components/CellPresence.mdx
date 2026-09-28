@@ -1,0 +1,32 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as CellPresenceStories from "./CellPresence.stories";
+
+<Meta of={CellPresenceStories} />
+
+# Cell presence
+
+Somebody else's cursor, in the cell they have it in: the initial of whoever it
+belongs to, in their colour, in the cell's corner. Hovering names them.
+
+<Canvas of={CellPresenceStories.Default} />
+
+## Why an initial as well as a colour
+
+A colour alone says that somebody is there without saying who. The initial says
+who, and the colour is the same one that person carries in the list of who is
+here at the top of the document, so a cell can be traced to a person without
+hovering at all.
+
+The cell also draws a bar in the same colour along its edge; that is the cell's
+own styling, not this component's.
+
+## Props
+
+- `colour` — which of the palette's colours this person is drawn in, from
+  `colourOf` in `modules/publication/presence`.
+- `by` — the address of whoever it is.
+
+## States
+
+<Canvas of={CellPresenceStories.EveryColour} />

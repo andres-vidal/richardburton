@@ -12,6 +12,8 @@ import {
   expectMatchCount,
   PAGED_CSV,
   PAGED_SIZE,
+  openDocument,
+  uploadCsv,
 } from "./helpers";
 
 // Browse / search / columns against a seeded corpus, all through the UI.
@@ -270,12 +272,8 @@ test("a large index virtualizes: far rows render as they scroll into view", asyn
   test.slow();
 
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
-  await page.locator("#upload-csv").setInputFiles({
-    name: "bulk.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(BULK_CSV),
-  });
+  await openDocument(page);
+  await uploadCsv(page, BULK_CSV, "bulk.csv");
   await submitWorkspace(page, BULK_SIZE);
 
   // A viewport this many rows cannot fit, so the last row is below the fold
@@ -492,12 +490,8 @@ test("the database grows as the reader scrolls to its foot", async ({
   page,
 }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
-  await page.locator("#upload-csv").setInputFiles({
-    name: "paged.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(PAGED_CSV),
-  });
+  await openDocument(page);
+  await uploadCsv(page, PAGED_CSV, "paged.csv");
   await submitWorkspace(page, PAGED_SIZE);
 
   await page.goto("/");

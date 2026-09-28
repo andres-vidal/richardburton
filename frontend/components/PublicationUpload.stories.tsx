@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { seed } from "modules/publication/fixtures";
-import { expect, within } from "storybook/test";
+import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationUpload from "./PublicationUpload";
 
@@ -41,5 +41,39 @@ export const WithExistingData: Story = {
     await expect(
       within(canvasElement).getByRole("button", { name: /Upload\.csv/ }),
     ).toBeEnabled();
+  },
+};
+
+/**
+ * An upload replaces every row in the document, which is everybody's work and
+ * not only this person's, so it is asked about rather than warned about.
+ */
+export const ReplacingASharedDocument: Story = {
+  beforeEach: () => seed(store),
+  play: async ({ canvasElement }) => {
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: /Upload\.csv/ }),
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Replace everything in this document?",
+    });
+
+    await expect(dialog).toHaveTextContent(
+      "Everyone working on this document loses them",
+    );
+
+    // Thinking better of it leaves the rows where they are.
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Keep them" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Replace everything in this document?",
+        }),
+      ).not.toBeInTheDocument(),
+    );
   },
 };

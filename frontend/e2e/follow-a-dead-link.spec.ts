@@ -1,5 +1,10 @@
 import { test, expect } from "./fixtures";
-import { seedCorpus, expectPublicationCount, CORPUS_SIZE } from "./helpers";
+import {
+  seedCorpus,
+  expectPublicationCount,
+  signInAsAdmin,
+  CORPUS_SIZE,
+} from "./helpers";
 
 test("a link to nothing lands on a page, not a broken document", async ({
   page,
@@ -34,4 +39,18 @@ test("a publication that is not there says so in the reader's language", async (
     page.getByRole("heading", { name: "Página inexistente" }),
   ).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "pt");
+});
+
+test("a link to an import document that is not there says so", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+
+  // Nothing has been started, so no document resolves.
+  const answer = await page.goto("/admin/publications/documents/404404");
+  expect(answer?.status()).toBe(404);
+
+  await expect(
+    page.getByRole("heading", { name: "No such page" }),
+  ).toBeVisible();
 });
