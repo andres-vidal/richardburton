@@ -1,36 +1,35 @@
 import { request } from "app";
 
-/** One name a publication is built from, and how much rests on it. */
+/** An author or publisher name stored in the database. */
 type Name = {
   id: number;
   name: string;
-  /** How many publications carry it. What tells a name to keep from a stray. */
+  /** How many publications credit this name. */
   publications: number;
   /**
-   * The ids of the other names near enough to be this one spelt differently.
-   *
-   * Ids rather than names, because the names they point at are in the same
-   * list. Empty on a name the rest of the vocabulary is nothing like.
+   * The ids of the other names of the same kind that this name resembles.
+   * Each id is also in the list that `list` returns. Empty when the name
+   * resembles no other name.
    */
   resembles: number[];
 };
 
-/** The kinds of name that can be managed, as the routes spell them. */
+/** The kinds of name, as the vocabulary routes spell them. */
 type Kind = "authors" | "publishers";
 
-/** What a rename turned out to be. */
+/** The result of a rename: a plain rename, or a fold into another name. */
 type Outcome = "renamed" | "merged";
 
-/** A publication caught in a clash, named so it can be gone and looked at. */
+/** A publication that a rename would give the same identity as another. */
 type Clashing = { id: number; title: string; year: string };
 
 /**
- * One name a batch would enter, answered against what is already here.
+ * The server's answer for one name passed to `resemblances`.
  *
- * `held` says the vocabulary has this name exactly, so entering it joins what
- * is there rather than adding to it. `resembles` lists the names near it, most
- * used first, which is how a misspelling shows: not held, but close to
- * something that is.
+ * `held` is true when the database already has this exact name, so entering
+ * it adds no new record. `resembles` lists the stored names that resemble it,
+ * most used first. A name that is not held but resembles a stored name may be
+ * a misspelling.
  */
 type Resemblance = { name: string; held: boolean; resembles: Name[] };
 
@@ -43,20 +42,15 @@ async function list(kind: Kind): Promise<Name[]> {
 }
 
 /**
- * Rename one.
+ * Renames a name. When another name of the same kind already has the new name,
+ * the two are folded into one.
  *
- * Renaming to a name nothing else holds corrects a spelling; renaming to one
- * already taken folds the two together, since a vocabulary cannot hold the same
- * name twice.
+ * A fold cannot be undone, so it happens only when `fold` is true. Without it,
+ * a rename onto a taken name writes nothing and returns `{ folds }`, the name
+ * that has it. Call again with `fold` once the person confirms.
  *
- * The two are not equally undoable, so a fold has to be asked for. Without
- * `fold`, a rename onto a taken name writes nothing and comes back as
- * `{ folds }` naming who holds it — put that to the person, then call again
- * with `fold`.
- *
- * Refused outright where the correction would give two publications one
- * identity — the duplicate the misspelling was hiding. Those publications come
- * back so they can be dealt with first.
+ * When the rename would give two publications the same identity, nothing is
+ * written and the result is `{ collides }`, listing those publications.
  */
 async function rename(
   kind: Kind,
@@ -86,7 +80,7 @@ async function rename(
   });
 }
 
-/** What the server said it would not do, or nothing if it failed some other way. */
+/** Returns the body of a 409 response, or null for any other error. */
 function refused(error: unknown) {
   const response = (
     error as {
@@ -101,10 +95,11 @@ function refused(error: unknown) {
 }
 
 /**
- * Ask about a batch of names at once.
+ * Asks the server which of these names it already has, and which resemble a
+ * stored name. Returns one answer per distinct, non-blank name.
  *
- * Posted rather than queried, because a batch being entered can carry more
- * names than a URL should. Nothing is written.
+ * It sends a POST because the list can be too long for a URL. Nothing is
+ * written.
  */
 async function resemblances(
   kind: Kind,

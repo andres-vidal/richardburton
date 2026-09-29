@@ -1,10 +1,11 @@
 defmodule RichardBurtonWeb.VocabularyController do
   @moduledoc """
-  The names a publication is built from, and the one thing that can be done to
-  them.
+  Lists, checks and renames the author and publisher names that publications
+  are built from. See `RichardBurton.Vocabulary`.
 
-  There is no create and no delete. A name exists because a publication uses it,
-  and stops existing when nothing does — see `RichardBurton.Vocabulary`.
+  There are no create or delete actions. A name is created when a publication
+  that uses it is saved. It is deleted only when a rename folds it into another
+  name, and a name that no publication uses stays in the list.
   """
 
   use RichardBurtonWeb, :controller
@@ -19,11 +20,11 @@ defmodule RichardBurtonWeb.VocabularyController do
   end
 
   @doc """
-  Which of the names given are already here, and which look like misspellings of
-  a name already here.
+  Returns, for each name in `"names"`, whether it is already stored and which
+  stored names it resembles. See `RichardBurton.Vocabulary.resemblances/2`.
 
-  A question rather than a change, but it is posted: a batch being entered can
-  carry more names than a URL should.
+  This action writes nothing. It is a POST because the list of names can be
+  too long for a URL.
   """
   def resemblances(conn, %{"kind" => kind, "names" => names}) when is_list(names) do
     case Vocabulary.resemblances(kind, names) do
@@ -33,14 +34,14 @@ defmodule RichardBurtonWeb.VocabularyController do
   end
 
   @doc """
-  Rename one.
+  Renames a name, and responds with `outcome` set to `"renamed"` or
+  `"merged"`. See `RichardBurton.Vocabulary.rename/4`.
 
-  Renaming to a name nothing else holds corrects a spelling; renaming to one
-  already taken folds the two together. The reply says which happened.
-
-  A fold has to be asked for: without `"fold" => true` the reply is 409 and
-  nothing is written, naming who holds the name so the request can be put to
-  the person before it is made again.
+  Folding into a name that is already taken requires `"fold" => true`. Without
+  it, nothing is written and the response is 409 with `error: "would_fold"` and
+  `into`, the name that has it. A rename that would give two publications the
+  same identity is also a 409, with `error: "would_collide"` and the
+  `publications` involved.
   """
   def update(conn, params = %{"kind" => kind, "id" => id, "name" => name}) do
     case Vocabulary.rename(kind, id, name, params["fold"] == true) do

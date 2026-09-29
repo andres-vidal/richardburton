@@ -295,8 +295,7 @@ describe("replacing a name", () => {
     ]);
   });
 
-  // One replacement, asked for once, is one change to save and relay, however
-  // many rows it touches.
+  // A replacement emits one document update, however many rows it changes.
   test("changes every row it touches in one update", () => {
     const { store, doc } = opened();
 
@@ -337,14 +336,14 @@ describe("replacing a name", () => {
     );
     documentOf(store).undo.undo();
 
-    // Every row the replacement touched is put back...
+    // Undo restores every row the replacement changed...
     expect(store.get(publicationFamily("a")).authors).toEqual([
       "Isabel Burton",
     ]);
     expect(store.get(publicationFamily("b")).authors).toEqual([
       "Isabel Burton",
     ]);
-    // ...and the edit before it is not part of the same step.
+    // ...but not the title edit made just before it.
     expect(store.get(publicationFamily("a")).title).toBe(
       "Iracema, the Honey-Lips",
     );

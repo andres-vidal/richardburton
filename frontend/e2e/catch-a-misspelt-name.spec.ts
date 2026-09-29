@@ -7,7 +7,10 @@ import {
   CSV_HEADER,
 } from "./helpers";
 
-/** A second batch, in which two of the corpus's names are spelt a second way. */
+/**
+ * A batch that misspells two of the corpus's names, as "Noonday press" and
+ * "Helen Caldwel".
+ */
 const SECOND_BATCH =
   [
     CSV_HEADER,
@@ -18,8 +21,8 @@ const SECOND_BATCH =
 test("the workspace names the spellings a batch would add, and corrects them in every row at once", async ({
   page,
 }) => {
-  // The corpus establishes the spellings: Helen Caldwell translating for
-  // Noonday Press and the rest.
+  // The corpus stores the correct spellings, including Helen Caldwell and
+  // Noonday Press.
   await seedCorpus(page);
 
   await openDocument(page);
@@ -33,7 +36,7 @@ test("the workspace names the spellings a batch would add, and corrects them in 
     indexTable(page).getByRole("row", { name: /Esau and Jacob/ }),
   ).toBeVisible();
 
-  // Both rows carry both misspellings, so the batch has two doubtful names.
+  // Both rows have both misspellings, so two names may be misspelt.
   const control = page.getByRole("button", {
     name: "2 names may be misspelt",
   });
@@ -44,10 +47,11 @@ test("the workspace names the spellings a batch would add, and corrects them in 
   await expect(panel).toContainText("Helen Caldwel");
   await expect(panel).toContainText("2 rows");
 
-  // A name the database already holds is listed, and not raised as doubtful.
+  // A name the database already has is listed but not marked.
   await expect(panel).toContainText("Machado de Assis");
 
-  // The established spelling comes with what already rests on it.
+  // Take the stored spelling of both names. Each button shows the name's
+  // publication count.
   await panel
     .getByRole("button", { name: /^Helen Caldwell \d+ publications?$/ })
     .click();
@@ -55,21 +59,21 @@ test("the workspace names the spellings a batch would add, and corrects them in 
     .getByRole("button", { name: /^Noonday Press \d+ publications?$/ })
     .click();
 
-  // Nothing doubtful is left, so the control goes back to counting.
+  // No name is marked any more, so the button shows the plain name count.
   await expect(
     page.getByRole("button", { name: /may be misspelt/ }),
   ).toHaveCount(0);
 
   await page.keyboard.press("Escape");
 
-  // The correction reached the rows themselves, not just the panel.
+  // The correction changed the rows in the table, not only the dialog.
   await expect(
     indexTable(page).getByRole("row", { name: /Helen Caldwell/ }),
   ).toHaveCount(2);
 
   await submitWorkspace(page, 2);
 
-  // And the database gained no second spelling of either name.
+  // After the submit, the database has no second spelling of the publisher.
   await page.goto("/admin/vocabulary");
   await expect(
     page.getByLabel("Name, currently Noonday press", { exact: true }),
@@ -100,7 +104,8 @@ test("a batch of names the database already holds raises nothing", async ({
     indexTable(page).getByRole("row", { name: /Esau and Jacob/ }),
   ).toBeVisible();
 
-  // Counting, not warning: two names of the row plus its publisher.
+  // The button shows a count, not a warning: the translator, the original
+  // author and the publisher.
   await expect(page.getByRole("button", { name: "3 names" })).toBeVisible({
     timeout: 15_000,
   });
@@ -114,7 +119,7 @@ test("the names view marks which of the names it holds may be the same name twic
 }) => {
   await seedCorpus(page);
 
-  // A second batch that does add a misspelling, so the database now holds both.
+  // Submit the misspelt batch, so the database has both spellings.
   await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "second-batch.csv",
@@ -129,7 +134,8 @@ test("the names view marks which of the names it holds may be the same name twic
 
   await page.goto("/admin/vocabulary");
 
-  // Both spellings of the publisher are here, and each points at the other.
+  // Both spellings of the publisher are listed and marked as resembling each
+  // other.
   const doubtful = page.getByRole("button", { name: /may be duplicates$/ });
   await expect(doubtful).toBeVisible();
   await doubtful.click();
@@ -137,7 +143,7 @@ test("the names view marks which of the names it holds may be the same name twic
   const names = page.getByRole("list", { name: "Publishers" });
   await expect(names.getByRole("listitem")).toHaveCount(2);
 
-  // Taking the offered spelling writes it into the field rather than renaming.
+  // Clicking the offered spelling writes it into the field without renaming.
   await names
     .getByRole("button", { name: /^Noonday Press \d+ publications?$/ })
     .click();
@@ -147,7 +153,7 @@ test("the names view marks which of the names it holds may be the same name twic
   });
   await expect(stray).toHaveValue("Noonday Press");
 
-  // The person's own press is what folds them, and only after saying so.
+  // Pressing Enter sends the rename, and the fold happens once it is confirmed.
   await stray.press("Enter");
   await page
     .getByRole("dialog", { name: "Fold these two together?" })

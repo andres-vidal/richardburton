@@ -1,10 +1,11 @@
 defmodule RichardBurton.VocabularyTest do
   @moduledoc """
-  Tests for renaming the names a publication is built from.
+  Tests for listing, checking and renaming the names a publication is built
+  from.
 
-  The point of most of these is the fingerprints: a publication's identity is
-  built from these names, so a rename that leaves them stale leaves the
-  database unable to tell one publication from another.
+  Many of the rename tests check fingerprints. A publication's composite key is
+  built from these names, so a rename must recompute the fingerprints or the
+  key no longer matches the publication's names.
   """
   use RichardBurton.DataCase
 
@@ -63,7 +64,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "an author is counted through both ways it reaches a publication" do
-      # The same person as translator of one book and author of another.
+      # Ana Lessa translates one book and wrote the original of another.
       insert(%{"translated_book" => %{"authors" => [%{"name" => "Ana Lessa"}]}})
 
       insert(%{
@@ -247,15 +248,15 @@ defmodule RichardBurton.VocabularyTest do
                  true
                )
 
-      # One publisher where there were two...
+      # Only one publisher is left...
       assert Repo.get_by(Publisher, name: "Noonday press") == nil
       assert Repo.aggregate(Publisher, :count) == 1
 
-      # ...and both publications are on it.
+      # ...and both publications credit it.
       assert %{publications: 2} =
                Enum.find(Vocabulary.all("publishers"), &(&1.name == "Noonday Press"))
 
-      # The one that moved has the surviving name's fingerprint.
+      # The moved publication has the same publishers fingerprint as the other.
       assert elem(fingerprints(stray), 0) == elem(fingerprints(kept), 0)
     end
 
@@ -312,10 +313,10 @@ defmodule RichardBurton.VocabularyTest do
                  "Noonday Press"
                )
 
-      # Named and counted, which is what makes the question answerable.
+      # The error names the keeper and counts its publications.
       assert %{name: "Noonday Press", publications: 1} = keeper
 
-      # Both spellings still stand.
+      # Both publishers still exist.
       assert Repo.aggregate(Publisher, :count) == 2
     end
 
@@ -336,7 +337,8 @@ defmodule RichardBurton.VocabularyTest do
 
   describe "rename/3 when it uncovers a duplicate" do
     test "it is refused, and says which publications clashed" do
-      # The same publication entered twice, told apart only by the misspelling.
+      # The same publication is entered twice, and the two copies differ only
+      # in the spelling of the publisher.
       kept = insert()
       hidden = insert(%{"publishers" => [%{"name" => "Noonday press"}]})
 
@@ -350,11 +352,12 @@ defmodule RichardBurton.VocabularyTest do
                  true
                )
 
-      # Both are named, so a person can go and look at them.
+      # The error lists both publications.
       assert length(clashing) == 2
       assert Enum.all?(clashing, &(&1.title == "Dom Casmurro"))
 
-      # And nothing moved: the spellings, the fingerprints, all as they were.
+      # The rename is rolled back: the misspelt publisher and both
+      # publications' fingerprints are unchanged.
       assert Repo.get_by(Publisher, name: "Noonday press") != nil
       assert {fingerprints(kept), fingerprints(hidden)} == before
     end

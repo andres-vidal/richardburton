@@ -6,67 +6,63 @@ import * as WorkspaceNamesStories from "./WorkspaceNames.stories";
 
 # Names in this batch
 
-The translators, original authors and publishers a batch of rows would enter,
-and which of them look like misspellings of names the database already holds.
-It lives in the footer of [Add publications](/admin/publications/new), beside
-the row and error counts.
+Lists the translators, original authors and publishers that a batch of rows
+would enter, and marks the ones that may be misspellings of names the database
+already has. It sits in the footer of an import document's workspace, opened
+from [Add publications](/admin/publications/documents), beside the row and
+error counts.
 
-A name is not a label on a publication but a record shared by everything that
-credits it, so "Alfred A.Knopf" entered once is a second Knopf, and every
-publication under it sits apart from the twenty-one under the first. The
-workspace validates each row on its own and cannot see that, because each row
-is perfectly valid.
+Each name is a record shared by every publication that credits it. So
+"Alfred A.Knopf", entered once, creates a second Knopf record, separate from
+the one that twenty-one publications use. Row validation cannot detect this,
+because each row is valid on its own.
 
-Catching it here is much cheaper than catching it afterwards. Before the insert
-it is a field to correct; after it, a fold to perform on
-[Names](?path=/docs/admin-names--docs), with publications already filed under
+Correcting the spelling here is simpler than fixing it afterwards. Before the
+insert it is a change to a field. After the insert it needs a fold on
+[Names](?path=/docs/admin-names--docs), and publications are already linked to
 the wrong spelling.
 
-## What the footer says
+## The footer count
 
-The count that needs looking at, rather than the count that exists — so the
-control reads how many names are doubtful whenever any are, and how many names
-there are otherwise.
+When any name may be misspelt, the button shows how many. Otherwise it shows
+how many names the batch has.
 
 <Canvas of={WorkspaceNamesStories.SomethingMayBeMisspelt} />
 
 <Canvas of={WorkspaceNamesStories.NothingDoubtful} />
 
-An empty batch has nothing to say about, so there is no control at all rather
-than one reading zero.
+An empty batch shows no button at all.
 
 <Canvas of={WorkspaceNamesStories.AnEmptyBatch} />
 
 ## The three states
 
-Each name is one of:
+Each name is in one of three states:
 
-- **may be misspelt** — not in the database, but close to something that is.
-  The one worth acting on, and the only one drawn in amber.
-- **already here** — the database holds this name exactly, so entering it joins
-  what is there.
-- **new** — nothing here is anything like it, which is how a vocabulary grows.
+- **may be misspelt** — the database does not have this name, but has a name
+  that resembles it. This is the only state drawn in amber.
+- **already here** — the database has this exact name, so entering it adds no
+  new record.
+- **new** — the database has no name that resembles it, so entering it adds a
+  new record.
 
-Beside each name is how many rows of the batch carry it, which is what says
-whether a correction is worth making: a spelling on one row is a typo, the same
-spelling on thirty is how the whole batch was transcribed.
+Beside each name is the number of rows in the batch that carry it. A spelling
+on one row is likely a typo. The same spelling on thirty rows is likely how
+the whole batch was typed.
 
 <Canvas of={WorkspaceNamesStories.TheWholeBatch} />
 
-## Taking the offered spelling
+## Using the suggested spelling
 
-Each candidate carries how many publications already use it, so the established
-spelling is visible rather than guessed at. Taking one writes it into every row
-that carried the other, and asks the server to check those rows again.
-
-Doing it here rather than row by row is the point of gathering the names in one
-place — the same correction over thirty rows is one press.
+Each offered spelling shows how many publications already use it. Clicking one
+writes it into every row that had the other spelling, and asks the server to
+validate those rows again. One click corrects the name in all the rows.
 
 <Canvas of={WorkspaceNamesStories.TakingTheOfferedSpelling} />
 
-## Asking
+## When the check runs
 
-The batch is asked about once it has been still for half a second, and only
-when the _names_ changed — editing a year or a title does not ask again. The
-question is posted rather than queried, because a batch can carry more names
-than a URL should.
+The names are sent to the server once they have stayed unchanged for half a
+second, and only when a _name_ changed. Editing a year or a title does not send
+them again. The request is a POST, because a batch can have more names than fit
+in a URL.

@@ -16,27 +16,29 @@ import { FC, useCallback, useEffect, useRef, useState } from "react";
 
 const KINDS: Kind[] = ["authors", "publishers"];
 
-/** A fold the server will not perform until it has been asked for. */
+/** A rename that would fold, waiting for the person to confirm or cancel it. */
 type Fold = {
-  /** The name being renamed away. */
+  /** The name being renamed. */
   name: Name;
-  /** What was typed, which is `into`'s name. */
+  /** The new name that was typed, which is `into`'s name. */
   to: string;
-  /** Who already holds that name, and how much rests on them. */
+  /** The name that already has `to`, with its publication count. */
   into: Name;
 };
 
 /**
- * One name, editable in place.
+ * One name in a text field. Pressing Enter or leaving the field sends the
+ * rename when the value has changed and is not blank. Escape puts the stored
+ * name back.
  *
- * Typing a name another already holds is how two are folded together, so there
- * is nothing else to press: the field is the whole interface.
+ * Typing a name that another entry already has asks to fold the two, so the
+ * entry has no separate merge button.
  */
 const Entry: FC<{
   name: Name;
-  /** The names this one resembles, which are elsewhere in the same list. */
+  /** The names this one resembles, taken from the same list. */
   near: Name[];
-  /** Bumped to put every field back to the name it is stored under. */
+  /** Incremented to reset the field to the stored name. */
   revert: number;
   onRename: (name: Name, to: string) => Promise<void>;
 }> = ({ name, near, revert, onRename }) => {
@@ -47,8 +49,9 @@ const Entry: FC<{
 
   useEffect(() => setValue(name.name), [name.name, revert]);
 
-  // Offering the other spelling writes it into the field rather than renaming
-  // there and then. A fold cannot be undone, so the last press is the person's.
+  // Writes the other spelling into the field and focuses it, without renaming.
+  // The rename is sent only when the person commits the field, because a fold
+  // cannot be undone.
   function propose(other: Name) {
     setValue(other.name);
     field.current?.focus();
@@ -116,7 +119,7 @@ const Entry: FC<{
   );
 };
 
-/** What the database would refuse, said plainly enough to act on. */
+/** An alert listing the publications a rename would give the same identity. */
 const Clash: FC<{ publications: Clashing[]; onDismiss: () => void }> = ({
   publications,
   onDismiss,
@@ -149,23 +152,22 @@ const Clash: FC<{ publications: Clashing[]; onDismiss: () => void }> = ({
 };
 
 /**
- * The names publications are built from — their translators, their original
- * authors, their publishers — and the one thing that can be done to them.
+ * Lists the author or publisher names that publications are built from, and
+ * lets the person rename them.
  *
- * These are typed, so they drift: "Penguin books" beside "Penguin Books",
- * "Alfred A.Knopf" beside "Alfred A. Knopf". Renaming corrects a spelling, and
- * renaming onto a name already taken folds the two together — one verb for
- * both, because a person deciding "these are the same" says so by writing the
- * name they should share.
+ * Names are typed by hand, so one name can be stored under two spellings, such
+ * as "Penguin books" and "Penguin Books". Renaming to a free name corrects the
+ * spelling. Renaming to a name that is already taken folds the two into one,
+ * after the person confirms.
  *
- * Sorted by name, so the spellings of one thing sit together. Where sorting is
- * not enough — a typo early in a name sorts far from what it meant — each name
- * carries the others it resembles, and those can be shown on their own.
+ * The list is sorted by name and can be filtered by text. Each name also lists
+ * the other names it resembles, and a toggle shows only the names that
+ * resemble another.
  */
 const VocabularyList: FC<{
-  /** How the names are read. Defaults to asking the server. */
+  /** Loads the names of a kind. Defaults to `list`. */
   read?: (kind: Kind) => Promise<Name[]>;
-  /** How one is renamed. Defaults to asking the server. */
+  /** Renames a name. Defaults to `rename`. */
   write?: typeof rename;
 }> = ({ read = list, write = rename }) => {
   const t = useTranslations("vocabulary");
@@ -217,8 +219,9 @@ const VocabularyList: FC<{
     load(kind);
   }
 
-  // Only one field can be mid-edit — committing happens on leaving one — so
-  // putting them all back puts back the one the question was about.
+  // Resets every field to its stored name. A field commits when it loses
+  // focus, so only one field can hold unsaved text, and that is the field the
+  // fold was for.
   function cancelFold() {
     setAsking(null);
     setReverts(reverts + 1);

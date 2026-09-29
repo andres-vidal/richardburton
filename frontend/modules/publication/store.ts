@@ -411,11 +411,13 @@ const resemblanceSubjectAtom = atom((get) =>
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
 
 /**
- * The attributes of each kind of name, in the words the vocabulary routes use.
+ * The publication attributes that hold each kind of name, keyed by the kinds
+ * the vocabulary routes use.
  *
- * Translators and original authors are one kind because they are one table: a
- * person who translated one book and wrote another is one name, and correcting
- * the spelling corrects both.
+ * Translators (`authors`) and original authors (`originalAuthors`) are one
+ * kind, because the database stores both in one table. A person who translated
+ * one book and wrote another is one name, so `replaceName` corrects it in both
+ * attributes.
  */
 const NAME_ATTRIBUTES = {
   authors: ["authors", "originalAuthors"],
@@ -428,10 +430,12 @@ type NameKind = keyof typeof NAME_ATTRIBUTES;
 type BatchName = { name: string; rows: PublicationId[] };
 
 /**
- * Every name the visible rows would enter, by kind, alphabetically.
+ * Every name that the rows not discarded would enter, by kind, sorted
+ * alphabetically.
  *
- * Blanks are dropped and a name a row carries twice counts as one row, so the
- * count beside a name is how many publications would credit it.
+ * Names are trimmed and blank names are dropped. A row that carries a name
+ * twice is listed once in `rows`, so `rows` holds the publications that would
+ * credit the name.
  */
 const batchNamesAtom = atom((get) => {
   const ids = get(visibleIdsAtom) ?? [];
@@ -886,15 +890,16 @@ function writeRow(
 }
 
 /**
- * Write one name in place of another, in whichever of these rows carry it.
+ * Replaces the name `from` with `to` in the given rows, in the attributes of
+ * `kind`.
  *
- * Rows that do not carry it are left alone, so this can be handed the rows the
- * name was found on without checking them again. A row that would end up with
- * the same name twice keeps it once.
+ * Rows that do not contain `from` are left unchanged. When an attribute would
+ * then contain `to` twice, it keeps one copy.
  *
- * Every row it touches changes in one transaction, so the replacement is saved
- * and relayed as one change. It is also its own step to undo, apart from any
- * edit made just before or after it.
+ * All the changes happen in one `Doc.write` transaction, so the document emits
+ * one update for them, which is saved and relayed as one change. The
+ * replacement is also a separate undo step from any edit made just before or
+ * after it.
  */
 function replaceName(
   store: Store,

@@ -1,50 +1,59 @@
 defmodule RichardBurton.Vocabulary do
   @moduledoc """
-  The names a publication is built from — its translators, its original authors,
-  its publishers — and the one thing that can be done to them: rename.
+  Lists, checks and renames the names that publications are built from:
+  authors, who are translators or original authors, and publishers.
 
-  These accumulate misspellings and near-duplicates, because they are typed.
-  "Penguin books" beside "Penguin Books", "Alfred A.Knopf" beside
-  "Alfred A. Knopf": the same publisher, entered twice, and every publication
-  under the wrong spelling is filed away from its fellows.
+  These names are typed by hand, so one name can be stored under two
+  spellings, such as "Penguin books" and "Penguin Books", or "Alfred A.Knopf"
+  and "Alfred A. Knopf". Each spelling is a separate record, and each
+  publication links to only one of them.
 
-  ## Renaming is the only verb
+  A *kind* is `"authors"` or `"publishers"`, the word the routes use for each
+  schema.
 
-  There is no separate merge. Renaming to a name nothing else holds corrects a
-  spelling; renaming to one that is already taken folds the two together, since
-  a vocabulary cannot hold the same name twice. One operation answers both, and
-  a person deciding "these are the same" says so by writing the name they should
-  share.
+  ## Renaming and folding
 
-  ## Why this is not an update to one row
+  `rename/4` is the only function that changes a name. There is no separate
+  merge. Names are unique within a kind, so a rename has one of two outcomes:
 
-  A publication's identity is a composite key built partly from *fingerprints*
-  of these names. Rename a publisher and every publication it is on has a stale
-  `publishers_fingerprint`; rename an author and the fingerprints of the
-  translated book, the original book and the publication all follow. So a rename
-  recomputes the chain it disturbs, in the same transaction.
+    * `:renamed` means the new name is free, and the record takes it.
+    * `:merged` means another record, the *keeper*, already has the new name.
+      The renamed record is *folded* into the keeper: its links move to the
+      keeper and the record is deleted.
 
-  ## When the rename would uncover a duplicate
+  A fold cannot be undone, so `rename/4` folds only when its `folding?`
+  argument is true.
 
-  Correcting a spelling can give two publications one identity — which is the
-  duplicate the misspelling was hiding. The composite key is a unique index, so
-  the database will not hold both, and there is no version of this that quietly
-  succeeds.
+  ## Recomputing fingerprints
 
-  The rename is refused, and says which publications clashed. Merging them is a
-  separate act, with its own survivor to choose and its own undo, and doing it
-  silently inside a spelling correction would be a fold nobody asked for.
+  A publication's composite key includes fingerprints built from these names.
+  A publisher's name is part of `publishers_fingerprint`. An author's name is
+  part of the `authors_fingerprint` of the original and translated books, and
+  those are part of the publication's `translated_book_fingerprint`.
+  `rename/4` recomputes every fingerprint built from the renamed name, in the
+  same transaction as the rename. When this gives a book the same identity as
+  another book, the two books are folded into one.
 
-  ## Catching a misspelling before it is one
+  ## Renames that would duplicate a publication
 
-  `resemblances/2` answers the same question from the other end: given names
-  that are about to be entered, which of them are close to a name already here
-  without being it. A name is *held* when the vocabulary already has it exactly,
-  and *resembles* another when trigram similarity puts them over the threshold
-  while the two strings differ.
+  A rename can give two publications the same title, year and fingerprints.
+  This happens when one publication was entered twice and the two copies
+  differ only in the spelling of a name. The composite key is a unique index,
+  so the database cannot store both.
 
-  Held is the good outcome and resembling is the doubtful one. A name that is
-  neither is simply new, which is how a vocabulary grows.
+  In that case `rename/4` rolls back and returns
+  `{:error, {:would_collide, publications}}`, listing the two publications. It
+  does not merge them. Merging publications is done by
+  `RichardBurton.Publication.merge/3`, which takes the publication to keep and
+  can be undone.
+
+  ## Checking names before they are entered
+
+  `resemblances/2` compares names that are not stored yet with the stored
+  names. A name is *held* when a record has exactly that name. A name
+  *resembles* a stored name when the two differ but their trigram similarity,
+  with accents removed, is above 0.7. A name that is neither held nor
+  resembles a stored name is new.
   """
 
   import Ecto.Query
@@ -59,43 +68,43 @@ defmodule RichardBurton.Vocabulary do
 
   @kinds %{"authors" => Author, "publishers" => Publisher}
 
-  # How alike two names must be for one to be worth raising as a possible
-  # misspelling of the other.
+  # The trigram similarity above which two names are treated as possible
+  # spellings of one name.
   #
-  # Chosen against the database rather than in the abstract, because the two
-  # populations overlap on raw trigram distance. Houses that merely share a word
-  # sit around 0.6 — "Duke University Press" against "Texas University Press",
-  # "Arc Publications" against "Host Publications". Misspellings sit above 0.7
-  # once accents are out of the way: "Clifford E. Landers" against "Clifford
-  # Landers" is 0.89, and every dropped space or swapped case is 1.0.
+  # The value comes from measuring pairs of names in the database. Publishers
+  # that only share a word score about 0.6, for example "Duke University Press"
+  # and "Texas University Press", or "Arc Publications" and "Host
+  # Publications". Misspellings score above 0.7 once accents are removed.
+  # "Clifford E. Landers" and "Clifford Landers" score 0.89. A change of case,
+  # or a dropped space after punctuation as in "Alfred A.Knopf", scores 1.0.
   @resemblance_threshold 0.7
 
-  # Whether two names are near enough to be the same name spelt twice.
+  # Builds a query condition that is true when the two names, with accents
+  # removed, have a trigram similarity above the threshold.
   #
-  # `%` is `similarity(a, b) > threshold`, reading the threshold from the setting
-  # `in_threshold/1` puts in place. It compares the unaccented names because an
-  # accent is one of the ways a name gets entered twice: "Adelia Prado" beside
-  # "Adélia Prado" is one person, and on the raw strings that pair scores lower
-  # than two unrelated presses do.
+  # The `%` operator reads the threshold from `pg_trgm.similarity_threshold`,
+  # which `in_threshold/1` sets. Accents are removed because the same name is
+  # often entered with and without them. "Adelia Prado" and "Adélia Prado" are
+  # one person, but on the raw strings that pair scores lower than two
+  # unrelated publishers.
   defmacrop alike(left, right) do
     quote do: fragment("unaccent(?) % unaccent(?)", unquote(left), unquote(right))
   end
 
   @doc """
-  The kinds of name that can be managed, by the word the routes use.
+  Returns the kinds of name, as the words the routes use.
   """
   def kinds, do: Map.keys(@kinds)
 
   @doc """
-  Every name of this kind, with how many publications it is on, alphabetically,
-  and which of the others it resembles.
+  Returns every name of the given kind, sorted by name, as
+  `%{id:, name:, publications:, resembles:}`.
 
-  The count is what tells a name worth keeping from a stray: of the three
-  spellings of one publisher, the one with nineteen publications is the one the
-  others should become.
+  `publications` counts the publications that credit the name and are not
+  deleted. `resembles` lists the ids of the other names of this kind that the
+  name resembles. Each of those ids is also in the returned list.
 
-  `resembles` holds ids rather than names, since the names they point at are in
-  this same list.
+  Returns `{:error, :no_such_kind}` when the kind is unknown.
   """
   def all(kind) do
     with {:ok, schema} <- kind_of(kind) do
@@ -106,9 +115,9 @@ defmodule RichardBurton.Vocabulary do
   defp counts(Author), do: author_counts()
   defp counts(Publisher), do: publisher_counts()
 
-  # Which names are near which, over the vocabulary itself rather than against
-  # names arriving from elsewhere. Every pair appears twice, once from each side,
-  # so each name carries its own neighbours.
+  # Adds `resembles` to each entry: the ids of the other stored names that the
+  # entry's name resembles. The self-join returns each pair once from each
+  # side, so both names in a pair list each other.
   defp with_likenesses(entries, schema) do
     near =
       in_threshold(fn ->
@@ -125,10 +134,10 @@ defmodule RichardBurton.Vocabulary do
     Enum.map(entries, &Map.put(&1, :resembles, Map.get(near, &1.id, [])))
   end
 
-  # A name may be a translator on one publication and the original author of
-  # another, so the two paths are gathered before being counted. `union` rather
-  # than `union_all`: somebody who is both on one publication is one name on one
-  # publication, not two.
+  # Builds the query that counts, for each author, the publications that are
+  # not deleted and credit the author as translator or as original author. It
+  # uses `union` rather than `union_all`, so an author who is both translator
+  # and original author of one publication counts it once.
   defp author_counts do
     pairs = union(as_translator(), ^as_original_author())
 
@@ -172,15 +181,15 @@ defmodule RichardBurton.Vocabulary do
   end
 
   @doc """
-  Which of these names the vocabulary already holds, and which look like
-  misspellings of one it holds.
+  Compares the given names with the stored names of the given kind.
 
-  Each name comes back as `%{name:, held:, resembles: [...]}`, where
-  `resembles` lists the existing names near it, most used first — the count is
-  what says which spelling the database has settled on.
+  Returns `{:ok, entries}`, with one `%{name:, held:, resembles:}` per name.
+  `held` is true when a stored name matches exactly. `resembles` lists the
+  stored names that resemble it, as `%{id:, name:, publications:}`, with the
+  most used first.
 
-  Names are trimmed, blanks dropped and repeats collapsed, so a caller can pass
-  a column straight out of a spreadsheet.
+  The names are trimmed, blank names are dropped, and a repeated name appears
+  once. Returns `{:error, :no_such_kind}` when the kind is unknown.
   """
   def resemblances(kind, names) when is_list(names) do
     with {:ok, schema} <- kind_of(kind) do
@@ -211,7 +220,9 @@ defmodule RichardBurton.Vocabulary do
     |> MapSet.new()
   end
 
-  # The names each asked-for name is near, keyed by the name that was asked.
+  # Returns a map from each asked name to the stored names it resembles, with
+  # their publication counts, most used first. An asked name that resembles
+  # nothing is not in the map.
   defp near(schema, asked) do
     rows = in_threshold(fn -> Repo.all(resembling(schema, asked)) end)
     counts = counts_of(schema, Enum.map(rows, & &1.id))
@@ -231,9 +242,10 @@ defmodule RichardBurton.Vocabulary do
     )
   end
 
-  # Runs the query with the threshold `%` reads in place. `set_config` with
-  # `true` scopes the setting to the transaction rather than to the connection,
-  # which is pooled and would otherwise carry it to unrelated work.
+  # Runs `query` in a transaction that sets `pg_trgm.similarity_threshold` to
+  # `@resemblance_threshold`, and returns its result. The `true` argument to
+  # `set_config` limits the setting to this transaction. Without it, the
+  # setting would stay on the pooled connection and apply to later queries.
   defp in_threshold(query) do
     {:ok, rows} =
       Repo.transaction(fn ->
@@ -258,19 +270,21 @@ defmodule RichardBurton.Vocabulary do
   end
 
   @doc """
-  Rename one, folding it into another where the name is already taken.
+  Renames the name with the given id. When another name of the same kind
+  already has the new name, folds this one into it.
 
-  Returns `{:ok, :renamed}` or `{:ok, :merged}`, so a caller can say which
-  happened — they look the same from here and not to the person who asked.
+  The new name is trimmed. Returns `{:ok, :renamed}` when the record takes the
+  new name, and `{:ok, :merged}` when it is folded. After either, it calls
+  `Refresher.refresh/0`.
 
-  The two are not equally undoable, though, and a fold has to be asked for.
-  Where the name is already held and `folding?` is false, nothing is written and
-  `{:error, {:would_fold, keeper}}` says who holds it and how many publications
-  are on them. Correcting a spelling onto a free name needs no such permission:
-  renaming back undoes it.
+  A fold happens only when `folding?` is true. When it is false and the name is
+  taken, nothing is written and the result is `{:error, {:would_fold, keeper}}`,
+  where `keeper` is `%{id:, name:, publications:}`. A rename onto a free name
+  needs no flag, because renaming back undoes it.
 
-  Asked here rather than by whoever is calling, because only the database knows
-  whether the name is free at the moment it is written.
+  The other errors are `{:error, {:would_collide, publications}}` (see the
+  module doc), `{:error, :blank}`, `{:error, :not_found}` and
+  `{:error, :no_such_kind}`.
   """
   def rename(kind, id, name, folding? \\ false) when is_binary(name) do
     with {:ok, schema} <- kind_of(kind),
@@ -294,8 +308,9 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
-  # Whether this rename is the one that was asked for. A rename that would fold
-  # needs saying so; one that would not is allowed through.
+  # Returns :ok when the rename may go ahead. When `folding?` is false and
+  # another record already has the new name, returns `:would_fold` as an error
+  # with that record and its publication count.
   defp permitted(_schema, _record, _name, true), do: :ok
 
   defp permitted(schema, record, name, false) do
@@ -333,8 +348,9 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
-  # The name is free, so this one takes it; or it is held, so this one is folded
-  # into whoever holds it.
+  # Gives the record the new name and returns :renamed when the name is free or
+  # is already the record's own. When another record has the name, moves the
+  # record's links to that keeper, deletes the record and returns :merged.
   defp write(schema, record, name) do
     case Repo.get_by(schema, name: name) do
       nil ->
@@ -351,15 +367,16 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
-  # The tables that point at a name, and the column they point with.
+  # Returns the join tables that reference a name of this schema, each with its
+  # foreign key column.
   defp joins(Author),
     do: [{"translated_book_authors", "author_id"}, {"original_book_authors", "author_id"}]
 
   defp joins(Publisher), do: [{"publication_publishers", "publisher_id"}]
 
-  # Every reference moves to the keeper, except where that would say the same
-  # thing twice — a book already crediting both spellings credits the keeper
-  # once, not twice.
+  # Moves a join table's rows from the name id `from` to the name id `to`. It
+  # first deletes the rows that would become duplicates, where one book or
+  # publication already links to both names, so each links to `to` once.
   defp repoint({table, column}, from, to) do
     other = other_column(table, column)
 
@@ -381,11 +398,11 @@ defmodule RichardBurton.Vocabulary do
   defp other_column("original_book_authors", _), do: "original_book_id"
   defp other_column("publication_publishers", _), do: "publication_id"
 
-  # Everything whose fingerprint was built from the name that changed.
+  # Recomputes every fingerprint built from the new name.
   #
-  # Read back from the database rather than tracked through the write: after a
-  # fold there is one name where there were two, and what points at it is a
-  # question for the tables, not for this function's memory.
+  # It looks the record up by the new name instead of using `record`. After a
+  # fold, the name belongs to the keeper, whose links now include the ones moved
+  # from `record`.
   defp recompute(Author, _record, name) do
     case Repo.get_by(Author, name: name) do
       nil -> :ok
@@ -400,16 +417,18 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
-  # A name is not only on publications: it is on the books between. Two
-  # spellings of one translator make two translated books that were only ever
-  # told apart by the spelling, and those have identities of their own.
+  # Settles the original books the author wrote, then the translated books the
+  # author translated, then recomputes the fingerprints of the author's
+  # publications.
   #
-  # So the same rule runs down the chain — where recomputing gives a book an
-  # identity another already holds, the two are one book and are folded. Each
-  # level is settled before the one above it reads from it.
+  # Books have unique identities built from their authors' names. When the new
+  # fingerprint gives a book the same identity as another book, the two are
+  # folded into one. Original books go first because a translated book's
+  # identity includes its original book's fingerprint, and translated books go
+  # before publications for the same reason.
   defp recompute_for_author(author) do
-    # Held before anything is folded, since a translated book may be deleted on
-    # the way and take a publication's route to it with it.
+    # Reads the publication ids before any book is folded, because folding
+    # deletes books and their author links.
     publications = publication_ids_of_author(author)
 
     author |> original_books_of() |> Enum.each(&settle_original_book/1)
@@ -441,8 +460,11 @@ defmodule RichardBurton.Vocabulary do
     )
   end
 
-  # The book under its corrected authors, or folded into the book that already
-  # is it.
+  # Reloads the original book and recomputes its `authors_fingerprint`. When
+  # another original book has the same title and fingerprint, moves this book's
+  # translations to it and deletes this one. Otherwise stores the fingerprint.
+  # In both cases it then updates `original_book_fingerprint` on the translated
+  # books. Does nothing when the book no longer exists.
   defp settle_original_book(original_book) do
     case Repo.get(OriginalBook, original_book.id) do
       nil -> :ok
@@ -480,13 +502,14 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
-  # What credited a book that is being folded away. The rows point at it, so
-  # they go first or the delete is refused.
+  # Deletes the author links of a book that is about to be deleted. The links
+  # reference the book, so the database refuses to delete it while they exist.
   defp unlink(table, column, id) do
     Repo.query!("DELETE FROM #{table} WHERE #{column} = $1", [id])
   end
 
-  # The book's own fingerprint is part of every translation of it.
+  # Writes the original book's fingerprint into `original_book_fingerprint` on
+  # every translated book of it.
   defp retitle_translations(original_book) do
     Repo.update_all(
       from(tb in TranslatedBook, where: tb.original_book_id == ^original_book.id),
@@ -494,8 +517,11 @@ defmodule RichardBurton.Vocabulary do
     )
   end
 
-  # The translation under its corrected translators, or folded into the
-  # translation that already is it.
+  # Reloads the translated book and recomputes its `authors_fingerprint`. When
+  # another translated book has the same authors and original book
+  # fingerprints, moves this book's publications to it and deletes this one.
+  # Otherwise stores the fingerprint. Does nothing when the book no longer
+  # exists.
   defp settle_translated_book(translated_book) do
     case Repo.get(TranslatedBook, translated_book.id) do
       nil -> :ok
@@ -531,11 +557,12 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
-  # The publication's own composite key, rebuilt from what it now holds.
+  # Recomputes and stores the publication's `publishers_fingerprint` and
+  # `translated_book_fingerprint`.
   #
-  # Where that key is already another publication's, the whole rename is rolled
-  # back: the two are the same publication under two spellings, and folding them
-  # is a separate decision.
+  # When `clashing/3` finds another publication with the same title, year and
+  # fingerprints, it rolls back the whole rename with
+  # `{:would_collide, [publication, other]}`, each as `%{id:, title:, year:}`.
   defp refingerprint(publication) do
     publication =
       Repo.preload(publication, [:publishers, translated_book: [:authors, :original_book]])
@@ -543,9 +570,9 @@ defmodule RichardBurton.Vocabulary do
     publishers = Publisher.fingerprint(publication.publishers)
     translated = TranslatedBook.fingerprint(publication.translated_book)
 
-    # Asked before it is written rather than caught after: a statement the
-    # database refuses aborts the transaction, and nothing further could be read
-    # from it to say what had clashed.
+    # Checks for a clash before writing, instead of catching the unique index
+    # error. A failed statement aborts the transaction, and after that the
+    # clashing publication could not be read.
     case clashing(publication, publishers, translated) do
       nil ->
         publication
@@ -564,8 +591,9 @@ defmodule RichardBurton.Vocabulary do
     %{id: publication.id, title: publication.title, year: publication.year}
   end
 
-  # Whoever already holds the identity this publication is moving to, if
-  # anybody: the same publication under the spelling being corrected.
+  # Returns the other publication, not deleted, that has the same title and
+  # year as this one and the given publishers and translated book
+  # fingerprints, or nil.
   defp clashing(publication, publishers, translated) do
     Repo.one(
       from(p in Publication,

@@ -143,7 +143,7 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
                )
                |> json_response(409)
 
-      # Both are named, so a person can go and look at them.
+      # The response lists both publications.
       assert length(publications) == 2
     end
 
