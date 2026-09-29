@@ -16,7 +16,7 @@ defmodule RichardBurton.Document do
   the rows — validating and submitting — already take ordinary JSON over the
   publication endpoints.
 
-  Three words carry specific meanings here:
+  Four words carry specific meanings here:
 
     * **update** — one opaque change to the content, as Yjs encoded it.
     * **compaction** — one update that means the same as every update up to a
