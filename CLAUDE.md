@@ -38,6 +38,8 @@ This covers comments, docstrings, module docs, story descriptions and test comme
 
 **Write for someone reading the file cold, a year from now.** That rules out history (what the code used to do, what a change fixed), QA narrative (the bug that prompted it, what a test caught), defensive justification (arguing with an imagined reviewer or with this file), restating the next line, and teaching the stack ("this is a hook"). Say what the behaviour *is*, or what property a test protects.
 
+**Write plainly.** A doc is read to learn what the code does, so write it the way you would explain the code to a colleague: common words, direct statements, and the names of the functions, modules and events involved. Avoid literary phrasing, such as code described as if it had intentions ("whatever holds it open", "the store is handed a document"), aphorisms, dramatic turns and metaphors. If a sentence sounds good but needs a second read, rewrite it.
+
 **Write ordinary explanatory sentences.** The failure is not jargon, it is compression — prose squeezed until the reader has to unpack it.
 
 - Full sentences with explicit subjects. "Returns nil when the list is empty", not "An empty list is nil".
