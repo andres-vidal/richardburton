@@ -36,16 +36,21 @@ defmodule RichardBurton.Vocabulary do
 
   ## Renames that would duplicate a publication
 
-  A rename can give two publications the same title, year and fingerprints.
-  This happens when one publication was entered twice and the two copies
-  differ only in the spelling of a name. The composite key is a unique index,
-  so the database cannot store both.
+  A rename can give two publications the same composite key: the same title,
+  year, and publishers, countries and translated book fingerprints. This
+  happens when one publication was entered twice and the two copies differ
+  only in the spelling of a name. The composite key is a unique index over the
+  publications that are not deleted, so the database cannot store both.
 
   In that case `rename/4` rolls back and returns
   `{:error, {:would_collide, publications}}`, listing the two publications. It
   does not merge them. Merging publications is done by
   `RichardBurton.Publication.merge/3`, which takes the publication to keep and
   can be undone.
+
+  Deleted publications have their fingerprints recomputed as well, so a
+  restored publication matches its names. They are never reported as a
+  collision, because the unique index does not cover them.
 
   ## Checking names before they are entered
 
@@ -558,11 +563,14 @@ defmodule RichardBurton.Vocabulary do
   end
 
   # Recomputes and stores the publication's `publishers_fingerprint` and
-  # `translated_book_fingerprint`.
+  # `translated_book_fingerprint`. Deleted publications are recomputed too, so
+  # a restored publication has fingerprints that match its names.
   #
-  # When `clashing/3` finds another publication with the same title, year and
-  # fingerprints, it rolls back the whole rename with
-  # `{:would_collide, [publication, other]}`, each as `%{id:, title:, year:}`.
+  # When the publication is not deleted and `clashing/3` finds another
+  # publication with the same composite key, it rolls back the whole rename
+  # with `{:would_collide, [publication, other]}`, each as
+  # `%{id:, title:, year:}`. A deleted publication is never checked, because
+  # the composite key applies only to publications that are not deleted.
   defp refingerprint(publication) do
     publication =
       Repo.preload(publication, [:publishers, translated_book: [:authors, :original_book]])
@@ -573,46 +581,71 @@ defmodule RichardBurton.Vocabulary do
     # Checks for a clash before writing, instead of catching the unique index
     # error. A failed statement aborts the transaction, and after that the
     # clashing publication could not be read.
-    case clashing(publication, publishers, translated) do
-      nil ->
-        publication
-        |> Ecto.Changeset.change(
-          publishers_fingerprint: publishers,
-          translated_book_fingerprint: translated
-        )
-        |> Repo.update!()
-
-      held ->
-        Repo.rollback({:would_collide, [summarise(publication), held]})
+    with held when not is_nil(held) <- live_clash(publication, publishers, translated) do
+      Repo.rollback({:would_collide, [summarise(publication), held]})
     end
+
+    publication
+    |> Ecto.Changeset.change(
+      publishers_fingerprint: publishers,
+      translated_book_fingerprint: translated
+    )
+    |> Repo.update!()
   end
+
+  # Returns what `clashing/3` returns for a publication that is not deleted, and
+  # nil for a deleted one.
+  defp live_clash(publication = %Publication{deleted_at: nil}, publishers, translated),
+    do: clashing(publication, publishers, translated)
+
+  defp live_clash(_deleted, _publishers, _translated), do: nil
 
   defp summarise(publication) do
     %{id: publication.id, title: publication.title, year: publication.year}
   end
 
-  # Returns the other publication, not deleted, that has the same title and
-  # year as this one and the given publishers and translated book
-  # fingerprints, or nil.
+  # Returns the other publication, not deleted, that would have the same
+  # composite key as this one with the given publishers and translated book
+  # fingerprints, or nil. The composite key is the title, the year, and the
+  # publishers, countries and translated book fingerprints.
   defp clashing(publication, publishers, translated) do
     Repo.one(
       from(p in Publication,
         where:
           p.id != ^publication.id and p.title == ^publication.title and
             p.year == ^publication.year and p.publishers_fingerprint == ^publishers and
+            p.countries_fingerprint == ^publication.countries_fingerprint and
             p.translated_book_fingerprint == ^translated and is_nil(p.deleted_at),
         select: %{id: p.id, title: p.title, year: p.year}
       )
     )
   end
 
+  # Returns the ids of the publications that credit the author as translator or
+  # as original author, deleted ones included.
   defp publication_ids_of_author(author) do
-    union(as_translator(), ^as_original_author())
-    |> Repo.all()
-    |> Enum.filter(&(&1.author_id == author.id))
-    |> Enum.map(& &1.publication_id)
+    translated =
+      from(p in Publication,
+        join: ta in "translated_book_authors",
+        on: ta.translated_book_id == p.translated_book_id,
+        where: ta.author_id == ^author.id,
+        select: p.id
+      )
+
+    original =
+      from(p in Publication,
+        join: tb in TranslatedBook,
+        on: tb.id == p.translated_book_id,
+        join: oa in "original_book_authors",
+        on: oa.original_book_id == tb.original_book_id,
+        where: oa.author_id == ^author.id,
+        select: p.id
+      )
+
+    translated |> union(^original) |> Repo.all()
   end
 
+  # Returns the publications that credit the publisher, deleted ones included.
   defp publications_of_publisher(publisher) do
     Repo.all(
       from(p in Publication,

@@ -21,7 +21,7 @@ type Kind = "authors" | "publishers";
 type Outcome = "renamed" | "merged";
 
 /** A publication that a rename would give the same identity as another. */
-type Clashing = { id: number; title: string; year: string };
+type Clashing = { id: number; title: string; year: number };
 
 /**
  * The server's answer for one name passed to `resemblances`.
@@ -31,7 +31,11 @@ type Clashing = { id: number; title: string; year: string };
  * most used first. A name that is not held but resembles a stored name may be
  * a misspelling.
  */
-type Resemblance = { name: string; held: boolean; resembles: Name[] };
+type Resemblance = {
+  name: string;
+  held: boolean;
+  resembles: Omit<Name, "resembles">[];
+};
 
 async function list(kind: Kind): Promise<Name[]> {
   return request(async (http) => {

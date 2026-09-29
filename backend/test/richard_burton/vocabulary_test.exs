@@ -361,6 +361,79 @@ defmodule RichardBurton.VocabularyTest do
       assert Repo.get_by(Publisher, name: "Noonday press") != nil
       assert {fingerprints(kept), fingerprints(hidden)} == before
     end
+
+    test "a copy published in another country is not a duplicate" do
+      # The composite key includes the countries, so these two can both be
+      # stored once their publishers are spelt the same.
+      kept = insert()
+
+      other =
+        insert(%{
+          "countries" => [%{"code" => "GB"}],
+          "publishers" => [%{"name" => "Noonday press"}]
+        })
+
+      assert {:ok, :merged} =
+               Vocabulary.rename(
+                 "publishers",
+                 id_of(Publisher, "Noonday press"),
+                 "Noonday Press",
+                 true
+               )
+
+      assert elem(fingerprints(other), 0) == elem(fingerprints(kept), 0)
+    end
+  end
+
+  describe "rename/3 and deleted publications" do
+    test "a deleted copy of a publication does not stop the rename" do
+      # The composite key applies only to publications that are not deleted,
+      # so a deleted copy cannot clash with the publication it copies.
+      insert()
+      copy = insert(%{"publishers" => [%{"name" => "Noonday press"}]})
+      {:ok, _} = Publication.delete(copy.id)
+
+      assert {:ok, :merged} =
+               Vocabulary.rename(
+                 "publishers",
+                 id_of(Publisher, "Noonday press"),
+                 "Noonday Press",
+                 true
+               )
+    end
+
+    test "a deleted publication's fingerprints follow an author rename" do
+      kept = insert(%{"year" => 1966})
+      copy = insert(%{"translated_book" => %{"authors" => [%{"name" => "Helen Caldwel"}]}})
+      {:ok, _} = Publication.delete(copy.id)
+
+      assert {:ok, :merged} =
+               Vocabulary.rename(
+                 "authors",
+                 id_of(Author, "Helen Caldwel"),
+                 "Helen Caldwell",
+                 true
+               )
+
+      # Both publications are now of the same translated book.
+      assert elem(fingerprints(copy), 1) == elem(fingerprints(kept), 1)
+    end
+
+    test "restoring a deleted copy after the rename is refused as a duplicate" do
+      insert()
+      copy = insert(%{"translated_book" => %{"authors" => [%{"name" => "Helen Caldwel"}]}})
+      {:ok, _} = Publication.delete(copy.id)
+
+      assert {:ok, :merged} =
+               Vocabulary.rename(
+                 "authors",
+                 id_of(Author, "Helen Caldwel"),
+                 "Helen Caldwell",
+                 true
+               )
+
+      assert {:error, :conflict} = Publication.restore(copy.id)
+    end
   end
 
   describe "rename/3 refusals" do

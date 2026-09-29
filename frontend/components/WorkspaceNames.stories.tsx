@@ -30,9 +30,7 @@ const ANSWERS: Record<Kind, Resemblance[]> = {
     {
       name: "Helen Caldwel",
       held: false,
-      resembles: [
-        { id: 1, name: "Helen Caldwell", publications: 6, resembles: [] },
-      ],
+      resembles: [{ id: 1, name: "Helen Caldwell", publications: 6 }],
     },
     { name: "Machado de Assis", held: true, resembles: [] },
   ],
@@ -40,9 +38,7 @@ const ANSWERS: Record<Kind, Resemblance[]> = {
     {
       name: "Alfred A.Knopf",
       held: false,
-      resembles: [
-        { id: 2, name: "Alfred A. Knopf", publications: 21, resembles: [] },
-      ],
+      resembles: [{ id: 2, name: "Alfred A. Knopf", publications: 21 }],
     },
     { name: "University of California Press", held: true, resembles: [] },
   ],
