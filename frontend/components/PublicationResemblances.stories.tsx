@@ -67,7 +67,8 @@ const meta = {
   args: { isOpen: true, onClose: () => {} },
   parameters: {
     layout: "fullscreen",
-    // Full-screen portalled modal — bound it in the docs page.
+    // The modal is full screen and rendered in a portal, so the docs page shows
+    // it in an iframe of fixed height.
     docs: { story: { inline: false, height: "34rem" } },
   },
   beforeEach: () => {
@@ -90,8 +91,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * The first question: a row that all but spells a record already in the
- * database, with both side by side.
+ * The first row in the queue is a near-copy of a stored record. The review
+ * shows the row and the record.
  */
 export const AgainstTheDatabase: Story = {
   play: async () => {
@@ -109,8 +110,8 @@ export const AgainstTheDatabase: Story = {
 };
 
 /**
- * A question about two rows of the same import. Neither is in the database, so
- * the review is the only place this pair is ever put together.
+ * The second row in the queue resembles another row of the same import. Neither
+ * row is stored, so the duplicate review cannot show this pair.
  */
 export const WithinTheImport: Story = {
   play: async () => {
@@ -129,14 +130,14 @@ export const WithinTheImport: Story = {
 };
 
 /**
- * The reading goes both ways and stops at the ends, so a reader can go back to
- * something they have already passed.
+ * Next and Previous move through the queue in both directions. Previous is
+ * disabled on the first row, and Next is disabled on the last.
  */
 export const ReadingBothWays: Story = {
   play: async () => {
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
 
-    // Nothing before the first.
+    // Previous is disabled on the first row.
     await expect(
       screen.getByRole("button", { name: "Previous" }),
     ).toBeDisabled();
@@ -145,7 +146,7 @@ export const ReadingBothWays: Story = {
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     await expect(await screen.findByText("3 / 3")).toBeVisible();
 
-    // ...and nothing after the last.
+    // Next is disabled on the last row.
     await expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
 
     await userEvent.click(screen.getByRole("button", { name: "Previous" }));

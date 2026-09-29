@@ -10,13 +10,13 @@ import {
 } from "./helpers";
 
 /**
- * A second import of the same material, entered by a different hand.
+ * A CSV with four rows.
  *
- * The first row all but spells `Dom Casmurro`, which the corpus already holds —
- * a dropped letter in the title and in the translator's name, which is exactly
- * what the composite key lets through. The next two spell each other and are in
- * neither the corpus nor the database, so only a check within the import can
- * put them together. The last is its own work and must be left alone.
+ * The first row is the corpus's `Dom Casmurro` with one letter missing from the
+ * title and one from the translator's name. The composite key does not catch
+ * this. The second and third rows are near-copies of each other and are not in
+ * the database, so only the comparison between the import's rows finds them.
+ * The fourth row resembles nothing.
  */
 const IMPORT_CSV =
   [
@@ -33,8 +33,9 @@ test("a row keeps its look-alike while the rest of it is filled in", async ({
   await seedCorpus(page);
   await openDocument(page);
 
-  // Only what a look-alike is measured on: the title and the names. The rest of
-  // the row comes after, which is the point of the test.
+  // Fill only the fields the check reads: the title, original title,
+  // translators and original authors. The other fields are filled after the
+  // row is marked.
   const draft = draftRow(page);
   await draft.getByPlaceholder("Title", { exact: true }).fill("Dom Casmuro");
   await draft
@@ -48,9 +49,9 @@ test("a row keeps its look-alike while the rest of it is filled in", async ({
   const marked = row.getByRole("button", { name: /^Resembles / });
   await expect(marked).toBeVisible({ timeout: 30_000 });
 
-  // Filling the rest changes nothing about what the row resembles, so the
-  // answer has to survive it: a field that made the answer stale without asking
-  // again would drop it for good.
+  // The check does not read the year, countries or publishers, so filling them
+  // must keep the row's result. If one of them cleared the result without
+  // running the check again, the row would stay unmarked.
   await row.getByPlaceholder("Year", { exact: true }).fill("1953");
   await page.keyboard.press("Tab");
   await expect(marked).toBeVisible();
@@ -61,8 +62,8 @@ test("a row keeps its look-alike while the rest of it is filled in", async ({
   await commitMulti(row, "Publishers", "Noonday Press");
   await page.keyboard.press("Tab");
 
-  // The row is valid now, and still says what it looks like — in the leading
-  // cell, where a marked row is spotted, as well as at its end.
+  // The row is now valid. It still has the look-alike button at its end and
+  // the warning icon in its leading cell.
   await expect(page.getByLabel("All publications are valid")).toBeVisible();
   await expect(marked).toBeVisible();
   await expect(
@@ -85,19 +86,17 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   const table = indexTable(page);
   await expect(table.getByRole("row", { name: /Dom Casmuro/ })).toBeVisible();
 
-  // The rows are measured as they arrive, so nothing has to be pressed. Three
-  // of the four are raised — one against the database, two against each other —
-  // and the fourth, its own work, is not.
+  // The check runs after the upload without any button press. Three of the
+  // four rows resemble something: the first resembles a stored record, and the
+  // second and third resemble each other. The fourth resembles nothing.
   const found = page.getByRole("button", {
     name: "3 rows look like publications already known",
   });
   await expect(found).toBeVisible({ timeout: 30_000 });
 
-  // A row says what it looks like, rather than only that it looks like
-  // something. The one that resembles the corpus names the record by title and
-  // year; the one that resembles its neighbour says so.
-  // The row is marked where its status is — beside where an error would be —
-  // and says what it resembles at the end, where something can be done about it.
+  // The row that resembles a stored record has the warning icon in its leading
+  // cell, where an error icon would be. Its look-alike button, at the end of
+  // the row, names the record by title and year.
   const casmuro = table.getByRole("row", { name: /Dom Casmuro/ });
   await expect(
     casmuro.getByRole("img", {
@@ -108,15 +107,13 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
     casmuro.getByRole("button", { name: "Resembles Dom Casmurro (1953)." }),
   ).toBeVisible();
 
-  // A marked row is still a row: the marker shares the leading cell with the
-  // error icon, and that cell is what selects.
+  // Clicking the leading cell of a marked row still selects the row.
   await casmuro.getByRole("cell").first().click();
   await expect(page.getByRole("button", { name: "Deselect 1" })).toBeVisible();
   await page.getByRole("button", { name: "Deselect 1" }).click();
 
-  // Pressing a row's warning opens the review on that row, not at the top of
-  // the queue — and selecting the row still works, since the control inside the
-  // handle takes only its own clicks.
+  // Clicking a row's look-alike button opens the review on that row, which is
+  // second in the queue, not on the first row.
   const marked = table
     .getByRole("row", { name: /The Devil to Pay in the Backlands/ })
     .getByRole("button", { name: "Resembles one other row of this import." });
@@ -138,13 +135,12 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   });
   await expect(review).toBeVisible();
 
-  // The stored record can be followed through to, in a tab of its own so the
-  // rows waiting here are not lost.
+  // The stored record links to its own page, which opens in a new tab.
   await expect(
     review.getByRole("link", { name: "Open this record" }),
   ).toHaveAttribute("target", "_blank");
 
-  // The first is the row against the record the corpus already holds.
+  // The first row in the queue resembles the stored `Dom Casmurro`.
   await expect(
     review.getByText("Resembles one record already in the database."),
   ).toBeVisible();
@@ -153,8 +149,7 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   ).toBeVisible();
   await expect(review.getByText("1 / 3")).toBeVisible();
 
-  // The review reads, it does not decide: it steps through what was found, both
-  // ways, and stops at the ends.
+  // Next and Previous move through the queue and are disabled at its ends.
   await expect(review.getByRole("button", { name: "Previous" })).toBeDisabled();
   await review.getByRole("button", { name: "Next" }).click();
 
@@ -176,8 +171,8 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(review).not.toBeVisible();
 
-  // Having read it, the rows are dealt with in the workspace itself — selected
-  // by their handles and discarded, the way any other row would be.
+  // Discard the first and second rows in the workspace, by selecting them with
+  // their leading cells and pressing Discard.
   await table
     .getByRole("row", { name: /Dom Casmuro/ })
     .getByRole("cell")
@@ -191,12 +186,13 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
   await page.getByRole("button", { name: /^Discard/ }).click();
 
-  // Both left the working set; the work of its own never asked.
+  // Both rows are gone from the working set, and the other two are still there.
   await expect(table.getByRole("row", { name: /Dom Casmuro/ })).toHaveCount(0);
   await expect(
     table.getByRole("row", { name: /The Devil to Pay in the Backlands/ }),
   ).toHaveCount(0);
-  // Only the surviving one of the pair still matches the shorter title.
+  // This pattern also matches the discarded second row's title, so a count of
+  // one means only the third row is left.
   await expect(
     table.getByRole("row", { name: /The Devil to Pay in the Backland/ }),
   ).toHaveCount(1);
@@ -204,6 +200,8 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
     table.getByRole("row", { name: /The Passion According to G\.H\./ }),
   ).toBeVisible();
 
-  // And nothing is left looking like anything, so the count goes.
+  // Discarding changes the visible rows, so the check runs again. The third
+  // row's only match was the second row, so no row resembles anything and the
+  // counter is gone.
   await expect(page.getByRole("button", { name: /rows? look/ })).toHaveCount(0);
 });

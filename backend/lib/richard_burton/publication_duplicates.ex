@@ -15,8 +15,9 @@ defmodule RichardBurton.Publication.Duplicates do
     * **distinction** — a stored record that two publications are not the same,
       so the review stops offering them. See `Distinction`.
     * **ruled apart** — the state of a pair that has a distinction.
-    * **row** — a publication on its way in, not written yet. It has no id, so it
-      is named by its position in the list it arrived in. See `resemblances/1`.
+    * **row** — a publication being imported that is not stored yet. It has no
+      id, so `resemblances/1` refers to it by its position in the list it is
+      given.
 
   Similarity is trigram distance, the measure the author lookup also uses, over
   the fields a duplicate would agree on. A pair is a candidate when the
@@ -31,9 +32,9 @@ defmodule RichardBurton.Publication.Duplicates do
   edition, so it proposes and a reviewer decides. Distinctions persist that
   decision, which is what makes the queue converge.
 
-  The same rule answers two questions. `clusters/0` asks it of the stored
-  records, and `resemblances/1` asks it of rows on their way in, against the
-  stored records and against each other.
+  `clusters/0` and `resemblances/1` use the same similarity rule. `clusters/0`
+  compares stored records with each other. `resemblances/1` compares rows with
+  the stored records and with each other.
   """
 
   import Ecto.Query
@@ -168,16 +169,17 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   @doc """
-  What each of these rows looks like: the stored records it resembles, and the
-  other rows in the list it resembles.
+  Returns what each row resembles: the stored records, and the other rows in
+  the list.
 
-  A row is a publication nobody has written yet, so it has no id and no place in
-  the candidate-pair query. Its position in the list is what names it, and the
-  answer carries one entry per row that resembles something.
+  The result has one entry for each row that resembles something, in position
+  order. An entry holds `position`, the row's index in `rows`; `stored`, the
+  flat publications it resembles; and `others`, the positions of the other rows
+  it resembles. A row that resembles nothing has no entry.
 
-  Rows are string-keyed flat publications, the shape validation takes. Nothing
-  is remembered about them: a distinction is about two stored records, and a row
-  is not one yet.
+  Rows are string-keyed flat publications, the same shape validation takes.
+  This function writes nothing. It does not check or record distinctions,
+  because a distinction links two stored records and a row is not stored.
   """
   def resemblances([]), do: []
 
@@ -193,9 +195,9 @@ defmodule RichardBurton.Publication.Duplicates do
     gather(stored, among_rows)
   end
 
-  # The rows as the five parallel arrays the queries unnest. List fields are
-  # joined here the way `rb_joined` joins a stored one, so both sides of the
-  # comparison are spelled the same.
+  # Converts the rows into the five parallel arrays that `rows_to_measure/1`
+  # unnests. List fields are joined with a space, the way `rb_joined` joins a
+  # stored list, so both sides of a comparison have the same format.
   defp columns(rows) do
     %{
       positions: Enum.to_list(0..(length(rows) - 1)//1),
@@ -206,12 +208,15 @@ defmodule RichardBurton.Publication.Duplicates do
     }
   end
 
+  # Reads a scalar field of a row as a string, or "" when it is missing.
   defp text(row, key), do: row |> Map.get(key) |> to_string()
 
+  # Reads a list field of a row as its values joined with a space.
   defp joined(row, key), do: row |> Map.get(key, []) |> List.wrap() |> Enum.join(" ")
 
-  # One entry per row with something to report, in position order. An edge
-  # between two rows is reported on both, since each row is asked about in turn.
+  # Builds the result of `resemblances/1` from the two query results: one entry
+  # per row that resembles something, in position order. A pair of resembling
+  # rows appears in the `others` of both rows.
   defp gather(stored, among_rows) do
     records = stored |> Enum.map(& &1.id) |> Enum.uniq() |> load() |> Map.new(&{&1.id, &1})
     resembled = Enum.group_by(stored, & &1.position, &Map.fetch!(records, &1.id))
@@ -234,10 +239,11 @@ defmodule RichardBurton.Publication.Duplicates do
     end)
   end
 
-  # The rows to measure, as a table of five columns. `fragment` takes its SQL
-  # written out where the query is built, so this hands the same spelling to
-  # both queries that read these rows — the column names it declares are the
-  # ones the comparison reads back.
+  # Expands to a `fragment` that unnests the arrays from `columns/1` into a
+  # table with the columns `position`, `title`, `authors`, `original_title` and
+  # `original_authors`. The comparison functions read these column names. It is
+  # a macro because `fragment` needs its SQL as a literal where the query is
+  # built, and two queries use it.
   defmacrop rows_to_measure(columns) do
     quote do
       fragment(
@@ -251,9 +257,10 @@ defmodule RichardBurton.Publication.Duplicates do
     end
   end
 
-  # Every row paired with the stored records it resembles. The translator
-  # comparison is the indexed one, so a row is measured against the records
-  # sharing a trigram with its translators rather than against the whole table.
+  # Query for each row and stored record that resemble each other, selecting the
+  # row's position and the record's id. The translator comparison can use the
+  # trigram index, so a row is compared only with the records that share a
+  # trigram with its translators, not with the whole table.
   defp resembling_stored(columns) do
     from(row in rows_to_measure(columns),
       as: :left,
@@ -264,9 +271,10 @@ defmodule RichardBurton.Publication.Duplicates do
     )
   end
 
-  # Every pair of rows that resemble each other, ordered by position so each
-  # unordered pair appears once. A CSV can hold its own near-duplicates, and
-  # neither of them is in the database to be found by the query above.
+  # Query for each pair of rows that resemble each other, selecting both
+  # positions. The join keeps only pairs where the left position is lower, so
+  # each pair appears once. This finds near-duplicates within the list itself,
+  # which `resembling_stored/1` cannot find because neither row is stored.
   defp resembling_each_other(columns) do
     from(a in rows_to_measure(columns),
       as: :left,
@@ -334,9 +342,10 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   # The similarity rule: translators alike, and then either the title or the
-  # original book. `alike` compares one field across the two sides, and differs
-  # by what those sides are — two stored rows, a row being imported against a
-  # stored one, or two rows being imported.
+  # original book. `alike` is the function that compares one field across the
+  # two sides. It is `between_stored/1` for two stored records,
+  # `against_stored/1` for a row and a stored record, and `between_rows/1` for
+  # two rows.
   defp worth_asking_about(alike) do
     dynamic(
       ^alike.(:authors) and
@@ -350,7 +359,8 @@ defmodule RichardBurton.Publication.Duplicates do
   # written that way too, so the comparison can use it.
   @lists [:authors, :original_authors]
 
-  # Both sides are stored columns.
+  # Compares one field of two stored records. A list field is read through
+  # `rb_joined` on both sides.
   defp between_stored(field) when field in @lists do
     dynamic(
       fragment(
@@ -365,9 +375,9 @@ defmodule RichardBurton.Publication.Duplicates do
     dynamic(fragment("? % ?", field(as(:left), ^field), field(as(:right), ^field)))
   end
 
-  # A row being imported on the left, a stored column on the right. The row
-  # arrives with its lists already joined, so only the stored side is read
-  # through `rb_joined`.
+  # Compares one field of a row, on the left, with the same field of a stored
+  # record, on the right. `columns/1` has already joined the row's list fields,
+  # so only the stored side is read through `rb_joined`.
   defp against_stored(field) when field in @lists do
     dynamic(fragment("? % rb_joined(?)", field(as(:left), ^field), field(as(:right), ^field)))
   end
@@ -376,7 +386,8 @@ defmodule RichardBurton.Publication.Duplicates do
     dynamic(fragment("? % ?", field(as(:left), ^field), field(as(:right), ^field)))
   end
 
-  # Both sides are rows being imported, so both arrive already joined.
+  # Compares one field of two rows. `columns/1` has already joined the list
+  # fields of both rows, so neither side needs `rb_joined`.
   defp between_rows(field) do
     dynamic(fragment("? % ?", field(as(:left), ^field), field(as(:right), ^field)))
   end

@@ -9,27 +9,29 @@ import { resemblances } from "modules/publication/remote";
 import type { Store } from "modules/store";
 import { FC, useEffect } from "react";
 
-/** How long the rows must sit still before they are measured. */
+/** How long to wait after the last edit before checking the rows, in ms. */
 const SETTLE = 500;
 
 /**
- * Keeps every row's look-alikes current as the rows are edited.
+ * Runs the look-alike check on all visible rows `SETTLE` ms after the last
+ * change to a field the check reads or to the set of visible rows. It renders
+ * nothing.
  *
- * The whole set goes over at once rather than the row that changed, because a
- * row is measured against the others as well as against the database: editing
- * one row can make it the twin of another, and neither is stored for a query to
- * find them by.
+ * It sends all visible rows, not only the row that changed, because each row is
+ * also compared with the other rows. Editing one row can make it resemble
+ * another row that has not changed.
  *
- * Rendered by the surface that holds the rows and given its store, the way
- * `ClearSelection` is, so it measures the rows it was mounted beside.
+ * The workspace renders it and passes its own store, as it does for
+ * `ClearSelection`, so it checks the rows of that workspace.
  */
 const CheckResemblances: FC<{
   store: Store;
-  /** How the rows are measured. Defaults to asking the server. */
+  /** Checks the rows. Defaults to `resemblances`, which asks the server. */
   check?: typeof resemblances;
 }> = ({ store, check = resemblances }) => {
-  // The fields the answer depends on. Rebuilt on every edit, so what is watched
-  // is its contents: a change anywhere else leaves this string alone.
+  // The fields the check reads, for every visible row, as a JSON string. The
+  // atom can return a new array with the same contents, so the effect depends
+  // on this string instead.
   const subject = JSON.stringify(useAtomValue(resemblanceSubjectAtom));
 
   useEffect(() => {

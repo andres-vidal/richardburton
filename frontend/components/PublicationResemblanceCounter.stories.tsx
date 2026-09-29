@@ -24,8 +24,8 @@ const STORED = {
   publishers: ["Noonday Press"],
 };
 
-// Three rows on their way in: one that all but spells the stored record, and
-// two that spell each other.
+// Three rows being imported. The first is a near-copy of `STORED`, and the
+// other two are near-copies of each other.
 const ROWS = [
   {
     id: createId(),
@@ -64,7 +64,7 @@ const ROWS = [
 
 const ids = ROWS.map(({ id }) => id);
 
-/** What the server would have answered for those rows, without a server. */
+/** Stores the result the server would return for `ROWS`. */
 const found = () =>
   setResemblances(
     store,
@@ -98,8 +98,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * The count, which is the way into the questions. All three rows are raised:
- * one against the database, two against each other.
+ * All three rows resemble something. The first resembles `STORED`, and the
+ * other two resemble each other. Clicking the count opens the review.
  */
 export const Found: Story = {
   play: async () => {
@@ -119,10 +119,7 @@ export const Found: Story = {
   },
 };
 
-/**
- * Nothing alike is nothing to say. There is no control at all rather than one
- * reading zero: a look-alike is a question, and no question is not news.
- */
+/** No row resembles anything, so the counter renders no button. */
 export const NothingAlike: Story = {
   beforeEach: () => {
     resetAll(store);
@@ -135,9 +132,9 @@ export const NothingAlike: Story = {
 };
 
 /**
- * The count is a fact about the rows, not a queue to burn down: it falls when a
- * row stops looking like something, which happens by correcting or discarding
- * the row itself.
+ * Discarding a row that resembles something lowers the count from 3 to 2. The
+ * count also falls when a row is edited so that it no longer resembles
+ * anything.
  */
 export const DiscardingLowersIt: Story = {
   play: async () => {

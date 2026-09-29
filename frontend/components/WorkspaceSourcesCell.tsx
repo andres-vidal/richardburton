@@ -16,20 +16,19 @@ import SourcesEditor from "./SourcesEditor";
 import Tooltip from "./Tooltip";
 
 /**
- * What the row looks like, and the way into the comparison.
+ * A "Look-alike" button for a row that resembles something. Pressing it opens
+ * the resemblance review on this row. It renders nothing when the row resembles
+ * nothing.
  *
- * It names the records rather than only reporting that there are some: a row
- * marked "this resembles something" without saying what leaves the reader to go
- * and find it. Pressing it opens the review on this row, where the records are
- * set out in full and can be followed through to.
+ * Its tooltip and accessible name give the title and year of each stored record
+ * the row resembles, and the number of other rows of the import it resembles.
  *
- * It reads as a button, because it is one. The marker in the row's leading cell
- * is what says a row has a look-alike; this is what to press about it, and the
- * two should not be mistaken for each other.
+ * It is styled as a button so that it is not confused with the warning icon in
+ * the row's leading cell. That icon only marks the row.
  *
- * It sits at the end of the row rather than in the leading cell because that
- * cell is the row's selection handle, and a control there would take the clicks
- * meant for selecting.
+ * It is at the end of the row, not in the leading cell, because the leading
+ * cell is the row's selection handle and a button there would take clicks meant
+ * to select the row.
  */
 const RowResemblance: FC<{ rowId: RowId }> = ({ rowId }) => {
   const t = useTranslations("resemblances");
@@ -55,14 +54,13 @@ const RowResemblance: FC<{ rowId: RowId }> = ({ rowId }) => {
         variant="outline"
         width="fit"
         size="small"
-        // Handed over as a node rather than a component so it keeps the
-        // warning's colour; a button gives its own icons the variant's.
+        // Passed as an element, not a component, so it keeps its amber colour.
+        // `Button` gives a component icon the colour of its variant.
         Icon={<WarningIcon className="size-4 text-amber-500" />}
         label={t("lookAlike")}
         aria-label={message}
         onClick={(event) => {
-          // The row around this selects when it is clicked, and asking to see a
-          // look-alike is not asking to select anything.
+          // Stops the click here, because the row's click handler selects it.
           event.stopPropagation();
           openReview(store, rowId);
         }}

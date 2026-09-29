@@ -14,7 +14,10 @@ import {
   errorCode,
 } from "./model";
 
-/** One row of the answer, named by the position the request sent it in. */
+/**
+ * One entry of the resemblances response. `position` and `others` are indexes
+ * into the list of rows the request sent.
+ */
 type ResemblanceEntry = Omit<Resemblance, "others"> & {
   position: number;
   others: number[];
@@ -395,11 +398,12 @@ async function validate(store: Store, ids: PublicationId[]): Promise<void> {
 }
 
 /**
- * Ask what the working set looks like, and record it on each row.
+ * Sends the rows `ids` to the resemblances endpoint and stores what each row
+ * resembles with `setResemblances`.
  *
- * Rows are sent in order and named by their position, since a row has no id the
- * server knows. Nothing is written: the answer is a likeness for a person to
- * judge, and a row keeps its place in the workspace whatever it resembles.
+ * The server does not know the rows' ids, so the response names each row by its
+ * position in the request. The server stores nothing, and this function does
+ * not change or remove any row.
  */
 async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
   return run(async (http) => {
@@ -411,9 +415,9 @@ async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
       rows,
     );
 
-    // The rows moved while the answer was on its way, so it is an answer about
-    // rows that are no longer there. Whatever changed them has already asked
-    // again.
+    // If a row's subject (see `rowSubjectFamily`) changed while the request was
+    // in flight, the response describes old values and is dropped.
+    // `CheckResemblances` has already scheduled a new check for that change.
     const moved = ids.some(
       (id, index) => store.get(rowSubjectFamily(id)) !== asked[index],
     );
@@ -428,8 +432,7 @@ async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
           ids[entry.position],
           {
             stored: entry.stored,
-            // Positions name rows only for the length of the call; the workspace
-            // addresses them by id.
+            // Converts the other rows' positions back to row ids.
             others: entry.others.map((position) => ids[position]),
           },
         ]),

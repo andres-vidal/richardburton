@@ -6,50 +6,49 @@ import * as PublicationResemblancesStories from "./PublicationResemblances.stori
 
 # Resemblance review
 
-Reads through the rows of an import that look like something already known, one
-at a time. Opened from the
-[resemblance counter](?path=/docs/publications-resemblance-counter--docs) in the
-workspace footer, or from a row's own warning at the end of the row.
+Shows the rows of an import that resemble something, one at a time. It opens
+from the [resemblance counter](?path=/docs/publications-resemblance-counter--docs)
+in the workspace footer, or from the look-alike button at the end of a row.
 
-Each one shows the row being imported against everything it resembles — records
-already in the database, other rows of the same import, or both. The evidence
-card is the one the
-[duplicate review](?path=/docs/publications-duplicate-review--docs) uses, so a
-reviewer who has stepped through that one reads this the same way.
+For each row, the review shows the row next to everything it resembles: stored
+records, other rows of the same import, or both. It uses the same record card as
+the [duplicate review](?path=/docs/publications-duplicate-review--docs), so the
+two reviews show records the same way.
 
 <Canvas of={PublicationResemblancesStories.AgainstTheDatabase} />
 
-## It reports, it does not ask
+## No actions
 
-There are no answers here. What to do about a look-alike — correcting the row,
-discarding it, leaving it alone because two editions of one book are two
-publications — is done to the row in the workspace, with the controls that
-already do those things.
+The review has no controls that change a row. To act on a look-alike, the
+person corrects or discards the row in the workspace with the existing
+controls, or leaves it as it is. Leaving it can be right, because two editions
+of one book are two publications.
 
-That also makes the count honest: it is a fact about the rows rather than a
-queue to burn down, and it falls when a row stops looking like something.
+The count therefore describes the rows as they are. It falls when a row is
+discarded, or edited so that it no longer resembles anything.
 
-Nothing here is written down either. The duplicate review records a
-_distinction_ against a pair of stored ids; a row being imported has no id, so
-there is nothing to record one against. Once the row is saved, the duplicate
-review asks about it again with a real pair to remember.
+The review also stores nothing. The duplicate review records a _distinction_
+for a pair of stored ids, but a row being imported has no id. Once the row is
+stored, the duplicate review can offer it again as part of a stored pair.
 
 ## States
 
-- **Against the database** — the row resembles a stored record, which can be
-  followed through to in a tab of its own.
+- **Against the database** — the row resembles a stored record. The record
+  links to its own page, which opens in a new tab.
 - **Within the import** — the row resembles another row of the same import.
-  Neither is stored, so this is the only place the pair is put together.
+  Neither row is stored, so the duplicate review cannot show this pair.
 
 <Canvas of={PublicationResemblancesStories.WithinTheImport} />
 
-## Reading through
+## Navigation
 
-The list is taken when the dialog opens. Editing a row while the dialog is over
-it would otherwise renumber the reader's place mid-read.
+The review copies the list of resembling rows when it opens and keeps it until
+it closes. If it read the live list, an edit made while the review is open
+could change the list and move the current position.
 
-Opened from a row's warning it starts on that row; opened from the count, at the
-beginning. The navigation goes both ways and stops at the ends, and is absent
-altogether when there is only one thing to read.
+When it is opened from a row's look-alike button, the review starts on that
+row. When it is opened from the counter, it starts on the first row. Previous
+and Next move through the list and are disabled at its ends. They are hidden
+when the list has only one row.
 
 <Canvas of={PublicationResemblancesStories.ReadingBothWays} />

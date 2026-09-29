@@ -184,10 +184,10 @@ export const Candidate: FC<{
             <span className="font-normal text-gray-600">({p.year})</span>
           </p>
           <p className="text-xs text-gray-600">{marked.value(p, "authors")}</p>
-          {/* A row on its way in has no id — and nothing to open. */}
+          {/* A row being imported has no id, so it has no page to link to. */}
           {typeof p.id !== "number" ? null : (
-            // A new tab, because the reader is in the middle of something —
-            // a queue of questions, or a workspace of rows nothing has saved.
+            // Opens in a new tab, so the review or workspace the person is
+            // working in stays open.
             <a
               href={`/publications/${p.id}`}
               target="_blank"

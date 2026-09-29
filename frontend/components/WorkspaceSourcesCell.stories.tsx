@@ -11,10 +11,10 @@ import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
 
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
-// Stands in for the row's own click handler, which selects the row.
+// A mock of the row's click handler, which selects the row in the workspace.
 const selectRow = fn();
 
-// A record already in the database, for a row to look like.
+// A stored record for the row to resemble.
 const STORED = {
   ...Publication.empty(),
   id: 7,
@@ -50,8 +50,8 @@ const seed = (
 };
 
 // The trailing "sources" cell for a workspace row. `role="cell"` needs a row/table
-// ancestor to be valid ARIA, so the decorator supplies one, and the row carries a
-// click handler because the real one selects the row.
+// ancestor to be valid ARIA, so the decorator supplies one. The row has the
+// `selectRow` click handler because clicking a real row selects it.
 const meta = {
   title: "Publications/Workspace sources cell",
   component: WorkspaceSourcesCell,
@@ -99,7 +99,7 @@ export const Empty: Story = {
       screen.getByRole("button", { name: "Add sources" }),
     ).toBeInTheDocument();
 
-    // A row that resembles nothing says nothing.
+    // A row that resembles nothing has no look-alike button.
     await expect(
       screen.queryByRole("button", { name: "Look-alike" }),
     ).not.toBeInTheDocument();
@@ -107,8 +107,8 @@ export const Empty: Story = {
 };
 
 /**
- * A row that resembles a record already in the database says so at the end of
- * the row, naming the record rather than only reporting that something matched.
+ * A row that resembles a stored record. The look-alike button's accessible name
+ * gives the record's title and year.
  */
 export const LooksLikeAStoredRecord: Story = {
   beforeEach: () =>
@@ -123,8 +123,8 @@ export const LooksLikeAStoredRecord: Story = {
 };
 
 /**
- * A row that resembles other rows of the same import counts them, since those
- * rows have no titles to name yet.
+ * A row that resembles other rows of the same import. The look-alike button's
+ * accessible name gives the number of those rows.
  */
 export const LooksLikeOtherRowsOfTheImport: Story = {
   beforeEach: () => seed(store, 1, [], { stored: [], others: [2, 3] }),
@@ -138,9 +138,8 @@ export const LooksLikeOtherRowsOfTheImport: Story = {
 };
 
 /**
- * Pressing it opens the review on this row. The row around the cell selects
- * when it is clicked, and asking to see a look-alike is not asking to select,
- * so the click stops there.
+ * Clicking the look-alike button opens the resemblance review on this row. The
+ * click does not reach the row, so the row is not selected.
  */
 export const OpeningTheReview: Story = {
   beforeEach: () => seed(store, 1, [], { stored: [STORED], others: [] }),

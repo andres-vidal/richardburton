@@ -15,16 +15,14 @@ import PublicationResemblances from "./PublicationResemblances";
 import Tooltip from "./Tooltip";
 
 /**
- * How many rows of the working set look like a publication already known, and
- * the way into them.
+ * A button with the number of visible rows that resemble something, which opens
+ * the resemblance review at the first of them. It also renders the review.
  *
- * Counts rather than offers: the rows are measured as they are edited, the way
- * they are validated. Silent when nothing looks like anything, since a look-alike
- * is a question to answer and no question is not news — the error counter is
- * what says the set is in good order.
+ * The count updates as rows are edited, because `CheckResemblances` checks the
+ * rows after each edit. The button is hidden when the count is zero, since the
+ * error counter already reports when the set is valid.
  *
- * It carries the same warning the marked rows do, so the count and the rows it
- * is counting read as one thing.
+ * The button uses the same warning icon as the rows it counts.
  */
 const PublicationResemblanceCounter: FC = () => {
   const t = useTranslations("resemblances");
@@ -32,9 +30,8 @@ const PublicationResemblanceCounter: FC = () => {
   const count = useResemblingPublicationCount();
   const reviewing = useReviewing();
 
-  // The dialog is rendered whatever the count, because answering the last
-  // question takes the count to nought — and the review is still open, saying
-  // so.
+  // The review is rendered even when the count is zero, so it stays open if the
+  // count drops to zero while the review is open.
   return (
     <>
       {count === 0 ? null : (

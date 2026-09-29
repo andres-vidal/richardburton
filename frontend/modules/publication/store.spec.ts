@@ -498,9 +498,8 @@ describe("look-alikes", () => {
     expect(store.get(resemblanceFamily(1))).toEqual(RESEMBLES);
   });
 
-  // A row edited by somebody else arrives as a new value for the row, not as a
-  // call to `setField`, so nothing on that path can be what drops the
-  // answer.
+  // An edit from another person replaces the row in `publicationFamily` without
+  // calling `setField`. The result must still be dropped in that case.
   test("goes when the row is replaced outright, as an edit from elsewhere arrives", () => {
     measured();
     store.set(publicationFamily(1), {

@@ -168,21 +168,28 @@ function useValidPublicationCount() {
   return useAtomValue(validCountAtom);
 }
 
-/** What this row resembles, or null where it resembles nothing. */
+/**
+ * Returns what this row resembles, or null when it resembles nothing or its
+ * last result no longer matches the row.
+ */
 function usePublicationResemblance(id: PublicationId) {
   return useAtomValue(resemblanceFamily(id));
 }
 
-/** Which look-alike the review is open on, or null while it is closed. */
+/**
+ * Returns the row the resemblance review is open on, "first" when it was
+ * opened at the start of the queue, or null when it is closed.
+ */
 function useReviewing() {
   return useAtomValue(reviewingAtom);
 }
 
-/** The rows raising a look-alike nobody has accepted yet. */
+/** Returns the visible rows that resemble something. */
 function useResemblingPublicationIds() {
   return useAtomValue(resemblingIdsAtom);
 }
 
+/** Returns how many visible rows resemble something. */
 function useResemblingPublicationCount() {
   return useAtomValue(resemblingCountAtom);
 }

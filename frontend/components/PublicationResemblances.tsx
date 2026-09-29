@@ -17,20 +17,19 @@ import SectionHeading from "./SectionHeading";
 
 type Props = {
   isOpen: boolean;
-  /** The row to open on. Defaults to the first question of the queue. */
+  /** The row to open on. Defaults to the first row in the queue. */
   startAt?: PublicationId;
   onClose: () => void;
 };
 
 /**
- * One row set against everything it resembles, whether that is a stored record
- * or another row of the same import. Both are the same evidence, so both are
- * read the same way.
+ * Shows one row being imported next to everything it resembles: stored
+ * records, other rows of the same import, or both. Every record and row is
+ * shown with the same `Candidate` card.
  *
- * It says what it found and stops there. What to do about it — correcting the
- * row, discarding it, leaving it alone because two editions of one book are two
- * publications — is done to the row in the workspace, with the controls that
- * already do those things.
+ * It has no controls that change the row. The person corrects or discards the
+ * row in the workspace with the existing controls, or leaves it as it is, since
+ * two editions of one book are two publications.
  */
 const Question: FC<{
   id: PublicationId;
@@ -110,7 +109,7 @@ const Question: FC<{
   );
 };
 
-/** Another row of the same import, read as the evidence it is. */
+/** Shows another row of the same import as a `Candidate` card. */
 const OtherRow: FC<{ id: PublicationId }> = ({ id }) => {
   const row = useVisiblePublication(id);
 
@@ -118,19 +117,19 @@ const OtherRow: FC<{ id: PublicationId }> = ({ id }) => {
 };
 
 /**
- * The rows that look like something, read one at a time.
+ * Steps through the rows that resemble something, one at a time.
  *
- * The dialog renders its content only while it is open, so this mounts on
- * opening, and the list it steps through is taken then. Editing a row while the
- * dialog is over it would otherwise renumber the reader's place mid-read.
+ * `Modal` renders its content only while it is open, so `Queue` mounts when the
+ * review opens. It copies `resemblingIdsAtom` then and keeps that list until
+ * the review closes. If it read the live list, an edit made while the review is
+ * open could change the list and move the current position.
  */
 const Queue: FC<{ startAt?: PublicationId }> = ({ startAt }) => {
   const store = usePublicationStore();
 
   const [queue] = useState(() => store.get(resemblingIdsAtom) ?? []);
 
-  // Opened from a row's own warning the reading starts on that row; opened from
-  // the count, at the beginning.
+  // Starts on `startAt` if it is in the queue, and on the first row otherwise.
   const [position, setPosition] = useState(() =>
     Math.max(0, queue.indexOf(startAt as PublicationId)),
   );
@@ -140,7 +139,7 @@ const Queue: FC<{ startAt?: PublicationId }> = ({ startAt }) => {
   return current === undefined ? null : (
     <div className="overflow-y-auto flex-1">
       <Question
-        // Keyed by the row, so each is read afresh.
+        // Keyed by the row id, so `Question` remounts for each row.
         key={current}
         id={current}
         position={position}

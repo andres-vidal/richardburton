@@ -218,11 +218,12 @@ const lastValidatedFamily = atomFamily((_id: PublicationId) =>
 );
 
 /**
- * What the check answered about a row, beside the row it was asked about.
+ * The last look-alike check result for a row, stored with the row's subject at
+ * the time of the check (`at`). See `rowSubjectFamily`.
  *
- * The subject is kept with the answer so that an answer about a row that has
- * since changed can be told from one that still describes it, however the row
- * changed and whoever changed it. Read through `resemblanceFamily`.
+ * `resemblanceFamily` compares `at` with the row's current subject to decide
+ * whether the result still applies. Read the result through
+ * `resemblanceFamily`, not this atom.
  */
 const measuredResemblanceFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<{ at: string; value: Resemblance } | null>(null),
@@ -282,8 +283,8 @@ const rowNumberFamily = atomFamily((id: PublicationId) =>
 const discardedCountAtom = atom((get) => get(discardedIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
 
-// The rows that look like something. Discarded rows are out of it: a row on its
-// way out of the import is not a question any more.
+// The visible rows that resemble something. Discarded rows are not visible, so
+// they are not included.
 const resemblingIdsAtom = atom((get) =>
   get(visibleIdsAtom)?.filter((id) => get(resemblanceFamily(id))),
 );
@@ -291,22 +292,26 @@ const resemblingIdsAtom = atom((get) =>
 const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
 
 /**
- * Which look-alike the review is open on: a row to open at, "first" to start at
- * the beginning of the queue, or null while the review is closed.
+ * Which row the resemblance review is open on. It holds a row id to open on
+ * that row, "first" to open at the start of the queue, or null when the review
+ * is closed.
  *
- * Held here rather than in the control that opens it, because the row's own
- * warning opens it too — and so that clearing the working set closes a review
- * of rows that are no longer there.
+ * It is kept in the store because two controls open the review: the
+ * resemblance counter and the look-alike button on each row. `resetAll` resets
+ * it, which closes the review when the working set is cleared.
  */
 const reviewingAtom = atomWithReset<PublicationId | "first" | null>(null);
 
 /**
- * The attributes a look-alike is measured on, which are the title and the names
- * — see `Publication.Duplicates`.
+ * The fields the look-alike check compares: the title, the translators, the
+ * original title and the original authors. The backend rule is in
+ * `Publication.Duplicates`.
  *
- * One list, because two things read it and they must not disagree: what the
- * check is re-run for, and what makes a row's answer stale. A field that made an
- * answer stale without re-running the check would drop the answer for good.
+ * `rowSubjectFamily` builds a row's subject from these fields. The subject
+ * decides both when `CheckResemblances` runs the check again and when a stored
+ * result stops applying. Both use this one list. If a field made a result stop
+ * applying without running the check again, the row would have no result until
+ * some other edit ran the check.
  */
 const RESEMBLANCE_ATTRIBUTES: PublicationKey[] = [
   "title",
@@ -316,10 +321,12 @@ const RESEMBLANCE_ATTRIBUTES: PublicationKey[] = [
 ];
 
 /**
- * A row as the look-alike check reads it.
+ * A row's subject: the fields in `RESEMBLANCE_ATTRIBUTES` as one string. List
+ * fields are joined with spaces, and the fields are joined with a NUL
+ * character.
  *
- * Rows with the same subject are the same question, so a row whose subject has
- * changed is a row the last answer was not about.
+ * When a row's subject changes, its last look-alike check result no longer
+ * describes it.
  */
 const rowSubjectFamily = atomFamily((id: PublicationId) =>
   atom((get) => {
@@ -332,15 +339,16 @@ const rowSubjectFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * What the row resembles, or `null` where it resembles nothing and where the
- * answer was measured on a value the row no longer holds.
+ * What the row resembles. Returns `null` when the row resembles nothing, or
+ * when the stored result was checked against a subject the row no longer has.
  *
- * Held apart from `errorFamily` because it is not an error: it does not make a
- * row invalid and it does not hold back a submit.
+ * It is kept apart from `errorFamily` because a resemblance is not an error. It
+ * does not make a row invalid and it does not block a submit.
  *
- * Staleness is read rather than written, so an edit does not have to remember to
- * clear anything. An edit that arrives from another person changes the row the
- * same way, and drops the answer the same way.
+ * The atom compares the stored subject with the current one each time it is
+ * read, so no edit path has to clear the result. This covers edits made with
+ * `setField` and edits from other people that replace the row in
+ * `publicationFamily`.
  */
 const resemblanceFamily = atomFamily((id: PublicationId) =>
   atom<Resemblance | null>((get) => {
@@ -353,11 +361,12 @@ const resemblanceFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * The visible rows as the look-alike check reads them.
+ * The subjects of all visible rows, in order.
  *
- * What the check should be re-run for, so editing a year or a country does not
- * ask the question again. Serialised by whoever watches it, since the value is
- * rebuilt whenever any row changes and only its contents mean anything.
+ * `CheckResemblances` runs the check again when this changes, so editing a
+ * field outside `RESEMBLANCE_ATTRIBUTES`, such as the year or a country, does
+ * not run it. The atom can return a new array with the same contents, so
+ * `CheckResemblances` compares it as a JSON string.
  */
 const resemblanceSubjectAtom = atom((get) =>
   (get(visibleIdsAtom) ?? []).map((id) => get(rowSubjectFamily(id))),
@@ -701,9 +710,9 @@ function setErrors(store: Store, entries: PublicationEntry[]): void {
 }
 
 /**
- * Replace what every row of the working set resembles. Rows absent from
- * `found` resemble nothing, so a row that has stopped looking like anything
- * stops saying so.
+ * Stores the look-alike check result for each row in `ids`, together with the
+ * row's current subject. A row in `ids` that is absent from `found` is reset to
+ * resemble nothing.
  */
 function setResemblances(
   store: Store,
@@ -720,7 +729,10 @@ function setResemblances(
   });
 }
 
-/** Open the review, on a given row or at the start of the queue. */
+/**
+ * Opens the resemblance review on row `at`, or at the start of the queue when
+ * `at` is "first".
+ */
 function openReview(store: Store, at: PublicationId | "first"): void {
   store.set(reviewingAtom, at);
 }
@@ -880,7 +892,7 @@ function resetAll(store: Store): void {
 
   store.set(publicationIdsAtom, RESET);
   store.set(focusedRowIdAtom, RESET);
-  // A review of rows that no longer exist has nothing left to show.
+  // Closes the resemblance review, since the rows it shows are gone.
   store.set(reviewingAtom, RESET);
 
   const binding = documents.get(store);

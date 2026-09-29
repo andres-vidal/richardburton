@@ -6,79 +6,81 @@ import * as PublicationResemblanceCounterStories from "./PublicationResemblanceC
 
 # Resemblance counter
 
-How many rows of an import look like a publication already known, and the way
-into them. It sits in the workspace footer beside the
+A button with the number of rows in an import that resemble a stored
+publication or another row. Pressing it opens the resemblance review. It sits in
+the workspace footer beside the
 [error counter](?path=/docs/publications-publication-error-counter--docs).
 
-The composite key already rejects a row that repeats a stored record exactly.
-What this catches is the near-miss it cannot: a typo, a dropped accent, a
-translator entered as "R. Burton" once and "Richard Burton" the next time. Left
-alone those rows import cleanly and turn up later in the
-[duplicate review](?path=/docs/publications-duplicate-review--docs), after they
-are already in the database.
+The composite key rejects a row that exactly repeats a stored record. This
+counter finds the near-matches that the key lets through: a typo, a dropped
+accent, or a translator entered as "R. Burton" once and "Richard Burton" the
+next time. Without it, those rows import without errors and only appear later
+in the [duplicate review](?path=/docs/publications-duplicate-review--docs), once
+they are stored.
 
-A row is measured against two things: the stored records, and the other rows of
-the same import. The second half matters because a CSV can hold its own
-near-duplicates, and neither of them is in the database for the review to find.
+Each row is compared with the stored records and with the other rows of the
+same import. The second comparison finds near-duplicates inside one CSV, which
+are not in the database yet.
 
-## It counts, it does not ask
+## When the check runs
 
-The rows are measured as they are edited, the way they are validated — nothing
-has to be pressed. `CheckResemblances`, mounted by the workspace, watches the
-fields a resemblance is measured on and re-runs the check half a second after
-they settle. Editing a year or a country changes no answer, so it asks nothing.
+The check runs by itself as rows are edited, the same way validation does.
+`CheckResemblances`, which the workspace renders, watches the title,
+translators, original title and original authors of every visible row. It runs
+the check 500 ms after the last change to one of those fields. Editing another
+field, such as the year or a country, does not run the check.
 
-The whole set goes over each time rather than the row that changed, because a
-row is measured against the others as well as against the database: editing one
-row can make it the twin of another, and neither is stored for a query to find
-them by. That is the expensive half, and it grows with the square of the rows —
-see `Publication.Duplicates.resemblances/1`.
+Each check sends every visible row, not only the row that changed, because each
+row is also compared with the other rows. Editing one row can make it resemble
+another row that has not changed. The comparison between rows is the expensive
+part of the check, and its cost grows with the square of the number of rows.
+See `Publication.Duplicates.resemblances/1`.
 
-An edited row drops what it resembled straight away rather than keeping an
-answer about values that have changed, so the count falls and then comes back.
+When one of those fields changes, the row's result is cleared straight away,
+because it describes the old values. The count falls, and rises again if the
+next check finds that the row still resembles something.
 
 <Canvas of={PublicationResemblanceCounterStories.Found} />
 
 ## States
 
-- **Found** — the count, and the way into the review.
-- **Nothing alike** — no control at all. A look-alike is a question to answer,
-  and no question is not news; the error counter is what says a set is in good
-  order.
-- **Answering lowers it** — keeping or discarding a row takes it out of the
-  count.
+- **Found** — the count, as a button that opens the review.
+- **Nothing alike** — no button. The error counter already reports when a set
+  is valid.
+- **Discarding lowers it** — discarding a row takes it out of the count. So
+  does editing a row so that it no longer resembles anything.
 
 <Canvas of={PublicationResemblanceCounterStories.NothingAlike} />
 
-<Canvas of={PublicationResemblanceCounterStories.AnsweringLowersIt} />
+<Canvas of={PublicationResemblanceCounterStories.DiscardingLowersIt} />
 
-The review itself is rendered whatever the count, because answering the last
-question takes the count to nought while the review is still open, saying so.
+The review is rendered even when the count is zero, so it stays open if the
+count drops to zero while the review is open.
 
-## The row is a way in too
+## The look-alike button on each row
 
-A row marked "this resembles something" without saying what leaves the reader to
-go and find it, so the row carries its own control: it names the records by
-title and year, says how many other rows of the import it matches, and opens the
-review on that row rather than at the top of the queue.
+Each row that resembles something also has a look-alike button. Its tooltip
+names the stored records the row resembles by title and year, and gives the
+number of other rows of the import it resembles. Pressing it opens the review on
+that row, not at the start of the queue.
 
-It sits at the end of the row, beside sources, rather than in the leading cell.
-That cell is the row's selection handle and is 2.5rem wide around a 1.25rem
-icon, so a control there takes the clicks meant for selecting the row.
+The button is at the end of the row, beside the sources button, not in the
+leading cell. The leading cell is the row's selection handle. It is 2.5rem wide
+around a 1.25rem icon, so a button there would take clicks meant to select the
+row.
 
-Which question the review is on therefore lives in the store rather than in this
-control, since this is no longer the only thing that opens it — and that is also
-what closes a review of rows the working set no longer holds.
+Because two controls open the review, the row it is open on is kept in the
+store, in `reviewingAtom`, not in this component. `resetAll` resets that atom,
+which closes the review when the working set is cleared.
 
-## Following a record out
+## Links to stored records
 
-Each stored record in the review links to its own page, in a tab of its own: the
-reader is in the middle of a queue of questions, over a workspace of rows that
-nothing has saved yet.
+Each stored record in the review links to its own page. The link opens in a new
+tab, so the review and the workspace stay open.
 
 ## What it is not
 
 A look-alike is not an error. It does not make a row invalid and it does not
-hold back a submit: two editions of one book resemble each other and are both
-worth having. Nothing is written either — a row has no id yet, so there is no
-pair to rule apart the way the duplicate review does.
+block a submit, because two editions of one book resemble each other and both
+belong in the database. The check also stores nothing. A row has no id yet, so
+there is no pair to rule apart the way the duplicate review does.

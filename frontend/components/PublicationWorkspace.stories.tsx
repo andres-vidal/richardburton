@@ -16,8 +16,8 @@ import PublicationWorkspace from "./PublicationWorkspace";
 const meta = {
   title: "Publications/Workspace",
   component: PublicationWorkspace,
-  // There is no server here, and the workspace measures its rows for
-  // look-alikes as they are edited.
+  // Storybook has no server, so the look-alike check that runs on every edit
+  // is replaced with a function that does nothing.
   args: { check: fn(async () => undefined) },
   decorators: [
     (Story) => (

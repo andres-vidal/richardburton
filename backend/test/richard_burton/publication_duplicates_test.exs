@@ -53,8 +53,9 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     })
   end
 
-  # A row on its way in: a flat, string-keyed publication, the shape validation
-  # takes, and with no id because nobody has written it yet.
+  # Builds a row: a flat, string-keyed publication with no id, in the shape
+  # validation takes. `attrs` override the default Helen Caldwell translation of
+  # "Dom Casmurro".
   defp row(attrs) do
     Map.merge(
       %{
@@ -340,8 +341,9 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     test "another translator is not a duplicate, here as anywhere" do
       insert(%{})
 
-      # The same book and the same title, rendered by another hand. The rule
-      # that keeps this out of the review keeps it out of the import too.
+      # The row has the same book and title as the stored record, but a
+      # different translator. The rule requires similar translators, so
+      # `resemblances/1` does not report it, as `clusters/0` would not.
       assert [] ==
                Duplicates.resemblances([row(%{"authors" => ["John Gledson"]})])
     end
@@ -369,8 +371,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     test "a differently titled row still resembles through the original book" do
       insert(%{})
 
-      # The rule takes the original book when the titles do not agree, which is
-      # how a retitled edition is caught. The translators still have to agree.
+      # The titles differ, but the translators and the original book match, so
+      # the rule still reports the row. This is how a retitled edition is found.
       assert [%{position: 0, stored: [_]}] =
                Duplicates.resemblances([
                  row(%{"title" => "The Fruits of Silence"})

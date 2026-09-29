@@ -117,10 +117,11 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
         data-error={!isValid}
       >
         {!isValid && <ErrorIcon className="w-5 aspect-square" />}
-        {/* A marker, not a control: this cell is the row's selection handle,
-            and what to do about a look-alike is at the end of the row. It is
-            here because this column is the one that stays put, and a look-alike
-            should be as easy to spot down a long table as an error is. */}
+        {/* A warning icon, not a button. This cell is the row's selection
+            handle, and the look-alike button is at the end of the row. The
+            icon is in this column because the column stays in place when the
+            table scrolls sideways, so a look-alike is as easy to spot as an
+            error. */}
         {isValid && resemblance && (
           <WarningIcon
             role="img"
@@ -248,7 +249,10 @@ const NewPublicationRow: FC = () => {
 };
 
 const PublicationWorkspace: FC<{
-  /** How the rows are measured for look-alikes. Defaults to asking the server. */
+  /**
+   * Checks the rows for look-alikes. Defaults to `resemblances`, which asks the
+   * server.
+   */
   check?: typeof resemblances;
 }> = ({ check }) => {
   const store = usePublicationStore();
