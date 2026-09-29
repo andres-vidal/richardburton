@@ -2,10 +2,11 @@ defmodule RichardBurton.Repo.Migrations.RetireDocuments do
   use Ecto.Migration
 
   @moduledoc """
-  How a document stops being offered without being destroyed.
+  Adds `archived_at` to `documents`, so that a document can be archived.
 
-  `archived_at` takes a document off the list. The work it holds is a record of
-  what was prepared, and a list nobody can shorten is a list nobody reads.
+  An archived document is left out of the list but keeps its content, because
+  the content is a record of what was prepared. Archiving keeps the list short
+  without deleting anything.
   """
 
   def change do
@@ -13,7 +14,8 @@ defmodule RichardBurton.Repo.Migrations.RetireDocuments do
       add(:archived_at, :utc_datetime)
     end
 
-    # The list shows what has not been retired, most recently changed first.
+    # Covers the list query, which filters on `archived_at` and orders by
+    # `updated_at`, most recent first.
     create(index(:documents, [:archived_at, :updated_at]))
   end
 end

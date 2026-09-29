@@ -1,7 +1,7 @@
 defmodule RichardBurtonWeb.FallbackControllerTest do
   @moduledoc """
-  Tests for the answer an action gets when it returns an error: the status each
-  kind of error is given, and the body it carries.
+  Tests for `FallbackController`: the status and body it responds with for each
+  kind of error an action returns.
   """
   use ExUnit.Case, async: true
 
@@ -42,8 +42,9 @@ defmodule RichardBurtonWeb.FallbackControllerTest do
     assert answer({:error, changeset}) == {400, %{"errors" => %{"name" => "required"}}}
   end
 
-  # A reason that is a conflict in one place can be a malformed request in
-  # another, such as merging a record into itself.
+  # The same reason can be a conflict in one action and a malformed request in
+  # another. `:self` is a 409 by default, but a 400 when merging a record into
+  # itself.
   test "a status named with the reason is the one given" do
     assert answer({:error, :bad_request, :self}) == {400, %{"error" => "self"}}
     assert answer({:error, :bad_gateway, :unsent}) == {502, %{"error" => "unsent"}}

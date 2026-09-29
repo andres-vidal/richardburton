@@ -45,12 +45,14 @@ function useVisiblePublicationIds() {
   return useAtomValue(visibleIdsAtom);
 }
 
-/** A row as it is being edited, with any unsaved edit in it. */
+/** A row as it is being edited, including unsaved edits. */
 function useVisiblePublication(id: PublicationId) {
   return useAtomValue(publicationFamily(id));
 }
 
-/** The saved publication, or null where there is none. Accepts an undefined id. */
+/**
+ * The saved publication, or null when there is none. Accepts an undefined id.
+ */
 function usePublication(id: PublicationId | undefined) {
   return (
     useAtomValue(id !== undefined ? savedFamily(id) : NO_PUBLICATION) ?? null
@@ -65,7 +67,8 @@ function usePublicationField<K extends PublicationKey>(
   return useAtomValue(fieldValueFamily({ id, key })) as Publication[K];
 }
 
-/** A single cell's saved value, ignoring any unsaved edit — its own subscription. */
+/** A single cell's saved value, ignoring unsaved edits. Each cell has its own
+ * subscription. */
 function usePublicationStoredField<K extends PublicationKey>(
   id: PublicationId,
   key: K,
@@ -87,7 +90,7 @@ function usePublicationMarking(): Marking {
 /**
  * A single cell as the index marked it, or as saved where the search did not
  * match. It reads the saved publication, so an unsaved edit does not show in
- * the read-only table. A row with no saved copy reads as empty.
+ * the read-only table. A row with no saved copy returns an empty string.
  */
 function usePublicationMarkedField(id: PublicationId, key: PublicationKey) {
   const publication = useAtomValue(savedFamily(id));
@@ -104,7 +107,7 @@ function usePublicationSources(id: PublicationId) {
   return useAtomValue(publicationSourcesFamily(id));
 }
 
-/** The saved sources only. An unsaved edit to them does not show until it is saved. */
+/** The saved sources only, without unsaved edits. */
 function useStoredPublicationSources(id: PublicationId) {
   return useAtomValue(storedSourcesFamily(id));
 }
@@ -145,7 +148,10 @@ function useIsPublicationFocused(id: PublicationId) {
   return id === useAtomValue(focusedRowIdAtom);
 }
 
-/** Where the row sits in the working set, counting from one. */
+/**
+ * The row's position among the visible (not discarded) rows, counting from
+ * one, or 0 when it is not visible.
+ */
 function usePublicationRowNumber(id: PublicationId) {
   return useAtomValue(rowNumberFamily(id));
 }

@@ -8,57 +8,56 @@ import {
 } from "./model";
 
 /**
- * A publication store's rows as a Yjs document.
+ * Functions that read and write a publication store's rows in a Yjs document.
  *
- * Every store keeps its rows in one. The store of an import document works in
- * the document everyone with it open shares. Any other store keeps a document
- * of its own, holding the rows it read from the database and the edits made to
- * them.
+ * Every store keeps its rows in a Yjs document. The store of an import document
+ * uses the document shared by everyone who has it open. Any other store creates
+ * its own document, which holds the rows it read from the database and the
+ * edits made to them.
  *
- * The document holds two things. `rows` is a map of row key to the row's
- * fields, which is what lets an edit name the row it belongs to without knowing
- * where the row sits. `order` is the list of those keys in reading order, which
- * a map cannot express.
+ * The document holds two shared types. `rows` is a `Y.Map` from row key to a
+ * `Y.Map` of the row's fields, so an edit can find its row by key without
+ * knowing its position. `order` is a `Y.Array` of the same keys in reading
+ * order, since a map has no order.
  *
- * A field of a row is a plain value, so two people writing the same field
- * resolve to one of the two — the right answer for a title, where merging the
- * two character by character would produce one neither person typed. `sources`
- * is the exception: it is a `Y.Array`, so two people adding a source each keep
- * both, where one value would drop one of them.
+ * Each field is stored as a plain value, so when two people write the same
+ * field, Yjs keeps one of the two values. This is the right result for a title,
+ * since merging two titles character by character would give a title neither
+ * person typed. `sources` is the exception. It is stored as a `Y.Array`, so
+ * when two people each add a source, both sources are kept.
  *
- * Only content lives here. Selection, focus, column visibility and validation
- * errors stay in local state: someone else hiding a column should not move your
- * screen.
+ * The document holds content only. Selection, focus, column visibility and
+ * validation errors stay in local atoms, so one person hiding a column does not
+ * hide it for anyone else.
  */
 type Rows = Y.Map<Y.Map<unknown>>;
 type Order = Y.Array<string>;
 
 /**
- * The origin stamped on a transaction this client makes.
+ * The transaction origin for edits made in this client.
  *
- * It is what separates a change someone made here from one that arrived from
- * elsewhere, which is what lets undo walk back a person's own edits and leave
- * their collaborator's alone.
+ * The undo manager tracks only this origin, so undo reverts this person's edits
+ * and leaves other people's edits alone.
  */
 const LOCAL = Symbol("local");
 
 /**
- * Whether a change was made by the person at this screen.
+ * Returns whether a transaction origin belongs to a change made in this client.
  *
- * Their edits carry `LOCAL`. Walking one back, or forward again, carries the
- * undo manager that did it instead, because Yjs stamps an undo with the manager
- * rather than with the origin of what it reverses. Both are theirs, so both have
- * to be saved and passed to the others; asking for `LOCAL` alone is how an undo
- * would happen on one screen and nowhere else.
+ * An edit has the origin `LOCAL`. An undo or redo has the `Y.UndoManager` that
+ * made it as its origin, because Yjs does not reuse the origin of the change it
+ * reverts. Both are local changes, so both must be saved and relayed. Checking
+ * for `LOCAL` alone would leave an undo in this client only.
  */
 const isLocal = (origin: unknown): boolean =>
   origin === LOCAL || origin instanceof Y.UndoManager;
 
 /**
- * The origin stamped on rows put in the document as the database holds them.
+ * The transaction origin for rows written into the document as the database
+ * returned them.
  *
- * Holding what is already saved is not an edit, so undo does not track it and
- * `isLocal` does not count it.
+ * Writing saved rows is not an edit, so the undo manager does not track it and
+ * `isLocal` returns false for it.
  */
 const SAVED = Symbol("saved");
 
@@ -70,29 +69,28 @@ function order(doc: Y.Doc): Order {
   return doc.getArray("order");
 }
 
-/** Every change this client makes, stamped so undo and the relay can tell. */
+/** Runs `change` in a transaction with the origin `LOCAL`. */
 function write<T>(doc: Y.Doc, change: () => T): T {
   return doc.transact(change, LOCAL);
 }
 
 /**
- * Make `change` as the database's rather than as an edit.
+ * Runs `change` in a transaction with the origin `SAVED`.
  *
- * Everything inside carries `SAVED`, including changes made by the functions
- * here that stamp their own origin, because a transaction already running keeps
- * the origin it was opened with.
+ * Changes made inside it keep `SAVED` even when they call `write`, because a
+ * nested `transact` joins the open transaction and keeps its origin.
  */
 function hold(doc: Y.Doc, change: () => void): void {
   doc.transact(change, SAVED);
 }
 
-/** A row's fields as the document holds them. */
+/** Builds the `Y.Map` that holds a publication's fields in the document. */
 function rowOf(publication: Publication): Y.Map<unknown> {
   const row = new Y.Map<unknown>();
 
   Object.entries(publication).forEach(([key, value]) => {
-    // `sources` is the one field two people can each add to and keep both, so
-    // it is the one held as a list that merges rather than replaces.
+    // `sources` is stored as a `Y.Array`, so sources that two people add at
+    // the same time are both kept. Every other field is a plain value.
     row.set(key, key === "sources" ? asArray(value as string[]) : value);
   });
 
@@ -106,7 +104,10 @@ function asArray(values: string[]): Y.Array<string> {
   return array;
 }
 
-/** A row read back out, in the shape the rest of the application speaks. */
+/**
+ * Reads a row's `Y.Map` back into a `Publication`, turning each `Y.Array` into
+ * a plain array. A field the row does not hold keeps its value from `empty()`.
+ */
 function publicationOf(row: Y.Map<unknown>): Publication {
   const publication = { ...empty() } as Record<string, unknown>;
 
@@ -117,17 +118,19 @@ function publicationOf(row: Y.Map<unknown>): Publication {
   return publication as Publication;
 }
 
-/** The keys the document holds, in reading order. */
+/** Returns the row keys in reading order. */
 function keys(doc: Y.Doc): PublicationId[] {
   return order(doc).toArray().map(idFromText);
 }
 
-/** How many rows the document holds, without copying their keys out to count them. */
+/** Returns the number of rows in the reading order without copying the keys. */
 function rowCount(doc: Y.Doc): number {
   return order(doc).length;
 }
 
-/** Replace the whole working set, which is what an upload does. */
+/**
+ * Replaces every row and the reading order with `entries`. An upload uses it.
+ */
 function setAll(
   doc: Y.Doc,
   entries: { id: PublicationId; publication: Publication }[],
@@ -151,7 +154,10 @@ function addRow(doc: Y.Doc, id: PublicationId, publication: Publication): void {
   });
 }
 
-/** Add one row immediately after another, which is what duplicating does. */
+/**
+ * Adds a row right after the row `after`, or at the end when `after` is not in
+ * the reading order. Duplicating uses it.
+ */
 function addRowAfter(
   doc: Y.Doc,
   after: PublicationId,
@@ -167,17 +173,17 @@ function addRowAfter(
 }
 
 /**
- * Put a row in under its key, replacing whatever the document held there.
+ * Writes a row under its key, replacing any row the document held there.
  *
- * The reading order is left alone, so a row can be held without being listed:
- * one being edited that a newer search no longer returned, or one opened on its
- * own.
+ * It does not change the reading order, so a row can be in the document
+ * without being listed. Examples are a row being edited that a newer search did
+ * not return, and a row opened on its own page.
  */
 function putRow(doc: Y.Doc, id: PublicationId, publication: Publication): void {
   rows(doc).set(String(id), rowOf(publication));
 }
 
-/** Take rows out of the document, leaving the reading order to the caller. */
+/** Removes rows from `rows`. The caller updates the reading order. */
 function dropRows(doc: Y.Doc, ids: PublicationId[]): void {
   ids.forEach((id) => rows(doc).delete(String(id)));
 }
@@ -203,13 +209,14 @@ function removeRow(doc: Y.Doc, id: PublicationId): void {
 }
 
 /**
- * Write one field of a row, the way the row holds it.
+ * Writes one field of a row as a local edit. Does nothing when the document
+ * does not hold the row.
  *
- * A field held as a list that merges is edited into its new value rather than
- * replaced, so that an entry somebody else added at the same moment survives;
- * `rowOf` decides which fields those are. Replacing one would also leave a
- * plain list where the row expects a merging one, and every later edit to it
- * would then be lost. Any other field is replaced.
+ * A field stored as a `Y.Array` is edited in place with `editList`, so an entry
+ * another person added at the same time is kept. `rowOf` decides which fields
+ * are stored this way. Replacing the `Y.Array` with a plain array would also
+ * make every later edit to the field replace it instead of merging. Any other
+ * field is replaced.
  */
 function setField(
   doc: Y.Doc,
@@ -230,19 +237,18 @@ function setField(
 }
 
 /**
- * A merging list, edited into the new value as the smallest change that produces it.
+ * Edits a `Y.Array` so that it holds `next`.
  *
- * Replacing the array wholesale would lose a source added elsewhere at the same
- * moment, which is the one thing holding sources in a `Y.Array` is for. The
- * common edits — appending one, removing one, changing one in place — are
- * applied as themselves instead.
+ * It keeps the entries at the start that the array and `next` share, deletes
+ * the entries after them, and appends the rest of `next`. Replacing the whole
+ * array would drop a source another person added at the same time.
  */
 function editList(held: Y.Array<string>, next: string[]): void {
   const current = held.toArray();
 
-  // Trailing additions and removals are the whole of what the editor does
-  // most of the time, and applying them as themselves leaves the rest of the
-  // list untouched for anyone editing it at the same moment.
+  // The editor mostly adds or removes entries at the end. Keeping the shared
+  // prefix leaves the earlier entries untouched for anyone editing the list at
+  // the same time.
   const common = sharedPrefix(current, next);
 
   if (common < current.length) held.delete(common, current.length - common);
@@ -259,12 +265,12 @@ function sharedPrefix(before: string[], after: string[]): number {
 }
 
 /**
- * Call `onRows` with the keys whose content changed, and `onOrder` when the
- * reading order does.
+ * Calls `onRows` with the keys of the rows whose content changed, and `onOrder`
+ * when the reading order changes. Returns a function that stops observing.
  *
- * Yjs applies a local change and fires this synchronously, so a keystroke is
- * still readable in the tick it was typed in. Nothing here writes back to the
- * document, so there is no echo to guard against.
+ * Yjs calls observers synchronously at the end of each transaction, so a
+ * keystroke can be read in the same tick it was typed. Nothing in `observe`
+ * writes to the document, so it cannot trigger itself.
  */
 function observe(
   doc: Y.Doc,
@@ -277,8 +283,8 @@ function observe(
     const changed = new Set<string>();
 
     events.forEach((event) => {
-      // A change to the map itself names the rows it added or removed; a change
-      // inside a row names the row by where the event sits in the tree.
+      // An event on `rows` itself lists the keys of the rows added or removed.
+      // An event inside a row has the row's key as the first entry of its path.
       if (event.target === rows(doc)) {
         event.changes.keys.forEach((_change, key) => changed.add(key));
       } else {
@@ -301,12 +307,12 @@ function observe(
   };
 }
 
-/** Whether the document holds this row at all. */
+/** Returns whether the document holds this row. */
 function holds(doc: Y.Doc, id: PublicationId): boolean {
   return rows(doc).has(String(id));
 }
 
-/** The row, or null where the document does not hold it. */
+/** Returns the row, or null when the document does not hold it. */
 function readRow(doc: Y.Doc, id: PublicationId): Publication | null {
   const row = rows(doc).get(String(id));
 
@@ -314,15 +320,13 @@ function readRow(doc: Y.Doc, id: PublicationId): Publication | null {
 }
 
 /**
- * Undo scoped to this client's own edits.
+ * Creates a `Y.UndoManager` over `rows` and `order` that tracks only the
+ * `LOCAL` origin, so undo reverts this person's edits and not other people's.
  *
- * Tracking only the local origin is what makes it personal: walking back your
- * last change must not walk back what the person beside you just typed.
- *
- * Edits close together in time become one step, so a burst of typing is undone
- * as the word it was. Adding a row is not an edit to it, though, and the caller
- * marks that boundary with `stopCapturing` — otherwise one undo of a row typed
- * into straight away would take the row away rather than the typing.
+ * Yjs merges edits made close together in time into one undo step, so a burst
+ * of typing is undone at once. Adding a row and then typing into it would merge
+ * the same way. The caller calls `stopCapturing` after adding a row, so that
+ * one undo reverts the typing and not the row.
  */
 function undoManager(doc: Y.Doc): Y.UndoManager {
   return new Y.UndoManager([rows(doc), order(doc)], {

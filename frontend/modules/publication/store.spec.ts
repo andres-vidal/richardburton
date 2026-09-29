@@ -118,14 +118,14 @@ describe("setAll", () => {
   test("a cell key survives every namespace a row key comes from", () => {
     const minted = createId();
     setAll(store, [
-      // A row the server has written, a row being worked on, and the draft.
+      // A saved row, an unsaved row and the draft row.
       entry(7, { title: "Dom Casmurro" }),
       entry(minted, { title: "Iracema" }),
       entry(DRAFT_ID, { title: "Barren Lives" }),
     ]);
 
-    // A cell is cached under an `<id>:<key>` string, so the id has to survive
-    // being written into one and read back out.
+    // A cell is cached under an `<id>:<key>` string, so each kind of id must
+    // read back from that string as the same value.
     expect(store.get(fieldValueFamily({ id: 7, key: "title" }))).toBe(
       "Dom Casmurro",
     );
@@ -147,8 +147,8 @@ describe("setAll", () => {
 
     forget([7, minted]);
 
-    // A cell key is text, and matching it back to the row it belongs to is what
-    // decides whether the cell is dropped with the row or outlives it.
+    // A cell key is text. `forget` drops a cell only when its key reads back as
+    // the id of a forgotten row.
     expect(knownIds().has(7)).toBe(false);
     expect(knownIds().has(minted)).toBe(false);
   });
@@ -217,11 +217,11 @@ describe("edits", () => {
 
     setField(store, 1, "title", "Dom Casmurro (rev.)");
 
-    // Whatever edits the row reads the edit...
+    // `fieldValueFamily` reads the edit...
     expect(store.get(fieldValueFamily({ id: 1, key: "title" }))).toBe(
       "Dom Casmurro (rev.)",
     );
-    // ...and whatever shows the database still reads what is saved.
+    // ...and `storedFieldValueFamily` still reads the saved value.
     expect(store.get(storedFieldValueFamily({ id: 1, key: "title" }))).toBe(
       "Dom Casmurro",
     );
@@ -249,7 +249,7 @@ describe("edits", () => {
 
     discardEdit(store, a);
 
-    // There is no saved copy to go back to, so there is nothing to put back.
+    // There is no saved copy, so the row keeps its edit.
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
       "Dom Casmurro (rev.)",
     );
@@ -342,13 +342,13 @@ describe("ids and the draft", () => {
 
     expect(a).not.toBe(b);
 
-    // A UUID rather than a counter: a counter restarts at the same value in
-    // every browser, and two people entering a row would claim one key.
+    // The key is a UUID. A counter would start at the same value in every
+    // browser and give two people's new rows the same key.
     expect(a).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
 
-    // Never a number, so a row key can never be read as a server id.
+    // The key is a string, so it cannot be mistaken for a server id.
     expect(typeof a).toBe("string");
   });
 
@@ -376,9 +376,9 @@ describe("family lifecycle", () => {
 
     hydrate(store, [saved(2)]);
 
-    // Dropping it would discard what the admin is in the middle of writing —
-    // a search running behind an open editor must not do that. It is no longer
-    // listed, though, since the load did not return it.
+    // Dropping the row would discard what the admin is typing, so a load that
+    // runs while an editor is open keeps it. The row is no longer listed,
+    // since the load did not return it.
     expect(store.get(publicationFamily(1)).title).toBe("Being typed");
     expect(store.get(publicationIdsAtom)).toEqual([2]);
   });
@@ -389,7 +389,7 @@ describe("family lifecycle", () => {
 
     hydrate(store, [saved(1, "Dom Casmurro, as someone else saved it")]);
 
-    // The edit stays in the row, and only the saved copy moves.
+    // The row keeps the edit, and only the saved copy is updated.
     expect(store.get(publicationFamily(1)).title).toBe("Being typed");
     expect(store.get(storedFieldValueFamily({ id: 1, key: "title" }))).toBe(
       "Dom Casmurro, as someone else saved it",

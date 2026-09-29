@@ -6,73 +6,78 @@ import * as DocumentListStories from "./DocumentList.stories";
 
 # Import documents
 
-The batches of import work a person may open, and the way to start another.
+Lists the import documents, with a form to start a new one.
 
-A document is import work with a name and a home on the server, so it outlives
-the browser it was started in and can be picked up by a colleague. The list is
-shared: there is no owner and no membership, because the database being prepared
-is one database. That is why a name is asked for — it is what tells one batch
-from another once several people are keeping them.
+An import document is a named batch of publications being prepared for import.
+It is saved on the server, so it can be reopened later on any computer and by
+other people. Documents have no owner or members, because they are all imported
+into the same database. Anyone who may edit publications sees every document
+and may open any of them. A name is required because it is how people tell the
+batches apart.
 
 <Canvas of={DocumentListStories.Default} />
 
-## The row count is the client's word
+## Where the row count comes from
 
-Each entry says how many rows it holds. The server keeps a document as opaque
-Yjs updates it never parses — that is what keeps a precompiled native dependency
-out of the deployment — so it cannot count rows in one. The client counts them
-as it writes, and the server records what it is told.
+Each entry shows how many rows the document holds. The server stores a document
+as Yjs updates and does not parse them, which keeps a native Yjs dependency out
+of the deployment. Because of that, the server cannot count the rows. The client
+counts them when it writes to the document, and the server stores that count.
 
 ## Renaming happens in place
 
-A batch called "Second pass" that turns out to be the 1970s is a correction, and
-a correction should not need a dialog. Enter commits the new name and Escape
-leaves the old one.
+**Rename** turns the name into a text field in the same row. Enter saves the new
+name and Escape keeps the old one. Renaming is usually a small correction, such
+as a batch called "Second pass" that turns out to cover the 1970s, so it does
+not open a dialog.
 
 <Canvas of={DocumentListStories.RenamingInPlace} />
 
-## Archiving, not deleting
+## Archiving
 
-What a document holds is a record of what was prepared, and a batch taken off
-the list by mistake is one somebody spent an afternoon on. Archiving retires it
-from the list and nothing else: the archived side of the list is readable, and
-anything on it can be put back.
+**Archive** moves a document to the archived side of the list and does not
+delete anything. The archived side can be read, and **Put it back** returns a
+document to the current list. A document is a record of what was prepared, so
+one archived by mistake has to be easy to restore.
 
 <Canvas of={DocumentListStories.PuttingOneBack} />
 
 ## Paging
 
-The page reads the first page of a side of the list on the server, so the list
-arrives filled in. Each side is its own address (`?archived=true` for the
-archived one), and switching sides goes there.
+The route reads the first page of the chosen side on the server, so the list is
+filled in when the page loads. Each side has its own URL (`?archived=true` for
+the archived one), and switching sides navigates to it.
 
-**Show more** reads the next page from the last document held rather than by
-counting how many have been read. Changing a document moves it to the top of the
-list, which would shift a count by one and show a document twice; reading from a
-position does not.
+**Show more** reads the next page starting after the last document shown,
+instead of skipping the number of documents already read. Changing a document
+moves it to the top of the list. With a count, that would shift the later pages
+by one and show a document twice. Starting after the last document shown avoids
+that.
 
 <Canvas of={DocumentListStories.MoreToShow} />
 
 ## Props
 
 - `side` — which side of the list is shown: `current` or `archived`.
-- `first` — the first page of that side, read with the page.
-- `readMore` — how a further page is read. Defaults to asking the server.
-- `start` — how one is started.
-- `rename`, `archive`, `restore` — the three things that can be done to one.
+- `first` — the first page of that side, read on the server by the route.
+- `readMore` — reads a further page. Defaults to `list`.
+- `start` — creates a document. Defaults to `create`.
+- `rename`, `archive`, `restore` — rename, archive and restore a document.
 
-The ones that talk to the server are props so a story can stand in for the
-network.
+The props that call the server exist so that a story can replace the network
+calls.
 
 ## States
 
-- **Default** — the documents on offer, most recently changed first.
-- **Empty** — nothing kept yet, said rather than shown as an empty list.
-- **Needs a name** — a document cannot be started unnamed.
-- **Archived** — the other side of the list, where everything can be put back.
-- **Nothing archived** — said rather than shown as an empty list.
-- **More to show** — a workspace kept for years holds more documents than
-  anyone reads at once, so the list is a page of them.
+- **Default** — the current documents, most recently changed first.
+- **Empty** — there are no documents yet, and a message says so instead of an
+  empty list.
+- **Needs a name** — **Start a document** stays disabled until a name is typed.
+- **Archived** — the archived side of the list, where every document can be
+  restored.
+- **Nothing archived** — a message says so instead of an empty list.
+- **More to show** — the list shows one page of documents at a time, with a
+  **Show more** button when there are more.
 
 <Canvas of={DocumentListStories.Empty} />
 <Canvas of={DocumentListStories.NothingArchived} />

@@ -69,9 +69,10 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Mimic a successful save without a server: the edited row becomes the saved
- * copy, which is the state `update()` leaves behind. Dots and the count read
- * the saved sources, so they only change here, never while typing. */
+/** Stands in for a successful save without a server. It calls `remember` with
+ * the edited row, which makes it the saved copy, as `update()` does. The dots
+ * and the count read the saved sources, so they change here and not while
+ * typing. */
 const persistDraft = (id: PublicationId) =>
   remember(store, store.get(publicationFamily(id)));
 

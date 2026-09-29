@@ -45,8 +45,8 @@ export const WithExistingData: Story = {
 };
 
 /**
- * An upload replaces every row in the document, which is everybody's work and
- * not only this person's, so it is asked about rather than warned about.
+ * With rows in the document, the button asks for confirmation before opening
+ * the file picker, because an upload replaces other people's rows too.
  */
 export const ReplacingASharedDocument: Story = {
   beforeEach: () => seed(store),
@@ -63,7 +63,7 @@ export const ReplacingASharedDocument: Story = {
       "Everyone working on this document loses them",
     );
 
-    // Thinking better of it leaves the rows where they are.
+    // Cancelling closes the dialog without replacing anything.
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Keep them" }),
     );

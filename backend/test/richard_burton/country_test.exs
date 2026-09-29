@@ -388,8 +388,8 @@ defmodule RichardBurton.CountryTest do
   end
 
   describe "all/0" do
-    # Postgres writes an updated row anew further along the table, so a read
-    # that asks for no order hands that row back last.
+    # Postgres writes an updated row as a new row version later in the table,
+    # so a query without ORDER BY can return it after rows inserted later.
     test "lists countries in the order each was first entered, whatever has changed since" do
       first = insert!(%{"code" => "GB"})
       second = insert!(%{"code" => "US"})

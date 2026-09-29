@@ -8,7 +8,8 @@ const meta = {
   title: "Publications/Cell presence",
   component: CellPresence,
   args: { colour: 0, by: "helen@example.com" },
-  // It sits in the corner of a cell, so it is shown in one.
+  // The component positions itself in the corner of its parent, so the stories
+  // render it inside a cell-sized box.
   decorators: [
     (Story) => (
       <div className="relative w-48 h-8 bg-white border border-gray-300">
@@ -23,7 +24,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Somebody else's cursor: their initial, in their colour. */
+/** Another person's initial, in their colour. */
 export const Default: Story = {
   play: async () => {
     await expect(
@@ -32,7 +33,7 @@ export const Default: Story = {
   },
 };
 
-/** A colour alone says somebody is there; hovering says who. */
+/** Hovering the initial shows a tooltip with the person's email. */
 export const NamedOnHover: Story = {
   play: async () => {
     await userEvent.hover(
@@ -46,8 +47,8 @@ export const NamedOnHover: Story = {
 };
 
 /**
- * Every colour a person can be drawn in. The same person is the same colour
- * everywhere, so a cell can be traced to the face at the top of the document.
+ * Every presence colour, one per cell. A person has the same colour here and in
+ * `DocumentPresence`.
  */
 export const EveryColour: Story = {
   render: () => (

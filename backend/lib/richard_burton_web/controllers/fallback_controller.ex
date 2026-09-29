@@ -1,26 +1,26 @@
 defmodule RichardBurtonWeb.FallbackController do
   @moduledoc """
-  Answers an action that returned an error instead of a response.
+  Turns an error returned by a controller action into a JSON response.
 
-  Every controller names this with `action_fallback` (see `RichardBurtonWeb`),
-  so an action's `with` can stop at the first thing that fails and return it.
-  The same failure then gets the same status and body from every endpoint.
+  Every controller sets this as its `action_fallback` (see `RichardBurtonWeb`),
+  so an action's `with` can return the first error it meets. Each kind of error
+  then gets the same status and body from every endpoint.
 
     * `{:error, :not_found}` is a 404.
     * `{:error, reason}` with an atom is a 409 when the reason is a conflict,
       and a 400 otherwise. The body is `%{error: reason}`.
-    * `{:error, status, reason}` answers with that status and
-      `%{error: reason}`, for a refusal whose status is not the one its reason
-      gets everywhere else.
+    * `{:error, status, reason}` responds with that status and
+      `%{error: reason}`. An action returns it when it needs a different status
+      from the one the reason normally gets.
     * `{:error, changeset}`, or `{:error, errors}` with a map of errors by field,
       is a 400 whose body is `%{errors: errors}`.
 
-  A **conflict** is a sound request refused because of the state it met, as
-  opposed to a request that was wrong in itself. The conflicts are a record that
-  already exists (`:conflict`), a record held inside another (`:absorbed`),
-  demoting the last admin (`:last_admin`), changing one's own role (`:self`),
-  and an invitation already taken up (`:accepted`) or already waiting
-  (`:pending`).
+  A **conflict** is a valid request that is refused because of the current
+  state of the data, as opposed to a malformed request. The conflicts are a
+  record that already exists (`:conflict`), a record held inside another
+  (`:absorbed`), demoting the last admin (`:last_admin`), changing one's own
+  role (`:self`), and an invitation already accepted (`:accepted`) or already
+  pending (`:pending`).
   """
 
   use Phoenix.Controller, formats: [:json]
@@ -49,13 +49,12 @@ defmodule RichardBurtonWeb.FallbackController do
     do: refuse(conn, :bad_request, %{errors: errors})
 
   @doc """
-  A record looked up by id, as `{:ok, record}`, or `{:error, :not_found}` where
-  the lookup found nothing. It lets a lookup that answers `nil` take part in a
-  `with`.
+  Returns `{:ok, record}`, or `{:error, :not_found}` when `record` is `nil`.
+  It lets a lookup that returns `nil` be used in a `with`.
   """
   def found(nil), do: {:error, :not_found}
   def found(record), do: {:ok, record}
 
-  # Answers with the status and body, and ends the request.
+  # Sends `body` as JSON with `status`.
   defp refuse(conn, status, body), do: conn |> put_status(status) |> json(body)
 end

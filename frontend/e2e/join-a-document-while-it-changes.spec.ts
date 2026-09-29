@@ -16,8 +16,9 @@ test("a colleague who opens a document while a change is still being saved gets 
   await openDocument(page, "Still saving");
   const address = page.url();
 
-  // This browser's saves are held back, so the upload is on its way to the
-  // server but has not arrived when the colleague opens the document.
+  // Hold this page's POSTs of document updates until `release` is called, so
+  // the server has not stored the upload when the colleague opens the
+  // document.
   let release = () => {};
   const released = new Promise<void>((resolve) => {
     release = resolve;
@@ -37,8 +38,9 @@ test("a colleague who opens a document while a change is still being saved gets 
   await signInAsContributor(colleague);
   await colleague.goto(address);
 
-  // The server does not have the rows yet, and they were relayed before the
-  // colleague was here to hear them. They come from the person who has them.
+  // The server has not stored the rows yet, and the channel relayed them before
+  // the colleague joined. The colleague's page sends its state vector when it
+  // joins, and the admin's page answers with the rows it is missing.
   const theirs = indexTable(colleague);
   await expect(theirs.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible({
     timeout: 15_000,
@@ -46,7 +48,7 @@ test("a colleague who opens a document while a change is still being saved gets 
   await expect(theirs.getByRole("row", { name: /Iracema/ })).toBeVisible();
   await expect(page.getByRole("status", { name: "Saving" })).toBeVisible();
 
-  // And the save still goes through once it can.
+  // Once the held POSTs are released, the save completes.
   release();
   await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
 });
@@ -68,12 +70,13 @@ test("work done away from the server reaches the colleagues already in the docum
   const theirs = indexTable(colleague);
   await expect(theirs.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();
 
-  // Away from the server entirely: nothing saves and nothing is relayed, so the
-  // edit is on this browser's disk and nowhere else.
+  // Block every API request and reload. The page can neither save nor get the
+  // token it needs to join the channel, so the next edit is kept only in this
+  // browser's IndexedDB.
   await page.route("**/api/**", (route) => route.abort());
   await page.reload();
 
-  // Restored from this browser's disk, which is what there is to edit.
+  // The rows are restored from this browser's IndexedDB.
   const mine = indexTable(page);
   await expect(mine.getByRole("row", { name: /Iracema/ })).toBeVisible();
 
@@ -82,8 +85,9 @@ test("work done away from the server reaches the colleagues already in the docum
   await title.blur();
   await expect(theirs.getByRole("row", { name: /\(offline\)/ })).toHaveCount(0);
 
-  // Back. Opening again saves what only this browser held, and the colleague,
-  // who has had the document open all along, receives it without reloading.
+  // Unblock the API and reload. The page posts the edit the server is missing,
+  // and joins the channel. The state vector exchange on joining sends the edit
+  // to the colleague's page, which has stayed open and does not reload.
   await page.unroute("**/api/**");
   await page.reload();
 

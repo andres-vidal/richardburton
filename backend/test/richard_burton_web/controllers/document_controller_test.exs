@@ -2,8 +2,8 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
   @moduledoc """
   Tests for the import-document endpoints.
 
-  Updates cross as base64 and are never parsed here, so the bytes that go in are
-  the bytes that come back.
+  Updates are sent and returned as base64 and are not parsed, so each test
+  expects back the same bytes it sent.
   """
   use RichardBurtonWeb.ConnCase
 
@@ -46,7 +46,7 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
     test "lists every document, whoever started it", meta do
       mine = create(meta.conn, "Mine")
 
-      # One somebody else started, which this person has never touched.
+      # A document this person did not create.
       theirs = document_fixture("Theirs")
 
       expect_auth_authorize_admin()
@@ -88,7 +88,7 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
       expect_auth_authorize_admin()
 
-      # The cursor goes back as the list gave it out.
+      # The cursor is sent back exactly as the previous page returned it.
       assert %{"entries" => [%{"name" => "Third"}], "more" => false} =
                meta.conn
                |> get(document_path(meta.conn, :index), %{

@@ -96,8 +96,8 @@ defmodule RichardBurton.Auth.SessionTest do
     end
   end
 
-  # What holds a connection open hears of a change rather than having to be
-  # found and closed by whoever made it.
+  # Revoking sessions broadcasts on the person's access topic, so each of their
+  # open document channels checks its access again.
   describe "announcing a change of access" do
     setup do
       Phoenix.PubSub.subscribe(RichardBurton.PubSub, Access.topic("subject-123"))

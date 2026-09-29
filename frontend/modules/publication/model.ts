@@ -68,16 +68,17 @@ type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: PublicationId };
 /**
- * How the store addresses a row.
+ * The key the store uses for a row.
  *
- * A row the server has written is addressed by its publication id. A row being
- * worked on in a workspace is addressed by a client-minted UUID, which is
- * unique across browsers, so the same row can be named to two people editing it
- * at once. The draft row has a well-known key of its own.
+ * A row the server has saved is keyed by its publication id, a number. A row
+ * being worked on in a workspace is keyed by a UUID created in the browser.
+ * UUIDs are unique across browsers, so two people editing the same row use the
+ * same key for it. The draft row has the fixed key `DRAFT_ID`.
  *
- * The two namespaces cannot collide, which is what lets one store hold both.
- * Reach for \`Publication["id"]\` rather than this where a server record is meant:
- * an endpoint addressing a stored publication takes that, not a row key.
+ * A number never equals a string, so one store can hold both kinds of row. Use
+ * `Publication["id"]` rather than this type where a saved record is meant,
+ * since an endpoint for a stored publication takes a publication id, not a row
+ * key.
  */
 type PublicationId = number | string;
 type PublicationKeyType =
@@ -190,11 +191,11 @@ function empty(): Publication {
 }
 
 /**
- * A row's id read back from the text it was written as.
+ * Converts a row key written as text back into a `PublicationId`.
  *
- * A server id is a number, and is written as its digits, so digits are read
- * back as a number. Every other id is already text. The id has to come back as
- * the value it went in as, because the store compares ids by value.
+ * Text made only of digits is a server id and becomes a number. Any other text
+ * is returned unchanged. The store compares keys with `===`, so a server id
+ * must come back as a number.
  */
 function idFromText(text: string): PublicationId {
   return /^\d+$/.test(text) ? Number(text) : text;

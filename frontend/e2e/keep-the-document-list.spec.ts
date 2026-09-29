@@ -8,7 +8,10 @@ import {
   IMPORT_CSV,
 } from "./helpers";
 
-/** The list of documents, scoped past the breadcrumb, which is a list too. */
+/**
+ * The entries of the "Import documents" list. The list is found by its name,
+ * because the breadcrumb on the same page is also a list.
+ */
 const documents = (page: import("@playwright/test").Page) =>
   page.getByRole("list", { name: "Import documents" }).getByRole("listitem");
 
@@ -29,10 +32,10 @@ test("a document is renamed in place, and the list keeps the new name", async ({
 
   await expect(documents(page).filter({ hasText: "The 1970s" })).toBeVisible();
 
-  // It is the same document, not a second one: the name is a correction.
+  // Renaming changes the existing document. It does not add a second one.
   await expect(documents(page)).toHaveCount(1);
 
-  // And it survives a reload, so it was the server that was told.
+  // The new name is still there after a reload, so the server saved it.
   await page.reload();
   await expect(documents(page).filter({ hasText: "The 1970s" })).toBeVisible();
 });
@@ -61,14 +64,14 @@ test("an archived document leaves the list, keeps its rows, and can be put back"
   await signInAsAdmin(page);
   await openDocument(page, "Abandoned sweep");
 
-  // Something worth not destroying.
+  // Give the document rows, to check that archiving keeps them.
   await uploadCsv(page, IMPORT_CSV, "import.csv");
   await expect(
     indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
   ).toBeVisible();
 
-  // The count the list shows is written with the rows, so the list is only
-  // worth reading once the server has taken them.
+  // The row count in the list is saved with each update to the server, so wait
+  // for Saved before reading the list.
   await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
 
   await page.goto("/admin/publications/documents");
@@ -77,10 +80,10 @@ test("an archived document leaves the list, keeps its rows, and can be put back"
   await expect(entry).toContainText("2 rows");
   await entry.getByRole("button", { name: "Archive" }).click();
 
-  // Off the list, and the list says so rather than showing nothing.
+  // The document leaves the list, and the list shows its empty message.
   await expect(page.getByText("No documents yet")).toBeVisible();
 
-  // Readable on the other side of the list, with what it held intact.
+  // The Archived list shows the document with its 2 rows and no Archive button.
   await page.getByRole("button", { name: "Archived" }).click();
 
   const archived = page
@@ -100,7 +103,7 @@ test("an archived document leaves the list, keeps its rows, and can be put back"
     documents(page).filter({ hasText: "Abandoned sweep" }),
   ).toBeVisible();
 
-  // The rows were never the thing being retired.
+  // The restored document still has its rows.
   await documents(page)
     .filter({ hasText: "Abandoned sweep" })
     .getByRole("link")
@@ -133,7 +136,7 @@ test("replacing a shared document's rows is asked about before it happens", asyn
     "Everyone working on this document loses them",
   );
 
-  // Thinking better of it leaves every row where it was.
+  // Choosing "Keep them" closes the dialog and leaves the rows in place.
   await asking.getByRole("button", { name: "Keep them" }).click();
   await expect(asking).not.toBeVisible();
   await expect(
@@ -150,8 +153,7 @@ test("a document says its work has been saved", async ({ page }) => {
     indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
   ).toBeVisible();
 
-  // The one thing a person needs to know about a shared document: whether what
-  // they did is anywhere but this computer.
+  // The status reads Saved once the upload has reached the server.
   await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
 });
 
@@ -163,7 +165,8 @@ test("a long list is read a page at a time, and one changed in between is not re
 
   await signInAsAdmin(page);
 
-  // More than a page of them, started one after another, so the newest leads.
+  // Start 22 documents, more than the 20 on a page. The list puts the most
+  // recently changed first, so the first page runs from Batch 22 to Batch 03.
   for (let batch = 1; batch <= 22; batch += 1) {
     await openDocument(page, `Batch ${String(batch).padStart(2, "0")}`);
   }
@@ -172,7 +175,8 @@ test("a long list is read a page at a time, and one changed in between is not re
   await expect(documents(page)).toHaveCount(20);
   await expect(documents(page).last()).toContainText("Batch 03");
 
-  // Meanwhile a colleague renames the oldest, which a change moves to the top.
+  // A colleague renames Batch 01, the oldest. Renaming updates the document's
+  // `updated_at`, which moves it to the top of the list.
   await signInAsContributor(colleague);
   await colleague.goto("/admin/publications/documents");
   await colleague.getByRole("button", { name: "Show more" }).click();
@@ -188,8 +192,8 @@ test("a long list is read a page at a time, and one changed in between is not re
     documents(colleague).filter({ hasText: "Batch 01, renamed" }),
   ).toBeVisible();
 
-  // The next page carries on from the last one held. Counted instead, it would
-  // start one early and show the last of the first page again.
+  // The next page starts after the last document already loaded, Batch 03. An
+  // offset of 20 would now start at Batch 03 and show it a second time.
   await page.getByRole("button", { name: "Show more" }).click();
 
   await expect(documents(page)).toHaveCount(21);
@@ -197,7 +201,7 @@ test("a long list is read a page at a time, and one changed in between is not re
   await expect(documents(page).filter({ hasText: "Batch 03" })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
 
-  // A fresh read puts the renamed one where it now belongs, at the top.
+  // After a reload, the renamed document is first in the list.
   await page.reload();
   await expect(documents(page).first()).toContainText("Batch 01, renamed");
 });

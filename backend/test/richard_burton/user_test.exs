@@ -78,8 +78,8 @@ defmodule RichardBurton.UserTest do
   end
 
   describe "set_role/3" do
-    # The change is announced to every connection this person holds open, so a
-    # lower role reaches a document channel already joined, and not only the next
+    # `set_role/3` broadcasts on the person's access topic, so a document
+    # channel they already joined checks the new role, not only their next
     # request.
     test "announces that the person's access changed" do
       user = user_fixture("helen@example.com", :contributor)

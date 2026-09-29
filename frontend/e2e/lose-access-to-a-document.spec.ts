@@ -11,7 +11,7 @@ import {
 test("the live connection carries no credential in its address", async ({
   page,
 }) => {
-  // Whatever authorises the connection travels in a header. In the address it
+  // The socket token is sent in a header, not in the URL. A token in the URL
   // would be written into every request log between the browser and the
   // server.
   const addresses: string[] = [];
@@ -39,12 +39,13 @@ test("signing out closes a document left open in another tab", async ({
   ).toBeVisible();
   await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
 
-  // The same browser, so the same session, signed out from somewhere else.
+  // Sign out from a second tab in the same browser context, which shares the
+  // first tab's session.
   const elsewhere = await context.newPage();
   await elsewhere.goto("/");
   await signOut(elsewhere);
 
-  // The open document stops being live rather than quietly carrying on as if
-  // nothing had happened.
+  // The server refuses the first tab's channel, and its status changes to
+  // Not live.
   await expect(page.getByRole("status", { name: "Not live" })).toBeVisible();
 });

@@ -43,7 +43,7 @@ const page = (entries: DocumentSummary[], more = false): DocumentPage => ({
   more,
 });
 
-/** Older than anything on the first page, for a list with more to show. */
+/** A document older than the first page's, returned as the next page. */
 const OLDER: DocumentSummary = {
   id: 7,
   name: "Machado, first sweep",
@@ -88,9 +88,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * The documents a person may open. Each says what it holds, and the count is
- * the client's word — the server keeps the document as bytes it does not read,
- * so it cannot count rows in one.
+ * The current documents, each with its row count. The client counts the rows,
+ * because the server stores a document as Yjs updates that it does not parse.
  */
 export const Default: Story = {
   play: async () => {
@@ -98,14 +97,14 @@ export const Default: Story = {
       screen.getByRole("link", { name: /Second pass, 2026/ }),
     ).toHaveTextContent("428 rows");
 
-    // One row is one row, not "1 rows".
+    // The count uses the singular for one row.
     await expect(
       screen.getByRole("link", { name: /Amado retranslations/ }),
     ).toHaveTextContent("1 row");
   },
 };
 
-/** Nothing kept yet says so, rather than showing an empty list. */
+/** With no documents, a message says so instead of an empty list. */
 export const Empty: Story = {
   args: { first: page([]) },
   play: async () => {
@@ -114,8 +113,8 @@ export const Empty: Story = {
 };
 
 /**
- * A document needs a name before it can be started — it is what the list will
- * call it, and an unnamed one could not be told from another.
+ * **Start a document** is disabled until a name is typed. The name is how
+ * people tell documents apart in the list.
  */
 export const NeedsAName: Story = {
   play: async () => {
@@ -128,8 +127,8 @@ export const NeedsAName: Story = {
 };
 
 /**
- * Renaming happens in place. A batch called "Second pass" that turns out to be
- * the 1970s is a correction, and a correction should not need a dialog.
+ * **Rename** turns the name into a text field in the same row, and Enter saves
+ * the new name.
  */
 export const RenamingInPlace: Story = {
   play: async ({ args }) => {
@@ -150,7 +149,7 @@ export const RenamingInPlace: Story = {
   },
 };
 
-/** Escape leaves the name as it was, so a rename can be thought better of. */
+/** Escape cancels a rename and keeps the old name. */
 export const RenamingCalledOff: Story = {
   play: async ({ args }) => {
     const list = await screen.findByRole("list", { name: "Import documents" });
@@ -171,10 +170,7 @@ export const RenamingCalledOff: Story = {
   },
 };
 
-/**
- * Archiving takes a document off the list without destroying it. What it holds
- * is a record of what was prepared, and somebody spent an afternoon on it.
- */
+/** **Archive** moves a document off the current list without deleting it. */
 export const Archiving: Story = {
   play: async ({ args }) => {
     const list = await screen.findByRole("list", { name: "Import documents" });
@@ -188,10 +184,7 @@ export const Archiving: Story = {
   },
 };
 
-/**
- * Each side of the list is a page of its own, so looking at the other side
- * goes there.
- */
+/** Choosing **Archived** navigates to the archived side's own URL. */
 export const LookingAtTheOtherSide: Story = {
   play: async () => {
     await userEvent.click(screen.getByRole("button", { name: "Archived" }));
@@ -202,7 +195,7 @@ export const LookingAtTheOtherSide: Story = {
   },
 };
 
-/** What was archived is readable, and anything on it can be put back. */
+/** On the archived side, **Put it back** restores a document. */
 export const PuttingOneBack: Story = {
   args: { side: "archived", first: page(RETIRED) },
   play: async ({ args }) => {
@@ -214,7 +207,7 @@ export const PuttingOneBack: Story = {
     const [first] = within(list).getAllByRole("listitem");
 
     await expect(first).toHaveTextContent("Abandoned sweep");
-    // Nothing to rename or archive on this side: it is already off the list.
+    // An archived document has no Rename or Archive button.
     await expect(
       within(first).queryByRole("button", { name: "Archive" }),
     ).not.toBeInTheDocument();
@@ -227,7 +220,7 @@ export const PuttingOneBack: Story = {
   },
 };
 
-/** Nothing archived says so rather than showing an empty list. */
+/** With no archived documents, a message says so instead of an empty list. */
 export const NothingArchived: Story = {
   args: { side: "archived", first: page([]) },
   play: async () => {
@@ -236,10 +229,9 @@ export const NothingArchived: Story = {
 };
 
 /**
- * A workspace kept for years holds more documents than anyone reads at once, so
- * the list is a page of them and says when there are more. The next page is
- * read from the last document held, so one changed in between is not read
- * twice.
+ * The list shows one page at a time and offers **Show more** when there are
+ * more. The next page is read starting after the last document shown, so a
+ * document that changes in between is not shown twice.
  */
 export const MoreToShow: Story = {
   args: { first: page(KEPT, true) },
@@ -255,7 +247,7 @@ export const MoreToShow: Story = {
       expect.objectContaining({ after: KEPT[1], archived: false }),
     );
 
-    // That was the last of them.
+    // The second page was the last one, so the button is gone.
     await expect(
       screen.queryByRole("button", { name: "Show more" }),
     ).not.toBeInTheDocument();

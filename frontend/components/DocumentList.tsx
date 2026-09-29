@@ -18,21 +18,23 @@ import { useFormatDate } from "modules/dates";
 import { useTranslations } from "next-intl";
 import { FC, FormEvent, useState } from "react";
 
-/** Which side of the list is being read. */
+/** Which side of the list is shown: current documents or archived ones. */
 type Side = "current" | "archived";
 
 /**
- * One document in the list: what it holds, when it last changed, and what can
- * be done with it.
+ * One document in the list. It links to the document and shows its name, row
+ * count and last change date, with buttons to rename and archive it. An
+ * archived document has a button to restore it instead.
  *
- * The name is editable in place rather than behind a dialog, since renaming is
- * a correction — a batch called "Second pass" that turns out to be the 1970s —
- * and a dialog asks more of the reader than the change is worth.
+ * **Rename** turns the name into a text field in the same row. Enter or leaving
+ * the field saves the new name, and Escape keeps the old one. A blank or
+ * unchanged name is not saved. Renaming is usually a small correction, so it
+ * does not open a dialog.
  */
 const Entry: FC<{
   document: DocumentSummary;
   onRename: (name: string) => Promise<void>;
-  /** Archive it, or put it back if it is archived already. */
+  /** Archives the document, or restores it if it is already archived. */
   onMove: () => Promise<void>;
 }> = ({ document, onRename, onMove }) => {
   const t = useTranslations("documents");
@@ -139,32 +141,34 @@ const Entry: FC<{
 };
 
 /**
- * Every import document on one side of the list, and the way to start another.
+ * Lists the import documents on one side of the list, current or archived, with
+ * a form to start a new one.
  *
- * A document is one batch of import work under a name, kept between sittings.
- * The list is shared: there is no owner and no membership, so everyone sees all
- * of them and may open any. That is why a name is asked for — it is what tells
- * one batch from another once several people are keeping them.
+ * An import document is a named batch of publications being prepared for
+ * import, saved on the server so work can continue later. Documents have no
+ * owner or members, so anyone who may edit publications sees all of them and
+ * may open any. The name is required because it is how people tell the batches
+ * apart.
  *
- * A document is archived rather than deleted. What it holds is a record of what
- * was prepared, and a batch taken off the list by mistake is one somebody spent
- * an afternoon on, so the archived side of the list is readable and anything on
- * it can be put back.
+ * Archiving a document moves it to the archived side of the list without
+ * deleting it. The archived side can be read, and any document on it can be
+ * restored, so a document archived by mistake is not lost.
  *
- * Each side of the list is a page of its own, and switching sides navigates to
- * it. Further pages are read from the last document held rather than by
- * counting, so a document changed in between is not read twice.
+ * Each side of the list has its own route, and switching sides navigates to
+ * it. **Show more** reads the next page starting after the last document shown,
+ * instead of skipping a count, so a document that changes in between is not
+ * shown twice.
  */
 const DocumentList: FC<{
   /** Which side of the list is shown. */
   side: Side;
-  /** The first page of that side, read with the page. */
+  /** The first page of that side, read on the server by the route. */
   first: DocumentPage;
-  /** How a further page is read. Defaults to asking the server. */
+  /** Reads a further page. Defaults to `list` from `document-remote`. */
   readMore?: typeof list;
-  /** How one is started. Defaults to asking the server. */
+  /** Creates a document with the given name. Defaults to `create`. */
   start?: (name: string) => Promise<DocumentSummary>;
-  /** How one is renamed, archived and put back. Default to asking the server. */
+  /** Rename, archive and restore a document, calling the server by default. */
   rename?: (id: number, name: string) => Promise<DocumentSummary>;
   archive?: (id: number) => Promise<DocumentSummary>;
   restore?: (id: number) => Promise<DocumentSummary>;
@@ -207,10 +211,9 @@ const DocumentList: FC<{
     }
   }
 
-  // A document that has been renamed is the same document under a new name, and
-  // one that has been archived or put back belongs to the other side of the
-  // list. Both answers came back with the request, so neither is worth reading
-  // the list again for.
+  // After a rename, `replace` swaps in the summary the server returned. After an
+  // archive or a restore, `remove` drops the document, because it now belongs
+  // to the other side of the list. Neither reads the list again.
   const replace = (renamed: DocumentSummary) =>
     setPage((held) => ({
       ...held,
@@ -238,7 +241,8 @@ const DocumentList: FC<{
     }
   }
 
-  // Looking at the side already shown changes nothing, so it goes nowhere.
+  // Navigates to the given side of the list. It does nothing if that side is
+  // already shown.
   function look(which: Side) {
     if (which === side) return;
 

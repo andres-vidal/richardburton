@@ -1,25 +1,24 @@
 defmodule RichardBurton.Auth.Access do
   @moduledoc """
-  Saying that somebody's access has changed, for whatever holds it open.
+  Tells a person's open document channels that their access has changed.
 
-  A request is authorised as it arrives, so a change reaches the next one
-  without anyone saying so. A live connection is authorised when it opens and
-  then held, so it has to be told. The functions that change access — revoking
-  one session, revoking all of someone's, changing their role — announce it
-  here, once, and whatever is holding a connection for that person checks
-  again. No caller has to remember to close anything.
+  An HTTP request checks access every time it arrives, so it sees a change on
+  its own. A channel checks access only when it is joined, so it has to be
+  told. `changed/1` broadcasts on the person's access topic. It is called when
+  a session is revoked, when all of a person's sessions are revoked, and when
+  their role changes. Each of their open channels then checks access again and
+  closes if it is no longer allowed.
 
-  The announcement says only that something changed, not what. A listener
-  re-reads the current state rather than trusting a message about it, so the
-  order announcements arrive in cannot leave it with a stale answer.
+  The broadcast does not say what changed. A channel reads the current state
+  when it hears one, so the order in which broadcasts arrive does not matter.
   """
 
   @pubsub RichardBurton.PubSub
 
-  @doc "The topic a person's access changes are announced on."
+  @doc "The PubSub topic for a person's access changes."
   def topic(subject_id), do: "access:#{subject_id}"
 
-  @doc "Say that this person's access may have changed."
+  @doc "Broadcasts that a person's access may have changed."
   def changed(subject_id) do
     Phoenix.PubSub.broadcast(@pubsub, topic(subject_id), :access_changed)
   end

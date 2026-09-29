@@ -42,8 +42,8 @@ defmodule RichardBurtonWeb.SessionController do
   def delete(conn, _params) do
     conn = fetch_cookies(conn)
 
-    # Revoking says so, and any document this session holds open closes on
-    # hearing it; see `RichardBurton.Auth.Access`.
+    # `Session.revoke/1` broadcasts the change of access, and the document
+    # channels opened under this session close. See `RichardBurton.Auth.Access`.
     with token when is_binary(token) <- conn.cookies[Session.cookie_name()] do
       Session.revoke(token)
     end

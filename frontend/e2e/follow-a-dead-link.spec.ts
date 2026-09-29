@@ -46,7 +46,7 @@ test("a link to an import document that is not there says so", async ({
 }) => {
   await signInAsAdmin(page);
 
-  // Nothing has been started, so no document resolves.
+  // No document has been started, so there is no document with this id.
   const answer = await page.goto("/admin/publications/documents/404404");
   expect(answer?.status()).toBe(404);
 

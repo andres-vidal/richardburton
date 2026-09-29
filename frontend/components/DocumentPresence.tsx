@@ -10,13 +10,14 @@ import { FC } from "react";
 import Tooltip from "./Tooltip";
 
 /**
- * Who else has this document open right now.
+ * Shows the other people who have this document open, each as their initial in
+ * their presence colour. Renders nothing when nobody else has it open.
  *
- * The list of documents is shared, so this is not about who is allowed in — it
- * is about who is here. The server keeps it, per connection and under the
- * address it holds for each person, so nobody is shown on their own say-so. It
- * is true only while someone is looking, and is never written down: a person
- * who closes the tab is simply no longer in it.
+ * Anyone who may edit publications can open any document, so this list shows
+ * who has the document open now, not who is allowed to. The list comes from
+ * Phoenix Presence on the document channel. The server tracks each connection under the email of its
+ * signed-in user, so a client cannot choose the name it is listed under. A
+ * person leaves the list when their tab closes, and the list is not stored.
  */
 const DocumentPresence: FC = () => {
   const t = useTranslations("documents");

@@ -1,7 +1,7 @@
 defmodule RichardBurton.DocumentTest do
   @moduledoc """
-  Tests for import documents: the shared list of them, the updates each one's
-  content is made of, and what taking one off the list means.
+  Tests for import documents: the shared list, the updates that make up each
+  document's content, and archiving.
   """
   use RichardBurton.DataCase
 
@@ -10,20 +10,19 @@ defmodule RichardBurton.DocumentTest do
 
   defp document(name \\ "Second pass"), do: document_fixture(name)
 
-  # Just the bytes, for the cases where the point is what a reader would apply
-  # rather than how far the read reaches.
+  # Returns only the updates from `Document.updates/2`, without `through`.
   defp applied(document, opts \\ []) do
     {updates, _through} = Document.updates(document, opts)
     updates
   end
 
-  # The ids on a page of the list, in the order it holds them.
+  # Returns the ids of the documents on a page of the list, in list order.
   defp listed(opts \\ []),
     do: opts |> Document.page() |> Map.fetch!(:entries) |> Enum.map(& &1.id)
 
-  # Moves a document's last change to a given moment, so the order of the list
-  # does not rest on which of two was written first. The moment is padded to the
-  # microsecond, which is how the list holds it.
+  # Sets a document's `updated_at` to `moment`, so the test sets the list order
+  # instead of depending on insert timing. The moment is given microsecond
+  # precision to match the column.
   defp changed_at(document, moment) do
     moment = NaiveDateTime.add(moment, 0, :microsecond)
 
@@ -49,7 +48,7 @@ defmodule RichardBurton.DocumentTest do
 
   describe "page/1" do
     test "lists every document, whoever started it" do
-      # The list is shared: there is no owner to scope it to.
+      # The list is shared, so it is not scoped to an owner.
       one = document("Mine")
       another = document("Somebody else's")
 
@@ -58,8 +57,8 @@ defmodule RichardBurton.DocumentTest do
 
     test "most recently changed first" do
       newer = document("Newer")
-      # Aged deliberately: both were started in the same second, and the point
-      # is which was last *changed*, not which was started.
+      # `older` is created after `newer`. Giving it an old `updated_at` checks
+      # that the list orders by last change, not by creation.
       older = document("Older") |> changed_at(~N[2020-01-01 00:00:00])
 
       assert listed() == [newer.id, older.id]
@@ -91,9 +90,9 @@ defmodule RichardBurton.DocumentTest do
       assert next.id == third.id
     end
 
-    # A change and a start a moment apart are not a tie, as they would be if the
-    # list were held to the second: the tie would go to whichever was started
-    # later.
+    # `older` is changed a moment after `newer` is created. With whole-second
+    # timestamps the two could tie, and the tie would go to `newer`, the one
+    # created later.
     test "a change lists a document above one started a moment before it" do
       older = document("Older")
       newer = document("Newer")
@@ -112,9 +111,9 @@ defmodule RichardBurton.DocumentTest do
       assert listed(limit: 1, after: {moment, later.id}) == [earlier.id]
     end
 
-    # What reading from a position rather than skipping a count is for: a
-    # document changed between two reads moves to the top of the list, and every
-    # count below it shifts by one.
+    # A document changed between two reads moves to the top of the list. With
+    # an offset, every document below it would shift by one. The cursor keeps
+    # the next page from repeating a document.
     test "a document changed between reads is not read twice" do
       first = document("First") |> changed_at(~N[2026-09-03 00:00:00])
       second = document("Second") |> changed_at(~N[2026-09-02 00:00:00])
@@ -122,7 +121,7 @@ defmodule RichardBurton.DocumentTest do
 
       assert listed(limit: 2) == [first.id, second.id]
 
-      # Somebody writes to the last one on the page already read.
+      # An update is appended to the last document on the page already read.
       {:ok, _} = Document.append(second, <<1>>, 1)
 
       assert listed(limit: 2, after: {second.updated_at, second.id}) == [third.id]
@@ -229,8 +228,8 @@ defmodule RichardBurton.DocumentTest do
       assert Repo.get(Document, document.id).rows == 428
     end
 
-    # What the boundary hands over when the request carried no usable count.
-    # Reading one out of a request is the controller's job, not this one's.
+    # The controller passes `nil` when a request has no valid row count. The
+    # controller parses the count, so this test covers only the `nil`.
     test "no count leaves the count alone rather than refusing the change" do
       document = document()
       {:ok, _} = Document.append(document, <<1>>, 7)
@@ -272,7 +271,7 @@ defmodule RichardBurton.DocumentTest do
       {_updates, through} = Document.updates(document)
       {:ok, _} = Document.compact(document, <<1, 2>>, through)
 
-      # The merge takes a new id, so it is after any point read before it.
+      # The merged update gets a new id, larger than any id read before it.
       assert applied(document, after: through) == [<<1, 2>>]
     end
   end
@@ -301,26 +300,26 @@ defmodule RichardBurton.DocumentTest do
       assert applied(document) == [<<1>>, <<2>>]
     end
 
-    # The case the bound exists for: somebody was typing while the merge was
-    # being made, and their change is not the merge's to replace.
+    # This is the case `through` exists for. An update appended while the merge
+    # was being built is not in the merge, so the compaction must keep it.
     test "a change appended while the merge was being made survives it" do
       document = document()
 
       {:ok, _} = Document.append(document, <<1>>, 1)
       {_updates, through} = Document.updates(document)
 
-      # Somebody else writes before the merge arrives.
+      # Another update is appended before the compaction is written.
       {:ok, _} = Document.append(document, <<2>>, 2)
 
       {:ok, _} = Document.compact(document, <<1>>, through)
 
-      # In whatever order: Yjs applies updates in any, and the merge is written
-      # after the change it did not include.
+      # The order is not checked, because Yjs applies updates in any order. The
+      # merged update is inserted after the update it does not include.
       assert Enum.sort(applied(document)) == [<<1>>, <<2>>]
     end
 
-    # A full read skips nothing on the strength of a merge: whatever is left
-    # below the merge's point is what the merge did not stand for.
+    # A read does not skip updates because of a compaction. Any update left
+    # below the compaction's `through` is one the compaction did not include.
     test "a change below the merge's point that the merge did not delete is still read" do
       document = document()
 
@@ -328,7 +327,7 @@ defmodule RichardBurton.DocumentTest do
       {_updates, through} = Document.updates(document)
       {:ok, _} = Document.compact(document, <<1>>, through)
 
-      # A row with an id the merge's point already passed.
+      # An update with an id below the compaction's `through`.
       Repo.insert!(%Document.Update{id: through - 1, document_id: document.id, update: <<9>>})
 
       assert <<9>> in applied(document)

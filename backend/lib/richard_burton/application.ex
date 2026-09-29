@@ -14,7 +14,7 @@ defmodule RichardBurton.Application do
       RichardBurtonWeb.Telemetry,
       # Start the PubSub system
       {Phoenix.PubSub, name: RichardBurton.PubSub},
-      # Who has an import document open, tracked per connection
+      # Start Presence, which tracks who has each import document open
       RichardBurtonWeb.Presence,
       # Start the Endpoint (http/https)
       RichardBurtonWeb.Endpoint,

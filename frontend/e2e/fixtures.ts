@@ -38,9 +38,10 @@ export const test = base.extend<{
     { auto: true },
   ],
 
-  // A second person, in a browser of their own, for journeys about more than one
-  // person at once. Opened only by a test that asks for it, and closed after it
-  // whatever happened in between.
+  // A second person's browser context and page, for journeys with two people at
+  // once. The context has its own cookies and storage. Playwright creates it
+  // only for a test that uses `colleague` or `colleagueContext`, and closes it
+  // when the test ends, whether the test passed or failed.
   colleagueContext: async ({ browser, baseURL }, use) => {
     const context = await browser.newContext({ baseURL });
     await use(context);

@@ -113,8 +113,9 @@ defmodule RichardBurton.Publication do
   end
 
   @doc """
-  Every publication row, tombstones included, in the order each was inserted,
-  with what it is built from loaded.
+  Returns every publication row, tombstones included, ordered by id, which is
+  the order they were inserted. Each row comes with its countries, publishers,
+  sources and translated book preloaded.
   """
   def all do
     Publication

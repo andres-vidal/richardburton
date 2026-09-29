@@ -5,8 +5,8 @@ import { FC } from "react";
  * aligned with the breadcrumb above it. Lives in a page's `Layout` subheader and
  * names the page — replacing the old centered "strike" heading.
  *
- * A plain element rather than a `header`: the layout already has one, and a
- * `header` inside it reads as a second banner landmark nested in the first.
+ * It renders a `div`, not a `header`, because it sits inside the `header` that
+ * `Layout` renders. A nested `header` would be read as a second banner landmark.
  */
 const PageHeader: FC<{ title: string; description?: string }> = ({
   title,

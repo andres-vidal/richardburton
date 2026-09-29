@@ -17,12 +17,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** Let the gather window pass and the post that follows it settle. */
+/** Advances fake time past `SETTLE_MS` and lets the resulting post finish. */
 async function settle() {
   await vi.advanceTimersByTimeAsync(SETTLE_MS + 1);
 }
 
-/** Let the wait before a failed post is tried again pass. */
+/** Advances fake time past `RETRY_MS`, the delay before the first retry. */
 async function retry() {
   await vi.advanceTimersByTimeAsync(RETRY_MS + 1);
 }
@@ -62,7 +62,7 @@ describe("opening", () => {
     await running.ready;
     await settle();
 
-    // Applying it is not a change this person made.
+    // Updates applied from the server are not local changes.
     expect(posted).not.toHaveBeenCalled();
 
     running.stop();
@@ -125,7 +125,7 @@ describe("posting what is changed here", () => {
 
     expect(posted).toHaveBeenCalledTimes(1);
 
-    // And the one update says everything the three did.
+    // The one update holds the result of all three changes.
     const elsewhere = new Y.Doc();
     Y.applyUpdate(elsewhere, posted.mock.calls[0][1]);
     expect(Doc.readRow(elsewhere, "a")?.title).toBe("Dom Casmurro");
@@ -147,7 +147,7 @@ describe("posting what is changed here", () => {
     Doc.addRow(doc, "a", row("Dom Casmurro"));
     await settle();
 
-    // The first attempt failed, and nothing was lost by it.
+    // The first post failed.
     expect(posted).toHaveBeenCalledTimes(1);
 
     Doc.addRow(doc, "b", row("Iracema"));
@@ -155,7 +155,7 @@ describe("posting what is changed here", () => {
 
     expect(posted).toHaveBeenCalledTimes(2);
 
-    // The second request carries both rows, including the one that failed.
+    // The second post holds both rows, including the one from the failed post.
     const elsewhere = new Y.Doc();
     Y.applyUpdate(elsewhere, posted.mock.calls[1][1]);
     expect(Doc.keys(elsewhere).sort()).toEqual(["a", "b"]);
@@ -180,9 +180,8 @@ describe("posting what is changed here", () => {
 });
 
 describe("work that only this machine holds", () => {
-  // What a document restored from this browser's disk looks like: content the
-  // document holds that was never stamped as a local change, because applying
-  // it was not one.
+  // Simulates a document restored from IndexedDB: it holds content applied
+  // with an origin that is not local.
   const fromDisk = (doc: Y.Doc, title: string) => {
     const disk = new Y.Doc();
     Doc.addRow(disk, "a", row(title));
@@ -287,8 +286,8 @@ describe("saying where the work stands", () => {
     await settle();
     expect(posted).toHaveBeenCalledTimes(1);
 
-    // Nobody types. The person may have stopped precisely because they had
-    // finished, and what they wrote is still not on the server.
+    // No further edit is made. The retry has to run on its own, since the
+    // person may have finished editing.
     await retry();
 
     expect(posted).toHaveBeenCalledTimes(2);
@@ -308,8 +307,8 @@ describe("what it says while somebody types", () => {
 
     await running.ready;
 
-    // A burst of typing is one thing to say, not one per character: every
-    // reader of the status re-renders for each thing said.
+    // Three changes in a row report `saving` once. Every reader of the status
+    // re-renders on each report.
     Doc.addRow(doc, "a", row("Dom"));
     Doc.addRow(doc, "b", row("Casmurro"));
     Doc.addRow(doc, "c", row("Iracema"));
@@ -324,10 +323,9 @@ describe("what it says while somebody types", () => {
 });
 
 describe("walking a change back", () => {
-  // An undo is stamped with the undo manager that made it rather than with the
-  // origin of the edit it reverses. Posting only what is stamped as an edit is
-  // how an undo would happen on one screen and nowhere else, while the status
-  // went on saying the work was saved.
+  // An undo has the `Y.UndoManager` as its origin, not `LOCAL`. If only `LOCAL`
+  // changes were posted, the undo would never reach the server, and the status
+  // would still say `saved`.
   test("an undo is posted, the same as the edit it takes back", async () => {
     vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
     const posted = vi.spyOn(Remote, "append").mockResolvedValue(undefined);
@@ -346,7 +344,7 @@ describe("walking a change back", () => {
 
     expect(posted).toHaveBeenCalledTimes(2);
 
-    // What the server was sent adds up to a document without the row.
+    // Applying every posted update gives a document without the row.
     const elsewhere = new Y.Doc();
     posted.mock.calls.forEach(([, update]) => Y.applyUpdate(elsewhere, update));
     expect(Doc.keys(elsewhere)).toEqual([]);
@@ -356,9 +354,9 @@ describe("walking a change back", () => {
 });
 
 describe("work read from this browser's disk", () => {
-  // The disk copy and the server's copy load at once. What the server lacks is
-  // measured after both, so that offline work that happens to load second is
-  // still part of what is offered.
+  // The IndexedDB copy and the server's updates load at the same time. What
+  // the server lacks is worked out after both have loaded, so offline work is
+  // posted even when IndexedDB finishes last.
   test("is offered even when it loads after the server has answered", async () => {
     vi.spyOn(Remote, "updates").mockResolvedValue({ updates: [], through: 0 });
     const posted = vi.spyOn(Remote, "append").mockResolvedValue(undefined);
@@ -371,7 +369,7 @@ describe("work read from this browser's disk", () => {
 
     const running = sync(doc, 1, { loaded });
 
-    // The server answers first; the disk copy arrives afterwards.
+    // The server answers first, and the IndexedDB copy loads afterwards.
     await vi.advanceTimersByTimeAsync(0);
     const disk = new Y.Doc();
     Doc.addRow(disk, "a", row("Dom Casmurro"));
@@ -402,7 +400,8 @@ describe("coming back after being away", () => {
     const running = sync(doc, 1);
     await running.ready;
 
-    // Somebody else adds a row while this client cannot hear the relay.
+    // Another client adds a row while this client is disconnected from the
+    // channel.
     const before = Y.encodeStateVector(held);
     Doc.addRow(held, "b", row("Iracema"));
     read.mockResolvedValueOnce({
@@ -419,7 +418,7 @@ describe("coming back after being away", () => {
     await settle();
     expect(posted).not.toHaveBeenCalled();
 
-    // And the next time it reads on from where this one reached.
+    // The next resync reads from the `through` of this one.
     read.mockResolvedValueOnce({ updates: [], through: 7 });
     await running.resync();
     expect(read).toHaveBeenLastCalledWith(1, 7);
@@ -427,8 +426,8 @@ describe("coming back after being away", () => {
     running.stop();
   });
 
-  // Until one read has succeeded there is no point to read on from, and work
-  // restored from disk has not been offered to the server yet.
+  // Until a read has succeeded there is no `through` to read from, and work
+  // restored from IndexedDB has not been posted yet.
   test("before a first read has succeeded, it reads everything and offers what only this machine holds", async () => {
     const read = vi
       .spyOn(Remote, "updates")

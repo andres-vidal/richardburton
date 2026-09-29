@@ -39,8 +39,9 @@ defmodule RichardBurtonWeb.InvitationController do
       {:error, :conflict} ->
         {:error, :pending}
 
-      # Inviting yourself is a way of changing your own role, which is refused
-      # as `:self` wherever it is asked for.
+      # Every other error goes to `FallbackController`. Inviting yourself would
+      # change your own role, so it fails with `:self`, like any other change to
+      # your own role.
       error ->
         error
     end
@@ -52,7 +53,7 @@ defmodule RichardBurtonWeb.InvitationController do
       case Invitation.resend(invitation) do
         {:ok, sent} -> json(conn, sent)
         {:error, :already_accepted} -> {:error, :accepted}
-        # The mail did not go, for whatever reason the mailer gave.
+        # The mailer failed to send the mail. Any reason it gives is a 502.
         {:error, _reason} -> {:error, :bad_gateway, :unsent}
       end
     end

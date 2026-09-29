@@ -2,16 +2,16 @@ import { request } from "app";
 import { fromBase64, toBase64 } from "lib0/buffer";
 import * as Y from "yjs";
 
-/** An import document as the list of them shows it. */
+/** An import document's record from the server, without its content. */
 type DocumentSummary = {
   id: number;
   name: string;
   /**
-   * How many rows it holds. The server does not read the content, so this is
-   * whatever the client last counted while writing to it.
+   * The number of rows in the document. The server does not parse the content,
+   * so this is the count sent with the last `append`.
    */
   rows: number;
-  /** When it was taken off the list, or null while it is still on it. */
+  /** When it was archived, or null when it is not archived. */
   archivedAt: string | null;
   insertedAt: string;
   updatedAt: string;
@@ -27,20 +27,20 @@ type DocumentPage = {
 };
 
 /**
- * Where a page of the list starts: the last document of the page before it.
+ * Where a page of the list starts: the last document of the previous page.
  *
- * The list is read from a position rather than by skipping a count, so a
- * document changed between two reads, which moves it to the top, neither
- * appears twice nor pushes another out of sight.
+ * The list is ordered by `updatedAt`, newest first, and is read from a cursor
+ * rather than an offset. A document that changes between two reads moves to
+ * the top. With a cursor, that move does not make a document appear twice or
+ * be skipped.
  */
 type Cursor = Pick<DocumentSummary, "id" | "updatedAt">;
 
 /**
- * Everything needed to rebuild a document's content, and how far it reaches.
+ * A document's stored updates, and the id of the last one read.
  *
- * `through` is the id of the last update the read includes. A compaction names
- * it, so that whatever was appended while the merge was being made is left
- * alone rather than swept up with what the merge replaces.
+ * `compact` sends `through` back, so the server replaces only the updates up to
+ * that id and keeps any update appended after the read.
  */
 type Held = {
   updates: Uint8Array[];
@@ -48,21 +48,21 @@ type Held = {
 };
 
 /**
- * Updates cross as base64, since the rest of this API speaks JSON.
+ * Encodes a Yjs update as base64 for the JSON API, and decodes it back.
  *
- * They are opaque on both sides of the wire: the server appends them and hands
- * them back without parsing one, which is what keeps a native Yjs dependency
- * out of the deployment. The codec is the one Yjs itself uses, which handles a
- * whole document at once — compacting encodes exactly that.
+ * The server stores and returns updates without parsing them, so the backend
+ * needs no native Yjs library. The codec is `lib0/buffer`, which Yjs itself
+ * uses. It handles an update the size of a whole document, which is what
+ * `compact` sends.
  */
 const encode = (update: Uint8Array): string => toBase64(update);
 
 const decode = (update: string): Uint8Array => fromBase64(update);
 
 /**
- * A page of the import documents, from the side of the list asked for, starting
- * after `after` where one is given. The list is shared, so this is not scoped to
- * anyone.
+ * Reads a page of import documents, archived or not, starting after the `after`
+ * cursor when one is given. The list is shared, so the result is not filtered
+ * by user.
  */
 async function list({
   limit,
@@ -106,10 +106,10 @@ async function rename(id: number, name: string): Promise<DocumentSummary> {
 }
 
 /**
- * Take a document off the list, keeping what it holds.
+ * Archives a document. Its content is kept, and `unarchive` can restore it.
  *
- * Archiving rather than deleting: the rows are a record of what was prepared,
- * and one taken off the list can be put back.
+ * Documents are archived rather than deleted because their rows are a record
+ * of what was prepared.
  */
 async function archive(id: number): Promise<DocumentSummary> {
   return request(async (http) => {
@@ -119,7 +119,7 @@ async function archive(id: number): Promise<DocumentSummary> {
   });
 }
 
-/** Put an archived document back on the list. */
+/** Restores an archived document. */
 async function unarchive(id: number): Promise<DocumentSummary> {
   return request(async (http) => {
     const { data } = await http.post<DocumentSummary>(
@@ -131,10 +131,10 @@ async function unarchive(id: number): Promise<DocumentSummary> {
 }
 
 /**
- * Everything needed to rebuild the content, and how far the read reaches.
+ * Reads a document's stored updates and the id of the last one.
  *
- * With `after`, only what was written after that point is read, for a reader
- * that already holds everything up to it.
+ * With `after`, it reads only the updates stored after that id, for a reader
+ * that already has the earlier ones.
  */
 async function updates(id: number, after?: number): Promise<Held> {
   return request(async (http) => {
@@ -147,7 +147,7 @@ async function updates(id: number, after?: number): Promise<Held> {
   });
 }
 
-/** Append one change, with the row count counted while making it. */
+/** Stores one update, with the document's current row count. */
 async function append(
   id: number,
   update: Uint8Array,
@@ -162,12 +162,12 @@ async function append(
 }
 
 /**
- * Write one merged update in place of every update up to `through`.
+ * Replaces every stored update up to `through` with one update that holds this
+ * client's whole document.
  *
- * Only a client can do this, because only a client reads the content. The
- * merged update is the whole of what this client holds, encoded as one, and
- * `through` is how far the read it merged from reached — anything appended past
- * that point is not this merge's to replace.
+ * The client does this rather than the server, because only the client parses
+ * the content. `through` is the id of the last update the client read, so
+ * updates appended after that read are kept.
  */
 async function compact(id: number, doc: Y.Doc, through: number): Promise<void> {
   return request(async (http) => {

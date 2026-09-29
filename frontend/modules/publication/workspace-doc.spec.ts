@@ -21,8 +21,8 @@ import {
 } from "./store";
 
 /**
- * A workspace as a person has it: a store to read, a document to write, and the
- * observer between them.
+ * One person's workspace: a store bound with `openWorkspace` to a Yjs document,
+ * which its observer copies into the store's atoms.
  */
 function workspace() {
   const store = createStore();
@@ -50,7 +50,7 @@ afterEach(() => {
   open = [];
 });
 
-/** Track a workspace so its observer is taken down with the test. */
+/** Opens a workspace that is closed after the test. */
 function opened() {
   const made = workspace();
   open.push(made.close);
@@ -67,10 +67,10 @@ describe("a store working in a document", () => {
       entry("b", { title: "Iracema" }),
     ]);
 
-    // The document is what holds it...
+    // The document holds the rows...
     expect(doc.getArray("order").toArray()).toEqual(["a", "b"]);
 
-    // ...and the atoms the whole application reads are fed from it.
+    // ...and the observer copies them into the atoms.
     expect(store.get(publicationIdsAtom)).toEqual(["a", "b"]);
     expect(titleOf(store, "a")).toBe("Dom Casmurro");
   });
@@ -81,8 +81,8 @@ describe("a store working in a document", () => {
     setAll(store, [entry("a", { title: "Dom Casmuro" })]);
     setField(store, "a", "title", "Dom Casmurro");
 
-    // Nothing is uncommitted: the edit is the value, and it is in the document
-    // the moment it is typed.
+    // The edit is written to the document at once. There is no separate layer
+    // of unsaved edits.
     expect(doc.getMap<Y.Map<unknown>>("rows").get("a")?.get("title")).toBe(
       "Dom Casmurro",
     );
@@ -146,7 +146,7 @@ describe("a store working in a document", () => {
     setAll(store, [entry("a", { title: "Dom Casmurro" })]);
     close();
 
-    // A change nobody is listening for any more.
+    // This change is made after the observer has stopped.
     doc.getMap<Y.Map<unknown>>("rows").get("a")?.set("title", "Iracema");
 
     expect(titleOf(store, "a")).toBe("Dom Casmurro");
@@ -154,7 +154,7 @@ describe("a store working in a document", () => {
 });
 
 describe("two people in one workspace", () => {
-  /** Hand each document what the other knows, as a relay between them would. */
+  /** Gives each document the changes the other has, as the channel does. */
   const sync = (here: Y.Doc, there: Y.Doc) => {
     Y.applyUpdate(
       there,
@@ -178,8 +178,8 @@ describe("two people in one workspace", () => {
     setField(mine.store, "a", "title", "Dom Casmurro");
     sync(mine.doc, yours.doc);
 
-    // The atoms on the other side are fed by the observer, so the cell reading
-    // that field re-renders without anything asking it to.
+    // The other store's observer copies the change into its atoms, so a cell
+    // reading that field re-renders with no other call.
     expect(titleOf(yours.store, "a")).toBe("Dom Casmurro");
   });
 
@@ -190,7 +190,7 @@ describe("two people in one workspace", () => {
     setAll(mine.store, [entry("a", { title: "Dom Casmuro", year: "1952" })]);
     sync(mine.doc, yours.doc);
 
-    // Neither has seen the other's change when they make their own.
+    // Both edits are made before either document has the other's.
     setField(mine.store, "a", "title", "Dom Casmurro");
     setField(yours.store, "a", "year", "1953");
     sync(mine.doc, yours.doc);
@@ -227,7 +227,8 @@ describe("the draft row", () => {
 
     setField(store, DRAFT_ID, "title", "Dom Casmurro");
 
-    // A row nobody has added yet is nobody else's business.
+    // The draft row is not written to the document, so other people do not
+    // receive it.
     expect(doc.getArray("order").toArray()).toEqual([]);
     expect(titleOf(store, DRAFT_ID)).toBe("Dom Casmurro");
   });
@@ -245,7 +246,7 @@ describe("the draft row", () => {
       year: "1953",
     });
 
-    // And the draft is empty again, ready for the next row.
+    // The draft row is empty again, ready for the next row.
     expect(titleOf(store, DRAFT_ID)).toBe("");
   });
 });

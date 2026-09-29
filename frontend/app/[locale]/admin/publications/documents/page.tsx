@@ -8,8 +8,8 @@ import { readDocuments } from "app/documents/read";
 import { admitEditors } from "../../guard";
 
 /**
- * The import documents, one side of the list at a time: the ones on offer, or
- * with `?archived=true` the ones taken off the list.
+ * Lists the import documents that are not archived, or with `?archived=true`
+ * the archived ones.
  */
 export default async function DocumentsPage({
   searchParams,
@@ -42,8 +42,9 @@ export default async function DocumentsPage({
           <PageHeader title={t("title")} description={t("description")} />
         </>
       }
-      // A side of the list is its own page, so the one being left takes what
-      // it had read with it.
+      // `key` is the side, so switching between current and archived remounts
+      // `DocumentList`. Its state then starts from the new `first` instead of
+      // keeping the pages loaded for the other side.
       content={<DocumentList key={side} side={side} first={first} />}
     />
   );

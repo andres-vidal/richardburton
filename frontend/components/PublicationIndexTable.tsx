@@ -163,8 +163,8 @@ const Column: FC<{
   invalid?: boolean;
   selected?: boolean;
   /**
-   * Somebody else is in this cell, drawn in the colour they are known by.
-   * `null` when nobody is.
+   * Another person who has this cell focused: their email (`by`) and the index
+   * of their presence colour (`colour`). `null` when nobody else has it focused.
    */
   taken?: { colour: number; by: string } | null;
 }> = ({
@@ -180,11 +180,11 @@ const Column: FC<{
   // the fixed-width track never expands to fit the content.
   return (
     <Aria.Cell
-      // A tint and a bar down the near edge, at the same strength the table
-      // already tints a selected or an invalid cell, the way it already says
-      // "selected" and "invalid" — rather than a ring, which nothing else here
-      // uses. The bar is a `before` element so it cannot move the text: the
-      // cell sits in a fixed grid track, and a border would.
+      // A taken cell gets a background tint in the other person's colour and a
+      // thin bar in that colour along its left edge. The tint is the same
+      // strength as the selected and invalid backgrounds. The bar is a `before`
+      // pseudo-element because a border would take width from the cell's fixed
+      // grid track and shift the text.
       className="
         relative px-2 py-1 text-sm truncate transition-colors
         group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100

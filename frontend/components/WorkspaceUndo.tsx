@@ -10,12 +10,14 @@ import Button from "./Button";
 import Tooltip from "./Tooltip";
 
 /**
- * Walk back an edit, or put it back.
+ * Undo and Redo buttons for the workspace.
  *
- * Scoped to the person using it: a workspace is shared, so undoing your last
- * change must not undo what your collaborator just typed. A row's creation and
- * the typing that follows are separate steps, so one undo never takes away a
- * row someone meant only to retitle.
+ * They undo only the changes made in this tab, and leave changes made by other
+ * people in the same document alone. Adding a row and typing into it are
+ * separate undo steps, so undoing the typing does not remove the row.
+ *
+ * Renders nothing when the workspace has no rows or there is nothing to undo or
+ * redo. The Redo button appears only when there is something to redo.
  */
 const WorkspaceUndo: FC = () => {
   const t = useTranslations("admin");

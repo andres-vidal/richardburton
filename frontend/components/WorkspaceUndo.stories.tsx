@@ -19,9 +19,9 @@ import WorkspaceUndo from "./WorkspaceUndo";
 const ROW = createId();
 
 /**
- * A workspace with a document behind it, which is what gives the control
- * anything to walk back. Storybook takes the document down again after each
- * story, so no two share an undo stack.
+ * Opens the store on a new Yjs document and adds one row. The control uses that
+ * document's undo manager. Returns the function that closes the document.
+ * Storybook calls it after each story, so no two stories share an undo stack.
  */
 const inAWorkspace = () => {
   resetAll(store);
@@ -56,9 +56,9 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * A workspace picked up where it was left offers nothing to walk back. The
- * rows were not typed in this sitting — they arrived from disk, the way they
- * would arrive from a collaborator — and undo is about what *you* changed.
+ * A reopened workspace has nothing to undo. Its rows are applied as an update
+ * from another document, the way rows arrive from disk or from other people,
+ * so they do not have the `LOCAL` origin that undo tracks.
  */
 export const NothingToUndo: Story = {
   beforeEach: () => {
@@ -66,7 +66,7 @@ export const NothingToUndo: Story = {
     const doc = new Y.Doc();
     const close = openWorkspace(store, doc);
 
-    // Rows that came from somewhere else, rather than from an edit made here.
+    // Builds the row in a separate document and applies it as an update.
     const stored = new Y.Doc();
     addRow(stored, ROW, { ...empty(), title: "Dom Casmuro" });
     Y.applyUpdate(doc, Y.encodeStateAsUpdate(stored));
@@ -77,12 +77,12 @@ export const NothingToUndo: Story = {
     // The rows are there...
     await expect(store.get(publicationFamily(ROW)).title).toBe("Dom Casmuro");
 
-    // ...and nothing about them is this person's to take back.
+    // ...but there is nothing to undo.
     await expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
   },
 };
 
-/** An edit can be walked back, and the row returns to what it said before. */
+/** Undo reverts an edit, and the row gets its previous value back. */
 export const AfterAnEdit: Story = {
   beforeEach: () => {
     const close = inAWorkspace();
@@ -101,7 +101,7 @@ export const AfterAnEdit: Story = {
   },
 };
 
-/** What was walked back can be put back. */
+/** Redo reapplies an edit that was undone. */
 export const AndBackAgain: Story = {
   beforeEach: () => {
     const close = inAWorkspace();

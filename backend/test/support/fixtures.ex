@@ -16,7 +16,7 @@ defmodule RichardBurton.Fixtures do
     user
   end
 
-  @doc "An import document under `name`."
+  @doc "Creates an import document named `name`."
   def document_fixture(name \\ "Second pass") do
     {:ok, document} = Document.create(%{"name" => name})
     document

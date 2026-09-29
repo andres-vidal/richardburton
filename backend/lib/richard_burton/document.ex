@@ -1,36 +1,35 @@
 defmodule RichardBurton.Document do
   @moduledoc """
-  One batch of import work under a name: rows being prepared for the database,
-  kept between sittings.
+  An import document: a named batch of rows being prepared for the database,
+  stored so that work on it can continue later.
 
-  The list of documents is shared. There is no owner and no membership — the
-  database being prepared is one database, and everyone keeping it is working
-  towards the same thing, so anyone who may edit publications may open any
-  document.
+  The list of documents is shared. A document has no owner and no members,
+  because everyone preparing the database works on the same data. Anyone who
+  may edit publications may open any document.
 
-  A document's content is a Yjs document, which this never parses. A Yjs
-  document is a set of updates that can be applied in any order and more than
-  once, so appending them and handing them back is the whole of what holding one
-  requires. Keeping the server blind is what keeps a precompiled native
-  dependency out of the deployment; the two moments anything must actually read
-  the rows — validating and submitting — already take ordinary JSON over the
-  publication endpoints.
+  A document's content is a Yjs document, and this module never parses it. A
+  Yjs document is a set of updates that can be applied in any order and more
+  than once, so storing one only needs appending updates and returning them.
+  Because the server does not parse Yjs, the deployment needs no precompiled
+  native dependency. Validating and submitting the rows use the publication
+  endpoints, which take plain JSON.
 
-  Four words carry specific meanings here:
+  These terms have specific meanings here:
 
-    * **update** — one opaque change to the content, as Yjs encoded it.
-    * **compaction** — one update that means the same as every update up to a
-      stated point, written in their place. What keeps a long-lived document
-      cheap to open. It is an ordinary update once written: nothing marks it,
-      and nothing reads it differently.
-    * **archiving** — retiring a document from the list without destroying what
-      it holds.
-    * **cursor** — the position a page of the list is read from: the
-      `updated_at` and id of the last document the page before it held.
+    * **update** — one change to the content, as Yjs encoded it, stored as
+      opaque bytes.
+    * **compaction** — one update that has the same effect as every update up
+      to a given id, written in their place. It keeps the number of updates a
+      long-lived document has to load small. Once written it is an ordinary
+      update, and nothing marks it or reads it differently.
+    * **archiving** — taking a document off the list without deleting its
+      content.
+    * **cursor** — the position a page of the list starts after: the
+      `updated_at` and id of the last document on the previous page.
 
-  `rows` is a count the client writes when it writes, since the server cannot
-  count rows in bytes it does not parse. It is what the list shows, and it is
-  the client's word.
+  `rows` is the row count given with each write. The server cannot count rows
+  in content it does not parse, so it stores the count as given and does not
+  check it.
   """
 
   use Ecto.Schema
@@ -50,13 +49,14 @@ defmodule RichardBurton.Document do
     field(:rows, :integer, default: 0)
     field(:archived_at, :utc_datetime)
 
-    # To the microsecond, since the list is ordered by when each last changed.
+    # Microsecond precision, because the list is ordered by `updated_at`.
     timestamps(type: :naive_datetime_usec)
   end
 
   defmodule Update do
     @moduledoc """
-    One opaque change to a document's content, in the order it was written.
+    One Yjs update to a document's content, stored as opaque bytes. Updates
+    are written in the order of their ids.
     """
 
     use Ecto.Schema
@@ -81,34 +81,33 @@ defmodule RichardBurton.Document do
     |> validate_number(:rows, greater_than_or_equal_to: 0)
   end
 
-  @doc "Start a document."
+  @doc "Creates a document from `attrs`, which must include a `name`."
   def create(attrs) do
     %Document{} |> changeset(attrs) |> Repo.insert()
   end
 
   @doc """
-  A page of the documents, most recently changed first, and whether more follow
-  it.
+  Returns a page of documents, most recently changed first, as
+  `%{entries: documents, more: boolean}`. `more` is true when more documents
+  follow the page.
 
-  All of them, for everyone: the list is shared, so there is nobody to scope it
-  to. The ones on offer are read unless `archived: true` asks for the ones
-  taken off the list instead. Two changed at the same instant are ordered by
-  which was started later, so the list does not shuffle between reads.
+  The page is not scoped to a person, because the list is shared. It holds the
+  documents that are not archived, or only the archived ones when
+  `archived: true` is given. Documents with the same `updated_at` are ordered
+  by id, newest first, so the order is the same on every read.
 
-  `limit` bounds the read. A workspace that has been kept for years holds more
-  documents than anyone reads at once, and a list with no end to it grows until
-  it is the slowest page in the application.
+  `limit` sets the page size. It defaults to 50 and is capped at 200, so a
+  read never returns the whole table.
 
-  `after` is the cursor of the page before, and the page starts with the
-  document that follows it. Reading from a position rather than skipping a count
-  keeps a page from repeating or missing a document that changed between reads:
-  a change moves that document to the top, which would shift every count below
-  it by one.
+  `after` is a cursor, and the page starts with the document that follows it.
+  A cursor is used instead of an offset because a change moves a document to
+  the top of the list. With an offset, that move would shift every document
+  below it by one, and a page could repeat or skip a document.
   """
   def page(opts \\ []) do
     limit = opts |> Keyword.get(:limit, @default_limit) |> bound()
 
-    # One more than the page holds, which is what says whether more follow.
+    # Reads one more document than the limit. If it exists, more follow.
     read =
       from(d in Document, order_by: [desc: d.updated_at, desc: d.id], limit: ^(limit + 1))
       |> on_the_list(Keyword.get(opts, :archived, false))
@@ -118,12 +117,14 @@ defmodule RichardBurton.Document do
     %{entries: Enum.take(read, limit), more: length(read) > limit}
   end
 
-  # Which side of the list to read: what is on offer, or what has been retired
-  # from it. Restoring one means being able to see it, so both are readable.
+  # Keeps only archived documents when the second argument is `true`, and only
+  # unarchived ones otherwise. Archived documents can be listed so that one can
+  # be found and unarchived.
   defp on_the_list(query, true), do: from(d in query, where: not is_nil(d.archived_at))
   defp on_the_list(query, _), do: from(d in query, where: is_nil(d.archived_at))
 
-  # Only the documents that come after the cursor, in the list's order.
+  # Keeps only the documents that come after the cursor `{updated_at, id}` in
+  # the list's order. A `nil` cursor keeps all of them.
   defp following(query, nil), do: query
 
   defp following(query, {updated_at, id}) do
@@ -132,15 +133,16 @@ defmodule RichardBurton.Document do
     )
   end
 
-  # Keeps a caller from asking for the whole table by naming a large enough page.
+  # Caps a positive `limit` at the maximum page size. Any other value gives the
+  # default page size.
   defp bound(limit) when is_integer(limit) and limit > 0, do: min(limit, @max_limit)
   defp bound(_), do: @default_limit
 
   @doc """
-  The document, or `:not_found`.
+  Returns `{:ok, document}` for the id, or `{:error, :not_found}`.
 
-  An archived document is still found by id, so a link to one that somebody has
-  open does not break under them.
+  It finds archived documents too, so an archived document stays reachable by
+  id.
   """
   def find(id) do
     case Repo.get(Document, id) do
@@ -149,17 +151,18 @@ defmodule RichardBurton.Document do
     end
   end
 
-  @doc "Give a document a different name."
+  @doc "Renames a document."
   def rename(document = %Document{}, name) do
     document |> changeset(%{"name" => name}) |> Repo.update()
   end
 
   @doc """
-  Take a document off the list, keeping what it holds.
+  Archives a document by setting `archived_at`. The document leaves the list,
+  and its updates are kept.
 
-  Archiving is not deleting: the rows are a record of what was prepared, and the
-  updates stay where they are. An archived document is reachable by id and can
-  be brought back.
+  Archiving does not delete anything, because the rows are a record of what was
+  prepared. An archived document can still be found by id and can be
+  unarchived.
   """
   def archive(document = %Document{}) do
     document
@@ -167,31 +170,30 @@ defmodule RichardBurton.Document do
     |> Repo.update()
   end
 
-  @doc "Put an archived document back on the list."
+  @doc "Clears `archived_at`, which puts an archived document back on the list."
   def unarchive(document = %Document{}) do
     document |> change(archived_at: nil) |> Repo.update()
   end
 
   @doc """
-  Everything needed to rebuild this document's content, with the id of the last
-  update it includes.
+  Returns `{updates, through}`: the document's updates in id order, and the id
+  of the last one returned.
 
-  A reader applies them in any order and is then holding what everyone else
-  holds. The id is what a later compaction names as the point its merge reaches,
-  so that whatever is appended in between is kept rather than replaced.
+  Applying the updates in any order rebuilds the document's content. `through`
+  is the id to pass to `compact/3` later, so that the compaction replaces only
+  the updates that were read and keeps any appended after them.
 
-  `after` reads only the updates written after that id, for a reader that
-  already holds the ones up to it. Where nothing has been written since, the id
-  returned is the one it was given. This misses nothing because every write to
-  a document's updates holds the document's lock until it commits, so they
-  commit one at a time and in the order of their ids. Once an id has been read,
-  no update with a smaller one is still to come.
+  With `after: id`, only the updates with a larger id are returned. When there
+  are none, `through` is the id that was given. No update is missed this way,
+  because every write to a document's updates holds the document's row lock
+  until it commits. Writes to one document therefore commit one at a time, in
+  id order, and once an id has been read no update with a smaller id can still
+  appear.
 
-  Every row after that point is read, compactions included, with nothing
-  skipped on the strength of one. A compaction has already deleted what it
-  stands for, so what is left beside it is what it does not stand for. Reading
-  an update twice costs nothing, since Yjs applies an update it already holds as
-  nothing at all.
+  Every update after the given id is returned, compactions included. A
+  compaction deletes the updates it replaces, so any update left beside it is
+  one it does not include. Returning an update that a reader already has does
+  no harm, because Yjs ignores an update it has already applied.
   """
   def updates(%Document{id: id}, opts \\ []) do
     since = Keyword.get(opts, :after, 0)
@@ -207,18 +209,16 @@ defmodule RichardBurton.Document do
     {Enum.map(rows, & &1.update), last_id(rows, since)}
   end
 
-  # The id of the last update read, or the point the read started from where
-  # there was nothing after it.
+  # Returns the id of the last row read, or `since` when no rows were read.
   defp last_id([], since), do: since
   defp last_id(rows, _since), do: List.last(rows).id
 
   @doc """
-  Append a change to a document, and record the row count that came with it.
+  Appends an update to a document and stores `rows` as its row count.
 
-  The count is the client's, since the server does not read the content. The
-  document's `updated_at` moves with it, which is what orders the list. `nil`
-  leaves the count already recorded alone rather than refusing the change: the
-  change is the thing worth keeping, and the count is what the list shows.
+  It also sets the document's `updated_at` to now, which moves the document to
+  the top of the list. When `rows` is `nil`, the stored count is kept and the
+  update is still appended, so a missing count never loses an update.
   """
   def append(document = %Document{}, update, rows)
       when is_binary(update) and (is_integer(rows) or is_nil(rows)) do
@@ -234,16 +234,16 @@ defmodule RichardBurton.Document do
   end
 
   @doc """
-  Write one update in place of every update up to `through`.
+  Replaces every update of the document up to `through` with the single update
+  `merged`.
 
-  The merged update is the caller's: only a client reads the content, so only a
-  client can merge it. `through` is the last update the caller had when it
-  merged, and anything appended past that point is left alone — somebody else
-  was typing while the merge was being made, and their change is not the merge's
-  to replace.
+  The caller builds `merged`, because the server does not parse the content.
+  `through` is the id of the last update the caller merged, as returned by
+  `updates/2`. Updates with a larger id were appended after that read, so they
+  are not in the merge and are kept.
 
-  What the merge stands for is deleted in the same transaction, so a reader
-  never sees the two together.
+  The old updates are deleted and `merged` is inserted in one transaction, so a
+  reader never gets both.
   """
   def compact(document = %Document{}, merged, through)
       when is_binary(merged) and is_integer(through) do
@@ -258,10 +258,10 @@ defmodule RichardBurton.Document do
     end)
   end
 
-  # Holds the document's row lock until the transaction ends. Every write to a
-  # document's updates takes it before its update is given an id, so two writes
-  # to one document commit in the order of their ids. `updates/2` relies on that
-  # to read only what follows a point.
+  # Locks the document's row with `FOR UPDATE` until the transaction ends.
+  # Every write to a document's updates takes this lock before inserting its
+  # update, so writes to one document commit in the order of their ids.
+  # `updates/2` relies on this when it reads only the updates after a given id.
   defp lock!(%Document{id: id}) do
     Repo.one!(from(d in Document, where: d.id == ^id, select: d.id, lock: "FOR UPDATE"))
   end

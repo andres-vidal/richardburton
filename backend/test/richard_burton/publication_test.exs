@@ -213,8 +213,8 @@ defmodule RichardBurton.PublicationTest do
   end
 
   describe "all/0" do
-    # Postgres writes an updated row anew further along the table, so a read
-    # that asks for no order hands that row back last.
+    # Postgres writes an updated row as a new row version later in the table,
+    # so a query without ORDER BY can return it after rows inserted later.
     test "lists publications in the order each was inserted, whatever has changed since" do
       {:ok, [first, second]} =
         Publication.insert_all([@valid_attrs, Map.put(@valid_attrs, "year", 1887)])

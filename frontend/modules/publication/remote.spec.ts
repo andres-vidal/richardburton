@@ -106,7 +106,7 @@ describe("update", () => {
     expect(url).toBe("publications/7");
     // The body is the row as edited.
     expect((body as Publication).title).toBe("New title");
-    // The server's value is both the row and its saved copy now.
+    // The row and its saved copy both hold the server's value.
     expect(store.get(publicationFamily(id))).toEqual(returned);
     expect(store.get(savedFamily(id))).toEqual(returned);
     expect(mockNotify).toHaveBeenCalledWith(

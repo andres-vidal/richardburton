@@ -4,89 +4,89 @@ import { isLocal, rowCount } from "./doc";
 import { append, compact, updates } from "./document-remote";
 
 /**
- * The origin stamped on a change that came from the server.
+ * The transaction origin for updates read from the server.
  *
- * It is what stops the client posting back what the server just gave it, and it
- * keeps such a change out of undo: arriving from elsewhere is not something a
- * person did here.
+ * `isLocal` returns false for it, so these updates are not posted back to the
+ * server, and the undo manager does not track them.
  */
 const REMOTE = Symbol("remote");
 
-/** How long to gather changes before posting them, in milliseconds. */
+/** How long to collect changes before posting them, in milliseconds. */
 const SETTLE_MS = 400;
 
-/** How long to wait before trying a failed post again, and the ceiling on it. */
+/**
+ * The delay before the first retry of a failed post, in milliseconds. It
+ * doubles with each failure, up to `MAX_RETRY_MS`.
+ */
 const RETRY_MS = 1_000;
 const MAX_RETRY_MS = 30_000;
 
 /**
- * How many stored updates are worth merging into one.
+ * The number of stored updates above which opening a document compacts them.
  *
- * A document is read by applying every update ever written to it, so one kept
- * for months opens slowly. Merging is only worth its round trip once there are
- * enough of them to notice.
+ * Opening a document applies every stored update, so a document with many
+ * updates opens slowly. Below this number, compacting is not worth the extra
+ * request.
  */
 const COMPACT_ABOVE = 200;
 
 /**
- * Where a document's work stands with the server.
+ * The save state of a document's local changes.
  *
- * `saving` means there is something written here the server has not taken yet.
- * `offline` means a post has failed and is being retried, which is a different
- * thing to say than `saving`: the work is safe on this machine either way, but
- * only one of the two is on its way anywhere.
+ * `saved` means the server has every local change. `saving` means some local
+ * changes have not been posted yet. `offline` means a post failed and is
+ * waiting to be retried. In every state the changes are kept in the document.
  */
 type SyncState = "saved" | "saving" | "offline";
 
 type Sync = {
-  /** Everything the server holds has been applied, and anything only this machine held has been offered to it. */
+  /**
+   * Settles once the server's updates have been applied and any changes only
+   * this client held have been queued for posting.
+   */
   ready: Promise<void>;
   /**
-   * Read the updates stored since the last read, and apply them.
+   * Reads the updates stored since the last read and applies them.
    *
-   * For coming back after being away. The relay does not keep what it passes
-   * on, so the changes made while this client was unreachable were heard by
-   * everyone else and can only be read back from storage. Until a first read
-   * has succeeded there is nothing to read on from, so it makes that read
-   * instead.
+   * It is called when the channel reconnects, because the channel does not
+   * store the changes it relays. Before any read has succeeded, it makes the
+   * full first read instead, as on opening.
    */
   resync: () => Promise<void>;
   stop: () => void;
 };
 
 type Options = {
-  /** Told whenever the state changes, and only then. */
+  /** Called each time the state changes, and only then. */
   onStatus?: (state: SyncState) => void;
   /**
-   * Settles once this browser's own copy has been read from disk.
+   * Settles once this browser's copy has been read from IndexedDB.
    *
-   * What the server is missing is measured after it, so that work restored from
-   * disk is part of what is offered. Measured before it, a copy that loaded
-   * slower than the server answered would hold offline work nothing offered.
+   * The first read waits for it before working out what the server is
+   * missing, so work restored from IndexedDB is posted even when it loads after
+   * the server answers.
    */
   loaded?: Promise<unknown>;
 };
 
 /**
- * Keep a document and the server's copy of it in step.
+ * Posts a document's local changes to the server, and applies the server's
+ * stored updates to the document.
  *
- * On opening, everything the server holds is applied, and anything this machine
- * holds that the server does not is posted — work done with the server
- * unreachable is on disk rather than in the post queue, so without this it
- * would stay on the one machine for good.
+ * On opening, it reads every stored update and applies them. It then queues
+ * for posting whatever the document holds that the server does not. That
+ * includes work done while the server was unreachable, which is in IndexedDB
+ * but not in the post queue.
  *
- * After that, each change made here is posted as the opaque bytes it is.
- * Changes are gathered for a moment first, so a burst of typing is one request
- * rather than one per keystroke — Yjs merges them into a single update that
- * means the same thing. A change made here is an edit or an undo of one; see
- * `isLocal`. A change that arrived from the server carries its own origin, so
- * applying it cannot start a round trip back.
+ * After that, each local change is posted as a Yjs update. A local change is
+ * an edit, an undo or a redo; see `isLocal`. Changes are collected for
+ * `SETTLE_MS` and merged with `Y.mergeUpdates`, so a burst of typing is sent in
+ * one request. Updates applied from the server have the origin `REMOTE`, so
+ * they are not posted back.
  *
- * Nothing here blocks editing. The document needs no authority to accept a
- * change, so a slow connection makes the document save late rather than stall.
- * A post that fails is tried again on a widening delay rather than waiting for
- * the next keystroke, since the person may have stopped typing precisely
- * because they were finished.
+ * Editing never waits for the server. A slow connection only delays the save.
+ * A failed post is retried after a delay that doubles each time, without
+ * waiting for another edit, since the person may have finished editing.
  */
 function sync(
   doc: Y.Doc,
@@ -98,9 +98,10 @@ function sync(
   let stopped = false;
   let state: SyncState = "saved";
 
-  // How many posts have failed in a row, which paces the retry. Nobody else
-  // needs it, and saying it would give every reader of the state a new value on
-  // each failed attempt with nothing on screen to change.
+  // The number of posts that have failed in a row, used for the retry delay.
+  // It is not part of `SyncState`, because reporting it would give every reader
+  // of the state a new value on each failed attempt without changing what they
+  // show.
   let failures = 0;
 
   // The id of the last stored update applied here, once the first read has
@@ -114,7 +115,10 @@ function sync(
     onStatus?.(state);
   };
 
-  /** How long to wait after this many failures, doubling up to the ceiling. */
+  /**
+   * The retry delay for the current number of failures: `RETRY_MS`, doubled for
+   * each failure after the first, up to `MAX_RETRY_MS`.
+   */
   const backoff = () =>
     Math.min(RETRY_MS * 2 ** Math.max(failures - 1, 0), MAX_RETRY_MS);
 
@@ -129,9 +133,9 @@ function sync(
 
     if (pending.length === 0 || stopped) return;
 
-    // One update standing for all of them, which is what the server would have
-    // held anyway had they arrived separately. Kept merged if it has to wait, so
-    // a retry does not merge the whole backlog again.
+    // The pending updates are merged into one, which holds the same changes. If
+    // the post fails, the merged update is queued again as it is, so a retry
+    // does not merge the backlog again.
     const sending = Y.mergeUpdates(pending);
     pending = [];
 
@@ -145,9 +149,8 @@ function sync(
 
       if (pending.length > 0) schedule(SETTLE_MS);
     } catch {
-      // The change is still in the document, so the next post carries it. A
-      // document that cannot reach the server is one being edited offline, not
-      // one that has lost anything.
+      // The failed update goes back to the front of the queue, so the next post
+      // carries it. Nothing is lost while the server is unreachable.
       pending = [sending, ...pending];
 
       if (stopped) return;
@@ -167,22 +170,22 @@ function sync(
   };
 
   /**
-   * Hand the server what only this machine holds.
+   * Reads every stored update, applies them, and queues for posting whatever
+   * the document holds beyond them. It also compacts the stored updates when
+   * there are more than `COMPACT_ABOVE`.
    *
-   * What came back from the server is applied under the remote origin, so none
-   * of it is posted back. Anything the document holds beyond that was written
-   * here while the server was out of reach and restored from this browser's
-   * disk, which carries its own origin too — so nothing else would ever offer
-   * it, and it would stay on this machine.
+   * The server's updates are applied with the origin `REMOTE`, so `onUpdate`
+   * does not post them. Work restored from IndexedDB is applied with an origin
+   * of its own, so `onUpdate` does not post it either. This function is what
+   * posts it.
    */
   const reconcile = async () => {
     const [held] = await Promise.all([updates(id), loaded]);
 
-    // Merged rather than applied one by one: the observer that writes the
-    // document into the atoms runs per transaction, and rebuilding every list
-    // for each update of a document read in hundreds of them is most of the
-    // cost of opening one. The merge also says what the server holds, so that
-    // is not paid for twice.
+    // The updates are merged and applied in one transaction. The store's
+    // observer runs once per transaction and rebuilds every list, so applying
+    // hundreds of updates one by one would make opening slow. The merged update
+    // is also used below to work out what the server holds.
     const merged = Y.mergeUpdates(held.updates);
     Y.applyUpdate(doc, merged, REMOTE);
 
@@ -195,28 +198,27 @@ function sync(
       Y.encodeStateVectorFromUpdate(merged),
     );
 
-    // An update with nothing in it is its two empty sections and no more.
+    // An empty Yjs update is two bytes long, so a longer one holds changes.
     if (missing.length > 2) {
       pending.push(missing);
       report("saving");
       schedule(0);
     }
 
-    // A document read as hundreds of updates is one nobody has merged. Doing it
-    // here rather than on a timer means it happens where the cost was just
-    // paid, and at most once per opening.
+    // Compacting here, rather than on a timer, runs it at most once per
+    // opening, right after reading the updates it replaces.
     if (held.updates.length > COMPACT_ABOVE) {
       compact(id, doc, held.through).catch(() => {
-        // A merge that does not land changes nothing: the updates it would have
-        // replaced are all still there, and the next opening tries again.
+        // A failed compaction changes nothing on the server. The updates stay
+        // as they were, and the next opening tries again.
       });
     }
   };
 
   /**
-   * Apply what was stored after the last read. Anything this machine wrote in
-   * the meantime is already in the post queue, so there is nothing to offer
-   * back.
+   * Reads the updates stored after `through` and applies them. Local changes
+   * made in the meantime are already in the post queue, so nothing is queued
+   * here. Before the first successful read, it runs `reconcile` instead.
    */
   const catchUp = async () => {
     if (through === undefined) return reconcile();

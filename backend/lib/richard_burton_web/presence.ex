@@ -1,11 +1,12 @@
 defmodule RichardBurtonWeb.Presence do
   @moduledoc """
-  Who has an import document open, as the server knows it.
+  Tracks who has each import document open.
 
-  Each open connection is tracked under the person it was authenticated as, and
-  carries the address the server holds for them. A connection that closes, or
-  whose process dies without closing cleanly, is untracked by Phoenix itself,
-  and the leave is broadcast to everyone still there.
+  `RichardBurtonWeb.DocumentChannel` tracks each joined connection under the
+  `subject_id` the socket authenticated, with the person's email address and
+  the connection's `client_id`. When a connection closes, or its process dies
+  without closing cleanly, Phoenix untracks it and broadcasts the leave to the
+  other connections on the document.
   """
 
   use Phoenix.Presence,

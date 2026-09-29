@@ -25,8 +25,9 @@ import type { Store } from "modules/store";
 import { useIsSelectionEmpty } from "modules/selection";
 import { FC } from "react";
 
-// Which columns are on screen is this person’s own, not part of the content,
-// so it is set here rather than restored with the rows.
+// Makes every attribute column visible when the store is created. Column
+// visibility is local to each person and is not stored in the import document,
+// so it is not loaded with the rows.
 function showEveryColumn(store: Store) {
   setAttributesVisible(store, Publication.ATTRIBUTES);
 }
@@ -85,10 +86,13 @@ const Workspace: FC<{ title: string; description: string }> = ({
 };
 
 /**
- * Rows being prepared for the database, and everything done to them.
+ * The page for editing one import document: the publication workspace, the
+ * document's status and presence in the header, and the row actions in the
+ * footer.
  *
- * Where the rows live is `DocumentProvider`'s business rather than any of these
- * components': they read atoms, as they did before any of this was shared.
+ * `DocumentProvider` connects the workspace store to the import document. The
+ * components inside read and write rows through the store's atoms, not through
+ * the document.
  */
 const BulkWorkspace: FC<{
   title: string;

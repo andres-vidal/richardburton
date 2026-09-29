@@ -476,7 +476,7 @@ defmodule RichardBurton.Country do
     |> Repo.maybe_insert!([:code])
   end
 
-  @doc "Every country the database holds, in the order each was first entered."
+  @doc "Returns every country, ordered by id, which is insertion order."
   def all do
     Country |> order_by(:id) |> Repo.all()
   end

@@ -21,7 +21,7 @@ export default meta;
 
 type Story = StoryObj<Args>;
 
-/** Everyone else who has the document open, each as their initial. */
+/** Two other people have the document open. Each is shown as their initial. */
 export const OthersHere: Story = {
   args: {
     here: [{ email: "helen@example.com" }, { email: "isabel@example.com" }],
@@ -37,8 +37,8 @@ export const OthersHere: Story = {
 };
 
 /**
- * Somebody with the document open in two tabs is one person, not two. The
- * server counts connections, so the list folds them together by who signed in.
+ * A person with the document open in two tabs is shown once. The server tracks
+ * each connection, and the list groups them by email.
  */
 export const OnePersonInTwoTabs: Story = {
   args: {
@@ -51,7 +51,7 @@ export const OnePersonInTwoTabs: Story = {
   },
 };
 
-/** Hovering somebody says who they are. */
+/** Hovering a person's initial shows a tooltip with their email. */
 export const NamedOnHover: Story = {
   args: { here: [{ email: "helen@example.com" }] },
   play: async () => {
@@ -63,7 +63,7 @@ export const NamedOnHover: Story = {
   },
 };
 
-/** With nobody else here, there is nothing to show, and nothing is. */
+/** With nobody else in the document, the component renders nothing. */
 export const Alone: Story = {
   args: { here: [] },
   play: async () => {

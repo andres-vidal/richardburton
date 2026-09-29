@@ -6,9 +6,8 @@ import {
 } from "modules/publication/document-remote";
 
 /**
- * The first page of one side of the list of import documents, read as the
- * signed-in user: the documents on offer, or with `archived` the ones taken off
- * the list.
+ * Reads the first page of import documents as the signed-in user: the ones
+ * that are not archived, or with `archived` the archived ones.
  */
 export async function readDocuments(archived: boolean): Promise<DocumentPage> {
   return get<DocumentPage>("/documents", {
@@ -18,8 +17,9 @@ export async function readDocuments(archived: boolean): Promise<DocumentPage> {
 }
 
 /**
- * One import document, or `null` when there is no such document. An archived
- * document is still found, so a link to one does not break.
+ * Reads one import document. Returns `null` when the read fails, for example
+ * when there is no such document. Archived documents are returned too, so a
+ * link to one still works.
  */
 export async function readDocument(
   id: string,

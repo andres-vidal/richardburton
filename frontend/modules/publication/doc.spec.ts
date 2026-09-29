@@ -8,12 +8,12 @@ function publication(fields: Partial<Publication> = {}): Publication {
   return { ...empty(), ...fields };
 }
 
-/** Two documents of one workspace, as two people editing it would have. */
+/** Two copies of one document, one for each of two people editing it. */
 function pair() {
   const here = new Y.Doc();
   const there = new Y.Doc();
 
-  /** Hand each document everything the other knows, in both directions. */
+  /** Applies to each document the changes the other has and it lacks. */
   const sync = () => {
     Y.applyUpdate(
       there,
@@ -104,7 +104,7 @@ describe("two people at once", () => {
     Doc.addRow(here, "a", publication({ title: "Dom Casmuro", year: "1952" }));
     sync();
 
-    // Neither has seen the other's change when they make their own.
+    // Both edits are made before either document has the other's.
     Doc.setField(here, "a", "title", "Dom Casmurro");
     Doc.setField(there, "a", "year", "1953");
     sync();
@@ -126,8 +126,9 @@ describe("two people at once", () => {
     Doc.setField(there, "a", "title", "Dom Casmurro (1953)");
     sync();
 
-    // One of the two wins — which one does not matter, that both documents
-    // agree does. A title merged character by character would be neither.
+    // Yjs keeps one of the two titles. Which one does not matter, as long as
+    // both documents hold the same one. Merging the titles character by
+    // character would give neither.
     expect(Doc.readRow(here, "a")?.title).toEqual(
       Doc.readRow(there, "a")?.title,
     );
@@ -162,9 +163,8 @@ describe("two people at once", () => {
     expect(Doc.readRow(there, "a")?.sources).toEqual(kept);
   });
 
-  // Writing a merging list as though it were a plain value would leave a plain
-  // array where the row expects a merging one, and each later edit to it would
-  // find nothing to edit and be dropped.
+  // `setField` edits the existing `Y.Array` on each write, so after two writes
+  // the field reads back as the second value.
   test("sources stay a list that merges however many times they are written", () => {
     const doc = new Y.Doc();
     Doc.addRow(doc, "a", publication({ title: "Dom Casmurro", sources: [] }));
@@ -200,8 +200,8 @@ describe("undo", () => {
 
     Doc.addRow(doc, "a", publication({ title: "Dom Casmuro" }));
 
-    // Adding the row and editing it are different steps, or one undo of a row
-    // typed into straight away would take the row away rather than the typing.
+    // `stopCapturing` makes adding the row and editing it separate undo steps,
+    // so the undo below reverts only the edit.
     undo.stopCapturing();
     Doc.setField(doc, "a", "title", "Dom Casmurro");
 
@@ -219,7 +219,8 @@ describe("undo", () => {
 
     undo.undo();
 
-    // Both went, which is why the caller marks the boundary.
+    // The undo removed both the edit and the row. This is why callers call
+    // `stopCapturing` after adding a row.
     expect(Doc.readRow(doc, "a")).toBeNull();
   });
 
@@ -229,8 +230,8 @@ describe("undo", () => {
     Doc.addRow(here, "a", publication({ title: "Dom Casmurro" }));
     sync();
 
-    // Only edits made here are tracked, so the manager is made after the row
-    // exists on both sides and before either of them edits it.
+    // The manager is created after the row is in both documents and before
+    // either edits it, so the undo below can only revert the title edit.
     const undo = Doc.undoManager(here);
 
     Doc.setField(here, "a", "title", "Dom Casmurro (revised)");
@@ -239,7 +240,7 @@ describe("undo", () => {
 
     undo.undo();
 
-    // Mine is walked back; theirs stands.
+    // The local title edit is undone, and the other person's year edit is kept.
     expect(Doc.readRow(here, "a")).toMatchObject({
       title: "Dom Casmurro",
       year: "1953",
@@ -267,7 +268,7 @@ describe("observing", () => {
     stop();
     Doc.setField(doc, "a", "title", "Dom Casmuro");
 
-    // Nothing arrives once the observer is gone.
+    // After `stop`, the handler is not called.
     expect(changed).toEqual([["b"]]);
   });
 
@@ -296,8 +297,8 @@ describe("observing", () => {
 
     Doc.setField(doc, "a", "title", "Dom Casmurro");
 
-    // No await: a keystroke has to land in the same tick, or the cell it was
-    // typed into would render a tick behind the typing.
+    // There is no await. The observer must run in the same tick as the change,
+    // or a cell would render one tick behind what was typed into it.
     expect(seen).toEqual(["a"]);
     expect(Doc.readRow(doc, "a")?.title).toBe("Dom Casmurro");
   });

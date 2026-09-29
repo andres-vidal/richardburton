@@ -1,10 +1,10 @@
 defmodule RichardBurtonWeb.DocumentChannelTest do
   @moduledoc """
-  Tests for the socket and channel import documents are edited live over: who
-  gets on, who stays on, who is seen to be here, and what crosses.
+  Tests for `DocumentSocket` and `DocumentChannel`: who may connect and join,
+  when a joined channel closes, presence, and relaying messages.
 
-  Updates cross as the opaque bytes they are: nothing here reads one, so what
-  arrives is what was sent.
+  The channel does not parse updates, so each test expects to receive the
+  same bytes it sent.
   """
   use RichardBurtonWeb.ChannelCase
 
@@ -14,10 +14,10 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
   alias RichardBurtonWeb.DocumentChannel
   alias RichardBurtonWeb.DocumentSocket
 
-  # The role check goes through `Auth.authorize/2`, which is a mock here the way
-  # it is for the controllers. Global, because the channel asks from its own
-  # process as well as from the test's. It admits by default, since most of
-  # these tests are about what happens once somebody is connected.
+  # The role check calls `Auth.authorize/2`, which is mocked here as in the
+  # controller tests. The mock is global because the channel process calls it
+  # as well as the test process. It allows access by default, because most of
+  # these tests are about what happens after connecting.
   setup :set_mox_global
   setup :verify_on_exit!
 
@@ -26,7 +26,7 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
     :ok
   end
 
-  # A real session, since whether one still stands is what the socket asks.
+  # Creates a real session, because the socket checks that it is still active.
   defp signed_in(email) do
     user = user_fixture(email, :contributor)
     {:ok, cookie} = Session.create(user.subject_id)
@@ -59,8 +59,8 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
       assert socket.assigns.subject_id == person.user.subject_id
     end
 
-    # The token travels in a header. One in the query string would be in every
-    # request log the connection passes through.
+    # The token must be sent in a header. A token in the query string would
+    # appear in request logs.
     test "a token passed as a parameter rather than a header is not accepted" do
       person = signed_in("helen@example.com")
 
@@ -92,7 +92,7 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
 
   describe "joining" do
     test "anyone connected may join any document" do
-      # The list is shared, so being connected is the whole permission.
+      # The list is shared, so any connected person may join any document.
       assert {:ok, _reply, _socket} =
                signed_in("helen@example.com")
                |> connected()
@@ -120,7 +120,7 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
     test "whoever joins is sent who is already here" do
       document = document()
       joined(signed_in("helen@example.com"), document)
-      # Helen was first, so she was sent nobody.
+      # Helen joined first, so her presence state is empty.
       assert_push("presence_state", %{})
 
       joined(signed_in("isabel@example.com"), document)
@@ -129,12 +129,12 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
       assert state |> Map.values() |> Enum.any?(&has_email?(&1, "helen@example.com"))
     end
 
-    # The address comes from the account the socket was authenticated as, so
-    # nobody's presence rests on what their own connection claims about them.
+    # The email comes from the user the socket authenticated, not from anything
+    # the connection sends.
     test "everyone else hears of somebody arriving, by the address the server holds" do
       document = document()
       joined(signed_in("helen@example.com"), document)
-      # Helen's own arrival, which is not the one this is about.
+      # This diff is Helen's own join. The test checks the next one.
       assert_broadcast("presence_diff", _)
 
       {:ok, _reply, _socket} =
@@ -177,8 +177,8 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
       assert_receive {:EXIT, ^channel, {:shutdown, :refused}}
     end
 
-    # A sign-out is one session. The same person signed in somewhere else is
-    # still signed in there.
+    # Signing out revokes one session. The same person's other sessions stay
+    # active, and so do the channels joined under them.
     test "signing out of one session leaves the same person's other sessions alone" do
       here = signed_in("helen@example.com")
       {:ok, elsewhere_cookie} = Session.create(here.user.subject_id)
@@ -240,8 +240,8 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
 
       assert_broadcast("update", %{"update" => "AQIDBA=="})
 
-      # Never pushed down the socket it came from, which would have the client
-      # apply its own change a second time.
+      # The update is not pushed back to the sender's socket, which would make
+      # the sender apply its own change twice.
       refute_push("update", %{"update" => "AQIDBA=="})
     end
 

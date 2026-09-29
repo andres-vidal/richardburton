@@ -17,13 +17,15 @@ defmodule RichardBurtonWeb.Endpoint do
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
-  # Longpoll beside websockets: a proxy that will not upgrade makes a workspace
-  # slower to keep in step rather than unable to.
-  # The token rides a header on both transports rather than the query string, so
-  # it is in no request log; see `RichardBurtonWeb.DocumentSocket`.
+  # The document socket accepts long-polling as well as websockets, so it still
+  # works behind a proxy that does not allow websocket upgrades.
   #
-  # `auth_token` is set here rather than on each transport: Phoenix copies the
-  # socket-wide value into both and would overwrite a per-transport one.
+  # Both transports take the auth token in a header instead of the query string,
+  # so it does not appear in request logs. See `RichardBurtonWeb.DocumentSocket`.
+  #
+  # `auth_token` is set once for the socket, not on each transport, because
+  # Phoenix copies the socket-wide value into both transports and would
+  # overwrite a per-transport one.
   socket("/socket", RichardBurtonWeb.DocumentSocket,
     websocket: true,
     longpoll: true,

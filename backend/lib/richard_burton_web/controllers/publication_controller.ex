@@ -225,8 +225,8 @@ defmodule RichardBurtonWeb.PublicationController do
       {:ok, publication} ->
         json(conn, Publication.Codec.flatten(publication))
 
-      # Merging a record into itself, or into nothing, is a request that makes
-      # no sense, rather than one the state of the database refuses.
+      # Merging a record into itself, or naming no losers, is a malformed
+      # request, so it is a 400 rather than the 409 that `:self` gets elsewhere.
       {:error, reason} when reason in [:self, :no_losers] ->
         {:error, :bad_request, reason}
 
@@ -264,8 +264,9 @@ defmodule RichardBurtonWeb.PublicationController do
     end
   end
 
-  # A history version read from the path. One that is not a number cannot match
-  # an entry, so it reads as a miss rather than as a malformed request.
+  # Parses the history version from the path. A version that is not a number
+  # cannot match an entry, so it returns `{:error, :not_found}` rather than a
+  # 400.
   defp version_of(version) do
     case Integer.parse(version) do
       {version, ""} -> {:ok, version}
@@ -286,10 +287,10 @@ defmodule RichardBurtonWeb.PublicationController do
     json(conn, %{entries: entries})
   end
 
-  # Bring a deleted publication back. A `:conflict` means the same record was
-  # imported again while this one sat in the trash, and `:absorbed` that it is
-  # held inside another record, which an un-merge gives back and a restore
-  # cannot.
+  # Restores a deleted publication. It fails with `:conflict` when the same
+  # record was imported again after this one was deleted, and with `:absorbed`
+  # when a merge absorbed it. Only undoing the merge brings back an absorbed
+  # record.
   def restore(conn, %{"id" => id}) do
     with {:ok, _publication} <- Publication.restore(id, actor(conn)) do
       send_resp(conn, :no_content, "")

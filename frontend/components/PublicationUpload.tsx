@@ -11,12 +11,16 @@ import ConfirmationModal from "./ConfirmationModal";
 import Tooltip from "./Tooltip";
 
 /**
- * Replace the working set from a CSV.
+ * Replaces the working set with the rows of a CSV file.
  *
- * An upload replaces everything, which in a shared document is everything
- * everybody has. That is worth asking about rather than warning about: a
- * tooltip is read after the fact by whoever caused it, and the work it would
- * discard belongs to people who are not looking at this button.
+ * When the workspace already has rows, the button opens a `ConfirmationModal`
+ * that says how many rows will be discarded, and the file picker opens only
+ * after the person confirms. When the workspace is empty, the file picker opens
+ * straight away.
+ *
+ * The workspace is a shared document, so an upload also discards rows that
+ * other people added. That is why it asks first instead of relying on the
+ * warning tooltip.
  */
 const PublicationUpload: FC = () => {
   const t = useTranslations("admin");
@@ -49,7 +53,8 @@ const PublicationUpload: FC = () => {
 
   const choose = () => input.current?.click();
 
-  // With nothing to discard there is nothing to ask about.
+  // Asks for confirmation when there are rows to discard, and otherwise opens
+  // the file picker straight away.
   const ask = () => (totalPublications > 0 ? setAsking(true) : choose());
 
   return (

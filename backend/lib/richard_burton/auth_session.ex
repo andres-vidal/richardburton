@@ -61,11 +61,11 @@ defmodule RichardBurton.Auth.Session do
   end
 
   @doc """
-  Verifies a raw token as `verify/1` does, returning the session itself.
+  Verifies a raw token as `verify/1` does, but returns the session row instead
+  of its `subject_id`.
 
-  For whoever needs to name the session afterwards rather than only the person
-  it belongs to: a connection held open is authorised by one session, and has
-  to be able to ask later whether that session still stands.
+  A caller that keeps the session's `id` can later check with `active?/1` that
+  the session has not been revoked or expired.
   """
   @spec verify_session(String.t()) :: {:ok, t()} | :error
   def verify_session(token) do
@@ -87,11 +87,12 @@ defmodule RichardBurton.Auth.Session do
   end
 
   @doc """
-  Whether a session still stands: it exists, and has passed neither its idle
-  timeout nor its absolute cap.
+  Returns whether the session with `session_id` exists and has passed neither
+  its idle timeout nor its absolute cap.
 
-  Asked by what holds a connection open, which is not a use of the session, so
-  unlike `verify/1` it neither slides the timeout nor prunes an expired row.
+  Unlike `verify/1`, it does not slide the idle timeout and does not delete an
+  expired row. `RichardBurtonWeb.DocumentSocket` calls it to recheck an open
+  connection, and a recheck is not activity by the person.
   """
   @spec active?(integer()) :: boolean()
   def active?(session_id) do
@@ -107,11 +108,12 @@ defmodule RichardBurton.Auth.Session do
   end
 
   @doc """
-  Revokes the session identified by `token`, answering whose it was.
+  Revokes the session identified by `token` by deleting its row. Returns
+  `{:ok, subject_id}` with the session's owner, or `:error` when no session has
+  that token.
 
-  The subject comes back because ending a session is not only deleting its row:
-  whatever it authorised has to be told, and the caller would otherwise have to
-  read the row before deleting it to find out who it belonged to.
+  On success it calls `RichardBurton.Auth.Access.changed/1` for the owner. The
+  delete returns the `subject_id`, so the row does not have to be read first.
   """
   @spec revoke(String.t()) :: {:ok, String.t()} | :error
   def revoke(token) do

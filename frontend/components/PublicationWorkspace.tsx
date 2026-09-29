@@ -56,8 +56,8 @@ const ExtendedColumn: typeof Column = (props) => {
   const isValid = useIsPublicationValid(rowId);
   const isFocused = useIsPublicationFocused(rowId);
 
-  // Somebody else editing this very cell, so it is plain where they are before
-  // anyone types over them.
+  // The email of another person who has this cell focused, if anyone does.
+  // `Column` marks the cell in that person's colour.
   const by = useOnThisCell(String(rowId), colId);
 
   return (

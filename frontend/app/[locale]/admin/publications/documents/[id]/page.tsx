@@ -6,10 +6,11 @@ import { readDocument } from "app/documents/read";
 import { admitEditors } from "../../../guard";
 
 /**
- * One import document, under its name.
+ * Renders one import document in a `BulkWorkspace` titled with its name, or a
+ * 404 when there is no such document.
  *
- * The name belongs to the server rather than to the content, so it is read
- * here with the page rather than restored with the rows.
+ * The name is stored in the server's document record, not in the Yjs content,
+ * so this page reads it with `readDocument` rather than from the rows.
  */
 export default async function DocumentPage({
   params,

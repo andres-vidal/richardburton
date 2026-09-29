@@ -57,8 +57,8 @@ test("an admin bulk-inserts publications with sources from the workspace", async
   await handleOf(SOURCED.title).click({ modifiers: ["Meta"] });
   await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
 
-  // Clicking anything that is not a row's handle clears it. The page is
-  // headed by the document's name, whatever that batch was called.
+  // Clicking anything that is not a row's handle clears it. The page heading
+  // is the document's name, which `openDocument` sets to "E2E batch".
   await page.getByRole("heading", { name: "E2E batch", level: 1 }).click();
   await expect(page.getByRole("button", { name: /^Deselect/ })).toHaveCount(0);
 

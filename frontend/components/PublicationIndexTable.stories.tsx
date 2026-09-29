@@ -47,9 +47,8 @@ export const Default: Story = {
 };
 
 /**
- * The index shows what is *saved*. The editor in the modal edits the same rows,
- * so without this the values would visibly change in the table beneath the open
- * modal, before anything was saved.
+ * The index shows saved values only. The editor in the modal edits the same
+ * rows, so an unsaved edit must not appear in the table behind the modal.
  */
 export const IgnoresPendingEdits: Story = {
   beforeEach: () => {
@@ -64,7 +63,7 @@ export const IgnoresPendingEdits: Story = {
     await expect(
       (await canvas.findAllByText("Dom Casmurro")).length,
     ).toBeGreaterThan(0);
-    // ...and the unsaved edit is nowhere in the table.
+    // ...and the unsaved edit does not appear in the table.
     await expect(
       canvas.queryByText("Edited in the modal"),
     ).not.toBeInTheDocument();

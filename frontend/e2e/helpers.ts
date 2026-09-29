@@ -283,8 +283,8 @@ export const PAGED_CSV =
   ].join("\n") + "\n";
 
 /**
- * Two rows under the header: a batch small enough to see whole, which the
- * document journeys import to have something to work on.
+ * The CSV header and two rows, Dom Casmurro and Iracema. The document journeys
+ * upload it to have rows to work with.
  */
 export const IMPORT_CSV =
   [
@@ -293,7 +293,7 @@ export const IMPORT_CSV =
     `Iracema,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,`,
   ].join("\n") + "\n";
 
-/** Put a CSV into the workspace the way a person does, through the upload control. */
+/** Uploads `csv` through the upload control, as a file called `name`. */
 export async function uploadCsv(page: Page, csv: string, name = "import.csv") {
   await page.locator("#upload-csv").setInputFiles({
     name,
@@ -303,10 +303,11 @@ export async function uploadCsv(page: Page, csv: string, name = "import.csv") {
 }
 
 /**
- * Start an import document and open it.
+ * Starts an import document called `name` and waits for its page to open.
  *
- * Rows are prepared in a document, so a journey that enters rows needs one
- * first. The name only has to tell it from another in the shared list.
+ * New rows are entered in a document, so a journey that enters rows calls this
+ * first. A test that starts several documents, or looks one up in the list,
+ * passes a name of its own.
  */
 export async function openDocument(page: Page, name = "E2E batch") {
   await page.goto("/admin/publications/documents");

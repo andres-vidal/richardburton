@@ -1,17 +1,18 @@
 defmodule RichardBurtonWeb.DocumentSocket do
   @moduledoc """
-  The socket import documents are edited live over.
+  The socket for editing import documents live, with one
+  `RichardBurtonWeb.DocumentChannel` per document.
 
-  It is authenticated by a token rather than by the \`rb-session\` cookie. The
-  cookie is httpOnly, so the page cannot read it to hand over, and a token also
-  survives a transport that carries no cookies at all.
+  It authenticates with a token from `sign/2` instead of the `rb-session`
+  cookie. The cookie is httpOnly, so it cannot be read and sent as a connect
+  parameter. A token also works on a transport that carries no cookies.
 
-  The token names the session it was minted under as well as the person, and
-  travels in a header rather than in the address, so it appears in no request
-  log. Whether that session still stands, and whether its person may still keep
-  the database, is asked again on every connect and every join — the way
-  \`Plugs.Authorize\` asks on every request — so the token's age is not what keeps
-  anybody out, and it lives as long as the session could.
+  The token holds the person's `subject_id` and the id of the session it was
+  signed under. It is sent in a header, not in the query string, so it does
+  not appear in request logs. `allowed?/2` is checked on every connect and
+  every join, in the same way `Plugs.Authorize` checks every request. Because
+  of this, the token's age does not decide whether a connection is refused,
+  and the token is valid for as long as the session can last.
   """
 
   use Phoenix.Socket
@@ -21,13 +22,13 @@ defmodule RichardBurtonWeb.DocumentSocket do
 
   @salt "document socket"
 
-  # As long as the session it names could last. What refuses a connection is
-  # the session having gone, not the token having aged.
+  # The session's absolute cap. A connection is refused when its session is no
+  # longer active, so the token does not need a shorter lifetime.
   @max_age Session.max_age()
 
   channel("document:*", RichardBurtonWeb.DocumentChannel)
 
-  @doc "A token for this person, under this session, to connect with."
+  @doc "Signs a socket token that holds `subject_id` and `session_id`."
   def sign(subject_id, session_id) do
     Phoenix.Token.sign(RichardBurtonWeb.Endpoint, @salt, %{
       "subject" => subject_id,
@@ -36,8 +37,8 @@ defmodule RichardBurtonWeb.DocumentSocket do
   end
 
   @doc """
-  Whether a person may be connected under a session: the session still stands,
-  and they may still keep the database.
+  Returns whether the session is still active and the person still has the
+  contributor role or a higher one.
   """
   def allowed?(subject_id, session_id) do
     Session.active?(session_id) and Auth.authorize(subject_id, :contributor) == :ok
@@ -56,9 +57,9 @@ defmodule RichardBurtonWeb.DocumentSocket do
 
   def connect(_params, _socket, _connect_info), do: :error
 
-  # Nothing is closed from outside by this name: a change of access is
-  # announced, and each channel checks its own session. See
-  # `RichardBurton.Auth.Access`.
+  # Returns nil, so there is no socket id to broadcast a disconnect to. Instead,
+  # `RichardBurton.Auth.Access` broadcasts a change of access, and each channel
+  # checks its own session.
   @impl true
   def id(_socket), do: nil
 end

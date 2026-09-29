@@ -65,9 +65,9 @@ const Layout: FC<Props> = ({
     <div className="flex flex-col min-h-screen">
       <header ref={headerRef} className="sticky top-0 z-30 bg-gray-100">
         <div className="relative flex justify-center items-center py-1.5 text-white bg-indigo-600 select-none">
-          {/* Padded on both sides to clear the language switcher, which is
-              positioned over this row rather than laid out beside it. Equal on
-              each side, so the heading stays centred on the page. */}
+          {/* The language switcher is absolutely positioned over the right end
+              of this row. The heading has equal padding on both sides, so its
+              text does not run under the switcher and stays centred. */}
           <h1 className="flex flex-col items-center justify-center px-10 shrink text-center transition-colors md:px-12 md:flex-row md:gap-4 shadow-white">
             <Link href="/" className="px-3 py-0.5 rounded hover:bg-indigo-500">
               <span className="inline-flex items-center gap-3 py-1 pr-5 text-lg font-medium md:pr-0">
@@ -76,9 +76,9 @@ const Layout: FC<Props> = ({
               </span>
             </Link>
             <hr className="w-0.5 mr-2 h-8 bg-current border-none hidden xl:block" />
-            {/* Supporting copy, not navigation: it is the first thing to go when
-                the row runs out of width, so the links and the language
-                switcher never have to share a line with it or each other. */}
+            {/* The tagline is supporting copy, not navigation. It and its two
+                separators are hidden below the `xl` breakpoint, which leaves
+                room in the row for the links and the language switcher. */}
             <div className="hidden text-base xl:inline">{t("tagline")}</div>
             <hr className="w-0.5 h-8 mx-2 bg-current border-none hidden xl:block" />
             <div className="flex items-center gap-2 mt-2 md:contents md:mt-0">
@@ -123,9 +123,9 @@ const Layout: FC<Props> = ({
         </footer>
       )}
 
-      {/* What the header's links open. They belong here rather than on a page,
-          because the links are here: rendered anywhere else, every other page
-          has a link that leads nowhere. */}
+      {/* The modals that the header's learn-more and contact links open. They
+          are rendered in `Layout`, with the links, so the links work on every
+          page. */}
       <ContactModal />
       <LearnMoreModal />
     </div>

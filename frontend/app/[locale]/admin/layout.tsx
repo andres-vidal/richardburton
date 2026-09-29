@@ -2,11 +2,12 @@ import { ReactNode } from "react";
 
 import { admitEditors } from "./guard";
 
-// Server-side guard for every /admin route: whoever cannot edit publications
-// is bounced back to the public index before any admin UI renders. Deciding who
-// has access is narrower still, and gated again under /admin/users. The backend
-// independently rejects unauthorized mutations — this keeps the pages
-// themselves gated.
+// The layout for every /admin route. It redirects a user who cannot edit
+// publications to the public index, with `admitEditors`. Next.js renders this
+// layout at the same time as the page, so a page that reads from the backend
+// calls `admitEditors` itself as well. /admin/users checks a narrower
+// permission of its own, and the backend rejects unauthorized requests
+// whatever the pages do.
 export default async function AdminLayout({
   children,
 }: {

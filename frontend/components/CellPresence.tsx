@@ -6,15 +6,14 @@ import { FC } from "react";
 import Tooltip from "./Tooltip";
 
 /**
- * Somebody else's cursor, in the cell they have it in.
+ * Marks a cell that another person has focused. It shows their initial in the
+ * cell's top-right corner, in their presence colour. Hovering the initial shows
+ * a tooltip with their email.
  *
- * Two things are shown, because a colour alone says that *somebody* is there
- * without saying who: a bar where the cursor sits, and the initial of whoever
- * it belongs to. Hovering either names them.
- *
- * The colour is theirs throughout — the same one their initial carries at the
- * top of the document — so a cell can be traced back to a person without
- * hovering at all.
+ * The colour is the same one `DocumentPresence` uses for that person, so a
+ * cell can be matched to a person without hovering. The cell's tint and the
+ * bar along its left edge come from `Column` in `PublicationIndexTable`, not
+ * from this component.
  */
 const CellPresence: FC<{ colour: number; by: string }> = ({ colour, by }) => {
   const t = useTranslations("documents");

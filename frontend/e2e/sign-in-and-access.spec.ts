@@ -51,8 +51,8 @@ test("signing out works from a page that is not the index", async ({
 test("a signed-out visitor cannot reach the admin workspace", async ({
   page,
 }) => {
-  // Straight to the address, since the point is that the guard turns them back
-  // before there is anything to do there.
+  // Go straight to the documents URL. The guard redirects a signed-out visitor
+  // before the page renders.
   await page.goto("/admin/publications/documents");
 
   // The guard bounces the visitor back to the public index.
@@ -65,8 +65,8 @@ test("a signed-out visitor cannot reach the admin workspace", async ({
 test("a signed-out visitor is turned back from every admin page that reads the database", async ({
   page,
 }) => {
-  // Each of these reads from the backend while it renders, which is what the
-  // guard has to stop before it happens.
+  // Each of these pages reads from the backend while it renders. The guard has
+  // to redirect a signed-out visitor before that read runs.
   const pages = [
     { address: "/admin/publications/deleted", title: "Deleted publications" },
     { address: "/admin/publications/history", title: "History" },

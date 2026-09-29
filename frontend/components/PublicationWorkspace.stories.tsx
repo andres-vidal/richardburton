@@ -182,9 +182,10 @@ export const EditCell: Story = {
 };
 
 /**
- * Row numbers count the rows, so they read 1, 2, 3 whatever the rows are keyed
- * by. An unsaved row is keyed by a UUID, which says nothing about where the row
- * sits, and a saved one by a server id, which says nothing about it either.
+ * With row ids shown, each row's number is its position in the workspace,
+ * counting from 1. The row's key cannot be used for this: an unsaved row is
+ * keyed by a UUID and a saved row by its server id, and neither gives the
+ * row's position.
  */
 export const RowNumbers: Story = {
   beforeEach: () => {

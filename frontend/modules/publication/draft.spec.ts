@@ -38,7 +38,7 @@ describe("the draft row across reloads", () => {
 
     stop();
 
-    // A second visit: a new store, nothing carried over in memory.
+    // A new store simulates a reload, with nothing carried over in memory.
     const second = createStore();
     stop = keepDraft(second, "a-workspace");
 
@@ -62,7 +62,8 @@ describe("the draft row across reloads", () => {
   });
 
   test("adding the row leaves nothing to come back to", () => {
-    // A real workspace, since adding a row is what empties the draft.
+    // `addNew` is what empties the draft, and it needs a workspace with its
+    // rows loaded.
     const store = createStore();
     const close = openWorkspace(store, new Y.Doc());
     setAll(store, []);
@@ -78,7 +79,7 @@ describe("the draft row across reloads", () => {
     const second = createStore();
     stop = keepDraft(second, "a-workspace");
 
-    // The row is in the workspace now; the draft is not still holding a copy.
+    // The row is now in the workspace, and the draft no longer holds a copy.
     expect(second.get(publicationFamily(DRAFT_ID)).title).toBe("");
   });
 

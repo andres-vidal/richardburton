@@ -14,25 +14,24 @@ import {
 import type { LiveState, PresenceList } from "./document-live";
 import type { SyncState } from "./document-sync";
 
-/** Which cell somebody has focused. */
+/** The cell a person has focused, by row key and field. */
 type At = { row: string; field: string };
 
 /**
- * How many colours people are told apart by.
+ * The number of presence colours.
  *
- * A small fixed palette rather than a colour per person, since two people in a
- * document at once is the ordinary case. The colours themselves are in
- * `styles/globals.css`, one rule per index, so this count and that list have to
- * agree.
+ * The palette is small and fixed rather than one colour per person, since a
+ * document usually has two people in it at once. The colours are defined in
+ * `styles/globals.css`, one rule per index, so this number must match the
+ * number of rules there.
  */
 const COLOURS = 5;
 
 /**
- * Which colour this person is drawn in, the same one everywhere they appear.
+ * Returns a person's colour index, computed from a hash of their email.
  *
- * Taken from the address they signed in with rather than from the connection,
- * so it is the same colour tomorrow and in every tab. A colour that changed on
- * every reload would say nothing about who anybody is.
+ * The index depends on the email rather than on the connection, so a person
+ * has the same colour in every tab and every session.
  */
 const colourOf = (email: string) => {
   let hash = 0;
@@ -43,35 +42,38 @@ const colourOf = (email: string) => {
   return Math.abs(hash) % COLOURS;
 };
 
-/** How somebody is shown where there is only room for one character. */
+/**
+ * Returns the first letter of an email, upper-cased, for places with room for
+ * one character.
+ */
 const initial = (email: string) => email.slice(0, 1).toUpperCase();
 
-/** Where to find whoever is in a given cell. */
+/** The key of a cell in the roster: `<row>:<field>`. */
 const cellKey = (row: string, field: string) => `${row}:${field}`;
 
 /**
- * Who else is here, and which cell each of them is in.
+ * The other people in a document, and the cell each of them has focused.
  *
- * Who is here comes from presence, which the server keeps; where they are comes
- * from awareness, which each client says for itself. A cursor is shown only for
- * a connection the server has, and under the address the server holds for it,
- * so a client can say where it is looking but not who it is.
+ * The list of people comes from presence, which the server keeps. The focused
+ * cells come from awareness, which each client sets for itself. A cursor is
+ * shown only for a connection that presence lists, under the email presence
+ * gives for it. A client can therefore set where its cursor is, but not whose
+ * cursor it is.
  *
- * Kept outside React state so that a reader can subscribe to the one thing it
- * draws. A cell asks who is in it and is re-rendered only when that answer
- * changes, so somebody moving their cursor redraws the cell they left and the
- * one they entered, rather than every cell on the page.
+ * The roster is kept outside React state, so each component subscribes to the
+ * one value it renders. A cell reads its occupant and re-renders only when the
+ * occupant changes. When someone moves their cursor, only the cell they left
+ * and the cell they entered re-render.
  */
 type Roster = {
   subscribe: (listener: () => void) => () => void;
-  /** The address of whoever else is in this cell, if anybody is. */
+  /** The email of the other person who has this cell focused, if anyone. */
   occupant: (key: string) => string | undefined;
   /**
-   * Everyone else here, one address per person.
+   * The emails of everyone else in the document, one per person.
    *
-   * One per person rather than per connection: somebody with the document open
-   * in two tabs is one person, not two. The same array comes back while the
-   * same people are here.
+   * A person with the document open in two tabs appears once. The same array
+   * is returned for as long as the same people are present.
    */
   people: () => string[];
 };
@@ -91,9 +93,8 @@ function rosterOf(awareness: Awareness, presence: PresenceList): Roster {
 
       const { at } = state as { at?: At | null };
 
-      // The first of them only: two people in one cell at once is rare enough
-      // that showing both would cost more room than it is worth, and the point
-      // is that somebody is there.
+      // Only the first person in a cell is kept. Two people in one cell at once
+      // is rare, and showing both would take more room than it is worth.
       const key = at ? cellKey(at.row, at.field) : undefined;
       if (key && !nextOccupants.has(key)) nextOccupants.set(key, email);
     });
@@ -119,8 +120,8 @@ function rosterOf(awareness: Awareness, presence: PresenceList): Roster {
     listeners.forEach((listener) => listener());
   };
 
-  // A change this client made to its own state says nothing about anybody
-  // else, and this client is not on its own roster.
+  // A change with the origin `local` is this client changing its own state.
+  // This client is not on its own roster, so the roster is not refreshed.
   const onChange = (_changes: unknown, origin: unknown) => {
     if (origin !== "local") refresh();
   };
@@ -153,20 +154,25 @@ function rosterOf(awareness: Awareness, presence: PresenceList): Roster {
   };
 }
 
-/** A shared document as the surfaces inside it see it. */
+/**
+ * A shared document's awareness and roster, as components inside it read them.
+ */
 type Live = { awareness: Awareness; roster: Roster };
 
-/** How a shared document's work stands: whether it is live, and whether it is saved. */
+/** A shared document's connection state and save state. */
 type DocumentHealth = { connection: LiveState; saving: SyncState };
 
-// Two contexts, because they change at different rates and are read by
-// different things. Every cell reads the document, which is the same for as
-// long as the document is open. Only the status reads its health, which changes
-// whenever somebody starts or stops typing.
+// There are two contexts because their values change at different rates. Every
+// cell reads `LiveContext`, which stays the same while the document is open.
+// Only the status reads `HealthContext`, which changes each time the connection
+// or save state changes, such as when someone here starts or stops typing.
 const LiveContext = createContext<Live | null>(null);
 const HealthContext = createContext<DocumentHealth | null>(null);
 
-/** Put a shared document, and how it stands, in reach of what is inside it. */
+/**
+ * Provides a shared document's awareness, roster, connection state and save
+ * state to its children.
+ */
 const LiveProvider: FC<{
   awareness: Awareness;
   presence: PresenceList;
@@ -189,24 +195,31 @@ const LiveProvider: FC<{
 };
 
 /**
- * The shared document this surface is part of, or `null` where it is not part
- * of one — the edit modal over the database is one person editing one record.
+ * Returns the shared document this component is inside, or `null` outside one.
+ * The edit modal over the database, for example, is not inside a shared
+ * document.
  */
 function useDocument(): Live | null {
   return useContext(LiveContext);
 }
 
-/** How the shared document stands, or `null` where there is none. */
+/**
+ * Returns the shared document's connection and save state, or `null` outside
+ * one.
+ */
 function useDocumentHealth(): DocumentHealth | null {
   return useContext(HealthContext);
 }
 
-// What a reader subscribes to where there is no document to hear from.
+// The subscribe and read functions used outside a shared document.
 const nothingToHear = () => () => {};
 const nobody: string[] = [];
 const nobodyHere = () => nobody;
 
-/** Everyone else who has this document open, one address per person. */
+/**
+ * Returns the emails of everyone else who has this document open, one per
+ * person.
+ */
 function useOthersPresent(): string[] {
   const roster = useDocument()?.roster;
   const read = roster?.people ?? nobodyHere;
@@ -214,7 +227,10 @@ function useOthersPresent(): string[] {
   return useSyncExternalStore(roster?.subscribe ?? nothingToHear, read, read);
 }
 
-/** The address of whoever else has this cell focused, if anybody does. */
+/**
+ * Returns the email of the other person who has this cell focused, if anyone
+ * does.
+ */
 function useOnThisCell(row: string, field: string): string | undefined {
   const roster = useDocument()?.roster;
   const key = cellKey(row, field);
@@ -224,10 +240,10 @@ function useOnThisCell(row: string, field: string): string | undefined {
 }
 
 /**
- * Say which cell this person has moved to, or that they have left one.
+ * Returns a function that sets this person's focused cell in awareness, or
+ * clears it when given `null`.
  *
- * It rides awareness, so it is never written down: where somebody is looking is
- * true only while they are looking at it.
+ * Awareness is relayed but not stored, so the focused cell is never saved.
  */
 function useReportPosition(): (at: At | null) => void {
   const awareness = useDocument()?.awareness;

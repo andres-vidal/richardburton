@@ -14,7 +14,7 @@ test("an import document is reached from the menu and kept on the server", async
 }) => {
   await signInAsAdmin(page);
 
-  // Reached the way a person reaches it, rather than by its address.
+  // Open the documents page from the admin menu rather than by its URL.
   await page.goto("/admin");
   await page.getByRole("link", { name: /Add publications/ }).click();
   await expect(page).toHaveURL(/\/admin\/publications\/documents$/);
@@ -23,7 +23,7 @@ test("an import document is reached from the menu and kept on the server", async
   await page.getByRole("button", { name: "Start a document" }).click();
   await expect(page).toHaveURL(/\/admin\/publications\/documents\/\d+$/);
 
-  // Started under the name it was given, which is what tells it from another.
+  // The document's page is headed by the name it was started with.
   await expect(
     page.getByRole("heading", { name: "Second pass", level: 1 }),
   ).toBeVisible();
@@ -33,12 +33,12 @@ test("an import document is reached from the menu and kept on the server", async
   await expect(
     indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
   ).toBeVisible();
-  // The colleague reads what the server holds, so it is worth reading once the
-  // server has taken the upload.
+  // The colleague reads the rows from the server, so wait until the upload is
+  // saved.
   await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
 
-  // A browser of its own: nothing of this document is on its disk, so whatever
-  // it shows had to come from the server.
+  // The colleague's browser context has no copy of this document in its
+  // IndexedDB, so the row count and the rows it shows are read from the server.
   await signInAsAdmin(colleague);
   await colleague.goto("/admin/publications/documents");
 
@@ -68,12 +68,12 @@ test("the list of documents is shared, so a colleague sees and opens one they di
   await expect(
     indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
   ).toBeVisible();
-  // The colleague reads what the server holds, so it is worth reading once the
-  // server has taken the upload.
+  // The colleague reads the rows from the server, so wait until the upload is
+  // saved.
   await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
 
-  // Somebody else entirely, who has never touched this document. There is no
-  // owner and nothing to be let into: they simply see it.
+  // Sign in as the contributor, who did not start this document. Documents have
+  // no owner and no sharing step, so the contributor sees it in the list.
   await signInAsContributor(colleague);
   await colleague.goto("/admin/publications/documents");
 
@@ -86,7 +86,8 @@ test("the list of documents is shared, so a colleague sees and opens one they di
     indexTable(colleague).getByRole("row", { name: /Dom Casmurro/ }),
   ).toBeVisible();
 
-  // And an edit of theirs reaches the other without either page reloading.
+  // An edit on the colleague's page reaches the admin's page, and neither page
+  // reloads.
   const title = indexTable(colleague)
     .getByRole("textbox", { name: "Title" })
     .first();
@@ -112,8 +113,8 @@ test("two people with a document open see each other's edits as they happen", as
 
   const mine = indexTable(page);
   await expect(mine.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();
-  // The colleague reads what the server holds, so it is worth reading once the
-  // server has taken the upload.
+  // The colleague reads the rows from the server, so wait until the upload is
+  // saved.
   await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
 
   await signInAsAdmin(colleague);
@@ -131,7 +132,7 @@ test("two people with a document open see each other's edits as they happen", as
     theirs.getByRole("row", { name: /Dom Casmurro \(revised\)/ }),
   ).toBeVisible({ timeout: 15_000 });
 
-  // And the other way, so it is a conversation rather than a broadcast.
+  // Edit on the colleague's page too, and check that it reaches the admin's.
   const back = theirs.getByRole("textbox", { name: "Title" }).nth(1);
   await back.fill("Iracema (revised)");
   await back.blur();
@@ -149,13 +150,13 @@ test("each person sees who else has the document open", async ({
   await openDocument(page, "Who is here");
   const address = page.url();
 
-  // Alone: nobody to show.
+  // With nobody else in the document, the "Also here" list is not rendered.
   await expect(page.getByRole("list", { name: "Also here" })).toHaveCount(0);
 
   await signInAsContributor(colleague);
   await colleague.goto(address);
 
-  // Each is told about the other, by the address they signed in with.
+  // Each page shows the other person by the email they signed in with.
   await expect(page.getByLabel("dev-contributor@localhost")).toBeVisible({
     timeout: 15_000,
   });
@@ -163,8 +164,9 @@ test("each person sees who else has the document open", async ({
     timeout: 15_000,
   });
 
-  // Presence is true only while someone is looking: closing the page takes
-  // them off the other's list, without anything being stored or cleaned up.
+  // Closing the colleague's page removes them from the admin's "Also here"
+  // list. The server tracks presence per open connection and does not store
+  // it.
   await colleague.close();
 
   await expect(page.getByLabel("dev-contributor@localhost")).toHaveCount(0, {
@@ -184,8 +186,8 @@ test("each person sees which cell the other is in", async ({
   await expect(
     indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
   ).toBeVisible();
-  // The colleague reads what the server holds, so it is worth reading once the
-  // server has taken the upload.
+  // The colleague reads the rows from the server, so wait until the upload is
+  // saved.
   await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
 
   await signInAsContributor(colleague);
@@ -194,7 +196,7 @@ test("each person sees which cell the other is in", async ({
     indexTable(colleague).getByRole("row", { name: /Dom Casmurro/ }),
   ).toBeVisible();
 
-  // Nobody is anywhere yet.
+  // No cell is marked with anyone's cursor yet.
   await expect(page.locator("[data-taken]")).toHaveCount(0);
 
   // The colleague puts the cursor in the first title.
@@ -203,14 +205,16 @@ test("each person sees which cell the other is in", async ({
     .first()
     .focus();
 
-  // The owner is shown which cell that is, and — without hovering — whose.
+  // The admin's page marks that cell with `data-taken`, and labels it with the
+  // colleague's email without needing a hover.
   const taken = page.locator("[data-taken]");
   await expect(taken).toHaveCount(1, { timeout: 15_000 });
   await expect(
     page.getByLabel("dev-contributor@localhost has their cursor here"),
   ).toBeVisible();
 
-  // Moving on takes the mark with them rather than leaving it behind.
+  // When the colleague moves to the Year cell, the mark moves with them, so
+  // exactly one cell is still marked.
   await indexTable(colleague)
     .getByRole("textbox", { name: "Year" })
     .first()
@@ -237,8 +241,9 @@ test("one person with two tabs open is one person, not two", async ({
     timeout: 15_000,
   });
 
-  // The same person opens it again in a second tab. Awareness counts
-  // connections, so without folding them together they would appear twice.
+  // The colleague opens the document again in a second tab. Presence has one
+  // entry per connection, and the "Also here" list shows one entry per email,
+  // so the colleague appears once.
   const second = await colleagueContext.newPage();
   await second.goto(address);
   await expect(

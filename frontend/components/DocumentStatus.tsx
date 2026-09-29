@@ -12,23 +12,24 @@ import { FC } from "react";
 import Tooltip from "./Tooltip";
 
 /**
- * What this reader needs to know about a shared document, in one word.
+ * The one state `DocumentStatus` shows for a shared document.
  *
- * Two things can go wrong independently, and only one of them is about losing
- * work. `unsaved` means what was typed here has not reached the server, which
- * is the one worth interrupting for. `disconnected` means other people's
- * changes are not arriving, which is worth saying because a document that is
- * quietly not live looks exactly like one nobody else is editing.
+ * It combines two conditions that can fail separately. `unsaved` means changes
+ * made here have not reached the server, so work could be lost. `disconnected`
+ * means the live connection is down and other people's changes are not
+ * arriving. A document in that state looks the same as one nobody else is
+ * editing, so this state is shown as well. `connecting`, `saving` and `saved`
+ * are the normal states.
  *
- * They are reported as one word rather than two indicators, because a reader
- * glancing at a toolbar has one question — is this all right? — and two lights
- * make them work out the answer.
+ * The two conditions are shown as one state instead of two indicators, so a
+ * reader can tell at a glance whether anything is wrong.
  */
 type Health = "unsaved" | "disconnected" | "connecting" | "saving" | "saved";
 
 /**
- * The one word for how a document stands. Losing work outranks not hearing
- * from others, and both outrank the ordinary states.
+ * Returns the `Health` for a document's connection and save state. When more
+ * than one applies, the first in this order wins: `unsaved`, `disconnected`,
+ * `connecting`, `saving`, `saved`.
  */
 function healthOf({ connection, saving }: DocumentHealth): Health {
   if (saving === "offline") return "unsaved";
@@ -39,7 +40,7 @@ function healthOf({ connection, saving }: DocumentHealth): Health {
   return "saved";
 }
 
-/** How each word is drawn: the icon beside it, and the tooltip that explains it. */
+/** The icon shown next to each state's label, and the variant of its tooltip. */
 const LOOK = {
   unsaved: { Icon: ErrorCircleIcon, variant: "error" },
   disconnected: { Icon: ErrorCircleIcon, variant: "error" },
@@ -49,11 +50,12 @@ const LOOK = {
 } as const satisfies Record<Health, { Icon: unknown; variant: string }>;
 
 /**
- * Where a shared document stands: whether what was typed here has been saved,
- * and whether anyone else's changes are arriving.
+ * Shows whether changes made here have been saved to the server, and whether
+ * other people's changes are arriving. Hovering it shows a tooltip that
+ * explains the state.
  *
- * Silent on a surface that is not a document, since an edit modal over the
- * database has nothing to be connected to.
+ * Renders nothing outside a `LiveProvider`, because there is no shared document
+ * to report on.
  */
 const DocumentStatus: FC = () => {
   const t = useTranslations("documentStatus");

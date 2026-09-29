@@ -13,8 +13,8 @@ import SourcesEditor from "./SourcesEditor";
 /**
  * The trailing "sources" cell for a workspace row. Sources is a list, not a
  * scalar cell, so it lives outside the attribute grid: a button shows the count
- * and opens the list editor in a modal. Edits write to the row itself, so they
- * ride the bulk insert with everything else — no separate save.
+ * and opens the list editor in a modal. Edits are written to the row with
+ * `setSources`, and the bulk insert saves them with the rest of the row.
  *
  * The row-state props mirror the attribute cells so the cell shares the row's
  * hover / error / selected background. The workspace supplies them for committed

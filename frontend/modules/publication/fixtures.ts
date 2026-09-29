@@ -67,7 +67,10 @@ function sampleManyPublications(count: number): Partial<Publication>[] {
   });
 }
 
-/** Empty a store, including what a story before it left selected or hidden. */
+/**
+ * Empty a store, and clear any selection or hidden columns left by a previous
+ * story.
+ */
 function clear(store: Store): void {
   resetAll(store);
   clearSelection(store);
@@ -97,9 +100,10 @@ function seed(store: Store, entries: SeedEntry[] = SAMPLE_PUBLICATIONS): void {
 }
 
 /**
- * Reset a store and seed it with the given publications (defaults to samples),
- * as the database holds them. This is what the read-only index shows, since it
- * reads the saved copy of each row. Each gets a server id, counting from one.
+ * Reset a store and seed it with the given publications (defaults to samples)
+ * as saved publications, through `hydrate`. Use it for the read-only index,
+ * which reads the saved copy of each row. Each publication gets a server id,
+ * counting from one.
  */
 function seedIndex(
   store: Store,
@@ -117,12 +121,12 @@ function seedIndex(
 }
 
 /**
- * A shared document for a story to render inside, with whoever is named as
- * being here and the cell each of them is in.
+ * Build the awareness and presence of a shared document for a story to render
+ * inside. `others` lists the other people in it and the cell each has focused.
  *
- * Each person is a connection of their own, as they would be in a tab of their
- * own: known to presence by the address the server holds for them, and heard
- * over the wire saying where they are looking.
+ * Each person gets their own connection, as if in their own tab. Presence
+ * lists that connection under the person's email, and the person's focused
+ * cell is applied to awareness as a remote update.
  */
 function aDocumentWith(others: { email: string; at?: At }[] = []): {
   awareness: Awareness;

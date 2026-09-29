@@ -120,8 +120,8 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
     onChange?.(value);
   }
 
-  // Where this person is, so the others can see it. Paired with the blur
-  // below: a cell nobody is in should not go on claiming somebody.
+  // Reports this cell as the person's position, so other people in the
+  // document see who is in it. `handleBlur` reports `null` when focus leaves.
   function handleFocus(event: FocusEvent<HTMLInputElement>) {
     report({ row: String(rowId), field: colId });
     onFocus?.(event);

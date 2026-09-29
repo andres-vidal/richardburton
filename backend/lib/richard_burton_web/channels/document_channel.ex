@@ -1,38 +1,38 @@
 defmodule RichardBurtonWeb.DocumentChannel do
   @moduledoc """
   Relays one import document's changes between the people who have it open,
-  and keeps track of who they are.
+  and tracks who they are.
 
-  The list of documents is shared, so being allowed onto the socket is the
-  permission: anyone who may edit publications may join any document. Joining
-  one that does not exist is refused.
+  The list of documents is shared, so anyone who may edit publications may join
+  any document. Joining a document that does not exist is refused with
+  `not_found`.
 
-  A change is an opaque Yjs update, the same bytes the endpoints persist — this
-  is a transport for what is already being written down, not a second way of
-  recording it. Nothing here parses one, and nothing here stores one: a client
-  that misses a message while away gets it from the stored updates on opening.
+  A change is an opaque Yjs update, the same bytes the document endpoints
+  store. The channel only relays changes and does not parse or store them. A
+  change that a connection misses is still in the stored updates.
 
-  Three further things cross:
+  The channel carries three other kinds of message:
 
-    * **presence** — who has the document open. Tracked here, per connection,
-      under the person the socket was authenticated as and the address the
-      server holds for them, so nobody's presence rests on what their own
-      connection claims. Phoenix untracks a connection when its process ends,
-      however it ends, and broadcasts the leave to everyone still here.
-    * **awareness** — where each person's cursor is. Relayed as the opaque Yjs
-      awareness bytes it is and never stored, because it is true only while
-      someone is looking. A connection can claim anything about its own cursor,
-      which costs nothing: the identity paired with it comes from presence.
-    * **sync** — a Yjs state vector, the summary of which changes a connection
-      holds, with the connection it comes `from` and, in an answer, the one it
-      is `to`. A connection sends one on joining, and the changes sent back for
-      it are the ones the stored updates did not have yet: a change still being
-      saved was relayed before the newcomer was here to receive it.
+    * **presence** — who has the document open. Each connection is tracked
+      under the person the socket authenticated, with the email address stored
+      for that person, so a connection cannot claim to be someone else. Phoenix
+      untracks a connection when its process ends, including when it crashes,
+      and broadcasts the leave to the other connections.
+    * **awareness** — where each person's cursor is. The channel relays the
+      opaque Yjs awareness bytes and does not store them, because they only
+      matter while the person is connected. A connection can send anything
+      about its own cursor, but the identity paired with the cursor comes from
+      presence.
+    * **sync** — a Yjs state vector, which summarises the changes a connection
+      has. It carries the connection it is `from` and, in a reply, the one it
+      is `to`. A connection sends one when it joins, and the other connections
+      reply with the changes it lacks. This covers changes that were relayed
+      before it joined but were not yet stored.
 
-  A joined channel keeps checking that it may stay: whenever a change to its
-  person's access is announced, and every few minutes for the one change that is
-  not announced, a session running out. When the answer is no it says so and
-  closes.
+  A joined channel checks again that its person may keep it open. It checks
+  whenever `RichardBurton.Auth.Access` broadcasts a change for that person, and
+  every five minutes to catch an expired session, since expiry is not
+  broadcast. If the check fails, the channel pushes `refused` and closes.
   """
 
   use Phoenix.Channel
@@ -43,7 +43,7 @@ defmodule RichardBurtonWeb.DocumentChannel do
   alias RichardBurtonWeb.DocumentSocket
   alias RichardBurtonWeb.Presence
 
-  # How often an open channel checks again whether it may stay.
+  # How often a joined channel rechecks `DocumentSocket.allowed?/2`.
   @recheck_after :timer.minutes(5)
 
   @impl true
@@ -63,9 +63,10 @@ defmodule RichardBurtonWeb.DocumentChannel do
     end
   end
 
-  # Tells the newcomer who is already here, then tracks them so everyone else
-  # hears of them. The join names which awareness entry is the connection's own,
-  # so the cursor it relays can be paired with the identity presence holds.
+  # Pushes the current presence list to the joining connection, then tracks it
+  # so the other connections receive a `presence_diff`. The tracked meta holds
+  # the `clientId` from the join params, which is the key of the connection's
+  # own awareness entry, so its cursor can be matched to the person in presence.
   @impl true
   def handle_info({:after_join, client_id}, socket) do
     push(socket, "presence_state", Presence.list(socket))
@@ -87,10 +88,11 @@ defmodule RichardBurtonWeb.DocumentChannel do
   end
 
   @doc """
-  Hand a change to everyone else here.
+  Broadcasts an `update`, `awareness` or `sync` message to the other
+  connections on the document, and ignores any other event.
 
-  `broadcast_from!` leaves out the sender, which is what keeps a client from
-  being handed back what it just made and applying its own change twice.
+  `broadcast_from!` skips the sender, so the sender does not receive its own
+  change and apply it a second time.
   """
   @impl true
   def handle_in("update", payload = %{"update" => _}, socket) do
@@ -113,8 +115,9 @@ defmodule RichardBurtonWeb.DocumentChannel do
   @impl true
   def handle_in(_event, _payload, socket), do: {:noreply, socket}
 
-  # Stays while the session stands and its person may still keep the database.
-  # Otherwise it pushes `refused`, which names why, and then closes.
+  # Keeps the channel open while `DocumentSocket.allowed?/2` holds for its
+  # person and session. Otherwise it pushes `refused` with an empty payload and
+  # stops with `{:shutdown, :refused}`.
   defp recheck(socket) do
     %{subject_id: subject_id, session_id: session_id} = socket.assigns
 
@@ -126,8 +129,11 @@ defmodule RichardBurtonWeb.DocumentChannel do
     end
   end
 
+  # Sends this channel `:recheck` after `@recheck_after`.
   defp schedule_recheck, do: Process.send_after(self(), :recheck, @recheck_after)
 
+  # Returns the email stored for the user with this subject id, or nil when
+  # there is no such user.
   defp email_of(subject_id) do
     case User.get(subject_id) do
       %User{email: email} -> email

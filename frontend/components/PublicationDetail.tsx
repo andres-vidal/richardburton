@@ -344,8 +344,8 @@ const Detail: FC<PublicationDetailProps> = ({
   const [deleting, setDeleting] = useState(false);
   const mergeDialog = useModal();
 
-  // An edit abandoned by closing the view is dropped, not kept: the row goes
-  // back to the way it was saved, and its errors are cleared.
+  // When editing ends or the view closes, `discardEdit` drops any unsaved edit.
+  // The row goes back to the way it was saved, and its errors are cleared.
   useEffect(
     () => (editing ? () => discardEdit(store, id) : undefined),
     [editing, id, store],

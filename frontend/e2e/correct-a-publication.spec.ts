@@ -141,20 +141,20 @@ test("an edit thought better of changes nothing, in the editor or the database b
   await title.fill("The Hour of the Star (abandoned)");
   await title.blur();
 
-  // The database behind the open editor shows what is saved, not what is being
-  // typed. Text rather than role: the open dialog takes the rest of the page out
-  // of the accessibility tree.
+  // The index behind the open dialog still shows the saved title, not the one
+  // being typed. The check uses getByText rather than getByRole, because the
+  // open dialog hides the rest of the page from the accessibility tree.
   await expect(page.getByText("The Hour of the Star (abandoned)")).toHaveCount(
     0,
   );
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
 
-  // Editing again starts from what is saved, not from what was abandoned.
+  // Clicking Edit again starts from the saved title, not the cancelled one.
   await dialog.getByRole("button", { name: "Edit" }).click();
   await expect(title).toHaveValue("The Hour of the Star");
 
-  // Closing the view mid-edit abandons it the same way.
+  // Closing the dialog with Escape during an edit also discards the edit.
   await title.fill("The Hour of the Star (abandoned again)");
   await title.blur();
   await page.keyboard.press("Escape");
@@ -167,8 +167,8 @@ test("an edit thought better of changes nothing, in the editor or the database b
   ).toHaveValue("The Hour of the Star");
   await page.keyboard.press("Escape");
 
-  // None of it reached the server: the record reads as it did, and its log
-  // holds the import alone.
+  // Neither edit was sent to the server. After a reload the record has its
+  // original title, and its history has only the Created entry from the import.
   await page.reload();
   const again = await openPublicationModal(page, "The Hour of the Star");
   await again.getByText("History", { exact: true }).click();

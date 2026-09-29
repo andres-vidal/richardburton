@@ -4,16 +4,16 @@ import { empty, type Publication } from "./model";
 import { DRAFT_ID, publicationFamily } from "./store";
 
 /**
- * Where the unfinished row is kept, per workspace.
+ * The `localStorage` key for a workspace's draft row.
  *
- * Browser storage rather than the document, because the draft row is one
- * person's unfinished typing: it should survive their reload without reaching
- * anyone else sharing the workspace. Those are different requirements, and the
- * document only answers the second.
+ * The draft row is kept in `localStorage` rather than in the document, because
+ * it is one person's unfinished typing. It should survive a reload but not
+ * reach anyone else sharing the workspace. The document would keep it across a
+ * reload, but it would also share it.
  */
 const key = (name: string) => `rb:draft:${name}`;
 
-/** Whether the draft holds anything worth keeping. */
+/** Returns whether any field of the draft other than `id` has a value. */
 function written(draft: Publication): boolean {
   return Object.entries(draft).some(([field, value]) =>
     field === "id"
@@ -25,12 +25,12 @@ function written(draft: Publication): boolean {
 }
 
 /**
- * Keep the draft row across reloads, and put back what was left in it.
+ * Restores the draft row from `localStorage`, then saves it there each time it
+ * changes. When the draft is empty, the saved copy is removed. Returns a
+ * function that stops saving.
  *
- * Every read and write is guarded: storage is unavailable in a private window
- * and can be full, and a draft row is not worth failing a page over.
- *
- * Returns the way to stop.
+ * Every read and write catches errors, because storage is unavailable in a
+ * private window and can be full. A draft row is not worth failing a page over.
  */
 function keepDraft(store: Store, name: string): () => void {
   restore(store, name);
@@ -42,11 +42,11 @@ function keepDraft(store: Store, name: string): () => void {
       if (written(draft)) {
         localStorage.setItem(key(name), JSON.stringify(draft));
       } else {
-        // Added or cleared: there is nothing left to come back to.
+        // The draft row was added or cleared, so there is nothing to restore.
         localStorage.removeItem(key(name));
       }
     } catch {
-      // No storage, so the draft lives as long as the tab does.
+      // Without storage, the draft is kept only in memory for this tab.
     }
   });
 }
@@ -61,7 +61,7 @@ function restore(store: Store, name: string): void {
       ...(JSON.parse(held) as Partial<Publication>),
     });
   } catch {
-    // Unreadable or not the shape it was written in; the draft starts empty.
+    // The saved value could not be read or parsed, so the draft starts empty.
   }
 }
 

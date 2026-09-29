@@ -5,12 +5,14 @@ import { getLocale } from "next-intl/server";
 import { getSession } from "app/session";
 
 /**
- * Send whoever cannot edit publications back to the public index.
+ * Redirects to the public index when the signed-in user cannot edit
+ * publications.
  *
  * The admin layout calls it for every admin page. A page that reads from the
- * backend calls it as well, before reading, because the layout renders
- * alongside the page rather than before it. Without the page's own call, its
- * read would still run for a visitor the layout is turning away, and fail.
+ * backend also calls it before reading, because Next.js renders a layout and
+ * its page at the same time, not one after the other. Without its own call,
+ * the page's read would still run for a user the layout is redirecting, and
+ * would fail.
  */
 export async function admitEditors(): Promise<void> {
   if (!User.canEditPublications(await getSession())) {

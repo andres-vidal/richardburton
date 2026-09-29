@@ -67,11 +67,11 @@ body {
 }
 
 /*
-  The colour each person present in a document is drawn in, by the index
-  `colourOf` gives them in modules/publication/presence.tsx, which also holds how
-  many there are. An element names the index in `data-colour`, or in
-  `data-taken` on a cell somebody has their cursor in. It reads the colour back
-  as `--presence`, and a pale wash of it as `--presence-tint`.
+  Presence colours, one rule per index returned by `colourOf` in
+  modules/publication/presence.tsx. `COLOURS` there must match the number of
+  rules here. An element sets the index in `data-colour`, or in `data-taken` on
+  a cell that another person has focused. The rule sets `--presence` to the
+  colour and `--presence-tint` to a pale shade of it.
 */
 @layer base {
   [data-colour="0"],

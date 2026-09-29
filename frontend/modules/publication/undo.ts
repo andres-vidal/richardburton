@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { documentOf } from "./store";
 import { usePublicationStore } from "./workspace";
 
-/** What a workspace can walk back, and how. */
+/** Whether a workspace can undo or redo, and the functions that do it. */
 type Undo = {
   canUndo: boolean;
   canRedo: boolean;
@@ -14,11 +14,11 @@ type Undo = {
 };
 
 /**
- * Walk back the edits made here, and only those.
+ * Returns undo and redo for the store's document, through its `Y.UndoManager`.
  *
- * A workspace is shared, so undo is not: taking back your last change must not
- * take back what the person beside you just typed. The document tracks who made
- * each change, and this walks back the ones stamped as local.
+ * The manager tracks only changes with the origin `LOCAL`. Undo therefore
+ * reverts this person's edits and not those of other people editing the same
+ * document.
  */
 function useWorkspaceUndo(): Undo {
   const store = usePublicationStore();
@@ -28,9 +28,8 @@ function useWorkspaceUndo(): Undo {
   const [canRedo, setCanRedo] = useState(false);
 
   useEffect(() => {
-    // Whether there is anything to walk back, rather than how much. Each is a
-    // boolean set on its own, so an edit that leaves both where they were
-    // re-renders nothing.
+    // Only whether each stack is empty is kept, not its size. Each is its own
+    // boolean state, so an edit that leaves both unchanged does not re-render.
     const read = () => {
       setCanUndo(manager.undoStack.length > 0);
       setCanRedo(manager.redoStack.length > 0);

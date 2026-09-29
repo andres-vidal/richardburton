@@ -2,12 +2,12 @@ defmodule RichardBurton.Repo.Migrations.TimeDocumentsToTheMicrosecond do
   use Ecto.Migration
 
   @moduledoc """
-  Hold when a document was started and last changed to the microsecond.
+  Stores `inserted_at` and `updated_at` on `documents` to the microsecond.
 
-  The list is ordered by when each document last changed, and a page of it is
-  read on from the last document of the page before. To the second, a document
-  changed in the same second as another ties with it, and the tie is settled by
-  which was started later rather than by which changed last.
+  The list is ordered by `updated_at`, and each page starts after the last
+  document of the previous page. With whole seconds, two documents changed in
+  the same second would tie. The tie would go to the document created later,
+  even when the other one changed last.
   """
 
   def change do

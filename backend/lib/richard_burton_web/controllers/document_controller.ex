@@ -1,11 +1,12 @@
 defmodule RichardBurtonWeb.DocumentController do
   @moduledoc """
-  The import-document endpoints: starting one, listing them, renaming and
-  retiring one, and the updates a document's content is made of.
+  The import-document endpoints: creating, listing, renaming, archiving and
+  unarchiving documents, reading, appending and compacting their updates, and
+  signing tokens for `RichardBurtonWeb.DocumentSocket`.
 
-  The list is shared, so nothing here scopes it to who is asking. Updates go in
-  and out as base64 in JSON, because that is what the rest of this API speaks.
-  The server never parses one — see `RichardBurton.Document`.
+  The list is shared, so no endpoint scopes it to the person asking. Updates
+  are sent and returned as base64 strings in JSON, like the rest of this API.
+  The server does not parse them. See `RichardBurton.Document`.
   """
 
   use RichardBurtonWeb, :controller
@@ -13,12 +14,12 @@ defmodule RichardBurtonWeb.DocumentController do
   alias RichardBurton.Document
 
   @doc """
-  A short-lived token for this person to open a live connection with.
+  Returns a token for connecting to `RichardBurtonWeb.DocumentSocket`.
 
-  The session cookie is httpOnly, so the page cannot read it to hand over as a
-  connect parameter. This is minted behind the same authentication the rest of
-  these endpoints ask for, and names the session it was minted under, which is
-  what the socket asks about each time it is used.
+  The token holds the person's `subject_id` and the id of the session that
+  authenticated this request. The socket checks that session on every connect
+  and join. A token is needed because the `rb-session` cookie is httpOnly and
+  cannot be read to send as a connect parameter.
   """
   def socket_token(conn, _params) do
     %{subject_id: subject_id, session_id: session_id} = conn.assigns
@@ -27,10 +28,13 @@ defmodule RichardBurtonWeb.DocumentController do
   end
 
   @doc """
-  A page of the documents on one side of the list, and whether more follow it.
+  Returns a page of documents and whether more follow it, as
+  `RichardBurton.Document.page/1` does. With `archived=true` the page holds
+  archived documents instead of unarchived ones. `limit` sets the page size.
 
-  `after` is the cursor of the page before, given as the last document's
-  `updated_at` and `id`. Without one, the first page is read.
+  `after` is the cursor: the `updated_at` and `id` of the last document on the
+  previous page. Without it, the first page is returned. A malformed cursor is
+  a 400 with `invalid_after`.
   """
   def index(conn, params) do
     with {:ok, cursor} <- cursor(params["after"]) do
@@ -55,7 +59,9 @@ defmodule RichardBurtonWeb.DocumentController do
     with {:ok, document} <- Document.find(id), do: json(conn, document)
   end
 
-  @doc "Give a document a different name."
+  @doc """
+  Renames a document. A request without `name` is a 400 with `name_required`.
+  """
   def update(conn, %{"id" => id, "name" => name}) do
     with {:ok, document} <- Document.find(id),
          {:ok, renamed} <- Document.rename(document, name) do
@@ -66,9 +72,10 @@ defmodule RichardBurtonWeb.DocumentController do
   def update(_conn, _params), do: {:error, :name_required}
 
   @doc """
-  Take a document off the list, keeping what it holds.
+  Archives a document, which takes it off the list and keeps its content.
 
-  Archiving rather than deleting: the rows are a record of what was prepared.
+  This action serves `DELETE /documents/:id` but does not delete anything,
+  because the rows are a record of what was prepared.
   """
   def archive(conn, %{"id" => id}) do
     with {:ok, document} <- Document.find(id),
@@ -77,7 +84,7 @@ defmodule RichardBurtonWeb.DocumentController do
     end
   end
 
-  @doc "Put an archived document back on the list."
+  @doc "Unarchives a document, which puts it back on the list."
   def unarchive(conn, %{"id" => id}) do
     with {:ok, document} <- Document.find(id),
          {:ok, restored} <- Document.unarchive(document) do
@@ -86,15 +93,14 @@ defmodule RichardBurtonWeb.DocumentController do
   end
 
   @doc """
-  Everything needed to rebuild the content, with the id of the last update it
-  includes.
+  Returns the document's updates as base64 `entries`, and `through`, the id of
+  the last update returned.
 
-  A client applies them and is then holding the same content as everyone else
-  who has read it. It keeps the id, which is what it names when it later writes
-  a compaction, so that whatever was appended in the meantime is not replaced.
+  Applying the entries rebuilds the document's content. A compaction built
+  from these entries sends `through` back, so that it keeps any update
+  appended after this read.
 
-  `after` names an id the reader has already read through, and only what was
-  written after it is returned.
+  With `after`, only the updates written after that id are returned.
   """
   def updates(conn, params = %{"id" => id}) do
     with {:ok, document} <- Document.find(id),
@@ -105,7 +111,10 @@ defmodule RichardBurtonWeb.DocumentController do
     end
   end
 
-  @doc "Append one change, with the row count the client counted while making it."
+  @doc """
+  Appends one base64 update to a document, with an optional `rows` count. A
+  missing or invalid `rows` leaves the stored count unchanged.
+  """
   def append(conn, params = %{"id" => id, "update" => update}) do
     with {:ok, document} <- Document.find(id),
          {:ok, bytes} <- decoded(update),
@@ -115,11 +124,11 @@ defmodule RichardBurtonWeb.DocumentController do
   end
 
   @doc """
-  Write one merged update in place of every update up to `through`.
+  Replaces every update up to `through` with one merged update.
 
-  Only a client can merge them, since only a client reads the content. `through`
-  is the point the merge reaches, and anything appended past it is left where it
-  is — see `RichardBurton.Document.compact/3`.
+  The caller builds the merged update, because the server does not parse the
+  content. `through` is the id returned by the read the merge was built from,
+  and updates with a larger id are kept. See `RichardBurton.Document.compact/3`.
   """
   def compact(conn, %{"id" => id, "update" => update, "through" => through}) do
     with {:ok, document} <- Document.find(id),
@@ -132,7 +141,7 @@ defmodule RichardBurtonWeb.DocumentController do
 
   def compact(_conn, _params), do: {:error, :invalid_through}
 
-  # The bytes an encoded update stands for, or why it is not one.
+  # Decodes a base64 update, or returns `{:error, :invalid_update}`.
   defp decoded(update) do
     case Base.decode64(update) do
       {:ok, bytes} -> {:ok, bytes}
@@ -140,7 +149,8 @@ defmodule RichardBurtonWeb.DocumentController do
     end
   end
 
-  # The point a compaction claims to reach, or why it is not one.
+  # Parses a compaction's `through` as a whole number, or returns
+  # `{:error, :invalid_through}`.
   defp bounded(through) do
     case integer_param(through) do
       nil -> {:error, :invalid_through}
@@ -148,7 +158,9 @@ defmodule RichardBurtonWeb.DocumentController do
     end
   end
 
-  # The cursor a page of the list starts after, or nothing for the first page.
+  # Parses the `after` cursor of the list into `{updated_at, id}`. Returns
+  # `{:ok, nil}` when there is no cursor, and `{:error, :invalid_after}` when it
+  # is malformed.
   defp cursor(nil), do: {:ok, nil}
 
   defp cursor(%{"updated_at" => updated_at, "id" => id}) when is_binary(updated_at) do
@@ -162,7 +174,9 @@ defmodule RichardBurtonWeb.DocumentController do
 
   defp cursor(_), do: {:error, :invalid_after}
 
-  # The id a read of the updates starts after, which is none unless one is named.
+  # Parses the `after` id for a read of updates. Returns 0, which reads every
+  # update, when none is given, and `{:error, :invalid_after}` when it is not a
+  # whole number.
   defp since(nil), do: {:ok, 0}
 
   defp since(value) do
@@ -172,7 +186,8 @@ defmodule RichardBurtonWeb.DocumentController do
     end
   end
 
-  # A query value read as a whole number, or nothing where it is not one.
+  # Returns a parameter as a non-negative integer, from an integer or a string
+  # of digits. Returns nil for anything else.
   defp integer_param(value) when is_integer(value) and value >= 0, do: value
 
   defp integer_param(value) when is_binary(value) do

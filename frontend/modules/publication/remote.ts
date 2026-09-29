@@ -94,7 +94,7 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
       http.put<Publication>(`publications/${id}`, publication),
     );
 
-    // The server's value is now both the saved copy and the row.
+    // Store the server's value as both the saved copy and the row.
     remember(store, data);
     store.set(errorFamily(id), RESET);
     notify({

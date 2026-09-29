@@ -6,45 +6,43 @@ import * as WorkspaceUndoStories from "./WorkspaceUndo.stories";
 
 # Workspace undo
 
-Walks back an edit made in the bulk-import workspace, or puts it back.
+Undoes and redoes edits made in the bulk-import workspace.
 
-It replaces "Reset N edited rows". That button restored a row to what the CSV
-said, which it could do because the workspace kept the imported value and the
-typed value apart. The workspace's content is now a shared document holding one
-value per field, so there is no imported value left to go back to — and in a
-workspace two people are editing, "what the file said" is a poorer question than
-"what did I just change".
+Undo does not return rows to the values in the uploaded CSV. The workspace's
+content is a shared document that holds one value per field, so the imported
+value is not kept once a field is edited.
 
-## It is one person's, not the workspace's
+## Undo covers only your own changes
 
-Every change this browser makes is stamped with a local origin, and the undo
-manager tracks only those. Walking back your last change therefore leaves what
-your collaborator typed alone, which is the whole reason undo is not simply "the
-document's previous state".
+Every edit made in this tab is applied with the `LOCAL` transaction origin, and
+the Yjs `UndoManager` tracks only that origin. Undoing your last change
+therefore leaves other people's changes alone. This is why undo does not simply
+return the document to its previous state.
 
-The same rule is why a workspace picked up where it was left offers nothing:
-those rows arrived from disk rather than from an edit made in this sitting.
+For the same reason, a reopened workspace has nothing to undo. Its rows were
+loaded, not edited in this tab, so they do not have the `LOCAL` origin.
 
 <Canvas of={WorkspaceUndoStories.AfterAnEdit} />
 
 ## What counts as one step
 
-Edits close together in time become one step, so a burst of typing is walked
-back as the word it was rather than a letter at a time.
+Edits made close together in time are merged into one step, so undo removes a
+burst of typing as a whole word, not one letter at a time.
 
-Adding a row is not an edit to it, so the workspace marks that boundary
-explicitly. Without it, one undo of a row you had just added and typed into
-would take the row away rather than the typing.
+Adding a row is a separate step from editing it. The store calls
+`stopCapturing` on the undo manager after it adds a row, so undoing the typing
+in a new row does not also remove the row.
 
 ## Props
 
-None. It reads the document of the workspace it renders in.
+None. It uses the undo manager of the workspace store it renders in, through
+`useWorkspaceUndo`.
 
 ## States
 
-- **Nothing to undo** — a resumed workspace, or one nobody has edited yet. No
-  button at all, rather than a disabled one.
-- **After an edit** — undo is offered, and returns the row to what it said.
-- **And back again** — redo appears once something has been walked back.
+- **Nothing to undo** — a reopened workspace, or one with no edits in this tab
+  yet. No button is rendered, not even a disabled one.
+- **After an edit** — Undo is shown, and returns the row to its previous value.
+- **And back again** — Redo appears after something has been undone.
 
 <Canvas of={WorkspaceUndoStories.AndBackAgain} />

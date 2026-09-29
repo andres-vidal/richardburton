@@ -18,16 +18,17 @@ test("work in the import document survives closing the tab", async ({
   const table = indexTable(page);
   await expect(table.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();
 
-  // An edit made after the import, to prove it is the current value that is
-  // kept rather than the file that was uploaded.
+  // Edit a title after the upload, to check that the reload restores the edited
+  // value and not the uploaded one.
   const title = table.getByRole("textbox", { name: "Title" }).first();
   await title.fill("Dom Casmurro (revised)");
   await title.blur();
 
   await page.reload();
 
-  // Nothing was ever submitted, so the database holds none of this: the rows
-  // come back from the browser's own store.
+  // Nothing was submitted, so the publications table holds none of these rows.
+  // They are restored from the document, which is kept in this browser's
+  // IndexedDB and in the updates stored on the server.
   await expect(
     table.getByRole("row", { name: /Dom Casmurro \(revised\)/ }),
   ).toBeVisible();
@@ -46,8 +47,8 @@ test("a document resumed from disk still submits", async ({ page }) => {
   await page.reload();
   await expect(table.getByRole("row", { name: /Iracema/ })).toBeVisible();
 
-  // The submit path is unchanged: the rows are serialized to ordinary JSON and
-  // posted, whatever they were held in while they were being edited.
+  // Submit reads the rows from the store and posts them as JSON, so restored
+  // rows submit the same way as rows entered in this session.
   const submit = page.getByRole("button", { name: "Submit" });
   await expect(submit).toBeEnabled({ timeout: 30_000 });
   await submit.click();
@@ -66,8 +67,8 @@ test("a document resumes with the backend unavailable", async ({ page }) => {
   const table = indexTable(page);
   await expect(table.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();
 
-  // Take the API away entirely. Restoring the document is the browser reading
-  // its own disk, so it must not need the server to be there at all.
+  // Block every API request and reload. The document is restored from this
+  // browser's IndexedDB, so it opens without the server.
   await page.route("**/api/**", (route) => route.abort());
   await page.reload();
 
@@ -81,7 +82,8 @@ test("a row half-typed into the new-publication row survives a reload", async ({
   await signInAsAdmin(page);
   await openDocument(page);
 
-  // The trailing row, typed into but never added.
+  // Type a title into the new-publication row at the end of the table, without
+  // adding the row.
   const table = indexTable(page);
   const draft = table.getByPlaceholder("Title", { exact: true }).last();
   await draft.fill("Iracema");
@@ -89,7 +91,8 @@ test("a row half-typed into the new-publication row survives a reload", async ({
 
   await page.reload();
 
-  // It is unfinished, not discarded: it comes back where it was left.
+  // The draft row is kept in localStorage, so the title is still there after
+  // the reload.
   await expect(
     table.getByPlaceholder("Title", { exact: true }).last(),
   ).toHaveValue("Iracema");
@@ -101,7 +104,7 @@ test("a resumed document asks again whether its rows are valid", async ({
   await signInAsAdmin(page);
   await openDocument(page);
 
-  // A row with a title and nothing else: the database will refuse it.
+  // Add a row with only a title. The server's validation marks it invalid.
   const table = indexTable(page);
   await table.getByPlaceholder("Title", { exact: true }).last().fill("Iracema");
   await page.getByRole("button", { name: "Add publication" }).click();
@@ -110,8 +113,9 @@ test("a resumed document asks again whether its rows are valid", async ({
 
   await page.reload();
 
-  // Whether a row is valid was the server's word and was never written down,
-  // so a resumed document asks again rather than calling every row valid.
+  // The document does not store whether a row is valid. After the reload, the
+  // page sends the rows to the server to be validated again, so the row is
+  // still invalid and Submit stays disabled.
   await expect(page.getByLabel("1 invalid publication")).toBeVisible({
     timeout: 30_000,
   });

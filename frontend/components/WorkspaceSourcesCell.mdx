@@ -14,9 +14,9 @@ opens the list editor in a modal.
 ## Props
 
 `rowId` — the workspace row the cell belongs to. It reads that row's sources
-from the store (`usePublicationSources`) and writes edits back to the row
-itself (`setSources`), so they ride the bulk insert with the rest of the row —
-there is no separate save.
+from the store (`usePublicationSources`) and writes edits to the same row
+(`setSources`). The bulk insert saves the sources with the rest of the row, so
+the cell has no save of its own.
 
 `invalid` / `selected` / `focused` — optional row-state flags (default `false`)
 that drive the cell's background so it shares the row's hover / error / selected

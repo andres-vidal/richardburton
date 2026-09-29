@@ -9,8 +9,8 @@ import DocumentStatus from "./DocumentStatus";
 
 type Args = { connection?: LiveState; saving?: SyncState };
 
-// A document to be part of. Nobody else is in it, which is beside the point
-// here: what is being shown is how the work stands, not who is looking.
+// An empty document for `LiveProvider`. These stories only set the connection
+// and save state, so nobody else is in it.
 const document = aDocumentWith();
 
 const meta = {
@@ -36,7 +36,7 @@ export default meta;
 
 type Story = StoryObj<Args>;
 
-/** Everything typed here has reached the server, and changes are crossing. */
+/** Everything typed here has reached the server, and the connection is live. */
 export const Saved: Story = {
   args: { connection: "live", saving: "saved" },
   play: async () => {
@@ -44,7 +44,7 @@ export const Saved: Story = {
   },
 };
 
-/** There is something written here the server has not taken yet. */
+/** Some changes made here have not reached the server yet. */
 export const Saving: Story = {
   args: { connection: "live", saving: "saving" },
   play: async () => {
@@ -53,8 +53,8 @@ export const Saving: Story = {
 };
 
 /**
- * The one worth interrupting for: what was typed is on this computer and has
- * not reached the server.
+ * Changes made here are on this computer but have not reached the server. The
+ * tooltip explains this on hover.
  */
 export const NotSaved: Story = {
   args: { connection: "offline", saving: "offline" },
@@ -63,7 +63,8 @@ export const NotSaved: Story = {
 
     await expect(status).toHaveTextContent("Not saved");
 
-    // Not saved outranks not live: one of the two is about losing work.
+    // "Not saved" is shown instead of "Not live", because only a failed save
+    // can lose work.
     await expect(status).not.toHaveTextContent("Not live");
 
     await userEvent.hover(status);
@@ -74,9 +75,9 @@ export const NotSaved: Story = {
 };
 
 /**
- * Saving is fine, but nobody else's changes are arriving — worth saying,
- * because a document that is quietly not live looks exactly like one nobody
- * else is editing.
+ * Changes are saving, but other people's changes are not arriving. Without this
+ * state, a document that is not live would look the same as one nobody else is
+ * editing.
  */
 export const NotLive: Story = {
   args: { connection: "offline", saving: "saved" },
@@ -85,7 +86,7 @@ export const NotLive: Story = {
   },
 };
 
-/** Looking for the connection again, with what was typed kept meanwhile. */
+/** The connection is being opened again. Changes made meanwhile are kept. */
 export const Reconnecting: Story = {
   args: { connection: "connecting", saving: "saved" },
   play: async () => {
@@ -94,8 +95,8 @@ export const Reconnecting: Story = {
 };
 
 /**
- * On a surface that is not a document — the edit modal over the database — this
- * has nothing to report and says nothing.
+ * Outside a `LiveProvider`, such as in the edit form for a saved publication,
+ * the component renders nothing.
  */
 export const NotADocument: Story = {
   args: {},
