@@ -123,8 +123,8 @@ export const WhenTwoPublicationsWouldCollide: Story = {
   args: {
     write: fn<typeof rename>(async () => ({
       collides: [
-        { id: 31, title: "Dom Casmurro", year: "1953" },
-        { id: 32, title: "Dom Casmurro", year: "1953" },
+        { id: 31, title: "Dom Casmurro", year: 1953 },
+        { id: 32, title: "Dom Casmurro", year: 1953 },
       ],
     })),
   },
