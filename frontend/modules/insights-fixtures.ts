@@ -1,9 +1,9 @@
 import type { Insights } from "./insights";
 
 /**
- * Insights into a database of a realistic shape: a long span of years with
- * quiet decades in it, a few names far ahead of the rest, and a work translated
- * three times.
+ * Insights for a realistic database: a long span of years that includes
+ * decades with few or no publications, a few names with far more publications
+ * than the rest, and a work with three translations.
  */
 const INSIGHTS: Insights = {
   publications: 428,
@@ -73,7 +73,7 @@ const INSIGHTS: Insights = {
   matched: null,
 };
 
-/** Insights into a search that matched nothing. */
+/** Insights for a search that matched nothing. */
 const NOTHING: Insights = {
   publications: 0,
   years: null,

@@ -1,14 +1,14 @@
 import { CSSProperties, FC, useId } from "react";
 
-/** One counted thing in a list of them. */
+/** One item in the list, with its count. */
 type Bar = {
   key: string;
-  /** What is counted: a name, a decade, a work. */
+  /** The item's label, such as a name, a decade or a work's title. */
   label: string;
-  /** What else names it, read after the label: a work's authors. */
+  /** Extra text shown after the label, such as a work's authors. */
   detail?: string;
   count: number;
-  /** The count in words, which is what the reader sees beside the bar. */
+  /** The count as text. It is shown beside the label, above the bar. */
   value: string;
 };
 
@@ -18,13 +18,13 @@ type Props = {
 };
 
 /**
- * A titled list of counts, each drawn as a bar whose length is its share of the
- * largest count in the list.
+ * A titled list of counts. Each item has a bar whose length is its count as a
+ * fraction of the largest count in the list.
  *
- * The caller writes each count out in `value`, since what is counted differs
- * from one list to the next: publications in one, translations in another. The
- * bars are drawn beside the words and are hidden from assistive technology,
- * which reads the words.
+ * The caller formats each count as `value`, because the unit differs between
+ * lists, such as publications or translations. Each bar is drawn under its
+ * label and value, and is hidden from assistive technology, which reads the
+ * label and value instead.
  */
 const InsightBars: FC<Props> = ({ title, bars }) => {
   const id = useId();

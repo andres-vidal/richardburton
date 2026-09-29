@@ -124,8 +124,8 @@ export const TakenAsWritten: Story = {
 };
 
 /**
- * A page with no publication store, such as the insights, hands the report in.
- * What it hands wins over the store, which here holds nothing.
+ * The report comes from the `matched` prop, as on the insights page. The prop
+ * is used instead of the publication store, which this story does not seed.
  */
 export const GivenMatches: Story = {
   parameters: { nextjs: { navigation: { query: { search: "clarise" } } } },

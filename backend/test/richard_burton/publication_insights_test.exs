@@ -1,7 +1,7 @@
 defmodule RichardBurton.Publication.InsightsTest do
   @moduledoc """
-  Tests for the counts that describe the publications in the index, over all of
-  them and over the ones a search matches.
+  Tests `RichardBurton.Publication.Insights.describe/1` over every publication
+  in the index and over the ones a search matches.
   """
 
   use RichardBurton.DataCase
@@ -9,8 +9,9 @@ defmodule RichardBurton.Publication.InsightsTest do
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Insights
 
-  # Seven publications of five works. Dom Casmurro has two translations, one of
-  # them published twice, and one of its publications names two countries.
+  # Seven publications of five works. Dom Casmurro has two translations, and
+  # Helen Caldwell's translation is published twice. John Gledson's Dom Casmurro
+  # names two countries.
   @publications [
     %{
       title: "Dom Casmurro",
@@ -84,8 +85,8 @@ defmodule RichardBurton.Publication.InsightsTest do
     []
   end
 
-  # Insert flat publications the way one import does, and refresh the index they
-  # are counted from.
+  # Inserts flat publications the way an import does, then refreshes the index
+  # that `Insights` reads from.
   defp seed(publications) do
     publications
     |> Publication.Codec.nest()

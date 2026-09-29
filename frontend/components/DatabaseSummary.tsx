@@ -5,25 +5,26 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { FC } from "react";
 
-/** The ways of reading the database, and where each is. */
+/** The two views of the database, each with its path. */
 const VIEWS = { list: "/", insights: "/insights" } as const;
 
 type View = keyof typeof VIEWS;
 
 type Props = {
-  /** How many publications there are, or how many a search found, in words. */
+  /** The number of publications, or of search results, as text. */
   summary: string;
-  /** The view this summary heads. */
+  /** The current view. Its link is marked with `aria-current="page"`. */
   view: View;
 };
 
 /**
- * The line that heads the database: how many publications it holds or a search
- * found, and links to the two ways of reading them. The list shows the
- * publications themselves, and the insights count what they hold.
+ * The line at the top of the database pages. It shows the number of
+ * publications, or of search results, and links to the two views of the
+ * database. The list view shows the publications, and the insights view shows
+ * counts about them.
  *
- * Each link carries the search in the address, so changing views keeps
- * reading the same publications.
+ * Each link keeps the `search` parameter from the current URL, so switching
+ * views keeps the same search.
  */
 const DatabaseSummary: FC<Props> = ({ summary, view }) => {
   const t = useTranslations("views");

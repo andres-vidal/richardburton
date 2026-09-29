@@ -31,8 +31,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Names and their counts, in the order given. The longest count draws the
- * longest bar, and the rest are measured against it.
+ * Names and their counts, in the order given. The largest count has a
+ * full-length bar, and the other bars are sized relative to it.
  */
 export const Names: Story = {
   play: async ({ canvasElement }) => {
@@ -49,8 +49,8 @@ export const Names: Story = {
 };
 
 /**
- * A count of nothing is listed with an empty bar, which is how a quiet decade
- * reads in a run of them.
+ * An item with a count of 0 is listed with an empty bar. Here the items are
+ * decades, and two of them have no publications.
  */
 export const WithNothingCounted: Story = {
   args: {
@@ -71,7 +71,7 @@ export const WithNothingCounted: Story = {
 };
 
 /**
- * A label can carry a detail after it, and the count can be written in words
+ * An item can have a detail after its label, and its value can count something
  * other than publications.
  */
 export const WithDetails: Story = {

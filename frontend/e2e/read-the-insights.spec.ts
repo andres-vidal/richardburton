@@ -12,7 +12,7 @@ import {
   uploadCsv,
 } from "./helpers";
 
-/** The value of one headline figure, found by its term. */
+/** Locates the value of one figure in "In figures" by its term. */
 function figure(page: Page, term: string) {
   return page
     .getByRole("region", { name: "In figures" })
@@ -23,7 +23,7 @@ function figure(page: Page, term: string) {
     .getByRole("definition");
 }
 
-/** The entries of one of the counted lists, found by its heading. */
+/** Locates the items of one list of counts by its heading. */
 function counted(page: Page, heading: string) {
   return page.getByRole("region", { name: heading }).getByRole("listitem");
 }
@@ -33,7 +33,7 @@ test("the insights count what the database holds, and a search carries between t
 }) => {
   await seedCorpus(page);
 
-  // Anybody may read them.
+  // The insights page does not require signing in.
   await signOut(page);
 
   await page.goto("/");
@@ -50,7 +50,7 @@ test("the insights count what the database holds, and a search carries between t
   await expect(figure(page, "Years")).toHaveText("1886–1986");
   await expect(figure(page, "Cite a source")).toHaveText("3 of 7");
 
-  // Every decade from the first to the last, the quiet ones included.
+  // Every decade from the first to the last, including those with none.
   await expect(counted(page, "Publications by decade")).toHaveText([
     "1880s1",
     "1890s0",
@@ -75,12 +75,12 @@ test("the insights count what the database holds, and a search carries between t
     "United Kingdom2",
   ]);
 
-  // No work in the corpus has been translated twice, so there is no list of them.
+  // No work in the corpus has two translations, so that list is left out.
   await expect(
     page.getByRole("region", { name: "Works translated more than once" }),
   ).toHaveCount(0);
 
-  // A search narrows what is counted.
+  // A search limits the counts to the publications it matches.
   const search = page.getByRole("textbox", { name: "Search publications" });
   await search.fill("Machado");
   await expect(page).toHaveURL(/\/insights\?search=Machado/);
@@ -92,7 +92,7 @@ test("the insights count what the database holds, and a search carries between t
     counted(page, "Translators with the most publications"),
   ).toHaveText(["Clotilde Wilson1", "Helen Caldwell1", "William Grossman1"]);
 
-  // The list reads the same search, and the insights read it back.
+  // The link to the list keeps the search, and so does the link back.
   await page.getByRole("link", { name: "Publications", exact: true }).click();
   await expect(page).toHaveURL(/\/en\?search=Machado/);
   await expectMatchCount(page, 3);
@@ -103,7 +103,7 @@ test("the insights count what the database holds, and a search carries between t
   await page.getByRole("link", { name: "Insights" }).click();
   await expect(figure(page, "Publications")).toHaveText("3");
 
-  // A search that matches nothing leaves nothing to count.
+  // A search that matches nothing shows a message instead of the figures.
   await search.fill("zzzznomatchqqq");
   await expectMatchCount(page, 0);
   await expect(
@@ -119,7 +119,7 @@ test("a work translated again is counted as a retranslation, not as another work
 }) => {
   await seedCorpus(page);
 
-  // John Gledson's Dom Casmurro, forty-four years after Helen Caldwell's.
+  // Adds John Gledson's Dom Casmurro. The corpus has Helen Caldwell's.
   await openDocument(page, "Retranslations");
   await uploadCsv(
     page,
@@ -139,7 +139,7 @@ test("a work translated again is counted as a retranslation, not as another work
     "Dom Casmurro · Machado de Assis2 translations",
   ]);
 
-  // The same, read in Portuguese.
+  // The same list on the Portuguese page.
   await page.goto("/pt/insights");
   await expect(
     page

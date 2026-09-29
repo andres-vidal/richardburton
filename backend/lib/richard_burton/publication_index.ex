@@ -193,11 +193,11 @@ defmodule RichardBurton.Publication.Index do
   def per_page, do: @per_page
 
   @doc """
-  A query for the publications a term matches, in no particular order, or for
-  every publication when the term is `nil`.
+  Returns a query for the publications a term matches, or for every publication
+  when the term is `nil`. The query has no ordering.
 
-  A term that matches nothing gives a query that returns no rows, so a caller
-  can count over the result without asking first whether there is one.
+  It always returns a query. When the term has nothing to search for, the query
+  returns no rows, so callers can count over it without a separate check.
   """
   def matching(nil), do: from(fp in FlatPublication)
 
@@ -217,10 +217,12 @@ defmodule RichardBurton.Publication.Index do
     end
   end
 
-  # The criteria a term is read into, or `:none` when it holds nothing to match.
+  # Parses a term into criteria. Returns `:none` when the term has nothing to
+  # search for, because it is blank or because none of its words matches a word
+  # in the index and it has no operator.
   #
-  # A term that quotes a phrase or excludes a word with `-` is saying exactly what
-  # it wants, so it is passed to Postgres as written and never widened.
+  # A term with quotes or a word excluded with `-`, and no operator, is passed
+  # to Postgres as written. Its words are not widened to similar words.
   defp criteria(term) do
     alternatives = Term.parse(term)
 
@@ -251,8 +253,8 @@ defmodule RichardBurton.Publication.Index do
     |> order_by(^[desc: Query.ranking(criteria), asc: :title, asc: :id])
   end
 
-  # The publications the criteria match, joined to the search document the
-  # criteria are tested against.
+  # A query for the publications the criteria match. Each publication is joined
+  # to its search document, which the criteria are tested against.
   defp matched(criteria) do
     from(p in FlatPublication,
       join: d in SearchDocument,

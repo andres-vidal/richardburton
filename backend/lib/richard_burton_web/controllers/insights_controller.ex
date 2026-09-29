@@ -1,10 +1,13 @@
 defmodule RichardBurtonWeb.InsightsController do
   @moduledoc """
-  The counts that describe the publications in the index, for all of them or
-  for the ones a search matches. See `RichardBurton.Publication.Insights`.
+  Returns the counts from `RichardBurton.Publication.Insights.describe/1` for
+  every publication in the index, or for the ones the `search` parameter
+  matches. The search is parsed the same way as an index search.
 
-  A search is read the way the index reads it, and the response says how it was
-  read under `matched`, as the index's first page does.
+  The response also has a `matched` key. With a search, it holds
+  `Publication.Index.Excerpt.resolution/1` for the search: the words the search
+  matched with something other than what was typed. Without a search, it is
+  `nil`.
   """
 
   use RichardBurtonWeb, :controller
