@@ -6,124 +6,123 @@ import * as VocabularyListStories from "./VocabularyList.stories";
 
 # Names
 
-The translators, original authors and publishers that publications are built
-from, on [the names page](/admin/vocabulary).
+Lists the translators, original authors and publishers that publications are
+built from, and renames them. It is the body of
+[the names page](/admin/vocabulary).
 
-These are typed in, one publication at a time, so they drift: "Penguin books"
-beside "Penguin Books", "Alfred A.Knopf" beside "Alfred A. Knopf". A name is
-not a label on a publication but a record shared by every publication that
-credits it, so a second spelling is a second record, and everything counted or
-searched by name splits along it.
+Names are typed in by hand, one publication at a time, so the same name can be
+stored under two spellings, such as "Penguin books" and "Penguin Books", or
+"Alfred A.Knopf" and "Alfred A. Knopf". Each name is a record shared by every
+publication that credits it. A second spelling is a second record, so counts
+and searches by name treat the two spellings as different names.
 
-## One verb
+## Renaming
 
-Renaming is the only thing this screen does. Renaming to a name nothing else
-holds corrects a spelling; renaming to a name already taken folds the two
-together, moving every publication onto the survivor and deleting the other.
-The second is destructive, so it is confirmed before it happens.
+Renaming is the only action on this page. Renaming to a name that no other
+record has corrects a spelling. Renaming to a name that is already taken folds
+the two together: every publication moves to the name that was already there,
+and the renamed record is deleted. A fold cannot be undone, so the page asks
+for confirmation first.
 
-There is no separate merge, because both are the same gesture: somebody who has
-decided two names are one thing says so by writing the name they should share.
-Nothing distinguishes the two acts in advance either — whether a correction
-lands on a free name or an occupied one is only known once it is typed.
+There is no separate merge action. Whether a rename is a correction or a fold
+depends only on whether the typed name is already taken.
 
-Each row carries how many publications rest on it, which is what separates a
-name worth keeping from the stray beside it. A name nothing is on reads
-"unused" rather than "0 publications".
+Each row shows how many publications credit the name, which helps decide which
+spelling to keep. A name with no publications shows "unused" instead of
+"0 publications".
 
 <Canvas of={VocabularyListStories.Default} />
 
-Translators and original authors share one list, because they share one table:
-a person who translated one book and wrote another is one name, and appears
-once, counted across both.
+Translators and original authors share one list, because the database stores
+both in one table. A person who translated one book and wrote another is one
+name, listed once, and the count includes both kinds of publication.
 
 <Canvas of={VocabularyListStories.Authors} />
 
-## Finding the spellings
+## Filtering
 
-The list is sorted by name, which puts most near-duplicates next to each other
-but not all — a typo early in a name sorts far from what it meant. The filter
-matches anywhere in a name, so a fragment brings the spellings together.
+The list is sorted by name, so most spellings of one name are next to each
+other. A typo near the start of a name sorts it away from the correct spelling.
+The filter matches text anywhere in a name, ignoring case, so typing part of a
+name lists its spellings together.
 
 <Canvas of={VocabularyListStories.FindingSpellings} />
 
 ## Which names may be duplicates
 
-Sorting and filtering both need somebody to suspect a pair first. The list also
-says which names it finds near each other, so the pairs come to the reader
-rather than the reader hunting for them.
+The server returns, for each name, the other names in the list that it
+resembles. The page marks those names with an amber border, and a toggle above
+the list shows only the marked names.
 
-Nearness is trigram similarity over the unaccented names, above a threshold
-chosen against the database rather than in the abstract. Houses that merely
-share a word sit around 0.6 — "Duke University Press" against "Texas University
-Press" — while genuine misspellings sit above 0.7 once accents are out of the
-way. Unaccenting matters because an accent is one of the ways a name gets
-entered twice: "Adelia Prado" beside "Adélia Prado" is one person, and on the
-raw strings that pair scores lower than two unrelated presses do.
+Two names resemble each other when their trigram similarity, with accents
+removed, is above 0.7. The threshold comes from measuring names in the
+database. Publishers that only share a word, such as "Duke University Press"
+and "Texas University Press", score about 0.6. Misspellings score above 0.7.
+Accents are removed because the same name is often entered with and without
+them. "Adelia Prado" and "Adélia Prado" are one person, but on the raw strings
+they score lower than two unrelated publishers.
 
-A marked name carries the ones it resembles, each with how many publications
-already use it, so the established spelling is visible rather than guessed at.
+Under a marked name, the list shows the names it resembles, each with its
+publication count, so the more common spelling is easy to see.
 
 <Canvas of={VocabularyListStories.NamesThatMayBeDuplicates} />
 
-Taking one writes it into the field and leaves the cursor there. It does not
-rename on the spot: folding two names cannot be undone, so the last press stays
-the reader's.
+Clicking one of those names writes it into the field and focuses the field. It
+does not rename anything. The rename is sent only when the reader commits the
+field, because a fold cannot be undone.
 
 <Canvas of={VocabularyListStories.OfferingTheOtherSpelling} />
 
 ## Editing in place
 
-The field is the whole interface. It commits on Enter or on leaving the field,
-and Escape puts the original name back.
+Each name is a text field. The rename is sent when the reader presses Enter or
+leaves the field, unless the value is blank or unchanged. Escape puts the
+stored name back.
 
 <Canvas of={VocabularyListStories.RenamingCommitsOnEnter} />
 
 <Canvas of={VocabularyListStories.EscapeReverts} />
 
-## A fold is asked about first
+## Confirming a fold
 
-The two halves of the one verb are not equally undoable. Correcting a spelling
-onto a free name is undone by renaming back. Folding destroys a record and
-moves everything that was on it, and there is no undo for that at all.
+A correction onto a free name can be undone by renaming back. A fold deletes a
+record and moves its publications to the other name, and it cannot be undone.
 
-So a rename onto a taken name is refused until it has been asked for: the
-server writes nothing, says who holds the name and how many publications are on
-them, and the page puts that to the reader. Confirming sends the same rename
-again, this time saying the fold is what was wanted.
+The server refuses a rename onto a taken name unless the request says to fold.
+It writes nothing and returns the name that already has it, with its
+publication count. The page shows these in a confirmation dialog. Confirming
+sends the same rename again with `fold` set.
 
-The guard is on the server rather than here, because only the database knows
-whether a name is still free at the moment it is written — the page could
-decide from a list it read a minute ago and be wrong.
+The server makes this check, rather than the page, because the page's list can
+be out of date. Someone may have renamed a name since the list was loaded.
 
 <Canvas of={VocabularyListStories.AskingBeforeFolding} />
 
-Backing out leaves the name alone and puts the field back to what it is stored
-under, so a mistyped correction costs nothing.
+Cancelling leaves the name unchanged and resets the field to the stored name.
 
 <Canvas of={VocabularyListStories.BackingOutOfAFold} />
 
 <Canvas of={VocabularyListStories.ConfirmingTheFold} />
 
-## When the rename would uncover a duplicate
+## Renames that would duplicate a publication
 
-Correcting a spelling can give two publications the same identity — the
-duplicate the misspelling was hiding. A publication's identity is its title,
-year, countries and the fingerprints of its publishers and translated book, and
-those fingerprints are built from the names, so a rename rewrites them.
+A publication's identity is its title, year, countries and the fingerprints of
+its publishers and translated book. The fingerprints are built from names, so a
+rename recomputes them. If the same publication was entered twice under two
+spellings of a name, correcting the spelling would give both copies the same
+identity.
 
-The composite key is a unique index, so there is no version of this that
-quietly succeeds. The rename is refused whole, and the publications that
-clashed are named: merging them is a separate decision, with its own survivor
-to choose and its own undo, and making it silently inside a spelling correction
-would be a fold nobody asked for. [Review duplicates](/admin/publications/duplicates)
-is where it belongs.
+The identity is a unique index, so the server refuses the whole rename and
+returns the two publications, which the page lists in an alert. The rename does
+not merge them. Merging publications is a separate action, in which the reader
+picks the publication to keep, and it can be undone. It is done on
+[Review duplicates](/admin/publications/duplicates).
 
 <Canvas of={VocabularyListStories.WhenTwoPublicationsWouldCollide} />
 
-## Nothing matched
+## No matches
 
-Distinct from there being no names at all, which the same screen says
-differently.
+When the filter matches no name, the list shows "No names match." The page
+shows the same message when there are no names of the kind at all.
 
 <Canvas of={VocabularyListStories.NothingMatches} />

@@ -4,9 +4,8 @@ import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
 import VocabularyList from "./VocabularyList";
 
-// Publishers as they are actually typed: one house under two spellings, which
-// point at each other, one that nothing is on any more, and one that the rest
-// of the list is nothing like.
+// Four publishers: two spellings of Alfred A. Knopf that resemble each other,
+// Noonday Press, and Peter Owen, which has no publications.
 const PUBLISHERS: Name[] = [
   { id: 1, name: "Alfred A. Knopf", publications: 21, resembles: [2] },
   { id: 2, name: "Alfred A.Knopf", publications: 2, resembles: [1] },
@@ -35,24 +34,24 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Every publisher, each saying how much of the database rests on it. */
+/** Every publisher, each with its publication count. */
 export const Default: Story = {
   play: async () => {
     const field = await screen.findByLabelText(
       "Name, currently Alfred A. Knopf",
     );
 
-    // Scoped to the row: the count also appears on the row that offers this
-    // name as a correction.
+    // Searches only this row, because the count also appears on the other
+    // Knopf row, in the button that offers this name.
     const row = within(field.closest("li") as HTMLElement);
     await expect(row.getByText("21 publications")).toBeInTheDocument();
 
-    // A name nothing is on reads as "unused" rather than "0 publications".
+    // A name with no publications shows "unused" instead of "0 publications".
     await expect(screen.getByText("unused")).toBeInTheDocument();
   },
 };
 
-/** The other kind, behind the same one verb. */
+/** Switching to translators and original authors lists that kind instead. */
 export const Authors: Story = {
   play: async () => {
     await userEvent.click(
@@ -69,8 +68,8 @@ export const Authors: Story = {
 };
 
 /**
- * Filtering is how two spellings of one house are brought together, since the
- * list is sorted by name and a typo can sort far from what it meant.
+ * Typing part of a name in the filter lists both spellings of Alfred A. Knopf
+ * together.
  */
 export const FindingSpellings: Story = {
   play: async () => {
@@ -82,7 +81,7 @@ export const FindingSpellings: Story = {
   },
 };
 
-/** Writing a name over another is the whole gesture — there is nothing to press. */
+/** Typing a new name and pressing Enter sends the rename. */
 export const RenamingCommitsOnEnter: Story = {
   play: async ({ args }) => {
     const field = await screen.findByLabelText(
@@ -103,7 +102,7 @@ export const RenamingCommitsOnEnter: Story = {
   },
 };
 
-/** Escape puts the name back, so a half-typed correction costs nothing. */
+/** Escape puts the stored name back in the field and sends nothing. */
 export const EscapeReverts: Story = {
   play: async ({ args }) => {
     const field = await screen.findByLabelText("Name, currently Noonday Press");
@@ -117,9 +116,8 @@ export const EscapeReverts: Story = {
 };
 
 /**
- * The refusal, when correcting the spelling would leave two publications
- * holding one identity. It names them, because which ones they are is the
- * whole of what has to be decided next.
+ * The server refuses a rename that would give two publications the same
+ * identity, and the alert lists both publications.
  */
 export const WhenTwoPublicationsWouldCollide: Story = {
   args: {
@@ -147,8 +145,8 @@ export const WhenTwoPublicationsWouldCollide: Story = {
 };
 
 /**
- * A name the rest of the list is close to is marked, and carries the others so
- * the spellings can be compared without hunting for them.
+ * A name that resembles another is marked and lists the names it resembles.
+ * The toggle shows only the marked names.
  */
 export const NamesThatMayBeDuplicates: Story = {
   play: async () => {
@@ -169,8 +167,8 @@ export const NamesThatMayBeDuplicates: Story = {
 };
 
 /**
- * Taking the other spelling writes it into the field rather than renaming there
- * and then: a fold cannot be undone, so the last press stays the person's.
+ * Clicking a resembling name writes it into the field without renaming. The
+ * person still has to commit the field, because a fold cannot be undone.
  */
 export const OfferingTheOtherSpelling: Story = {
   play: async ({ args }) => {
@@ -184,21 +182,24 @@ export const OfferingTheOtherSpelling: Story = {
       screen.getByLabelText("Name, currently Alfred A.Knopf"),
     ).toHaveValue("Alfred A. Knopf");
 
-    // Written, not sent.
+    // The field changed, but no rename was sent.
     await expect(args.write).not.toHaveBeenCalled();
   },
 };
 
-/** The server answering the way it does when the name is already taken. */
+/**
+ * A `write` that answers like the server does when the new name is taken:
+ * `{ folds }` without `fold`, and `merged` with it.
+ */
 const asksFirst = () =>
   fn<typeof rename>(async (_kind, _id, _name, fold) =>
     fold ? { outcome: "merged" } : { folds: PUBLISHERS[0] },
   );
 
 /**
- * Writing a name another holds is a fold, and a fold is asked about before it
- * happens. Correcting a spelling onto a free name still needs no permission —
- * that one is undone by renaming back.
+ * Renaming onto a taken name opens a confirmation dialog before anything is
+ * folded. A rename onto a free name does not ask, because renaming back undoes
+ * it.
  */
 export const AskingBeforeFolding: Story = {
   args: { write: asksFirst() },
@@ -214,17 +215,17 @@ export const AskingBeforeFolding: Story = {
       name: "Fold these two together?",
     });
 
-    // Says what goes, what it joins, and what each is carrying.
+    // The dialog names both records, each with its publication count.
     await expect(dialog).toHaveTextContent("Alfred A.Knopf (2 publications)");
     await expect(dialog).toHaveTextContent("Alfred A. Knopf (21 publications)");
     await expect(dialog).toHaveTextContent("There is no undo for this.");
 
-    // Asked, not done.
+    // Only the first, unconfirmed request was sent.
     await expect(args.write).toHaveBeenCalledTimes(1);
   },
 };
 
-/** Backing out leaves the name as it was, and the field showing it. */
+/** Cancelling leaves the name unchanged and resets the field to it. */
 export const BackingOutOfAFold: Story = {
   args: { write: asksFirst() },
   play: async ({ args }) => {
@@ -249,7 +250,7 @@ export const BackingOutOfAFold: Story = {
   },
 };
 
-/** Confirming asks again, this time saying the fold is what was wanted. */
+/** Confirming sends the rename again with `fold` set to true. */
 export const ConfirmingTheFold: Story = {
   args: { write: asksFirst() },
   play: async ({ args }) => {
@@ -279,7 +280,7 @@ export const ConfirmingTheFold: Story = {
   },
 };
 
-/** Nothing matched what was typed, which is different from nothing existing. */
+/** When the filter matches no name, the list says so. */
 export const NothingMatches: Story = {
   play: async () => {
     await userEvent.type(await screen.findByLabelText("Find"), "Hogarth");

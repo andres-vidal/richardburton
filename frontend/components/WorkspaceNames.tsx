@@ -14,20 +14,25 @@ import { Modal, useModal } from "./Modal";
 
 const KINDS: NameKind[] = ["authors", "publishers"];
 
-/** How long the batch must sit still before it is asked about. */
+/**
+ * How long, in milliseconds, the names must stay unchanged before they are
+ * sent to `ask`.
+ */
 const SETTLE = 500;
 
-/** What the vocabulary said about each name, or nothing while it is being asked. */
+/**
+ * The answers from `ask`, by kind. The component holds null until the first
+ * answers arrive.
+ */
 type Answers = Record<NameKind, Resemblance[]>;
 
 /**
- * One name of the batch, against what the database already holds.
- *
- * `held` and `resembles` come from the server; the rows are this workspace's.
+ * One name of the batch, with the rows that carry it and the server's answer
+ * for it. Until the answer arrives, `held` is false and `resembles` is empty.
  */
 type Entry = BatchName & Resemblance;
 
-/** A name that is not here but is close to something that is. */
+/** True when the database lacks the name but has a name that resembles it. */
 const isDoubtful = (entry: Entry) => !entry.held && entry.resembles.length > 0;
 
 const Name: FC<{
@@ -79,21 +84,20 @@ const Name: FC<{
 };
 
 /**
- * The translators, authors and publishers a batch would enter, and which of
- * them look like misspellings of names the database already holds.
+ * A footer button and dialog that list the translators, authors and publishers
+ * the batch would enter, and mark the ones that may be misspellings of names
+ * the database already has.
  *
- * A name entered a second way is a second record, and every publication filed
- * under it sits apart from its fellows. Catching that here is cheaper than
- * catching it afterwards: before the insert it is a field to correct, after it
- * a fold to perform.
+ * A second spelling of a name creates a second record. Correcting it in the
+ * batch is simpler than folding the two records after the insert.
  *
- * The batch is asked about once it has been still for half a second, so typing
- * a name does not ask about every prefix of it.
+ * The names are sent to `ask` once they have stayed unchanged for half a
+ * second, so typing a name does not send every prefix of it.
  */
 const WorkspaceNames: FC<{
-  /** How the batch's names are asked about. Defaults to asking the server. */
+  /** Checks names against the database. Defaults to `resemblances`. */
   ask?: typeof resemblances;
-  /** How corrected rows are checked again. Defaults to asking the server. */
+  /** Validates the corrected rows again. Defaults to `validate`. */
   recheck?: typeof validate;
 }> = ({ ask = resemblances, recheck = validate }) => {
   const t = useTranslations("workspaceNames");
@@ -103,9 +107,9 @@ const WorkspaceNames: FC<{
 
   const [answers, setAnswers] = useState<Answers | null>(null);
 
-  // The names themselves, so a change to a row that leaves them alone — a year,
-  // a title — does not ask again. The batch is rebuilt on every edit and only
-  // its contents mean anything, so this string is what is watched.
+  // The batch's names as a string, used as the effect's dependency. `batch` is
+  // a new object after every edit, but this string changes only when a name
+  // changes, so editing a year or a title does not send the names again.
   const asked = JSON.stringify(
     KINDS.map((kind) => batch[kind].map((one) => one.name)),
   );
@@ -117,9 +121,9 @@ const WorkspaceNames: FC<{
 
     let current = true;
     const timer = setTimeout(async () => {
-      // Read from the store rather than closed over: the names are rebuilt on
-      // every edit, and a value that changes on every edit cannot be what an
-      // effect depends on without asking on every edit too.
+      // Reads the names from the store instead of using `batch`. `batch` is a
+      // new object after every edit, so depending on it would rerun the effect
+      // after every edit.
       const asking = store.get(batchNamesAtom);
 
       const [authors, publishers] = await Promise.all(

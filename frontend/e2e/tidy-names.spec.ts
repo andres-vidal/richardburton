@@ -8,14 +8,20 @@ import {
 } from "./helpers";
 import type { Page } from "@playwright/test";
 
-/** The names themselves, scoped past the breadcrumb, which is a list too. */
+/**
+ * The items of the publishers list. The list is found by name because the
+ * breadcrumb is also a list.
+ */
 const names = (page: Page) =>
   page.getByRole("list", { name: "Publishers" }).getByRole("listitem");
 
-/** What the page said, scoped past Next's route announcer, also an alert. */
+/**
+ * The alert inside the page's main element. It is scoped to main because
+ * Next's route announcer is also an alert.
+ */
 const alert = (page: Page) => page.getByRole("main").getByRole("alert");
 
-/** Say yes to the fold the page asks about before performing it. */
+/** Confirms the fold in the confirmation dialog. */
 async function agreeToFold(page: Page) {
   const asking = page.getByRole("dialog", { name: "Fold these two together?" });
   await expect(asking).toBeVisible();
@@ -34,14 +40,14 @@ test("an admin folds two spellings of a publisher into one", async ({
 
   await page.getByLabel("Find").fill("Noonday");
 
-  // Three of the corpus are on it.
+  // Three publications in the corpus credit Noonday Press.
   const noonday = page.getByLabel("Name, currently Noonday Press", {
     exact: true,
   });
   await expect(noonday).toBeVisible();
   await expect(names(page).first()).toContainText("3 publications");
 
-  // Correcting a spelling: the name changes, nothing is folded.
+  // Renaming to a free name changes the name without a fold.
   await noonday.fill("Noonday");
   await noonday.press("Enter");
 
@@ -56,7 +62,7 @@ test("renaming onto a name already taken folds the two together", async ({
 }) => {
   await signInAsAdmin(page);
 
-  // Two publications, one publisher each, spelled two ways.
+  // Two publications, each with a different spelling of the same publisher.
   await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "spellings.csv",
@@ -83,7 +89,7 @@ test("renaming onto a name already taken folds the two together", async ({
   await page.goto("/admin/vocabulary");
   await page.getByLabel("Find").fill("Penguin");
 
-  // Two spellings, one publication each.
+  // Two spellings, with one publication each.
   await expect(names(page)).toHaveCount(2);
 
   const stray = page.getByLabel("Name, currently Penguin books", {
@@ -92,14 +98,14 @@ test("renaming onto a name already taken folds the two together", async ({
   await stray.fill("Penguin Books");
   await stray.press("Enter");
 
-  // The fold is not done until it is asked for.
+  // The fold happens only after it is confirmed.
   await agreeToFold(page);
 
   await expect(
     page.getByText("Penguin books folded into Penguin Books"),
   ).toBeVisible();
 
-  // One left, carrying both.
+  // One name is left, with both publications.
   await expect(names(page)).toHaveCount(1);
   await expect(names(page)).toContainText("2 publications");
 });
@@ -136,7 +142,8 @@ test("a fold can be called off, and nothing moves", async ({ page }) => {
   await stray.fill("Penguin Books");
   await stray.press("Enter");
 
-  // It says what would go, what it would join, and that there is no undo.
+  // The dialog names the name to be deleted and the name it joins, and says
+  // there is no undo.
   const asking = page.getByRole("dialog", { name: "Fold these two together?" });
   await expect(asking).toContainText("Penguin books (1 publication)");
   await expect(asking).toContainText("Penguin Books (1 publication)");
@@ -144,7 +151,7 @@ test("a fold can be called off, and nothing moves", async ({ page }) => {
 
   await asking.getByRole("button", { name: "Cancel" }).click();
 
-  // Both spellings still stand, and the field shows the one it is stored under.
+  // Both spellings remain, and the field shows the stored name.
   await expect(names(page)).toHaveCount(2);
   await expect(stray).toHaveValue("Penguin books");
 });
@@ -154,7 +161,8 @@ test("a rename that would leave two publications identical is refused", async ({
 }) => {
   await signInAsAdmin(page);
 
-  // The same publication twice, told apart only by how the publisher is spelt.
+  // The same publication twice, differing only in the spelling of the
+  // publisher.
   await openDocument(page);
   await page.locator("#upload-csv").setInputFiles({
     name: "hidden.csv",
@@ -185,14 +193,14 @@ test("a rename that would leave two publications identical is refused", async ({
   await stray.press("Enter");
   await agreeToFold(page);
 
-  // The database will not hold two records with one identity, so this says so
-  // and names them rather than folding anything quietly.
+  // The rename would give two publications the same identity, so it is refused
+  // and the alert lists the two publications.
   await expect(alert(page)).toContainText(
     "That would leave two publications identical",
   );
   await expect(alert(page)).toContainText("Dom Casmurro");
 
-  // And nothing moved.
+  // The misspelt name is unchanged.
   await expect(
     page.getByLabel("Name, currently Penguin books", { exact: true }),
   ).toBeVisible();
