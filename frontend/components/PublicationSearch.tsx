@@ -79,8 +79,9 @@ const SearchProgress: FC = () => {
 
 type Props = {
   /**
-   * How the search in the address was read. When absent, it is read from the
-   * publication store, where the index keeps it.
+   * The words the search in the URL matched with something other than what was
+   * typed. When it is not given, the component reads them from the publication
+   * store, where the index page keeps them.
    */
   matched?: Matched[];
 };

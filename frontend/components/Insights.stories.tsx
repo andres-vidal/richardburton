@@ -16,8 +16,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Everything the database holds, counted: the figures, the decades, the names
- * that recur most, and the works translated more than once.
+ * Counts for the whole database: the figures, the decades, the names with the
+ * most publications, the countries, and the works translated more than once.
  */
 export const Everything: Story = {
   play: async ({ canvasElement }) => {
@@ -34,7 +34,7 @@ export const Everything: Story = {
       await expect(canvas.getByRole("region", { name })).toBeInTheDocument();
     }
 
-    // Countries are stored by code and read by name.
+    // The response has country codes, and the list shows country names.
     await expect(
       within(
         canvas.getByRole("region", { name: "Countries of publication" }),
@@ -43,7 +43,7 @@ export const Everything: Story = {
   },
 };
 
-/** A set of publications with no work translated twice leaves that list out. */
+/** When no work has more than one translation, that list is left out. */
 export const NoWorkTranslatedTwice: Story = {
   args: { insights: { ...INSIGHTS, retranslated: [] } },
   play: async ({ canvasElement }) => {
@@ -55,7 +55,7 @@ export const NoWorkTranslatedTwice: Story = {
   },
 };
 
-/** A search that matched nothing has nothing to count, and says so. */
+/** When a search matches nothing, a message replaces the figures and lists. */
 export const NothingMatched: Story = {
   args: { insights: NOTHING },
   parameters: { nextjs: { navigation: { query: { search: "zzyzx" } } } },
@@ -72,8 +72,8 @@ export const NothingMatched: Story = {
 };
 
 /**
- * What heads the page: how many publications are counted, the two views, and
- * the search that narrows them, with how the search was read.
+ * The page's subheader: the number of publications counted, the links to the
+ * two views, and the search box with its report of the words it matched.
  */
 export const Heading: Story = {
   args: {

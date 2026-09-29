@@ -6,31 +6,33 @@ import * as DatabaseSummaryStories from "./DatabaseSummary.stories";
 
 # Database summary
 
-The line that heads the database: how many publications it holds or a search
-found, and links to the two ways of reading them. The list shows the
-publications themselves, and the insights count what they hold.
+The line at the top of the database pages. It shows how many publications there
+are, or how many a search found, and links to the two views of the database.
+The list view shows the publications, and the insights view shows counts about
+them.
 
 <Canvas of={DatabaseSummaryStories.OverTheList} />
 
 ## Props
 
-- `summary` — the count in words, written by the page, since the index and the
-  insights count in the same words but from different places.
-- `view` — the view this summary heads, `list` or `insights`. Its link is marked
-  as the current page.
+- `summary` — the count as text. The page passes it in, because the list and
+  the insights page get their counts from different data.
+- `view` — the current view, `list` or `insights`. Its link is marked as the
+  current page.
 
 <Canvas of={DatabaseSummaryStories.OverTheInsights} />
 
-## Keeping the search
+## The search in the links
 
-Both links carry the `search` in the address. Changing views goes on reading
-the same publications, so a search for one author opens the insights into that
-author, and back.
+Both links keep the `search` query parameter from the current URL. Switching
+views keeps the same search, so a search for one author in the list opens the
+insights for that author, and the other way round.
 
 <Canvas of={DatabaseSummaryStories.WhileSearching} />
 
 ## Accessibility
 
-- The links are a `nav` named "Ways of reading the database", so the pair is a
-  landmark of its own rather than two stray links.
-- The current view carries `aria-current="page"`, which is also what styles it.
+- The links are in a `nav` labelled "Ways of reading the database", which makes
+  them a landmark.
+- The current view's link has `aria-current="page"`. The same attribute sets its
+  highlighted style.

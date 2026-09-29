@@ -14,7 +14,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Heading the list: the list is the current view, and the insights are a link away. */
+/** Above the list: the list is the current view, and the insights are a link. */
 export const OverTheList: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -28,7 +28,7 @@ export const OverTheList: Story = {
   },
 };
 
-/** Heading the insights, the same links with the other one current. */
+/** Above the insights: the same links, with the insights as the current view. */
 export const OverTheInsights: Story = {
   args: { view: "insights" },
   play: async ({ canvasElement }) => {
@@ -38,7 +38,7 @@ export const OverTheInsights: Story = {
   },
 };
 
-/** With a search in the address, both links keep it. */
+/** With a search in the URL, both links keep it. */
 export const WhileSearching: Story = {
   args: { summary: "35 publications found" },
   parameters: { nextjs: { navigation: { query: { search: "clarice" } } } },

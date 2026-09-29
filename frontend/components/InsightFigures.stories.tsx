@@ -15,7 +15,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Each figure is read as its term and then its value. */
+/** Every figure, each with its term before its value in the markup. */
 export const Figures: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -45,7 +45,7 @@ export const Figures: Story = {
   },
 };
 
-/** With nothing counted there are no years to span, and the span says so. */
+/** With no publications there are no years, so the Years figure is a dash. */
 export const NothingCounted: Story = {
   args: { insights: NOTHING },
   play: async ({ canvasElement }) => {

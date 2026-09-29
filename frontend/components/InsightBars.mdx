@@ -6,34 +6,35 @@ import * as InsightBarsStories from "./InsightBars.stories";
 
 # Insight bars
 
-A titled list of counts, each drawn as a bar whose length is its share of the
-largest count in the list. The insights page draws every one of its lists this
-way: decades, names, countries and works.
+A titled list of counts. Each item has a bar, and the bar's length is the
+item's count as a fraction of the largest count in the list. The insights page
+uses it for all of its lists: decades, names, countries and works.
 
 <Canvas of={InsightBarsStories.Names} />
 
 ## Props
 
-- `title` — what the list counts. It names the section the list is in.
-- `bars` — the counted things, in the order to list them. Each has a `key`, a
-  `label`, an optional `detail` read after the label, the `count` its bar is
-  measured by, and a `value`, which is the count written out.
+- `title` — the heading of the list. It is also the accessible name of the
+  section around the list.
+- `bars` — the items, in the order they are listed. Each has a `key`, a
+  `label`, an optional `detail` shown after the label, the `count` that sets
+  the bar's length, and a `value`, which is the count as text.
 
-The caller writes each `value`, because what is counted differs from one list
-to the next: publications in most, translations in the works translated more
-than once.
+The caller formats each `value`, because the unit differs between lists. Most
+lists count publications, and the list of works translated more than once
+counts translations.
 
 <Canvas of={InsightBarsStories.WithDetails} />
 
-## Counting nothing
+## Items with a count of 0
 
-A count of nothing is listed with an empty bar rather than left out. In a run of
-decades, a decade with no publications is part of the story.
+An item with a count of 0 is listed with an empty bar. It is not left out, so a
+decade with no publications still appears in the list of decades.
 
 <Canvas of={InsightBarsStories.WithNothingCounted} />
 
 ## Accessibility
 
-- The list is an ordered list in a section named by its title.
-- The bars are hidden from assistive technology, which reads the label and the
+- The list is an `ol` inside a `section` labelled by the title.
+- The bars have `aria-hidden`. Assistive technology reads the label and the
   value instead.

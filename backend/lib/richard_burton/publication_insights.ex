@@ -1,22 +1,24 @@
 defmodule RichardBurton.Publication.Insights do
   @moduledoc """
-  Counts that describe the publications in the index, either all of them or the
-  ones a search matches.
+  Counts the publications in the index, and the distinct works and names in
+  them. `describe/1` counts either every publication or the ones a search
+  matches.
 
-  Every count is taken over the rows the index lists, so the insights and the
-  index agree on how many publications there are. Both lag behind a write by the
-  same amount, until the index is refreshed.
+  The counts are read from `flat_publications`, the same rows the index lists,
+  so they agree with the index. A write is included in both only after
+  `RichardBurton.Publication.Index.Refresher` refreshes the index.
 
   Terms used here:
 
-    * **work** — an original book, named by its title and its authors. A
-      publication is a translation of one work.
-    * **translation** — one rendering of a work, named by the work and the
-      people who translated it. Several publications of a translation are the
-      same text published again, by another publisher or in another country.
-    * **retranslated** — a work that has more than one translation.
-    * **leading** — the names that account for the most publications in one
-      field, at most ten of them. Names with the same count are listed
+    * **work** — an original book, identified by its original title and
+      original authors.
+    * **translation** — one translated text of a work, identified by the work
+      and its translators. Each publication belongs to one translation. A
+      translation has several publications when the same text is published
+      again, in another year, by another publisher or in another country.
+    * **retranslated** — describes a work that has more than one translation.
+    * **leading** — the names in one field that appear in the most
+      publications, at most ten. Names with the same count are sorted
       alphabetically.
   """
 
@@ -25,11 +27,11 @@ defmodule RichardBurton.Publication.Insights do
   alias RichardBurton.Publication.Index
   alias RichardBurton.Repo
 
-  # How many names a leading list holds.
+  # The maximum number of entries in a leading list, and in `retranslated`.
   @leading 10
 
-  # The fields that hold names, as the flat publication spells them, and as the
-  # description spells them.
+  # The fields that hold names. Each key is the key used in the map `describe/1`
+  # returns, and each value is the `FlatPublication` field it is read from.
   @names [
     original_authors: :original_authors,
     translators: :authors,
@@ -37,25 +39,25 @@ defmodule RichardBurton.Publication.Insights do
   ]
 
   @doc """
-  Describes the publications a term matches, or every publication when the term
-  is `nil`.
+  Returns a map of counts for the publications a term matches, or for every
+  publication when the term is `nil`.
 
-  The description holds:
+  The map has these keys:
 
-    * `publications` — how many publications there are.
+    * `publications` — the number of publications.
     * `years` — the first and the last year of publication, or `nil` when there
       are no publications.
-    * `decades` — how many publications appeared in each decade, from the first
-      decade to the last, a decade with none included.
-    * `totals` — how many distinct works, original authors, translators,
-      publishers and countries the publications name.
+    * `decades` — the number of publications in each decade, from the first
+      decade to the last. Decades with no publications are included.
+    * `totals` — the number of distinct works, original authors, translators,
+      publishers and countries in the publications.
     * `original_authors`, `translators`, `publishers` — the leading names in
-      each field, each with its count of publications.
-    * `countries` — every country of publication by its code, with its count of
-      publications, most first.
-    * `retranslated` — the leading retranslated works, each with how many
-      translations and publications it has.
-    * `sourced` — how many publications cite at least one source.
+      each field, each with its number of publications.
+    * `countries` — every country of publication by its code, each with its
+      number of publications, highest first.
+    * `retranslated` — up to ten retranslated works, those with the most
+      translations, each with its number of translations and publications.
+    * `sourced` — the number of publications that cite at least one source.
   """
   def describe(term \\ nil) do
     base = Index.matching(term)
@@ -75,7 +77,7 @@ defmodule RichardBurton.Publication.Insights do
     }
   end
 
-  # The first and last year of publication, or nil when there are no
+  # Returns the first and last year of publication, or nil when there are no
   # publications.
   defp years(base) do
     case base |> select([fp], {min(fp.year), max(fp.year)}) |> Repo.one() do
@@ -84,8 +86,9 @@ defmodule RichardBurton.Publication.Insights do
     end
   end
 
-  # Publications per decade, from the first decade to the last. A decade is
-  # named by its first year.
+  # Counts the publications in each decade from the first to the last, with a
+  # count of 0 for a decade that has none. A decade is named by its first year.
+  # Returns an empty list when there are no years.
   defp decades(_base, nil), do: []
 
   defp decades(base, %{first: first, last: last}) do
@@ -101,11 +104,11 @@ defmodule RichardBurton.Publication.Insights do
     end
   end
 
-  # The decade a year falls in, named by its first year.
+  # Returns the first year of the decade a year falls in.
   defp decade(year), do: div(year, 10) * 10
 
-  # How many distinct works, and distinct names in each field, the publications
-  # hold.
+  # Counts the distinct works, and the distinct names in each field of `@names`
+  # and in `countries`.
   defp totals(base) do
     works =
       base
@@ -122,7 +125,8 @@ defmodule RichardBurton.Publication.Insights do
     Map.put(names, :works, works)
   end
 
-  # The leading names in one field, with how many publications name each.
+  # Returns the leading names in one field, each with its number of
+  # publications.
   defp leading(base, field) do
     base
     |> counted(field)
@@ -130,7 +134,8 @@ defmodule RichardBurton.Publication.Insights do
     |> Repo.all()
   end
 
-  # Every country of publication, with how many publications name each.
+  # Returns every country code in the publications, each with its number of
+  # publications.
   defp countries(base) do
     base
     |> counted(:countries)
@@ -138,8 +143,8 @@ defmodule RichardBurton.Publication.Insights do
     |> Enum.map(fn %{name: code, count: count} -> %{code: code, count: count} end)
   end
 
-  # Each name in one field, with how many publications name it, most first and
-  # then alphabetically.
+  # A query for each name in one field with its number of publications, sorted
+  # by that number, highest first, and then by name.
   defp counted(base, field) do
     base
     |> names(field)
@@ -149,15 +154,17 @@ defmodule RichardBurton.Publication.Insights do
     |> order_by([n], desc: count(), asc: n.name)
   end
 
-  # One row per name per publication, for a field that holds several names.
+  # A query that returns one row for each name in each publication, by
+  # unnesting an array field.
   defp names(base, field) do
     base
     |> exclude(:select)
     |> select([fp], %{name: fragment("unnest(?)", field(fp, ^field))})
   end
 
-  # The leading works that have more than one translation, with how many
-  # translations and publications each has.
+  # Returns the works that have more than one translation, each with its number
+  # of translations and publications. It returns at most ten, sorted by
+  # translations, then publications, then title.
   defp retranslated(base) do
     base
     |> group_by([fp], [fp.original_title, fp.original_authors])
@@ -177,7 +184,7 @@ defmodule RichardBurton.Publication.Insights do
     |> Repo.all()
   end
 
-  # How many publications cite at least one source.
+  # Counts the publications that cite at least one source.
   defp sourced(base) do
     base
     |> where([fp], fragment("cardinality(?) > 0", fp.sources))

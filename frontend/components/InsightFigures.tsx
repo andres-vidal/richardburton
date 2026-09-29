@@ -5,12 +5,13 @@ import { useFormatter, useTranslations } from "next-intl";
 import { FC } from "react";
 
 /**
- * The headline figures of a set of publications: how many there are, how many
- * distinct works and names they hold, the years they span, and how many cite a
- * source.
+ * The main figures for a set of publications: how many there are, how many
+ * distinct works and names they contain, the years they cover, and how many
+ * cite a source.
  *
- * Each figure is a term and its value in a description list. The value is
- * drawn above its term but read after it.
+ * Each figure is a `dt` and `dd` pair in a description list. The value is
+ * displayed above its term but comes after it in the markup, so it is read
+ * after the term.
  */
 const InsightFigures: FC<{ insights: Insights }> = ({ insights }) => {
   const t = useTranslations("insights");
@@ -26,7 +27,7 @@ const InsightFigures: FC<{ insights: Insights }> = ({ insights }) => {
     { key: "countries", value: format.number(totals.countries) },
     {
       key: "years",
-      // Years are not quantities, so they are written without grouping.
+      // Years are passed as strings so they are not formatted with grouping.
       value: years
         ? t("span", { first: String(years.first), last: String(years.last) })
         : "—",

@@ -15,9 +15,9 @@ import { SearchHelpModal } from "./SearchHelpModal";
 type Props = { insights: Described };
 
 /**
- * What the insights page heads its content with: how many publications are
- * counted, the links to the two views of the database, and the search box that
- * narrows what is counted.
+ * The subheader of the insights page: the number of publications counted, the
+ * links to the two views of the database, and the search box that filters what
+ * is counted.
  */
 const InsightsHeading: FC<Props> = ({ insights }) => {
   const t = useTranslations("home");
@@ -37,13 +37,13 @@ const InsightsHeading: FC<Props> = ({ insights }) => {
 };
 
 /**
- * The insights into a set of publications: the headline figures, the
- * publications per decade, the names that recur most in each field, and the
- * works translated more than once.
+ * The content of the insights page: the main figures, the publications per
+ * decade, the names with the most publications in each field, the countries of
+ * publication, and the works translated more than once.
  *
- * A search that matches nothing leaves nothing to count, and says so instead.
- * A list with nothing in it is left out, which only happens to the works
- * translated more than once.
+ * When there are no publications to count, it shows a message instead of the
+ * figures and lists. The list of works translated more than once is left out
+ * when it is empty.
  */
 const Insights: FC<Props> = ({ insights }) => {
   const t = useTranslations("insights");

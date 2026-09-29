@@ -28,11 +28,12 @@ export async function generateMetadata({
 }
 
 /**
- * The insights into the database: every publication in it counted, or the
- * ones the search in the address matches.
+ * The insights page. It fetches the counts for every publication, or for the
+ * ones the `search` query parameter matches, and renders them with `Insights`
+ * under an `InsightsHeading`.
  *
- * Suspense-wrapped because the heading reads `useSearchParams()`, as the index
- * does.
+ * The page is wrapped in `Suspense` because `InsightsHeading` calls
+ * `useSearchParams()`. The index page is wrapped for the same reason.
  */
 export default async function InsightsPage({
   searchParams,
