@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as VocabularyListStories from "./VocabularyList.stories";
 
@@ -81,6 +81,7 @@ stored name back.
 
 <Canvas of={VocabularyListStories.RenamingCommitsOnEnter} />
 
+<Description of={VocabularyListStories.EscapeReverts} />
 <Canvas of={VocabularyListStories.EscapeReverts} />
 
 ## Confirming a fold
@@ -102,6 +103,7 @@ Cancelling leaves the name unchanged and resets the field to the stored name.
 
 <Canvas of={VocabularyListStories.BackingOutOfAFold} />
 
+<Description of={VocabularyListStories.ConfirmingTheFold} />
 <Canvas of={VocabularyListStories.ConfirmingTheFold} />
 
 ## Renames that would duplicate a publication

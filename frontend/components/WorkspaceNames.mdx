@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as WorkspaceNamesStories from "./WorkspaceNames.stories";
 
@@ -29,6 +29,7 @@ how many names the batch has.
 
 <Canvas of={WorkspaceNamesStories.SomethingMayBeMisspelt} />
 
+<Description of={WorkspaceNamesStories.NothingDoubtful} />
 <Canvas of={WorkspaceNamesStories.NothingDoubtful} />
 
 An empty batch shows no button at all.
