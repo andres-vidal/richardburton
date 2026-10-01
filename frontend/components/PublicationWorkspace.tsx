@@ -117,11 +117,6 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
         data-error={!isValid}
       >
         {!isValid && <ErrorIcon className="w-5 aspect-square" />}
-        {/* A warning icon, not a button. This cell is the row's selection
-            handle, and the look-alike button is at the end of the row. The
-            icon is in this column because the column stays in place when the
-            table scrolls sideways, so a look-alike is as easy to spot as an
-            error. */}
         {isValid && resemblance && (
           <WarningIcon
             role="img"
