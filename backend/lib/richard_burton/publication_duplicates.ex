@@ -184,47 +184,37 @@ defmodule RichardBurton.Publication.Duplicates do
   def resemblances([]), do: []
 
   def resemblances(rows) when is_list(rows) do
-    columns = columns(rows)
+    measured = measured(rows)
 
     {:ok, {stored, among_rows}} =
       Repo.transaction(fn ->
         put_threshold()
-        {Repo.all(resembling_stored(columns)), Repo.all(resembling_each_other(columns))}
+        {Repo.all(resembling_stored(measured)), Repo.all(resembling_each_other(measured))}
       end)
 
     gather(stored, among_rows)
   end
 
-  # Converts the rows into the five parallel arrays that `rows_to_measure/1`
-  # unnests. List fields are joined with a space, the way `rb_joined` joins a
-  # stored list, so both sides of a comparison have the same format.
-  defp columns(rows) do
-    %{
-      positions: Enum.to_list(0..(length(rows) - 1)//1),
-      titles: Enum.map(rows, &text(&1, "title")),
-      authors: Enum.map(rows, &joined(&1, "authors")),
-      original_titles: Enum.map(rows, &text(&1, "original_title")),
-      original_authors: Enum.map(rows, &joined(&1, "original_authors"))
-    }
+  # The fields of a row that the similarity rule reads.
+  @measured ["title", "authors", "original_title", "original_authors"]
+
+  # Encodes the rows as the JSON array that `rows_to_measure/1` reads: each row's
+  # measured fields, plus its `position` in the list.
+  defp measured(rows) do
+    rows
+    |> Enum.with_index()
+    |> Enum.map(fn {row, position} ->
+      row |> Map.take(@measured) |> Map.put("position", position)
+    end)
+    |> Jason.encode!()
   end
-
-  # Reads a scalar field of a row as a string, or "" when it is missing.
-  defp text(row, key), do: row |> Map.get(key) |> to_string()
-
-  # Reads a list field of a row as its values joined with a space.
-  defp joined(row, key), do: row |> Map.get(key, []) |> List.wrap() |> Enum.join(" ")
 
   # Builds the result of `resemblances/1` from the two query results: one entry
   # per row that resembles something, in position order. A pair of resembling
   # rows appears in the `others` of both rows.
   defp gather(stored, among_rows) do
-    records = stored |> Enum.map(& &1.id) |> Enum.uniq() |> load() |> Map.new(&{&1.id, &1})
-    resembled = Enum.group_by(stored, & &1.position, &Map.fetch!(records, &1.id))
-
-    others =
-      Enum.reduce(among_rows, %{}, fn %{left: a, right: b}, acc ->
-        acc |> Map.update(a, [b], &[b | &1]) |> Map.update(b, [a], &[a | &1])
-      end)
+    resembled = Enum.group_by(stored, & &1.position, & &1.record)
+    others = adjacency(among_rows)
 
     [resembled, others]
     |> Enum.flat_map(&Map.keys/1)
@@ -239,35 +229,33 @@ defmodule RichardBurton.Publication.Duplicates do
     end)
   end
 
-  # Expands to a `fragment` that unnests the arrays from `columns/1` into a
-  # table with the columns `position`, `title`, `authors`, `original_title` and
-  # `original_authors`. The comparison functions read these column names. It is
-  # a macro because `fragment` needs its SQL as a literal where the query is
-  # built, and two queries use it.
-  defmacrop rows_to_measure(columns) do
+  # Expands to a `fragment` that reads the JSON from `measured/1` as a table
+  # with the columns `position`, `title`, `authors`, `original_title` and
+  # `original_authors`. The columns have the types of the same columns of
+  # `flat_publications`, so `alike/1` compares a row's fields the same way it
+  # compares a stored record's. It is a macro because `fragment` needs its SQL
+  # as a literal where the query is built, and two queries use it.
+  defmacrop rows_to_measure(measured) do
     quote do
       fragment(
-        "(SELECT * FROM unnest(?::int[], ?::text[], ?::text[], ?::text[], ?::text[]) AS t(position, title, authors, original_title, original_authors))",
-        ^unquote(columns).positions,
-        ^unquote(columns).titles,
-        ^unquote(columns).authors,
-        ^unquote(columns).original_titles,
-        ^unquote(columns).original_authors
+        "(SELECT * FROM jsonb_to_recordset(?::text::jsonb) AS t(position int, title text, authors varchar[], original_title text, original_authors varchar[]))",
+        ^unquote(measured)
       )
     end
   end
 
   # Query for each row and stored record that resemble each other, selecting the
-  # row's position and the record's id. The translator comparison can use the
-  # trigram index, so a row is compared only with the records that share a
-  # trigram with its translators, not with the whole table.
-  defp resembling_stored(columns) do
-    from(row in rows_to_measure(columns),
+  # row's position and the record, ordered by the record's title. The translator
+  # comparison can use the trigram index, so a row is compared only with the
+  # records that share a trigram with its translators, not with the whole table.
+  defp resembling_stored(measured) do
+    from(row in rows_to_measure(measured),
       as: :left,
       join: p in FlatPublication,
       as: :right,
-      on: ^worth_asking_about(&against_stored/1),
-      select: %{position: field(as(:left), :position), id: field(as(:right), :id)}
+      on: ^worth_asking_about(),
+      order_by: [asc: p.title, asc: p.id],
+      select: %{position: field(as(:left), :position), record: p}
     )
   end
 
@@ -275,13 +263,13 @@ defmodule RichardBurton.Publication.Duplicates do
   # positions. The join keeps only pairs where the left position is lower, so
   # each pair appears once. This finds near-duplicates within the list itself,
   # which `resembling_stored/1` cannot find because neither row is stored.
-  defp resembling_each_other(columns) do
-    from(a in rows_to_measure(columns),
+  defp resembling_each_other(measured) do
+    from(a in rows_to_measure(measured),
       as: :left,
-      join: b in rows_to_measure(columns),
+      join: b in rows_to_measure(measured),
       as: :right,
       on: field(as(:left), :position) < field(as(:right), :position),
-      where: ^worth_asking_about(&between_rows/1),
+      where: ^worth_asking_about(),
       select: %{left: field(as(:left), :position), right: field(as(:right), :position)}
     )
   end
@@ -327,7 +315,7 @@ defmodule RichardBurton.Publication.Duplicates do
       join: b in FlatPublication,
       as: :right,
       on: a.id < b.id,
-      where: ^worth_asking_about(&between_stored/1),
+      where: ^worth_asking_about(),
       left_join: d in Distinction,
       on: d.publication_id == a.id and d.other_publication_id == b.id,
       where: is_nil(d.id),
@@ -342,14 +330,11 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   # The similarity rule: translators alike, and then either the title or the
-  # original book. `alike` is the function that compares one field across the
-  # two sides. It is `between_stored/1` for two stored records,
-  # `against_stored/1` for a row and a stored record, and `between_rows/1` for
-  # two rows.
-  defp worth_asking_about(alike) do
+  # original book.
+  defp worth_asking_about do
     dynamic(
-      ^alike.(:authors) and
-        (^alike.(:title) or (^alike.(:original_title) and ^alike.(:original_authors)))
+      ^alike(:authors) and
+        (^alike(:title) or (^alike(:original_title) and ^alike(:original_authors)))
     )
   end
 
@@ -359,9 +344,9 @@ defmodule RichardBurton.Publication.Duplicates do
   # written that way too, so the comparison can use it.
   @lists [:authors, :original_authors]
 
-  # Compares one field of two stored records. A list field is read through
-  # `rb_joined` on both sides.
-  defp between_stored(field) when field in @lists do
+  # Compares one list field of the two sides, `left` and `right`, each read
+  # through `rb_joined`.
+  defp alike(field) when field in @lists do
     dynamic(
       fragment(
         "rb_joined(?) % rb_joined(?)",
@@ -371,37 +356,22 @@ defmodule RichardBurton.Publication.Duplicates do
     )
   end
 
-  defp between_stored(field) do
+  # Compares one scalar field of the two sides, `left` and `right`.
+  defp alike(field) do
     dynamic(fragment("? % ?", field(as(:left), ^field), field(as(:right), ^field)))
   end
 
-  # Compares one field of a row, on the left, with the same field of a stored
-  # record, on the right. `columns/1` has already joined the row's list fields,
-  # so only the stored side is read through `rb_joined`.
-  defp against_stored(field) when field in @lists do
-    dynamic(fragment("? % rb_joined(?)", field(as(:left), ^field), field(as(:right), ^field)))
-  end
+  # Returns the connected components of the candidate pairs, as sorted id lists.
+  defp connected(edges), do: edges |> adjacency() |> components()
 
-  defp against_stored(field) do
-    dynamic(fragment("? % ?", field(as(:left), ^field), field(as(:right), ^field)))
-  end
-
-  # Compares one field of two rows. `columns/1` has already joined the list
-  # fields of both rows, so neither side needs `rb_joined`.
-  defp between_rows(field) do
-    dynamic(fragment("? % ?", field(as(:left), ^field), field(as(:right), ^field)))
-  end
-
-  # Builds an undirected adjacency map from the candidate pairs and returns its
-  # connected components as sorted id lists.
-  defp connected(edges) do
-    edges
-    |> Enum.reduce(%{}, fn %{left: a, right: b}, adjacency ->
+  # Builds an undirected adjacency map from pairs of `left` and `right`: each
+  # vertex maps to the vertices it is paired with.
+  defp adjacency(edges) do
+    Enum.reduce(edges, %{}, fn %{left: a, right: b}, adjacency ->
       adjacency
       |> Map.update(a, [b], &[b | &1])
       |> Map.update(b, [a], &[a | &1])
     end)
-    |> components()
   end
 
   # Walks the vertices in id order, flood-filling from each one not already

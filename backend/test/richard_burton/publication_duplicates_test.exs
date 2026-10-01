@@ -56,17 +56,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
   # Builds a row: a flat, string-keyed publication with no id, in the shape
   # validation takes. `attrs` override the default Helen Caldwell translation of
   # "Dom Casmurro".
-  defp row(attrs) do
-    Map.merge(
-      %{
-        "title" => "Dom Casmurro",
-        "authors" => ["Helen Caldwell"],
-        "original_title" => "Dom Casmurro",
-        "original_authors" => ["Machado de Assis"]
-      },
-      attrs
-    )
-  end
+  defp row(attrs), do: @base |> Publication.Codec.flatten() |> Map.merge(attrs)
 
   defp titles(clusters) do
     Enum.map(clusters, fn cluster -> Enum.map(cluster.publications, & &1.title) end)
