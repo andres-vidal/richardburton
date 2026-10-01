@@ -49,6 +49,8 @@ This covers comments, docstrings, module docs, story descriptions and test comme
 - Let a sentence finish before qualifying it. Put the condition after the thing it qualifies, rather than interrupting a clause with it.
 - An em-dash is not a full stop. It is fine leading a definition list or a short trailing appositive, not as a general-purpose joiner. Mid-sentence, the fix is usually a full stop or a comma.
 
+**Keep comments out of JSX.** Say what a component renders, and why, in its JSDoc or its `.mdx`, not in `{/* */}` or `//` comments between elements.
+
 **Keep the client out of backend docs.** Describe what a row, a query or a response holds, never what happens to it afterwards, and never name the browser as the alternative. Avoid screen verbs — *is told*, *is shown to*, *so a page can…*. Grep a diff for `browser|client|screen|display|shown to` before calling a doc pass done.
 
 **Define coined vocabulary in the module doc** where a reader first meets it, and say what separates near-synonyms. Words that surface as atoms the code matches on need this most, since they are first met in a function head with no explanation.
