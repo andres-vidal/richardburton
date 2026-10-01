@@ -91,7 +91,7 @@ const Entry: FC<{
       ) : (
         <Link
           href={`/admin/publications/documents/${document.id}`}
-          className="flex gap-4 justify-between items-baseline py-1 min-w-0 rounded grow focus-ring"
+          className="flex gap-4 justify-between items-center py-1 min-w-0 rounded grow focus-ring"
         >
           <span className="min-w-0">
             <span className="block text-sm font-medium truncate">
