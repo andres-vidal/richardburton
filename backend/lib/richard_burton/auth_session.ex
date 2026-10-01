@@ -50,25 +50,14 @@ defmodule RichardBurton.Auth.Session do
   end
 
   @doc """
-  Verifies a raw token, returning `{:ok, subject_id}` or `:error`.
+  Verifies a raw token, returning `{:ok, session}` with the session's row, or
+  `:error`.
 
-  Rejects (and prunes) sessions past their idle timeout or absolute cap, and
-  slides the idle timeout forward on a valid, active session.
+  Rejects and deletes a session past its idle timeout or absolute cap, and
+  slides the idle timeout forward on an active one.
   """
-  @spec verify(String.t()) :: {:ok, String.t()} | :error
+  @spec verify(String.t()) :: {:ok, t()} | :error
   def verify(token) do
-    with {:ok, session} <- verify_session(token), do: {:ok, session.subject_id}
-  end
-
-  @doc """
-  Verifies a raw token as `verify/1` does, but returns the session row instead
-  of its `subject_id`.
-
-  A caller that keeps the session's `id` can later check with `active?/1` that
-  the session has not been revoked or expired.
-  """
-  @spec verify_session(String.t()) :: {:ok, t()} | :error
-  def verify_session(token) do
     now = DateTime.utc_now()
 
     case Repo.get_by(Session, token_hash: hash(token)) do

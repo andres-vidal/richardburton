@@ -137,7 +137,7 @@ defmodule RichardBurton.UserTest do
             User.insert(%{"subject_id" => subject_id, "email" => "removed@example.com"})
 
           {:ok, token} = Session.create(subject_id)
-          {:ok, session} = Session.verify_session(token)
+          {:ok, session} = Session.verify(token)
           {user, session}
         end)
 

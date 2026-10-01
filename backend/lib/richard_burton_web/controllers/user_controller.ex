@@ -18,7 +18,7 @@ defmodule RichardBurtonWeb.UserController do
   """
   def me(conn, _params) do
     with token when is_binary(token) <- fetch_cookies(conn).cookies[Session.cookie_name()],
-         {:ok, subject_id} <- Session.verify(token) do
+         {:ok, %Session{subject_id: subject_id}} <- Session.verify(token) do
       json(conn, User.get(subject_id))
     else
       _ -> json(conn, nil)

@@ -23,7 +23,10 @@ defmodule RichardBurtonWeb.SessionControllerTest do
       conn = post(conn, session_path(conn, :create), %{})
 
       assert %{"email" => @email, "role" => "contributor"} = json_response(conn, 200)
-      assert Session.verify(conn.resp_cookies["rb-session"].value) == {:ok, @subject_id}
+
+      assert {:ok, %Session{subject_id: @subject_id}} =
+               Session.verify(conn.resp_cookies["rb-session"].value)
+
       assert Csrf.verify(conn.resp_cookies["csrf-token"].value) == {:ok, @subject_id}
     end
 
@@ -45,7 +48,10 @@ defmodule RichardBurtonWeb.SessionControllerTest do
       conn = post(conn, session_path(conn, :create), %{})
 
       assert %{"email" => @email, "role" => "reader"} = json_response(conn, 200)
-      assert Session.verify(conn.resp_cookies["rb-session"].value) == {:ok, @subject_id}
+
+      assert {:ok, %Session{subject_id: @subject_id}} =
+               Session.verify(conn.resp_cookies["rb-session"].value)
+
       assert Csrf.verify(conn.resp_cookies["csrf-token"].value) == {:ok, @subject_id}
     end
 

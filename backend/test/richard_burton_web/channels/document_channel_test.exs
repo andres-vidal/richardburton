@@ -30,7 +30,7 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
   defp signed_in(email) do
     user = user_fixture(email, :contributor)
     {:ok, cookie} = Session.create(user.subject_id)
-    {:ok, session} = Session.verify_session(cookie)
+    {:ok, session} = Session.verify(cookie)
 
     %{user: user, cookie: cookie, token: DocumentSocket.sign(user.subject_id, session.id)}
   end
@@ -182,7 +182,7 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
     test "signing out of one session leaves the same person's other sessions alone" do
       here = signed_in("helen@example.com")
       {:ok, elsewhere_cookie} = Session.create(here.user.subject_id)
-      {:ok, elsewhere_session} = Session.verify_session(elsewhere_cookie)
+      {:ok, elsewhere_session} = Session.verify(elsewhere_cookie)
 
       elsewhere = %{
         token: DocumentSocket.sign(here.user.subject_id, elsewhere_session.id)
