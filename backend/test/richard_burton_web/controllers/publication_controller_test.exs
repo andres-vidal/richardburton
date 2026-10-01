@@ -568,12 +568,11 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         %{@publication_attrs | "title" => "Iracema the Honey-Lips: A Legend of Brazil"}
       ]
 
-      assert %{"entries" => [entry], "threshold" => threshold} =
+      assert %{"entries" => [entry]} =
                meta.conn
                |> post(publication_path(meta.conn, :resemblances), %{"_json" => rows})
                |> json_response(200)
 
-      assert is_float(threshold)
       assert 0 == entry["position"]
       assert [found] = entry["stored"]
       assert found["id"] == stored.id

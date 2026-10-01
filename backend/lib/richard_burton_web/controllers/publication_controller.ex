@@ -202,14 +202,11 @@ defmodule RichardBurtonWeb.PublicationController do
   def distinguish(_conn, _params), do: {:error, :not_enough}
 
   # Responds with `entries`, the result of
-  # `Publication.Duplicates.resemblances/1` for the rows in the request body,
-  # and `threshold`, the similarity threshold. The rows are publications that
-  # are not stored yet, so each entry names its row by its position in the list.
+  # `Publication.Duplicates.resemblances/1` for the rows in the request body.
+  # The rows are publications that are not stored yet, so each entry names its
+  # row by its position in the list.
   def resemblances(conn, %{"_json" => rows}) do
-    json(conn, %{
-      entries: Publication.Duplicates.resemblances(rows),
-      threshold: Publication.Duplicates.threshold()
-    })
+    json(conn, %{entries: Publication.Duplicates.resemblances(rows)})
   end
 
   # What has been ruled apart, so a reviewer can see a decision and take it back.
