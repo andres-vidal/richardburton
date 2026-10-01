@@ -1,0 +1,47 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as WorkspaceUndoStories from "./WorkspaceUndo.stories";
+
+<Meta of={WorkspaceUndoStories} />
+
+# Workspace undo
+
+Undoes and redoes edits made in the bulk-import workspace.
+
+Undo does not return rows to the values in the uploaded CSV. The workspace's
+content is a shared document that holds one value per field, so the imported
+value is not kept once a field is edited.
+
+## Undo covers only your own changes
+
+Every edit made in this tab is applied with the `LOCAL` transaction origin, and
+the Yjs `UndoManager` tracks only that origin. Undoing your last change
+therefore leaves other people's changes alone. This is why undo does not simply
+return the document to its previous state.
+
+For the same reason, a reopened workspace has nothing to undo. Its rows were
+loaded, not edited in this tab, so they do not have the `LOCAL` origin.
+
+<Canvas of={WorkspaceUndoStories.AfterAnEdit} />
+
+## What counts as one step
+
+Edits made close together in time are merged into one step, so undo removes a
+burst of typing as a whole word, not one letter at a time.
+
+Adding a row is a separate undo step from typing into it, so undoing the
+typing in a new row does not also remove the row.
+
+## Props
+
+None. It uses the undo manager of the workspace store it renders in, through
+`useWorkspaceUndo`.
+
+## States
+
+- **Nothing to undo** — a reopened workspace, or one with no edits in this tab
+  yet. No button is rendered, not even a disabled one.
+- **After an edit** — Undo is shown, and returns the row to its previous value.
+- **And back again** — Redo appears after something has been undone.
+
+<Canvas of={WorkspaceUndoStories.AndBackAgain} />

@@ -387,6 +387,19 @@ defmodule RichardBurton.CountryTest do
     end
   end
 
+  describe "all/0" do
+    # Postgres writes an updated row as a new row version later in the table,
+    # so a query without ORDER BY can return it after rows inserted later.
+    test "lists countries in the order each was first entered, whatever has changed since" do
+      first = insert!(%{"code" => "GB"})
+      second = insert!(%{"code" => "US"})
+
+      Repo.update_all(from(c in Country, where: c.id == ^first.id), set: [names: first.names])
+
+      assert Enum.map(Country.all(), & &1.id) == [first.id, second.id]
+    end
+  end
+
   describe "maybe_insert/1" do
     test "when there is no country with the provided name, inserts it" do
       country = Country.maybe_insert!(@valid_attrs)

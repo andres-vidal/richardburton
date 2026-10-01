@@ -1,23 +1,17 @@
-import { User } from "modules/users";
-import { redirect } from "i18n/navigation";
-import { getLocale } from "next-intl/server";
 import { ReactNode } from "react";
-import { getSession } from "app/session";
 
-// Server-side guard for every /admin route: whoever cannot edit publications
-// is bounced back to the public index before any admin UI renders. Deciding who
-// has access is narrower still, and gated again under /admin/users. The backend
-// independently rejects unauthorized mutations — this keeps the pages
-// themselves gated.
+import { admitEditors } from "./guard";
+
+// The layout for every /admin route. It redirects a user who cannot edit
+// publications to the public index, with `admitEditors`. Next.js renders this
+// layout at the same time as the page, so the redirect does not stop a page's
+// own reads from running.
 export default async function AdminLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  const session = await getSession();
-  if (!User.canEditPublications(session)) {
-    redirect({ href: "/", locale: await getLocale() });
-  }
+  await admitEditors();
 
   return children;
 }

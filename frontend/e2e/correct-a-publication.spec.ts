@@ -5,6 +5,7 @@ import {
   indexTable,
   addPublicationRow,
   submitWorkspace,
+  openDocument,
 } from "./helpers";
 
 test("an admin edits a publication's title and sources in a corpus", async ({
@@ -127,6 +128,60 @@ test("an admin edits a publication's title and sources in a corpus", async ({
   await expect(row.getByText("1987", { exact: true })).toBeVisible();
 });
 
+test("an edit thought better of changes nothing, in the editor or the database behind it", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await page.goto("/");
+
+  const dialog = await openPublicationModal(page, "The Hour of the Star");
+  await dialog.getByRole("button", { name: "Edit" }).click();
+
+  const title = dialog.getByRole("textbox", { name: "Title", exact: true });
+  await title.fill("The Hour of the Star (abandoned)");
+  await title.blur();
+
+  // The index behind the open dialog still shows the saved title, not the one
+  // being typed. The check uses getByText rather than getByRole, because the
+  // open dialog hides the rest of the page from the accessibility tree.
+  await expect(page.getByText("The Hour of the Star (abandoned)")).toHaveCount(
+    0,
+  );
+
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+
+  // Clicking Edit again starts from the saved title, not the cancelled one.
+  await dialog.getByRole("button", { name: "Edit" }).click();
+  await expect(title).toHaveValue("The Hour of the Star");
+
+  // Closing the dialog with Escape during an edit also discards the edit.
+  await title.fill("The Hour of the Star (abandoned again)");
+  await title.blur();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+
+  const reopened = await openPublicationModal(page, "The Hour of the Star");
+  await reopened.getByRole("button", { name: "Edit" }).click();
+  await expect(
+    reopened.getByRole("textbox", { name: "Title", exact: true }),
+  ).toHaveValue("The Hour of the Star");
+  await page.keyboard.press("Escape");
+
+  // Neither edit was sent to the server. After a reload the record has its
+  // original title, and its history has only the Created entry from the import.
+  await page.reload();
+  const again = await openPublicationModal(page, "The Hour of the Star");
+  await again.getByText("History", { exact: true }).click();
+  await expect(again.getByText("Created")).toBeVisible();
+  await expect(again.getByText("Updated")).toHaveCount(0);
+
+  await page.keyboard.press("Escape");
+  await expect(
+    indexTable(page).getByText("The Hour of the Star", { exact: true }),
+  ).toBeVisible();
+  await expect(indexTable(page).getByText(/abandoned/)).toHaveCount(0);
+});
+
 test("editing a publication into a copy of another is rejected as a conflict", async ({
   page,
 }) => {
@@ -134,7 +189,7 @@ test("editing a publication into a copy of another is rejected as a conflict", a
 
   // A sibling that matches "Dom Casmurro" in everything but the title, so a
   // single title edit is all it takes to collide.
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await addPublicationRow(page, {
     title: "Dom Casmurro (copy)",
     originalTitle: "Dom Casmurro",

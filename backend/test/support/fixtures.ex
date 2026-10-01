@@ -3,6 +3,7 @@ defmodule RichardBurton.Fixtures do
   Records a test needs to exist but is not the subject of it.
   """
 
+  alias RichardBurton.Document
   alias RichardBurton.User
 
   @doc """
@@ -13,5 +14,11 @@ defmodule RichardBurton.Fixtures do
     {:ok, user} = User.insert(%{"subject_id" => "sub-#{email}", "email" => email})
     {:ok, user} = User.set_role(user, role)
     user
+  end
+
+  @doc "Creates an import document named `name`."
+  def document_fixture(name \\ "Second pass") do
+    {:ok, document} = Document.create(%{"name" => name})
+    document
   end
 end

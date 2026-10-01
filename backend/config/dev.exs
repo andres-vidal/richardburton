@@ -41,7 +41,6 @@ config :richard_burton, RichardBurtonWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [:inet6, port: 4000],
-  check_origin: false,
   code_reloader: true,
   debug_errors: false,
   secret_key_base: "WFkOQxggFrvLxxLc2Eaw4huoo1ncbDpVoDXHJPLI+rqrEF8OOmuN0xXqv1lBzZ5I",

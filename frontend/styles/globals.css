@@ -66,6 +66,45 @@ body {
   @apply font-normal text-indigo-600 underline visited:text-indigo-700;
 }
 
+/*
+  Presence colours, one rule per index returned by `colourOf` in
+  modules/publication/presence.tsx. `COLOURS` there must match the number of
+  rules here. An element sets the index in `data-colour`, or in
+  `data-focused-by` on a cell that another person has focused. The rule sets `--presence` to the
+  colour and `--presence-tint` to a pale shade of it.
+*/
+@layer base {
+  [data-colour="0"],
+  [data-focused-by="0"] {
+    --presence: var(--color-indigo-500);
+    --presence-tint: var(--color-indigo-100);
+  }
+
+  [data-colour="1"],
+  [data-focused-by="1"] {
+    --presence: var(--color-emerald-500);
+    --presence-tint: var(--color-emerald-100);
+  }
+
+  [data-colour="2"],
+  [data-focused-by="2"] {
+    --presence: var(--color-amber-500);
+    --presence-tint: var(--color-amber-100);
+  }
+
+  [data-colour="3"],
+  [data-focused-by="3"] {
+    --presence: var(--color-rose-500);
+    --presence-tint: var(--color-rose-100);
+  }
+
+  [data-colour="4"],
+  [data-focused-by="4"] {
+    --presence: var(--color-sky-500);
+    --presence-tint: var(--color-sky-100);
+  }
+}
+
 @utility focus-ring {
   @apply outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white;
 }

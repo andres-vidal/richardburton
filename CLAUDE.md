@@ -38,12 +38,18 @@ This covers comments, docstrings, module docs, story descriptions and test comme
 
 **Write for someone reading the file cold, a year from now.** That rules out history (what the code used to do, what a change fixed), QA narrative (the bug that prompted it, what a test caught), defensive justification (arguing with an imagined reviewer or with this file), restating the next line, and teaching the stack ("this is a hook"). Say what the behaviour *is*, or what property a test protects.
 
+**Describe the code, not its callers.** Say what a module or function does, and what it needs from whoever calls it. Do not list who calls it, from where, or when, as in "the admin layout calls it" or "an upload uses it". Such a list goes stale whenever a caller changes, and a search finds the callers anyway.
+
+**Write plainly.** A doc is read to learn what the code does, so write it the way you would explain the code to a colleague: common words, direct statements, and the names of the functions, modules and events involved. Avoid literary phrasing, such as code described as if it had intentions ("whatever holds it open", "the store is handed a document"), aphorisms, dramatic turns and metaphors. If a sentence sounds good but needs a second read, rewrite it.
+
 **Write ordinary explanatory sentences.** The failure is not jargon, it is compression — prose squeezed until the reader has to unpack it.
 
 - Full sentences with explicit subjects. "Returns nil when the list is empty", not "An empty list is nil".
 - No inverted or aphoristic constructions. "The parser reports which tokens it found, but not where each came from", not "Tokens are reported; their origins are not".
 - Let a sentence finish before qualifying it. Put the condition after the thing it qualifies, rather than interrupting a clause with it.
 - An em-dash is not a full stop. It is fine leading a definition list or a short trailing appositive, not as a general-purpose joiner. Mid-sentence, the fix is usually a full stop or a comma.
+
+**Keep comments out of JSX.** Say what a component renders, and why, in its JSDoc or its `.mdx`, not in `{/* */}` or `//` comments between elements.
 
 **Keep the client out of backend docs.** Describe what a row, a query or a response holds, never what happens to it afterwards, and never name the browser as the alternative. Avoid screen verbs — *is told*, *is shown to*, *so a page can…*. Grep a diff for `browser|client|screen|display|shown to` before calling a doc pass done.
 
@@ -59,7 +65,7 @@ Do not use early returns in components; express branches as ternaries in the ret
 
 ## Storybook completeness
 
-Every component ships both a `*.stories.tsx` covering its meaningful states, with play tests where behaviour warrants, and a `*.mdx` doc with `<Meta of={…} />`, a short description, props and a `<Canvas>` of the key states. When you add or change a component, update both.
+Every component ships both a `*.stories.tsx` covering its meaningful states, with play tests where behaviour warrants, and a `*.mdx` doc with `<Meta of={…} />`, a short description, props and a `<Canvas>` of the key states. Give every story a JSDoc comment of a sentence or two saying what it shows, or what its play test checks. In the `.mdx`, put text right before every `<Canvas>`: prose about that state, or `<Description of={…} />`, which shows the story's JSDoc. When you add or change a component, update both files.
 
 ## E2E coverage
 

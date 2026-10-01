@@ -12,6 +12,8 @@ import {
   PUBLICATIONS,
   CSV_HEADER,
   type PublicationInput,
+  openDocument,
+  uploadCsv,
 } from "./helpers";
 
 // One row under the header every fixture writes.
@@ -28,7 +30,7 @@ test("an admin bulk-inserts publications with sources from the workspace", async
   page,
 }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   const table = indexTable(page);
 
   // Build up three publications in the grid before submitting anything.
@@ -55,8 +57,9 @@ test("an admin bulk-inserts publications with sources from the workspace", async
   await handleOf(SOURCED.title).click({ modifiers: ["Meta"] });
   await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
 
-  // Clicking anything that is not a row's handle clears it.
-  await page.getByRole("heading", { name: "Add publications" }).click();
+  // Clicking anything that is not a row's handle clears it. The page heading
+  // is the document's name, which `openDocument` sets to "E2E batch".
+  await page.getByRole("heading", { name: "E2E batch", level: 1 }).click();
   await expect(page.getByRole("button", { name: /^Deselect/ })).toHaveCount(0);
 
   // Clicking into a field is not a selection: it is where you type.
@@ -134,7 +137,7 @@ const DUPLICATE: PublicationInput = {
 
 test("an invalid row blocks submission until it is fixed", async ({ page }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   const table = indexTable(page);
 
   // Commit a row without its publisher: it validates as invalid, the error
@@ -172,7 +175,7 @@ test("a duplicate of an existing publication is flagged as a conflict", async ({
   page,
 }) => {
   await seedCorpus(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   const table = indexTable(page);
 
   // One genuinely new publication, then an exact duplicate of a stored one (last,
@@ -202,13 +205,9 @@ test("an admin imports publications from a CSV, sources included", async ({
   page,
 }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
-  await page.locator("#upload-csv").setInputFiles({
-    name: "import.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(CSV_ROW),
-  });
+  await uploadCsv(page, CSV_ROW, "import.csv");
 
   // The imported row populates the workspace grid — its fields are editable
   // inputs, so match the row by accessible name — and the sources column
@@ -226,14 +225,14 @@ test("a malformed CSV is rejected with an error and imports nothing", async ({
   page,
 }) => {
   await signInAsAdmin(page);
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
 
   // An unterminated quoted field — the csv parser rejects the whole file.
-  await page.locator("#upload-csv").setInputFiles({
-    name: "broken.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(`${CSV_HEADER}\nDom,1899,BR,P,T,O,"unterminated\n`),
-  });
+  await uploadCsv(
+    page,
+    `${CSV_HEADER}\nDom,1899,BR,P,T,O,"unterminated\n`,
+    "broken.csv",
+  );
 
   await expect(
     page.getByText("Could not parse publications from the provided file"),

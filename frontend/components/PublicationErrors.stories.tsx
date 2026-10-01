@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fieldErrors, seed } from "modules/publication/fixtures";
+import { fieldErrors, seed } from "test/publication-fixtures";
 import { focusedRowIdAtom } from "modules/publication/store";
 import { store } from "modules/store";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";

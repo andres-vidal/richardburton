@@ -1,0 +1,85 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DocumentListStories from "./DocumentList.stories";
+
+<Meta of={DocumentListStories} />
+
+# Import documents
+
+Lists the import documents, with a form to start a new one.
+
+An import document is a named batch of publications being prepared for import.
+It is saved on the server, so it can be reopened later on any computer and by
+other people. Documents have no owner or members, because they are all imported
+into the same database. Anyone who may edit publications sees every document
+and may open any of them. A name is required because it is how people tell the
+batches apart.
+
+<Canvas of={DocumentListStories.Default} />
+
+## Where the row count comes from
+
+Each entry shows how many rows the document holds. The server stores a document
+as Yjs updates and does not parse them, which keeps a native Yjs dependency out
+of the deployment. Because of that, the server cannot count the rows. The client
+counts them when it writes to the document, and the server stores that count.
+
+## Renaming happens in place
+
+**Rename** turns the name into a text field in the same row. Enter saves the new
+name and Escape keeps the old one. Renaming is usually a small correction, such
+as a batch called "Second pass" that turns out to cover the 1970s, so it does
+not open a dialog.
+
+<Canvas of={DocumentListStories.RenamingInPlace} />
+
+## Archiving
+
+**Archive** moves a document to the archived side of the list and does not
+delete anything. The archived side can be read, and **Put it back** returns a
+document to the current list. A document is a record of what was prepared, so
+one archived by mistake has to be easy to restore.
+
+<Canvas of={DocumentListStories.PuttingOneBack} />
+
+## Paging
+
+The route reads the first page of the chosen side on the server, so the list is
+filled in when the page loads. Each side has its own URL (`?archived=true` for
+the archived one), and switching sides navigates to it.
+
+**Show more** reads the next page starting after the last document shown,
+instead of skipping the number of documents already read. Changing a document
+moves it to the top of the list. With a count, that would shift the later pages
+by one and show a document twice. Starting after the last document shown avoids
+that.
+
+<Canvas of={DocumentListStories.MoreToShow} />
+
+## Props
+
+- `side` — which side of the list is shown: `current` or `archived`.
+- `first` — the first page of that side, read on the server by the route.
+- `readMore` — reads a further page. Defaults to `list`.
+- `start` — creates a document. Defaults to `create`.
+- `rename`, `archive`, `restore` — rename, archive and restore a document.
+
+The props that call the server exist so that a story can replace the network
+calls.
+
+## States
+
+- **Default** — the current documents, most recently changed first.
+- **Empty** — there are no documents yet, and a message says so instead of an
+  empty list.
+- **Needs a name** — **Start a document** stays disabled until a name is typed.
+- **Archived** — the archived side of the list, where every document can be
+  restored.
+- **Nothing archived** — a message says so instead of an empty list.
+- **More to show** — the list shows one page of documents at a time, with a
+  **Show more** button when there are more.
+
+<Canvas of={DocumentListStories.Empty} />
+
+<Description of={DocumentListStories.NothingArchived} />
+<Canvas of={DocumentListStories.NothingArchived} />

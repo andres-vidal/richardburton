@@ -6,6 +6,9 @@ defmodule RichardBurton.UserTest do
   use RichardBurton.DataCase
   import Ecto.Changeset
 
+  alias Ecto.Adapters.SQL.Sandbox
+  alias RichardBurton.Auth.Access
+  alias RichardBurton.Auth.Session
   alias RichardBurton.User
   alias RichardBurton.Util
   alias RichardBurton.Validation
@@ -74,6 +77,104 @@ defmodule RichardBurton.UserTest do
       insert(@valid_attrs)
       {:error, errors} = User.insert(@valid_attrs)
       assert :conflict == errors
+    end
+  end
+
+  describe "set_role/3" do
+    # `set_role/3` broadcasts on the person's access topic, so a document
+    # channel they already joined checks the new role, not only their next
+    # request.
+    test "announces that the person's access changed" do
+      user = user_fixture("helen@example.com", :contributor)
+
+      Phoenix.PubSub.subscribe(
+        RichardBurton.PubSub,
+        RichardBurton.Auth.Access.topic(user.subject_id)
+      )
+
+      {:ok, _} = User.set_role(user, :reader)
+
+      assert_receive :access_changed
+    end
+
+    test "a change that is refused announces nothing" do
+      user = user_fixture("helen@example.com", :contributor)
+
+      Phoenix.PubSub.subscribe(
+        RichardBurton.PubSub,
+        RichardBurton.Auth.Access.topic(user.subject_id)
+      )
+
+      {:error, :invalid_role} = User.set_role(user, :emperor)
+
+      refute_receive :access_changed, 50
+    end
+  end
+
+  describe "delete/2" do
+    # Tests that a channel which checks access after the announcement finds the
+    # session gone. A channel reads on its own database connection, so it only
+    # sees committed rows. The test reads the same way, on a connection outside
+    # the SQL sandbox, because inside the sandbox every process shares the
+    # test's connection.
+    #
+    # The rows the test commits are deleted by `delete/2`, or by `on_exit` if
+    # the test fails first. This module is not async, so no other test runs
+    # while those rows exist.
+    test "announces the removal after it commits" do
+      subject_id = "sub-removed@example.com"
+
+      on_exit(fn ->
+        unboxed(fn ->
+          Repo.delete_all(from(s in Session, where: s.subject_id == ^subject_id))
+          Repo.delete_all(from(u in User, where: u.subject_id == ^subject_id))
+        end)
+      end)
+
+      {user, session} =
+        unboxed(fn ->
+          {:ok, user} =
+            User.insert(%{"subject_id" => subject_id, "email" => "removed@example.com"})
+
+          {:ok, token} = Session.create(subject_id)
+          {:ok, session} = Session.verify(token)
+          {user, session}
+        end)
+
+      test = self()
+
+      spawn_link(fn ->
+        Phoenix.PubSub.subscribe(RichardBurton.PubSub, Access.topic(subject_id))
+        send(test, :listening)
+        report_checks(test, session.id)
+      end)
+
+      assert_receive :listening
+      {:ok, _} = unboxed(fn -> User.delete(user) end)
+
+      assert_receive {:session_active?, false}
+    end
+
+    test "a removal that is refused announces nothing" do
+      user = user_fixture("helen@example.com", :admin)
+      Phoenix.PubSub.subscribe(RichardBurton.PubSub, Access.topic(user.subject_id))
+
+      {:error, :self} = User.delete(user, user.subject_id)
+
+      refute_receive :access_changed, 50
+    end
+  end
+
+  # Runs `fun` on a connection outside the SQL sandbox, so its writes commit.
+  defp unboxed(fun), do: Sandbox.unboxed_run(Repo, fun)
+
+  # Each time this process receives `:access_changed`, sends `test` whether the
+  # session is still active, read on a connection outside the SQL sandbox.
+  defp report_checks(test, session_id) do
+    receive do
+      :access_changed ->
+        send(test, {:session_active?, unboxed(fn -> Session.active?(session_id) end)})
+        report_checks(test, session_id)
     end
   end
 end

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
-import { fieldErrors, seed } from "modules/publication/fixtures";
+import { fieldErrors, seed } from "test/publication-fixtures";
+import { areRowIdsVisibleAtom } from "modules/publication/store";
 import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationWorkspace from "./PublicationWorkspace";
@@ -159,7 +160,7 @@ export const TypingDoesNotSelect: Story = {
 
 /**
  * Editing a cell round-trips through the store: the cell input has no local
- * mirror, so what you type only shows up if `overrideField` writes it and the
+ * mirror, so what you type only shows up if `setField` writes it and the
  * value flows back through `usePublicationField`.
  */
 export const EditCell: Story = {
@@ -177,5 +178,35 @@ export const EditCell: Story = {
     await userEvent.type(title, "The Posthumous Memoirs");
 
     await waitFor(() => expect(title).toHaveValue("The Posthumous Memoirs"));
+  },
+};
+
+/**
+ * With row ids shown, each row's number is its position in the workspace,
+ * counting from 1. The row's key cannot be used for this: an unsaved row is
+ * keyed by a UUID and a saved row by its server id, and neither gives the
+ * row's position.
+ */
+export const RowNumbers: Story = {
+  beforeEach: () => {
+    seed(store, [
+      { title: "Dom Casmurro", year: "1953" },
+      { title: "Iracema", year: "1886" },
+      { title: "Barren Lives", year: "1965" },
+    ]);
+    store.set(areRowIdsVisibleAtom, true);
+  },
+  play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelectorAll("[data-selects-row=true]").length,
+      ).toBe(3),
+    );
+
+    const numbers = Array.from(
+      canvasElement.querySelectorAll("[data-selects-row=true]"),
+    ).map((cell) => cell.textContent?.trim());
+
+    await expect(numbers).toEqual(["1", "2", "3"]);
   },
 };

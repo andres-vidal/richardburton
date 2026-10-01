@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { resetAll } from "modules/publication/store";
-import { seed } from "modules/publication/fixtures";
+import { seedIndex } from "test/publication-fixtures";
 import { expect, within } from "storybook/test";
 
 import { PublicationIndexList } from "./PublicationIndexList";
@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>;
 
 /** The mobile list populated with a few publications. */
 export const Default: Story = {
-  beforeEach: () => seed(store),
+  beforeEach: () => seedIndex(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
@@ -30,7 +30,7 @@ export const Default: Story = {
 
 /** A search that matched nothing. */
 export const Empty: Story = {
-  beforeEach: () => seed(store, []),
+  beforeEach: () => seedIndex(store, []),
 };
 
 /** Ids not loaded yet — the skeleton placeholder. */

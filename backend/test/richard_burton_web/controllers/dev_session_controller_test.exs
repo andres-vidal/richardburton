@@ -13,7 +13,9 @@ defmodule RichardBurtonWeb.DevSessionControllerTest do
 
       assert %{"email" => "dev-admin@localhost", "role" => "admin"} = result
       # The rb-session cookie authenticates as a real user with the admin role.
-      assert {:ok, subject_id} = Session.verify(conn.resp_cookies["rb-session"].value)
+      assert {:ok, %Session{subject_id: subject_id}} =
+               Session.verify(conn.resp_cookies["rb-session"].value)
+
       assert %User{role: :admin} = User.get(subject_id)
       # The readable csrf-token cookie is set too (the frontend echoes it back).
       assert conn.resp_cookies["csrf-token"].value
@@ -34,7 +36,9 @@ defmodule RichardBurtonWeb.DevSessionControllerTest do
       assert %{"email" => "dev-contributor@localhost", "role" => "contributor"} =
                json_response(conn, 201)
 
-      assert {:ok, subject_id} = Session.verify(conn.resp_cookies["rb-session"].value)
+      assert {:ok, %Session{subject_id: subject_id}} =
+               Session.verify(conn.resp_cookies["rb-session"].value)
+
       assert %User{role: :contributor} = User.get(subject_id)
     end
 

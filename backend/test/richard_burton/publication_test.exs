@@ -212,6 +212,19 @@ defmodule RichardBurton.PublicationTest do
     end
   end
 
+  describe "all/0" do
+    # Postgres writes an updated row as a new row version later in the table,
+    # so a query without ORDER BY can return it after rows inserted later.
+    test "lists publications in the order each was inserted, whatever has changed since" do
+      {:ok, [first, second]} =
+        Publication.insert_all([@valid_attrs, Map.put(@valid_attrs, "year", 1887)])
+
+      Repo.update_all(from(p in Publication, where: p.id == ^first.id), set: [year: first.year])
+
+      assert Enum.map(Publication.all(), & &1.id) == [first.id, second.id]
+    end
+  end
+
   describe "insert_all/1" do
     import Publication, only: [insert_all: 1]
 
@@ -227,12 +240,7 @@ defmodule RichardBurton.PublicationTest do
           Map.put(@valid_attrs, "year", 1890)
         ])
 
-      # `Publication.all/0` asks for no order, so the database is free to return
-      # the rows in any: what this asserts is which publications now exist, not
-      # the order they came back in.
-      by_id = &Enum.sort_by(&1, fn publication -> publication.id end)
-
-      assert by_id.(Publication.preload(publications)) == by_id.(Publication.all())
+      assert Publication.preload(publications) == Publication.all()
     end
 
     test "when invalid publications are provided, rolls back and returns the first error" do

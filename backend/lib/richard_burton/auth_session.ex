@@ -12,6 +12,7 @@ defmodule RichardBurton.Auth.Session do
 
   import Ecto.Query, only: [from: 2]
 
+  alias RichardBurton.Auth.Access
   alias RichardBurton.Auth.Session
   alias RichardBurton.Repo
 
@@ -24,6 +25,8 @@ defmodule RichardBurton.Auth.Session do
   @token_bytes 32
   # The httpOnly cookie carrying the raw session token.
   @cookie_name "rb-session"
+
+  @type t :: %__MODULE__{}
 
   schema "auth_sessions" do
     field :subject_id, :string
@@ -47,12 +50,13 @@ defmodule RichardBurton.Auth.Session do
   end
 
   @doc """
-  Verifies a raw token, returning `{:ok, subject_id}` or `:error`.
+  Verifies a raw token, returning `{:ok, session}` with the session's row, or
+  `:error`.
 
-  Rejects (and prunes) sessions past their idle timeout or absolute cap, and
-  slides the idle timeout forward on a valid, active session.
+  Rejects and deletes a session past its idle timeout or absolute cap, and
+  slides the idle timeout forward on an active one.
   """
-  @spec verify(String.t()) :: {:ok, String.t()} | :error
+  @spec verify(String.t()) :: {:ok, t()} | :error
   def verify(token) do
     now = DateTime.utc_now()
 
@@ -66,22 +70,62 @@ defmodule RichardBurton.Auth.Session do
           :error
         else
           maybe_slide(session, now)
-          {:ok, session.subject_id}
+          {:ok, session}
         end
     end
   end
 
-  @doc "Revokes the session identified by `token` (deletes its row)."
-  @spec revoke(String.t()) :: :ok
-  def revoke(token) do
-    Repo.delete_all(from s in Session, where: s.token_hash == ^hash(token))
-    :ok
+  @doc """
+  Returns whether the session with `session_id` exists and has passed neither
+  its idle timeout nor its absolute cap.
+
+  Unlike `verify/1`, it does not slide the idle timeout, so checking a session
+  does not extend it, and it does not delete an expired row.
+  """
+  @spec active?(integer()) :: boolean()
+  def active?(session_id) do
+    now = DateTime.utc_now()
+
+    case Repo.get(Session, session_id) do
+      nil ->
+        false
+
+      session ->
+        not (expired?(now, session.expires_at) or expired?(now, absolute_deadline(session)))
+    end
   end
 
-  @doc "Revokes every session for `subject_id` (sign out everywhere)."
+  @doc """
+  Revokes the session identified by `token` by deleting its row. Returns
+  `{:ok, subject_id}` with the session's owner, or `:error` when no session has
+  that token.
+
+  On success it calls `RichardBurton.Auth.Access.changed/1` for the owner. The
+  delete returns the `subject_id`, so the row does not have to be read first.
+  """
+  @spec revoke(String.t()) :: {:ok, String.t()} | :error
+  def revoke(token) do
+    query = from(s in Session, where: s.token_hash == ^hash(token), select: s.subject_id)
+
+    case Repo.delete_all(query) do
+      {1, [subject_id]} ->
+        Access.changed(subject_id)
+        {:ok, subject_id}
+
+      _ ->
+        :error
+    end
+  end
+
+  @doc """
+  Revokes every session for `subject_id` (sign out everywhere), then calls
+  `RichardBurton.Auth.Access.changed/1`. A caller that runs this inside a
+  transaction must call `Access.changed/1` again after the transaction commits.
+  """
   @spec revoke_all(String.t()) :: :ok
   def revoke_all(subject_id) do
     Repo.delete_all(from s in Session, where: s.subject_id == ^subject_id)
+    Access.changed(subject_id)
     :ok
   end
 

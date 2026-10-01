@@ -35,46 +35,37 @@ defmodule RichardBurtonWeb.InvitationController do
       {:ok, {:unsent, invitation}} ->
         conn |> put_status(:created) |> json(%{outcome: :unsent, invitation: invitation})
 
-      {:error, :last_admin} ->
-        conn |> put_status(:conflict) |> json(%{error: :last_admin})
-
-      # Inviting yourself is a way of changing your own role, and that is
-      # refused wherever it is asked for.
-      {:error, :self} ->
-        conn |> put_status(:conflict) |> json(%{error: :self})
-
-      {:error, :invalid_role} ->
-        conn |> put_status(:bad_request) |> json(%{error: :invalid_role})
-
       # That address is already waiting on an offer.
       {:error, :conflict} ->
-        conn |> put_status(:conflict) |> json(%{error: :pending})
+        {:error, :pending}
 
-      {:error, errors} ->
-        conn |> put_status(:bad_request) |> json(%{errors: errors})
+      # Every other error goes to `FallbackController`. Inviting yourself would
+      # change your own role, so it fails with `:self`, like any other change to
+      # your own role.
+      error ->
+        error
     end
   end
 
   @doc "Send a pending invitation's mail again."
   def resend(conn, %{"id" => id}) do
-    with invitation = %Invitation{} <- Invitation.get(id),
-         {:ok, sent} <- Invitation.resend(invitation) do
-      json(conn, sent)
-    else
-      nil -> conn |> put_status(:not_found) |> json(%{error: :not_found})
-      {:error, :already_accepted} -> conn |> put_status(:conflict) |> json(%{error: :accepted})
-      {:error, _reason} -> conn |> put_status(:bad_gateway) |> json(%{error: :unsent})
+    with {:ok, invitation} <- found(Invitation.get(id)) do
+      case Invitation.resend(invitation) do
+        {:ok, sent} -> json(conn, sent)
+        {:error, :already_accepted} -> {:error, :accepted}
+        # The mailer failed to send the mail. Any reason it gives is a 502.
+        {:error, _reason} -> {:error, :bad_gateway, :unsent}
+      end
     end
   end
 
   @doc "Withdraw a pending invitation."
   def delete(conn, %{"id" => id}) do
-    with invitation = %Invitation{} <- Invitation.get(id),
-         {:ok, _cancelled} <- Invitation.cancel(invitation) do
-      send_resp(conn, :no_content, "")
-    else
-      nil -> conn |> put_status(:not_found) |> json(%{error: :not_found})
-      {:error, :already_accepted} -> conn |> put_status(:conflict) |> json(%{error: :accepted})
+    with {:ok, invitation} <- found(Invitation.get(id)) do
+      case Invitation.cancel(invitation) do
+        {:ok, _cancelled} -> send_resp(conn, :no_content, "")
+        {:error, :already_accepted} -> {:error, :accepted}
+      end
     end
   end
 end

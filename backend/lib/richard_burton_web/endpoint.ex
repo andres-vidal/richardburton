@@ -17,6 +17,25 @@ defmodule RichardBurtonWeb.Endpoint do
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
+  # The document socket accepts WebSocket connections only. It reads the
+  # `rb-session` cookie on connect, through `RichardBurtonWeb.SessionCookie`.
+  #
+  # Phoenix's CSRF check is off, because it expects the CSRF token of a Plug
+  # session. `RichardBurtonWeb.DocumentSocket` checks the app's own CSRF token
+  # instead, and the origin check stays on.
+  #
+  # The CSRF token comes in the auth-token header instead of the query string,
+  # so it does not appear in request logs.
+  @document_session [
+    store: RichardBurtonWeb.SessionCookie,
+    key: RichardBurton.Auth.Session.cookie_name()
+  ]
+
+  socket("/socket", RichardBurtonWeb.DocumentSocket,
+    websocket: [connect_info: [session: @document_session], check_csrf: false],
+    auth_token: true
+  )
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # You should set gzip to true if you are running phx.digest

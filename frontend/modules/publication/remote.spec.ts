@@ -23,15 +23,16 @@ import {
 import {
   createId,
   errorFamily,
+  hydrate,
   isValidatingAtom,
   lastValidatedFamily,
-  overrideFamily,
-  overrideField,
   publicationFamily,
   publicationIdsAtom,
-  totalIndexCountAtom,
+  remember,
+  savedFamily,
   setAll,
-  visiblePublicationFamily,
+  setField,
+  totalIndexCountAtom,
 } from "./store";
 
 // The two side-effecting seams. Mocking the modules keeps `pages/_app.tsx` and
@@ -93,8 +94,8 @@ describe("bulk", () => {
 describe("update", () => {
   test("PUTs the edited row, replaces it with the server value, and clears the edit", async () => {
     const id = 7;
-    store.set(publicationFamily(id), pub({ title: "Old title" }));
-    overrideField(store, id, "title", "New title");
+    remember(store, { ...pub({ title: "Old title" }), id });
+    setField(store, id, "title", "New title");
     const returned = { ...pub({ title: "New title" }), id };
     http.put.mockResolvedValue({ data: returned });
 
@@ -103,11 +104,11 @@ describe("update", () => {
     expect(ok).toBe(true);
     const [url, body] = http.put.mock.calls[0];
     expect(url).toBe("publications/7");
-    // The body is the visible value (base ⊕ pending edit).
+    // The body is the row as edited.
     expect((body as Publication).title).toBe("New title");
-    // The row is replaced with the server's value and the edit is cleared.
+    // The row and its saved copy both hold the server's value.
     expect(store.get(publicationFamily(id))).toEqual(returned);
-    expect(store.get(overrideFamily(id))).toBeUndefined();
+    expect(store.get(savedFamily(id))).toEqual(returned);
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({ level: "success" }),
     );
@@ -115,7 +116,7 @@ describe("update", () => {
 
   test("on a 409 conflict, notifies and returns false", async () => {
     const id = 7;
-    store.set(publicationFamily(id), pub({ title: "A" }));
+    remember(store, { ...pub({ title: "A" }), id });
     http.put.mockRejectedValue({
       response: { status: 409, data: { errors: "conflict" } },
     });
@@ -130,7 +131,7 @@ describe("update", () => {
 
   test("on a 400, surfaces the field errors on the row and returns false", async () => {
     const id = 7;
-    store.set(publicationFamily(id), pub({ title: "" }));
+    remember(store, { ...pub({ title: "" }), id });
     http.put.mockRejectedValue({
       response: { status: 400, data: { errors: { title: "required" } } },
     });
@@ -144,9 +145,10 @@ describe("update", () => {
 
 describe("remove", () => {
   test("DELETEs the publication and drops it from the index", async () => {
-    store.set(publicationIdsAtom, [7, 12]);
-    store.set(publicationFamily(7), { ...pub({ title: "Doomed" }), id: 7 });
-    store.set(publicationFamily(12), { ...pub({ title: "Kept" }), id: 12 });
+    hydrate(store, [
+      { ...pub({ title: "Doomed" }), id: 7 },
+      { ...pub({ title: "Kept" }), id: 12 },
+    ]);
     store.set(totalIndexCountAtom, 288);
     http.delete.mockResolvedValue({});
 
@@ -167,8 +169,7 @@ describe("remove", () => {
   });
 
   test("on failure, notifies and leaves the index untouched", async () => {
-    store.set(publicationIdsAtom, [7]);
-    store.set(publicationFamily(7), { ...pub({ title: "Survivor" }), id: 7 });
+    hydrate(store, [{ ...pub({ title: "Survivor" }), id: 7 }]);
     store.set(totalIndexCountAtom, 288);
     http.delete.mockRejectedValue({ response: { status: 404 } });
 
@@ -277,8 +278,7 @@ describe("merge", () => {
   ];
 
   test("names the losers in the body and drops them from the index", async () => {
-    losers.forEach((loser) => store.set(publicationFamily(loser.id), loser));
-    store.set(publicationIdsAtom, [1, 2, 3]);
+    hydrate(store, [winner, ...losers]);
     http.post.mockResolvedValue({});
 
     const ok = await merge(store, { winner, losers });
@@ -311,8 +311,8 @@ describe("merge", () => {
 describe("validateUpdate", () => {
   test("POSTs the visible value to the row's validate endpoint and surfaces its errors", async () => {
     const id = 7;
-    store.set(publicationFamily(id), pub({ title: "Old title" }));
-    overrideField(store, id, "title", "New title");
+    remember(store, { ...pub({ title: "Old title" }), id });
+    setField(store, id, "title", "New title");
     http.post.mockResolvedValue({
       data: { publication: pub({ title: "New title" }), errors: "conflict" },
     });
@@ -323,17 +323,14 @@ describe("validateUpdate", () => {
     // The id is in the path so the server can exclude the row from its own
     // conflict check.
     expect(url).toBe("publications/7/validate");
-    // The body is the visible value (base ⊕ pending edit).
+    // The body is the row as edited.
     expect((body as Publication).title).toBe("New title");
     expect(store.get(errorFamily(id))).toBe("conflict");
   });
 
-  // Each test uses its own id: these rows are written straight to
-  // `publicationFamily`, so they never enter `publicationIdsAtom` and `resetAll`
-  // can't clear them between tests.
   test("skips the request when nothing changed", async () => {
     const id = 8;
-    store.set(publicationFamily(id), pub({ title: "Dom Casmurro" }));
+    remember(store, { ...pub({ title: "Dom Casmurro" }), id });
     http.post.mockResolvedValue({
       data: { publication: pub({ title: "Dom Casmurro" }), errors: null },
     });
@@ -347,7 +344,7 @@ describe("validateUpdate", () => {
 
   test("clears the row's errors when the edit is valid", async () => {
     const id = 9;
-    store.set(publicationFamily(id), pub({ title: "Dom Casmurro" }));
+    remember(store, { ...pub({ title: "Dom Casmurro" }), id });
     http.post.mockResolvedValue({
       data: { publication: pub({ title: "Dom Casmurro" }), errors: null },
     });
@@ -369,10 +366,7 @@ describe("validate", () => {
 
     // Pretend B was already validated, so it is filtered out of this run and
     // only A and C are sent.
-    store.set(
-      lastValidatedFamily(b),
-      hash(store.get(visiblePublicationFamily(b))),
-    );
+    store.set(lastValidatedFamily(b), hash(store.get(publicationFamily(b))));
 
     http.post.mockResolvedValue({
       data: [
@@ -407,7 +401,7 @@ describe("validate", () => {
 
     // The user fixes the row: its value — and therefore its hash — changes, so
     // it is no longer deduplicated against the last validated value.
-    store.set(publicationFamily(a), pub({ title: "Dom Casmurro" }));
+    setField(store, a, "title", "Dom Casmurro");
 
     // Second pass: the row is re-sent and its (now clean) result replaces the
     // stale error.
@@ -423,10 +417,7 @@ describe("validate", () => {
   test("skips the request when nothing changed", async () => {
     const a = createId();
     setAll(store, [{ id: a, publication: pub({ title: "A" }), errors: null }]);
-    store.set(
-      lastValidatedFamily(a),
-      hash(store.get(visiblePublicationFamily(a))),
-    );
+    store.set(lastValidatedFamily(a), hash(store.get(publicationFamily(a))));
 
     await validate(store, [a]);
 

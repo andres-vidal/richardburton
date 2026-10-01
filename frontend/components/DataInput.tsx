@@ -10,7 +10,8 @@ import {
 import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
-import { overrideField } from "modules/publication/store";
+import { setField } from "modules/publication/store";
+import { useReportPosition } from "modules/publication/presence";
 import { FC, FocusEvent, HTMLProps, Ref, forwardRef } from "react";
 import OriginalBookDataInput from "./OriginalBookDataInput";
 import TextArrayDataInput from "./TextArrayDataInput";
@@ -91,6 +92,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
     value: data,
     error,
     autoValidated,
+    onFocus,
     onBlur,
     onChange,
   } = props;
@@ -103,6 +105,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   const placeholder = t(colId);
 
   const store = usePublicationStore();
+  const report = useReportPosition();
   const validateRow = onValidate ?? (() => validate(store, [rowId]));
 
   function doValidate() {
@@ -110,15 +113,23 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   }
 
   function handleChange(value: PublicationValue) {
-    overrideField(store, rowId, colId, value);
+    setField(store, rowId, colId, value);
     if (VALIDATES_ON_CHANGE.includes(type)) {
       doValidate();
     }
     onChange?.(value);
   }
 
+  // Reports this cell as the person's position, so other people in the
+  // document see who is in it. `handleBlur` reports `null` when focus leaves.
+  function handleFocus(event: FocusEvent<HTMLInputElement>) {
+    report({ row: String(rowId), field: colId });
+    onFocus?.(event);
+  }
+
   function handleBlur(event: FocusEvent<HTMLInputElement>) {
     doValidate();
+    report(null);
     onBlur?.(event);
   }
 
@@ -128,6 +139,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
       {...Publication.define(colId)}
       ref={ref}
       value={data}
+      onFocus={handleFocus}
       onBlur={handleBlur}
       onChange={handleChange}
       placeholder={placeholder}

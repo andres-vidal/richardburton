@@ -1419,7 +1419,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       attrs = %{@publication_attrs | "title" => "Another Title"}
 
       conn = put(meta.conn, publication_path(meta.conn, :update, a.id), attrs)
-      assert response(conn, 409)
+      assert json_response(conn, 409) == %{"error" => "conflict"}
     end
 
     test "re-saving the same data does not conflict with itself", meta do

@@ -16,6 +16,14 @@ function readCookie(name: string): string | undefined {
   return row?.slice(prefix.length);
 }
 
+/**
+ * Returns the double-submit CSRF token from the readable `csrf-token` cookie,
+ * or `undefined` on the server or when the cookie is not set.
+ */
+export function csrfToken(): string | undefined {
+  return typeof document === "undefined" ? undefined : readCookie("csrf-token");
+}
+
 const HTTP: HttpModule = {
   client(options) {
     // withCredentials so the browser sends/receives the backend's rb-session cookie.
@@ -42,8 +50,7 @@ const HTTP: HttpModule = {
     // state-changing admin endpoints; everything else ignores it. Server-side
     // callers (no document) skip it — they authenticate with the bearer token.
     instance.interceptors.request.use((config) => {
-      const token =
-        typeof document === "undefined" ? undefined : readCookie("csrf-token");
+      const token = csrfToken();
       if (token) config.headers.set(CSRF_HEADER, token);
       return config;
     });

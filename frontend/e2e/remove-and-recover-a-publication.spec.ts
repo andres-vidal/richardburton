@@ -8,6 +8,7 @@ import {
   seedCorpus,
   submitWorkspace,
   CORPUS_SIZE,
+  openDocument,
 } from "./helpers";
 
 // The record the journey deletes and later re-imports. Field-for-field the same
@@ -110,7 +111,7 @@ test("an admin deletes a publication; it leaves the index and search, and the sa
 
   // The tombstone does not hold the composite key hostage: importing the very
   // same publication through the workspace succeeds.
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await addPublicationRow(page, IRACEMA);
   await submitWorkspace(page, 1);
 

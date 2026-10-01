@@ -1,9 +1,9 @@
 import { createStore } from "jotai";
-import { RESET } from "jotai/utils";
 
 import {
   PublicationEntry,
   PublicationError,
+  PublicationId,
   PublicationKey,
   empty,
 } from "./model";
@@ -23,26 +23,23 @@ import {
   focusedRowIdAtom,
   hiddenAttributesAtom,
   isValidFamily,
-  overriddenCountAtom,
-  overriddenIdsAtom,
-  overrideFamily,
-  overrideField,
   publicationFamily,
   publicationIdsAtom,
   resetAll,
   resetAttributes,
   resetDiscarded,
-  resetOverridden,
+  savedFamily,
   setAll,
   setAttributesVisible,
   setDiscarded,
   setErrors,
+  setField,
+  storedFieldValueFamily,
   totalCountAtom,
   validCountAtom,
   visibleAttributesAtom,
   visibleCountAtom,
   visibleIdsAtom,
-  visiblePublicationFamily,
 } from "./store";
 
 import type { Store } from "modules/store";
@@ -55,12 +52,19 @@ type Fields = Partial<ReturnType<typeof empty>>;
 
 /** Build an entry with sensible defaults, mirroring what the remote layer emits. */
 function entry(
-  id: number,
+  id: PublicationId,
   fields: Fields = {},
   errors: PublicationError = null,
 ): PublicationEntry {
   return { id, publication: { ...empty(), ...fields }, errors };
 }
+
+/** A saved publication, as the index returns them. */
+const saved = (id: number, title = `Title ${id}`) => ({
+  ...empty(),
+  id,
+  title,
+});
 
 /** A field-level error map (the backend only returns the invalid fields). */
 function fieldErrors(
@@ -75,7 +79,6 @@ beforeEach(() => {
   // reachable through the families even with a fresh store — clear them, and the
   // draft row with them (it is never in the id list).
   forget(knownIds());
-  store.set(overrideFamily(DRAFT_ID), RESET);
 });
 
 describe("setAll", () => {
@@ -112,16 +115,42 @@ describe("setAll", () => {
     );
   });
 
-  test("a cell key survives the negative ids minted for unsaved rows", () => {
-    const a = createId();
-    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
+  test("a cell key survives every namespace a row key comes from", () => {
+    const minted = createId();
+    setAll(store, [
+      // A saved row, an unsaved row and the draft row.
+      entry(7, { title: "Dom Casmurro" }),
+      entry(minted, { title: "Iracema" }),
+      entry(DRAFT_ID, { title: "Barren Lives" }),
+    ]);
 
-    // Ids are packed into a `<id>:<key>` string; a negative id carries its own
-    // "-", so splitting on the wrong separator would misread the id.
-    expect(a).toBeLessThan(0);
-    expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
+    // A cell is cached under an `<id>:<key>` string, so each kind of id must
+    // read back from that string as the same value.
+    expect(store.get(fieldValueFamily({ id: 7, key: "title" }))).toBe(
       "Dom Casmurro",
     );
+    expect(store.get(fieldValueFamily({ id: minted, key: "title" }))).toBe(
+      "Iracema",
+    );
+    expect(store.get(fieldValueFamily({ id: DRAFT_ID, key: "title" }))).toBe(
+      "Barren Lives",
+    );
+  });
+
+  test("forgetting a row reaches the cells of every kind of key", () => {
+    const minted = createId();
+    setAll(store, [entry(7, { title: "Dom Casmurro" }), entry(minted)]);
+
+    // Read both, so each has a cell atom cached under its own string key.
+    store.get(fieldValueFamily({ id: 7, key: "title" }));
+    store.get(fieldValueFamily({ id: minted, key: "title" }));
+
+    forget([7, minted]);
+
+    // A cell key is text. `forget` drops a cell only when its key reads back as
+    // the id of a forgotten row.
+    expect(knownIds().has(7)).toBe(false);
+    expect(knownIds().has(minted)).toBe(false);
   });
 });
 
@@ -182,55 +211,48 @@ describe("deletion", () => {
   });
 });
 
-describe("overrides", () => {
-  test("overrideField layers an edit over the stored publication", () => {
-    const a = createId();
-    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
+describe("edits", () => {
+  test("an edit changes the row and leaves its saved copy as it was", () => {
+    hydrate(store, [saved(1, "Dom Casmurro")]);
 
-    overrideField(store, a, "title", "Dom Casmurro (rev.)");
+    setField(store, 1, "title", "Dom Casmurro (rev.)");
 
-    // The merged (visible) value reflects the edit...
-    expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
+    // `fieldValueFamily` reads the edit...
+    expect(store.get(fieldValueFamily({ id: 1, key: "title" }))).toBe(
       "Dom Casmurro (rev.)",
     );
-    expect(store.get(visiblePublicationFamily(a)).title).toBe(
-      "Dom Casmurro (rev.)",
-    );
-    // ...but the underlying publication stays as loaded...
-    expect(store.get(publicationFamily(a)).title).toBe("Dom Casmurro");
-    // ...and the row is now flagged as overridden.
-    expect(store.get(overriddenIdsAtom)).toEqual([a]);
-    expect(store.get(overriddenCountAtom)).toBe(1);
-  });
-
-  test("resetOverridden drops pending edits", () => {
-    const a = createId();
-    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
-    overrideField(store, a, "title", "changed");
-    expect(store.get(overriddenCountAtom)).toBe(1);
-
-    resetOverridden(store);
-
-    expect(store.get(overriddenCountAtom)).toBe(0);
-    expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
+    // ...and `storedFieldValueFamily` still reads the saved value.
+    expect(store.get(storedFieldValueFamily({ id: 1, key: "title" }))).toBe(
       "Dom Casmurro",
     );
+    expect(store.get(savedFamily(1))?.title).toBe("Dom Casmurro");
   });
 
-  test("discardEdit drops one row's pending edits and errors", () => {
+  test("discardEdit puts a row back the way it was saved, and drops its errors", () => {
+    hydrate(store, [saved(1, "Dom Casmurro")]);
+    setErrors(store, [entry(1, {}, "conflict")]);
+    setField(store, 1, "title", "changed");
+    expect(store.get(isValidFamily(1))).toBe(false);
+
+    discardEdit(store, 1);
+
+    expect(store.get(fieldValueFamily({ id: 1, key: "title" }))).toBe(
+      "Dom Casmurro",
+    );
+    expect(store.get(isValidFamily(1))).toBe(true);
+  });
+
+  test("a row that was never saved keeps its edit when it is discarded", () => {
     const a = createId();
-    setAll(store, [entry(a, { title: "Dom Casmurro" }, "conflict")]);
-    overrideField(store, a, "title", "changed");
-    expect(store.get(overriddenCountAtom)).toBe(1);
-    expect(store.get(isValidFamily(a))).toBe(false);
+    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
+    setField(store, a, "title", "Dom Casmurro (rev.)");
 
     discardEdit(store, a);
 
-    expect(store.get(overriddenCountAtom)).toBe(0);
+    // There is no saved copy, so the row keeps its edit.
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
-      "Dom Casmurro",
+      "Dom Casmurro (rev.)",
     );
-    expect(store.get(isValidFamily(a))).toBe(true);
   });
 });
 
@@ -240,13 +262,13 @@ describe("addNew", () => {
     setAll(store, [entry(a)]);
 
     // Type into the always-present draft row, then commit it.
-    overrideField(store, DRAFT_ID, "title", "A Hora da Estrela");
+    setField(store, DRAFT_ID, "title", "A Hora da Estrela");
     const newId = addNew(store);
 
     expect(store.get(publicationIdsAtom)).toEqual([a, newId]);
     expect(store.get(publicationFamily(newId)).title).toBe("A Hora da Estrela");
     // The draft resets to empty, ready for the next entry.
-    expect(store.get(visiblePublicationFamily(DRAFT_ID)).title).toBe("");
+    expect(store.get(publicationFamily(DRAFT_ID)).title).toBe("");
   });
 
   test("refuses to run before entries are loaded", () => {
@@ -314,27 +336,28 @@ describe("focusNextInvalid", () => {
 });
 
 describe("ids and the draft", () => {
-  test("createId hands out unique, negative ids (never collide with server ids)", () => {
+  test("createId hands out keys no other browser could mint", () => {
     const a = createId();
     const b = createId();
+
     expect(a).not.toBe(b);
-    expect(a).toBeLessThan(0);
-    expect(b).toBeLessThan(0);
+
+    // The key is a UUID. A counter would start at the same value in every
+    // browser and give two people's new rows the same key.
+    expect(a).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
+
+    // The key is a string, so it cannot be mistaken for a server id.
+    expect(typeof a).toBe("string");
   });
 
   test("the draft row starts empty", () => {
-    expect(store.get(visiblePublicationFamily(DRAFT_ID))).toEqual(empty());
+    expect(store.get(publicationFamily(DRAFT_ID))).toEqual(empty());
   });
 });
 
 describe("family lifecycle", () => {
-  /** A saved publication, as the index returns them. */
-  const saved = (id: number, title = `Title ${id}`) => ({
-    ...empty(),
-    id,
-    title,
-  });
-
   test("a load forgets the publications the previous one held", () => {
     hydrate(store, [saved(1), saved(2)]);
     expect([...knownIds()]).toEqual(expect.arrayContaining([1, 2]));
@@ -349,13 +372,38 @@ describe("family lifecycle", () => {
 
   test("a row with unsaved edits survives a load that drops it", () => {
     hydrate(store, [saved(1)]);
-    overrideField(store, 1, "title", "Being typed");
+    setField(store, 1, "title", "Being typed");
 
     hydrate(store, [saved(2)]);
 
-    // Dropping it would discard what the admin is in the middle of writing —
-    // a search running behind an open editor must not do that.
-    expect(store.get(overrideFamily(1))).toEqual({ title: "Being typed" });
+    // Dropping the row would discard what the admin is typing, so a load that
+    // runs while an editor is open keeps it. The row is no longer listed,
+    // since the load did not return it.
+    expect(store.get(publicationFamily(1)).title).toBe("Being typed");
+    expect(store.get(publicationIdsAtom)).toEqual([2]);
+  });
+
+  test("a row with unsaved edits keeps them when a load returns it again", () => {
+    hydrate(store, [saved(1, "Dom Casmurro")]);
+    setField(store, 1, "title", "Being typed");
+
+    hydrate(store, [saved(1, "Dom Casmurro, as someone else saved it")]);
+
+    // The row keeps the edit, and only the saved copy is updated.
+    expect(store.get(publicationFamily(1)).title).toBe("Being typed");
+    expect(store.get(storedFieldValueFamily({ id: 1, key: "title" }))).toBe(
+      "Dom Casmurro, as someone else saved it",
+    );
+  });
+
+  test("a row without edits takes what a load returns", () => {
+    hydrate(store, [saved(1, "Dom Casmurro")]);
+
+    hydrate(store, [saved(1, "Dom Casmurro, as someone else saved it")]);
+
+    expect(store.get(publicationFamily(1)).title).toBe(
+      "Dom Casmurro, as someone else saved it",
+    );
   });
 
   test("forgetting a publication drops its per-cell atoms too", () => {
@@ -394,12 +442,6 @@ describe("family lifecycle", () => {
 });
 
 describe("appendIndex", () => {
-  const saved = (id: number, title = `Title ${id}`) => ({
-    ...empty(),
-    id,
-    title,
-  });
-
   test("grows the working set, keeping the rows already loaded", () => {
     hydrate(store, [saved(1), saved(2)]);
     appendIndex(store, [saved(3, "C"), saved(4, "D")]);

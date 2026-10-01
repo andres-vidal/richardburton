@@ -29,6 +29,7 @@ defmodule RichardBurton.Publication do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Ecto.Query, only: [order_by: 2]
   import RichardBurton.Validation
 
   require Ecto.Query
@@ -111,8 +112,14 @@ defmodule RichardBurton.Publication do
     |> link_fingerprints()
   end
 
+  @doc """
+  Returns every publication row, tombstones included, ordered by id, which is
+  the order they were inserted. Each row comes with its countries, publishers,
+  sources and translated book preloaded.
+  """
   def all do
     Publication
+    |> order_by(:id)
     |> Repo.all()
     |> preload
   end

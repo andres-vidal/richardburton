@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { useVisiblePublicationIds } from "modules/publication/hooks";
 import { setDiscarded } from "modules/publication/store";
-import { seed } from "modules/publication/fixtures";
+import { seed } from "test/publication-fixtures";
 import { FC } from "react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 

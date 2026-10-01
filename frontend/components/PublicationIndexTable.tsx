@@ -29,6 +29,7 @@ import { useTranslations } from "next-intl";
 import useVisible from "utils/useVisible";
 import Highlight from "./Highlight";
 import { EmptySearchResults } from "./EmptySearchResults";
+import CellPresence from "./CellPresence";
 import { ListSkeleton } from "./ListSkeleton";
 
 type RowId = PublicationId;
@@ -154,6 +155,13 @@ const Content: FC<{
   );
 };
 
+/**
+ * One cell of the table. A cell that another person has focused gets a
+ * background tint in that person's colour, a thin bar in that colour along its
+ * left edge, and a `CellPresence` marker. The bar is a `before` pseudo-element,
+ * because a border would take width from the cell's fixed grid track and shift
+ * the text.
+ */
 const Column: FC<{
   rowId: RowId;
   colId: ColId;
@@ -161,6 +169,11 @@ const Column: FC<{
   focused?: boolean;
   invalid?: boolean;
   selected?: boolean;
+  /**
+   * Another person who has this cell focused: their `email` and the index of
+   * their presence `colour`. `null` when nobody else has it focused.
+   */
+  focusedBy?: { email: string; colour: number } | null;
 }> = ({
   rowId,
   colId,
@@ -168,17 +181,28 @@ const Column: FC<{
   focused = false,
   invalid = false,
   selected = false,
+  focusedBy = null,
 }) => {
   // `truncate` sets overflow:hidden, which zeroes the grid item's auto min-width so
   // the fixed-width track never expands to fit the content.
   return (
     <Aria.Cell
-      className="px-2 py-1 text-sm truncate transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
+      className="
+        relative px-2 py-1 text-sm truncate transition-colors
+        group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100
+        selected:bg-amber-100 selected:focused:error:bg-amber-100
+        data-[focused-by]:before:absolute data-[focused-by]:before:inset-y-0.5 data-[focused-by]:before:left-0 data-[focused-by]:before:w-0.5 data-[focused-by]:before:rounded-full
+        data-[focused-by]:bg-(--presence-tint) data-[focused-by]:before:bg-(--presence)
+      "
       data-selected={selected}
       data-error={invalid}
       data-focused={focused}
+      data-focused-by={focusedBy?.colour}
     >
       <Content rowId={rowId} colId={colId} />
+      {focusedBy && (
+        <CellPresence colour={focusedBy.colour} by={focusedBy.email} />
+      )}
     </Aria.Cell>
   );
 };

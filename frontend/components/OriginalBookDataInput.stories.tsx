@@ -1,11 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { OriginalBook, type OriginalBookValue } from "modules/original-book";
 import { empty } from "modules/publication/model";
-import {
-  publicationFamily,
-  resetAll,
-  visiblePublicationFamily,
-} from "modules/publication/store";
+import { publicationFamily, resetAll, setAll } from "modules/publication/store";
 import { store } from "modules/store";
 import { ComponentProps, FC, useState } from "react";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
@@ -83,7 +79,7 @@ const meta = {
   beforeEach: [
     () => {
       resetAll(store);
-      store.set(publicationFamily(ROW), empty());
+      setAll(store, [{ id: ROW, publication: empty(), errors: null }]);
     },
     withLibrary(LIBRARY),
   ],
@@ -157,7 +153,7 @@ export const FillsBothFields: Story = {
     await expect(args.onChange).toHaveBeenCalledWith("Manuel de Moraes");
     // The other half went straight to its own field.
     await waitFor(() =>
-      expect(store.get(visiblePublicationFamily(ROW)).originalAuthors).toEqual([
+      expect(store.get(publicationFamily(ROW)).originalAuthors).toEqual([
         "Machado de Assis",
         "J. M. Pereira da Silva",
       ]),

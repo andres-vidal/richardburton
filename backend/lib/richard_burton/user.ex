@@ -101,29 +101,49 @@ defmodule RichardBurton.User do
       |> role_changeset(%{role: role})
       |> Repo.update()
       |> case do
-        {:ok, updated} -> {:ok, updated}
-        {:error, changeset} -> {:error, Validation.get_errors(changeset)}
+        {:ok, updated} ->
+          RichardBurton.Auth.Access.changed(updated.subject_id)
+          {:ok, updated}
+
+        {:error, changeset} ->
+          {:error, Validation.get_errors(changeset)}
       end
     end
   end
 
   @doc """
-  Revoke a user's access, on behalf of `actor` — the subject id of whoever is
-  asking, or `nil` from the console.
+  Deletes a user's account and all of their sessions, on behalf of `actor`.
+  `actor` is the subject id of the person asking, or `nil` from the console.
+  Returns `{:ok, user}`. Like `set_role/3`, it refuses to remove your own
+  account or the last admin's, and returns `{:error, :self}` or
+  `{:error, :last_admin}`.
 
-  The account goes, and with it the sessions that were signed in as them —
-  otherwise a revoked user keeps the run of the place until their cookie happens
-  to expire. Removing your own account, or the last admin's, is refused as it is
-  in `set_role/3`.
+  Deleting the sessions signs the person out everywhere. The sessions and the
+  account are deleted in one transaction. After the transaction commits,
+  `delete/2` calls `RichardBurton.Auth.Access.changed/1`, so the person's open
+  document channels check their access again and close.
+  `Session.revoke_all/1` also calls `changed/1`, but that call happens inside
+  the transaction, too early to close them.
   """
   def delete(user = %User{}, actor \\ nil) do
     with :ok <- refuse_self(user, actor),
          :ok <- refuse_last_admin(user, nil) do
+      delete_with_sessions(user)
+    end
+  end
+
+  # Deletes the user's sessions and then the user, in one transaction, and calls
+  # `RichardBurton.Auth.Access.changed/1` after the transaction commits. Returns
+  # `{:ok, user}` with the deleted user.
+  defp delete_with_sessions(user) do
+    {:ok, deleted} =
       Repo.transaction(fn ->
         RichardBurton.Auth.Session.revoke_all(user.subject_id)
         Repo.delete!(user)
       end)
-    end
+
+    RichardBurton.Auth.Access.changed(user.subject_id)
+    {:ok, deleted}
   end
 
   # Changing your own role or removing your own account is a mistake often

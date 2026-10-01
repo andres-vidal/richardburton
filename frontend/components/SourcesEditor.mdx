@@ -18,7 +18,7 @@ comma-joined string but a genuine ordered list: provenance is free text that may
 itself contain commas. The `value` is therefore a `string[]`, and every action —
 add, edit, remove, reorder — produces a **new array** through `onChange`. The
 component keeps no internal state; the parent owns the list (in the app, the
-publication's override overlay).
+publication's row in the store).
 
 Reordering is a plain array swap driven by the ↑/↓ controls (bounded at the ends,
 no drag). Blank rows are allowed while editing and dropped server-side on save,

@@ -20,9 +20,9 @@ card resolves its own row (`usePublication`), so the list re-renders as the
 store changes. In stories the store is seeded through the shared fixtures:
 
 ```tsx
-import { seed } from "modules/publication/fixtures";
+import { seedIndex } from "test/publication-fixtures";
 
-seed(); // load the sample publications before the story renders
+seedIndex(store); // load the sample publications before the story renders
 ```
 
 The only prop is `onItemClick(id)` — a curried click handler, invoked per row so

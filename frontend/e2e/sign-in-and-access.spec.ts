@@ -51,11 +51,33 @@ test("signing out works from a page that is not the index", async ({
 test("a signed-out visitor cannot reach the admin workspace", async ({
   page,
 }) => {
-  await page.goto("/admin/publications/new");
+  // Go straight to the documents URL. The guard redirects a signed-out visitor
+  // before the page renders.
+  await page.goto("/admin/publications/documents");
 
   // The guard bounces the visitor back to the public index.
   await expect(page).toHaveURL("/en");
   await expect(
-    page.getByRole("heading", { name: "Add publications" }),
+    page.getByRole("heading", { name: "Import documents" }),
   ).toHaveCount(0);
+});
+
+test("a signed-out visitor is turned back from every admin page that reads the database", async ({
+  page,
+}) => {
+  // Each of these pages reads from the backend while it renders. The guard has
+  // to redirect a signed-out visitor before that read runs.
+  const pages = [
+    { address: "/admin/publications/deleted", title: "Deleted publications" },
+    { address: "/admin/publications/history", title: "History" },
+    { address: "/admin/publications/duplicates", title: "Review duplicates" },
+    { address: "/admin/publications/sources", title: "Backfill sources" },
+  ];
+
+  for (const { address, title } of pages) {
+    await page.goto(address);
+
+    await expect(page).toHaveURL("/en");
+    await expect(page.getByRole("heading", { name: title })).toHaveCount(0);
+  }
 });

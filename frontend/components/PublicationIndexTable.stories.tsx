@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import {
-  overrideField,
   publicationIdsAtom,
   resetAll,
   resetAttributes,
   setAttributesVisible,
+  setField,
 } from "modules/publication/store";
 import { store } from "modules/store";
-import { sampleManyPublications, seed } from "modules/publication/fixtures";
+import { sampleManyPublications, seedIndex } from "test/publication-fixtures";
 import { expect, within } from "storybook/test";
 
 import { PublicationIndexTable } from "./PublicationIndexTable";
@@ -34,7 +34,7 @@ type Story = StoryObj<typeof meta>;
 
 /** The index populated with a few publications. */
 export const Default: Story = {
-  beforeEach: () => seed(store),
+  beforeEach: () => seedIndex(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // 3 seeded publications → 3 body rows (+ the header row). Cell contents are
@@ -44,15 +44,14 @@ export const Default: Story = {
 };
 
 /**
- * The index shows what is *saved*. The modal's edit draft lives in the same
- * override overlay, so without this the values would visibly change in the table
- * beneath the open modal, before anything was saved.
+ * The index shows saved values only. The editor in the modal edits the same
+ * rows, so an unsaved edit must not appear in the table behind the modal.
  */
 export const IgnoresPendingEdits: Story = {
   beforeEach: () => {
-    seed(store);
+    seedIndex(store);
     const [id] = store.get(publicationIdsAtom)!;
-    overrideField(store, id, "title", "Edited in the modal");
+    setField(store, id, "title", "Edited in the modal");
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -61,7 +60,7 @@ export const IgnoresPendingEdits: Story = {
     await expect(
       (await canvas.findAllByText("Dom Casmurro")).length,
     ).toBeGreaterThan(0);
-    // ...and the pending edit is nowhere in the table.
+    // ...and the unsaved edit does not appear in the table.
     await expect(
       canvas.queryByText("Edited in the modal"),
     ).not.toBeInTheDocument();
@@ -70,7 +69,7 @@ export const IgnoresPendingEdits: Story = {
 
 /** A search that matched nothing (ids loaded, but empty). */
 export const Empty: Story = {
-  beforeEach: () => seed(store, []),
+  beforeEach: () => seedIndex(store, []),
 };
 
 /** Ids not loaded yet — the skeleton placeholder. */
@@ -88,7 +87,7 @@ export const Loading: Story = {
  * subscribe their cells until they scroll into view.
  */
 export const ManyRows: Story = {
-  beforeEach: () => seed(store, sampleManyPublications(100)),
+  beforeEach: () => seedIndex(store, sampleManyPublications(100)),
   decorators: [
     (Story) => (
       <div className="h-[420px] overflow-auto rounded border border-gray-200">
@@ -109,7 +108,7 @@ export const ManyRows: Story = {
  */
 export const HiddenColumns: Story = {
   beforeEach: () => {
-    seed(store, sampleManyPublications(20));
+    seedIndex(store, sampleManyPublications(20));
     setAttributesVisible(store, ["publishers", "year"], false);
   },
   play: async ({ canvasElement }) => {

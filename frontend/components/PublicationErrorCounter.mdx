@@ -20,9 +20,9 @@ validated, added, or removed. In stories the store is seeded through the shared
 fixtures, with `fieldErrors` attaching validation errors to specific rows:
 
 ```tsx
-import { fieldErrors, seed } from "modules/publication/fixtures";
+import { fieldErrors, seed } from "test/publication-fixtures";
 
-seed([{ title: "", errors: fieldErrors({ title: "required" }) }]);
+seed(store, [{ title: "", errors: fieldErrors({ title: "required" }) }]);
 ```
 
 <Canvas of={ErrorCounterStories.Default} />

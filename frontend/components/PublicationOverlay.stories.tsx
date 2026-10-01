@@ -187,6 +187,10 @@ export const Default: Story = {
   },
 };
 
+/**
+ * The edit form, opened with Edit as an admin. Clicking the Publishers label
+ * does not remove the chip the field holds.
+ */
 export const Editing: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),
   decorators: [asAdmin],

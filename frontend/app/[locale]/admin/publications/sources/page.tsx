@@ -5,7 +5,11 @@ import PageHeader from "components/PageHeader";
 import SourcesBackfill from "components/SourcesBackfill";
 import { readUnsourced } from "app/publications/read";
 
+import { admitEditors } from "../../guard";
+
 export default async function SourcesBackfillPage() {
+  await admitEditors();
+
   const t = await getTranslations("admin");
 
   const crumbs = [

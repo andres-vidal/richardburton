@@ -11,7 +11,7 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Cookie do
 
   def call(conn, _params) do
     case verify(conn) do
-      {:ok, subject_id} -> assign(conn, :subject_id, subject_id)
+      {:ok, session} -> assign(conn, :subject_id, session.subject_id)
       :error -> halt_unauthorized(conn)
     end
   end

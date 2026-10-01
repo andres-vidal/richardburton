@@ -16,10 +16,6 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/**
- * A dialog that renders in a portal over a dimmed overlay. Open it, then close
- * it by pressing Escape.
- */
 // A trigger + local open state so the story exercises the open/close flow.
 const OpenableModal = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -44,6 +40,10 @@ const OpenableModal = () => {
   );
 };
 
+/**
+ * A dialog that renders in a portal over a dimmed overlay. Open it, then close
+ * it by pressing Escape.
+ */
 export const Default: Story = {
   render: () => <OpenableModal />,
   play: async ({ canvasElement }) => {

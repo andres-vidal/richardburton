@@ -42,6 +42,8 @@ defmodule RichardBurtonWeb.SessionController do
   def delete(conn, _params) do
     conn = fetch_cookies(conn)
 
+    # `Session.revoke/1` broadcasts the change of access, and the document
+    # channels opened under this session close. See `RichardBurton.Auth.Access`.
     case conn.cookies[Session.cookie_name()] do
       nil -> :ok
       token -> Session.revoke(token)

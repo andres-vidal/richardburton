@@ -1,0 +1,39 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DocumentPresenceStories from "./DocumentPresence.stories";
+
+<Meta of={DocumentPresenceStories} />
+
+# Document presence
+
+Shows the other people who have this document open, each as their initial in
+their presence colour. It sits in the workspace header, next to
+`DocumentStatus`.
+
+<Canvas of={DocumentPresenceStories.OthersHere} />
+
+## Who is listed
+
+Anyone who may edit publications can open any document, so this list shows who
+has the document open now, not who is allowed to. The server keeps the list
+with Phoenix Presence. It tracks each connection under the email of its
+signed-in user, so a client cannot choose the name it is listed under. A person
+leaves the list when their tab closes, and the list is not stored.
+
+## One entry per person
+
+The server tracks connections, and one person may have the document open in
+several tabs. `useOthersPresent` returns one email per person, so a person with
+two tabs open is shown once.
+
+<Canvas of={DocumentPresenceStories.OnePersonInTwoTabs} />
+
+## Props
+
+None. It reads the people from the `LiveProvider` context with
+`useOthersPresent`. It renders nothing when nobody else has the document open.
+
+## States
+
+<Description of={DocumentPresenceStories.Alone} />
+<Canvas of={DocumentPresenceStories.Alone} />

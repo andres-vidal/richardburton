@@ -23,7 +23,7 @@ const ACTIONS: {
   Icon: FC<SVGProps<SVGSVGElement>>;
 }[] = [
   {
-    href: "/admin/publications/new",
+    href: "/admin/publications/documents",
     Icon: AddIcon,
     key: "new",
     role: "contributor",

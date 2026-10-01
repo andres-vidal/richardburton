@@ -13,27 +13,36 @@ import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
 import PublicationWorkspace from "components/PublicationWorkspace";
 import ResetDiscarded from "components/ResetDiscarded";
-import ResetOverridden from "components/ResetOverridden";
+import DocumentPresence from "components/DocumentPresence";
+import DocumentStatus from "components/DocumentStatus";
+import WorkspaceUndo from "components/WorkspaceUndo";
 import RowIdToggle from "components/RowIdToggle";
 import { Publication } from "modules/publication/model";
-import { setAll, setAttributesVisible } from "modules/publication/store";
+import { setAttributesVisible } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
+import { DocumentProvider } from "modules/publication/document-provider";
 import type { Store } from "modules/store";
 import { useIsSelectionEmpty } from "modules/selection";
+import { FC } from "react";
 
-function startEmpty(store: Store) {
-  setAll(store, []);
+// Makes every attribute column visible when the store is created. Column
+// visibility is local to each person and is not stored in the import document,
+// so it is not loaded with the rows.
+function showEveryColumn(store: Store) {
   setAttributesVisible(store, Publication.ATTRIBUTES);
 }
 
-function NewPublications() {
+const Workspace: FC<{ title: string; description: string }> = ({
+  title,
+  description,
+}) => {
   const t = useTranslations("admin");
   const isSelectionEmpty = useIsSelectionEmpty();
 
   const crumbs = [
     { label: t("home"), href: "/" },
     { label: t("admin"), href: "/admin" },
-    { label: t("newTitle") },
+    { label: title },
   ];
 
   return (
@@ -41,7 +50,13 @@ function NewPublications() {
       subheader={
         <>
           <Breadcrumb items={crumbs} />
-          <PageHeader title={t("newTitle")} description={t("newPage")} />
+          <div className="flex gap-4 justify-between items-center">
+            <PageHeader title={title} description={description} />
+            <span className="flex gap-3 items-center shrink-0">
+              <DocumentStatus />
+              <DocumentPresence />
+            </span>
+          </div>
         </>
       }
       content={<PublicationWorkspace />}
@@ -52,7 +67,7 @@ function NewPublications() {
               <PublicationUpload />
               <PublicationCounter />
               <PublicationErrorCounter />
-              <ResetOverridden />
+              <WorkspaceUndo />
               <ResetDiscarded />
               <RowIdToggle />
               <PublicationSubmit />
@@ -68,12 +83,28 @@ function NewPublications() {
       }
     />
   );
-}
+};
 
-export default function NewPublicationsPage() {
-  return (
-    <PublicationStoreProvider initialize={startEmpty}>
-      <NewPublications />
-    </PublicationStoreProvider>
-  );
-}
+/**
+ * The page for editing one import document: the publication workspace, the
+ * document's status and presence in the header, and the row actions in the
+ * footer.
+ *
+ * `DocumentProvider` connects the workspace store to the import document. The
+ * components inside read and write rows through the store's atoms, not through
+ * the document.
+ */
+const BulkWorkspace: FC<{
+  title: string;
+  description: string;
+  /** The import document these rows belong to. */
+  document: number;
+}> = ({ title, description, document }) => (
+  <PublicationStoreProvider initialize={showEveryColumn}>
+    <DocumentProvider document={document}>
+      <Workspace title={title} description={description} />
+    </DocumentProvider>
+  </PublicationStoreProvider>
+);
+
+export default BulkWorkspace;

@@ -21,9 +21,9 @@ everywhere and are validated immediately. In stories the publication store is
 seeded through the shared fixtures:
 
 ```tsx
-import { seed } from "modules/publication/fixtures";
+import { seed } from "test/publication-fixtures";
 
-seed(); // load the sample publications before the story renders
+seed(store); // load the sample publications before the story renders
 ```
 
 <Canvas of={DuplicateStories.Default} />

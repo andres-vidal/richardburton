@@ -7,8 +7,11 @@ import type { FullHistoryEntry } from "modules/publication/model";
 
 import { get } from "app/api";
 import PublicationHistoryFeed from "components/PublicationHistoryFeed";
+import { admitEditors } from "../../guard";
 
 export default async function PublicationHistoryPage() {
+  await admitEditors();
+
   const t = await getTranslations("admin");
 
   const crumbs = [

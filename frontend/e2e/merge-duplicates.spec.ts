@@ -7,6 +7,7 @@ import {
   seedCorpus,
   submitWorkspace,
   CORPUS_SIZE,
+  openDocument,
 } from "./helpers";
 
 // The record the corpus seeds, and the two the journey enters beside it: the
@@ -42,7 +43,7 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
 
   // Two more records of the book the corpus already holds, each with a source
   // of its own so the merge has provenance to reconcile.
-  await page.goto("/admin/publications/new");
+  await openDocument(page);
   await addPublicationRow(page, BRITISH_PRINTING);
   await addPublicationRow(page, SOURCED_COPY);
   await submitWorkspace(page, 2);

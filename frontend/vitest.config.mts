@@ -33,6 +33,7 @@ export default defineConfig({
           name: "unit",
           environment: "jsdom",
           globals: true,
+          setupFiles: [join(dir, "test/unit.setup.ts")],
           include: ["**/*.spec.{ts,tsx}"],
           // Playwright specs (frontend/e2e) run under `npm run test:e2e`, not Vitest.
           exclude: [...configDefaults.exclude, "e2e/**"],

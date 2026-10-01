@@ -66,8 +66,21 @@ type PublicationListKey = {
 
 type PublicationError = null | string | Record<PublicationKey, string>;
 type ValidationResult = { publication: Publication; errors: PublicationError };
-type PublicationEntry = ValidationResult & { id: number };
-type PublicationId = NonNullable<Publication["id"]>;
+type PublicationEntry = ValidationResult & { id: PublicationId };
+/**
+ * The key the store uses for a row.
+ *
+ * A row the server has saved is keyed by its publication id, a number. A row
+ * being worked on in a workspace is keyed by a UUID created in the browser.
+ * UUIDs are unique across browsers, so two people editing the same row use the
+ * same key for it. The draft row has the fixed key `DRAFT_ID`.
+ *
+ * A number never equals a string, so one store can hold both kinds of row. Use
+ * `Publication["id"]` rather than this type where a saved record is meant,
+ * since an endpoint for a stored publication takes a publication id, not a row
+ * key.
+ */
+type PublicationId = number | string;
 type PublicationKeyType =
   "array" | "text" | "enum" | "enumArray" | "number" | "book";
 /** Every act the log records, in the order a reader meets them. */
@@ -175,6 +188,17 @@ function empty(): Publication {
     year: "",
     sources: [],
   };
+}
+
+/**
+ * Converts a row key written as text back into a `PublicationId`.
+ *
+ * Text made only of digits is a server id and becomes a number. Any other text
+ * is returned unchanged. The store compares keys with `===`, so a server id
+ * must come back as a number.
+ */
+function idFromText(text: string): PublicationId {
+  return /^\d+$/.test(text) ? Number(text) : text;
 }
 
 /**
@@ -421,6 +445,7 @@ export {
   errorCode,
   empty,
   HISTORY_ACTIONS,
+  idFromText,
   marking,
   merged,
   Publication,

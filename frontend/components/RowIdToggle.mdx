@@ -18,9 +18,9 @@ row-id visibility flag through `useAreRowIdsVisible`, and reads
 store is seeded through the shared fixtures:
 
 ```tsx
-import { seed } from "modules/publication/fixtures";
+import { seed } from "test/publication-fixtures";
 
-seed(); // load the sample publications before the story renders
+seed(store); // load the sample publications before the story renders
 ```
 
 <Canvas of={RowIdToggleStories.Default} />
