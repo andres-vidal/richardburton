@@ -112,11 +112,11 @@ defmodule RichardBurton.UserTest do
   end
 
   describe "delete/2" do
-    # A document channel checks access on its own database connection, so it
-    # only sees committed rows. This test checks the same way, on a connection
-    # outside the SQL sandbox. Inside the sandbox every process shares the
-    # test's connection, so a check could not see the database as a channel
-    # does while `delete/2` holds its transaction open.
+    # Tests that a channel which checks access after the announcement finds the
+    # session gone. A channel reads on its own database connection, so it only
+    # sees committed rows. The test reads the same way, on a connection outside
+    # the SQL sandbox, because inside the sandbox every process shares the
+    # test's connection.
     #
     # The rows the test commits are deleted by `delete/2`, or by `on_exit` if
     # the test fails first. This module is not async, so no other test runs

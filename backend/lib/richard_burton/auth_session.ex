@@ -132,7 +132,7 @@ defmodule RichardBurton.Auth.Session do
   @doc """
   Revokes every session for `subject_id` (sign out everywhere), then calls
   `RichardBurton.Auth.Access.changed/1`. A caller that runs this inside a
-  transaction calls `Access.changed/1` again after the transaction commits.
+  transaction must call `Access.changed/1` again after the transaction commits.
   """
   @spec revoke_all(String.t()) :: :ok
   def revoke_all(subject_id) do

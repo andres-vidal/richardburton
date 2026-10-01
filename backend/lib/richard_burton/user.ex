@@ -114,15 +114,16 @@ defmodule RichardBurton.User do
   @doc """
   Deletes a user's account and all of their sessions, on behalf of `actor`.
   `actor` is the subject id of the person asking, or `nil` from the console.
-  Returns `{:ok, user}`. Removing your own account, or the last admin's, is
-  refused as it is in `set_role/3`.
+  Returns `{:ok, user}`. Like `set_role/3`, it refuses to remove your own
+  account or the last admin's, and returns `{:error, :self}` or
+  `{:error, :last_admin}`.
 
   Deleting the sessions signs the person out everywhere. The sessions and the
   account are deleted in one transaction. After the transaction commits,
   `delete/2` calls `RichardBurton.Auth.Access.changed/1`, so the person's open
-  document channels check their access again and close. `Session.revoke_all/1`
-  also calls it, but from inside the transaction, where a channel's check still
-  finds the sessions.
+  document channels check their access again and close.
+  `Session.revoke_all/1` also calls `changed/1`, but that call happens inside
+  the transaction, too early to close them.
   """
   def delete(user = %User{}, actor \\ nil) do
     with :ok <- refuse_self(user, actor),

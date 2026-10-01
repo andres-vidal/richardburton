@@ -13,11 +13,12 @@ defmodule RichardBurton.Auth.Access do
   when it hears one, so the order in which broadcasts arrive does not matter,
   and an extra broadcast only costs each channel one more check.
 
-  Call `changed/1` after the change is committed. A channel checks on its own
-  database connection, so it cannot see a change until the transaction that
-  makes it commits. A check that runs before the commit passes, and the
-  channel stays open. When a function that calls `changed/1` runs inside a
-  caller's transaction, the caller calls it again after the commit, as
+  Call `changed/1` after the change is committed. Each channel checks access
+  on its own database connection, so it cannot see the change until the
+  transaction commits. If `changed/1` is called inside the transaction, the
+  channels check too early, find that access is still allowed, and stay open.
+  When a function that calls `changed/1` runs inside a caller's transaction,
+  the caller must call it again after the commit, as
   `RichardBurton.User.delete/2` does.
   """
 
