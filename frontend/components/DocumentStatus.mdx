@@ -18,7 +18,8 @@ Saving and the live connection can fail separately, and only a failed save can
 lose work. The component still shows a single label, so a reader can tell at a
 glance whether anything is wrong.
 
-When both fail, the label is **Not saved**.
+When both fail, the label is **Not saved**. The two states in progress,
+**Saving** and **Reconnecting**, show a spinner.
 
 - **Saved** — everything typed here has reached the server.
 - **Saving** — some changes made here have not reached the server yet.

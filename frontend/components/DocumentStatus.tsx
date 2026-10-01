@@ -1,8 +1,8 @@
 "use client";
 
 import CheckIcon from "assets/check.svg";
-import DotIcon from "assets/dot.svg";
 import ErrorCircleIcon from "assets/error-circle.svg";
+import SpinnerIcon from "assets/spinner.svg";
 import {
   useDocumentHealth,
   type DocumentHealth,
@@ -40,12 +40,16 @@ function healthOf({ connection, saving }: DocumentHealth): Health {
   return "saved";
 }
 
-/** The icon shown next to each state's label, and the variant of its tooltip. */
+/**
+ * The icon shown next to each state's label, and the variant of its tooltip.
+ * `connecting` and `saving` are in progress, so they show a spinner. The icon's
+ * `group-data-[health=…]:animate-spin` classes make it spin in those two states.
+ */
 const LOOK = {
   unsaved: { Icon: ErrorCircleIcon, variant: "error" },
   disconnected: { Icon: ErrorCircleIcon, variant: "error" },
-  connecting: { Icon: DotIcon, variant: "info" },
-  saving: { Icon: DotIcon, variant: "info" },
+  connecting: { Icon: SpinnerIcon, variant: "info" },
+  saving: { Icon: SpinnerIcon, variant: "info" },
   saved: { Icon: CheckIcon, variant: "info" },
 } as const satisfies Record<Health, { Icon: unknown; variant: string }>;
 
@@ -70,7 +74,7 @@ const DocumentStatus: FC = () => {
         data-health={health}
         aria-label={t(health)}
         className={`
-          flex gap-1.5 items-center py-1.5 px-2 text-xs rounded border whitespace-nowrap
+          group flex gap-1.5 items-center py-1.5 px-2 text-xs rounded border whitespace-nowrap
           data-[health=saved]:text-green-800 data-[health=saved]:bg-green-50 data-[health=saved]:border-green-200
           data-[health=saving]:text-gray-700 data-[health=saving]:bg-gray-50 data-[health=saving]:border-gray-200
           data-[health=connecting]:text-gray-700 data-[health=connecting]:bg-gray-50 data-[health=connecting]:border-gray-200
@@ -78,7 +82,7 @@ const DocumentStatus: FC = () => {
           data-[health=unsaved]:text-red-800 data-[health=unsaved]:bg-red-50 data-[health=unsaved]:border-red-300
         `}
       >
-        <Icon className="size-3.5" />
+        <Icon className="size-3.5 group-data-[health=saving]:animate-spin group-data-[health=connecting]:animate-spin" />
         {t(health)}
       </span>
     </Tooltip>
