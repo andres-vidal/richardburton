@@ -57,8 +57,7 @@ const ExtendedColumn: typeof Column = (props) => {
   const isFocused = useIsPublicationFocused(rowId);
 
   // The email of another person who has this cell focused, if anyone does.
-  // `Column` marks the cell in that person's colour.
-  const by = useOnThisCell(String(rowId), colId);
+  const email = useOnThisCell(String(rowId), colId);
 
   return (
     <Column
@@ -66,7 +65,7 @@ const ExtendedColumn: typeof Column = (props) => {
       invalid={!isValid}
       focused={isFocused}
       selected={isSelected}
-      taken={by ? { colour: colourOf(by), by } : null}
+      focusedBy={email ? { email, colour: colourOf(email) } : null}
     />
   );
 };

@@ -197,7 +197,7 @@ test("each person sees which cell the other is in", async ({
   ).toBeVisible();
 
   // No cell is marked with anyone's cursor yet.
-  await expect(page.locator("[data-taken]")).toHaveCount(0);
+  await expect(page.locator("[data-focused-by]")).toHaveCount(0);
 
   // The colleague puts the cursor in the first title.
   await indexTable(colleague)
@@ -205,10 +205,10 @@ test("each person sees which cell the other is in", async ({
     .first()
     .focus();
 
-  // The admin's page marks that cell with `data-taken`, and labels it with the
-  // colleague's email without needing a hover.
-  const taken = page.locator("[data-taken]");
-  await expect(taken).toHaveCount(1, { timeout: 15_000 });
+  // The admin's page marks that cell with `data-focused-by`, and labels it with
+  // the colleague's email without needing a hover.
+  const marked = page.locator("[data-focused-by]");
+  await expect(marked).toHaveCount(1, { timeout: 15_000 });
   await expect(
     page.getByLabel("dev-contributor@localhost has their cursor here"),
   ).toBeVisible();
@@ -220,7 +220,7 @@ test("each person sees which cell the other is in", async ({
     .first()
     .focus();
 
-  await expect(page.locator("[data-taken]")).toHaveCount(1, {
+  await expect(page.locator("[data-focused-by]")).toHaveCount(1, {
     timeout: 15_000,
   });
 });
