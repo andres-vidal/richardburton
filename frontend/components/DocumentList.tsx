@@ -282,7 +282,7 @@ const DocumentList: FC<{
         />
       </form>
 
-      <div role="group" aria-label={t("which")} className="flex gap-2">
+      <div role="group" aria-label={t("which")} className="flex gap-2 pl-2">
         <Button
           label={t("onTheList")}
           variant={side === "current" ? "outline-primary" : "outline"}
@@ -302,7 +302,7 @@ const DocumentList: FC<{
       </div>
 
       {documents.length === 0 ? (
-        <p className="text-sm text-gray-600">
+        <p className="pl-[17px] text-sm text-gray-600">
           {side === "archived" ? t("noneArchived") : t("none")}
         </p>
       ) : (
@@ -327,14 +327,16 @@ const DocumentList: FC<{
           </ul>
 
           {page.more ? (
-            <Button
-              label={t("more")}
-              variant="outline"
-              width="fit"
-              size="small"
-              loading={reading}
-              onClick={showMore}
-            />
+            <div className="pl-2">
+              <Button
+                label={t("more")}
+                variant="outline"
+                width="fit"
+                size="small"
+                loading={reading}
+                onClick={showMore}
+              />
+            </div>
           ) : null}
         </>
       )}
