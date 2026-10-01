@@ -124,8 +124,8 @@ export const TakenAsWritten: Story = {
 };
 
 /**
- * The report comes from the `matched` prop, as on the insights page. The prop
- * is used instead of the publication store, which this story does not seed.
+ * The report comes from the `matched` prop, which is used instead of the
+ * publication store. This story does not seed the store.
  */
 export const GivenMatches: Story = {
   parameters: { nextjs: { navigation: { query: { search: "clarise" } } } },

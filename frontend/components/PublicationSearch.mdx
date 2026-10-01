@@ -37,9 +37,8 @@ report, since whether the line is actually clipped is a question only measuring
 the rendered text answers, and the answer changes with every resize.
 
 The `matched` prop sets the report directly. When it is given, the component
-uses it instead of the report in the publication store. The insights page
-passes it, because that page has no publication store and gets the report in
-the same response as its counts.
+uses it instead of the report in the publication store, so the search can be
+used where there is no publication store.
 
 <Canvas of={SearchStories.GivenMatches} />
 
