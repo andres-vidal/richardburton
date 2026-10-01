@@ -25,10 +25,10 @@ are not in the database yet.
 ## When the check runs
 
 The check runs by itself as rows are edited, the same way validation does.
-`CheckResemblances`, which the workspace renders, watches the title,
-translators, original title and original authors of every visible row. It runs
-the check 500 ms after the last change to one of those fields. Editing another
-field, such as the year or a country, does not run the check.
+`CheckResemblances` watches the title, translators, original title and
+original authors of every visible row. It runs the check 500 ms after the last
+change to one of those fields. Editing another field, such as the year or a
+country, does not run the check.
 
 Each check sends every visible row, not only the row that changed, because each
 row is also compared with the other rows. Editing one row can make it resemble

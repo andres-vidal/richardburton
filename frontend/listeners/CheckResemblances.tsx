@@ -21,8 +21,7 @@ const SETTLE = 500;
  * also compared with the other rows. Editing one row can make it resemble
  * another row that has not changed.
  *
- * The workspace renders it and passes its own store, as it does for
- * `ClearSelection`, so it checks the rows of that workspace.
+ * It checks the rows of the store it is given.
  */
 const CheckResemblances: FC<{
   store: Store;
