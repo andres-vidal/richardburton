@@ -479,8 +479,8 @@ function isEdited(store: Store, id: PublicationId): boolean {
 
 /**
  * Writes publications as the database returned them: each one's saved copy in
- * `savedFamily`, and its row in the document. Callers run it inside
- * `Doc.hold`, together with the matching change to the reading order.
+ * `savedFamily`, and its row in the document. Run it inside `Doc.hold`,
+ * together with the matching change to the reading order.
  *
  * A row with an unsaved edit keeps the edit, and only its saved copy is
  * updated. Search results that arrive while an editor is open therefore do not
@@ -533,9 +533,7 @@ function hydrate(store: Store, publications: Publication[]): PublicationId[] {
 /**
  * Puts one saved publication in the store without adding it to the reading
  * order. It sets the saved copy and writes the row into the document,
- * replacing what the row held. It is the counterpart of `forget`. A page that
- * shows a single record, such as a publication's own page, calls it before the
- * record can be edited, since the form edits the store's row.
+ * replacing what the row held. It is the counterpart of `forget`.
  */
 function remember(store: Store, publication: Publication): void {
   const { doc } = documentOf(store);

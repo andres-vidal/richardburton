@@ -48,9 +48,9 @@ type Sync = {
   /**
    * Reads the updates stored since the last read and applies them.
    *
-   * It is called when the channel reconnects, because the channel does not
-   * store the changes it relays. Before any read has succeeded, it makes the
-   * full first read instead, as on opening.
+   * This recovers the changes the channel relayed while this client was
+   * disconnected, because the channel does not store them. Before any read has
+   * succeeded, it makes the full first read instead, as on opening.
    */
   resync: () => Promise<void>;
   stop: () => void;

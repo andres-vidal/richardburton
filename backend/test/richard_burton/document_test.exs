@@ -228,8 +228,6 @@ defmodule RichardBurton.DocumentTest do
       assert Repo.get(Document, document.id).rows == 428
     end
 
-    # The controller passes `nil` when a request has no valid row count. The
-    # controller parses the count, so this test covers only the `nil`.
     test "no count leaves the count alone rather than refusing the change" do
       document = document()
       {:ok, _} = Document.append(document, <<1>>, 7)

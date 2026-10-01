@@ -90,9 +90,8 @@ defmodule RichardBurton.Auth.Session do
   Returns whether the session with `session_id` exists and has passed neither
   its idle timeout nor its absolute cap.
 
-  Unlike `verify/1`, it does not slide the idle timeout and does not delete an
-  expired row. `RichardBurtonWeb.DocumentSocket` calls it to recheck an open
-  connection, and a recheck is not activity by the person.
+  Unlike `verify/1`, it does not slide the idle timeout, so checking a session
+  does not extend it, and it does not delete an expired row.
   """
   @spec active?(integer()) :: boolean()
   def active?(session_id) do

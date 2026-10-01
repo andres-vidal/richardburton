@@ -260,8 +260,9 @@ defmodule RichardBurton.Document do
 
   # Locks the document's row with `FOR UPDATE` until the transaction ends.
   # Every write to a document's updates takes this lock before inserting its
-  # update, so writes to one document commit in the order of their ids.
-  # `updates/2` relies on this when it reads only the updates after a given id.
+  # update, so writes to one document commit in the order of their ids. A read
+  # of the updates after a given id therefore cannot miss an update with a
+  # lower id that commits later.
   defp lock!(%Document{id: id}) do
     Repo.one!(from(d in Document, where: d.id == ^id, select: d.id, lock: "FOR UPDATE"))
   end

@@ -29,9 +29,8 @@ loaded, not edited in this tab, so they do not have the `LOCAL` origin.
 Edits made close together in time are merged into one step, so undo removes a
 burst of typing as a whole word, not one letter at a time.
 
-Adding a row is a separate step from editing it. The store calls
-`stopCapturing` on the undo manager after it adds a row, so undoing the typing
-in a new row does not also remove the row.
+Adding a row is a separate undo step from typing into it, so undoing the
+typing in a new row does not also remove the row.
 
 ## Props
 

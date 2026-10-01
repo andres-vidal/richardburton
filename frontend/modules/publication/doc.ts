@@ -129,7 +129,7 @@ function rowCount(doc: Y.Doc): number {
 }
 
 /**
- * Replaces every row and the reading order with `entries`. An upload uses it.
+ * Replaces every row and the reading order with `entries`.
  */
 function setAll(
   doc: Y.Doc,
@@ -156,7 +156,7 @@ function addRow(doc: Y.Doc, id: PublicationId, publication: Publication): void {
 
 /**
  * Adds a row right after the row `after`, or at the end when `after` is not in
- * the reading order. Duplicating uses it.
+ * the reading order.
  */
 function addRowAfter(
   doc: Y.Doc,
@@ -325,8 +325,8 @@ function readRow(doc: Y.Doc, id: PublicationId): Publication | null {
  *
  * Yjs merges edits made close together in time into one undo step, so a burst
  * of typing is undone at once. Adding a row and then typing into it would merge
- * the same way. The caller calls `stopCapturing` after adding a row, so that
- * one undo reverts the typing and not the row.
+ * the same way. To keep them apart, call `stopCapturing` on the manager after
+ * adding a row. One undo then reverts the typing and not the row.
  */
 function undoManager(doc: Y.Doc): Y.UndoManager {
   return new Y.UndoManager([rows(doc), order(doc)], {

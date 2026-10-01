@@ -219,8 +219,7 @@ describe("undo", () => {
 
     undo.undo();
 
-    // The undo removed both the edit and the row. This is why callers call
-    // `stopCapturing` after adding a row.
+    // The undo removed both the edit and the row.
     expect(Doc.readRow(doc, "a")).toBeNull();
   });
 

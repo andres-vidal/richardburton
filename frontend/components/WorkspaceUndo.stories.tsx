@@ -20,8 +20,8 @@ const ROW = createId();
 
 /**
  * Opens the store on a new Yjs document and adds one row. The control uses that
- * document's undo manager. Returns the function that closes the document.
- * Storybook calls it after each story, so no two stories share an undo stack.
+ * document's undo manager. Returns a cleanup that closes the document, so no
+ * two stories share an undo stack.
  */
 const inAWorkspace = () => {
   resetAll(store);
