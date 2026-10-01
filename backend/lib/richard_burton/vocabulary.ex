@@ -59,6 +59,11 @@ defmodule RichardBurton.Vocabulary do
   *resembles* a stored name when the two differ but their trigram similarity,
   with accents removed, is above 0.7. A name that is neither held nor
   resembles a stored name is new.
+
+  Two publishers' names also resemble each other when one contains the other's
+  words, as "Alfred A. Knopf" contains "Knopf". Authors' names do not, because
+  one author record can hold two people, such as "William L. Grossman & Helen
+  Caldwell", and each person's own name would then resemble it.
   """
 
   import Ecto.Query
@@ -84,16 +89,41 @@ defmodule RichardBurton.Vocabulary do
   # or a dropped space after punctuation as in "Alfred A.Knopf", scores 1.0.
   @resemblance_threshold 0.7
 
-  # Builds a query condition that is true when the two names, with accents
-  # removed, have a trigram similarity above the threshold.
+  # The `word_similarity` at or above which one publisher's name counts as
+  # containing another's words. Containing every word scores 1.0. The
+  # threshold is slightly lower so that a word that differs only in its ending
+  # still counts: "Penguin Book" scores 0.92 against "Penguin Books".
+  @contained 0.9
+
+  # Builds a query condition on the `name` of a query's first two bindings,
+  # true when the two names may be spellings of one name of the schema's kind.
+  # For authors, the names, with accents removed, must have a trigram
+  # similarity above the threshold. For publishers, it is also enough that
+  # one name contains the other's words.
   #
   # The `%` operator reads the threshold from `pg_trgm.similarity_threshold`,
   # which `in_threshold/1` sets. Accents are removed because the same name is
   # often entered with and without them. "Adelia Prado" and "Adélia Prado" are
   # one person, but on the raw strings that pair scores lower than two
   # unrelated publishers.
-  defmacrop alike(left, right) do
-    quote do: fragment("unaccent(?) % unaccent(?)", unquote(left), unquote(right))
+  defp alike(Author) do
+    dynamic([a, b], fragment("unaccent(?) % unaccent(?)", a.name, b.name))
+  end
+
+  defp alike(Publisher) do
+    dynamic(
+      [a, b],
+      fragment(
+        "(unaccent(?) % unaccent(?) OR greatest(word_similarity(unaccent(?), unaccent(?)), word_similarity(unaccent(?), unaccent(?))) >= ?)",
+        a.name,
+        b.name,
+        a.name,
+        b.name,
+        b.name,
+        a.name,
+        @contained
+      )
+    )
   end
 
   @doc """
@@ -129,7 +159,8 @@ defmodule RichardBurton.Vocabulary do
         Repo.all(
           from(a in schema,
             join: b in ^schema,
-            on: alike(a.name, b.name) and a.id != b.id,
+            on: ^alike(schema),
+            where: a.id != b.id,
             select: %{id: a.id, other: b.id}
           )
         )
@@ -242,7 +273,8 @@ defmodule RichardBurton.Vocabulary do
   defp resembling(schema, asked) do
     from(v in schema,
       join: a in fragment("SELECT * FROM unnest(?::text[]) AS a(name)", ^asked),
-      on: alike(v.name, a.name) and v.name != a.name,
+      on: ^alike(schema),
+      where: v.name != a.name,
       select: %{asked: a.name, id: v.id}
     )
   end
