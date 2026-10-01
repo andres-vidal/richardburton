@@ -1,8 +1,7 @@
 defmodule RichardBurtonWeb.Plugs.Authenticate.Cookie do
   @moduledoc """
   Authenticates a request via the app's own `rb-session` cookie
-  (see `RichardBurton.Auth.Session`). Assigns the person's `:subject_id` and
-  the `:session_id` of the session the cookie belongs to.
+  (see `RichardBurton.Auth.Session`) and assigns `:subject_id`.
   """
   alias RichardBurton.Auth.Session
 
@@ -12,11 +11,8 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Cookie do
 
   def call(conn, _params) do
     case verify(conn) do
-      {:ok, session} ->
-        conn |> assign(:subject_id, session.subject_id) |> assign(:session_id, session.id)
-
-      :error ->
-        halt_unauthorized(conn)
+      {:ok, session} -> assign(conn, :subject_id, session.subject_id)
+      :error -> halt_unauthorized(conn)
     end
   end
 

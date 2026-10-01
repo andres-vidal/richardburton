@@ -11,9 +11,9 @@ import {
 test("the live connection carries no credential in its address", async ({
   page,
 }) => {
-  // The socket token is sent in a header, not in the URL. A token in the URL
-  // would be written into every request log between the browser and the
-  // server.
+  // The socket signs in with the session cookie and sends the CSRF token in a
+  // header, not in the URL. A token in the URL would be written into every
+  // request log between the browser and the server.
   const addresses: string[] = [];
   page.on("websocket", (socket) => addresses.push(socket.url()));
 

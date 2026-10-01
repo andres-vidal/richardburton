@@ -10,6 +10,7 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
 
   import Mox
 
+  alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
   alias RichardBurtonWeb.DocumentChannel
   alias RichardBurtonWeb.DocumentSocket
@@ -27,16 +28,23 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
   end
 
   # Creates a real session, because the socket checks that it is still active.
+  # `cookie` is the session token that the `rb-session` cookie holds, and `csrf`
+  # is the CSRF token that the `csrf-token` cookie holds.
   defp signed_in(email) do
     user = user_fixture(email, :contributor)
     {:ok, cookie} = Session.create(user.subject_id)
-    {:ok, session} = Session.verify(cookie)
 
-    %{user: user, cookie: cookie, token: DocumentSocket.sign(user.subject_id, session.id)}
+    %{user: user, cookie: cookie, csrf: Csrf.sign(user.subject_id)}
   end
 
-  defp connected(%{token: token}) do
-    {:ok, socket} = connect(DocumentSocket, %{}, connect_info: %{auth_token: token})
+  # The connect info of a request that carries the person's session cookie, as
+  # `RichardBurtonWeb.SessionCookie` reads it, and their CSRF token in the
+  # auth-token header.
+  defp connect_info(%{cookie: cookie, csrf: csrf}),
+    do: %{session: %{"token" => cookie}, auth_token: csrf}
+
+  defp connected(person) do
+    {:ok, socket} = connect(DocumentSocket, %{}, connect_info: connect_info(person))
     socket
   end
 
@@ -54,39 +62,58 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
       person = signed_in("helen@example.com")
 
       assert {:ok, socket} =
-               connect(DocumentSocket, %{}, connect_info: %{auth_token: person.token})
+               connect(DocumentSocket, %{}, connect_info: connect_info(person))
 
       assert socket.assigns.subject_id == person.user.subject_id
     end
 
-    # The token must be sent in a header. A token in the query string would
-    # appear in request logs.
-    test "a token passed as a parameter rather than a header is not accepted" do
+    # A connect request sent from another origin can carry the session cookie,
+    # but its sender cannot read the CSRF token. The token is read only from
+    # the header, because a token in the query string would appear in request
+    # logs.
+    test "the session cookie without the CSRF token in the header is refused" do
       person = signed_in("helen@example.com")
+      info = %{connect_info(person) | auth_token: nil}
 
-      assert :error = connect(DocumentSocket, %{"token" => person.token})
+      assert :error = connect(DocumentSocket, %{"csrf_token" => person.csrf}, connect_info: info)
+    end
+
+    test "a CSRF token for somebody else is refused" do
+      person = signed_in("helen@example.com")
+      info = %{connect_info(person) | auth_token: Csrf.sign("somebody-else")}
+
+      assert :error = connect(DocumentSocket, %{}, connect_info: info)
+    end
+
+    test "a CSRF token this server did not sign is refused" do
+      person = signed_in("helen@example.com")
+      info = %{connect_info(person) | auth_token: "made up"}
+
+      assert :error = connect(DocumentSocket, %{}, connect_info: info)
     end
 
     test "somebody whose role does not reach the documents is refused" do
       person = signed_in("helen@example.com")
       stub(RichardBurton.AuthMock, :authorize, fn _, :contributor -> :error end)
 
-      assert :error = connect(DocumentSocket, %{}, connect_info: %{auth_token: person.token})
+      assert :error = connect(DocumentSocket, %{}, connect_info: connect_info(person))
     end
 
-    test "a token for a session that has been signed out of is refused" do
+    test "the cookie of a session that has been signed out of is refused" do
       person = signed_in("helen@example.com")
       Session.revoke(person.cookie)
 
-      assert :error = connect(DocumentSocket, %{}, connect_info: %{auth_token: person.token})
+      assert :error = connect(DocumentSocket, %{}, connect_info: connect_info(person))
     end
 
-    test "no token, no connection" do
-      assert :error = connect(DocumentSocket, %{})
-    end
+    # Phoenix passes a `nil` session when the request carries no session cookie.
+    test "no session cookie, no connection" do
+      person = signed_in("helen@example.com")
 
-    test "something that is not a token this server signed is refused" do
-      assert :error = connect(DocumentSocket, %{}, connect_info: %{auth_token: "made up"})
+      assert :error =
+               connect(DocumentSocket, %{},
+                 connect_info: %{session: nil, auth_token: person.csrf}
+               )
     end
   end
 
@@ -182,11 +209,7 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
     test "signing out of one session leaves the same person's other sessions alone" do
       here = signed_in("helen@example.com")
       {:ok, elsewhere_cookie} = Session.create(here.user.subject_id)
-      {:ok, elsewhere_session} = Session.verify(elsewhere_cookie)
-
-      elsewhere = %{
-        token: DocumentSocket.sign(here.user.subject_id, elsewhere_session.id)
-      }
+      elsewhere = %{here | cookie: elsewhere_cookie}
 
       document = document()
       joined(here, document)

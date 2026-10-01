@@ -17,18 +17,27 @@ defmodule RichardBurtonWeb.Endpoint do
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
-  # The document socket accepts long-polling as well as websockets, so it still
-  # works behind a proxy that does not allow websocket upgrades.
+  # The document socket reads the `rb-session` cookie on connect, through
+  # `RichardBurtonWeb.SessionCookie`, and accepts long-polling as well as
+  # WebSockets.
   #
-  # Both transports take the auth token in a header instead of the query string,
-  # so it does not appear in request logs. See `RichardBurtonWeb.DocumentSocket`.
+  # Phoenix's CSRF check is off on both transports, because it expects the CSRF
+  # token of a Plug session. `RichardBurtonWeb.DocumentSocket` checks the app's
+  # own CSRF token instead, and the origin check stays on.
   #
-  # `auth_token` is set once for the socket, not on each transport, because
-  # Phoenix copies the socket-wide value into both transports and would
-  # overwrite a per-transport one.
+  # Both transports take the CSRF token in the auth-token header instead of the
+  # query string, so it does not appear in request logs. `auth_token` is set
+  # once for the socket, not on each transport, because Phoenix copies the
+  # socket-wide value into both transports and would overwrite a per-transport
+  # one.
+  @document_session [
+    store: RichardBurtonWeb.SessionCookie,
+    key: RichardBurton.Auth.Session.cookie_name()
+  ]
+
   socket("/socket", RichardBurtonWeb.DocumentSocket,
-    websocket: true,
-    longpoll: true,
+    websocket: [connect_info: [session: @document_session], check_csrf: false],
+    longpoll: [connect_info: [session: @document_session], check_csrf: false],
     auth_token: true
   )
 

@@ -69,7 +69,6 @@ defmodule RichardBurtonWeb.Router do
     scope "/documents" do
       get("/", DocumentController, :index)
       post("/", DocumentController, :create)
-      post("/socket-token", DocumentController, :socket_token)
       get("/:id", DocumentController, :show)
       patch("/:id", DocumentController, :update)
       delete("/:id", DocumentController, :archive)

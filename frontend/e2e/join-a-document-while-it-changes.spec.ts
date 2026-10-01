@@ -70,10 +70,11 @@ test("work done away from the server reaches the colleagues already in the docum
   const theirs = indexTable(colleague);
   await expect(theirs.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();
 
-  // Block every API request and reload. The page can neither save nor get the
-  // token it needs to join the channel, so the next edit is kept only in this
-  // browser's IndexedDB.
+  // Block every API request and the socket, and reload. The page can neither
+  // save nor join the channel, so the next edit is kept only in this browser's
+  // IndexedDB.
   await page.route("**/api/**", (route) => route.abort());
+  await page.routeWebSocket(/\/socket\/websocket/, (socket) => socket.close());
   await page.reload();
 
   // The rows are restored from this browser's IndexedDB.
@@ -85,11 +86,15 @@ test("work done away from the server reaches the colleagues already in the docum
   await title.blur();
   await expect(theirs.getByRole("row", { name: /\(offline\)/ })).toHaveCount(0);
 
-  // Unblock the API and reload. The page posts the edit the server is missing,
-  // and joins the channel. The state vector exchange on joining sends the edit
-  // to the colleague's page, which has stayed open and does not reload.
-  await page.unroute("**/api/**");
-  await page.reload();
+  // Open the document again in a new tab of the same browser, which shares its
+  // IndexedDB and cookies. Playwright cannot remove a WebSocket route, so the
+  // blocked tab is closed instead of unblocked. The new tab posts the edit the
+  // server is missing, and joins the channel. The state vector exchange on
+  // joining sends the edit to the colleague's page, which has stayed open and
+  // does not reload.
+  const back = await page.context().newPage();
+  await page.close();
+  await back.goto(address);
 
   await expect(
     theirs.getByRole("row", { name: /Dom Casmurro \(offline\)/ }),

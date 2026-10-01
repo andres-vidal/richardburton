@@ -1,8 +1,7 @@
 defmodule RichardBurtonWeb.DocumentController do
   @moduledoc """
   The import-document endpoints: creating, listing, renaming, archiving and
-  unarchiving documents, reading, appending and compacting their updates, and
-  signing tokens for `RichardBurtonWeb.DocumentSocket`.
+  unarchiving documents, and reading, appending and compacting their updates.
 
   The list is shared, so no endpoint scopes it to the person asking. Updates
   are sent and returned as base64 strings in JSON, like the rest of this API.
@@ -12,20 +11,6 @@ defmodule RichardBurtonWeb.DocumentController do
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.Document
-
-  @doc """
-  Returns a token for connecting to `RichardBurtonWeb.DocumentSocket`.
-
-  The token holds the person's `subject_id` and the id of the session that
-  authenticated this request. The socket checks that session on every connect
-  and join. A token is needed because the `rb-session` cookie is httpOnly and
-  cannot be read to send as a connect parameter.
-  """
-  def socket_token(conn, _params) do
-    %{subject_id: subject_id, session_id: session_id} = conn.assigns
-
-    json(conn, %{token: RichardBurtonWeb.DocumentSocket.sign(subject_id, session_id)})
-  end
 
   @doc """
   Returns a page of documents and whether more follow it, as

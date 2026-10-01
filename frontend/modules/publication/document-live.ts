@@ -1,4 +1,4 @@
-import { Presence, Socket, type Channel } from "phoenix";
+import { Presence, Socket } from "phoenix";
 import * as Y from "yjs";
 import {
   Awareness,
@@ -7,7 +7,8 @@ import {
   removeAwarenessStates,
 } from "y-protocols/awareness";
 
-import { API_URL, request } from "app";
+import { API_URL } from "app";
+import { csrfToken } from "modules/http";
 import { isLocal } from "./doc";
 import { decode, encode } from "./document-remote";
 
@@ -55,20 +56,6 @@ function socketUrl(): string {
 
   // The API is served under `/api` on the same host as the socket.
   return `${api.replace(/\/api\/?$/, "")}/socket`;
-}
-
-/**
- * Requests a socket token from `documents/socket-token`. The request is
- * authenticated by the session cookie.
- */
-async function socketToken(): Promise<string> {
-  return request(async (http) => {
-    const { data } = await http.post<{ token: string }>(
-      "documents/socket-token",
-    );
-
-    return data.token;
-  });
 }
 
 type Live = {
@@ -125,10 +112,11 @@ type Hooks = {
  * longer lists. When a new connection appears, this client sends its own
  * awareness state again, because awareness is only sent when it changes.
  *
- * The socket is authenticated by a token from `socketToken`. The token names
- * this session and is sent in a header, not in the URL. It is requested once.
- * The server checks on every connect and join that the session is still
- * active, so an old token does not let anyone in.
+ * The socket is authenticated by the `rb-session` cookie, which the browser
+ * sends with the connect request. The cookie is httpOnly, so scripts on the
+ * page cannot read it. The CSRF token from the `csrf-token` cookie is sent in
+ * the auth-token header, not in the URL. The server refuses a connection
+ * without it, so a page on another origin cannot connect with this session.
  */
 function live(
   doc: Y.Doc,
@@ -137,8 +125,8 @@ function live(
 ): Live {
   const awareness = new Awareness(doc);
 
-  let socket: Socket | undefined;
-  let channel: Channel | undefined;
+  const socket = new Socket(socketUrl(), { authToken: csrfToken() });
+  const channel = socket.channel(`document:${id}`, { clientId: doc.clientID });
   let stopped = false;
   let joined = false;
 
@@ -163,7 +151,7 @@ function live(
   const onUpdate = (update: Uint8Array, origin: unknown) => {
     if (!isLocal(origin)) return;
 
-    channel?.push("update", { update: encode(update) });
+    channel.push("update", { update: encode(update) });
   };
 
   /**
@@ -172,7 +160,7 @@ function live(
    * See `onSync`.
    */
   const exchange = () => {
-    channel?.push("sync", {
+    channel.push("sync", {
       state: encode(Y.encodeStateVector(doc)),
       from: doc.clientID,
     });
@@ -202,11 +190,11 @@ function live(
 
     // An empty Yjs update is two bytes long, so a longer one holds changes.
     if (missing.length > 2) {
-      channel?.push("update", { update: encode(missing) });
+      channel.push("update", { update: encode(missing) });
     }
 
     if (to === undefined) {
-      channel?.push("sync", {
+      channel.push("sync", {
         state: encode(Y.encodeStateVector(doc)),
         from: doc.clientID,
         to: from,
@@ -216,7 +204,7 @@ function live(
 
   /** Sends this client's awareness state to the channel. */
   const announce = () => {
-    channel?.push("awareness", {
+    channel.push("awareness", {
       awareness: encode(encodeAwarenessUpdate(awareness, [doc.clientID])),
     });
   };
@@ -263,88 +251,70 @@ function live(
 
   report("connecting");
 
-  socketToken()
-    .then((token) => {
-      if (stopped) return;
+  socket.onError(() => report("offline"));
+  socket.onClose(() => {
+    if (!stopped) report("connecting");
+  });
 
-      socket = new Socket(socketUrl(), { authToken: token });
+  socket.connect();
 
-      socket.onError(() => report("offline"));
-      socket.onClose(() => {
-        if (!stopped) report("connecting");
-      });
+  channel.on("update", ({ update }: { update: string }) =>
+    Y.applyUpdate(doc, decode(update), RELAYED),
+  );
 
-      socket.connect();
+  channel.on("awareness", ({ awareness: state }: { awareness: string }) =>
+    applyAwarenessUpdate(awareness, decode(state), RELAYED),
+  );
 
-      channel = socket.channel(`document:${id}`, { clientId: doc.clientID });
+  channel.on("sync", onSync);
 
-      channel.on("update", ({ update }: { update: string }) =>
-        Y.applyUpdate(doc, decode(update), RELAYED),
-      );
+  // The server pushes `refused` when this session may no longer have the
+  // document open, because it was signed out or its user lost access. The
+  // server then closes the channel and refuses any rejoin.
+  channel.on("refused", () => report("offline"));
 
-      channel.on("awareness", ({ awareness: state }: { awareness: string }) =>
-        applyAwarenessUpdate(awareness, decode(state), RELAYED),
-      );
+  const tracked = new Presence(channel);
 
-      channel.on("sync", onSync);
+  tracked.onSync(() => {
+    const next = new Map<number, string>();
 
-      // The server pushes `refused` when this session may no longer have the
-      // document open, because it was signed out or its user lost access. The
-      // server then closes the channel and refuses any rejoin.
-      channel.on("refused", () => report("offline"));
+    tracked.list((_person, { metas }) =>
+      metas.forEach(
+        ({ client_id, email }: { client_id?: number; email?: string }) => {
+          if (typeof client_id === "number" && email) {
+            next.set(client_id, email);
+          }
+        },
+      ),
+    );
 
-      const tracked = new Presence(channel);
+    onPresence(next);
+  });
 
-      tracked.onSync(() => {
-        const next = new Map<number, string>();
+  channel.onError(() => report("offline"));
 
-        tracked.list((_person, { metas }) =>
-          metas.forEach(
-            ({ client_id, email }: { client_id?: number; email?: string }) => {
-              if (typeof client_id === "number" && email) {
-                next.set(client_id, email);
-              }
-            },
-          ),
-        );
+  channel
+    .join()
+    .receive("ok", () => {
+      report("live");
+      announce();
 
-        onPresence(next);
-      });
+      // On the first join, `ready` covers the stored updates, which `sync`
+      // reads on opening. On a rejoin, `onRejoin` reads them again.
+      const caughtUp = joined ? onRejoin?.() : ready;
+      joined = true;
 
-      channel.onError(() => report("offline"));
-
-      channel
-        .join()
-        .receive("ok", () => {
-          report("live");
-          announce();
-
-          // On the first join, `ready` covers the stored updates, which `sync`
-          // reads on opening. On a rejoin, `onRejoin` reads them again.
-          const caughtUp = joined ? onRejoin?.() : ready;
-          joined = true;
-
-          Promise.resolve(caughtUp)
-            .catch(() => {})
-            .then(() => {
-              if (!stopped) exchange();
-            });
-        })
-        .receive("error", () => report("offline"))
-        .receive("timeout", () => report("offline"));
-
-      doc.on("update", onUpdate);
-      awareness.on("update", onAwareness);
+      Promise.resolve(caughtUp)
+        .catch(() => {})
+        .then(() => {
+          if (!stopped) exchange();
+        });
     })
-    .catch((reason) => {
-      // Editing continues without the socket. Changes are still saved to the
-      // server, and other people's changes are read when the document is next
-      // opened. The state is reported as `offline` and a warning is logged,
-      // because otherwise a document with no live connection looks the same as
-      // one nobody else is editing.
-      report("offline");
-      console.warn("This document is not receiving live changes.", reason);
-    });
+    .receive("error", () => report("offline"))
+    .receive("timeout", () => report("offline"));
+
+  doc.on("update", onUpdate);
+  awareness.on("update", onAwareness);
 
   return {
     awareness,
@@ -362,8 +332,8 @@ function live(
       awareness.destroy();
       listeners.clear();
 
-      channel?.leave();
-      socket?.disconnect();
+      channel.leave();
+      socket.disconnect();
     },
   };
 }
