@@ -7,6 +7,7 @@ import {
   selectEnumOption,
   CSV_HEADER,
   openDocument,
+  uploadCsv,
 } from "./helpers";
 
 /**
@@ -77,11 +78,7 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await seedCorpus(page);
 
   await openDocument(page);
-  await page.locator("#upload-csv").setInputFiles({
-    name: "second-pass.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(IMPORT_CSV),
-  });
+  await uploadCsv(page, IMPORT_CSV, "second-pass.csv");
 
   const table = indexTable(page);
   await expect(table.getByRole("row", { name: /Dom Casmuro/ })).toBeVisible();

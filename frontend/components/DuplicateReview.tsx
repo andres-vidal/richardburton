@@ -185,14 +185,14 @@ export const Candidate: FC<{
           </p>
           <p className="text-xs text-gray-600">{marked.value(p, "authors")}</p>
           {typeof p.id !== "number" ? null : (
-            <a
+            <Link
               href={`/publications/${p.id}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-block mt-1 text-xs text-indigo-700 underline"
+              className="inline-block mt-1 text-xs anchor"
             >
               {t("openRecord")}
-            </a>
+            </Link>
           )}
         </div>
       </div>

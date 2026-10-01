@@ -31,7 +31,6 @@ import {
   resemblanceFamily,
   reviewingAtom,
   resemblingCountAtom,
-  resemblingIdsAtom,
   rowNumberFamily,
   validCountAtom,
   visibleAttributesAtom,
@@ -184,11 +183,6 @@ function useReviewing() {
   return useAtomValue(reviewingAtom);
 }
 
-/** Returns the visible rows that resemble something. */
-function useResemblingPublicationIds() {
-  return useAtomValue(resemblingIdsAtom);
-}
-
 /** Returns how many visible rows resemble something. */
 function useResemblingPublicationCount() {
   return useAtomValue(resemblingCountAtom);
@@ -271,7 +265,6 @@ export {
   usePublicationResemblance,
   useResemblingPublicationCount,
   useReviewing,
-  useResemblingPublicationIds,
   usePublicationRowNumber,
   useValidPublicationCount,
   useVisibleAttributes,
