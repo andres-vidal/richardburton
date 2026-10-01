@@ -293,14 +293,14 @@ const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
 
 /**
  * Which row the resemblance review is open on. It holds a row id to open on
- * that row, "first" to open at the start of the queue, or null when the review
- * is closed.
+ * `startAt`, or at the start of the queue when `startAt` is not given. It is
+ * null when the review is closed.
  *
  * It is kept in the store because two controls open the review: the
  * resemblance counter and the look-alike button on each row. `resetAll` resets
  * it, which closes the review when the working set is cleared.
  */
-const reviewingAtom = atomWithReset<PublicationId | "first" | null>(null);
+const reviewingAtom = atomWithReset<{ startAt?: PublicationId } | null>(null);
 
 /**
  * The fields the look-alike check compares: the title, the translators, the
@@ -730,11 +730,11 @@ function setResemblances(
 }
 
 /**
- * Opens the resemblance review on row `at`, or at the start of the queue when
- * `at` is "first".
+ * Opens the resemblance review on row `startAt`, or at the start of the queue
+ * when `startAt` is not given.
  */
-function openReview(store: Store, at: PublicationId | "first"): void {
-  store.set(reviewingAtom, at);
+function openReview(store: Store, startAt?: PublicationId): void {
+  store.set(reviewingAtom, { startAt });
 }
 
 function closeReview(store: Store): void {

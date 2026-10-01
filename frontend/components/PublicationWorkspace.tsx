@@ -26,12 +26,13 @@ import {
   usePublicationRowNumber,
   usePublicationField,
   usePublicationFieldError,
+  useReviewing,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
 import { colourOf, useOnThisCell } from "modules/publication/presence";
 import { resemblances, validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
-import { DRAFT_ID, addNew } from "modules/publication/store";
+import { DRAFT_ID, addNew, closeReview } from "modules/publication/store";
 import type { PublicationId } from "modules/publication/model";
 import {
   isSelectionGesture,
@@ -50,6 +51,7 @@ import {
 import { useTranslations } from "next-intl";
 import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
+import PublicationResemblances from "./PublicationResemblances";
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 const ExtendedColumn: typeof Column = (props) => {
@@ -253,6 +255,7 @@ const PublicationWorkspace: FC<{
   const store = usePublicationStore();
   const ids = useVisiblePublicationIds();
   const isSelectionEmpty = useIsSelectionEmpty();
+  const reviewing = useReviewing();
 
   // Only a click on the row's handle selects it. The row hears every click in
   // it, including the ones that land in a field — those belong to the field, and
@@ -273,6 +276,11 @@ const PublicationWorkspace: FC<{
     <>
       <ClearSelection store={store} />
       <CheckResemblances store={store} check={check} />
+      <PublicationResemblances
+        isOpen={reviewing !== null}
+        startAt={reviewing?.startAt}
+        onClose={() => closeReview(store)}
+      />
       <PublicationIndexTable
         ExtendedRow={ExtendedRow}
         ExtendedColumn={ExtendedColumn}

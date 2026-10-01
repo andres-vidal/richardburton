@@ -176,8 +176,9 @@ function usePublicationResemblance(id: PublicationId) {
 }
 
 /**
- * Returns the row the resemblance review is open on, "first" when it was
- * opened at the start of the queue, or null when it is closed.
+ * Returns `{ startAt }` while the resemblance review is open, where `startAt` is
+ * the row it opened on, or undefined when it opened at the start of the queue.
+ * Returns null when the review is closed.
  */
 function useReviewing() {
   return useAtomValue(reviewingAtom);

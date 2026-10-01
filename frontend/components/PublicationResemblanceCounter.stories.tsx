@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
-import { setDiscarded, setResemblances } from "modules/publication/store";
+import {
+  reviewingAtom,
+  setDiscarded,
+  setResemblances,
+} from "modules/publication/store";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
 import {
@@ -41,11 +45,7 @@ export const Found: Story = {
 
     await userEvent.click(button);
     await waitFor(() =>
-      expect(
-        screen.getByRole("dialog", {
-          name: "Possible duplicates in this import",
-        }),
-      ).toBeInTheDocument(),
+      expect(store.get(reviewingAtom)).toEqual({ startAt: undefined }),
     );
   },
 };

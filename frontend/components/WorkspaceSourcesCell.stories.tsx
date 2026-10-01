@@ -144,7 +144,9 @@ export const OpeningTheReview: Story = {
       screen.getByRole("button", { name: "Resembles Dom Casmurro (1953)." }),
     );
 
-    await waitFor(() => expect(store.get(reviewingAtom)).toBe(1));
+    await waitFor(() =>
+      expect(store.get(reviewingAtom)).toEqual({ startAt: 1 }),
+    );
     await expect(selectRow).not.toHaveBeenCalled();
   },
 };

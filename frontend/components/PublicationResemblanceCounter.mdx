@@ -55,9 +55,6 @@ next check finds that the row still resembles something.
 <Description of={PublicationResemblanceCounterStories.DiscardingLowersIt} />
 <Canvas of={PublicationResemblanceCounterStories.DiscardingLowersIt} />
 
-The review is rendered even when the count is zero, so it stays open if the
-count drops to zero while the review is open.
-
 ## The look-alike button on each row
 
 Each row that resembles something also has a look-alike button. Its tooltip
@@ -70,9 +67,11 @@ leading cell. The leading cell is the row's selection handle. It is 2.5rem wide
 around a 1.25rem icon, so a button there would take clicks meant to select the
 row.
 
-Because two controls open the review, the row it is open on is kept in the
-store, in `reviewingAtom`, not in this component. `resetAll` resets that atom,
-which closes the review when the working set is cleared.
+Because two controls open the review, whether it is open, and on which row, is
+kept in the store, in `reviewingAtom`, not in this component. The workspace
+renders the review from that atom, so it opens the same way from either control.
+`resetAll` resets the atom, which closes the review when the working set is
+cleared.
 
 ## Links to stored records
 
