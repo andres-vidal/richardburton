@@ -9,19 +9,15 @@ import {
 } from "modules/publication/store";
 import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
 
+import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
+
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 // A mock of the row's click handler, which selects the row in the workspace.
 const selectRow = fn();
 
 // A stored record for the row to resemble.
-const STORED = {
-  ...Publication.empty(),
-  id: 7,
-  title: "Dom Casmurro",
-  authors: ["Helen Caldwell"],
-  year: "1953",
-};
+const STORED = LOOK_ALIKE_RECORD;
 
 const seed = (
   store: Store,
