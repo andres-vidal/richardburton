@@ -36,11 +36,11 @@ type LiveState = "connecting" | "live" | "offline";
  * The connections that have this document open, as Phoenix Presence on the
  * server tracks them.
  *
- * `connections` maps each connection's awareness client id to the email the
- * server holds for its user. `subscribe` registers a listener that is called
- * when the list changes. The server builds the list, so a client cannot list
- * itself under another email, and a connection leaves the list when its socket
- * closes.
+ * `connections` maps each connection's awareness client id to the email of the
+ * person signed in on that connection. `subscribe` registers a listener that is
+ * called when the list changes. The server builds the list, so a client cannot
+ * list itself under another email, and a connection leaves the list when its
+ * socket closes.
  */
 type PresenceList = {
   subscribe: (listener: () => void) => () => void;
@@ -268,9 +268,9 @@ function live(
 
   channel.on("sync", onSync);
 
-  // The server pushes `refused` when this session may no longer have the
-  // document open, because it was signed out or its user lost access. The
-  // server then closes the channel and refuses any rejoin.
+  // The server pushes `refused` when this session has been signed out, or when
+  // the person signed in on it has lost access. The server then closes the
+  // channel and refuses any rejoin.
   channel.on("refused", () => report("offline"));
 
   const tracked = new Presence(channel);

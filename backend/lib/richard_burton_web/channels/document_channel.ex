@@ -29,10 +29,12 @@ defmodule RichardBurtonWeb.DocumentChannel do
       reply with the changes it lacks. This covers changes that were relayed
       before it joined but were not yet stored.
 
-  A joined channel checks again that its person may keep it open. It checks
-  whenever `RichardBurton.Auth.Access` broadcasts a change for that person, and
-  every five minutes to catch an expired session, since expiry is not
-  broadcast. If the check fails, the channel pushes `refused` and closes.
+  After a connection joins, the channel calls
+  `RichardBurtonWeb.DocumentSocket.allowed?/2` again to check that the person
+  signed in on the connection still has access. It checks each time
+  `RichardBurton.Auth.Access` broadcasts a change of access for that person,
+  and every five minutes, because a session that expires is not broadcast. If
+  the check fails, the channel pushes `refused` and closes.
   """
 
   use Phoenix.Channel
@@ -115,9 +117,10 @@ defmodule RichardBurtonWeb.DocumentChannel do
   @impl true
   def handle_in(_event, _payload, socket), do: {:noreply, socket}
 
-  # Keeps the channel open while `DocumentSocket.allowed?/2` holds for its
-  # person and session. Otherwise it pushes `refused` with an empty payload and
-  # stops with `{:shutdown, :refused}`.
+  # Calls `DocumentSocket.allowed?/2` with the socket's `subject_id` and
+  # `session_id`. When it returns true, the channel stays open. Otherwise the
+  # channel pushes `refused` with an empty payload and stops with
+  # `{:shutdown, :refused}`.
   defp recheck(socket) do
     %{subject_id: subject_id, session_id: session_id} = socket.assigns
 
