@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { seed } from "modules/publication/fixtures";
+import { seed } from "test/publication-fixtures";
 import { store } from "modules/store";
 import type { Kind, Resemblance } from "modules/vocabulary";
 import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
