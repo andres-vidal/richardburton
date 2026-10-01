@@ -128,14 +128,19 @@ defmodule RichardBurton.User do
   def delete(user = %User{}, actor \\ nil) do
     with :ok <- refuse_self(user, actor),
          :ok <- refuse_last_admin(user, nil),
-         {:ok, deleted} <-
-           Repo.transaction(fn ->
-             RichardBurton.Auth.Session.revoke_all(user.subject_id)
-             Repo.delete!(user)
-           end) do
+         {:ok, deleted} <- delete_with_sessions(user) do
       RichardBurton.Auth.Access.changed(user.subject_id)
       {:ok, deleted}
     end
+  end
+
+  # Deletes the user's sessions and then the user, in one transaction. Returns
+  # `{:ok, user}` with the deleted user.
+  defp delete_with_sessions(user) do
+    Repo.transaction(fn ->
+      RichardBurton.Auth.Session.revoke_all(user.subject_id)
+      Repo.delete!(user)
+    end)
   end
 
   # Changing your own role or removing your own account is a mistake often
