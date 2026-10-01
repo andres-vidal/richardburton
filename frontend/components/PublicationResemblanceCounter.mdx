@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as PublicationResemblanceCounterStories from "./PublicationResemblanceCounter.stories";
 
@@ -52,6 +52,7 @@ next check finds that the row still resembles something.
 
 <Canvas of={PublicationResemblanceCounterStories.NothingAlike} />
 
+<Description of={PublicationResemblanceCounterStories.DiscardingLowersIt} />
 <Canvas of={PublicationResemblanceCounterStories.DiscardingLowersIt} />
 
 The review is rendered even when the count is zero, so it stays open if the
