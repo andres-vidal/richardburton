@@ -1,4 +1,9 @@
-import { Canvas, Controls, Meta } from "@storybook/addon-docs/blocks";
+import {
+  Canvas,
+  Controls,
+  Description,
+  Meta,
+} from "@storybook/addon-docs/blocks";
 
 import * as ButtonStories from "./Button.stories";
 
@@ -53,6 +58,7 @@ button, and only shows once the button is wider than its content.
 
 <Canvas of={ButtonStories.Widths} />
 
+<Description of={ButtonStories.Alignment} />
 <Canvas of={ButtonStories.Alignment} />
 
 ## Icons
@@ -63,6 +69,7 @@ visually with `labelSrOnly`.
 
 <Canvas of={ButtonStories.WithIcon} />
 
+<Description of={ButtonStories.IconOnly} />
 <Canvas of={ButtonStories.IconOnly} />
 
 ## States

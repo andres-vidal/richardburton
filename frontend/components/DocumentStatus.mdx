@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as DocumentStatusStories from "./DocumentStatus.stories";
 
@@ -43,6 +43,11 @@ in the edit form for a single saved publication, which is not a shared document.
 
 ## States
 
+<Description of={DocumentStatusStories.Saving} />
 <Canvas of={DocumentStatusStories.Saving} />
+
+<Description of={DocumentStatusStories.Reconnecting} />
 <Canvas of={DocumentStatusStories.Reconnecting} />
+
+<Description of={DocumentStatusStories.NotLive} />
 <Canvas of={DocumentStatusStories.NotLive} />

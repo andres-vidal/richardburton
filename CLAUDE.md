@@ -63,7 +63,7 @@ Do not use early returns in components; express branches as ternaries in the ret
 
 ## Storybook completeness
 
-Every component ships both a `*.stories.tsx` covering its meaningful states, with play tests where behaviour warrants, and a `*.mdx` doc with `<Meta of={…} />`, a short description, props and a `<Canvas>` of the key states. Give every story a JSDoc comment of a sentence or two saying what it shows, or what its play test checks. When you add or change a component, update both files.
+Every component ships both a `*.stories.tsx` covering its meaningful states, with play tests where behaviour warrants, and a `*.mdx` doc with `<Meta of={…} />`, a short description, props and a `<Canvas>` of the key states. Give every story a JSDoc comment of a sentence or two saying what it shows, or what its play test checks. In the `.mdx`, put text right before every `<Canvas>`: prose about that state, or `<Description of={…} />`, which shows the story's JSDoc. When you add or change a component, update both files.
 
 ## E2E coverage
 

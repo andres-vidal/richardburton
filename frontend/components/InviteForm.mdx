@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as InviteFormStories from "./InviteForm.stories";
 
@@ -35,6 +35,7 @@ the pending page, and can be raised later without being invited again.
 
 <Canvas of={InviteFormStories.NothingTyped} />
 
+<Description of={InviteFormStories.AddressTyped} />
 <Canvas of={InviteFormStories.AddressTyped} />
 
 An address that is already waiting on an offer is refused, and says so; the

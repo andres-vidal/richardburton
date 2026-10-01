@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as DocumentListStories from "./DocumentList.stories";
 
@@ -80,4 +80,6 @@ calls.
   **Show more** button when there are more.
 
 <Canvas of={DocumentListStories.Empty} />
+
+<Description of={DocumentListStories.NothingArchived} />
 <Canvas of={DocumentListStories.NothingArchived} />

@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as DuplicateReviewStories from "./DuplicateReview.stories";
 
@@ -57,6 +57,8 @@ which is right.
 
 ## States
 
+<Description of={DuplicateReviewStories.NothingToReconcile} />
 <Canvas of={DuplicateReviewStories.NothingToReconcile} />
 
+<Description of={DuplicateReviewStories.Answering} />
 <Canvas of={DuplicateReviewStories.Answering} />

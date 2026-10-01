@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as SourcesBackfillStories from "./SourcesBackfill.stories";
 
@@ -38,6 +38,8 @@ on the right. Reached from the admin panel at `/admin/publications/sources`.
 - **Empty** — nothing left to source ("All caught up").
 
 <Canvas of={SourcesBackfillStories.Loading} />
+
+<Description of={SourcesBackfillStories.Empty} />
 <Canvas of={SourcesBackfillStories.Empty} />
 
 ## Queue
@@ -60,4 +62,6 @@ publication in the queue the button reads just **Save**, because there is no
 next publication to move to.
 
 <Canvas of={SourcesBackfillStories.Step} />
+
+<Description of={SourcesBackfillStories.LastStep} />
 <Canvas of={SourcesBackfillStories.LastStep} />
