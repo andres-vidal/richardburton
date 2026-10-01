@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import type { LiveState } from "modules/publication/document-live";
 import type { SyncState } from "modules/publication/document-sync";
-import { aDocumentWith } from "modules/publication/fixtures";
+import { aDocumentWith } from "test/publication-fixtures";
 import { LiveProvider } from "modules/publication/presence";
 import { expect, screen, userEvent } from "storybook/test";
 

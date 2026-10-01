@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
-import { fieldErrors, seed } from "modules/publication/fixtures";
+import { fieldErrors, seed } from "test/publication-fixtures";
 import { areRowIdsVisibleAtom } from "modules/publication/store";
 import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test";
 

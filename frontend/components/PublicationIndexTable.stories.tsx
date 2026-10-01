@@ -7,10 +7,7 @@ import {
   setField,
 } from "modules/publication/store";
 import { store } from "modules/store";
-import {
-  sampleManyPublications,
-  seedIndex,
-} from "modules/publication/fixtures";
+import { sampleManyPublications, seedIndex } from "test/publication-fixtures";
 import { expect, within } from "storybook/test";
 
 import { PublicationIndexTable } from "./PublicationIndexTable";

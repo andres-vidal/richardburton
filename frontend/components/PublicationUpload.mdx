@@ -21,9 +21,9 @@ the same file can be re-picked. In stories the store is seeded through the
 shared fixtures:
 
 ```tsx
-import { seed } from "modules/publication/fixtures";
+import { seed } from "test/publication-fixtures";
 
-seed([]); // start from an empty store
+seed(store, []); // start from an empty store
 ```
 
 <Canvas of={UploadStories.Default} />

@@ -21,9 +21,9 @@ a row" control marks the first visible row discarded so the button can be
 exercised on its own:
 
 ```tsx
-import { seed } from "modules/publication/fixtures";
+import { seed } from "test/publication-fixtures";
 
-seed(); // load the sample publications, then discard a row to reveal the button
+seed(store); // load the sample publications, then discard a row to reveal the button
 ```
 
 <Canvas of={ResetDiscardedStories.Default} />

@@ -5,12 +5,23 @@ import {
 } from "y-protocols/awareness";
 import * as Y from "yjs";
 
-import { Publication, PublicationError, PublicationKey, empty } from "./model";
-import type { PresenceList } from "./document-live";
-import type { At } from "./presence";
+import {
+  Publication,
+  PublicationError,
+  PublicationKey,
+  empty,
+} from "modules/publication/model";
+import type { PresenceList } from "modules/publication/document-live";
+import type { At } from "modules/publication/presence";
 import { clearSelection } from "modules/selection";
 import type { Store } from "modules/store";
-import { createId, hydrate, resetAll, resetAttributes, setAll } from "./store";
+import {
+  createId,
+  hydrate,
+  resetAll,
+  resetAttributes,
+  setAll,
+} from "modules/publication/store";
 
 type SeedEntry = Partial<Publication> & { errors?: PublicationError };
 

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { resetAll } from "modules/publication/store";
-import { seedIndex } from "modules/publication/fixtures";
+import { seedIndex } from "test/publication-fixtures";
 import { expect, within } from "storybook/test";
 
 import { PublicationIndexList } from "./PublicationIndexList";

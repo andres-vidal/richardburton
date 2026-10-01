@@ -21,9 +21,9 @@ as labels (e.g. a country code becomes the country name). Stories seed the store
 with the shared fixtures:
 
 ```tsx
-import { seed } from "modules/publication/fixtures";
+import { seedIndex } from "test/publication-fixtures";
 
-seed();
+seedIndex(store);
 ```
 
 <Canvas of={IndexTableStories.Default} />

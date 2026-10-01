@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { aDocumentWith } from "modules/publication/fixtures";
+import { aDocumentWith } from "test/publication-fixtures";
 import { LiveProvider } from "modules/publication/presence";
 import { expect, screen, userEvent, within } from "storybook/test";
 

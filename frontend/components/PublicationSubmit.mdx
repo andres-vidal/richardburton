@@ -21,9 +21,9 @@ POST the rows, then `setAll([])` to reset the store and fires a success
 notification. In stories the store is seeded through the shared fixtures:
 
 ```tsx
-import { seed } from "modules/publication/fixtures";
+import { seed } from "test/publication-fixtures";
 
-seed(); // load the sample publications before the story renders
+seed(store); // load the sample publications before the story renders
 ```
 
 <Canvas of={SubmitStories.Default} />

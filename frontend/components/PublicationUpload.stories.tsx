@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
-import { seed } from "modules/publication/fixtures";
+import { seed } from "test/publication-fixtures";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationUpload from "./PublicationUpload";

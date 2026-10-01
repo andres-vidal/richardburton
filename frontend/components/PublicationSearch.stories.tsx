@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { seed } from "modules/publication/fixtures";
+import { seed } from "test/publication-fixtures";
 import { matchedAtom } from "modules/publication/store";
 import { store } from "modules/store";
 import { expect, userEvent, waitFor, within } from "storybook/test";
