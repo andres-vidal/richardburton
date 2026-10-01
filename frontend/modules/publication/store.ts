@@ -2,6 +2,7 @@ import { v4 as uuid } from "uuid";
 import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
+import { isEqual } from "lodash";
 import type { Store } from "modules/store";
 import * as Y from "yjs";
 import * as Doc from "./doc";
@@ -88,10 +89,13 @@ function bind(store: Store, doc: Y.Doc, owned: boolean): Binding {
   const undo = Doc.undoManager(doc);
 
   const onRows = (changed: PublicationId[]) =>
-    changed.forEach((id) => {
-      const row = Doc.readRow(doc, id);
-      if (row) store.set(publicationFamily(id), row);
-    });
+    store.set(
+      writeRowsAtom,
+      changed.flatMap((id) => {
+        const row = Doc.readRow(doc, id);
+        return row ? [[id, row] as const] : [];
+      }),
+    );
 
   const onOrder = () => store.set(publicationIdsAtom, Doc.keys(doc));
 
@@ -233,6 +237,32 @@ const attributeVisibleFamily = atomFamily((key: PublicationKey) =>
   atomWithReset<boolean>(DEFAULT_ATTRIBUTE_VISIBILITY[key]),
 );
 
+// --- Write atoms ------------------------------------------------------------
+
+/**
+ * Writes each `[id, row]` pair into `publicationFamily` in one store update, so
+ * an atom that reads many rows recomputes once instead of once per row.
+ */
+const writeRowsAtom = atom(
+  null,
+  (_get, set, rows: (readonly [PublicationId, Publication])[]) =>
+    rows.forEach(([id, row]) => set(publicationFamily(id), row)),
+);
+
+/** Does the work of `setResemblances` in one store update. */
+const writeResemblancesAtom = atom(
+  null,
+  (get, set, ids: PublicationId[], found: Map<PublicationId, Resemblance>) =>
+    ids.forEach((id) => {
+      const value = found.get(id);
+      const next = value ? { at: get(rowSubjectFamily(id)), value } : null;
+
+      if (!isEqual(get(measuredResemblanceFamily(id)), next)) {
+        set(measuredResemblanceFamily(id), next);
+      }
+    }),
+);
+
 // --- Derived atoms ----------------------------------------------------------
 
 const visibleIdsAtom = atom((get) =>
@@ -361,15 +391,17 @@ const resemblanceFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * The subjects of all visible rows, in order.
+ * The subjects of all visible rows, in order, as one JSON string.
  *
- * `CheckResemblances` runs the check again when this changes, so editing a
- * field outside `RESEMBLANCE_ATTRIBUTES`, such as the year or a country, does
- * not run it. The atom can return a new array with the same contents, so
- * `CheckResemblances` compares it as a JSON string.
+ * It changes only when a row's subject or the set of visible rows changes, so
+ * editing a field outside `RESEMBLANCE_ATTRIBUTES`, such as the year or a
+ * country, leaves it as it was. Being a string, an unchanged value compares
+ * equal and does not notify the atom's subscribers.
  */
 const resemblanceSubjectAtom = atom((get) =>
-  (get(visibleIdsAtom) ?? []).map((id) => get(rowSubjectFamily(id))),
+  JSON.stringify(
+    (get(visibleIdsAtom) ?? []).map((id) => get(rowSubjectFamily(id))),
+  ),
 );
 
 const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
@@ -711,22 +743,16 @@ function setErrors(store: Store, entries: PublicationEntry[]): void {
 
 /**
  * Stores the look-alike check result for each row in `ids`, together with the
- * row's current subject. A row in `ids` that is absent from `found` is reset to
- * resemble nothing.
+ * row's current subject, in one store update. A row in `ids` that is absent
+ * from `found` is reset to resemble nothing. A row whose result is unchanged is
+ * not written, so its cells do not re-render.
  */
 function setResemblances(
   store: Store,
   ids: PublicationId[],
   found: Map<PublicationId, Resemblance>,
 ): void {
-  ids.forEach((id) => {
-    const value = found.get(id);
-
-    store.set(
-      measuredResemblanceFamily(id),
-      value ? { at: store.get(rowSubjectFamily(id)), value } : RESET,
-    );
-  });
+  store.set(writeResemblancesAtom, ids, found);
 }
 
 /**
@@ -954,6 +980,7 @@ function focusNextInvalid(store: Store): void {
 }
 
 export {
+  RESEMBLANCE_ATTRIBUTES,
   addNew,
   appendIndex,
   areRowIdsVisibleAtom,

@@ -1,3 +1,4 @@
+import { pick } from "lodash";
 import { request } from "app";
 import { AxiosError, AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
@@ -29,6 +30,7 @@ import {
   lastValidatedFamily,
   publicationFamily,
   publicationIdsAtom,
+  RESEMBLANCE_ATTRIBUTES,
   remember,
   removePublication,
   resetAll,
@@ -408,7 +410,9 @@ async function validate(store: Store, ids: PublicationId[]): Promise<void> {
 async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
   return run(async (http) => {
     const asked = ids.map((id) => store.get(rowSubjectFamily(id)));
-    const rows = ids.map((id) => store.get(publicationFamily(id)));
+    const rows = ids.map((id) =>
+      pick(store.get(publicationFamily(id)), RESEMBLANCE_ATTRIBUTES),
+    );
 
     const { data } = await http.post<{ entries: ResemblanceEntry[] }>(
       "publications/duplicates/resemblances",
