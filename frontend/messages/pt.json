@@ -454,7 +454,7 @@
     "title": "Documentos de importação",
     "description": "Lotes de publicações em preparação. Todos podem ver e abrir qualquer um.",
     "nameLabel": "Nome",
-    "namePlaceholder": "O que é este lote",
+    "namePlaceholder": "ex.: Retraduções de Jorge Amado",
     "start": "Criar documento",
     "loading": "Lendo os documentos…",
     "none": "Nenhum documento ainda. Crie um acima.",

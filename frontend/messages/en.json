@@ -454,7 +454,7 @@
     "title": "Import documents",
     "description": "Batches of publications being prepared. Everyone can see and open all of them.",
     "nameLabel": "Name",
-    "namePlaceholder": "What this batch is",
+    "namePlaceholder": "e.g. Jorge Amado retranslations",
     "start": "Start a document",
     "loading": "Reading the documents…",
     "none": "No documents yet. Start one above.",
