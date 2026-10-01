@@ -30,7 +30,7 @@ import {
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
 import { colourOf, useOnThisCell } from "modules/publication/presence";
-import { resemblances, validate } from "modules/publication/remote";
+import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { DRAFT_ID, addNew, closeReview } from "modules/publication/store";
 import type { PublicationId } from "modules/publication/model";
@@ -245,13 +245,7 @@ const NewPublicationRow: FC = () => {
   );
 };
 
-const PublicationWorkspace: FC<{
-  /**
-   * Checks the rows for look-alikes. Defaults to `resemblances`, which asks the
-   * server.
-   */
-  check?: typeof resemblances;
-}> = ({ check }) => {
+const PublicationWorkspace: FC = () => {
   const store = usePublicationStore();
   const ids = useVisiblePublicationIds();
   const isSelectionEmpty = useIsSelectionEmpty();
@@ -275,7 +269,7 @@ const PublicationWorkspace: FC<{
   return (
     <>
       <ClearSelection store={store} />
-      <CheckResemblances store={store} check={check} />
+      <CheckResemblances store={store} />
       <PublicationResemblances
         isOpen={reviewing !== null}
         startAt={reviewing?.startAt}

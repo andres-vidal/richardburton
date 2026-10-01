@@ -8,6 +8,7 @@ import { Author } from "modules/author";
 import { Country } from "modules/country";
 import { OriginalBook } from "modules/original-book";
 import { Publisher } from "modules/publisher";
+import { REMOTE as PublicationRemote } from "modules/publication/remote";
 import { COUNTRIES, messages } from "test/messages";
 
 import "../styles/globals.css";
@@ -27,6 +28,9 @@ Country.REMOTE.search = async (term) =>
  * story that stubs one of these puts back a stub rather than the real call.
  */
 Author.REMOTE.search = async () => [];
+
+// The workspace checks its rows for look-alikes after every edit.
+PublicationRemote.resemblances = async () => {};
 Publisher.REMOTE.search = async () => [];
 OriginalBook.REMOTE.search = async () => [];
 

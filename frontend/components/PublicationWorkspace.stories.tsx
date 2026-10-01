@@ -2,23 +2,13 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { fieldErrors, seed } from "test/publication-fixtures";
 import { areRowIdsVisibleAtom } from "modules/publication/store";
-import {
-  expect,
-  fireEvent,
-  fn,
-  userEvent,
-  waitFor,
-  within,
-} from "storybook/test";
+import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationWorkspace from "./PublicationWorkspace";
 
 const meta = {
   title: "Publications/Workspace",
   component: PublicationWorkspace,
-  // Storybook has no server, so the look-alike check that runs on every edit
-  // is replaced with a function that does nothing.
-  args: { check: fn(async () => undefined) },
   decorators: [
     (Story) => (
       <div className="overflow-x-auto p-4">

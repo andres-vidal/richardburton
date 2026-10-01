@@ -5,7 +5,7 @@ import {
   resemblanceSubjectAtom,
   visibleIdsAtom,
 } from "modules/publication/store";
-import { resemblances } from "modules/publication/remote";
+import { REMOTE } from "modules/publication/remote";
 import type { Store } from "modules/store";
 import { FC, useEffect } from "react";
 
@@ -21,26 +21,19 @@ const SETTLE = 500;
  * also compared with the other rows. Editing one row can make it resemble
  * another row that has not changed.
  *
- * It checks the rows of the store it is given.
+ * It checks the rows of the store it is given, with `REMOTE.resemblances`.
  */
-const CheckResemblances: FC<{
-  store: Store;
-  /** Checks the rows. Defaults to `resemblances`, which asks the server. */
-  check?: typeof resemblances;
-}> = ({ store, check = resemblances }) => {
-  // The fields the check reads, for every visible row, as a JSON string. The
-  // atom can return a new array with the same contents, so the effect depends
-  // on this string instead.
-  const subject = JSON.stringify(useAtomValue(resemblanceSubjectAtom));
+const CheckResemblances: FC<{ store: Store }> = ({ store }) => {
+  const subject = useAtomValue(resemblanceSubjectAtom);
 
   useEffect(() => {
     const ids = store.get(visibleIdsAtom) ?? [];
     if (ids.length === 0) return;
 
-    const timer = setTimeout(() => check(store, ids), SETTLE);
+    const timer = setTimeout(() => REMOTE.resemblances(store, ids), SETTLE);
 
     return () => clearTimeout(timer);
-  }, [subject, store, check]);
+  }, [subject, store]);
 
   return null;
 };

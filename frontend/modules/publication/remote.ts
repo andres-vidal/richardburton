@@ -461,7 +461,14 @@ async function upload(store: Store, payload: FormData): Promise<void> {
   });
 }
 
+/**
+ * The look-alike check, held in an object and read when a check runs, so it can
+ * be replaced with one that does not reach the network, as `Author.REMOTE` is.
+ */
+const REMOTE = { resemblances };
+
 export {
+  REMOTE,
   bulk,
   deletePublication,
   distinguish,
