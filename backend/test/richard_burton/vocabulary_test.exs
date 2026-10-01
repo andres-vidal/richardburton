@@ -98,6 +98,16 @@ defmodule RichardBurton.VocabularyTest do
       assert by_name["Peter Owen"].resembles == []
     end
 
+    test "a publisher's short name and its full name point at each other" do
+      insert(%{"publishers" => [%{"name" => "Alfred A. Knopf"}]})
+      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Knopf"}]})
+
+      by_name = Map.new(Vocabulary.all("publishers"), &{&1.name, &1})
+
+      assert by_name["Knopf"].resembles == [by_name["Alfred A. Knopf"].id]
+      assert by_name["Alfred A. Knopf"].resembles == [by_name["Knopf"].id]
+    end
+
     test "refuses a kind it does not keep" do
       assert {:error, :no_such_kind} = Vocabulary.all("countries")
     end
@@ -135,6 +145,28 @@ defmodule RichardBurton.VocabularyTest do
       {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Alfred A.Knopf"])
 
       assert %{held: false, resembles: [%{name: "Alfred A. Knopf", publications: 2}]} = entry
+    end
+
+    test "catches a publisher's short name inside its full name" do
+      insert(%{"publishers" => [%{"name" => "Alfred A. Knopf"}]})
+
+      {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Knopf"])
+
+      assert %{held: false, resembles: [%{name: "Alfred A. Knopf"}]} = entry
+    end
+
+    # An author record can name two people. Each person's own name is a
+    # different author, not another spelling of the record.
+    test "does not take one translator's name for a record that names two" do
+      insert(%{
+        "translated_book" => %{
+          "authors" => [%{"name" => "William L. Grossman & Helen Caldwell"}]
+        }
+      })
+
+      {:ok, [entry]} = Vocabulary.resemblances("authors", ["Helen Caldwell"])
+
+      assert %{held: false, resembles: []} = entry
     end
 
     test "a translator is found whether the name translated or wrote" do
