@@ -11,21 +11,24 @@ import {
 } from "./helpers";
 
 /**
- * A CSV with four rows.
+ * A CSV with five rows.
  *
  * The first row is the corpus's `Dom Casmurro` with one letter missing from the
  * title and one from the translator's name. The composite key does not catch
  * this. The second and third rows are near-copies of each other and are not in
  * the database, so only the comparison between the import's rows finds them.
- * The fourth row resembles nothing.
+ * The fourth row resembles nothing. The fifth row is a later printing of the
+ * corpus's `Dom Casmurro`, with its own year and publisher, so it resembles
+ * nothing either.
  */
 const IMPORT_CSV =
   [
     CSV_HEADER,
     `Dom Casmuro,1953,US,Noonday Press,Helen Caldwel,Dom Casmurro,Machado de Assis,`,
     `The Devil to Pay in the Backlands,1963,US,Knopf,James L. Taylor,Grande Sertão: Veredas,João Guimarães Rosa,`,
-    `The Devil to Pay in the Backland,1963,GB,Knopf,James L Taylor,Grande Sertao Veredas,João Guimarães Rosa,`,
+    `The Devil to Pay in the Backland,1963,US,Knopf,James L Taylor,Grande Sertao Veredas,João Guimarães Rosa,`,
     `The Passion According to G.H.,1988,US,Minnesota,Ronald Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
+    `Dom Casmurro,1966,US,University of California Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
   ].join("\n") + "\n";
 
 test("a row keeps its look-alike while the rest of it is filled in", async ({
@@ -34,9 +37,8 @@ test("a row keeps its look-alike while the rest of it is filled in", async ({
   await seedCorpus(page);
   await openDocument(page);
 
-  // Fill only the fields the check reads: the title, original title,
-  // translators and original authors. The other fields are filled after the
-  // row is marked.
+  // Fill only the title, original title, translators and original authors. The
+  // year, countries and publishers are filled after the row is marked.
   const draft = draftRow(page);
   await draft.getByPlaceholder("Title", { exact: true }).fill("Dom Casmuro");
   await draft
@@ -50,9 +52,9 @@ test("a row keeps its look-alike while the rest of it is filled in", async ({
   const marked = row.getByRole("button", { name: /^Resembles / });
   await expect(marked).toBeVisible({ timeout: 30_000 });
 
-  // The check does not read the year, countries or publishers, so filling them
-  // must keep the row's result. If one of them cleared the result without
-  // running the check again, the row would stay unmarked.
+  // An empty year, country or publisher does not rule out a look-alike, and
+  // the values filled here agree with the stored record, so the row stays
+  // marked after each one.
   await row.getByPlaceholder("Year", { exact: true }).fill("1953");
   await page.keyboard.press("Tab");
   await expect(marked).toBeVisible();
@@ -72,6 +74,12 @@ test("a row keeps its look-alike while the rest of it is filled in", async ({
       name: "This row looks like a publication already known",
     }),
   ).toBeVisible();
+
+  // Another year makes the row another printing of the stored record, so the
+  // row is no longer marked.
+  await row.getByPlaceholder("Year", { exact: true }).fill("1966");
+  await page.keyboard.press("Tab");
+  await expect(marked).toHaveCount(0);
 });
 
 test("an admin catches look-alikes before importing them", async ({ page }) => {
@@ -84,12 +92,22 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await expect(table.getByRole("row", { name: /Dom Casmuro/ })).toBeVisible();
 
   // The check runs after the upload without any button press. Three of the
-  // four rows resemble something: the first resembles a stored record, and the
-  // second and third resemble each other. The fourth resembles nothing.
+  // five rows resemble something: the first resembles a stored record, and the
+  // second and third resemble each other. The fourth and fifth resemble
+  // nothing.
   const found = page.getByRole("button", {
     name: "3 rows look like publications already known",
   });
   await expect(found).toBeVisible({ timeout: 30_000 });
+
+  // The later printing shares its title and translator with the stored
+  // `Dom Casmurro`, but not its year or publisher, so it has no look-alike
+  // button.
+  await expect(
+    table
+      .getByRole("row", { name: /University of California Press/ })
+      .getByRole("button", { name: /^Resembles / }),
+  ).toHaveCount(0);
 
   // The row that resembles a stored record has the warning icon in its leading
   // cell, where an error icon would be. Its look-alike button, at the end of
@@ -183,7 +201,8 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
   await page.getByRole("button", { name: /^Discard/ }).click();
 
-  // Both rows are gone from the working set, and the other two are still there.
+  // Both rows are gone from the working set, and the other three are still
+  // there.
   await expect(table.getByRole("row", { name: /Dom Casmuro/ })).toHaveCount(0);
   await expect(
     table.getByRole("row", { name: /The Devil to Pay in the Backlands/ }),
@@ -195,6 +214,9 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   ).toHaveCount(1);
   await expect(
     table.getByRole("row", { name: /The Passion According to G\.H\./ }),
+  ).toBeVisible();
+  await expect(
+    table.getByRole("row", { name: /University of California Press/ }),
   ).toBeVisible();
 
   // Discarding changes the visible rows, so the check runs again. The third

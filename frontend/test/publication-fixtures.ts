@@ -215,7 +215,7 @@ const LOOK_ALIKE_ROWS: PublicationEntry[] = [
       originalTitle: "Grande Sertao Veredas",
       originalAuthors: ["João Guimarães Rosa"],
       year: "1963",
-      countries: ["GB"],
+      countries: ["US"],
       publishers: ["Knopf"],
     },
   },

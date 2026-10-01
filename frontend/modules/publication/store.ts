@@ -333,8 +333,9 @@ const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
 const reviewingAtom = atomWithReset<{ startAt?: PublicationId } | null>(null);
 
 /**
- * The fields the look-alike check compares: the title, the translators, the
- * original title and the original authors. The backend rule is in
+ * The fields the look-alike check reads. The title, the translators, the
+ * original title and the original authors must be alike, and the year, the
+ * countries and the publishers must not conflict. The backend rule is in
  * `Publication.Duplicates`.
  *
  * `rowSubjectFamily` builds a row's subject from these fields. The subject
@@ -348,6 +349,9 @@ const RESEMBLANCE_ATTRIBUTES: PublicationKey[] = [
   "authors",
   "originalTitle",
   "originalAuthors",
+  "year",
+  "countries",
+  "publishers",
 ];
 
 /**
@@ -394,9 +398,9 @@ const resemblanceFamily = atomFamily((id: PublicationId) =>
  * The subjects of all visible rows, in order, as one JSON string.
  *
  * It changes only when a row's subject or the set of visible rows changes, so
- * editing a field outside `RESEMBLANCE_ATTRIBUTES`, such as the year or a
- * country, leaves it as it was. Being a string, an unchanged value compares
- * equal and does not notify the atom's subscribers.
+ * editing a field outside `RESEMBLANCE_ATTRIBUTES`, such as the sources, leaves
+ * it as it was. Being a string, an unchanged value compares equal and does not
+ * notify the atom's subscribers.
  */
 const resemblanceSubjectAtom = atom((get) =>
   JSON.stringify(

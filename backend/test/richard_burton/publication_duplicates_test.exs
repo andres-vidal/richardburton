@@ -87,12 +87,21 @@ defmodule RichardBurton.Publication.DuplicatesTest do
       assert [["Dom Casmuro", "Dom Casmurro"]] = titles(Duplicates.clusters())
     end
 
-    test "one translator's work retitled between printings is found by the book behind it" do
+    test "one translator's work entered under another title is found by the book behind it" do
       insert(%{})
-      insert(%{"title" => "The Confessions of a Jealous Man", "year" => 1997})
+      insert(%{"title" => "The Confessions of a Jealous Man"})
 
       assert [cluster] = Duplicates.clusters()
       assert 2 == length(cluster.publications)
+    end
+
+    # The year, the countries and the publishers rule a pair out when they
+    # differ, because a printing of its own is another publication.
+    test "another printing, with a year of its own, is not offered" do
+      insert(%{})
+      insert(%{"title" => "The Confessions of a Jealous Man", "year" => 1997})
+
+      assert [] == Duplicates.clusters()
     end
 
     test "records joined through a third are one question, because merging them is one act" do
@@ -115,7 +124,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
       insert(%{
         "title" => "Iracema, the Honey-Lips: A Legend",
-        "year" => 1887,
+        "year" => 1886,
         "translated_book" => %{
           "authors" => [%{"name" => "Isabel Burton"}],
           "original_book" => %{
@@ -336,6 +345,61 @@ defmodule RichardBurton.Publication.DuplicatesTest do
       # `resemblances/1` does not report it, as `clusters/0` would not.
       assert [] ==
                Duplicates.resemblances([row(%{"authors" => ["John Gledson"]})])
+    end
+
+    test "a row from another publisher is another edition, not a look-alike" do
+      insert(%{})
+
+      assert [] ==
+               Duplicates.resemblances([
+                 row(%{"title" => "Dom Casmuro", "publishers" => ["Penguin Classics"]})
+               ])
+    end
+
+    test "a row published in another country is another edition, not a look-alike" do
+      insert(%{})
+
+      assert [] ==
+               Duplicates.resemblances([row(%{"title" => "Dom Casmuro", "countries" => ["GB"]})])
+    end
+
+    test "a row published in another year is another edition, not a look-alike" do
+      insert(%{})
+
+      assert [] == Duplicates.resemblances([row(%{"title" => "Dom Casmuro", "year" => "1997"})])
+    end
+
+    test "a row that shares one of its countries with a record still resembles it" do
+      insert(%{})
+
+      assert [%{position: 0}] =
+               Duplicates.resemblances([
+                 row(%{"title" => "Dom Casmuro", "countries" => ["GB", "US"]})
+               ])
+    end
+
+    test "a publisher written in full agrees with its short form" do
+      insert(%{"publishers" => [%{"name" => "Alfred A. Knopf"}]})
+
+      assert [%{position: 0}] =
+               Duplicates.resemblances([
+                 row(%{"title" => "Dom Casmuro", "publishers" => ["Knopf"]})
+               ])
+    end
+
+    # A field rules a look-alike out only when both sides have a value for it.
+    test "a row that leaves the year, countries and publishers empty still resembles a record" do
+      insert(%{})
+
+      assert [%{position: 0}] =
+               Duplicates.resemblances([
+                 row(%{
+                   "title" => "Dom Casmuro",
+                   "year" => "",
+                   "countries" => [],
+                   "publishers" => []
+                 })
+               ])
     end
 
     test "two rows can resemble each other with nothing stored at all" do

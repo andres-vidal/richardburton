@@ -22,13 +22,18 @@ Each row is compared with the stored records and with the other rows of the
 same import. The second comparison finds near-duplicates inside one CSV, which
 are not in the database yet.
 
+A row does not count against a record or row with another year, another
+country or another publisher, because that is another edition. A field that one
+of them leaves empty does not rule anything out, so a row being filled in is
+counted as soon as its title and translators resemble something.
+
 ## When the check runs
 
 The check runs by itself as rows are edited, the same way validation does.
-`CheckResemblances` watches the title, translators, original title and
-original authors of every visible row. It runs the check 500 ms after the last
-change to one of those fields. Editing another field, such as the year or a
-country, does not run the check.
+`CheckResemblances` watches every field the rule reads, which is all of them
+except the sources, on every visible row. It runs the check 500 ms after the
+last change to one of those fields. Editing a row's sources does not run the
+check.
 
 Each check sends every visible row, not only the row that changed, because each
 row is also compared with the other rows. Editing one row can make it resemble
@@ -81,6 +86,7 @@ tab, so the review and the workspace stay open.
 ## What it is not
 
 A look-alike is not an error. It does not make a row invalid and it does not
-block a submit, because two editions of one book resemble each other and both
-belong in the database. The check also stores nothing. A row has no id yet, so
-there is no pair to rule apart the way the duplicate review does.
+block a submit, because a row that leaves out its year, country or publisher
+can resemble another edition of its book, and both editions belong in the
+database. The check also stores nothing. A row has no id yet, so there is no
+pair to rule apart the way the duplicate review does.

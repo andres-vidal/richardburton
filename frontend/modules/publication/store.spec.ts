@@ -36,6 +36,7 @@ import {
   setErrors,
   setField,
   setResemblances,
+  setSources,
   storedFieldValueFamily,
   totalCountAtom,
   validCountAtom,
@@ -493,7 +494,7 @@ describe("look-alikes", () => {
 
   test("stands when a field the check does not read is edited", () => {
     measured();
-    setField(store, 1, "year", "1953");
+    setSources(store, 1, ["A source"]);
 
     expect(store.get(resemblanceFamily(1))).toEqual(RESEMBLES);
   });
