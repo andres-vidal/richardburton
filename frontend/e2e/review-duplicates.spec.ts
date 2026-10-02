@@ -92,6 +92,13 @@ test("an admin reviews the duplicates the composite key cannot catch, merging on
   await expect(page.getByText("Bloomsbury")).toHaveCount(0);
   await expect(page.getByText("University of California Press")).toHaveCount(0);
 
+  // The three records share their translator and original book, so nothing in
+  // those is highlighted. The article only the typo's publisher has is.
+  const marks = page.locator("mark");
+  await expect(marks.filter({ hasText: /^The$/ })).toHaveCount(1);
+  await expect(marks.filter({ hasText: "Caldwell" })).toHaveCount(0);
+  await expect(marks.filter({ hasText: "Machado" })).toHaveCount(0);
+
   // Saying they are different records the answer and empties the queue. The
   // decision itself stays in view, in the rail, so it can be taken back.
   await page.getByRole("button", { name: "Not duplicates" }).click();
@@ -120,6 +127,15 @@ test("merging from the review collapses the cluster and takes it off the queue",
 
   const kept = page.getByRole("radio", { name: "Keep Dom Casmurro" });
   await expect(kept).toBeChecked();
+
+  // The two records differ only in the typo in the title and in the article
+  // before the publisher's name, and those three words are all that is
+  // highlighted.
+  const marks = page.locator("mark");
+  await expect(marks).toHaveCount(3);
+  await expect(marks.filter({ hasText: /^Casmurro$/ })).toHaveCount(1);
+  await expect(marks.filter({ hasText: /^Casmuro$/ })).toHaveCount(1);
+  await expect(marks.filter({ hasText: /^The$/ })).toHaveCount(1);
 
   // Keep the corpus's record and fold the typo into it.
   await page

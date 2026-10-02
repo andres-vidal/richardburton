@@ -2,8 +2,13 @@
 
 import type { Distinction, DuplicateCluster } from "app/publications/read";
 import Button from "components/Button";
-import { usePublicationMarking } from "modules/publication/hooks";
-import { Publication } from "modules/publication/model";
+import { useCountryNaming } from "modules/country-names";
+import {
+  contrast,
+  type Contrast,
+  type ContrastedKey,
+  Publication,
+} from "modules/publication/model";
 import { distinguish, merge, reconsider } from "modules/publication/remote";
 import {
   PublicationStoreProvider,
@@ -12,7 +17,15 @@ import {
 import { Link } from "i18n/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "i18n/navigation";
-import { FC, KeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+  FC,
+  Fragment,
+  KeyboardEvent,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 const optionId = (position: number) => `duplicate-cluster-option-${position}`;
 
@@ -148,18 +161,70 @@ const QueueOption: FC<{
 };
 
 /**
+ * Renders one field as `contrast` compared it, with each stretch that differs
+ * in a `<mark>`. Several values are joined as a list in the reader's language,
+ * or with `separator` when it is given. An empty field reads "None", marked
+ * when another record fills that field.
+ *
+ * `label` turns a stored value into the text shown for it, such as a country
+ * code into the country's name.
+ */
+const Compared: FC<{
+  contrast: Contrast;
+  label?: (text: string) => string;
+  separator?: string;
+}> = ({ contrast, label = (text) => text, separator }) => {
+  const t = useTranslations("duplicates");
+  const format = useFormatter();
+
+  const values = contrast.values.map((stretches, index) => (
+    <Fragment key={index}>
+      {stretches.map((stretch, position) =>
+        stretch.differs ? (
+          <mark key={position} className="text-inherit bg-amber-100">
+            {label(stretch.text)}
+          </mark>
+        ) : (
+          label(stretch.text)
+        ),
+      )}
+    </Fragment>
+  ));
+
+  const joined: ReactNode = separator
+    ? values.flatMap((value, index) =>
+        index === 0 ? [value] : [separator, value],
+      )
+    : format.list(values, { style: "long", type: "unit" });
+
+  return values.length > 0 ? (
+    <>{joined}</>
+  ) : contrast.lacking ? (
+    <mark className="text-inherit bg-amber-100">{t("none")}</mark>
+  ) : (
+    <>{t("none")}</>
+  );
+};
+
+/**
  * One record's evidence. `onKeep` is what makes it a choice — without it the
  * card is the same evidence with nothing to decide, which is what a decision
  * already made looks like.
+ *
+ * Each field is compared with the same field of `others`, and the words this
+ * record has that at least one of them lacks are highlighted. Without `others`,
+ * nothing is highlighted.
  */
 export const Candidate: FC<{
   publication: Publication;
+  others?: Publication[];
   kept?: boolean;
   onKeep?: () => void;
-}> = ({ publication: p, kept = false, onKeep }) => {
+}> = ({ publication: p, others = [], kept = false, onKeep }) => {
   const t = useTranslations("duplicates");
   const attribute = useTranslations("attributes");
-  const marked = usePublicationMarking();
+  const naming = useCountryNaming();
+  const field = (key: ContrastedKey) => contrast(p, others, key);
 
   return (
     <label
@@ -180,10 +245,14 @@ export const Candidate: FC<{
         )}
         <div className="min-w-0">
           <p className="text-sm font-medium">
-            {p.title}{" "}
-            <span className="font-normal text-gray-600">({p.year})</span>
+            <Compared contrast={field("title")} />{" "}
+            <span className="font-normal text-gray-600">
+              (<Compared contrast={field("year")} />)
+            </span>
           </p>
-          <p className="text-xs text-gray-600">{marked.value(p, "authors")}</p>
+          <p className="text-xs text-gray-600">
+            <Compared contrast={field("authors")} />
+          </p>
           {typeof p.id !== "number" ? null : (
             <Link
               href={`/publications/${p.id}`}
@@ -197,20 +266,24 @@ export const Candidate: FC<{
         </div>
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        <dt className="text-gray-600">{attribute("originalTitle")}</dt>
+        <dt className="text-gray-600">{t("originalWork")}</dt>
         <dd className="text-gray-800">
-          {t("originalLine", {
-            title: p.originalTitle,
-            authors: marked.value(p, "originalAuthors"),
+          {t.rich("originalLine", {
+            title: () => <Compared contrast={field("originalTitle")} />,
+            authors: () => <Compared contrast={field("originalAuthors")} />,
           })}
         </dd>
         <dt className="text-gray-600">{attribute("countries")}</dt>
-        <dd className="text-gray-800">{marked.value(p, "countries")}</dd>
+        <dd className="text-gray-800">
+          <Compared contrast={field("countries")} label={naming.name} />
+        </dd>
         <dt className="text-gray-600">{attribute("publishers")}</dt>
-        <dd className="text-gray-800">{marked.value(p, "publishers")}</dd>
+        <dd className="text-gray-800">
+          <Compared contrast={field("publishers")} />
+        </dd>
         <dt className="text-gray-600">{attribute("sources")}</dt>
         <dd className="text-gray-800">
-          {p.sources.length === 0 ? t("none") : p.sources.join("; ")}
+          <Compared contrast={field("sources")} separator="; " />
         </dd>
       </dl>
     </label>
@@ -249,7 +322,8 @@ export const DuplicateStep: FC<{
         <div>
           <h2 className="text-xl">{name(cluster)}</h2>
           <p className="mt-1 text-sm text-gray-600">
-            {t("lookAlike", { count: cluster.publications.length })}
+            {t("lookAlike", { count: cluster.publications.length })}{" "}
+            {t("differences")}
           </p>
         </div>
         <span className="text-sm text-gray-600 shrink-0 tabular-nums">
@@ -262,6 +336,9 @@ export const DuplicateStep: FC<{
           <Candidate
             key={publication.id}
             publication={publication}
+            others={cluster.publications.filter(
+              (other) => other !== publication,
+            )}
             kept={publication.id === keptId}
             onKeep={() => setKeptId(publication.id!)}
           />
@@ -319,14 +396,20 @@ export const RuledApartStep: FC<{
         <div>
           <h2 className="text-xl">{distinction.publications[0]?.title}</h2>
           <p className="mt-1 text-sm text-gray-600">
-            {t("ruledApartBy", { actor: distinction.actor })}
+            {t("ruledApartBy", { actor: distinction.actor })} {t("differences")}
           </p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {distinction.publications.map((publication) => (
-          <Candidate key={publication.id} publication={publication} />
+          <Candidate
+            key={publication.id}
+            publication={publication}
+            others={distinction.publications.filter(
+              (other) => other !== publication,
+            )}
+          />
         ))}
       </div>
 

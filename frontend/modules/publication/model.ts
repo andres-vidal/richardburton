@@ -228,6 +228,106 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   };
 }
 
+/** A field `contrast` compares: any attribute, or the sources. */
+type ContrastedKey = PublicationKey | "sources";
+
+/** A run of a value's text, and whether it differs from the other records. */
+type Stretch = { text: string; differs: boolean };
+
+/** One field of a record, compared with the same field of other records. */
+type Contrast = {
+  /** Each value the field holds, as the stretches its text splits into. */
+  values: Stretch[][];
+  /** True when the field is empty and at least one other record fills it. */
+  lacking: boolean;
+};
+
+/**
+ * The fields compared value by value. Every other field is compared word by
+ * word.
+ *
+ * A year or a country code has no words to tell apart, and a source is a
+ * citation that is either given or not.
+ */
+const WHOLE_VALUES: ContrastedKey[] = ["year", "countries", "sources"];
+
+/**
+ * Compares one field of `publication` with the same field of `others`, and
+ * returns the field's values split into stretches that do or do not differ.
+ *
+ * A word differs when at least one of the other records lacks it anywhere in
+ * that field. The comparison is exact, so a change of case or accent counts.
+ * Consecutive words that differ form one stretch together with the spaces
+ * between them. In the fields listed in `WHOLE_VALUES`, each value is one
+ * stretch, and it differs when at least one of the other records lacks that
+ * value.
+ *
+ * With no other records, nothing differs.
+ */
+function contrast(
+  publication: Publication,
+  others: Publication[],
+  attribute: ContrastedKey,
+): Contrast {
+  const whole = WHOLE_VALUES.includes(attribute);
+  const units = (values: string[]) =>
+    new Set(whole ? values : values.flatMap((value) => value.split(/\s+/)));
+
+  const own = valuesOf(publication, attribute);
+  const theirs = others.map((other) => valuesOf(other, attribute));
+  const held = theirs.map(units);
+  const differs = (unit: string) => held.some((units) => !units.has(unit));
+
+  return {
+    values: own.map((value) =>
+      whole
+        ? [{ text: value, differs: differs(value) }]
+        : stretches(value, differs),
+    ),
+    lacking: own.length === 0 && theirs.some((values) => values.length > 0),
+  };
+}
+
+// Returns a field's values as trimmed text, leaving out empty ones. A year can
+// arrive as a number, so every value is converted to text.
+function valuesOf(
+  publication: Publication,
+  attribute: ContrastedKey,
+): string[] {
+  const value = publication[attribute];
+
+  return (Array.isArray(value) ? value : [value])
+    .map((item) => String(item ?? "").trim())
+    .filter((item) => item !== "");
+}
+
+// Splits `value` into stretches of words that do or do not differ. A space
+// differs only when the words on both sides of it do, so a stretch that differs
+// starts and ends with a word.
+function stretches(
+  value: string,
+  differs: (word: string) => boolean,
+): Stretch[] {
+  // Words sit at even indices and the spaces between them at odd ones.
+  const tokens = value.split(/(\s+)/);
+  const flags = tokens.map((token, index) =>
+    index % 2 === 0
+      ? differs(token)
+      : differs(tokens[index - 1]) && differs(tokens[index + 1]),
+  );
+
+  return tokens.reduce<Stretch[]>((result, text, index) => {
+    const last = result[result.length - 1];
+
+    return last?.differs === flags[index]
+      ? [
+          ...result.slice(0, -1),
+          { text: last.text + text, differs: last.differs },
+        ]
+      : [...result, { text, differs: flags[index] }];
+  }, []);
+}
+
 /**
  * An attribute's values as a reader sees them: each value's marked text where
  * the search matched it, and the value itself where it did not.
@@ -443,6 +543,7 @@ export {
   ATTRIBUTE_TYPES,
   ATTRIBUTES,
   autocomplete,
+  contrast,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
   errorCode,
@@ -455,6 +556,8 @@ export {
 };
 export type {
   AbsorbedPublication,
+  Contrast,
+  ContrastedKey,
   DeletedPublicationEntry,
   PublicationValue,
   FullHistoryEntry,
@@ -470,5 +573,6 @@ export type {
   PublicationListKey,
   Resemblance,
   SnapshotDiff,
+  Stretch,
   ValidationResult,
 };

@@ -258,7 +258,9 @@
     "ruledApartHeading": "Declarados diferentes",
     "keep": "Manter {title}",
     "none": "Nenhuma",
-    "originalLine": "{title} — {authors}",
+    "originalWork": "Obra original",
+    "originalLine": "<title></title> — <authors></authors>",
+    "differences": "O texto destacado é o que difere entre eles.",
     "openRecord": "Abrir este registro"
   },
   "errors": {
