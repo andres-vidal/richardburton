@@ -1,6 +1,7 @@
 import type { SetStateAction } from "jotai";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useLocale, useTranslations } from "next-intl";
+import { useMemo } from "react";
 import { useCountryNaming } from "modules/country-names";
 import { Publication, PublicationId, PublicationKey, marking } from "./model";
 import type { Marking } from "./model";
@@ -51,6 +52,22 @@ function useVisiblePublicationIds() {
 /** A row as it is being edited, including unsaved edits. */
 function useVisiblePublication(id: PublicationId) {
   return useAtomValue(publicationFamily(id));
+}
+
+/**
+ * Several rows as they are being edited, in the order of `ids`. The rows
+ * update as they are edited.
+ *
+ * The hook builds an atom for `ids`, so pass the same array for as long as the
+ * ids are the same.
+ */
+function useVisiblePublications(ids: PublicationId[]): Publication[] {
+  const rows = useMemo(
+    () => atom((get) => ids.map((id) => get(publicationFamily(id)))),
+    [ids],
+  );
+
+  return useAtomValue(rows);
 }
 
 /**
@@ -270,6 +287,7 @@ export {
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,
+  useVisiblePublications,
   useVisiblePublicationCount,
   useVisiblePublicationIds,
 };

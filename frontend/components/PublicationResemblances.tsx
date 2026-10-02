@@ -4,8 +4,9 @@ import { Candidate } from "components/DuplicateReview";
 import {
   usePublicationResemblance,
   useVisiblePublication,
+  useVisiblePublications,
 } from "modules/publication/hooks";
-import type { PublicationId } from "modules/publication/model";
+import type { Publication, PublicationId } from "modules/publication/model";
 import { resemblingIdsAtom } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
@@ -22,14 +23,21 @@ type Props = {
   onClose: () => void;
 };
 
+/** Used while a row resembles no other row, so the list keeps its identity. */
+const NO_ROWS: PublicationId[] = [];
+
 /**
  * Shows one row being imported next to everything it resembles: stored
  * records, other rows of the same import, or both. Every record and row is
- * shown with the same `Candidate` card.
+ * shown with the same `Candidate` card, compared with every other card of the
+ * question, so the words that differ between them are highlighted.
  *
  * It has no controls that change the row. The person corrects or discards the
  * row in the workspace with the existing controls, or leaves it as it is, since
- * two editions of one book are two publications.
+ * a row that leaves out its year, country or publisher can resemble another
+ * edition of its book.
+ *
+ * Another row that has left the document since the check is not shown.
  */
 const Question: FC<{
   id: PublicationId;
@@ -42,8 +50,21 @@ const Question: FC<{
   const common = useTranslations("common");
   const row = useVisiblePublication(id);
   const resemblance = usePublicationResemblance(id);
-  const stored = resemblance?.stored.length ?? 0;
-  const rows = resemblance?.others.length ?? 0;
+  const storedRecords = resemblance?.stored ?? [];
+  const otherIds = resemblance?.others ?? NO_ROWS;
+  const otherRows = useVisiblePublications(otherIds)
+    .map((publication, index) => ({ id: otherIds[index], publication }))
+    .filter(({ publication }) => publication !== undefined);
+  const stored = storedRecords.length;
+  const rows = otherRows.length;
+
+  const group = [
+    row,
+    ...storedRecords,
+    ...otherRows.map(({ publication }) => publication),
+  ];
+  const othersOf = (publication: Publication) =>
+    group.filter((other) => other !== publication);
 
   return (
     <div className="flex flex-col gap-6 p-8 w-full min-h-full">
@@ -60,15 +81,19 @@ const Question: FC<{
 
       <section className="space-y-2">
         <SectionHeading>{t("beingImported")}</SectionHeading>
-        <Candidate publication={row} />
+        <Candidate publication={row} others={othersOf(row)} />
       </section>
 
       {stored > 0 && (
         <section className="space-y-2">
           <SectionHeading>{t("alreadyStored")}</SectionHeading>
           <div className="grid gap-4 sm:grid-cols-2">
-            {resemblance?.stored.map((publication) => (
-              <Candidate key={publication.id} publication={publication} />
+            {storedRecords.map((publication) => (
+              <Candidate
+                key={publication.id}
+                publication={publication}
+                others={othersOf(publication)}
+              />
             ))}
           </div>
         </section>
@@ -78,8 +103,12 @@ const Question: FC<{
         <section className="space-y-2">
           <SectionHeading>{t("elsewhereInImport")}</SectionHeading>
           <div className="grid gap-4 sm:grid-cols-2">
-            {resemblance?.others.map((other) => (
-              <OtherRow key={other} id={other} />
+            {otherRows.map(({ id: other, publication }) => (
+              <Candidate
+                key={other}
+                publication={publication}
+                others={othersOf(publication)}
+              />
             ))}
           </div>
         </section>
@@ -107,13 +136,6 @@ const Question: FC<{
       )}
     </div>
   );
-};
-
-/** Shows another row of the same import as a `Candidate` card. */
-const OtherRow: FC<{ id: PublicationId }> = ({ id }) => {
-  const row = useVisiblePublication(id);
-
-  return <Candidate publication={row} />;
 };
 
 /**
