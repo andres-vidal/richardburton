@@ -258,7 +258,9 @@
     "ruledApartHeading": "Ruled apart",
     "keep": "Keep {title}",
     "none": "None",
-    "originalLine": "{title} — {authors}",
+    "originalWork": "Original work",
+    "originalLine": "<title></title> — <authors></authors>",
+    "differences": "The highlighted text is what differs between them.",
     "openRecord": "Open this record"
   },
   "errors": {

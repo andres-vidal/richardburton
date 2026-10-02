@@ -117,7 +117,6 @@ export const Default: Story = {
     await expect(canvas.getAllByRole("option")).toHaveLength(2);
 
     // Everything a reviewer needs to tell the two apart is on the page.
-    await expect(canvas.getByText("The Noonday Press")).toBeVisible();
     await expect(
       canvas.getByText("Caldwell, Helen. Introduction."),
     ).toBeVisible();
@@ -125,6 +124,28 @@ export const Default: Story = {
     await expect(
       canvas.getByRole("radio", { name: "Keep Dom Casmurro" }),
     ).toBeChecked();
+  },
+};
+
+/**
+ * The text each record has that another lacks is highlighted: the typo in the
+ * title, the article before the publisher's name, and the source only one of
+ * them gives. The record without that source reads "None", highlighted.
+ */
+export const WhatDiffers: Story = {
+  play: async ({ canvasElement }) => {
+    const marked = Array.from(
+      canvasElement.querySelectorAll("mark"),
+      (mark) => mark.textContent,
+    );
+
+    await expect(marked).toEqual([
+      "Casmurro",
+      "Caldwell, Helen. Introduction.",
+      "Casmuro",
+      "The",
+      "None",
+    ]);
   },
 };
 
@@ -227,6 +248,14 @@ export const RuledApart: Story = {
       canvas.getByText(/Ruled apart by curator@rb.test/),
     ).toBeVisible();
     await expect(canvas.queryByRole("radio")).not.toBeInTheDocument();
+
+    // The two records differ only in their year, so only the years are
+    // highlighted.
+    const marked = Array.from(
+      canvasElement.querySelectorAll("mark"),
+      (mark) => mark.textContent,
+    );
+    await expect(marked).toEqual(["1886", "1922"]);
 
     await userEvent.click(canvas.getByRole("button", { name: "Reconsider" }));
     await expect(args.onReconsider).toHaveBeenCalledWith(RULED_APART[0]);

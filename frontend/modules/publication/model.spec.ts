@@ -1,6 +1,7 @@
 import {
   ATTRIBUTES,
   autocomplete,
+  contrast,
   define,
   empty,
   errorCode,
@@ -286,5 +287,146 @@ describe("merged", () => {
     });
 
     expect(merged(winner, [])).toEqual(winner);
+  });
+});
+
+describe("contrast", () => {
+  const publication = (fields: Partial<Publication>): Publication => ({
+    ...empty(),
+    title: "Dom Casmurro",
+    authors: ["Helen Caldwell"],
+    year: "1953",
+    countries: ["US"],
+    publishers: ["Noonday Press"],
+    ...fields,
+  });
+
+  test("marks the words of a field that another record lacks", () => {
+    const typo = publication({ title: "Dom Casmuro" });
+
+    expect(contrast(typo, [publication({})], "title").values).toEqual([
+      [
+        { text: "Dom ", differs: false },
+        { text: "Casmuro", differs: true },
+      ],
+    ]);
+  });
+
+  test("marks nothing in a field the records agree on", () => {
+    const typo = publication({ title: "Dom Casmuro" });
+
+    expect(contrast(typo, [publication({})], "authors")).toEqual({
+      values: [[{ text: "Helen Caldwell", differs: false }]],
+      lacking: false,
+    });
+  });
+
+  test("joins neighbouring words that differ into one stretch", () => {
+    const variant = publication({ publishers: ["The New Noonday Press"] });
+
+    expect(contrast(variant, [publication({})], "publishers").values).toEqual([
+      [
+        { text: "The New", differs: true },
+        { text: " Noonday Press", differs: false },
+      ],
+    ]);
+  });
+
+  test("counts a change of case or accent as a difference", () => {
+    const record = publication({ publishers: ["Noonday press"] });
+    const accented = publication({ title: "Dom Casmurrô" });
+
+    expect(contrast(record, [publication({})], "publishers").values).toEqual([
+      [
+        { text: "Noonday ", differs: false },
+        { text: "press", differs: true },
+      ],
+    ]);
+    expect(contrast(accented, [publication({})], "title").values[0][1]).toEqual(
+      { text: "Casmurrô", differs: true },
+    );
+  });
+
+  test("finds a word anywhere in the other record's field, not only in the same value", () => {
+    const two = publication({ authors: ["Helen Caldwell", "John Gledson"] });
+    const swapped = publication({
+      authors: ["John Gledson", "Helen Caldwell"],
+    });
+
+    expect(contrast(two, [swapped], "authors").values).toEqual([
+      [{ text: "Helen Caldwell", differs: false }],
+      [{ text: "John Gledson", differs: false }],
+    ]);
+  });
+
+  test("marks a word that any one of several records lacks", () => {
+    const typo = publication({ title: "Dom Casmuro" });
+    const retitled = publication({ title: "The Confessions of a Jealous Man" });
+
+    expect(contrast(publication({}), [typo, retitled], "title").values).toEqual(
+      [[{ text: "Dom Casmurro", differs: true }]],
+    );
+    expect(contrast(typo, [publication({}), typo], "title").values).toEqual([
+      [
+        { text: "Dom ", differs: false },
+        { text: "Casmuro", differs: true },
+      ],
+    ]);
+  });
+
+  test("compares years, countries and sources as whole values", () => {
+    const record = publication({
+      year: "1953",
+      countries: ["US", "GB"],
+      sources: [
+        "Caldwell, Helen. Introduction.",
+        "Gledson, John. Deceptive Realism.",
+      ],
+    });
+    const other = publication({
+      year: "1953",
+      countries: ["US"],
+      sources: ["Gledson, John. Deceptive Realism."],
+    });
+
+    expect(contrast(record, [other], "year").values).toEqual([
+      [{ text: "1953", differs: false }],
+    ]);
+    expect(contrast(record, [other], "countries").values).toEqual([
+      [{ text: "US", differs: false }],
+      [{ text: "GB", differs: true }],
+    ]);
+    expect(contrast(record, [other], "sources").values).toEqual([
+      [{ text: "Caldwell, Helen. Introduction.", differs: true }],
+      [{ text: "Gledson, John. Deceptive Realism.", differs: false }],
+    ]);
+  });
+
+  test("reads a year that arrives as a number", () => {
+    const stored = publication({ year: 1953 as unknown as string });
+
+    expect(
+      contrast(stored, [publication({ year: "1966" })], "year").values,
+    ).toEqual([[{ text: "1953", differs: true }]]);
+  });
+
+  test("says when a field is empty and another record fills it", () => {
+    const bare = publication({ publishers: [] });
+
+    expect(contrast(bare, [publication({})], "publishers")).toEqual({
+      values: [],
+      lacking: true,
+    });
+    expect(contrast(publication({}), [bare], "publishers").values).toEqual([
+      [{ text: "Noonday Press", differs: true }],
+    ]);
+    expect(contrast(bare, [bare], "publishers").lacking).toBe(false);
+  });
+
+  test("marks nothing when there is nothing to compare with", () => {
+    expect(contrast(publication({}), [], "title")).toEqual({
+      values: [[{ text: "Dom Casmurro", differs: false }]],
+      lacking: false,
+    });
   });
 });
