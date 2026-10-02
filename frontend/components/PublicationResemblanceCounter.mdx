@@ -29,11 +29,16 @@ counted as soon as its title and translators resemble something.
 
 ## When the check runs
 
-The check runs by itself as rows are edited, the same way validation does.
-`CheckResemblances` watches every field the rule reads, which is all of them
-except the sources, on every visible row. It runs the check 500 ms after the
-last change to one of those fields. Editing a row's sources does not run the
-check.
+The check runs by itself as the import document changes, the same way
+validation does. `watchChecks` runs it 500 ms after the last edit made in this
+browser, when the subject of the visible rows has changed: a field the rule
+reads, which is every field except the sources, or which rows are visible.
+Editing a row's sources does not run the check.
+
+The result is stored in the import document. Everyone who has the document
+open reads the same count, and only the person who made the edit sends the
+check. If no result has arrived three seconds after an edit made by someone
+else, this browser runs the check itself.
 
 Each check sends every visible row, not only the row that changed, because each
 row is also compared with the other rows. Editing one row can make it resemble

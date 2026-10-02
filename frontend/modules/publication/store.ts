@@ -4,6 +4,7 @@ import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
 import { isEqual } from "lodash";
 import type { Store } from "modules/store";
+import hash from "object-hash";
 import * as Y from "yjs";
 import * as Doc from "./doc";
 import {
@@ -76,8 +77,9 @@ function documentOf(store: Store): StoreDocument {
  * store's atoms.
  *
  * The observer writes `publicationFamily` for each changed row,
- * `publicationIdsAtom` for the reading order and `discardedFamily` for each row
- * discarded or brought back. It never writes to the document.
+ * `publicationIdsAtom` for the reading order, `discardedFamily` for each row
+ * discarded or brought back, and `errorFamily` and `measuredResemblanceFamily`
+ * for each row whose check results changed. It never writes to the document.
  * The families, the cells and the marking hooks read only the atoms, never the
  * document.
  *
@@ -106,7 +108,27 @@ function bind(store: Store, doc: Y.Doc, owned: boolean): Binding {
       changed.map((id) => [id, Doc.isDiscarded(doc, id)] as const),
     );
 
-  const stopObserving = Doc.observe(doc, { onRows, onOrder, onDiscarded });
+  const onValidations = (changed: PublicationId[]) =>
+    store.set(
+      writeErrorsAtom,
+      changed.map(
+        (id) => [id, Doc.validationOf(doc, id)?.errors ?? null] as const,
+      ),
+    );
+
+  const onResemblances = (changed: PublicationId[]) =>
+    store.set(
+      writeMeasuredAtom,
+      changed.map((id) => [id, Doc.measuredOf(doc, id)] as const),
+    );
+
+  const stopObserving = Doc.observe(doc, {
+    onRows,
+    onOrder: () => onOrder(),
+    onDiscarded,
+    onValidations,
+    onResemblances,
+  });
 
   // A document from `openWorkspace` may already hold rows, restored from disk
   // or received before the observer started, so they are copied now. A
@@ -116,6 +138,8 @@ function bind(store: Store, doc: Y.Doc, owned: boolean): Binding {
   if (!owned) {
     onRows(Doc.keys(doc));
     onDiscarded(Doc.discardedKeys(doc));
+    onValidations(Doc.validatedKeys(doc));
+    onResemblances(Doc.measuredKeys(doc));
     onOrder();
   }
 
@@ -217,6 +241,10 @@ const savedFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<Publication | undefined>(undefined),
 );
 
+/**
+ * What the last validation of each row found, as the store's document records
+ * it. The draft row is not in the document, so its errors are kept here only.
+ */
 const errorFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<PublicationError>(null),
 );
@@ -234,11 +262,12 @@ const lastValidatedFamily = atomFamily((_id: PublicationId) =>
 );
 
 /**
- * The last look-alike check result for a row, stored with the row's subject at
- * the time of the check (`at`). See `rowSubjectFamily`.
+ * The last look-alike check result for a row, as the store's document records
+ * it, with the key of the row's subject at the time of the check (`at`). See
+ * `rowSubjectKeyFamily`.
  *
- * `resemblanceFamily` compares `at` with the row's current subject to decide
- * whether the result still applies. Read the result through
+ * `resemblanceFamily` compares `at` with the row's current subject key to
+ * decide whether the result still applies. Read the result through
  * `resemblanceFamily`, not this atom.
  */
 const measuredResemblanceFamily = atomFamily((_id: PublicationId) =>
@@ -262,6 +291,31 @@ const writeRowsAtom = atom(
 );
 
 /**
+ * Writes each `[id, errors]` pair into `errorFamily` in one store update, so
+ * the valid rows are recomputed once.
+ */
+const writeErrorsAtom = atom(
+  null,
+  (_get, set, entries: (readonly [PublicationId, PublicationError])[]) =>
+    entries.forEach(([id, errors]) => set(errorFamily(id), errors)),
+);
+
+/**
+ * Writes each `[id, measured]` pair into `measuredResemblanceFamily` in one
+ * store update. A row whose result is unchanged is not written, so its cells do
+ * not re-render.
+ */
+const writeMeasuredAtom = atom(
+  null,
+  (get, set, entries: (readonly [PublicationId, Doc.Measured | null])[]) =>
+    entries.forEach(([id, measured]) => {
+      if (!isEqual(get(measuredResemblanceFamily(id)), measured)) {
+        set(measuredResemblanceFamily(id), measured);
+      }
+    }),
+);
+
+/**
  * Writes each `[id, isDiscarded]` pair into `discardedFamily` in one store
  * update, so the visible rows are recomputed once.
  */
@@ -269,20 +323,6 @@ const writeDiscardedAtom = atom(
   null,
   (_get, set, marks: (readonly [PublicationId, boolean])[]) =>
     marks.forEach(([id, isDiscarded]) => set(discardedFamily(id), isDiscarded)),
-);
-
-/** Does the work of `setResemblances` in one store update. */
-const writeResemblancesAtom = atom(
-  null,
-  (get, set, ids: PublicationId[], found: Map<PublicationId, Resemblance>) =>
-    ids.forEach((id) => {
-      const value = found.get(id);
-      const next = value ? { at: get(rowSubjectFamily(id)), value } : null;
-
-      if (!isEqual(get(measuredResemblanceFamily(id)), next)) {
-        set(measuredResemblanceFamily(id), next);
-      }
-    }),
 );
 
 // --- Derived atoms ----------------------------------------------------------
@@ -361,7 +401,7 @@ const reviewingAtom = atomWithReset<{ startAt?: PublicationId } | null>(null);
  * `Publication.Duplicates`.
  *
  * `rowSubjectFamily` builds a row's subject from these fields. The subject
- * decides both when `CheckResemblances` runs the check again and when a stored
+ * decides both when `watchChecks` runs the check again and when a stored
  * result stops applying. Both use this one list. If a field made a result stop
  * applying without running the check again, the row would have no result until
  * some other edit ran the check.
@@ -395,6 +435,14 @@ const rowSubjectFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
+ * The key of a row's subject, as stored with a look-alike check result. It is
+ * a hash, so a stored result does not carry the whole subject.
+ */
+const rowSubjectKeyFamily = atomFamily((id: PublicationId) =>
+  atom((get) => hash(get(rowSubjectFamily(id)))),
+);
+
+/**
  * What the row resembles. Returns `null` when the row resembles nothing, or
  * when the stored result was checked against a subject the row no longer has.
  *
@@ -410,7 +458,7 @@ const resemblanceFamily = atomFamily((id: PublicationId) =>
   atom<Resemblance | null>((get) => {
     const measured = get(measuredResemblanceFamily(id));
 
-    return measured && measured.at === get(rowSubjectFamily(id))
+    return measured && measured.at === get(rowSubjectKeyFamily(id))
       ? measured.value
       : null;
   }),
@@ -564,6 +612,7 @@ const PUBLICATION_FAMILIES = [
   measuredResemblanceFamily,
   resemblanceFamily,
   rowSubjectFamily,
+  rowSubjectKeyFamily,
   rowNumberFamily,
 ];
 
@@ -623,6 +672,15 @@ function contentOf(publication: Publication): string {
   const complete = { ...empty(), ...publication };
 
   return JSON.stringify(EDITED_FIELDS.map((field) => complete[field]));
+}
+
+/**
+ * Returns the key a validation result is stored with: a hash of the
+ * publication's editable fields. Two copies with the same content have the
+ * same key, whichever other fields they carry.
+ */
+function contentKey(publication: Publication): string {
+  return hash(contentOf(publication));
 }
 
 /**
@@ -746,15 +804,16 @@ function appendIndex(store: Store, entries: Publication[]): void {
   });
 }
 
+/**
+ * Replaces the working set with `entries`, and stores each entry's errors as
+ * its validation result.
+ */
 function setAll(store: Store, entries: PublicationEntry[]): void {
   const { doc, undo } = documentOf(store);
 
-  // Errors stay in atoms and are not written to the document. They are the
-  // result of this client's last validation, so they are not shared.
-  entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
-
   Doc.setAll(doc, entries);
   undo.stopCapturing();
+  setErrors(store, entries);
 
   // With no entries, the document may already be empty. `Doc.setAll` then
   // changes nothing and the observer does not run, so the order is set here.
@@ -763,22 +822,58 @@ function setAll(store: Store, entries: PublicationEntry[]): void {
   if (entries.length === 0) store.set(publicationIdsAtom, []);
 }
 
+/**
+ * Stores the validation result of each entry: `errors`, found for the content
+ * in `publication`.
+ *
+ * A row the store's document holds gets its result in the document, so
+ * everyone who has an import document open reads it. Any other row, such as
+ * the draft row, gets it in `errorFamily` only.
+ */
 function setErrors(store: Store, entries: PublicationEntry[]): void {
-  entries.forEach(({ id, errors }) => store.set(errorFamily(id), errors));
+  const { doc } = documentOf(store);
+  const held = entries.filter(({ id }) => Doc.holds(doc, id));
+
+  entries
+    .filter(({ id }) => !Doc.holds(doc, id))
+    .forEach(({ id, errors }) => store.set(errorFamily(id), errors));
+
+  if (held.length > 0) {
+    Doc.putValidations(
+      doc,
+      held.map(
+        ({ id, publication, errors }) =>
+          [id, { content: contentKey(publication), errors }] as const,
+      ),
+    );
+  }
 }
 
 /**
- * Stores the look-alike check result for each row in `ids`, together with the
- * row's current subject, in one store update. A row in `ids` that is absent
- * from `found` is reset to resemble nothing. A row whose result is unchanged is
- * not written, so its cells do not re-render.
+ * Stores the look-alike check result for each row in `ids` in the store's
+ * document, with the key of the row's current subject, and records the
+ * current subject of the visible rows as the one the check ran on. A row in
+ * `ids` that is absent from `found` is reset to resemble nothing.
  */
 function setResemblances(
   store: Store,
   ids: PublicationId[],
   found: Map<PublicationId, Resemblance>,
 ): void {
-  store.set(writeResemblancesAtom, ids, found);
+  const { doc } = documentOf(store);
+
+  Doc.putResemblances(
+    doc,
+    ids.map((id) => {
+      const value = found.get(id);
+
+      return [
+        id,
+        value ? { at: store.get(rowSubjectKeyFamily(id)), value } : null,
+      ] as const;
+    }),
+    hash(store.get(resemblanceSubjectAtom)),
+  );
 }
 
 /**
@@ -871,8 +966,10 @@ function writeRow(
  */
 function discardEdit(store: Store, id: PublicationId): void {
   const saved = store.get(savedFamily(id));
+  const { doc } = documentOf(store);
 
   if (saved) remember(store, saved);
+  Doc.putValidations(doc, [[id, null]]);
   store.set(errorFamily(id), RESET);
 }
 
@@ -1023,6 +1120,7 @@ export {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
   closeReview,
+  contentKey,
   createId,
   discardedCountAtom,
   discardEdit,
@@ -1068,6 +1166,7 @@ export {
   reviewingAtom,
   rowNumberFamily,
   rowSubjectFamily,
+  rowSubjectKeyFamily,
   savedFamily,
   setAll,
   setAttributesVisible,
