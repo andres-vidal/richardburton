@@ -17,9 +17,11 @@ Each injected piece overrides one part of the read-only table:
 
 - **`ExtendedContent`** — replaces each read-only cell with a `DataInput` that
   writes edits back to the store and re-validates.
-- **`ExtendedSignalColumn`** — a per-row validity signal: an error icon when
-  invalid, plus the optional row id. It is also the row's **selection handle**
-  (`data-selects-row`).
+- **`ExtendedSignalColumn`** — a per-row signal: an error icon when the row is
+  invalid, or a warning icon when it resembles a stored record or another row,
+  plus the optional row id. It is also the row's **selection handle**
+  (`data-selects-row`). The column stays in place when the table scrolls
+  sideways, so either icon stays in view.
 - **`ExtendedRow`** — wraps the row in an error `Tooltip` and scrolls it into
   view when focused.
 - **`ExtraRow`** — the always-present **new-publication** row at the bottom.

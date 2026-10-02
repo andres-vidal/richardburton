@@ -1,0 +1,55 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationResemblancesStories from "./PublicationResemblances.stories";
+
+<Meta of={PublicationResemblancesStories} />
+
+# Resemblance review
+
+Shows the rows of an import that resemble something, one at a time. It opens
+from the [resemblance counter](?path=/docs/publications-resemblance-counter--docs)
+in the workspace footer, or from the look-alike button at the end of a row.
+
+For each row, the review shows the row next to everything it resembles: stored
+records, other rows of the same import, or both. It uses the same record card as
+the [duplicate review](?path=/docs/publications-duplicate-review--docs), so the
+two reviews show records the same way.
+
+<Canvas of={PublicationResemblancesStories.AgainstTheDatabase} />
+
+## No actions
+
+The review has no controls that change a row. To act on a look-alike, the
+person corrects or discards the row in the workspace with the existing
+controls, or leaves it as it is. Leaving it can be right: a row that leaves out
+its year, country or publisher can resemble another edition of its book, and
+two editions are two publications.
+
+The count therefore describes the rows as they are. It falls when a row is
+discarded, or edited so that it no longer resembles anything.
+
+The review also stores nothing. The duplicate review records a _distinction_
+for a pair of stored ids, but a row being imported has no id. Once the row is
+stored, the duplicate review can offer it again as part of a stored pair.
+
+## States
+
+- **Against the database** — the row resembles a stored record. The record
+  links to its own page, which opens in a new tab.
+- **Within the import** — the row resembles another row of the same import.
+  Neither row is stored, so the duplicate review cannot show this pair.
+
+<Canvas of={PublicationResemblancesStories.WithinTheImport} />
+
+## Navigation
+
+The review copies the list of resembling rows when it opens and keeps it until
+it closes. If it read the live list, an edit made while the review is open
+could change the list and move the current position.
+
+When it is opened from a row's look-alike button, the review starts on that
+row. When it is opened from the counter, it starts on the first row. Previous
+and Next move through the list and are disabled at its ends. They are hidden
+when the list has only one row.
+
+<Canvas of={PublicationResemblancesStories.ReadingBothWays} />

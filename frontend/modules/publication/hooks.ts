@@ -28,6 +28,9 @@ import {
   matchingCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
+  resemblanceFamily,
+  reviewingAtom,
+  resemblingCountAtom,
   rowNumberFamily,
   validCountAtom,
   visibleAttributesAtom,
@@ -164,6 +167,28 @@ function useValidPublicationCount() {
   return useAtomValue(validCountAtom);
 }
 
+/**
+ * Returns what this row resembles, or null when it resembles nothing or its
+ * last result no longer matches the row.
+ */
+function usePublicationResemblance(id: PublicationId) {
+  return useAtomValue(resemblanceFamily(id));
+}
+
+/**
+ * Returns `{ startAt }` while the resemblance review is open, where `startAt` is
+ * the row it opened on, or undefined when it opened at the start of the queue.
+ * Returns null when the review is closed.
+ */
+function useReviewing() {
+  return useAtomValue(reviewingAtom);
+}
+
+/** Returns how many visible rows resemble something. */
+function useResemblingPublicationCount() {
+  return useAtomValue(resemblingCountAtom);
+}
+
 function useDiscardedPublicationCount() {
   return useAtomValue(discardedCountAtom);
 }
@@ -238,6 +263,9 @@ export {
   useStoredPublicationSources,
   useTotalPublicationCount,
   useUnsourcedPublicationCount,
+  usePublicationResemblance,
+  useResemblingPublicationCount,
+  useReviewing,
   usePublicationRowNumber,
   useValidPublicationCount,
   useVisibleAttributes,

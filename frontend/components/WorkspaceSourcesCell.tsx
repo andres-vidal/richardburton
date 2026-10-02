@@ -1,14 +1,73 @@
 "use client";
 
-import { usePublicationSources } from "modules/publication/hooks";
+import WarningIcon from "assets/warning.svg";
+import {
+  usePublicationResemblance,
+  usePublicationSources,
+} from "modules/publication/hooks";
 import { usePublicationStore } from "modules/publication/workspace";
-import { setSources } from "modules/publication/store";
+import { openReview, setSources } from "modules/publication/store";
 import { useTranslations } from "next-intl";
 import { FC, MouseEvent, useState } from "react";
 import Button from "./Button";
 import { Modal } from "./Modal";
 import type { RowId } from "./PublicationIndexTable";
 import SourcesEditor from "./SourcesEditor";
+import Tooltip from "./Tooltip";
+
+/**
+ * A "Look-alike" button for a row that resembles something. Pressing it opens
+ * the resemblance review on this row. It renders nothing when the row resembles
+ * nothing.
+ *
+ * Its tooltip and accessible name give the title and year of each stored record
+ * the row resembles, and the number of other rows of the import it resembles.
+ *
+ * It is styled as a button so that it is not confused with the warning icon in
+ * the row's leading cell. That icon only marks the row.
+ *
+ * It is at the end of the row, not in the leading cell, because the leading
+ * cell is the row's selection handle and a button there would take clicks meant
+ * to select the row.
+ */
+const RowResemblance: FC<{ rowId: RowId }> = ({ rowId }) => {
+  const t = useTranslations("resemblances");
+  const store = usePublicationStore();
+  const resemblance = usePublicationResemblance(rowId);
+
+  const named = (resemblance?.stored ?? []).map((publication) =>
+    t("namedPublication", { title: publication.title, year: publication.year }),
+  );
+
+  const message = [
+    named.length > 0 ? t("looksLikeNamed", { names: named.join("; ") }) : null,
+    resemblance && resemblance.others.length > 0
+      ? t("looksLikeRows", { count: resemblance.others.length })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return resemblance === null ? null : (
+    <Tooltip variant="warning" message={message} placement="left">
+      <Button
+        variant="outline"
+        width="fit"
+        size="small"
+        // Passed as an element, not a component, so it keeps its amber colour.
+        // `Button` gives a component icon the colour of its variant.
+        Icon={<WarningIcon className="size-4 text-amber-500" />}
+        label={t("lookAlike")}
+        aria-label={message}
+        onClick={(event) => {
+          // Stops the click here, because the row's click handler selects it.
+          event.stopPropagation();
+          openReview(store, rowId);
+        }}
+      />
+    </Tooltip>
+  );
+};
 
 /**
  * The trailing "sources" cell for a workspace row. Sources is a list, not a
@@ -46,7 +105,7 @@ const WorkspaceSourcesCell: FC<{
       data-selected={selected}
       data-error={invalid}
       data-focused={focused}
-      className="flex py-1 px-2 transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
+      className="flex gap-2 items-center py-1 px-2 transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
     >
       <Button
         variant="outline"
@@ -56,6 +115,8 @@ const WorkspaceSourcesCell: FC<{
         aria-label={count === 0 ? t("addSources") : t("editSources", { count })}
         label={t("sourcesCount", { count })}
       />
+
+      <RowResemblance rowId={rowId} />
 
       <Modal
         isOpen={open}

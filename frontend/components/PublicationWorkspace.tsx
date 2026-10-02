@@ -13,22 +13,26 @@ import {
   RowProps,
   SignalColumn,
 } from "components/PublicationIndexTable";
+import CheckResemblances from "listeners/CheckResemblances";
 import ClearSelection from "listeners/ClearSelection";
 import { isElement } from "lodash";
+import WarningIcon from "assets/warning.svg";
 import {
   useAreRowIdsVisible,
   useIsPublicationFocused,
   useIsPublicationValid,
   usePublicationErrorDescription,
+  usePublicationResemblance,
   usePublicationRowNumber,
   usePublicationField,
   usePublicationFieldError,
+  useReviewing,
   useVisiblePublicationIds,
 } from "modules/publication/hooks";
 import { colourOf, useOnThisCell } from "modules/publication/presence";
 import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
-import { DRAFT_ID, addNew } from "modules/publication/store";
+import { DRAFT_ID, addNew, closeReview } from "modules/publication/store";
 import type { PublicationId } from "modules/publication/model";
 import {
   isSelectionGesture,
@@ -47,6 +51,7 @@ import {
 import { useTranslations } from "next-intl";
 import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
+import PublicationResemblances from "./PublicationResemblances";
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 const ExtendedColumn: typeof Column = (props) => {
@@ -92,8 +97,10 @@ const ExtendedColumnHeader: typeof ColumnHeader = (props) => {
 };
 
 const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
+  const t = useTranslations("resemblances");
   const isValid = useIsPublicationValid(rowId);
   const isFocused = useIsPublicationFocused(rowId);
+  const resemblance = usePublicationResemblance(rowId);
   const rowNumber = usePublicationRowNumber(rowId);
 
   const isSelected = useIsSelected(rowId);
@@ -112,6 +119,13 @@ const ExtendedSignalColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
         data-error={!isValid}
       >
         {!isValid && <ErrorIcon className="w-5 aspect-square" />}
+        {isValid && resemblance && (
+          <WarningIcon
+            role="img"
+            aria-label={t("rowLooksLike")}
+            className="w-5 text-amber-500 aspect-square"
+          />
+        )}
         {isIdVisible && rowNumber}
       </span>
     </SignalColumn>
@@ -235,6 +249,7 @@ const PublicationWorkspace: FC = () => {
   const store = usePublicationStore();
   const ids = useVisiblePublicationIds();
   const isSelectionEmpty = useIsSelectionEmpty();
+  const reviewing = useReviewing();
 
   // Only a click on the row's handle selects it. The row hears every click in
   // it, including the ones that land in a field — those belong to the field, and
@@ -254,6 +269,12 @@ const PublicationWorkspace: FC = () => {
   return (
     <>
       <ClearSelection store={store} />
+      <CheckResemblances store={store} />
+      <PublicationResemblances
+        isOpen={reviewing !== null}
+        startAt={reviewing?.startAt}
+        onClose={() => closeReview(store)}
+      />
       <PublicationIndexTable
         ExtendedRow={ExtendedRow}
         ExtendedColumn={ExtendedColumn}

@@ -9,28 +9,31 @@ import {
   openDocument,
 } from "./helpers";
 
-// The corpus already holds "Dom Casmurro" (Helen Caldwell, 1953). These three
-// are what the composite key cannot catch: the same record typed again with a
-// typo, the same translator's work under a later printing's title, and — the
-// one that must NOT be offered — another translator's rendering of the book.
+// The corpus already holds "Dom Casmurro" (Helen Caldwell, 1953, Noonday
+// Press). The first two records below are what the composite key cannot catch:
+// the same record typed again with a typo and a variant of the publisher's
+// name, and the same translator's work entered under another title. The other
+// two must not be offered: another translator's rendering of the book, and a
+// later printing of Helen Caldwell's translation with its own year and
+// publisher.
 const TYPO = {
   title: "Dom Casmuro",
   originalTitle: "Dom Casmurro",
   year: "1953",
   authors: "Helen Caldwell",
   originalAuthors: "Machado de Assis",
-  country: "United Kingdom",
-  publisher: "W. H. Allen",
+  country: "United States",
+  publisher: "The Noonday Press",
 };
 
 const RETITLED = {
   title: "The Confessions of a Jealous Man",
   originalTitle: "Dom Casmurro",
-  year: "1966",
+  year: "1953",
   authors: "Helen Caldwell",
   originalAuthors: "Machado de Assis",
-  country: "Brazil",
-  publisher: "Livraria Garnier",
+  country: "United States",
+  publisher: "Noonday Press",
 };
 
 const ANOTHER_TRANSLATOR = {
@@ -43,6 +46,16 @@ const ANOTHER_TRANSLATOR = {
   publisher: "Bloomsbury",
 };
 
+const LATER_PRINTING = {
+  title: "Dom Casmurro",
+  originalTitle: "Dom Casmurro",
+  year: "1966",
+  authors: "Helen Caldwell",
+  originalAuthors: "Machado de Assis",
+  country: "United States",
+  publisher: "University of California Press",
+};
+
 test("an admin reviews the duplicates the composite key cannot catch, merging one cluster and keeping another apart", async ({
   page,
 }) => {
@@ -52,12 +65,14 @@ test("an admin reviews the duplicates the composite key cannot catch, merging on
   await addPublicationRow(page, TYPO);
   await addPublicationRow(page, RETITLED);
   await addPublicationRow(page, ANOTHER_TRANSLATOR);
-  await submitWorkspace(page, 3);
+  await addPublicationRow(page, LATER_PRINTING);
+  await submitWorkspace(page, 4);
 
   await page.goto("/admin/publications/duplicates");
 
-  // One question, holding the three records of Helen Caldwell's translation —
-  // and not John Gledson's, which is a different publication of the same book.
+  // One question, holding the three records of Helen Caldwell's 1953
+  // translation. John Gledson's translation and the 1966 printing are other
+  // publications of the same book, so neither is in it.
   const queue = page.getByRole("listbox", {
     name: "Clusters of possible duplicates",
   });
@@ -74,8 +89,8 @@ test("an admin reviews the duplicates the composite key cannot catch, merging on
       name: "Keep The Confessions of a Jealous Man",
     }),
   ).toBeVisible();
-  // Gledson's is nowhere in the question.
   await expect(page.getByText("Bloomsbury")).toHaveCount(0);
+  await expect(page.getByText("University of California Press")).toHaveCount(0);
 
   // Saying they are different records the answer and empties the queue. The
   // decision itself stays in view, in the rail, so it can be taken back.
@@ -89,7 +104,7 @@ test("an admin reviews the duplicates the composite key cannot catch, merging on
 
   // Nothing left the database, since nothing was merged.
   await page.goto("/");
-  await expectPublicationCount(page, CORPUS_SIZE + 3);
+  await expectPublicationCount(page, CORPUS_SIZE + 4);
 });
 
 test("merging from the review collapses the cluster and takes it off the queue", async ({
@@ -118,11 +133,12 @@ test("merging from the review collapses the cluster and takes it off the queue",
   await expectPublicationCount(page, CORPUS_SIZE);
 
   const search = page.getByRole("textbox", { name: "Search publications" });
-  await search.fill("W. H. Allen");
+  await search.fill("The Noonday Press");
   const survivor = indexTable(page)
     .getByRole("row")
     .filter({ hasText: "Dom Casmurro" });
   await expect(survivor).toHaveCount(1);
+  await expect(survivor).toContainText("The Noonday Press");
 
   // The typo is gone from the database and from search.
   await search.fill("Dom Casmuro");

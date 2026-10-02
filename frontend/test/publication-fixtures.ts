@@ -10,6 +10,7 @@ import {
   PublicationError,
   PublicationKey,
   empty,
+  type PublicationEntry,
 } from "modules/publication/model";
 import type { PresenceList } from "modules/publication/document-live";
 import type { At } from "modules/publication/presence";
@@ -21,6 +22,7 @@ import {
   resetAll,
   resetAttributes,
   setAll,
+  setResemblances,
 } from "modules/publication/store";
 
 type SeedEntry = Partial<Publication> & { errors?: PublicationError };
@@ -166,6 +168,81 @@ function aDocumentWith(others: { email: string; at?: At }[] = []): {
   };
 }
 
+/** A stored record that the look-alike rows resemble. */
+const LOOK_ALIKE_RECORD: Publication = {
+  ...empty(),
+  id: 7,
+  title: "Dom Casmurro",
+  authors: ["Helen Caldwell"],
+  originalTitle: "Dom Casmurro",
+  originalAuthors: ["Machado de Assis"],
+  year: "1953",
+  countries: ["US"],
+  publishers: ["Noonday Press"],
+};
+
+/**
+ * Three rows being imported. The first is a near-copy of `LOOK_ALIKE_RECORD`,
+ * and the other two are near-copies of each other.
+ */
+const LOOK_ALIKE_ROWS: PublicationEntry[] = [
+  {
+    id: createId(),
+    errors: null,
+    publication: { ...LOOK_ALIKE_RECORD, id: null, title: "Dom Casmuro" },
+  },
+  {
+    id: createId(),
+    errors: null,
+    publication: {
+      ...empty(),
+      title: "The Devil to Pay in the Backlands",
+      authors: ["James L. Taylor"],
+      originalTitle: "Grande Sertão: Veredas",
+      originalAuthors: ["João Guimarães Rosa"],
+      year: "1963",
+      countries: ["US"],
+      publishers: ["Knopf"],
+    },
+  },
+  {
+    id: createId(),
+    errors: null,
+    publication: {
+      ...empty(),
+      title: "The Devil to Pay in the Backland",
+      authors: ["James L Taylor"],
+      originalTitle: "Grande Sertao Veredas",
+      originalAuthors: ["João Guimarães Rosa"],
+      year: "1963",
+      countries: ["US"],
+      publishers: ["Knopf"],
+    },
+  },
+];
+
+/** The ids of `LOOK_ALIKE_ROWS`, in order. */
+const LOOK_ALIKE_IDS = LOOK_ALIKE_ROWS.map(({ id }) => id);
+
+/**
+ * Empties a store and seeds it with `LOOK_ALIKE_ROWS`, together with the
+ * look-alike check result the server would return for them: the first row
+ * resembles `LOOK_ALIKE_RECORD`, and the other two resemble each other.
+ */
+function seedLookAlikes(store: Store): void {
+  clear(store);
+  setAll(store, LOOK_ALIKE_ROWS);
+  setResemblances(
+    store,
+    LOOK_ALIKE_IDS,
+    new Map([
+      [LOOK_ALIKE_IDS[0], { stored: [LOOK_ALIKE_RECORD], others: [] }],
+      [LOOK_ALIKE_IDS[1], { stored: [], others: [LOOK_ALIKE_IDS[2]] }],
+      [LOOK_ALIKE_IDS[2], { stored: [], others: [LOOK_ALIKE_IDS[1]] }],
+    ]),
+  );
+}
+
 export {
   SAMPLE_PUBLICATIONS,
   aDocumentWith,
@@ -173,4 +250,8 @@ export {
   sampleManyPublications,
   seed,
   seedIndex,
+  LOOK_ALIKE_IDS,
+  LOOK_ALIKE_RECORD,
+  LOOK_ALIKE_ROWS,
+  seedLookAlikes,
 };

@@ -147,13 +147,12 @@ const QueueOption: FC<{
   );
 };
 
-/** One record of the cluster, with the choice to keep it. */
 /**
  * One record's evidence. `onKeep` is what makes it a choice — without it the
  * card is the same evidence with nothing to decide, which is what a decision
  * already made looks like.
  */
-const Candidate: FC<{
+export const Candidate: FC<{
   publication: Publication;
   kept?: boolean;
   onKeep?: () => void;
@@ -185,6 +184,16 @@ const Candidate: FC<{
             <span className="font-normal text-gray-600">({p.year})</span>
           </p>
           <p className="text-xs text-gray-600">{marked.value(p, "authors")}</p>
+          {typeof p.id !== "number" ? null : (
+            <Link
+              href={`/publications/${p.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block mt-1 text-xs anchor"
+            >
+              {t("openRecord")}
+            </Link>
+          )}
         </div>
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">

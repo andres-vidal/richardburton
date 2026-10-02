@@ -1,3 +1,4 @@
+import { pick } from "lodash";
 import { request } from "app";
 import { AxiosError, AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
@@ -9,9 +10,19 @@ import type { Publication, PublicationHistoryEntry } from "./model";
 import {
   PublicationError,
   PublicationId,
+  Resemblance,
   ValidationResult,
   errorCode,
 } from "./model";
+
+/**
+ * One entry of the resemblances response. `position` and `others` are indexes
+ * into the list of rows the request sent.
+ */
+type ResemblanceEntry = Omit<Resemblance, "others"> & {
+  position: number;
+  others: number[];
+};
 import {
   createId,
   errorFamily,
@@ -19,11 +30,14 @@ import {
   lastValidatedFamily,
   publicationFamily,
   publicationIdsAtom,
+  RESEMBLANCE_ATTRIBUTES,
   remember,
   removePublication,
   resetAll,
+  rowSubjectFamily,
   setAll,
   setErrors,
+  setResemblances,
   visibleIdsAtom,
 } from "./store";
 
@@ -385,6 +399,52 @@ async function validate(store: Store, ids: PublicationId[]): Promise<void> {
   });
 }
 
+/**
+ * Sends the rows `ids` to the resemblances endpoint and stores what each row
+ * resembles with `setResemblances`.
+ *
+ * The server does not know the rows' ids, so the response names each row by its
+ * position in the request. The server stores nothing, and this function does
+ * not change or remove any row.
+ */
+async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
+  return run(async (http) => {
+    const asked = ids.map((id) => store.get(rowSubjectFamily(id)));
+    const rows = ids.map((id) =>
+      pick(store.get(publicationFamily(id)), RESEMBLANCE_ATTRIBUTES),
+    );
+
+    const { data } = await http.post<{ entries: ResemblanceEntry[] }>(
+      "publications/duplicates/resemblances",
+      rows,
+    );
+
+    // If a row's subject (see `rowSubjectFamily`) changed while the request was
+    // in flight, the response describes old values and is dropped.
+    // `CheckResemblances` has already scheduled a new check for that change.
+    const moved = ids.some(
+      (id, index) => store.get(rowSubjectFamily(id)) !== asked[index],
+    );
+
+    if (moved) return;
+
+    setResemblances(
+      store,
+      ids,
+      new Map(
+        data.entries.map((entry) => [
+          ids[entry.position],
+          {
+            stored: entry.stored,
+            // Converts the other rows' positions back to row ids.
+            others: entry.others.map((position) => ids[position]),
+          },
+        ]),
+      ),
+    );
+  });
+}
+
 /** Replace the working set from an uploaded CSV (validated server-side). */
 async function upload(store: Store, payload: FormData): Promise<void> {
   return run(async (http) => {
@@ -405,13 +465,21 @@ async function upload(store: Store, payload: FormData): Promise<void> {
   });
 }
 
+/**
+ * The look-alike check, held in an object and read when a check runs, so it can
+ * be replaced with one that does not reach the network, as `Author.REMOTE` is.
+ */
+const REMOTE = { resemblances };
+
 export {
+  REMOTE,
   bulk,
   deletePublication,
   distinguish,
   loadDetails,
   merge,
   reconsider,
+  resemblances,
   restore,
   search,
   undo,

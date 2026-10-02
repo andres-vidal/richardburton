@@ -18,8 +18,9 @@ const publication = (fields: Partial<Publication>): Publication => ({
   ...fields,
 });
 
-// Two questions: a title typed twice with a typo, and the same translator's
-// work entered again under the title of a later printing.
+// Two questions: a record typed twice with a typo and a variant of the
+// publisher's name, and the same translator's work entered again under another
+// title.
 const CLUSTERS: DuplicateCluster[] = [
   {
     score: 0.79,
@@ -28,8 +29,7 @@ const CLUSTERS: DuplicateCluster[] = [
       publication({
         id: 2,
         title: "Dom Casmuro",
-        publishers: ["W. H. Allen"],
-        countries: ["GB"],
+        publishers: ["The Noonday Press"],
       }),
     ],
   },
@@ -40,7 +40,7 @@ const CLUSTERS: DuplicateCluster[] = [
       publication({
         id: 4,
         title: "Iracema, the Honey-Lips: A Legend",
-        year: "1887",
+        year: "1886",
       }),
     ],
   },
@@ -117,7 +117,7 @@ export const Default: Story = {
     await expect(canvas.getAllByRole("option")).toHaveLength(2);
 
     // Everything a reviewer needs to tell the two apart is on the page.
-    await expect(canvas.getByText("W. H. Allen")).toBeVisible();
+    await expect(canvas.getByText("The Noonday Press")).toBeVisible();
     await expect(
       canvas.getByText("Caldwell, Helen. Introduction."),
     ).toBeVisible();
