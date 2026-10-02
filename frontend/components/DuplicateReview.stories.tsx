@@ -18,6 +18,18 @@ const publication = (fields: Partial<Publication>): Publication => ({
   ...fields,
 });
 
+// Isabel Burton's translation of "Iracema". The records below that are about
+// this book start from these fields.
+const IRACEMA: Partial<Publication> = {
+  title: "Iracema",
+  originalTitle: "Iracema",
+  originalAuthors: ["José de Alencar"],
+  authors: ["Isabel Burton"],
+  year: "1886",
+  countries: ["GB"],
+  publishers: ["Bickers & Son"],
+};
+
 // Two questions: a record typed twice with a typo and a variant of the
 // publisher's name, and the same translator's work entered again under another
 // title.
@@ -36,11 +48,11 @@ const CLUSTERS: DuplicateCluster[] = [
   {
     score: 0.42,
     publications: [
-      publication({ id: 3, title: "Iraçéma the Honey-Lips", year: "1886" }),
+      publication({ ...IRACEMA, id: 3, title: "Iraçéma the Honey-Lips" }),
       publication({
+        ...IRACEMA,
         id: 4,
         title: "Iracema, the Honey-Lips: A Legend",
-        year: "1886",
       }),
     ],
   },
@@ -51,8 +63,8 @@ const CLUSTERS: DuplicateCluster[] = [
 const RULED_APART: Distinction[] = [
   {
     publications: [
-      publication({ id: 5, title: "Iracema", year: "1886" }),
-      publication({ id: 6, title: "Iracema", year: "1922" }),
+      publication({ ...IRACEMA, id: 5 }),
+      publication({ ...IRACEMA, id: 6, year: "1922" }),
     ],
     actor: "curator@rb.test",
     timestamp: "2026-08-01T10:00:00",
