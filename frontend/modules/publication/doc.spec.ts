@@ -302,3 +302,97 @@ describe("observing", () => {
     expect(Doc.readRow(doc, "a")?.title).toBe("Dom Casmurro");
   });
 });
+
+describe("discarding", () => {
+  test("marks a row without taking it out of the rows or the order", () => {
+    const doc = new Y.Doc();
+
+    Doc.addRow(doc, "a", publication({ title: "Dom Casmurro" }));
+    Doc.addRow(doc, "b", publication({ title: "Iracema" }));
+    Doc.setDiscarded(doc, ["a"], true);
+
+    expect(Doc.isDiscarded(doc, "a")).toBe(true);
+    expect(Doc.isDiscarded(doc, "b")).toBe(false);
+    expect(Doc.discardedKeys(doc)).toEqual(["a"]);
+    expect(Doc.keys(doc)).toEqual(["a", "b"]);
+    expect(Doc.readRow(doc, "a")?.title).toBe("Dom Casmurro");
+  });
+
+  test("bringing a row back removes its mark", () => {
+    const doc = new Y.Doc();
+
+    Doc.addRow(doc, "a", publication());
+    Doc.setDiscarded(doc, ["a"], true);
+    Doc.setDiscarded(doc, ["a"], false);
+
+    expect(Doc.isDiscarded(doc, "a")).toBe(false);
+    expect(Doc.discardedKeys(doc)).toEqual([]);
+  });
+
+  test("reaches the other person's copy", () => {
+    const { here, there, sync } = pair();
+
+    Doc.addRow(here, "a", publication());
+    sync();
+    Doc.setDiscarded(there, ["a"], true);
+    sync();
+
+    expect(Doc.isDiscarded(here, "a")).toBe(true);
+  });
+
+  test("an upload starts with nothing discarded", () => {
+    const doc = new Y.Doc();
+
+    Doc.addRow(doc, "a", publication());
+    Doc.setDiscarded(doc, ["a"], true);
+    Doc.setAll(doc, [{ id: "a", publication: publication() }]);
+
+    expect(Doc.discardedKeys(doc)).toEqual([]);
+  });
+
+  test("removing a row removes its mark", () => {
+    const doc = new Y.Doc();
+
+    Doc.addRow(doc, "a", publication());
+    Doc.setDiscarded(doc, ["a"], true);
+    Doc.removeRow(doc, "a");
+
+    expect(Doc.discardedKeys(doc)).toEqual([]);
+  });
+
+  test("is walked back by undo", () => {
+    const doc = new Y.Doc();
+    const undo = Doc.undoManager(doc);
+
+    Doc.addRow(doc, "a", publication());
+    undo.stopCapturing();
+    Doc.setDiscarded(doc, ["a"], true);
+
+    undo.undo();
+
+    expect(Doc.isDiscarded(doc, "a")).toBe(false);
+    expect(Doc.keys(doc)).toEqual(["a"]);
+  });
+
+  test("names the rows discarded or brought back to an observer", () => {
+    const doc = new Y.Doc();
+    const changed: string[][] = [];
+
+    Doc.addRow(doc, "a", publication());
+    Doc.addRow(doc, "b", publication());
+    Doc.setDiscarded(doc, ["a"], true);
+
+    Doc.observe(doc, {
+      onRows: () => {},
+      onOrder: () => {},
+      onDiscarded: (ids) => changed.push(ids as string[]),
+    });
+
+    Doc.setDiscarded(doc, ["a", "b"], false);
+    Doc.setDiscarded(doc, ["b"], true);
+
+    // Bringing back "b", which was not discarded, changes nothing, so the first
+    // call names "a" alone.
+    expect(changed).toEqual([["a"], ["b"]]);
+  });
+});

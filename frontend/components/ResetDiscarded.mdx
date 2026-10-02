@@ -10,6 +10,10 @@ An undo affordance for discarded rows in the workspace. When one or more rows
 have been discarded, this button appears and restores them all at once,
 labelled with the count — e.g. "Reset 3 discarded".
 
+Discarded rows are marked in the import document, so everyone who has the
+document open sees the same count, and restoring the rows brings them back for
+everyone. Restoring them is one undo step.
+
 ## Data source
 
 The button is **state-driven**: it takes no props. It reads the discarded count

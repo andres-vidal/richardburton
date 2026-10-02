@@ -15,10 +15,12 @@ import {
  * its own document, which holds the rows it read from the database and the
  * edits made to them.
  *
- * The document holds two shared types. `rows` is a `Y.Map` from row key to a
+ * The document holds three shared types. `rows` is a `Y.Map` from row key to a
  * `Y.Map` of the row's fields, so an edit can find its row by key without
  * knowing its position. `order` is a `Y.Array` of the same keys in reading
- * order, since a map has no order.
+ * order, since a map has no order. `discarded` is a `Y.Map` that holds the key
+ * of each discarded row. A discarded row stays in `rows` and `order`, so
+ * bringing it back restores it in its place.
  *
  * Each field is stored as a plain value, so when two people write the same
  * field, Yjs keeps one of the two values. This is the right result for a title,
@@ -26,12 +28,14 @@ import {
  * person typed. `sources` is the exception. It is stored as a `Y.Array`, so
  * when two people each add a source, both sources are kept.
  *
- * The document holds content only. Selection, focus, column visibility and
- * validation errors stay in local atoms, so one person hiding a column does not
- * hide it for anyone else.
+ * The document holds the rows and which of them are discarded, so everyone who
+ * has the document open sees the same working set. Selection, focus, column
+ * visibility and validation errors stay in local atoms, so one person hiding a
+ * column does not hide it for anyone else.
  */
 type Rows = Y.Map<Y.Map<unknown>>;
 type Order = Y.Array<string>;
+type Discarded = Y.Map<true>;
 
 /**
  * The transaction origin for edits made in this client.
@@ -67,6 +71,10 @@ function rows(doc: Y.Doc): Rows {
 
 function order(doc: Y.Doc): Order {
   return doc.getArray("order");
+}
+
+function discarded(doc: Y.Doc): Discarded {
+  return doc.getMap("discarded");
 }
 
 /** Runs `change` in a transaction with the origin `LOCAL`. */
@@ -129,7 +137,8 @@ function rowCount(doc: Y.Doc): number {
 }
 
 /**
- * Replaces every row and the reading order with `entries`.
+ * Replaces every row and the reading order with `entries`. No row of `entries`
+ * is discarded.
  */
 function setAll(
   doc: Y.Doc,
@@ -138,6 +147,7 @@ function setAll(
   write(doc, () => {
     rows(doc).clear();
     order(doc).delete(0, order(doc).length);
+    discarded(doc).clear();
 
     entries.forEach(({ id, publication }) =>
       rows(doc).set(String(id), rowOf(publication)),
@@ -183,9 +193,15 @@ function putRow(doc: Y.Doc, id: PublicationId, publication: Publication): void {
   rows(doc).set(String(id), rowOf(publication));
 }
 
-/** Removes rows from `rows`. The caller updates the reading order. */
+/**
+ * Removes rows from `rows`, together with their discarded mark. The caller
+ * updates the reading order.
+ */
 function dropRows(doc: Y.Doc, ids: PublicationId[]): void {
-  ids.forEach((id) => rows(doc).delete(String(id)));
+  ids.forEach((id) => {
+    rows(doc).delete(String(id));
+    discarded(doc).delete(String(id));
+  });
 }
 
 /** Replace the reading order. */
@@ -199,13 +215,44 @@ function appendOrder(doc: Y.Doc, ids: PublicationId[]): void {
   order(doc).push(ids.map(String));
 }
 
+/** Removes a row from the document, with its place in the order and its
+ * discarded mark. */
 function removeRow(doc: Y.Doc, id: PublicationId): void {
   write(doc, () => {
     rows(doc).delete(String(id));
+    discarded(doc).delete(String(id));
 
     const at = order(doc).toArray().indexOf(String(id));
     if (at >= 0) order(doc).delete(at, 1);
   });
+}
+
+/**
+ * Marks rows as discarded as a local edit, or brings them back when
+ * `isDiscarded` is false. The rows themselves are not changed.
+ */
+function setDiscarded(
+  doc: Y.Doc,
+  ids: PublicationId[],
+  isDiscarded: boolean,
+): void {
+  write(doc, () =>
+    ids.forEach((id) =>
+      isDiscarded
+        ? discarded(doc).set(String(id), true)
+        : discarded(doc).delete(String(id)),
+    ),
+  );
+}
+
+/** Returns whether a row is discarded. */
+function isDiscarded(doc: Y.Doc, id: PublicationId): boolean {
+  return discarded(doc).has(String(id));
+}
+
+/** Returns the keys of the discarded rows. */
+function discardedKeys(doc: Y.Doc): PublicationId[] {
+  return [...discarded(doc).keys()].map(idFromText);
 }
 
 /**
@@ -265,8 +312,9 @@ function sharedPrefix(before: string[], after: string[]): number {
 }
 
 /**
- * Calls `onRows` with the keys of the rows whose content changed, and `onOrder`
- * when the reading order changes. Returns a function that stops observing.
+ * Calls `onRows` with the keys of the rows whose content changed, `onOrder`
+ * when the reading order changes, and `onDiscarded` with the keys of the rows
+ * discarded or brought back. Returns a function that stops observing.
  *
  * Yjs calls observers synchronously at the end of each transaction, so a
  * keystroke can be read in the same tick it was typed. Nothing in `observe`
@@ -277,6 +325,7 @@ function observe(
   handlers: {
     onRows: (changed: PublicationId[]) => void;
     onOrder: () => void;
+    onDiscarded?: (changed: PublicationId[]) => void;
   },
 ): () => void {
   const onRows = (events: Y.YEvent<Y.AbstractType<unknown>>[]) => {
@@ -298,12 +347,17 @@ function observe(
 
   const onOrder = () => handlers.onOrder();
 
+  const onDiscarded = (event: Y.YMapEvent<true>) =>
+    handlers.onDiscarded?.([...event.keysChanged].map(idFromText));
+
   rows(doc).observeDeep(onRows);
   order(doc).observe(onOrder);
+  discarded(doc).observe(onDiscarded);
 
   return () => {
     rows(doc).unobserveDeep(onRows);
     order(doc).unobserve(onOrder);
+    discarded(doc).unobserve(onDiscarded);
   };
 }
 
@@ -320,8 +374,9 @@ function readRow(doc: Y.Doc, id: PublicationId): Publication | null {
 }
 
 /**
- * Creates a `Y.UndoManager` over `rows` and `order` that tracks only the
- * `LOCAL` origin, so undo reverts this person's edits and not other people's.
+ * Creates a `Y.UndoManager` over `rows`, `order` and `discarded` that tracks
+ * only the `LOCAL` origin, so undo reverts this person's edits and discards,
+ * and not other people's.
  *
  * Yjs merges edits made close together in time into one undo step, so a burst
  * of typing is undone at once. Adding a row and then typing into it would merge
@@ -329,7 +384,7 @@ function readRow(doc: Y.Doc, id: PublicationId): Publication | null {
  * adding a row. One undo then reverts the typing and not the row.
  */
 function undoManager(doc: Y.Doc): Y.UndoManager {
-  return new Y.UndoManager([rows(doc), order(doc)], {
+  return new Y.UndoManager([rows(doc), order(doc), discarded(doc)], {
     trackedOrigins: new Set([LOCAL]),
   });
 }
@@ -340,9 +395,11 @@ export {
   addRow,
   addRowAfter,
   appendOrder,
+  discardedKeys,
   dropRows,
   hold,
   holds,
+  isDiscarded,
   keys,
   rowCount,
   observe,
@@ -351,9 +408,10 @@ export {
   readRow,
   removeRow,
   setAll,
+  setDiscarded,
   setField,
   setOrder,
   undoManager,
   write,
 };
-export type { Order, Rows };
+export type { Discarded, Order, Rows };
