@@ -2,11 +2,10 @@ import { request } from "app";
 import { createStore } from "jotai";
 import type { AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
-import hash from "object-hash";
 
 import type { Store } from "modules/store";
 
-import type { Publication } from "./model";
+import type { Publication, PublicationId } from "./model";
 import { empty } from "./model";
 import {
   bulk,
@@ -20,8 +19,11 @@ import {
   validate,
   validateUpdate,
 } from "./remote";
+import * as Doc from "./doc";
 import {
+  contentKey,
   createId,
+  documentOf,
   errorFamily,
   hydrate,
   isValidatingAtom,
@@ -356,17 +358,39 @@ describe("validateUpdate", () => {
 });
 
 describe("validate", () => {
+  /**
+   * Fills the store with rows that have no stored validation result. `setAll`
+   * stores each entry's errors as its result, so the results are removed.
+   */
+  function unchecked(entries: { id: PublicationId; title: string }[]) {
+    setAll(
+      store,
+      entries.map(({ id, title }) => ({
+        id,
+        publication: pub({ title }),
+        errors: null,
+      })),
+    );
+    Doc.putValidations(
+      documentOf(store).doc,
+      entries.map(({ id }) => [id, null] as const),
+    );
+  }
+
   test("maps each result back to the row it was sent for, not the row's list position", async () => {
     const [a, b, c] = [createId(), createId(), createId()];
-    setAll(store, [
-      { id: a, publication: pub({ title: "A" }), errors: null },
-      { id: b, publication: pub({ title: "B" }), errors: null },
-      { id: c, publication: pub({ title: "C" }), errors: null },
+    unchecked([
+      { id: a, title: "A" },
+      { id: b, title: "B" },
+      { id: c, title: "C" },
     ]);
 
     // Pretend B was already validated, so it is filtered out of this run and
     // only A and C are sent.
-    store.set(lastValidatedFamily(b), hash(store.get(publicationFamily(b))));
+    store.set(
+      lastValidatedFamily(b),
+      contentKey(store.get(publicationFamily(b))),
+    );
 
     http.post.mockResolvedValue({
       data: [
@@ -390,7 +414,7 @@ describe("validate", () => {
 
   test("re-sends a row after its value changes and refreshes its error", async () => {
     const a = createId();
-    setAll(store, [{ id: a, publication: pub({ title: "" }), errors: null }]);
+    unchecked([{ id: a, title: "" }]);
 
     // First pass: the server rejects the row.
     http.post.mockResolvedValueOnce({
@@ -416,8 +440,11 @@ describe("validate", () => {
 
   test("skips the request when nothing changed", async () => {
     const a = createId();
-    setAll(store, [{ id: a, publication: pub({ title: "A" }), errors: null }]);
-    store.set(lastValidatedFamily(a), hash(store.get(publicationFamily(a))));
+    unchecked([{ id: a, title: "A" }]);
+    store.set(
+      lastValidatedFamily(a),
+      contentKey(store.get(publicationFamily(a))),
+    );
 
     await validate(store, [a]);
 
@@ -427,13 +454,56 @@ describe("validate", () => {
 
   test("clears the validating flag even when the request fails", async () => {
     const a = createId();
-    setAll(store, [{ id: a, publication: pub({ title: "A" }), errors: null }]);
+    unchecked([{ id: a, title: "A" }]);
     http.post.mockRejectedValue("boom");
 
     await expect(validate(store, [a])).rejects.toBe("boom");
 
     expect(store.get(isValidatingAtom)).toBe(false);
     expect(mockNotify).toHaveBeenCalled();
+  });
+
+  test("stores each result in the document, for the content that was sent", async () => {
+    const a = createId();
+    unchecked([{ id: a, title: "" }]);
+    const sent = store.get(publicationFamily(a));
+
+    // The server's copy of the row differs from what was sent. The result is
+    // still stored for the content that was sent.
+    http.post.mockResolvedValue({
+      data: [{ publication: pub({ title: "normalised" }), errors: "conflict" }],
+    });
+    await validate(store, [a]);
+
+    expect(Doc.validationOf(documentOf(store).doc, a)).toEqual({
+      content: contentKey(sent),
+      errors: "conflict",
+    });
+  });
+
+  test("skips a row whose content has a stored result, unless forced", async () => {
+    const a = createId();
+    setAll(store, [
+      { id: a, publication: pub({ title: "A" }), errors: "conflict" },
+    ]);
+
+    // `setAll` stored the entry's errors as the result for its content.
+    await validate(store, [a]);
+    expect(http.post).not.toHaveBeenCalled();
+
+    http.post.mockResolvedValue({
+      data: [{ publication: pub({ title: "A" }), errors: null }],
+    });
+    await validate(store, [a], { force: true });
+
+    expect(http.post).toHaveBeenCalledTimes(1);
+    expect(store.get(errorFamily(a))).toBeNull();
+  });
+
+  test("leaves out a row the store does not hold", async () => {
+    await validate(store, [createId()]);
+
+    expect(http.post).not.toHaveBeenCalled();
   });
 });
 

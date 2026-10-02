@@ -4,12 +4,12 @@ import { IndexeddbPersistence } from "y-indexeddb";
 import { FC, ReactNode, useEffect, useState } from "react";
 import * as Y from "yjs";
 
+import { watchChecks } from "./checks";
 import { keepDraft } from "./draft";
 import { live, type Live, type LiveState } from "./document-live";
 import { sync, type SyncState } from "./document-sync";
 import { LiveProvider } from "./presence";
-import { validate } from "./remote";
-import { openWorkspace, visibleIdsAtom } from "./store";
+import { openWorkspace } from "./store";
 import { usePublicationStore } from "./workspace";
 
 /**
@@ -29,8 +29,13 @@ import { usePublicationStore } from "./workspace";
  *   open sees each change as it is made.
  *
  * The draft row is kept in `localStorage` by `keepDraft`, not in the document,
- * because it holds one person's unfinished typing. Validation results are not
- * stored. Rows are validated again once the document has loaded.
+ * because it holds one person's unfinished typing.
+ *
+ * `watchChecks` validates the rows and runs the look-alike check as the
+ * document changes, and stores the results in the document. Once the document
+ * has loaded, every visible row is checked again, because a stored result can
+ * be out of date with the database. For example, another document may have
+ * inserted the same publication since.
  *
  * The effect depends only on the store and `document`. Tearing down the
  * document and its connections for any other reason would lose what had been
@@ -64,24 +69,17 @@ const DocumentProvider: FC<{ document: number; children: ReactNode }> = ({
     setAttached({ awareness: relayed.awareness, presence: relayed.presence });
 
     const forgetDraft = keepDraft(store, `document-${id}`);
+    const checks = watchChecks(store, doc);
 
-    // Validation errors are not stored with the rows, so the rows of a
-    // reopened document have none. Without validating them again, every row
-    // would count as valid, and rows the database will refuse could be
-    // submitted.
-    //
-    // Nothing waits on this promise, and validation fails while the server is
-    // unreachable, so the rejection is caught here instead of going unhandled.
+    // `running.ready` rejects when the server is unreachable. The stored
+    // results are then kept until the next change is checked.
     Promise.all([stored.whenSynced, running.ready])
-      .then(() => {
-        const ids = store.get(visibleIdsAtom);
-
-        return ids && ids.length > 0 ? validate(store, ids) : undefined;
-      })
+      .then(() => checks.refresh())
       .catch(() => {});
 
     return () => {
       setAttached(undefined);
+      checks.stop();
       relayed.stop();
       running.stop();
       forgetDraft();
