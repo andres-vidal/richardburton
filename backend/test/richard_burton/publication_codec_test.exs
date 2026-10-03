@@ -104,15 +104,11 @@ defmodule RichardBurton.Publication.CodecTest do
       title: "Iraçéma the Honey-Lips: A Legend of Brazil",
       year: 1886,
       countries: ["GB"],
-      countries_fingerprint: "B4043B0B8297E379BC559AB33B6AE9C7A9B4EF6519D3BAEE53270F0C0DD3D960",
       publishers: ["Bickers & Son", "Noonday Press"],
-      publishers_fingerprint: "830DE6E9CE04669334B8C1A5D61E94E37A8842B9241C2EB3C9E72E7973CF3A7C",
       authors: ["Isabel Burton"],
       original_authors: ["José de Alencar"],
       original_title: "Iracema",
-      sources: [],
-      translated_book_fingerprint:
-        "954F4C8E5EB33960B733BADB84134970AF5D970879260138C8C214B66DDBEF1F"
+      sources: []
     }
 
     test "on a nested publication-like with string keys, returns the flattened representation with string keys" do
@@ -346,26 +342,18 @@ defmodule RichardBurton.Publication.CodecTest do
       year: 1886,
       sources: [],
       countries: [%Country{code: "GB"}],
-      countries_fingerprint: "B4043B0B8297E379BC559AB33B6AE9C7A9B4EF6519D3BAEE53270F0C0DD3D960",
       publishers: [%Publisher{name: "Bickers & Son"}, %Publisher{name: "Noonday Press"}],
-      publishers_fingerprint: "830DE6E9CE04669334B8C1A5D61E94E37A8842B9241C2EB3C9E72E7973CF3A7C",
       translated_book: %TranslatedBook{
         authors: [
           %Author{name: "Isabel Burton"}
         ],
-        authors_fingerprint: "3D9BE0F48628685291383A430443DE4D864E69660C376B17EE9E7501BE5BB2D8",
         original_book: %OriginalBook{
           title: "Iracema",
           authors: [
             %Author{name: "José de Alencar"}
-          ],
-          authors_fingerprint: "65931E62E55E5151BD2F625E9D3CBD821B6D4B6CE0B6F600BAFB9D49E2F338CB"
-        },
-        original_book_fingerprint:
-          "F9846F5EAF84555CE8AA7D20C8C89BEAB11C1466A2A79B0700050FEAC784226B"
-      },
-      translated_book_fingerprint:
-        "954F4C8E5EB33960B733BADB84134970AF5D970879260138C8C214B66DDBEF1F"
+          ]
+        }
+      }
     }
 
     test "on a flat-publication-like with string keys, returns the nested representation with string keys" do

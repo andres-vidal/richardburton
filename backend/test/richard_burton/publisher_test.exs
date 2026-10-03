@@ -14,7 +14,6 @@ defmodule RichardBurton.PublisherTest do
     import Ecto.Changeset
 
     schema "with_many_publishers" do
-      field(:publishers_fingerprint, :string)
       has_many :publishers, Publisher
     end
 
@@ -55,10 +54,6 @@ defmodule RichardBurton.PublisherTest do
     changeset
     |> get_change(:publishers)
     |> Enum.map(&apply_changes/1)
-  end
-
-  defp get_fingerprint(changeset = %Ecto.Changeset{}) do
-    get_change(changeset, :publishers_fingerprint)
   end
 
   def search_fixture(_) do
@@ -113,37 +108,6 @@ defmodule RichardBurton.PublisherTest do
     end
   end
 
-  describe "fingerprint/1" do
-    test "given two different lists of publishers, generates different fingerprints" do
-      publishers1 = [%Publisher{name: "Noonday Press"}, %Publisher{name: "Bickers & Son"}]
-      publishers2 = [%Publisher{name: "Bickers & Son"}, %Publisher{name: "IE"}]
-
-      refute Publisher.fingerprint(publishers1) == Publisher.fingerprint(publishers2)
-    end
-
-    test "given two lists of publishers with the same names, generates the same fingerprints" do
-      publishers1 = [%Publisher{name: "Noonday Press"}, %Publisher{name: "Bickers & Son"}]
-      publishers2 = [%Publisher{name: "Noonday Press"}, %Publisher{name: "Bickers & Son"}]
-
-      assert Publisher.fingerprint(publishers1) == Publisher.fingerprint(publishers2)
-    end
-
-    test "given two lists of publishers with the same and different order, generates the same fingerprints" do
-      publishers1 = [%Publisher{name: "Noonday Press"}, %Publisher{name: "Bickers & Son"}]
-      publishers2 = [%Publisher{name: "Bickers & Son"}, %Publisher{name: "Noonday Press"}]
-
-      assert Publisher.fingerprint(publishers1) == Publisher.fingerprint(publishers2)
-    end
-
-    test "given sets whose names concatenate the same, generates different fingerprints" do
-      # Without a delimiter, ["AB"] + ["C"] and ["A"] + ["BC"] both join to "ABC".
-      one = [%Publisher{name: "AB"}, %Publisher{name: "C"}]
-      two = [%Publisher{name: "A"}, %Publisher{name: "BC"}]
-
-      refute Publisher.fingerprint(one) == Publisher.fingerprint(two)
-    end
-  end
-
   describe "link/1" do
     test "links existing publishers to changeset" do
       attrs = %{
@@ -189,35 +153,6 @@ defmodule RichardBurton.PublisherTest do
 
       refute changeset.valid?
       assert Enum.empty?(Publisher.all())
-    end
-  end
-
-  describe "link_fingerprint/1" do
-    test "links fingerprint Bickers & Soning publisher names to changeset" do
-      attrs = %{
-        "publishers" => [
-          %{"name" => "Noonday Press"},
-          %{"name" => "Bickers & Son"}
-        ]
-      }
-
-      changeset =
-        attrs
-        |> WithManyPublishers.changeset()
-        |> Publisher.link_fingerprint()
-
-      assert changeset.valid?
-      assert Publisher.fingerprint(get_publishers(changeset)) == get_fingerprint(changeset)
-    end
-
-    test "does not link fingerprint to invalid changeset" do
-      changeset =
-        %{"publishers" => [%{}]}
-        |> WithManyPublishers.changeset()
-        |> Publisher.link_fingerprint()
-
-      refute changeset.valid?
-      assert is_nil(get_fingerprint(changeset))
     end
   end
 
