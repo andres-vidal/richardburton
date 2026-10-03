@@ -16,6 +16,7 @@ defmodule RichardBurton.Race do
   import ExUnit.Assertions
 
   alias Ecto.Adapters.SQL.Sandbox
+  alias RichardBurton.Publication.Index.Refresher
   alias RichardBurton.Repo
 
   @doc "Runs `fun` on a connection outside the SQL sandbox, so its writes commit."
@@ -42,9 +43,20 @@ defmodule RichardBurton.Race do
     %{first: Task.await(holder), second: Task.await(challenger), waited: waited}
   end
 
-  @doc "Empties `tables`, and every table that refers to them."
+  @doc """
+  Empties `tables`, and every table that refers to them, then rebuilds the
+  search index.
+
+  The index is a set of materialized views over those tables. A write that
+  refreshes it during a race commits the refreshed views, and truncating the
+  tables leaves the views as they were, so they are rebuilt from the empty
+  tables.
+  """
   def truncate!(tables) do
-    unboxed(fn -> Repo.query!("TRUNCATE #{Enum.join(tables, ", ")} CASCADE") end)
+    unboxed(fn ->
+      Repo.query!("TRUNCATE #{Enum.join(tables, ", ")} CASCADE")
+      Refresher.refresh()
+    end)
   end
 
   # Runs `write` in a transaction, tells `test` once it has written, and commits
