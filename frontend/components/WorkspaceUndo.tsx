@@ -3,7 +3,7 @@
 import RestorePageIcon from "assets/restore-page.svg";
 import HistoryIcon from "assets/history.svg";
 import { useWorkspaceUndo } from "modules/publication/undo";
-import { useVisiblePublicationCount } from "modules/publication/hooks";
+import { useTotalPublicationCount } from "modules/publication/hooks";
 import { useTranslations } from "next-intl";
 import { FC } from "react";
 import Button from "./Button";
@@ -17,12 +17,14 @@ import Tooltip from "./Tooltip";
  * separate undo steps, so undoing the typing does not remove the row.
  *
  * Renders nothing when the workspace has no rows or there is nothing to undo or
- * redo. The Redo button appears only when there is something to redo.
+ * redo. Discarded rows count as rows, so a workspace whose rows are all
+ * discarded still offers the undo that brings them back. The Redo button
+ * appears only when there is something to redo.
  */
 const WorkspaceUndo: FC = () => {
   const t = useTranslations("admin");
   const { canUndo, canRedo, undo, redo } = useWorkspaceUndo();
-  const publicationCount = useVisiblePublicationCount();
+  const publicationCount = useTotalPublicationCount();
 
   return publicationCount === 0 || (!canUndo && !canRedo) ? null : (
     <div className="flex gap-1">

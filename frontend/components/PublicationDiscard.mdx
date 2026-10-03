@@ -10,6 +10,10 @@ A danger button in the review toolbar that removes the currently selected rows.
 Its label tracks the selection size ("Discard 2"), and on click it marks those ids
 as discarded in the store (`setDiscarded`) and clears the selection.
 
+The mark is written to the import document, so the rows are discarded for
+everyone who has the document open, and they are still discarded when it is
+opened again. A discard is one undo step, so Undo brings the rows back.
+
 ## Data source
 
 The button bridges two pieces of state. The selection comes from

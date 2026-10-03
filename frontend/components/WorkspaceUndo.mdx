@@ -32,6 +32,12 @@ burst of typing as a whole word, not one letter at a time.
 Adding a row is a separate undo step from typing into it, so undoing the
 typing in a new row does not also remove the row.
 
+Discarding rows is a step of its own too, and so is bringing every discarded
+row back. Undo therefore returns rows discarded by mistake without touching the
+edits made before them.
+
+<Canvas of={WorkspaceUndoStories.AfterADiscard} />
+
 ## Props
 
 None. It uses the undo manager of the workspace store it renders in, through

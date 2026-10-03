@@ -75,8 +75,9 @@ function documentOf(store: Store): StoreDocument {
  * Binds `doc` to the store and starts the observer that copies it into the
  * store's atoms.
  *
- * The observer writes `publicationFamily` for each changed row and
- * `publicationIdsAtom` for the reading order. It never writes to the document.
+ * The observer writes `publicationFamily` for each changed row,
+ * `publicationIdsAtom` for the reading order and `discardedFamily` for each row
+ * discarded or brought back. It never writes to the document.
  * The families, the cells and the marking hooks read only the atoms, never the
  * document.
  *
@@ -99,7 +100,13 @@ function bind(store: Store, doc: Y.Doc, owned: boolean): Binding {
 
   const onOrder = () => store.set(publicationIdsAtom, Doc.keys(doc));
 
-  const stopObserving = Doc.observe(doc, { onRows, onOrder });
+  const onDiscarded = (changed: PublicationId[]) =>
+    store.set(
+      writeDiscardedAtom,
+      changed.map((id) => [id, Doc.isDiscarded(doc, id)] as const),
+    );
+
+  const stopObserving = Doc.observe(doc, { onRows, onOrder, onDiscarded });
 
   // A document from `openWorkspace` may already hold rows, restored from disk
   // or received before the observer started, so they are copied now. A
@@ -108,6 +115,7 @@ function bind(store: Store, doc: Y.Doc, owned: boolean): Binding {
   // nothing was loaded.
   if (!owned) {
     onRows(Doc.keys(doc));
+    onDiscarded(Doc.discardedKeys(doc));
     onOrder();
   }
 
@@ -213,6 +221,10 @@ const errorFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<PublicationError>(null),
 );
 
+/**
+ * Whether each row is discarded, as the store's document records it. A
+ * discarded row is left out of the visible rows.
+ */
 const discardedFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<boolean>(false),
 );
@@ -247,6 +259,16 @@ const writeRowsAtom = atom(
   null,
   (_get, set, rows: (readonly [PublicationId, Publication])[]) =>
     rows.forEach(([id, row]) => set(publicationFamily(id), row)),
+);
+
+/**
+ * Writes each `[id, isDiscarded]` pair into `discardedFamily` in one store
+ * update, so the visible rows are recomputed once.
+ */
+const writeDiscardedAtom = atom(
+  null,
+  (_get, set, marks: (readonly [PublicationId, boolean])[]) =>
+    marks.forEach(([id, isDiscarded]) => set(discardedFamily(id), isDiscarded)),
 );
 
 /** Does the work of `setResemblances` in one store update. */
@@ -771,12 +793,23 @@ function closeReview(store: Store): void {
   store.set(reviewingAtom, RESET);
 }
 
+/**
+ * Discards rows, or brings them back when `isDiscarded` is false.
+ *
+ * The mark is written to the store's document, so in an import document
+ * everyone who has it open sees the same rows discarded, and the mark is kept
+ * when the document is reopened. The change is one undo step of its own.
+ */
 function setDiscarded(
   store: Store,
   ids: PublicationId[],
-  isDeleted = true,
+  isDiscarded = true,
 ): void {
-  ids.forEach((id) => store.set(discardedFamily(id), isDeleted));
+  const { doc, undo } = documentOf(store);
+
+  undo.stopCapturing();
+  Doc.setDiscarded(doc, ids, isDiscarded);
+  undo.stopCapturing();
 }
 
 function setFocusedRowId(store: Store, id: PublicationId | undefined): void {
@@ -933,16 +966,16 @@ function resetAll(store: Store): void {
   }
 }
 
+/** Brings back every discarded row, as one undo step. */
 function resetDiscarded(store: Store): void {
-  store
-    .get(discardedIdsAtom)
-    ?.forEach((id) => store.set(discardedFamily(id), RESET));
+  setDiscarded(store, store.get(discardedIdsAtom) ?? [], false);
 }
 
 /**
  * Drop a publication that no longer exists on the server (after a server-side
  * delete): remove its id from the index and reset its per-row state. Distinct
- * from the workspace's `setDiscarded`, which only hides rows in memory.
+ * from the workspace's `setDiscarded`, which hides rows but keeps them in the
+ * document.
  */
 function removePublication(store: Store, id: PublicationId): void {
   const { doc, undo } = documentOf(store);

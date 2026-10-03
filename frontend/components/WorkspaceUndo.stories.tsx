@@ -4,10 +4,12 @@ import { empty } from "modules/publication/model";
 import {
   createId,
   openWorkspace,
+  setDiscarded,
   setField,
   resetAll,
   setAll,
   publicationFamily,
+  visibleIdsAtom,
 } from "modules/publication/store";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 import * as Y from "yjs";
@@ -98,6 +100,23 @@ export const AfterAnEdit: Story = {
     await waitFor(() =>
       expect(store.get(publicationFamily(ROW)).title).toBe("Dom Casmuro"),
     );
+  },
+};
+
+/** Undo brings back a row that was discarded, as its own step. */
+export const AfterADiscard: Story = {
+  beforeEach: () => {
+    const close = inAWorkspace();
+    setDiscarded(store, [ROW]);
+
+    return close;
+  },
+  play: async () => {
+    await expect(store.get(visibleIdsAtom)).toEqual([]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+
+    await waitFor(() => expect(store.get(visibleIdsAtom)).toEqual([ROW]));
   },
 };
 

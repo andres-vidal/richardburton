@@ -7,6 +7,7 @@ import { empty, type Publication, type PublicationId } from "./model";
 import {
   DRAFT_ID,
   addNew,
+  documentOf,
   duplicate,
   forget,
   knownIds,
@@ -14,7 +15,9 @@ import {
   publicationFamily,
   publicationIdsAtom,
   removePublication,
+  resetDiscarded,
   setAll,
+  setDiscarded,
   setField,
   setSources,
   visibleIdsAtom,
@@ -140,6 +143,65 @@ describe("a store working in a document", () => {
     ]);
   });
 
+  test("discarding a row marks it in the document and hides it", () => {
+    const { store, doc } = opened();
+
+    setAll(store, [
+      entry("a", { title: "Dom Casmurro" }),
+      entry("b", { title: "Iracema" }),
+    ]);
+    setDiscarded(store, ["a"]);
+
+    expect(doc.getMap("discarded").has("a")).toBe(true);
+    expect(store.get(visibleIdsAtom)).toEqual(["b"]);
+  });
+
+  test("a discard is one undo step, apart from the edit before it", () => {
+    const { store } = opened();
+
+    setAll(store, [entry("a", { title: "Dom Casmuro" })]);
+    setField(store, "a", "title", "Dom Casmurro");
+    setDiscarded(store, ["a"]);
+
+    documentOf(store).undo.undo();
+
+    // The undo brings the row back and keeps the edit made before the discard.
+    expect(store.get(visibleIdsAtom)).toEqual(["a"]);
+    expect(titleOf(store, "a")).toBe("Dom Casmurro");
+  });
+
+  test("bringing every discarded row back is one undo step", () => {
+    const { store } = opened();
+
+    setAll(store, [entry("a"), entry("b"), entry("c")]);
+    setDiscarded(store, ["a"]);
+    setDiscarded(store, ["c"]);
+    resetDiscarded(store);
+
+    expect(store.get(visibleIdsAtom)).toEqual(["a", "b", "c"]);
+
+    documentOf(store).undo.undo();
+
+    expect(store.get(visibleIdsAtom)).toEqual(["b"]);
+  });
+
+  test("a workspace opened on a document starts with its discarded rows hidden", () => {
+    const doc = new Y.Doc();
+    const first = createStore();
+    const closeFirst = openWorkspace(first, doc);
+
+    setAll(first, [entry("a"), entry("b")]);
+    setDiscarded(first, ["b"]);
+    closeFirst();
+
+    // A second store bound to the same document, as when the document is
+    // opened again, copies the discarded rows along with the rows.
+    const second = createStore();
+    open.push(openWorkspace(second, doc));
+
+    expect(second.get(visibleIdsAtom)).toEqual(["a"]);
+  });
+
   test("closing it stops the atoms following the document", () => {
     const { store, doc, close } = workspace();
 
@@ -201,6 +263,42 @@ describe("two people in one workspace", () => {
         year: "1953",
       }),
     );
+  });
+
+  test("a row discarded in one workspace is hidden in the other", () => {
+    const mine = opened();
+    const yours = opened();
+
+    setAll(mine.store, [entry("a"), entry("b")]);
+    sync(mine.doc, yours.doc);
+
+    setDiscarded(mine.store, ["a"]);
+    sync(mine.doc, yours.doc);
+
+    expect(yours.store.get(visibleIdsAtom)).toEqual(["b"]);
+
+    // Bringing it back from the other workspace shows it in both.
+    resetDiscarded(yours.store);
+    sync(mine.doc, yours.doc);
+
+    expect(mine.store.get(visibleIdsAtom)).toEqual(["a", "b"]);
+  });
+
+  test("an undo reverts only this person's discard", () => {
+    const mine = opened();
+    const yours = opened();
+
+    setAll(mine.store, [entry("a"), entry("b")]);
+    sync(mine.doc, yours.doc);
+
+    setDiscarded(mine.store, ["a"]);
+    setDiscarded(yours.store, ["b"]);
+    sync(mine.doc, yours.doc);
+
+    documentOf(mine.store).undo.undo();
+    sync(mine.doc, yours.doc);
+
+    expect(yours.store.get(visibleIdsAtom)).toEqual(["a"]);
   });
 
   test("each adding a source to one row keeps both", () => {
