@@ -7,6 +7,8 @@ defmodule RichardBurton.InvitationTest do
 
   import Mox
 
+  alias Ecto.Adapters.SQL.Sandbox
+  alias RichardBurton.Auth.Access
   alias RichardBurton.Invitation
   alias RichardBurton.User
 
@@ -166,6 +168,68 @@ defmodule RichardBurton.InvitationTest do
       assert {:ok, admitted} = Invitation.admit(user.subject_id, user.email)
       assert admitted.role == :admin
     end
+
+    test "keeps an existing account's role when the offer waiting for it is lower, and closes the offer" do
+      expect_mail()
+
+      {:ok, {:invited, invitation}} =
+        Invitation.invite(%{"email" => "here@example.com", "role" => "reader"})
+
+      user = user_fixture("here@example.com", :contributor)
+
+      assert {:ok, admitted} = Invitation.admit(user.subject_id, user.email)
+      assert admitted.role == :contributor
+      assert User.get(user.subject_id).role == :contributor
+      refute is_nil(Invitation.get(invitation.id).accepted_at)
+    end
+
+    test "admits the last admin as an admin when the offer waiting for them is lower" do
+      expect_mail()
+      {:ok, _} = Invitation.invite(%{"email" => "here@example.com", "role" => "contributor"})
+
+      user = user_fixture("here@example.com", :admin)
+
+      assert {:ok, admitted} = Invitation.admit(user.subject_id, user.email)
+      assert admitted.role == :admin
+    end
+
+    # Tests that a subscriber which reads after the announcement finds the
+    # raised role. A subscriber reads on its own database connection, so it only
+    # sees committed rows. The test reads the same way, on a connection outside
+    # the SQL sandbox, because inside the sandbox every process shares the
+    # test's connection.
+    #
+    # The rows the test commits are deleted by `on_exit`. This module is not
+    # async, so no other test runs while those rows exist.
+    test "announces the raised role after it commits" do
+      subject_id = "sub-raised@example.com"
+      email = "raised@example.com"
+
+      on_exit(fn ->
+        unboxed(fn ->
+          Repo.delete_all(from(i in Invitation, where: i.email == ^email))
+          Repo.delete_all(from(u in User, where: u.subject_id == ^subject_id))
+        end)
+      end)
+
+      unboxed(fn ->
+        {:ok, _} = User.insert(%{"subject_id" => subject_id, "email" => email})
+        Repo.insert!(%Invitation{email: email, role: :contributor})
+      end)
+
+      test = self()
+
+      spawn_link(fn ->
+        Phoenix.PubSub.subscribe(RichardBurton.PubSub, Access.topic(subject_id))
+        send(test, :listening)
+        report_roles(test, subject_id)
+      end)
+
+      assert_receive :listening
+      {:ok, _} = unboxed(fn -> Invitation.admit(subject_id, email) end)
+
+      assert_receive {:role, :contributor}
+    end
   end
 
   describe "cancel/1 and resend/1" do
@@ -200,6 +264,19 @@ defmodule RichardBurton.InvitationTest do
         Invitation.invite(%{"email" => "z@example.com", "role" => "reader"})
 
       assert {:ok, ^invitation} = Invitation.resend(invitation)
+    end
+  end
+
+  # Runs `fun` on a connection outside the SQL sandbox, so its writes commit.
+  defp unboxed(fun), do: Sandbox.unboxed_run(Repo, fun)
+
+  # Each time this process receives `:access_changed`, sends `test` the role of
+  # the user with `subject_id`, read on a connection outside the SQL sandbox.
+  defp report_roles(test, subject_id) do
+    receive do
+      :access_changed ->
+        send(test, {:role, unboxed(fn -> User.get(subject_id).role end)})
+        report_roles(test, subject_id)
     end
   end
 end
