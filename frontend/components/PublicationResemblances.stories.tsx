@@ -86,3 +86,36 @@ export const ReadingBothWays: Story = {
     await expect(await screen.findByText("2 / 3")).toBeVisible();
   },
 };
+
+// The text of every highlight in the open review, in reading order.
+const highlighted = () =>
+  Array.from(
+    screen.getByRole("dialog").querySelectorAll("mark"),
+    (mark) => mark.textContent,
+  );
+
+/**
+ * Each card highlights the text it has that another card of the question
+ * lacks. Against the stored record, only the typo in the title differs. Between
+ * the two rows of the import, the title's last word, the translator's initial
+ * and the accented word of the original title differ.
+ */
+export const WhatDiffers: Story = {
+  play: async () => {
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+
+    await expect(highlighted()).toEqual(["Casmuro", "Casmurro"]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await expect(await screen.findByText("2 / 3")).toBeVisible();
+
+    await expect(highlighted()).toEqual([
+      "Backlands",
+      "L.",
+      "Sertão:",
+      "Backland",
+      "L",
+      "Sertao",
+    ]);
+  },
+};
