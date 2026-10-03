@@ -266,18 +266,18 @@ defmodule RichardBurtonWeb.PublicationController do
   # reconcilable and what the compensating action is; the client only names the
   # entry.
   def undo(conn, %{"id" => id, "version" => version}) do
-    with {:ok, version} <- version_of(version),
+    with {:ok, version} <- integer_of(version),
          {:ok, _publication} <- Publication.undo(id, version, actor(conn)) do
       send_resp(conn, :no_content, "")
     end
   end
 
-  # Parses the history version from the path. A version that is not a number
-  # cannot match an entry, so it returns `{:error, :not_found}` rather than a
-  # 400.
-  defp version_of(version) do
-    case Integer.parse(version) do
-      {version, ""} -> {:ok, version}
+  # Parses an integer from the path, such as an id or a history version. A value
+  # that is not a number cannot name a stored row, so it returns
+  # `{:error, :not_found}` rather than a 400.
+  defp integer_of(value) do
+    case Integer.parse(value) do
+      {integer, ""} -> {:ok, integer}
       _ -> {:error, :not_found}
     end
   end
@@ -371,11 +371,13 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   def validate(conn, params = %{"id" => id}) do
-    publication = Map.delete(params, "id")
+    with {:ok, id} <- integer_of(id) do
+      publication = Map.delete(params, "id")
 
-    conn
-    |> put_status(:ok)
-    |> json(validate_publication(publication, id))
+      conn
+      |> put_status(:ok)
+      |> json(validate_publication(publication, id))
+    end
   end
 
   # One publication validated without being written, reported as the record and
