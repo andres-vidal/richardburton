@@ -46,7 +46,7 @@ defmodule RichardBurton.Publisher do
   def maybe_insert!(attrs) do
     %__MODULE__{}
     |> changeset(attrs)
-    |> Repo.maybe_insert!([:name])
+    |> Repo.find_or_insert!(:name)
   end
 
   def all do

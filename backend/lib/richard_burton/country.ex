@@ -473,7 +473,7 @@ defmodule RichardBurton.Country do
     %__MODULE__{}
     |> changeset(attrs)
     |> put_names()
-    |> Repo.maybe_insert!([:code])
+    |> Repo.find_or_insert!(:code)
   end
 
   @doc "Returns every country, ordered by id, which is insertion order."
