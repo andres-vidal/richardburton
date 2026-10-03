@@ -1,0 +1,51 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightsStories from "./Insights.stories";
+
+<Meta of={InsightsStories} />
+
+# Insights
+
+Counts for every publication in the database, or for the ones a search
+matches. `Insights` is the content of the insights page at `/insights`, and
+`InsightsHeading` is the page's subheader.
+
+<Canvas of={InsightsStories.Everything} />
+
+## Props
+
+Both take a single `insights` prop, the response of `GET /insights`. Most of
+its counts are numbers of publications, so a book published twice counts
+twice.
+
+- **Figures** — see [Insight figures](?path=/docs/insights-insight-figures--docs).
+- **Publications by decade** — every decade from the first to the last,
+  including decades with no publications.
+- **Most translated authors**, **translators** and **publishers** — up to ten
+  names in each field with the most publications.
+- **Countries of publication** — every country, named in the reader's language.
+- **Works translated more than once** — a work is an original book, and a
+  translation is one translated text of it by its translators. This list
+  counts translations, so a translation published twice counts once.
+
+## Empty lists and empty results
+
+The list of works translated more than once is left out when no work has more
+than one translation. The other lists always have items when there are
+publications.
+
+<Canvas of={InsightsStories.NoWorkTranslatedTwice} />
+
+When a search matches no publications, the component shows a message instead
+of the figures and lists.
+
+<Canvas of={InsightsStories.NothingMatched} />
+
+## InsightsHeading
+
+`InsightsHeading` shows how many publications are counted, the links to the two
+views from `DatabaseSummary`, and the search box that filters what is counted.
+The backend parses the search the same way as for the index. The response's
+`matched` field is passed to `PublicationSearch` as its report.
+
+<Canvas of={InsightsStories.Heading} />

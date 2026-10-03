@@ -122,3 +122,27 @@ export const TakenAsWritten: Story = {
     ).toBeNull();
   },
 };
+
+/**
+ * The report comes from the `matched` prop, which is used instead of the
+ * publication store. This story does not seed the store.
+ */
+export const GivenMatches: Story = {
+  parameters: { nextjs: { navigation: { query: { search: "clarise" } } } },
+  args: {
+    matched: [
+      { field: null, typed: "clarise", words: ["clarice", "clara", "clarke"] },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(
+      canvas.getByRole("link", { name: "clarice" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "clarke" })).toHaveAttribute(
+      "href",
+      "?search=clarke",
+    );
+  },
+};

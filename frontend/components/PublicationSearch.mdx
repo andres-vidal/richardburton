@@ -36,6 +36,12 @@ wrap to as many lines as it needs. The control is offered whenever there is a
 report, since whether the line is actually clipped is a question only measuring
 the rendered text answers, and the answer changes with every resize.
 
+The `matched` prop sets the report directly. When it is given, the component
+uses it instead of the report in the publication store, so the search can be
+used where there is no publication store.
+
+<Canvas of={SearchStories.GivenMatches} />
+
 In stories the store is seeded through the shared fixtures:
 
 ```tsx

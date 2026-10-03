@@ -77,7 +77,16 @@ const SearchProgress: FC = () => {
   );
 };
 
-const PublicationSearch: FC = () => {
+type Props = {
+  /**
+   * The words the search in the URL matched with something other than what was
+   * typed. When it is not given, the component reads them from the publication
+   * store, where the index page keeps them.
+   */
+  matched?: Matched[];
+};
+
+const PublicationSearch: FC<Props> = (props) => {
   const t = useTranslations("search");
   const router = useRouter();
   const pathname = usePathname() ?? "";
@@ -86,7 +95,8 @@ const PublicationSearch: FC = () => {
   // reader is still on the page they typed into.
   const address = useAddressPathname();
   const searchParams = useSearchParams();
-  const matched = useMatched();
+  const stored = useMatched();
+  const matched = props.matched ?? stored;
   const [isNavigating, startTransition] = useTransition();
 
   const searchUrlParam = searchParams?.get("search") ?? "";

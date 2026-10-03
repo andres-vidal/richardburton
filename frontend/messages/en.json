@@ -34,6 +34,35 @@
     "matching": "{count, plural, =0 {No publications found} one {# publication found} other {# publications found}}",
     "admin": "Admin"
   },
+  "views": {
+    "label": "Ways of reading the database",
+    "list": "Publications",
+    "insights": "Insights"
+  },
+  "insights": {
+    "title": "Insights",
+    "description": "What the database holds, counted. Every figure counts publications, so a book published twice counts twice.",
+    "figures": "In figures",
+    "publications": "Publications",
+    "works": "Works",
+    "originalAuthors": "Original authors",
+    "translators": "Translators",
+    "publishers": "Publishers",
+    "countries": "Countries",
+    "years": "Years",
+    "span": "{first}–{last}",
+    "sourced": "Cite a source",
+    "sourcedOf": "{sourced} of {publications}",
+    "byDecade": "Publications by decade",
+    "decade": "{decade}s",
+    "leadingAuthors": "Most translated authors",
+    "leadingTranslators": "Translators with the most publications",
+    "leadingPublishers": "Publishers with the most publications",
+    "countriesOfPublication": "Countries of publication",
+    "retranslated": "Works translated more than once",
+    "translations": "{count, plural, one {# translation} other {# translations}}",
+    "nothing": "No publications match this search, so there is nothing to count."
+  },
   "search": {
     "placeholder": "Browse data about Brazilian literature in translation",
     "ariaLabel": "Search publications",

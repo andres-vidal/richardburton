@@ -34,6 +34,35 @@
     "matching": "{count, plural, =0 {Nenhuma publicação encontrada} one {# publicação encontrada} other {# publicações encontradas}}",
     "admin": "Administração"
   },
+  "views": {
+    "label": "Modos de ler a base de dados",
+    "list": "Publicações",
+    "insights": "Panorama"
+  },
+  "insights": {
+    "title": "Panorama",
+    "description": "O que a base de dados contém, em números. Cada número conta publicações, de modo que um livro publicado duas vezes conta duas vezes.",
+    "figures": "Em números",
+    "publications": "Publicações",
+    "works": "Obras",
+    "originalAuthors": "Autores originais",
+    "translators": "Tradutores",
+    "publishers": "Editoras",
+    "countries": "Países",
+    "years": "Anos",
+    "span": "{first}–{last}",
+    "sourced": "Citam uma fonte",
+    "sourcedOf": "{sourced} de {publications}",
+    "byDecade": "Publicações por década",
+    "decade": "Década de {decade}",
+    "leadingAuthors": "Autores mais traduzidos",
+    "leadingTranslators": "Tradutores com mais publicações",
+    "leadingPublishers": "Editoras com mais publicações",
+    "countriesOfPublication": "Países de publicação",
+    "retranslated": "Obras traduzidas mais de uma vez",
+    "translations": "{count, plural, one {# tradução} other {# traduções}}",
+    "nothing": "Nenhuma publicação corresponde a esta busca, então não há nada a contar."
+  },
   "search": {
     "placeholder": "Pesquise dados sobre a literatura brasileira em tradução",
     "ariaLabel": "Pesquisar publicações",
