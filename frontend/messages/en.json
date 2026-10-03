@@ -470,6 +470,7 @@
     "merged": "{from} folded into {to}",
     "collides": "That would leave two publications identical",
     "collidesDetail": "The spelling was the only thing telling them apart. Merge or correct them first, then rename this.",
+    "reviewDuplicates": "Open the duplicate review",
     "dismiss": "Close",
     "alsoSpelt": "Also here as",
     "onlyDoubtful": "{count, plural, one {# name may be a duplicate} other {# names may be duplicates}}",

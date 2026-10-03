@@ -204,4 +204,38 @@ test("a rename that would leave two publications identical is refused", async ({
   await expect(
     page.getByLabel("Name, currently Penguin books", { exact: true }),
   ).toBeVisible();
+
+  // The alert links to both publications, and to the duplicate review, which
+  // opens in a new tab.
+  await expect(
+    alert(page).getByRole("link", { name: "Dom Casmurro (1953)" }),
+  ).toHaveCount(2);
+
+  const [review] = await Promise.all([
+    page.context().waitForEvent("page"),
+    alert(page)
+      .getByRole("link", { name: "Open the duplicate review" })
+      .click(),
+  ]);
+
+  // The pair is waiting there. Merging it leaves one publication, which holds
+  // both spellings of the publisher.
+  await review
+    .getByRole("button", { name: "Merge into the selected one" })
+    .click();
+  await expect(review.getByText(/Merged 1 publication/)).toBeVisible();
+  await expect(review.getByText("Nothing to reconcile")).toBeVisible();
+  await review.close();
+
+  // Back on the names page, the same rename now goes through.
+  await alert(page).getByRole("button", { name: "Close" }).click();
+  await stray.fill("Penguin Books");
+  await stray.press("Enter");
+  await agreeToFold(page);
+
+  await expect(
+    page.getByText("Penguin books folded into Penguin Books"),
+  ).toBeVisible();
+  await expect(names(page)).toHaveCount(1);
+  await expect(names(page)).toContainText("1 publication");
 });

@@ -122,8 +122,9 @@ identity.
 The identity is a unique index, so the server refuses the whole rename and
 returns the two publications, which the page lists in an alert. The rename does
 not merge them. Merging publications is a separate action, in which the reader
-picks the publication to keep, and it can be undone. It is done on
-[Review duplicates](/admin/publications/duplicates).
+picks the publication to keep, and it can be undone. The alert links to each
+publication's page and to the duplicate review, where the pair can be merged.
+The links open in a new tab, so the rename can be tried again afterwards.
 
 <Canvas of={VocabularyListStories.WhenTwoPublicationsWouldCollide} />
 

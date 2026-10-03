@@ -11,6 +11,7 @@ import {
   type Kind,
   type Name,
 } from "modules/vocabulary";
+import { Link } from "i18n/navigation";
 import { useTranslations } from "next-intl";
 import { FC, useCallback, useEffect, useRef, useState } from "react";
 
@@ -119,7 +120,12 @@ const Entry: FC<{
   );
 };
 
-/** An alert listing the publications a rename would give the same identity. */
+/**
+ * An alert listing the publications a rename would give the same identity.
+ * Each publication links to its own page, and a further link opens the
+ * duplicate review, where such a pair can be merged. The links open in a new
+ * tab, so the rename can be tried again here afterwards.
+ */
 const Clash: FC<{ publications: Clashing[]; onDismiss: () => void }> = ({
   publications,
   onDismiss,
@@ -136,10 +142,25 @@ const Clash: FC<{ publications: Clashing[]; onDismiss: () => void }> = ({
       <ul className="text-sm text-red-800 list-disc list-inside">
         {publications.map((publication) => (
           <li key={publication.id}>
-            {publication.title} ({publication.year})
+            <Link
+              href={`/publications/${publication.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="anchor"
+            >
+              {publication.title} ({publication.year})
+            </Link>
           </li>
         ))}
       </ul>
+      <Link
+        href="/admin/publications/duplicates"
+        target="_blank"
+        rel="noreferrer"
+        className="inline-block text-sm anchor"
+      >
+        {t("reviewDuplicates")}
+      </Link>
       <Button
         label={t("dismiss")}
         variant="outline"
