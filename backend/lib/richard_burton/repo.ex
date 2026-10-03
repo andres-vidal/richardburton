@@ -53,16 +53,6 @@ defmodule RichardBurton.Repo do
   end
 
   @doc """
-  Returns the stored row whose `unique_key` fields equal the changeset's, and
-  inserts the changeset when there is none.
-  """
-  def maybe_insert!(changeset = %Ecto.Changeset{data: %schema{}}, unique_key) do
-    values = Enum.map(unique_key, &{&1, Ecto.Changeset.get_field(changeset, &1)})
-
-    get_by(schema, values) || insert!(changeset)
-  end
-
-  @doc """
   Returns the stored row whose id `find` returns for the changeset, and inserts
   the changeset when `find` returns nil.
 
