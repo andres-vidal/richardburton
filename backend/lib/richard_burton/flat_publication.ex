@@ -25,16 +25,6 @@ defmodule RichardBurton.FlatPublication do
   # and the bulk CSV import doesn't carry it.
   @writable_attributes [:sources | @required_attributes]
 
-  # The fields that make up a publication's composite key, as the changeset
-  # computes them.
-  @key [
-    :title,
-    :year,
-    :countries_fingerprint,
-    :publishers_fingerprint,
-    :translated_book_fingerprint
-  ]
-
   # The attributes that hold several values. An empty list is not "blank" to
   # `validate_required/2`, so saying a record has no countries at all takes a
   # length of its own.
@@ -118,7 +108,7 @@ defmodule RichardBurton.FlatPublication do
   def key(attrs) do
     changeset = changeset(%FlatPublication{}, attrs)
 
-    if changeset.valid?, do: Enum.map(@key, &get_field(changeset, &1))
+    if changeset.valid?, do: changeset |> apply_changes() |> Identity.publication_key()
   end
 
   def validate(attrs, exclude_id \\ nil) do

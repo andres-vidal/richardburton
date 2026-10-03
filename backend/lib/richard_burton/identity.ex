@@ -20,6 +20,8 @@ defmodule RichardBurton.Identity do
   find the stored row with a key (see the migration
   `LookUpCompositeKeysInTheDatabase`), and `original_book_with_key/2`,
   `translated_book_with_key/2` and `publication_with_key/2` call them.
+  `publication_key/1` asks the database for the key of a publication that is
+  not stored.
 
   The keys are checked when a transaction commits, because a row's links are
   written one by one after the row, and until the last one is written the row
@@ -89,6 +91,30 @@ defmodule RichardBurton.Identity do
         excluded
       ]
     )
+  end
+
+  @doc """
+  Returns the composite key of `publication`, which holds the fields in
+  `t:key_fields/0`, as the database compares it: the title, year and original
+  title as they are, and the fingerprint of each list of names.
+
+  Two publications have the same key exactly when the database would refuse to
+  store both of them.
+  """
+  @spec publication_key(key_fields()) :: [term()]
+  def publication_key(publication) do
+    %{rows: [fingerprints]} =
+      Repo.query!(
+        "SELECT rb_set_fingerprint($1), rb_set_fingerprint($2), rb_set_fingerprint($3), rb_set_fingerprint($4)",
+        [
+          publication.countries,
+          publication.publishers,
+          publication.authors,
+          publication.original_authors
+        ]
+      )
+
+    [publication.title, publication.year, publication.original_title | fingerprints]
   end
 
   # Runs a query that returns one value, and returns that value.
