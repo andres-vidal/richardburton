@@ -33,4 +33,20 @@ defmodule RichardBurton.Repo do
 
     get_by(schema, values) || insert!(changeset)
   end
+
+  @doc """
+  Returns the stored row whose id `find` returns for the changeset, and inserts
+  the changeset when `find` returns nil.
+
+  `find` is for a key the row's own columns cannot be compared on, such as a
+  composite key with a fingerprint. After an insert, `fields` are read back with
+  `refresh/2`, because the database writes the fingerprints after the row's
+  links are saved.
+  """
+  def maybe_insert!(changeset = %Ecto.Changeset{data: %schema{}}, find, fields) do
+    case find.(changeset) do
+      nil -> changeset |> insert!() |> refresh(fields)
+      id -> get!(schema, id)
+    end
+  end
 end

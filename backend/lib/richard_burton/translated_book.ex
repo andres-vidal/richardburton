@@ -57,19 +57,21 @@ defmodule RichardBurton.TranslatedBook do
   and the translators are found, or inserted, first.
   """
   def maybe_insert!(attrs) do
-    changeset =
-      %TranslatedBook{}
-      |> changeset(attrs)
-      |> OriginalBook.link()
-      |> Author.link()
+    %TranslatedBook{}
+    |> changeset(attrs)
+    |> OriginalBook.link()
+    |> Author.link()
+    |> Repo.maybe_insert!(&stored_id/1, [:authors_fingerprint])
+  end
 
+  # Returns the id of the stored translated book with the key of `changeset`,
+  # the same original book and the same translators' names, or nil when there is
+  # none.
+  defp stored_id(changeset) do
     original_book = get_field(changeset, :original_book)
     names = changeset |> get_field(:authors) |> Enum.map(&Author.get_name/1)
 
-    case Identity.translated_book_with_key(original_book.id, names) do
-      nil -> changeset |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
-      id -> Repo.get!(TranslatedBook, id)
-    end
+    Identity.translated_book_with_key(original_book.id, names)
   end
 
   def all() do

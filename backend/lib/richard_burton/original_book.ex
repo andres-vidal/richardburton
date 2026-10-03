@@ -56,13 +56,18 @@ defmodule RichardBurton.OriginalBook do
   inserted, first.
   """
   def maybe_insert!(attrs) do
-    changeset = %OriginalBook{} |> changeset(attrs) |> Author.link()
+    %OriginalBook{}
+    |> changeset(attrs)
+    |> Author.link()
+    |> Repo.maybe_insert!(&stored_id/1, [:authors_fingerprint])
+  end
+
+  # Returns the id of the stored original book with the key of `changeset`, the
+  # same title and the same authors' names, or nil when there is none.
+  defp stored_id(changeset) do
     names = changeset |> get_field(:authors) |> Enum.map(&Author.get_name/1)
 
-    case Identity.original_book_with_key(get_field(changeset, :title), names) do
-      nil -> changeset |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
-      id -> Repo.get!(OriginalBook, id)
-    end
+    Identity.original_book_with_key(get_field(changeset, :title), names)
   end
 
   def all() do
