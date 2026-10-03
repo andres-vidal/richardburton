@@ -31,10 +31,27 @@ defmodule RichardBurton.Identity do
 
   @keys ~w(original_books_composite_key translated_books_composite_key publications_composite_key)
 
+  @typedoc """
+  The fields of a flat publication that its composite key is built from. Names
+  and country codes are lists, in any order. Other fields are allowed and
+  ignored.
+  """
+  @type key_fields :: %{
+          required(:title) => String.t(),
+          required(:year) => integer(),
+          required(:countries) => [String.t()],
+          required(:publishers) => [String.t()],
+          required(:authors) => [String.t()],
+          required(:original_title) => String.t(),
+          required(:original_authors) => [String.t()],
+          optional(atom()) => any()
+        }
+
   @doc """
   Returns the id of the stored original book titled `title` and written by
   `authors`, a list of names in any order, or nil when there is none.
   """
+  @spec original_book_with_key(String.t(), [String.t()]) :: pos_integer() | nil
   def original_book_with_key(title, authors) do
     value("SELECT rb_original_book_with_key($1, $2)", [title, authors])
   end
@@ -44,6 +61,7 @@ defmodule RichardBurton.Identity do
   `original_book_id` by `translators`, a list of names in any order, or nil
   when there is none.
   """
+  @spec translated_book_with_key(pos_integer() | nil, [String.t()]) :: pos_integer() | nil
   def translated_book_with_key(original_book_id, translators) do
     value("SELECT rb_translated_book_with_key($1, $2)", [original_book_id, translators])
   end
@@ -53,10 +71,10 @@ defmodule RichardBurton.Identity do
   `publication`, or nil when there is none. The publication with the id
   `excluded` is left out, so an edit does not match the publication it edits.
 
-  `publication` is a map with the flat fields `:title`, `:year`, `:countries`
-  (codes), `:publishers`, `:authors` (the translators), `:original_title` and
-  `:original_authors`.
+  `publication` holds the fields in `t:key_fields/0`, where `:authors` are the
+  translators.
   """
+  @spec publication_with_key(key_fields(), pos_integer() | nil) :: pos_integer() | nil
   def publication_with_key(publication, excluded \\ nil) do
     value(
       "SELECT rb_publication_with_key($1, $2, $3, $4, $5, $6, $7, $8)",
@@ -87,6 +105,7 @@ defmodule RichardBurton.Identity do
   are deferred again afterwards, so the next write in the same transaction can
   pass through states that match another key, as the first could.
   """
+  @spec settle() :: :ok | {:error, :conflict}
   def settle do
     Repo.query!("SET CONSTRAINTS ALL IMMEDIATE")
     Repo.query!("SET CONSTRAINTS ALL DEFERRED")
