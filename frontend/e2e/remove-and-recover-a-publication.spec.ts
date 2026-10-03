@@ -119,22 +119,62 @@ test("an admin deletes a publication; it leaves the index and search, and the sa
   await expectPublicationCount(page, CORPUS_SIZE);
   await expectPublicationRow(page, IRACEMA);
 
-  // Restoring the stale tombstone fails gracefully: its twin now owns the
-  // composite key, so the restore answers a conflict instead of crashing.
+  // Restoring the stale tombstone is refused, since its twin now has the
+  // composite key. A dialog shows the twin and offers to restore the tombstone
+  // with changes, which it cannot be without.
   await page.goto("/admin/publications/deleted");
-  await page.getByRole("button", { name: "Restore" }).click();
-  await expect(page.getByText(/imported again/)).toBeVisible();
+  const trashed = page.getByRole("listitem").filter({ hasText: IRACEMA.title });
+  await trashed.getByRole("button", { name: "Restore" }).click();
 
-  // The trash still lists it — the failed restore changed nothing — while the
-  // feed keeps every event: two deletes and a restore, each attributed. The
-  // two views answer different questions about the same record.
+  const offer = page.getByRole("dialog", {
+    name: "Another publication is identical to this one",
+  });
+  await expect(offer).toBeVisible();
   await expect(
-    page.getByRole("listitem").filter({ hasText: IRACEMA.title }),
-  ).toHaveCount(1);
+    offer.getByRole("link", { name: "Open this record" }),
+  ).toBeVisible();
+  const restoreChanged = offer.getByRole("button", {
+    name: "Restore with these changes",
+  });
+  await expect(restoreChanged).toBeDisabled();
 
+  // Closing the dialog changes nothing: the trash still lists the record.
+  await page.keyboard.press("Escape");
+  await expect(offer).toHaveCount(0);
+  await expect(trashed).toHaveCount(1);
+
+  // Given another year, the tombstone is a later printing, and the restore goes
+  // through. The twin's card highlights the year it no longer shares.
+  await trashed.getByRole("button", { name: "Restore" }).click();
+  const year = offer.getByRole("textbox", { name: "Year" });
+  await year.fill("1887");
+  await year.blur();
+
+  await expect(restoreChanged).toBeEnabled({ timeout: 15_000 });
+  await expect(offer.locator("mark", { hasText: "1886" })).toBeVisible();
+
+  await restoreChanged.click();
+  await expect(page.getByText("Publication restored")).toBeVisible();
+  await expect(
+    page.getByText("no publication is currently deleted"),
+  ).toBeVisible();
+
+  // Both printings are in the database.
+  await page.goto("/");
+  await expectPublicationCount(page, CORPUS_SIZE + 1);
+  const printings = indexTable(page)
+    .getByRole("row")
+    .filter({ hasText: IRACEMA.title });
+  await expect(printings).toHaveCount(2);
+  await expect(printings.filter({ hasText: "1886" })).toHaveCount(1);
+  await expect(printings.filter({ hasText: "1887" })).toHaveCount(1);
+
+  // The feed keeps every event, each attributed: two deletes, two restores,
+  // and the edit the second restore was made with.
   await page.goto("/admin/publications/history");
-  await expect(page.locator('li[data-action="restored"]')).toHaveCount(1);
+  await expect(page.locator('li[data-action="restored"]')).toHaveCount(2);
   await expect(page.locator('li[data-action="deleted"]')).toHaveCount(2);
+  await expect(page.locator('li[data-action="updated"]')).toHaveCount(1);
   await expect(page.getByText(`“${IRACEMA.title}”`).first()).toBeVisible();
   await expect(page.getByText("by dev-admin@localhost").first()).toBeVisible();
 });

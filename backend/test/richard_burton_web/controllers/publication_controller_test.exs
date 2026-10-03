@@ -512,7 +512,25 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert 2 == Enum.count(entries, &(&1["action"] == "deleted"))
     end
 
-    test "restoring is a conflict when the same record was imported again", meta do
+    test "restoring is a conflict when the same record was imported again, and names it",
+         meta do
+      expect_auth_authorize_admin()
+
+      {:ok, twin} =
+        @publication_attrs
+        |> Publication.Codec.nest()
+        |> Publication.insert()
+
+      conn = post(meta.conn, publication_path(meta.conn, :restore, meta.publication.id))
+
+      assert %{"error" => "conflict", "publication" => %{"id" => id, "title" => title}} =
+               json_response(conn, 409)
+
+      assert id == twin.id
+      assert title == @publication_attrs["title"]
+    end
+
+    test "a restore with changes applies them, so it no longer conflicts", meta do
       expect_auth_authorize_admin()
 
       {:ok, _twin} =
@@ -520,8 +538,17 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> Publication.Codec.nest()
         |> Publication.insert()
 
-      conn = post(meta.conn, publication_path(meta.conn, :restore, meta.publication.id))
-      assert json_response(conn, 409) == %{"error" => "conflict"}
+      conn =
+        post(
+          meta.conn,
+          publication_path(meta.conn, :restore, meta.publication.id),
+          %{@publication_attrs | "year" => "1887"}
+        )
+
+      assert response(conn, 204)
+
+      assert %Publication{deleted_at: nil, year: 1887} =
+               RichardBurton.Repo.get(Publication, meta.publication.id)
     end
 
     test "restoring a live or unknown publication is not found", meta do

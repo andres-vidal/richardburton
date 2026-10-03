@@ -29,7 +29,7 @@ defmodule RichardBurton.Publication do
   """
   use Ecto.Schema
   import Ecto.Changeset
-  import Ecto.Query, only: [order_by: 2]
+  import Ecto.Query, only: [from: 2, order_by: 2]
   import RichardBurton.Validation
 
   require Ecto.Query
@@ -211,7 +211,7 @@ defmodule RichardBurton.Publication do
 
   @doc """
   Soft-delete a publication: stamp `deleted_at`, so every read path hides it
-  while its row, sources, and history survive — and `restore/2` can bring
+  while its row, sources, and history survive — and `restore/3` can bring
   it back. The final state rides along in the history snapshot.
   """
   def delete(id, actor \\ History.system_actor()) do
@@ -254,8 +254,13 @@ defmodule RichardBurton.Publication do
     delete(id, actor)
   end
 
+  # Undoing a delete restores the record as it was. When another record now has
+  # its composite key, the undo is a plain conflict.
   defp compensate(%{action: "deleted", publication_id: id}, _previous, _head, actor) do
-    restore(id, actor)
+    case restore(id, actor) do
+      {:error, {:conflict, _twin}} -> {:error, :conflict}
+      result -> result
+    end
   end
 
   defp compensate(entry = %{action: "updated", publication_id: id}, previous, head, actor) do
@@ -502,15 +507,86 @@ defmodule RichardBurton.Publication do
   end
 
   @doc """
-  Bring a soft-deleted publication back into the database.
+  Bring a soft-deleted publication back into the database. When `changes` are
+  given, they are applied to the publication first, in the same transaction,
+  and recorded as an update before the restore.
 
   Only one that someone deleted. A record absorbed by a merge is out of the
   database the same way, but it is not in the trash and does not come back on
   its own: `{:error, :absorbed}` says to take the merge apart instead.
+
+  When a publication that is not deleted has the same composite key, which
+  happens when the same record was imported again or a name was corrected to
+  match, the result is `{:error, {:conflict, twin}}`, where `twin` is that
+  publication. Nothing is written then, not even the changes. Changes that do
+  not validate return their errors and write nothing either.
   """
-  def restore(id, actor \\ History.system_actor()) do
+  def restore(id, actor \\ History.system_actor(), changes \\ nil) do
     with {:ok, publication} <- deleted_on_its_own(id) do
-      stamp_deleted(publication, nil, :restored, actor)
+      Repo.transaction(fn ->
+        publication
+        |> amend(changes, actor)
+        |> lift(actor)
+      end)
+      |> case do
+        {:ok, restored} ->
+          Index.Refresher.refresh()
+          {:ok, restored}
+
+        error ->
+          error
+      end
+    end
+  end
+
+  # Applies `changes` to a deleted publication and records them as an update.
+  # Without changes, returns the publication as it is. Rolls back with the
+  # errors when the changes do not validate.
+  defp amend(publication, nil, _actor), do: publication
+
+  defp amend(publication, changes, actor) do
+    case update_and_record(publication, changes, actor) do
+      {:ok, {amended, _changed?}} -> amended
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  # Clears `deleted_at` and records the restore. Rolls back with
+  # `{:conflict, twin}` when another publication that is not deleted has the
+  # same composite key.
+  #
+  # The twin is looked for before writing, because a failed statement aborts the
+  # transaction and the twin could not be read after it. The unique index still
+  # catches a twin written in the meantime, as a plain `:conflict`.
+  defp lift(publication, actor) do
+    publication = preload(publication)
+
+    with nil <- twin(publication),
+         {:ok, _} <- publication |> tombstone(nil) |> Repo.update() do
+      History.record(:restored, publication, actor)
+      publication
+    else
+      twin = %Publication{} -> Repo.rollback({:conflict, twin})
+      {:error, changeset} -> Repo.rollback(Validation.get_errors(changeset))
+    end
+  end
+
+  # Returns the publication that is not deleted and has the same composite key
+  # as `publication`, preloaded, or nil when there is none.
+  defp twin(publication) do
+    from(p in Publication,
+      where:
+        is_nil(p.deleted_at) and p.id != ^publication.id and
+          p.title == ^publication.title and p.year == ^publication.year and
+          p.publishers_fingerprint == ^publication.publishers_fingerprint and
+          p.countries_fingerprint == ^publication.countries_fingerprint and
+          p.translated_book_fingerprint == ^publication.translated_book_fingerprint,
+      limit: 1
+    )
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      found -> preload(found)
     end
   end
 
@@ -526,9 +602,7 @@ defmodule RichardBurton.Publication do
     end
   end
 
-  # Sets or clears `deleted_at` and records the entry, in one transaction. The
-  # same path serves delete and restore, which differ only in the timestamp and
-  # the action recorded.
+  # Sets `deleted_at` and records `action`, in one transaction.
   defp stamp_deleted(publication, deleted_at, action, actor) do
     publication = preload(publication)
 
