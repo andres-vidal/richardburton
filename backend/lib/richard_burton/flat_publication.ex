@@ -80,28 +80,19 @@ defmodule RichardBurton.FlatPublication do
   end
 
   defp validate_changeset(changeset = %{valid?: true}, exclude_id) do
-    conflict =
-      changeset
-      |> same_publication()
-      |> exclude_self(exclude_id)
-      |> Repo.exists?()
-
-    if conflict do
-      {:error, :conflict}
-    else
-      :ok
-    end
+    if key_taken?(changeset, exclude_id), do: {:error, :conflict}, else: :ok
   end
 
-  # Builds the query for the stored publications, not deleted, with the same
-  # composite key as `changeset`: the same title and year, the same publishers
+  # Returns whether a stored publication that is not deleted already has the
+  # composite key of `changeset`: the same title and year, the same publishers
   # and countries, and the same translated book, which is the same translators
   # of the same original book. Each set of names is compared by its fingerprint,
-  # so the order of the names does not matter.
+  # so the order of the names does not matter. The publication with
+  # `exclude_id` is left out, so an edit does not count against itself.
   #
   # It reads the tables rather than the materialized view, or a publication
   # inserted since the last refresh would not count.
-  defp same_publication(changeset) do
+  defp key_taken?(changeset, exclude_id) do
     [title, year, countries, publishers, translators, original_title, original_authors] =
       Enum.map(
         [:title, :year, :countries, :publishers, :authors, :original_title, :original_authors],
@@ -118,6 +109,8 @@ defmodule RichardBurton.FlatPublication do
       where: ob.title == ^original_title,
       where: ob.authors_fingerprint == fingerprint(^original_authors)
     )
+    |> exclude_self(exclude_id)
+    |> Repo.exists?()
   end
 
   # The row being re-validated during an edit must not count as a conflict with
