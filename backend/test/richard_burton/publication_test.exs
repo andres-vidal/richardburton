@@ -12,7 +12,6 @@ defmodule RichardBurton.PublicationTest do
   alias RichardBurton.Source
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Util
-  alias RichardBurton.Validation
 
   @valid_attrs %{
     "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
@@ -141,12 +140,10 @@ defmodule RichardBurton.PublicationTest do
       refute change_valid(%{"translated_book" => nil}).valid?
     end
 
-    test "when a publication with the provided attributes already exists, is invalid" do
-      {:ok, _} = insert(@valid_attrs)
-      {:error, changeset} = insert(@valid_attrs)
+    test "when a publication with the provided attributes already exists, is refused" do
+      insert_publication()
 
-      refute changeset.valid?
-      assert :conflict == Validation.get_errors(changeset)
+      assert {:error, :conflict} = Publication.insert(@valid_attrs)
     end
 
     test "has no side effects" do
@@ -343,9 +340,13 @@ defmodule RichardBurton.PublicationTest do
         )
 
       assert ["US"] == Enum.map(updated.countries, & &1.code)
-      # The stored fingerprint reflects the new country, not the stale one.
-      refute updated.countries_fingerprint == original_fingerprint
-      assert Country.fingerprint(["US"]) == updated.countries_fingerprint
+
+      # The database rewrote the stored fingerprint for the new country.
+      stored = Repo.get!(Publication, publication.id).countries_fingerprint
+      %{rows: [[expected]]} = Repo.query!("SELECT rb_set_fingerprint($1)", [["US"]])
+
+      refute stored == original_fingerprint
+      assert stored == expected
     end
 
     test "repoints the translated book when the original fields change, leaving the old one" do
@@ -667,6 +668,46 @@ defmodule RichardBurton.PublicationTest do
         )
 
       {winner, loser}
+    end
+
+    test "the winner may take on the key one of its losers held" do
+      # The same publication twice, the loser naming one more publisher. Merged,
+      # the winner names both, which is the loser's key. The key is checked once
+      # the loser is tombstoned, so the merge goes through.
+      winner = insert_publication()
+
+      loser =
+        insert_publication(
+          Map.update!(@valid_attrs, "publishers", &(&1 ++ [%{"name" => "Noonday Press"}]))
+        )
+
+      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
+      assert length(merged.publishers) == 2
+    end
+
+    test "undoing a merge in which the winner took a loser's key gives each its own key back" do
+      # The loser comes back holding the key the merged winner still holds, and
+      # the winner's revert then gives it up. The key is checked once both are
+      # written, so the undo goes through.
+      winner = insert_publication()
+
+      loser =
+        insert_publication(
+          Map.update!(@valid_attrs, "publishers", &(&1 ++ [%{"name" => "Noonday Press"}]))
+        )
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+      [merge | _] = History.of(winner.id)
+
+      assert {:ok, _} = Publication.undo(winner.id, merge.version)
+
+      assert %Publication{deleted_at: nil} = Repo.get(Publication, loser.id)
+
+      assert ["Bickers & Son"] ==
+               Publication.find(winner.id).publishers |> Enum.map(& &1.name)
+
+      assert ["Bickers & Son", "Noonday Press"] ==
+               Publication.find(loser.id).publishers |> Enum.map(& &1.name) |> Enum.sort()
     end
 
     test "the winner keeps what names it and gains what the loser held" do

@@ -26,9 +26,9 @@ defmodule RichardBurton.Publication.History do
   # Mutations outside a request (seeds, mix tasks) are attributed to "system".
   @system_actor "system"
 
-  # Snapshot keys the server owns rather than an editor: the surrogate id and
-  # the fingerprints kept for conflict detection. Never diffed, and stripped
-  # before a snapshot is fed back through the write path.
+  # Snapshot keys the server owns rather than an editor: the surrogate id, and
+  # the fingerprints that snapshots already in the log carry. Never diffed, and
+  # stripped before a snapshot is fed back through the write path.
   @derived ~w[id countries_fingerprint translated_book_fingerprint publishers_fingerprint]
 
   # Sources are compared as a list rather than as a value, so they are

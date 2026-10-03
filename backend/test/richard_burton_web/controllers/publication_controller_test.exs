@@ -1554,6 +1554,14 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert result["errors"] == "conflict"
     end
+
+    test "answers 404 for an id that is not a number", meta do
+      expect_auth_authorize_admin()
+
+      meta.conn
+      |> post("/api/publications/abc/validate", @publication_attrs)
+      |> json_response(404)
+    end
   end
 
   defp insert_publication(attrs) do
