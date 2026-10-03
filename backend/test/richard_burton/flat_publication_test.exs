@@ -7,7 +7,6 @@ defmodule RichardBurton.FlatPublicationTest do
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
   alias RichardBurton.Util
-  alias RichardBurton.Validation
 
   @valid_attrs %{
     "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
@@ -95,12 +94,11 @@ defmodule RichardBurton.FlatPublicationTest do
       assert change_valid(%{"year" => 2000}).valid?
     end
 
-    test "when a publication with the provided attributes already exists, is invalid" do
-      {:ok, _} = insert(@valid_attrs)
-      {:error, changeset} = insert(@valid_attrs)
+    test "when a publication with the provided attributes already exists, is refused" do
+      insert_publication(@valid_attrs)
 
-      refute changeset.valid?
-      assert :conflict == Validation.get_errors(changeset)
+      assert {:error, :conflict} =
+               @valid_attrs |> Publication.Codec.nest() |> Publication.insert()
     end
 
     # A spreadsheet says what a person calls a country, not what the database
@@ -143,14 +141,18 @@ defmodule RichardBurton.FlatPublicationTest do
     # The whole point of filing it under the code: an import that says "UK" and
     # one that says "GB" are the same record, and the second is a duplicate.
     test "a record imported as UK is the record imported as GB" do
-      {:ok, publication} = insert(Map.put(@valid_attrs, "countries", ["UK"]))
+      publication = insert_publication(Map.put(@valid_attrs, "countries", ["UK"]))
 
       codes =
         publication |> Repo.preload(:countries) |> Map.get(:countries) |> Enum.map(& &1.code)
 
       assert codes == ["GB"]
-      assert {:error, changeset} = insert(Map.put(@valid_attrs, "countries", ["GB"]))
-      assert :conflict == Validation.get_errors(changeset)
+
+      assert {:error, :conflict} =
+               @valid_attrs
+               |> Map.put("countries", ["GB"])
+               |> Publication.Codec.nest()
+               |> Publication.insert()
     end
   end
 

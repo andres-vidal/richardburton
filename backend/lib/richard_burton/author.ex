@@ -10,7 +10,6 @@ defmodule RichardBurton.Author do
   alias RichardBurton.Repo
   alias RichardBurton.OriginalBook
   alias RichardBurton.TranslatedBook
-  alias RichardBurton.Fingerprint
 
   @readable_attributes [:name]
 
@@ -61,23 +60,6 @@ defmodule RichardBurton.Author do
   end
 
   def link(changeset = %{valid?: false}), do: changeset
-
-  def fingerprint(authors) when is_list(authors) do
-    authors
-    |> Enum.map(&get_name/1)
-    |> Fingerprint.of_set()
-  end
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: true}) do
-    authors_fingerprint =
-      changeset
-      |> get_field(:authors)
-      |> fingerprint
-
-    put_change(changeset, :authors_fingerprint, authors_fingerprint)
-  end
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: false}), do: changeset
 
   @spec search(binary(), :fuzzy | :prefix) :: any()
   def search(term, :prefix) when is_binary(term) do

@@ -3,6 +3,7 @@ defmodule RichardBurton.Validation do
   Utilities for data validation
   """
 
+  alias RichardBurton.Identity
   alias RichardBurton.Repo
 
   def validate(changeset, link_assocs) do
@@ -13,11 +14,12 @@ defmodule RichardBurton.Validation do
   end
 
   # Validates inside a transaction that is always rolled back, so constraints the
-  # database enforces are checked without writing anything.
+  # database enforces are checked without writing anything. The composite keys
+  # are deferred, so they are settled before the rollback.
   defp validate_transaction(changeset = %{valid?: true}, link_assocs) do
     Repo.transaction(fn ->
       case Repo.insert(link_assocs.(changeset)) do
-        {:ok, _changeset} -> Repo.rollback(:ok)
+        {:ok, _changeset} -> Repo.rollback(settled())
         {:error, changeset} -> Repo.rollback(get_errors(changeset))
       end
     end)
@@ -25,6 +27,15 @@ defmodule RichardBurton.Validation do
 
   defp validate_transaction(changeset = %{valid?: false}, _link_assocs) do
     {:error, get_errors(changeset)}
+  end
+
+  # Checks the deferred composite keys, and returns what the validation answers:
+  # `:ok`, or `:conflict` when the record would have the same key as another.
+  defp settled do
+    case Identity.settle() do
+      :ok -> :ok
+      {:error, reason} -> reason
+    end
   end
 
   @doc """
