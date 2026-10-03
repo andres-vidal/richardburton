@@ -1,24 +1,29 @@
 defmodule RichardBurton.OriginalBook do
   @moduledoc """
-  Schema for original books
+  An original book: a title and the authors who wrote it.
+
+  Two original books with the same title and the same authors are the same
+  book, and the database keeps only one (see `RichardBurton.Identity`).
+  `authors_fingerprint` is the fingerprint of the authors' names, which the
+  database writes, so the schema never writes it.
   """
   use Ecto.Schema
   import Ecto.Changeset
   import Ecto.Query
+  import RichardBurton.Identity, only: [fingerprint: 1]
   import RichardBurton.Validation
 
   alias RichardBurton.Author
   alias RichardBurton.Repo
   alias RichardBurton.OriginalBook
   alias RichardBurton.TranslatedBook
-  alias RichardBurton.Util
 
   @readable_attributes [:authors, :title]
 
   @derive {Jason.Encoder, only: @readable_attributes}
   schema "original_books" do
     field(:title, :string)
-    field(:authors_fingerprint, :binary)
+    field(:authors_fingerprint, :string, writable: :never)
 
     has_many(:translated_books, TranslatedBook)
 
@@ -43,18 +48,29 @@ defmodule RichardBurton.OriginalBook do
     |> validate_required([:title])
     |> validate_length(:authors, min: 1)
     |> validate_no_duplicates(:authors, :name, as: :original_authors)
-    |> Author.link_fingerprint()
-    |> unique_constraint(
-      [:authors_fingerprint, :title],
-      name: "original_books_composite_key"
-    )
   end
 
+  @doc """
+  Returns the stored original book with the same title and the same authors as
+  `attrs`, and inserts it when there is none. The authors are found by name, or
+  inserted, first.
+  """
   def maybe_insert!(attrs) do
-    %OriginalBook{}
-    |> changeset(attrs)
-    |> Author.link()
-    |> Repo.maybe_insert!([:authors_fingerprint, :title])
+    changeset = %OriginalBook{} |> changeset(attrs) |> Author.link()
+
+    Repo.one(same_book(changeset)) ||
+      changeset |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
+  end
+
+  # Builds the query for the stored original book with the same key as
+  # `changeset`: the same title, and the same authors' names in any order.
+  defp same_book(changeset) do
+    title = get_field(changeset, :title)
+    names = changeset |> get_field(:authors) |> Enum.map(&Author.get_name/1)
+
+    from(ob in OriginalBook,
+      where: ob.title == ^title and ob.authors_fingerprint == fingerprint(^names)
+    )
   end
 
   def all() do
@@ -145,21 +161,4 @@ defmodule RichardBurton.OriginalBook do
   end
 
   def link(changeset = %{valid?: false}), do: changeset
-
-  def fingerprint(%OriginalBook{title: title, authors_fingerprint: authors_fingerprint}) do
-    [title, authors_fingerprint]
-    |> Enum.join()
-    |> Util.create_fingerprint()
-  end
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: true}) do
-    original_book_fingerprint =
-      changeset
-      |> get_field(:original_book)
-      |> fingerprint
-
-    put_change(changeset, :original_book_fingerprint, original_book_fingerprint)
-  end
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: false}), do: changeset
 end

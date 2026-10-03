@@ -6,12 +6,12 @@ defmodule RichardBurton.OriginalBookTest do
   use RichardBurton.DataCase
 
   alias RichardBurton.Author
+  alias RichardBurton.Identity
 
   doctest RichardBurton.OriginalBook
   alias RichardBurton.Util
   alias RichardBurton.OriginalBook
   alias RichardBurton.TranslatedBook
-  alias RichardBurton.Validation
 
   @valid_attrs %{
     "title" => "Manuel de Moraes: crônica do século XVII",
@@ -33,9 +33,14 @@ defmodule RichardBurton.OriginalBookTest do
     attrs |> changeset() |> Repo.insert()
   end
 
+  # Inserts the book and reads back the fingerprint the database writes once
+  # its authors are linked.
   defp insert!(attrs) do
-    attrs |> changeset() |> Repo.insert!()
+    attrs |> changeset() |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
   end
+
+  # A changeset whose authors are already stored, as `maybe_insert!/1` builds it.
+  defp changeset_linked(book, attrs), do: book |> OriginalBook.changeset(attrs) |> Author.link()
 
   defp maybe_preload(changeset, true), do: OriginalBook.preload(changeset)
   defp maybe_preload(changeset, false), do: changeset
@@ -49,10 +54,6 @@ defmodule RichardBurton.OriginalBookTest do
 
   defp linked(changeset) do
     linked(changeset, preload: false)
-  end
-
-  defp linked_fingerprint(changeset = %Ecto.Changeset{}) do
-    get_change(changeset, :original_book_fingerprint)
   end
 
   describe "changeset/2" do
@@ -84,12 +85,14 @@ defmodule RichardBurton.OriginalBookTest do
       refute change_valid(%{"authors" => [%{"name" => nil}]}).valid?
     end
 
-    test "when a original book with the provided attributes already exists, is invalid" do
-      {:ok, _} = insert(@valid_attrs)
-      {:error, changeset} = insert(@valid_attrs)
+    test "the database refuses a second original book with the same title and authors" do
+      OriginalBook.maybe_insert!(@valid_attrs)
 
-      refute changeset.valid?
-      assert :conflict == Validation.get_errors(changeset)
+      # Inserted around the lookup in `maybe_insert!/1`, which would have found
+      # the first book.
+      %OriginalBook{} |> changeset_linked(@valid_attrs) |> Repo.insert!()
+
+      assert {:error, :conflict} = Identity.settle()
     end
 
     test "has no side effects" do
@@ -116,37 +119,29 @@ defmodule RichardBurton.OriginalBookTest do
       assert [original_book] == OriginalBook.all()
     end
 
-    test "translated books with diferrent authors must have different authors fingerprint" do
-      changeset1 = change_valid(%{"authors" => [%{"name" => "Machado de Assis"}]})
-      changeset2 = change_valid(%{"authors" => [%{"name" => "Erico Verissimo"}]})
+    test "the same authors in another order are the same book" do
+      book = OriginalBook.maybe_insert!(@valid_attrs)
 
-      authors_fingerprint1 = Ecto.Changeset.get_field(changeset1, :authors_fingerprint)
-      authors_fingerprint2 = Ecto.Changeset.get_field(changeset2, :authors_fingerprint)
+      again =
+        OriginalBook.maybe_insert!(%{
+          @valid_attrs
+          | "authors" => Enum.reverse(@valid_attrs["authors"])
+        })
 
-      refute authors_fingerprint1 == authors_fingerprint2
-    end
-  end
-
-  describe "fingerprint/1" do
-    test "given two original_books with different title, generates different fingerprints" do
-      original_book1 = %OriginalBook{title: "Iracema", authors_fingerprint: "ABC"}
-      original_book2 = %OriginalBook{title: "Ubirajara", authors_fingerprint: "ABC"}
-
-      refute OriginalBook.fingerprint(original_book1) == OriginalBook.fingerprint(original_book2)
+      assert again.id == book.id
     end
 
-    test "given two original_books with different authors_fingerprint, generates different fingerprints" do
-      original_book1 = %OriginalBook{title: "Iracema", authors_fingerprint: "ABC"}
-      original_book2 = %OriginalBook{title: "Iracema", authors_fingerprint: "ABD"}
+    test "the same title by other authors is another book" do
+      book = OriginalBook.maybe_insert!(@valid_attrs)
 
-      refute OriginalBook.fingerprint(original_book1) == OriginalBook.fingerprint(original_book2)
-    end
+      other =
+        OriginalBook.maybe_insert!(%{
+          @valid_attrs
+          | "authors" => [%{"name" => "Erico Verissimo"}]
+        })
 
-    test "given two original_books with the same title and authors_fingerprint, generates the same fingerprints" do
-      original_book1 = %OriginalBook{title: "Iracema", authors_fingerprint: "ABC"}
-      original_book2 = %OriginalBook{title: "Iracema", authors_fingerprint: "ABC"}
-
-      assert OriginalBook.fingerprint(original_book1) == OriginalBook.fingerprint(original_book2)
+      refute other.id == book.id
+      assert length(OriginalBook.all()) == 2
     end
   end
 
@@ -195,30 +190,6 @@ defmodule RichardBurton.OriginalBookTest do
       refute changeset.valid?
 
       assert Enum.empty?(OriginalBook.all())
-    end
-  end
-
-  describe "link_fingerprint/1" do
-    test "links fingerprint using to TranslatedBook changeset" do
-      changeset =
-        %TranslatedBook{}
-        |> TranslatedBook.changeset(@translated_book_attrs)
-        |> OriginalBook.link_fingerprint()
-
-      assert changeset.valid?
-
-      assert OriginalBook.fingerprint(linked(changeset)) == linked_fingerprint(changeset)
-    end
-
-    test "does not link fingerprint to invalid TranslatedBook changeset" do
-      changeset =
-        %TranslatedBook{}
-        |> TranslatedBook.changeset(%{})
-        |> OriginalBook.link_fingerprint()
-
-      refute changeset.valid?
-
-      assert is_nil(linked_fingerprint(changeset))
     end
   end
 

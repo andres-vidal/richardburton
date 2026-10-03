@@ -16,15 +16,6 @@ defmodule RichardBurton.Util do
     right
   end
 
-  def create_fingerprint(data) when is_binary(data) do
-    data |> sha256 |> Base.encode16()
-  end
-
-  # The hash the fingerprints are built from.
-  defp sha256(data) do
-    :crypto.hash(:sha256, data)
-  end
-
   @doc ~S"""
     Given an enumerable with atom keys, return the enumerable with string keys instead.
     Works for keyword lists, key-value tuples, maps and structs.

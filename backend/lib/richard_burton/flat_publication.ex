@@ -5,12 +5,11 @@ defmodule RichardBurton.FlatPublication do
   use Ecto.Schema
   import Ecto.Changeset
   import Ecto.Query
+  import RichardBurton.Identity, only: [fingerprint: 1]
 
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
-  alias RichardBurton.Publisher
   alias RichardBurton.Repo
-  alias RichardBurton.TranslatedBook
   alias RichardBurton.Validation
   alias RichardBurton.Country
 
@@ -48,10 +47,6 @@ defmodule RichardBurton.FlatPublication do
     field(:original_authors, {:array, :string})
     field(:sources, {:array, :string})
 
-    field(:countries_fingerprint, :string)
-    field(:translated_book_fingerprint, :string)
-    field(:publishers_fingerprint, :string)
-
     field(:excerpts, :map, virtual: true)
     field(:marked, :map, virtual: true)
   end
@@ -64,9 +59,6 @@ defmodule RichardBurton.FlatPublication do
     |> validate_any_values()
     |> Country.resolve_countries()
     |> Country.validate_countries()
-    |> Country.link_fingerprint()
-    |> Publisher.link_fingerprint()
-    |> TranslatedBook.link_fingerprint()
   end
 
   defp validate_any_values(changeset) do
@@ -88,24 +80,9 @@ defmodule RichardBurton.FlatPublication do
   end
 
   defp validate_changeset(changeset = %{valid?: true}, exclude_id) do
-    where =
-      Enum.map(
-        [
-          :title,
-          :year,
-          :countries_fingerprint,
-          :publishers_fingerprint,
-          :translated_book_fingerprint
-        ],
-        &{&1, get_field(changeset, &1)}
-      )
-
-    # The conflict check runs on the write path and must read the live table, not
-    # the materialized view, or a duplicate inserted since the last refresh would
-    # pass. The composite key belongs to `publications` — the columns the partial
-    # unique index covers — so the check queries that table directly.
     conflict =
-      from(p in Publication, where: ^where, where: is_nil(p.deleted_at))
+      changeset
+      |> same_publication()
       |> exclude_self(exclude_id)
       |> Repo.exists?()
 
@@ -114,6 +91,33 @@ defmodule RichardBurton.FlatPublication do
     else
       :ok
     end
+  end
+
+  # Builds the query for the stored publications, not deleted, with the same
+  # composite key as `changeset`: the same title and year, the same publishers
+  # and countries, and the same translated book, which is the same translators
+  # of the same original book. Each set of names is compared by its fingerprint,
+  # so the order of the names does not matter.
+  #
+  # It reads the tables rather than the materialized view, or a publication
+  # inserted since the last refresh would not count.
+  defp same_publication(changeset) do
+    [title, year, countries, publishers, translators, original_title, original_authors] =
+      Enum.map(
+        [:title, :year, :countries, :publishers, :authors, :original_title, :original_authors],
+        &get_field(changeset, &1)
+      )
+
+    from(p in Publication,
+      join: tb in assoc(p, :translated_book),
+      join: ob in assoc(tb, :original_book),
+      where: is_nil(p.deleted_at) and p.title == ^title and p.year == ^year,
+      where: p.countries_fingerprint == fingerprint(^countries),
+      where: p.publishers_fingerprint == fingerprint(^publishers),
+      where: tb.authors_fingerprint == fingerprint(^translators),
+      where: ob.title == ^original_title,
+      where: ob.authors_fingerprint == fingerprint(^original_authors)
+    )
   end
 
   # The row being re-validated during an edit must not count as a conflict with
