@@ -10,9 +10,11 @@ defmodule RichardBurton.VocabularyTest do
   use RichardBurton.DataCase
 
   alias RichardBurton.Author
+  alias RichardBurton.OriginalBook
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
+  alias RichardBurton.TranslatedBook
   alias RichardBurton.Vocabulary
 
   @base %{
@@ -36,9 +38,17 @@ defmodule RichardBurton.VocabularyTest do
 
   defp id_of(schema, name), do: Repo.get_by!(schema, name: name).id
 
+  # The parts of a publication's composite key that names reach: the
+  # fingerprint of its publishers, and its translated book with the
+  # fingerprints of the translators and of the original book's authors.
   defp fingerprints(publication) do
-    reloaded = Repo.get!(Publication, publication.id)
-    {reloaded.publishers_fingerprint, reloaded.translated_book_fingerprint}
+    reloaded =
+      Publication |> Repo.get!(publication.id) |> Repo.preload(translated_book: :original_book)
+
+    book = reloaded.translated_book
+
+    {reloaded.publishers_fingerprint,
+     {book.id, book.authors_fingerprint, book.original_book.authors_fingerprint}}
   end
 
   describe "all/1" do
@@ -268,6 +278,54 @@ defmodule RichardBurton.VocabularyTest do
   end
 
   describe "rename/3 onto a name already taken" do
+    test "two spellings of an original author fold their books, and the translations of each" do
+      # The same translation catalogued twice, the original author spelt two
+      # ways, in two printings.
+      kept = insert()
+
+      copy =
+        insert(%{
+          "year" => 1966,
+          "translated_book" => %{
+            "original_book" => %{"authors" => [%{"name" => "Machado de Assiz"}]}
+          }
+        })
+
+      assert {:ok, :merged} =
+               Vocabulary.rename(
+                 "authors",
+                 id_of(Author, "Machado de Assiz"),
+                 "Machado de Assis",
+                 true
+               )
+
+      # One original book and one translation are left, and both printings
+      # are of it.
+      assert Repo.aggregate(OriginalBook, :count) == 1
+      assert Repo.aggregate(TranslatedBook, :count) == 1
+      assert elem(fingerprints(copy), 1) == elem(fingerprints(kept), 1)
+    end
+
+    test "two translations folded into one keep two printings that differ only in year" do
+      insert()
+
+      insert(%{
+        "year" => 1966,
+        "translated_book" => %{"authors" => [%{"name" => "Helen Caldwel"}]}
+      })
+
+      assert {:ok, :merged} =
+               Vocabulary.rename(
+                 "authors",
+                 id_of(Author, "Helen Caldwel"),
+                 "Helen Caldwell",
+                 true
+               )
+
+      assert Repo.aggregate(TranslatedBook, :count) == 1
+      assert Repo.aggregate(Publication, :count) == 2
+    end
+
     test "the two become one, and its publications come with it" do
       kept = insert()
       stray = insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
