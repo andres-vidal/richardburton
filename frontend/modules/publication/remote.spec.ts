@@ -12,6 +12,7 @@ import {
   bulk,
   deletePublication,
   merge,
+  resemblances,
   restore,
   search,
   undo,
@@ -29,6 +30,8 @@ import {
   publicationFamily,
   publicationIdsAtom,
   remember,
+  resemblanceFamily,
+  rowErrorFamily,
   savedFamily,
   setAll,
   setField,
@@ -434,6 +437,37 @@ describe("validate", () => {
 
     expect(store.get(isValidatingAtom)).toBe(false);
     expect(mockNotify).toHaveBeenCalled();
+  });
+});
+
+describe("resemblances", () => {
+  test("names the rows of each entry by id, the repeated row included", async () => {
+    const [a, b, c] = [createId(), createId(), createId()];
+    const row = { title: "Dom Casmurro", authors: ["Helen Caldwell"] };
+    setAll(store, [
+      { id: a, publication: pub(row), errors: null },
+      { id: b, publication: pub({ title: "Iracema" }), errors: null },
+      { id: c, publication: pub(row), errors: null },
+    ]);
+    http.post.mockResolvedValue({
+      data: {
+        entries: [
+          { position: 0, stored: [], others: [2], repeats: null },
+          { position: 2, stored: [], others: [0], repeats: 0 },
+        ],
+      },
+    });
+
+    await resemblances(store, [a, b, c]);
+
+    expect(store.get(resemblanceFamily(a))).toEqual({
+      stored: [],
+      others: [c],
+      repeats: null,
+    });
+    expect(store.get(resemblanceFamily(b))).toBeNull();
+    expect(store.get(resemblanceFamily(c))?.repeats).toBe(a);
+    expect(store.get(rowErrorFamily(c))).toBe("repeated");
   });
 });
 

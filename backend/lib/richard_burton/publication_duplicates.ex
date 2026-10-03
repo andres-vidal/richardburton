@@ -6,7 +6,7 @@ defmodule RichardBurton.Publication.Duplicates do
   near-matches it cannot catch: a typo, a dropped accent, `St.` for `Saint`, a
   translator entered as "R. Burton" once and "Richard Burton" the next time.
 
-  Five words carry specific meanings here:
+  Six words carry specific meanings here:
 
     * **candidate pair** — two publications similar enough to be worth review.
     * **cluster** — a connected component of the candidate graph. If A matches B
@@ -18,6 +18,9 @@ defmodule RichardBurton.Publication.Duplicates do
     * **row** — a publication being imported that is not stored yet. It has no
       id, so `resemblances/1` refers to it by its position in the list it is
       given.
+    * **repeat** — a row with the same composite key as an earlier row in the
+      same list (see `FlatPublication.key/1`). The database would refuse to
+      store both rows, so a repeat is an error. A resemblance is not an error.
 
   Similarity is trigram distance, the measure the author lookup also uses, over
   the fields a duplicate would agree on. A pair is a candidate when the
@@ -179,13 +182,15 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   @doc """
-  Returns what each row resembles: the stored records, and the other rows in
-  the list.
+  Returns what each row resembles, among the stored records and the other rows
+  in the list, and which earlier row it repeats.
 
-  The result has one entry for each row that resembles something, in position
-  order. An entry holds `position`, the row's index in `rows`; `stored`, the
-  flat publications it resembles; and `others`, the positions of the other rows
-  it resembles. A row that resembles nothing has no entry.
+  The result has one entry for each row that resembles something or is a
+  repeat, in position order. An entry holds `position`, the row's index in
+  `rows`; `stored`, the flat publications it resembles; `others`, the positions
+  of the other rows it resembles; and `repeats`, the position of the first row
+  with the same composite key when the row is a repeat, or nil. A row that
+  resembles nothing and is not a repeat has no entry.
 
   Rows are string-keyed flat publications, the same shape validation takes.
   This function writes nothing. It does not check or record distinctions,
@@ -202,7 +207,19 @@ defmodule RichardBurton.Publication.Duplicates do
         {Repo.all(resembling_stored(measured)), Repo.all(resembling_each_other(measured))}
       end)
 
-    gather(stored, among_rows)
+    gather(stored, among_rows, repeats(rows))
+  end
+
+  # Maps the position of each repeat to the position of the first row with the
+  # same composite key. A row that is not valid has no key, so it repeats
+  # nothing.
+  defp repeats(rows) do
+    rows
+    |> Enum.with_index()
+    |> Enum.group_by(fn {row, _} -> FlatPublication.key(row) end, &elem(&1, 1))
+    |> Map.delete(nil)
+    |> Enum.flat_map(fn {_key, [first | later]} -> Enum.map(later, &{&1, first}) end)
+    |> Map.new()
   end
 
   # The fields of a row that the similarity rule reads.
@@ -243,14 +260,15 @@ defmodule RichardBurton.Publication.Duplicates do
 
   defp year(_year), do: nil
 
-  # Builds the result of `resemblances/1` from the two query results: one entry
-  # per row that resembles something, in position order. A pair of resembling
-  # rows appears in the `others` of both rows.
-  defp gather(stored, among_rows) do
+  # Builds the result of `resemblances/1` from the two query results and the
+  # repeats: one entry per row that resembles something or is a repeat, in
+  # position order. A pair of resembling rows appears in the `others` of both
+  # rows.
+  defp gather(stored, among_rows, repeats) do
     resembled = Enum.group_by(stored, & &1.position, & &1.record)
     others = adjacency(among_rows)
 
-    [resembled, others]
+    [resembled, others, repeats]
     |> Enum.flat_map(&Map.keys/1)
     |> Enum.uniq()
     |> Enum.sort()
@@ -258,7 +276,8 @@ defmodule RichardBurton.Publication.Duplicates do
       %{
         position: position,
         stored: Map.get(resembled, position, []),
-        others: others |> Map.get(position, []) |> Enum.sort()
+        others: others |> Map.get(position, []) |> Enum.sort(),
+        repeats: Map.get(repeats, position)
       }
     end)
   end
