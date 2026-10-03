@@ -108,7 +108,11 @@ export const Empty: Story = {
  */
 export const LooksLikeAStoredRecord: Story = {
   beforeEach: () =>
-    seed(store, 1, ["A source"], { stored: [STORED], others: [] }),
+    seed(store, 1, ["A source"], {
+      stored: [STORED],
+      others: [],
+      repeats: null,
+    }),
   play: async () => {
     const button = screen.getByRole("button", {
       name: "Resembles Dom Casmurro (1953).",
@@ -123,7 +127,8 @@ export const LooksLikeAStoredRecord: Story = {
  * accessible name gives the number of those rows.
  */
 export const LooksLikeOtherRowsOfTheImport: Story = {
-  beforeEach: () => seed(store, 1, [], { stored: [], others: [2, 3] }),
+  beforeEach: () =>
+    seed(store, 1, [], { stored: [], others: [2, 3], repeats: null }),
   play: async () => {
     await expect(
       screen.getByRole("button", {
@@ -138,7 +143,8 @@ export const LooksLikeOtherRowsOfTheImport: Story = {
  * click does not reach the row, so the row is not selected.
  */
 export const OpeningTheReview: Story = {
-  beforeEach: () => seed(store, 1, [], { stored: [STORED], others: [] }),
+  beforeEach: () =>
+    seed(store, 1, [], { stored: [STORED], others: [], repeats: null }),
   play: async () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Resembles Dom Casmurro (1953)." }),

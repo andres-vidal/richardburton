@@ -438,5 +438,38 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
       assert [] == Duplicates.resemblances([row(%{"authors" => []})])
     end
+
+    test "a row with the same key as an earlier row repeats it" do
+      assert [
+               %{position: 0, others: [1], repeats: nil},
+               %{position: 1, others: [0], repeats: 0}
+             ] = Duplicates.resemblances([row(%{}), row(%{})])
+    end
+
+    test "every later row with a key repeats the first row with it, whatever the order of its lists" do
+      two = %{"publishers" => ["Noonday Press", "Farrar"], "countries" => ["US", "GB"]}
+      reordered = %{"publishers" => ["Farrar", "Noonday Press"], "countries" => ["UK", "US"]}
+
+      entries =
+        Duplicates.resemblances([
+          row(two),
+          row(%{"title" => "Dom Casmuro"}),
+          row(reordered),
+          row(two)
+        ])
+
+      assert [nil, nil, 0, 0] == Enum.map(entries, & &1.repeats)
+    end
+
+    test "a row is not a repeat of a stored record, which validation reports instead" do
+      insert(%{})
+
+      assert [%{position: 0, repeats: nil, stored: [_]}] = Duplicates.resemblances([row(%{})])
+    end
+
+    test "rows that are not valid repeat nothing" do
+      assert [%{repeats: nil}, %{repeats: nil}] =
+               Duplicates.resemblances([row(%{"year" => ""}), row(%{"year" => ""})])
+    end
   end
 end

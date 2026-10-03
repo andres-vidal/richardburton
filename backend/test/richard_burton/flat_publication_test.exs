@@ -224,6 +224,73 @@ defmodule RichardBurton.FlatPublicationTest do
 
       assert expected == FlatPublication.validate(attrs)
     end
+
+    test "refuses an attribute that holds the same entry twice, as the insert does" do
+      for {attribute, entry} <- [
+            {:publishers, "Bickers & Son"},
+            {:countries, "GB"},
+            {:authors, "Richard Burton"},
+            {:original_authors, "J. M. Pereira da Silva"}
+          ] do
+        attrs = Map.put(@valid_attrs, Atom.to_string(attribute), [entry, entry])
+
+        assert {:error, %{attribute => :duplicate}} == validate(attrs)
+        assert validate(attrs) == attrs |> Publication.Codec.nest() |> Publication.validate()
+      end
+    end
+
+    test "compares countries by code, so a country and its code are the same entry" do
+      assert {:error, %{countries: :duplicate}} ==
+               validate(Map.put(@valid_attrs, "countries", ["GB", "UK"]))
+    end
+
+    test "refuses an attribute with a blank entry among others" do
+      for attribute <- [:publishers, :countries, :authors, :original_authors],
+          blank <- ["", "   "] do
+        attrs = Map.update!(@valid_attrs, Atom.to_string(attribute), &(&1 ++ [blank]))
+
+        assert {:error, %{attribute => :required}} == validate(attrs), inspect({attribute, blank})
+        assert {:error, _} = attrs |> Publication.Codec.nest() |> Publication.validate()
+      end
+    end
+
+    test "reports a blank entry before a repeated one" do
+      attrs = Map.put(@valid_attrs, "publishers", ["Bickers & Son", "Bickers & Son", ""])
+
+      assert {:error, %{publishers: :required}} == validate(attrs)
+    end
+  end
+
+  describe "key/1" do
+    test "is the same for the same publication with its lists in another order" do
+      reordered = %{
+        @valid_attrs
+        | "authors" => ["Isabel Burton", "Richard Burton"],
+          "countries" => ["UK"]
+      }
+
+      assert FlatPublication.key(@valid_attrs) == FlatPublication.key(reordered)
+    end
+
+    test "differs when any part of the key differs" do
+      for change <- [
+            %{"title" => "Manuel de Moraes"},
+            %{"year" => 1887},
+            %{"countries" => ["US"]},
+            %{"publishers" => ["Chatto & Windus"]},
+            %{"authors" => ["Richard Burton"]},
+            %{"original_title" => "Manuel de Moraes"},
+            %{"original_authors" => ["João Manuel Pereira da Silva"]}
+          ] do
+        refute FlatPublication.key(@valid_attrs) ==
+                 FlatPublication.key(Map.merge(@valid_attrs, change)),
+               inspect(change)
+      end
+    end
+
+    test "is nil for a publication that is not valid" do
+      assert nil == FlatPublication.key(Map.delete(@valid_attrs, "title"))
+    end
   end
 
   describe "validate/2" do

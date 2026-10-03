@@ -16,12 +16,13 @@ import {
 } from "./model";
 
 /**
- * One entry of the resemblances response. `position` and `others` are indexes
- * into the list of rows the request sent.
+ * One entry of the resemblances response. `position`, `others` and `repeats`
+ * are indexes into the list of rows the request sent.
  */
-type ResemblanceEntry = Omit<Resemblance, "others"> & {
+type ResemblanceEntry = Omit<Resemblance, "others" | "repeats"> & {
   position: number;
   others: number[];
+  repeats: number | null;
 };
 import {
   createId,
@@ -438,6 +439,7 @@ async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
             stored: entry.stored,
             // Converts the other rows' positions back to row ids.
             others: entry.others.map((position) => ids[position]),
+            repeats: entry.repeats === null ? null : ids[entry.repeats],
           },
         ]),
       ),

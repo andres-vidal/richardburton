@@ -209,6 +209,10 @@ const savedFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<Publication | undefined>(undefined),
 );
 
+/**
+ * The error the server returned from validating each row, or null. Read a
+ * row's error through `rowErrorFamily`, which also reports a repeat.
+ */
 const errorFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<PublicationError>(null),
 );
@@ -276,12 +280,12 @@ const discardedIdsAtom = atom((get) =>
 const validIdsAtom = atom((get) =>
   get(publicationIdsAtom)
     ?.filter((id) => !get(discardedFamily(id)))
-    .filter((id) => !get(errorFamily(id))),
+    .filter((id) => !get(rowErrorFamily(id))),
 );
 
 /** The rows something is wrong with, in the order they are shown. */
 const invalidIdsAtom = atom(
-  (get) => get(visibleIdsAtom)?.filter((id) => get(errorFamily(id))) ?? [],
+  (get) => get(visibleIdsAtom)?.filter((id) => get(rowErrorFamily(id))) ?? [],
 );
 
 const visibleCountAtom = atom((get) => get(visibleIdsAtom)?.length || 0);
@@ -377,7 +381,8 @@ const rowSubjectFamily = atomFamily((id: PublicationId) =>
  * when the stored result was checked against a subject the row no longer has.
  *
  * It is kept apart from `errorFamily` because a resemblance is not an error. It
- * does not make a row invalid and it does not block a submit.
+ * does not make a row invalid and it does not block a submit, except when the
+ * row repeats an earlier row's key (see `rowErrorFamily`).
  *
  * The atom compares the stored subject with the current one each time it is
  * read, so no edit path has to clear the result. This covers edits made with
@@ -391,6 +396,22 @@ const resemblanceFamily = atomFamily((id: PublicationId) =>
     return measured && measured.at === get(rowSubjectFamily(id))
       ? measured.value
       : null;
+  }),
+);
+
+/**
+ * What is wrong with a row: the validation error in `errorFamily`, or
+ * `"repeated"` when the look-alike check found an earlier row with the same
+ * composite key.
+ *
+ * A repeat is an error because the database stores one publication per key, so
+ * a submit with both rows would be refused.
+ */
+const rowErrorFamily = atomFamily((id: PublicationId) =>
+  atom<PublicationError>((get) => {
+    const repeats = get(resemblanceFamily(id))?.repeats ?? null;
+
+    return get(errorFamily(id)) ?? (repeats === null ? null : "repeated");
   }),
 );
 
@@ -453,11 +474,11 @@ const unsourcedCountAtom = atom(
 );
 
 const isValidFamily = atomFamily((id: PublicationId) =>
-  atom((get) => !get(errorFamily(id))),
+  atom((get) => !get(rowErrorFamily(id))),
 );
 
 const errorCodeFamily = atomFamily((id: PublicationId) =>
-  atom((get) => errorCode(get(errorFamily(id)))),
+  atom((get) => errorCode(get(rowErrorFamily(id)))),
 );
 
 /**
@@ -517,7 +538,7 @@ const storedFieldValueFamily = cellFamily(({ id, key }) =>
 );
 
 const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
-  atom((get) => errorCode(get(errorFamily(id)), key)),
+  atom((get) => errorCode(get(rowErrorFamily(id)), key)),
 );
 
 // --- Family lifecycle -------------------------------------------------------
@@ -541,6 +562,7 @@ const PUBLICATION_FAMILIES = [
   errorCodeFamily,
   measuredResemblanceFamily,
   resemblanceFamily,
+  rowErrorFamily,
   rowSubjectFamily,
   rowNumberFamily,
 ];
@@ -972,7 +994,7 @@ function focusNextInvalid(store: Store): void {
   const visibleIds = store.get(visibleIdsAtom);
   if (!visibleIds) return;
 
-  const isInvalid = (id: PublicationId) => store.get(errorFamily(id));
+  const isInvalid = (id: PublicationId) => store.get(rowErrorFamily(id));
   const focusedId = store.get(focusedRowIdAtom);
   // Walk by list position (ids are no longer monotonic once rows are keyed by
   // server id), then wrap to the first invalid row.
@@ -1026,6 +1048,7 @@ export {
   remember,
   removePublication,
   resemblanceFamily,
+  rowErrorFamily,
   resemblanceSubjectAtom,
   resemblingCountAtom,
   resemblingIdsAtom,

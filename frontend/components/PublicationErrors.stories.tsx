@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fieldErrors, seed } from "test/publication-fixtures";
-import { focusedRowIdAtom } from "modules/publication/store";
+import {
+  focusedRowIdAtom,
+  publicationIdsAtom,
+  setResemblances,
+} from "modules/publication/store";
 import { store } from "modules/store";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
@@ -101,6 +105,41 @@ export const RefusedAsAWhole: Story = {
 
     await expect(second).toHaveTextContent("The Hour of the Star");
     await expect(second).not.toHaveTextContent("Title");
+  },
+};
+
+/**
+ * A row with the same key as an earlier row repeats it, as the look-alike check
+ * reports. Only the later row is listed, refused as a whole with its own
+ * sentence.
+ */
+export const RepeatingAnEarlierRow: Story = {
+  beforeEach: () => {
+    seed(store, [...ROWS, ROWS[0]]);
+
+    const [first, , , last] = store.get(publicationIdsAtom) ?? [];
+
+    setResemblances(
+      store,
+      [first, last],
+      new Map([
+        [first, { stored: [], others: [last], repeats: null }],
+        [last, { stored: [], others: [first], repeats: first }],
+      ]),
+    );
+  },
+  play: async () => {
+    const dialog = await screen.findByRole("dialog", {
+      name: "What is wrong with these rows",
+    });
+    const entries = within(dialog).getAllByRole("listitem");
+
+    await expect(entries).toHaveLength(3);
+    await expect(entries[2]).toHaveTextContent("Row 4");
+    await expect(entries[2]).toHaveTextContent(
+      "Another row of this import is the same publication",
+    );
+    await expect(entries[2]).not.toHaveTextContent("Title");
   },
 };
 
