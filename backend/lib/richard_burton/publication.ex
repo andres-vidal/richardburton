@@ -31,7 +31,7 @@ defmodule RichardBurton.Publication do
   """
   use Ecto.Schema
   import Ecto.Changeset
-  import Ecto.Query, only: [from: 2, order_by: 2]
+  import Ecto.Query, only: [order_by: 2]
   import RichardBurton.Validation
 
   require Ecto.Query
@@ -533,37 +533,29 @@ defmodule RichardBurton.Publication do
   # same composite key.
   #
   # The twin is looked for before writing, because a failed statement aborts the
-  # transaction and the twin could not be read after it. The unique index still
+  # transaction and the twin could not be read after it. `settle!/0` still
   # catches a twin written in the meantime, as a plain `:conflict`.
   defp lift(publication, actor) do
     publication = preload(publication)
 
-    with nil <- twin(publication),
-         {:ok, _} <- publication |> tombstone(nil) |> Repo.update() do
-      History.record(:restored, publication, actor)
-      publication
-    else
-      twin = %Publication{} -> Repo.rollback({:conflict, twin})
-      {:error, changeset} -> Repo.rollback(Validation.get_errors(changeset))
+    case twin(publication) do
+      nil ->
+        publication |> tombstone(nil) |> Repo.update!()
+        settle!()
+        History.record(:restored, publication, actor)
+        publication
+
+      twin ->
+        Repo.rollback({:conflict, twin})
     end
   end
 
   # Returns the publication that is not deleted and has the same composite key
   # as `publication`, preloaded, or nil when there is none.
   defp twin(publication) do
-    from(p in Publication,
-      where:
-        is_nil(p.deleted_at) and p.id != ^publication.id and
-          p.title == ^publication.title and p.year == ^publication.year and
-          p.publishers_fingerprint == ^publication.publishers_fingerprint and
-          p.countries_fingerprint == ^publication.countries_fingerprint and
-          p.translated_book_fingerprint == ^publication.translated_book_fingerprint,
-      limit: 1
-    )
-    |> Repo.one()
-    |> case do
+    case Identity.publication_with_key(Codec.flatten(publication), publication.id) do
       nil -> nil
-      found -> preload(found)
+      id -> Publication |> Repo.get!(id) |> preload()
     end
   end
 
