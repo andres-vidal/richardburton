@@ -117,7 +117,8 @@ export const EscapeReverts: Story = {
 
 /**
  * The server refuses a rename that would give two publications the same
- * identity, and the alert lists both publications.
+ * identity. The alert links to both publications and to the duplicate review,
+ * each in a new tab.
  */
 export const WhenTwoPublicationsWouldCollide: Story = {
   args: {
@@ -140,7 +141,24 @@ export const WhenTwoPublicationsWouldCollide: Story = {
     await expect(alert).toHaveTextContent(
       "That would leave two publications identical",
     );
-    await expect(alert).toHaveTextContent("Dom Casmurro (1953)");
+
+    const records = within(alert).getAllByRole("link", {
+      name: "Dom Casmurro (1953)",
+    });
+    await expect(records.map((link) => link.getAttribute("href"))).toEqual([
+      expect.stringMatching(/\/publications\/31$/),
+      expect.stringMatching(/\/publications\/32$/),
+    ]);
+
+    const review = within(alert).getByRole("link", {
+      name: "Open the duplicate review",
+    });
+    await expect(review.getAttribute("href")).toMatch(
+      /\/admin\/publications\/duplicates$/,
+    );
+    await expect(
+      [...records, review].map((link) => link.getAttribute("target")),
+    ).toEqual(["_blank", "_blank", "_blank"]);
   },
 };
 

@@ -470,6 +470,7 @@
     "merged": "{from} unido a {to}",
     "collides": "Isso deixaria duas publicações idênticas",
     "collidesDetail": "A grafia era a única coisa que as distinguia. Una ou corrija essas publicações antes de renomear esta.",
+    "reviewDuplicates": "Abrir a revisão de duplicatas",
     "dismiss": "Fechar",
     "alsoSpelt": "Também aqui como",
     "onlyDoubtful": "{count, plural, one {# nome pode ser duplicata} other {# nomes podem ser duplicatas}}",
