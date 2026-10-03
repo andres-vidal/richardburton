@@ -1,0 +1,140 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as VocabularyListStories from "./VocabularyList.stories";
+
+<Meta of={VocabularyListStories} />
+
+# Names
+
+Lists the translators, original authors and publishers that publications are
+built from, and renames them. It is the body of
+[the names page](/admin/vocabulary).
+
+Names are typed in by hand, one publication at a time, so the same name can be
+stored under two spellings, such as "Penguin books" and "Penguin Books", or
+"Alfred A.Knopf" and "Alfred A. Knopf". Each name is a record shared by every
+publication that credits it. A second spelling is a second record, so counts
+and searches by name treat the two spellings as different names.
+
+## Renaming
+
+Renaming is the only action on this page. Renaming to a name that no other
+record has corrects a spelling. Renaming to a name that is already taken folds
+the two together: every publication moves to the name that was already there,
+and the renamed record is deleted. A fold cannot be undone, so the page asks
+for confirmation first.
+
+There is no separate merge action. Whether a rename is a correction or a fold
+depends only on whether the typed name is already taken.
+
+Each row shows how many publications credit the name, which helps decide which
+spelling to keep. A name with no publications shows "unused" instead of
+"0 publications".
+
+<Canvas of={VocabularyListStories.Default} />
+
+Translators and original authors share one list, because the database stores
+both in one table. A person who translated one book and wrote another is one
+name, listed once, and the count includes both kinds of publication.
+
+<Canvas of={VocabularyListStories.Authors} />
+
+## Filtering
+
+The list is sorted by name, so most spellings of one name are next to each
+other. A typo near the start of a name sorts it away from the correct spelling.
+The filter matches text anywhere in a name, ignoring case, so typing part of a
+name lists its spellings together.
+
+<Canvas of={VocabularyListStories.FindingSpellings} />
+
+## Which names may be duplicates
+
+The server returns, for each name, the other names in the list that it
+resembles. The page marks those names with an amber border, and a toggle above
+the list shows only the marked names.
+
+Two names resemble each other when their trigram similarity, with accents
+removed, is above 0.7. The threshold comes from measuring names in the
+database. Publishers that only share a word, such as "Duke University Press"
+and "Texas University Press", score about 0.6. Misspellings score above 0.7.
+Accents are removed because the same name is often entered with and without
+them. "Adelia Prado" and "Adélia Prado" are one person, but on the raw strings
+they score lower than two unrelated publishers.
+
+Two publishers also resemble each other when one name contains the other's
+words, as "Alfred A. Knopf" contains "Knopf". Authors do not, because one
+author record can hold two people, such as "William L. Grossman & Helen
+Caldwell", and each person's own name would then resemble it.
+
+Under a marked name, the list shows the names it resembles, each with its
+publication count, so the more common spelling is easy to see.
+
+<Canvas of={VocabularyListStories.NamesThatMayBeDuplicates} />
+
+Clicking one of those names writes it into the field and focuses the field. It
+does not rename anything. The rename is sent only when the reader commits the
+field, because a fold cannot be undone.
+
+<Canvas of={VocabularyListStories.OfferingTheOtherSpelling} />
+
+## Editing in place
+
+Each name is a text field. The rename is sent when the reader presses Enter or
+leaves the field, unless the value is blank or unchanged. Escape puts the
+stored name back.
+
+<Canvas of={VocabularyListStories.RenamingCommitsOnEnter} />
+
+<Description of={VocabularyListStories.EscapeReverts} />
+<Canvas of={VocabularyListStories.EscapeReverts} />
+
+## Confirming a fold
+
+A correction onto a free name can be undone by renaming back. A fold deletes a
+record and moves its publications to the other name, and it cannot be undone.
+
+The server refuses a rename onto a taken name unless the request says to fold.
+It writes nothing and returns the name that already has it, with its
+publication count. The page shows these in a confirmation dialog. Confirming
+sends the same rename again with `fold` set.
+
+The server makes this check, rather than the page, because the page's list can
+be out of date. Someone may have renamed a name since the list was loaded.
+
+<Canvas of={VocabularyListStories.AskingBeforeFolding} />
+
+Cancelling leaves the name unchanged and resets the field to the stored name.
+
+<Canvas of={VocabularyListStories.BackingOutOfAFold} />
+
+<Description of={VocabularyListStories.ConfirmingTheFold} />
+<Canvas of={VocabularyListStories.ConfirmingTheFold} />
+
+## Renames that would duplicate a publication
+
+A publication's identity is its title, year and translated book, and the
+fingerprints of its publishers and countries. A translated book's identity is
+its original book and the fingerprint of its translators, and an original
+book's is its title and the fingerprint of its authors. The fingerprints are
+built from names, so the database recomputes them when a name changes. When a
+rename makes two books the same, the server folds them into one. If the same
+publication was entered twice under two spellings of a name, correcting the
+spelling would give both copies the same identity.
+
+The database refuses two publications with one identity, so the server refuses
+the whole rename and returns the two publications, which the page lists in an
+alert. The rename does not merge them. Merging publications is a separate
+action, in which the reader picks the publication to keep, and it can be undone.
+The alert links to each publication's page and to the duplicate review, where
+the pair can be merged. The links open in a new tab, so the rename can be tried
+again afterwards.
+
+<Canvas of={VocabularyListStories.WhenTwoPublicationsWouldCollide} />
+
+## No matches
+
+When the filter matches no name, the list shows "No names match." The page
+shows the same message when there are no names of the kind at all.
+
+<Canvas of={VocabularyListStories.NothingMatches} />

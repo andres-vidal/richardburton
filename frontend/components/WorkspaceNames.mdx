@@ -1,0 +1,69 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as WorkspaceNamesStories from "./WorkspaceNames.stories";
+
+<Meta of={WorkspaceNamesStories} />
+
+# Names in this batch
+
+Lists the translators, original authors and publishers that a batch of rows
+would enter, and marks the ones that may be misspellings of names the database
+already has. It sits in the footer of an import document's workspace, opened
+from [Add publications](/admin/publications/documents), beside the row and
+error counts.
+
+Each name is a record shared by every publication that credits it. So
+"Alfred A.Knopf", entered once, creates a second Knopf record, separate from
+the one that twenty-one publications use. Row validation cannot detect this,
+because each row is valid on its own.
+
+Correcting the spelling here is simpler than fixing it afterwards. Before the
+insert it is a change to a field. After the insert it needs a fold on
+[Names](?path=/docs/admin-names--docs), and publications are already linked to
+the wrong spelling.
+
+## The footer count
+
+When any name may be misspelt, the button shows how many. Otherwise it shows
+how many names the batch has.
+
+<Canvas of={WorkspaceNamesStories.SomethingMayBeMisspelt} />
+
+<Description of={WorkspaceNamesStories.NothingDoubtful} />
+<Canvas of={WorkspaceNamesStories.NothingDoubtful} />
+
+An empty batch shows no button at all.
+
+<Canvas of={WorkspaceNamesStories.AnEmptyBatch} />
+
+## The three states
+
+Each name is in one of three states:
+
+- **may be misspelt** — the database does not have this name, but has a name
+  that resembles it. This is the only state drawn in amber.
+- **already here** — the database has this exact name, so entering it adds no
+  new record.
+- **new** — the database has no name that resembles it, so entering it adds a
+  new record.
+
+Beside each name is the number of rows in the batch that carry it. A spelling
+on one row is likely a typo. The same spelling on thirty rows is likely how
+the whole batch was typed.
+
+<Canvas of={WorkspaceNamesStories.TheWholeBatch} />
+
+## Using the suggested spelling
+
+Each offered spelling shows how many publications already use it. Clicking one
+writes it into every row that had the other spelling, and asks the server to
+validate those rows again. One click corrects the name in all the rows.
+
+<Canvas of={WorkspaceNamesStories.TakingTheOfferedSpelling} />
+
+## When the check runs
+
+The names are sent to the server once they have stayed unchanged for half a
+second, and only when a _name_ changed. Editing a year or a title does not send
+them again. The request is a POST, because a batch can have more names than fit
+in a URL.

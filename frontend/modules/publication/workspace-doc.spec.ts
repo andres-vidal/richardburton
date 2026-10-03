@@ -7,6 +7,7 @@ import { empty, type Publication, type PublicationId } from "./model";
 import {
   DRAFT_ID,
   addNew,
+  documentOf,
   duplicate,
   forget,
   knownIds,
@@ -14,6 +15,7 @@ import {
   publicationFamily,
   publicationIdsAtom,
   removePublication,
+  replaceName,
   setAll,
   setField,
   setSources,
@@ -248,5 +250,102 @@ describe("the draft row", () => {
 
     // The draft row is empty again, ready for the next row.
     expect(titleOf(store, DRAFT_ID)).toBe("");
+  });
+});
+
+describe("replacing a name", () => {
+  test("rewrites it in every row that carries it, and leaves the rest alone", () => {
+    const { store } = opened();
+
+    setAll(store, [
+      entry("a", { authors: ["Isabel Burton", "Richard Burton"] }),
+      entry("b", { authors: ["Isabel Burton"] }),
+      entry("c", { authors: ["Helen Caldwell"] }),
+    ]);
+
+    replaceName(
+      store,
+      "authors",
+      ["a", "b", "c"],
+      "Isabel Burton",
+      "Isabel Arundell",
+    );
+
+    expect(store.get(publicationFamily("a")).authors).toEqual([
+      "Isabel Arundell",
+      "Richard Burton",
+    ]);
+    expect(store.get(publicationFamily("b")).authors).toEqual([
+      "Isabel Arundell",
+    ]);
+    expect(store.get(publicationFamily("c")).authors).toEqual([
+      "Helen Caldwell",
+    ]);
+  });
+
+  test("keeps a name once in a row that would carry it twice", () => {
+    const { store } = opened();
+
+    setAll(store, [entry("a", { authors: ["I. Burton", "Isabel Burton"] })]);
+
+    replaceName(store, "authors", ["a"], "I. Burton", "Isabel Burton");
+
+    expect(store.get(publicationFamily("a")).authors).toEqual([
+      "Isabel Burton",
+    ]);
+  });
+
+  // A replacement emits one document update, however many rows it changes.
+  test("changes every row it touches in one update", () => {
+    const { store, doc } = opened();
+
+    setAll(store, [
+      entry("a", { authors: ["Isabel Burton"] }),
+      entry("b", { authors: ["Isabel Burton"] }),
+    ]);
+
+    let updates = 0;
+    doc.on("update", () => (updates += 1));
+
+    replaceName(
+      store,
+      "authors",
+      ["a", "b"],
+      "Isabel Burton",
+      "Isabel Arundell",
+    );
+
+    expect(updates).toBe(1);
+  });
+
+  test("is its own step to undo, even straight after another edit", () => {
+    const { store } = opened();
+
+    setAll(store, [
+      entry("a", { title: "Iracema", authors: ["Isabel Burton"] }),
+      entry("b", { authors: ["Isabel Burton"] }),
+    ]);
+
+    setField(store, "a", "title", "Iracema, the Honey-Lips");
+    replaceName(
+      store,
+      "authors",
+      ["a", "b"],
+      "Isabel Burton",
+      "Isabel Arundell",
+    );
+    documentOf(store).undo.undo();
+
+    // Undo restores every row the replacement changed...
+    expect(store.get(publicationFamily("a")).authors).toEqual([
+      "Isabel Burton",
+    ]);
+    expect(store.get(publicationFamily("b")).authors).toEqual([
+      "Isabel Burton",
+    ]);
+    // ...but not the title edit made just before it.
+    expect(store.get(publicationFamily("a")).title).toBe(
+      "Iracema, the Honey-Lips",
+    );
   });
 });
