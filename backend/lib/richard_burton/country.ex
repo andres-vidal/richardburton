@@ -9,7 +9,6 @@ defmodule RichardBurton.Country do
   alias RichardBurton.Country
   alias RichardBurton.Repo
   alias RichardBurton.Publication
-  alias RichardBurton.Fingerprint
 
   # Every country, by ISO alpha-2 code: its alpha-3 code, the name it is shown
   # by in each language the platform speaks, and the other names a reader might
@@ -128,8 +127,8 @@ defmodule RichardBurton.Country do
   A value naming no country, or more than one, is left as written for
   `validate_countries/1` to refuse by name.
 
-  Runs before validation and fingerprinting, so rows saying "UK" and "GB" are
-  one row rather than two.
+  Runs before validation, so rows saying "UK" and "GB" store the same code,
+  and the composite key counts them as one publication rather than two.
   """
   def resolve_countries(changeset = %Ecto.Changeset{}) do
     case get_change(changeset, :countries) do
@@ -462,13 +461,6 @@ defmodule RichardBurton.Country do
     end
   end
 
-  @spec fingerprint(maybe_improper_list()) :: binary()
-  def fingerprint(countries) when is_list(countries) do
-    countries
-    |> Enum.map(&get_code/1)
-    |> Fingerprint.of_set()
-  end
-
   def maybe_insert!(attrs) do
     %__MODULE__{}
     |> changeset(attrs)
@@ -493,17 +485,6 @@ defmodule RichardBurton.Country do
   end
 
   def link(changeset = %{valid?: false}), do: changeset
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: true}) do
-    countries_fingerprint =
-      changeset
-      |> get_field(:countries)
-      |> fingerprint
-
-    put_change(changeset, :countries_fingerprint, countries_fingerprint)
-  end
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: false}), do: changeset
 
   @doc ~S"""
   Nest country codes into the maps the schema casts.
