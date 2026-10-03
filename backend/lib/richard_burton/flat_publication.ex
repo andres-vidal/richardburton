@@ -4,14 +4,12 @@ defmodule RichardBurton.FlatPublication do
   """
   use Ecto.Schema
   import Ecto.Changeset
-  import Ecto.Query
-  import RichardBurton.Identity, only: [fingerprint: 1]
 
+  alias RichardBurton.Country
   alias RichardBurton.FlatPublication
-  alias RichardBurton.Publication
+  alias RichardBurton.Identity
   alias RichardBurton.Repo
   alias RichardBurton.Validation
-  alias RichardBurton.Country
 
   @required_attributes [
     :title,
@@ -84,37 +82,16 @@ defmodule RichardBurton.FlatPublication do
   end
 
   # Returns whether a stored publication that is not deleted already has the
-  # composite key of `changeset`: the same title and year, the same publishers
-  # and countries, and the same translated book, which is the same translators
-  # of the same original book. Each set of names is compared by its fingerprint,
-  # so the order of the names does not matter. The publication with
-  # `exclude_id` is left out, so an edit does not count against itself.
+  # composite key of `changeset`. The publication with `exclude_id` is left out,
+  # so an edit does not count against itself.
   #
-  # It reads the tables rather than the materialized view, or a publication
-  # inserted since the last refresh would not count.
+  # The lookup reads the publications table rather than the materialized view
+  # behind this schema, so it also finds a publication inserted since the view
+  # was last refreshed.
   defp key_taken?(changeset, exclude_id) do
-    [title, year, countries, publishers, translators, original_title, original_authors] =
-      Enum.map(
-        [:title, :year, :countries, :publishers, :authors, :original_title, :original_authors],
-        &get_field(changeset, &1)
-      )
-
-    from(p in Publication,
-      join: tb in assoc(p, :translated_book),
-      join: ob in assoc(tb, :original_book),
-      where: is_nil(p.deleted_at) and p.title == ^title and p.year == ^year,
-      where: p.countries_fingerprint == fingerprint(^countries),
-      where: p.publishers_fingerprint == fingerprint(^publishers),
-      where: tb.authors_fingerprint == fingerprint(^translators),
-      where: ob.title == ^original_title,
-      where: ob.authors_fingerprint == fingerprint(^original_authors)
-    )
-    |> exclude_self(exclude_id)
-    |> Repo.exists?()
+    changeset
+    |> apply_changes()
+    |> Identity.publication_with_key(exclude_id)
+    |> is_integer()
   end
-
-  # The row being re-validated during an edit must not count as a conflict with
-  # itself; without an id (a fresh create) there is nothing to exclude.
-  defp exclude_self(query, nil), do: query
-  defp exclude_self(query, id), do: from(fp in query, where: fp.id != ^id)
 end

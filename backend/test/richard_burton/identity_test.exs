@@ -1,12 +1,12 @@
 defmodule RichardBurton.IdentityTest do
   @moduledoc """
-  Tests for the composite keys and the fingerprints they are built from, which
-  the database computes and keeps up to date.
+  Tests for the composite keys, the fingerprints they are built from, and the
+  lookups of a stored row by its key, which the database computes, keeps up to
+  date and runs.
   """
   use RichardBurton.DataCase
 
   import Ecto.Query
-  import RichardBurton.Identity, only: [fingerprint: 1]
 
   alias RichardBurton.Author
   alias RichardBurton.Identity
@@ -36,7 +36,8 @@ defmodule RichardBurton.IdentityTest do
 
   # The fingerprint the database computes for `names`.
   defp fingerprint_of(names) do
-    Repo.one(from(x in fragment("SELECT 1"), select: fingerprint(^names)))
+    %{rows: [[fingerprint]]} = Repo.query!("SELECT rb_set_fingerprint($1)", [names])
+    fingerprint
   end
 
   defp stored(schema, id, field),
@@ -178,6 +179,125 @@ defmodule RichardBurton.IdentityTest do
       {:ok, _} = Publication.delete(deleted.id)
 
       assert {:ok, _} = Publication.insert(@attrs)
+    end
+  end
+
+  describe "original_book_with_key/2" do
+    test "finds the stored original book by its title and authors in any order" do
+      {:ok, publication} =
+        Publication.insert(
+          RichardBurton.Util.deep_merge_maps(@attrs, %{
+            "translated_book" => %{
+              "original_book" => %{
+                "authors" => [%{"name" => "Machado de Assis"}, %{"name" => "José de Alencar"}]
+              }
+            }
+          })
+        )
+
+      original_book_id =
+        Repo.get!(TranslatedBook, publication.translated_book_id).original_book_id
+
+      assert Identity.original_book_with_key("Dom Casmurro", [
+               "José de Alencar",
+               "Machado de Assis"
+             ]) == original_book_id
+    end
+
+    test "returns nil when only some of the authors match" do
+      insert()
+
+      assert Identity.original_book_with_key("Dom Casmurro", ["Machado de Assis", "Alencar"]) ==
+               nil
+    end
+
+    test "returns nil for another title" do
+      insert()
+
+      assert Identity.original_book_with_key("Iracema", ["Machado de Assis"]) == nil
+    end
+  end
+
+  describe "translated_book_with_key/2" do
+    test "finds the stored translated book by its original book and translators" do
+      publication = insert()
+      translated = Repo.get!(TranslatedBook, publication.translated_book_id)
+
+      assert Identity.translated_book_with_key(translated.original_book_id, ["Helen Caldwell"]) ==
+               translated.id
+    end
+
+    test "returns nil for other translators" do
+      publication = insert()
+      translated = Repo.get!(TranslatedBook, publication.translated_book_id)
+
+      assert Identity.translated_book_with_key(translated.original_book_id, ["John Gledson"]) ==
+               nil
+    end
+
+    test "returns nil when there is no original book" do
+      assert Identity.translated_book_with_key(nil, ["Helen Caldwell"]) == nil
+    end
+  end
+
+  describe "publication_with_key/2" do
+    @flat %{
+      title: "Dom Casmurro",
+      year: 1953,
+      countries: ["US"],
+      publishers: ["Noonday Press"],
+      authors: ["Helen Caldwell"],
+      original_title: "Dom Casmurro",
+      original_authors: ["Machado de Assis"]
+    }
+
+    test "finds the stored publication with the key" do
+      publication = insert()
+
+      assert Identity.publication_with_key(@flat) == publication.id
+    end
+
+    test "matches publishers and countries in any order" do
+      publication =
+        insert(%{
+          "countries" => [%{"code" => "US"}, %{"code" => "GB"}],
+          "publishers" => [%{"name" => "Noonday Press"}, %{"name" => "Knopf"}]
+        })
+
+      assert Identity.publication_with_key(%{
+               @flat
+               | countries: ["GB", "US"],
+                 publishers: ["Knopf", "Noonday Press"]
+             }) == publication.id
+    end
+
+    test "leaves out the excluded publication" do
+      publication = insert()
+
+      assert Identity.publication_with_key(@flat, publication.id) == nil
+    end
+
+    test "leaves out a deleted publication" do
+      publication = insert()
+      {:ok, _} = Publication.delete(publication.id)
+
+      assert Identity.publication_with_key(@flat) == nil
+    end
+
+    test "returns nil when any part of the key differs" do
+      insert()
+
+      for change <- [
+            %{title: "Epitaph of a Small Winner"},
+            %{year: 1960},
+            %{countries: ["GB"]},
+            %{publishers: ["Knopf"]},
+            %{authors: ["John Gledson"]},
+            %{original_title: "Memórias Póstumas de Brás Cubas"},
+            %{original_authors: ["José de Alencar"]}
+          ] do
+        assert Identity.publication_with_key(Map.merge(@flat, change)) == nil, inspect(change)
+      end
     end
   end
 end

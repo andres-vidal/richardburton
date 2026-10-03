@@ -16,7 +16,10 @@ defmodule RichardBurton.Identity do
   sorted, so the same names in another order give the same fingerprint. Each
   stored fingerprint is kept up to date by triggers when a link is added or
   removed, or a linked name changes (see the migration
-  `ComputeFingerprintsInTheDatabase`).
+  `ComputeFingerprintsInTheDatabase`). The database also has functions that
+  find the stored row with a key (see the migration
+  `LookUpCompositeKeysInTheDatabase`), and `original_book_with_key/2`,
+  `translated_book_with_key/2` and `publication_with_key/2` call them.
 
   The keys are checked when a transaction commits, because a row's links are
   written one by one after the row, and until the last one is written the row
@@ -29,12 +32,51 @@ defmodule RichardBurton.Identity do
   @keys ~w(original_books_composite_key translated_books_composite_key publications_composite_key)
 
   @doc """
-  Builds a query expression for the fingerprint of `names`, a list of names or
-  country codes, the way the database computes a stored one. Use it inside a
-  query, with `names` pinned.
+  Returns the id of the stored original book titled `title` and written by
+  `authors`, a list of names in any order, or nil when there is none.
   """
-  defmacro fingerprint(names) do
-    quote do: fragment("rb_set_fingerprint(?::text[])", unquote(names))
+  def original_book_with_key(title, authors) do
+    value("SELECT rb_original_book_with_key($1, $2)", [title, authors])
+  end
+
+  @doc """
+  Returns the id of the stored translated book of the original book with the id
+  `original_book_id` by `translators`, a list of names in any order, or nil
+  when there is none.
+  """
+  def translated_book_with_key(original_book_id, translators) do
+    value("SELECT rb_translated_book_with_key($1, $2)", [original_book_id, translators])
+  end
+
+  @doc """
+  Returns the id of a stored publication that is not deleted and has the key of
+  `publication`, or nil when there is none. The publication with the id
+  `excluded` is left out, so an edit does not match the publication it edits.
+
+  `publication` is a map with the flat fields `:title`, `:year`, `:countries`
+  (codes), `:publishers`, `:authors` (the translators), `:original_title` and
+  `:original_authors`.
+  """
+  def publication_with_key(publication, excluded \\ nil) do
+    value(
+      "SELECT rb_publication_with_key($1, $2, $3, $4, $5, $6, $7, $8)",
+      [
+        publication.title,
+        publication.year,
+        publication.countries,
+        publication.publishers,
+        publication.authors,
+        publication.original_title,
+        publication.original_authors,
+        excluded
+      ]
+    )
+  end
+
+  # Runs a query that returns one value, and returns that value.
+  defp value(sql, params) do
+    %{rows: [[value]]} = Repo.query!(sql, params)
+    value
   end
 
   @doc """

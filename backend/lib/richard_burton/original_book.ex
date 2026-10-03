@@ -10,12 +10,12 @@ defmodule RichardBurton.OriginalBook do
   use Ecto.Schema
   import Ecto.Changeset
   import Ecto.Query
-  import RichardBurton.Identity, only: [fingerprint: 1]
   import RichardBurton.Validation
 
   alias RichardBurton.Author
-  alias RichardBurton.Repo
+  alias RichardBurton.Identity
   alias RichardBurton.OriginalBook
+  alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
 
   @readable_attributes [:authors, :title]
@@ -57,20 +57,12 @@ defmodule RichardBurton.OriginalBook do
   """
   def maybe_insert!(attrs) do
     changeset = %OriginalBook{} |> changeset(attrs) |> Author.link()
-
-    Repo.one(same_book(changeset)) ||
-      changeset |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
-  end
-
-  # Builds the query for the stored original book with the same key as
-  # `changeset`: the same title, and the same authors' names in any order.
-  defp same_book(changeset) do
-    title = get_field(changeset, :title)
     names = changeset |> get_field(:authors) |> Enum.map(&Author.get_name/1)
 
-    from(ob in OriginalBook,
-      where: ob.title == ^title and ob.authors_fingerprint == fingerprint(^names)
-    )
+    case Identity.original_book_with_key(get_field(changeset, :title), names) do
+      nil -> changeset |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
+      id -> Repo.get!(OriginalBook, id)
+    end
   end
 
   def all() do

@@ -9,11 +9,10 @@ defmodule RichardBurton.TranslatedBook do
   """
   use Ecto.Schema
   import Ecto.Changeset
-  import Ecto.Query
-  import RichardBurton.Identity, only: [fingerprint: 1]
   import RichardBurton.Validation
 
   alias RichardBurton.Author
+  alias RichardBurton.Identity
   alias RichardBurton.OriginalBook
   alias RichardBurton.Publication
   alias RichardBurton.Repo
@@ -64,22 +63,13 @@ defmodule RichardBurton.TranslatedBook do
       |> OriginalBook.link()
       |> Author.link()
 
-    Repo.one(same_book(changeset)) ||
-      changeset |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
-  end
-
-  # Builds the query for the stored translated book with the same key as
-  # `changeset`: the same original book, and the same translators' names in any
-  # order.
-  defp same_book(changeset) do
     original_book = get_field(changeset, :original_book)
     names = changeset |> get_field(:authors) |> Enum.map(&Author.get_name/1)
 
-    from(tb in TranslatedBook,
-      where:
-        tb.original_book_id == ^original_book.id and
-          tb.authors_fingerprint == fingerprint(^names)
-    )
+    case Identity.translated_book_with_key(original_book.id, names) do
+      nil -> changeset |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
+      id -> Repo.get!(TranslatedBook, id)
+    end
   end
 
   def all() do
