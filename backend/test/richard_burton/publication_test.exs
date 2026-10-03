@@ -627,7 +627,7 @@ defmodule RichardBurton.PublicationTest do
     end
   end
 
-  describe "restore/2" do
+  describe "restore/3" do
     test "brings a deleted publication back into the flat view" do
       publication = insert_publication()
       {:ok, _} = Publication.delete(publication.id)
@@ -645,6 +645,70 @@ defmodule RichardBurton.PublicationTest do
 
       assert {:error, :not_found} = Publication.restore(publication.id)
       assert {:error, :not_found} = Publication.restore(-1)
+    end
+
+    # The same record imported again while the first copy was deleted.
+    defp deleted_with_twin do
+      deleted = insert_publication()
+      {:ok, _} = Publication.delete(deleted.id)
+
+      {deleted, insert_publication()}
+    end
+
+    test "a conflict comes with the publication it conflicts with" do
+      {deleted, twin} = deleted_with_twin()
+
+      assert {:error, {:conflict, %Publication{id: id}}} = Publication.restore(deleted.id)
+      assert id == twin.id
+    end
+
+    test "applies changes before restoring, and records them as an update" do
+      {deleted, _twin} = deleted_with_twin()
+
+      assert {:ok, _} =
+               Publication.restore(
+                 deleted.id,
+                 History.system_actor(),
+                 Map.put(@valid_attrs, "year", 1887)
+               )
+
+      assert %Publication{deleted_at: nil, year: 1887} = Repo.get(Publication, deleted.id)
+
+      assert ["restored", "updated", "deleted", "created"] ==
+               Enum.map(History.of(deleted.id), & &1.action)
+    end
+
+    test "changes that still conflict write nothing" do
+      {deleted, _twin} = deleted_with_twin()
+      changes = Map.put(@valid_attrs, "sources", [%{"content" => "A source", "position" => 0}])
+
+      assert {:error, {:conflict, _twin}} =
+               Publication.restore(deleted.id, History.system_actor(), changes)
+
+      assert %Publication{deleted_at: deleted_at} = Repo.get(Publication, deleted.id)
+      refute is_nil(deleted_at)
+      assert ["deleted", "created"] == Enum.map(History.of(deleted.id), & &1.action)
+    end
+
+    test "changes that do not validate write nothing" do
+      {deleted, _twin} = deleted_with_twin()
+
+      assert {:error, %{year: _}} =
+               Publication.restore(
+                 deleted.id,
+                 History.system_actor(),
+                 Map.put(@valid_attrs, "year", "not a year")
+               )
+
+      assert %Publication{year: 1886} = Repo.get(Publication, deleted.id)
+      assert ["deleted", "created"] == Enum.map(History.of(deleted.id), & &1.action)
+    end
+
+    test "undoing a delete that would now conflict is a plain conflict" do
+      {deleted, _twin} = deleted_with_twin()
+      [deletion | _] = History.of(deleted.id)
+
+      assert {:error, :conflict} = Publication.undo(deleted.id, deletion.version)
     end
   end
 
