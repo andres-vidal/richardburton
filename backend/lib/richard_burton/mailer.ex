@@ -3,7 +3,7 @@ defmodule RichardBurton.Mailer do
   Behaviour for Mailer
   """
 
-  @callback send(email :: RichardBurton.Email.t()) :: {:ok, String.t()} | {:error, String.t()}
+  @callback send(email :: RichardBurton.Email.t()) :: {:ok, any()} | {:error, any()}
 
   @spec send(email :: RichardBurton.Email.t()) :: {:ok, any()} | {:error, any()}
   def send(email), do: impl().send(email)

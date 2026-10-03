@@ -5,7 +5,7 @@ defmodule RichardBurton.Auth.Recaptcha.Google do
   @behaviour RichardBurton.Auth.Recaptcha
 
   @impl true
-  @spec verify(token :: String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  @spec verify(token :: String.t()) :: :ok | {:error, [String.t()] | String.t()}
   def verify(token) do
     verification_url = System.get_env("GOOGLE_RECAPTCHA_VERIFICATION_URL")
     verification_secret = System.get_env("GOOGLE_RECAPTCHA_SECRET_KEY")
