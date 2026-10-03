@@ -1,0 +1,25 @@
+name: Run backend app type checker
+on: push
+jobs:
+  Dialyzer:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "backend"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          version-type: strict
+          version-file: backend/.tool-versions
+      - uses: actions/cache@v6
+        with:
+          path: |
+            backend/deps
+            backend/_build
+            backend/priv/plts
+          key: mix-dialyzer-${{ runner.os }}-${{ hashFiles('backend/.tool-versions', 'backend/mix.lock') }}
+          restore-keys: mix-dialyzer-${{ runner.os }}-
+      - run: echo -e "import Config\nconfig :richard_burton, []" >> config/dev.local.exs
+      - run: mix deps.get
+      - run: mix dialyzer --format github

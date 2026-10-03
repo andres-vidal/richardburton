@@ -9,6 +9,9 @@ defmodule RichardBurton.Email do
   alias RichardBurton.Email
   alias RichardBurton.Mailer
 
+  @typedoc "An email, as the contact form fills it in or as the system writes it."
+  @type t :: %__MODULE__{}
+
   schema "emails" do
     field :name, :string
     field :institution, :string
@@ -69,7 +72,7 @@ defmodule RichardBurton.Email do
   # Who the system is when it writes to someone, as opposed to a visitor
   # writing to the research team.
   defp from_system(to: to, subject: subject, message: message) do
-    %{
+    %Email{
       name: "Richard & Isabel Burton Platform",
       institution: "IFRS Canoas",
       address: System.get_env("SMTP_FROM"),

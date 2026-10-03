@@ -51,6 +51,9 @@ cover/
 # The directory Mix downloads your dependencies sources to.
 deps/
 
+# The PLTs Dialyzer builds, which CI caches instead.
+/backend/priv/plts/
+
 # Where 3rd-party dependencies like ExDoc output generated docs.
 doc/
 
