@@ -24,22 +24,27 @@ defmodule RichardBurton.Vocabulary do
   A fold cannot be undone, so `rename/4` folds only when its `folding?`
   argument is true.
 
-  ## Recomputing fingerprints
+  ## Books that become one
 
-  A publication's composite key includes fingerprints built from these names.
-  A publisher's name is part of `publishers_fingerprint`. An author's name is
-  part of the `authors_fingerprint` of the original and translated books, and
-  those are part of the publication's `translated_book_fingerprint`.
-  `rename/4` recomputes every fingerprint built from the renamed name, in the
-  same transaction as the rename. When this gives a book the same identity as
-  another book, the two books are folded into one.
+  The composite keys of books and publications include fingerprints of these
+  names, which the database recomputes when a name changes or a link moves
+  (see `RichardBurton.Identity`). A publisher's name is part of a
+  publication's key. An author's name is part of the key of each original
+  book they wrote and each translated book they translated.
+
+  When a rename gives a book the same key as an older book, `rename/4` folds
+  the newer book into the older one, in the same transaction: the newer book's
+  translations, or its publications, move to the older book, and the newer
+  book is deleted. When two original books are folded and each has a
+  translation by the same translators, those two translations are folded into
+  one as well.
 
   ## Renames that would duplicate a publication
 
   A rename can give two publications the same composite key: the same title,
-  year, and publishers, countries and translated book fingerprints. This
+  year and translated book, and the same publishers and countries. This
   happens when one publication was entered twice and the two copies differ
-  only in the spelling of a name. The composite key is a unique index over the
+  only in the spelling of a name. The composite key applies to the
   publications that are not deleted, so the database cannot store both.
 
   In that case `rename/4` rolls back and returns
@@ -48,9 +53,9 @@ defmodule RichardBurton.Vocabulary do
   `RichardBurton.Publication.merge/3`, which takes the publication to keep and
   can be undone.
 
-  Deleted publications have their fingerprints recomputed as well, so a
-  restored publication matches its names. They are never reported as a
-  collision, because the unique index does not cover them.
+  Deleted publications follow the rename as well, so a restored publication
+  matches its names. They are never reported as a collision, because the
+  composite key does not cover them.
 
   ## Checking names before they are entered
 
@@ -69,6 +74,7 @@ defmodule RichardBurton.Vocabulary do
   import Ecto.Query
 
   alias RichardBurton.Author
+  alias RichardBurton.Identity
   alias RichardBurton.OriginalBook
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Index.Refresher
@@ -330,7 +336,9 @@ defmodule RichardBurton.Vocabulary do
          :ok <- permitted(schema, record, name, folding?) do
       Repo.transaction(fn ->
         outcome = write(schema, record, name)
-        recompute(schema, record, name)
+        fold_books(schema, name)
+        refuse_collision()
+        settle!()
 
         outcome
       end)
@@ -435,47 +443,21 @@ defmodule RichardBurton.Vocabulary do
   defp other_column("original_book_authors", _), do: "original_book_id"
   defp other_column("publication_publishers", _), do: "publication_id"
 
-  # Recomputes every fingerprint built from the new name.
+  # Folds the books the rename gave the same key as an older book. The
+  # database has already recomputed every fingerprint built from the name.
   #
-  # It looks the record up by the new name instead of using `record`. After a
-  # fold, the name belongs to the keeper, whose links now include the ones moved
-  # from `record`.
-  defp recompute(Author, _record, name) do
-    case Repo.get_by(Author, name: name) do
-      nil -> :ok
-      author -> recompute_for_author(author)
-    end
-  end
-
-  defp recompute(Publisher, _record, name) do
-    case Repo.get_by(Publisher, name: name) do
-      nil -> :ok
-      publisher -> publisher |> publications_of_publisher() |> Enum.each(&refingerprint/1)
-    end
-  end
-
-  # Settles the original books the author wrote, then the translated books the
-  # author translated, then recomputes the fingerprints of the author's
-  # publications.
-  #
-  # Books have unique identities built from their authors' names. When the new
-  # fingerprint gives a book the same identity as another book, the two are
-  # folded into one. Original books go first because a translated book's
-  # identity includes its original book's fingerprint, and translated books go
-  # before publications for the same reason.
-  defp recompute_for_author(author) do
-    # Reads the publication ids before any book is folded, because folding
-    # deletes books and their author links.
-    publications = publication_ids_of_author(author)
+  # It looks the author up by the new name instead of using the renamed record.
+  # After a fold, the name belongs to the keeper, whose links now include the
+  # ones moved from the renamed record. A publisher's name is part of no book's
+  # key, so there is nothing to fold for a publisher.
+  defp fold_books(Author, name) do
+    author = Repo.get_by!(Author, name: name)
 
     author |> original_books_of() |> Enum.each(&settle_original_book/1)
     author |> translated_books_of() |> Enum.each(&settle_translated_book/1)
-
-    publications
-    |> Enum.map(&Repo.get(Publication, &1))
-    |> Enum.reject(&is_nil/1)
-    |> Enum.each(&refingerprint/1)
   end
+
+  defp fold_books(Publisher, _name), do: :ok
 
   defp original_books_of(author) do
     Repo.all(
@@ -497,46 +479,72 @@ defmodule RichardBurton.Vocabulary do
     )
   end
 
-  # Reloads the original book and recomputes its `authors_fingerprint`. When
-  # another original book has the same title and fingerprint, moves this book's
-  # translations to it and deletes this one. Otherwise stores the fingerprint.
-  # In both cases it then updates `original_book_fingerprint` on the translated
-  # books. Does nothing when the book no longer exists.
-  defp settle_original_book(original_book) do
-    case Repo.get(OriginalBook, original_book.id) do
-      nil -> :ok
-      held -> settle_original_book(held, Repo.preload(held, :authors))
+  # Folds the original book into an older book with the same key, when there is
+  # one. Does nothing when the book has already been folded away.
+  defp settle_original_book(book) do
+    with %OriginalBook{} = held <- Repo.get(OriginalBook, book.id),
+         %OriginalBook{} = keeper <- older_twin(held, [:title, :authors_fingerprint]) do
+      fold_original_book(held, keeper)
     end
   end
 
-  defp settle_original_book(original_book, loaded) do
-    fingerprint = Author.fingerprint(loaded.authors)
+  # Moves the translations of `book` to `keeper` and deletes `book`. A
+  # translation by the same translators as one the keeper already has is folded
+  # into the keeper's translation instead of moved, since the two are now the
+  # same translated book.
+  defp fold_original_book(book, keeper) do
+    from(tb in TranslatedBook, where: tb.original_book_id == ^book.id)
+    |> Repo.all()
+    |> Enum.each(fn translation ->
+      case Repo.get_by(TranslatedBook,
+             original_book_id: keeper.id,
+             authors_fingerprint: translation.authors_fingerprint
+           ) do
+        nil -> repoint_translation(translation, keeper)
+        twin -> fold_translated_book(translation, twin)
+      end
+    end)
 
-    keeper =
-      Repo.one(
-        from(ob in OriginalBook,
-          where:
-            ob.id != ^original_book.id and ob.title == ^original_book.title and
-              ob.authors_fingerprint == ^fingerprint,
-          limit: 1
-        )
-      )
+    unlink("original_book_authors", "original_book_id", book.id)
+    Repo.delete!(book)
+  end
 
-    if keeper do
-      Repo.update_all(
-        from(tb in TranslatedBook, where: tb.original_book_id == ^original_book.id),
-        set: [original_book_id: keeper.id]
-      )
+  defp repoint_translation(translation, original_book) do
+    Repo.update_all(
+      from(tb in TranslatedBook, where: tb.id == ^translation.id),
+      set: [original_book_id: original_book.id]
+    )
+  end
 
-      unlink("original_book_authors", "original_book_id", original_book.id)
-      Repo.delete!(original_book)
-      retitle_translations(keeper)
-    else
-      original_book
-      |> Ecto.Changeset.change(authors_fingerprint: fingerprint)
-      |> Repo.update!()
-      |> retitle_translations()
+  # Folds the translated book into an older book with the same key, when there
+  # is one. Does nothing when the book has already been folded away.
+  defp settle_translated_book(book) do
+    with %TranslatedBook{} = held <- Repo.get(TranslatedBook, book.id),
+         %TranslatedBook{} = keeper <-
+           older_twin(held, [:original_book_id, :authors_fingerprint]) do
+      fold_translated_book(held, keeper)
     end
+  end
+
+  # Moves the publications of `book` to `keeper` and deletes `book`. Deleted
+  # publications move too, so a restored publication names the book that kept.
+  defp fold_translated_book(book, keeper) do
+    Repo.update_all(
+      from(p in Publication, where: p.translated_book_id == ^book.id),
+      set: [translated_book_id: keeper.id]
+    )
+
+    unlink("translated_book_authors", "translated_book_id", book.id)
+    Repo.delete!(book)
+  end
+
+  # Returns the oldest other row with the same values in `fields` as `row`, or
+  # nil when `row` is the oldest such row or no other row has them.
+  defp older_twin(row = %schema{}, fields) do
+    same = Enum.map(fields, &{&1, Map.fetch!(row, &1)})
+
+    from(r in schema, where: ^same, where: r.id < ^row.id, order_by: r.id, limit: 1)
+    |> Repo.one()
   end
 
   # Deletes the author links of a book that is about to be deleted. The links
@@ -545,146 +553,37 @@ defmodule RichardBurton.Vocabulary do
     Repo.query!("DELETE FROM #{table} WHERE #{column} = $1", [id])
   end
 
-  # Writes the original book's fingerprint into `original_book_fingerprint` on
-  # every translated book of it.
-  defp retitle_translations(original_book) do
-    Repo.update_all(
-      from(tb in TranslatedBook, where: tb.original_book_id == ^original_book.id),
-      set: [original_book_fingerprint: OriginalBook.fingerprint(original_book)]
-    )
-  end
-
-  # Reloads the translated book and recomputes its `authors_fingerprint`. When
-  # another translated book has the same authors and original book
-  # fingerprints, moves this book's publications to it and deletes this one.
-  # Otherwise stores the fingerprint. Does nothing when the book no longer
-  # exists.
-  defp settle_translated_book(translated_book) do
-    case Repo.get(TranslatedBook, translated_book.id) do
-      nil -> :ok
-      held -> settle_translated_book(held, Repo.preload(held, :authors))
-    end
-  end
-
-  defp settle_translated_book(translated_book, loaded) do
-    fingerprint = Author.fingerprint(loaded.authors)
-
-    keeper =
-      Repo.one(
-        from(tb in TranslatedBook,
-          where:
-            tb.id != ^translated_book.id and tb.authors_fingerprint == ^fingerprint and
-              tb.original_book_fingerprint == ^translated_book.original_book_fingerprint,
-          limit: 1
-        )
-      )
-
-    if keeper do
-      Repo.update_all(
-        from(p in Publication, where: p.translated_book_id == ^translated_book.id),
-        set: [translated_book_id: keeper.id]
-      )
-
-      unlink("translated_book_authors", "translated_book_id", translated_book.id)
-      Repo.delete!(translated_book)
-    else
-      translated_book
-      |> Ecto.Changeset.change(authors_fingerprint: fingerprint)
-      |> Repo.update!()
-    end
-  end
-
-  # Recomputes and stores the publication's `publishers_fingerprint` and
-  # `translated_book_fingerprint`. Deleted publications are recomputed too, so
-  # a restored publication has fingerprints that match its names.
+  # Rolls the rename back with `{:would_collide, [publication, other]}` when two
+  # publications that are not deleted now share a composite key, each as
+  # `%{id:, title:, year:}`. The keys are checked when the rename commits, so
+  # any such pair is one the rename made.
   #
-  # When the publication is not deleted and `clashing/3` finds another
-  # publication with the same composite key, it rolls back the whole rename
-  # with `{:would_collide, [publication, other]}`, each as
-  # `%{id:, title:, year:}`. A deleted publication is never checked, because
-  # the composite key applies only to publications that are not deleted.
-  defp refingerprint(publication) do
-    publication =
-      Repo.preload(publication, [:publishers, translated_book: [:authors, :original_book]])
+  # It looks for the pair before the keys are settled, because a failed check
+  # aborts the transaction, and after that the pair could not be read.
+  defp refuse_collision do
+    pair =
+      from(p in Publication,
+        join: q in Publication,
+        on:
+          q.id > p.id and q.title == p.title and q.year == p.year and
+            q.translated_book_id == p.translated_book_id and
+            q.publishers_fingerprint == p.publishers_fingerprint and
+            q.countries_fingerprint == p.countries_fingerprint,
+        where: is_nil(p.deleted_at) and is_nil(q.deleted_at),
+        limit: 1,
+        select: [
+          %{id: p.id, title: p.title, year: p.year},
+          %{id: q.id, title: q.title, year: q.year}
+        ]
+      )
+      |> Repo.one()
 
-    publishers = Publisher.fingerprint(publication.publishers)
-    translated = TranslatedBook.fingerprint(publication.translated_book)
-
-    # Checks for a clash before writing, instead of catching the unique index
-    # error. A failed statement aborts the transaction, and after that the
-    # clashing publication could not be read.
-    with held when not is_nil(held) <- live_clash(publication, publishers, translated) do
-      Repo.rollback({:would_collide, [summarise(publication), held]})
-    end
-
-    publication
-    |> Ecto.Changeset.change(
-      publishers_fingerprint: publishers,
-      translated_book_fingerprint: translated
-    )
-    |> Repo.update!()
+    if pair, do: Repo.rollback({:would_collide, pair})
   end
 
-  # Returns what `clashing/3` returns for a publication that is not deleted, and
-  # nil for a deleted one.
-  defp live_clash(publication = %Publication{deleted_at: nil}, publishers, translated),
-    do: clashing(publication, publishers, translated)
-
-  defp live_clash(_deleted, _publishers, _translated), do: nil
-
-  defp summarise(publication) do
-    %{id: publication.id, title: publication.title, year: publication.year}
-  end
-
-  # Returns the other publication, not deleted, that would have the same
-  # composite key as this one with the given publishers and translated book
-  # fingerprints, or nil. The composite key is the title, the year, and the
-  # publishers, countries and translated book fingerprints.
-  defp clashing(publication, publishers, translated) do
-    Repo.one(
-      from(p in Publication,
-        where:
-          p.id != ^publication.id and p.title == ^publication.title and
-            p.year == ^publication.year and p.publishers_fingerprint == ^publishers and
-            p.countries_fingerprint == ^publication.countries_fingerprint and
-            p.translated_book_fingerprint == ^translated and is_nil(p.deleted_at),
-        select: %{id: p.id, title: p.title, year: p.year}
-      )
-    )
-  end
-
-  # Returns the ids of the publications that credit the author as translator or
-  # as original author, deleted ones included.
-  defp publication_ids_of_author(author) do
-    translated =
-      from(p in Publication,
-        join: ta in "translated_book_authors",
-        on: ta.translated_book_id == p.translated_book_id,
-        where: ta.author_id == ^author.id,
-        select: p.id
-      )
-
-    original =
-      from(p in Publication,
-        join: tb in TranslatedBook,
-        on: tb.id == p.translated_book_id,
-        join: oa in "original_book_authors",
-        on: oa.original_book_id == tb.original_book_id,
-        where: oa.author_id == ^author.id,
-        select: p.id
-      )
-
-    translated |> union(^original) |> Repo.all()
-  end
-
-  # Returns the publications that credit the publisher, deleted ones included.
-  defp publications_of_publisher(publisher) do
-    Repo.all(
-      from(p in Publication,
-        join: pp in "publication_publishers",
-        on: pp.publication_id == p.id,
-        where: pp.publisher_id == ^publisher.id
-      )
-    )
+  # Checks the composite keys once the books are folded, and rolls the rename
+  # back with `:conflict` when two books or publications still share one.
+  defp settle! do
+    with {:error, :conflict} <- Identity.settle(), do: Repo.rollback(:conflict)
   end
 end
