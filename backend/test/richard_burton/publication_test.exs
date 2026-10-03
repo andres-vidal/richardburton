@@ -685,6 +685,31 @@ defmodule RichardBurton.PublicationTest do
       assert length(merged.publishers) == 2
     end
 
+    test "undoing a merge in which the winner took a loser's key gives each its own key back" do
+      # The loser comes back holding the key the merged winner still holds, and
+      # the winner's revert then gives it up. The key is checked once both are
+      # written, so the undo goes through.
+      winner = insert_publication()
+
+      loser =
+        insert_publication(
+          Map.update!(@valid_attrs, "publishers", &(&1 ++ [%{"name" => "Noonday Press"}]))
+        )
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+      [merge | _] = History.of(winner.id)
+
+      assert {:ok, _} = Publication.undo(winner.id, merge.version)
+
+      assert %Publication{deleted_at: nil} = Repo.get(Publication, loser.id)
+
+      assert ["Bickers & Son"] ==
+               Publication.find(winner.id).publishers |> Enum.map(& &1.name)
+
+      assert ["Bickers & Son", "Noonday Press"] ==
+               Publication.find(loser.id).publishers |> Enum.map(& &1.name) |> Enum.sort()
+    end
+
     test "the winner keeps what names it and gains what the loser held" do
       {winner, loser} = merge_pair()
 
