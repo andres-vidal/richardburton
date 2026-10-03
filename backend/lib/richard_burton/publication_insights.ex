@@ -24,6 +24,7 @@ defmodule RichardBurton.Publication.Insights do
 
   import Ecto.Query
 
+  alias RichardBurton.Publication
   alias RichardBurton.Publication.Index
   alias RichardBurton.Repo
 
@@ -165,18 +166,23 @@ defmodule RichardBurton.Publication.Insights do
   # Returns the works that have more than one translation, each with its number
   # of translations and publications. It returns at most ten, sorted by
   # translations, then publications, then title.
+  #
+  # A translation is a translated book, so they are counted by the translated
+  # book each publication belongs to, which the flat view does not carry and is
+  # read from `publications`.
   defp retranslated(base) do
     base
+    |> join(:inner, [fp], p in Publication, on: p.id == fp.id, as: :publication)
     |> group_by([fp], [fp.original_title, fp.original_authors])
-    |> having([fp], count(fp.translated_book_fingerprint, :distinct) > 1)
-    |> select([fp], %{
+    |> having([publication: p], count(p.translated_book_id, :distinct) > 1)
+    |> select([fp, publication: p], %{
       title: fp.original_title,
       authors: fp.original_authors,
-      translations: count(fp.translated_book_fingerprint, :distinct),
+      translations: count(p.translated_book_id, :distinct),
       publications: count()
     })
-    |> order_by([fp],
-      desc: count(fp.translated_book_fingerprint, :distinct),
+    |> order_by([fp, publication: p],
+      desc: count(p.translated_book_id, :distinct),
       desc: count(),
       asc: fp.original_title
     )
