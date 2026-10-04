@@ -12,19 +12,36 @@ year, publisher) and when it left the database, with a one-click **Restore**.
 Restoring is non-destructive, so no confirmation stands in the way; the row's
 button carries the in-flight state (`restoringId`).
 
-Restoring can fail as a conflict when the same record was imported again while
-this one sat in the trash — the caller surfaces that as a notification (see
-`restore` in `modules/publication/remote`).
+Restoring is refused when another publication that is not deleted has the same
+identity: the same title, year, countries, publishers and translated book. That
+happens when the record was imported again while this one was in the trash, or
+when a name was corrected so that the two became the same. Any other failure is
+reported as a notification (see `restore` in `modules/publication/remote`).
 
 Data comes from the admin-scoped `GET /publications/deleted`; the component is
 presentational — entries and the restore handler arrive as props.
 
 <Canvas of={DeletedPublicationsStories.Default} />
 
+## Restoring with changes
+
+When a restore is refused for that reason, a dialog opens. It shows the
+publication already in the database, linked to its own page, and the edit form
+for the deleted publication. The publication cannot be restored as it is, so the
+form starts with the conflict as its error. Once a change makes the two differ
+and the form validates, **Restore with these changes** restores the publication
+with the changes, which its history records as an edit before the restore. The
+card of the publication in the database highlights the words that differ from
+the changes as they are made.
+
+<Canvas of={DeletedPublicationsStories.WhenAnIdenticalOneExists} />
+
 ## States
 
 - **Default** — tombstones with one-click restore.
 - **Restoring** — the in-flight row's button is busy; the others stay usable.
+- **When an identical one exists** — the dialog that offers to restore with
+  changes.
 - **Empty** — an empty trash says so.
 
 <Canvas of={DeletedPublicationsStories.Empty} />

@@ -3,9 +3,9 @@ defmodule RichardBurton.Auth.Recaptcha do
   Behaviour for recaptcha authorization services
   """
 
-  @callback verify(token :: String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  @callback verify(token :: String.t()) :: :ok | {:error, [String.t()] | String.t()}
 
-  @spec verify(token :: String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  @spec verify(token :: String.t()) :: :ok | {:error, [String.t()] | String.t()}
   def verify(token), do: impl().verify(token)
 
   # The configured implementation of the recaptcha service, so tests can supply a double.

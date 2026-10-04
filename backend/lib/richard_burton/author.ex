@@ -39,10 +39,10 @@ defmodule RichardBurton.Author do
     |> unique_constraint([:name])
   end
 
-  def maybe_insert!(attrs) do
+  def find_or_insert!(attrs) do
     %__MODULE__{}
     |> changeset(attrs)
-    |> Repo.maybe_insert!([:name])
+    |> Repo.find_or_insert!(:name)
   end
 
   def all do
@@ -54,7 +54,7 @@ defmodule RichardBurton.Author do
       changeset
       |> get_change(:authors)
       |> Enum.map(&apply_changes/1)
-      |> Enum.map(&Author.maybe_insert!/1)
+      |> Enum.map(&Author.find_or_insert!/1)
 
     put_assoc(changeset, :authors, authors)
   end

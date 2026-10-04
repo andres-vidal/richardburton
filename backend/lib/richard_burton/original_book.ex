@@ -55,11 +55,11 @@ defmodule RichardBurton.OriginalBook do
   `attrs`, and inserts it when there is none. The authors are found by name, or
   inserted, first.
   """
-  def maybe_insert!(attrs) do
+  def find_or_insert!(attrs) do
     %OriginalBook{}
     |> changeset(attrs)
     |> Author.link()
-    |> Repo.maybe_insert!(&stored_id/1, [:authors_fingerprint])
+    |> Repo.find_or_insert!(&stored_id/1, [:authors_fingerprint])
   end
 
   # Returns the id of the stored original book with the key of `changeset`, the
@@ -152,7 +152,7 @@ defmodule RichardBurton.OriginalBook do
       changeset
       |> get_change(:original_book)
       |> apply_changes()
-      |> OriginalBook.maybe_insert!()
+      |> OriginalBook.find_or_insert!()
 
     put_assoc(changeset, :original_book, original_book)
   end

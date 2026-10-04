@@ -204,20 +204,52 @@ async function undo(
 }
 
 /**
- * Bring a deleted publication back into the database (admin). Returns whether
- * it succeeded; a conflict means the same record was imported again while this
- * one sat in the trash.
+ * What a restore came to. `identical` means another publication that is not
+ * deleted has the same identity, and `twin` is that publication. Nothing was
+ * restored then.
  */
-async function restore(id: PublicationId): Promise<boolean> {
+type Restoration =
+  | { outcome: "restored" }
+  | { outcome: "identical"; twin: Publication }
+  | { outcome: "failed" };
+
+/**
+ * Bring a deleted publication back into the database (admin). When `changes`
+ * are given, the server applies them to the publication before restoring it.
+ *
+ * A success and a failure are notified here. An `identical` outcome is not,
+ * since the caller offers to restore the publication with changes.
+ */
+async function restore(
+  id: PublicationId,
+  changes?: Publication,
+): Promise<Restoration> {
   try {
-    await request((http) => http.post(`publications/${id}/restore`));
+    const { status, data } = await request((http) =>
+      http.post<{ error?: string; publication?: Publication } | "">(
+        `publications/${id}/restore`,
+        changes,
+        // A 409 that names the identical publication is an answer to show,
+        // not an error, so it is read like a success.
+        {
+          validateStatus: (code) => (code >= 200 && code < 300) || code === 409,
+        },
+      ),
+    );
+
+    if (status === 409) {
+      const twin = data ? data.publication : undefined;
+      if (twin) return { outcome: "identical", twin };
+
+      throw (data && data.error) || "conflict";
+    }
 
     notify({
       message: "notify.publicationRestored",
       detail: "notify.publicationRestoredDetail",
       level: "success",
     });
-    return true;
+    return { outcome: "restored" };
   } catch (error) {
     notify({
       message: isConflict(error)
@@ -228,7 +260,7 @@ async function restore(id: PublicationId): Promise<boolean> {
         : "notify.nothingChanged",
       level: "warning",
     });
-    return false;
+    return { outcome: "failed" };
   }
 }
 
@@ -490,3 +522,4 @@ export {
   validate,
   validateUpdate,
 };
+export type { Restoration };
