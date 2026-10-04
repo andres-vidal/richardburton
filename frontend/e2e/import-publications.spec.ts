@@ -201,6 +201,109 @@ test("a duplicate of an existing publication is flagged as a conflict", async ({
   await submitWorkspace(page, 1);
 });
 
+/**
+ * A CSV whose rows the database would refuse for repeating something. The
+ * first row names Knopf twice. The second names the United States by its code
+ * and by its name. The third and fourth rows are the same publication. The
+ * fifth row is in order.
+ */
+const REPEATS_CSV =
+  [
+    CSV_HEADER,
+    `The Devil to Pay in the Backlands,1963,US,Knopf;Knopf,James L. Taylor;Harriet de Onís,Grande Sertão: Veredas,João Guimarães Rosa,`,
+    `The Passion According to G.H.,1988,US;United States,University of Minnesota Press,Ronald W. Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
+    `Epitaph of a Small Winner,1952,US,Noonday Press,William L. Grossman,Memórias Póstumas de Brás Cubas,Machado de Assis,`,
+    `Epitaph of a Small Winner,1952,US,Noonday Press,William L. Grossman,Memórias Póstumas de Brás Cubas,Machado de Assis,`,
+    `Macunaíma,1984,US,Random House,E. A. Goodland,Macunaíma,Mário de Andrade,`,
+  ].join("\n") + "\n";
+
+test("an import that repeats an entry or a whole row is held back until each repeat is gone", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await openDocument(page, "Repeats");
+  await uploadCsv(page, REPEATS_CSV, "repeats.csv");
+  const table = indexTable(page);
+
+  // Two rows name an entry twice, and the fourth repeats the third. All three
+  // are refused before anything is submitted.
+  const counter = page.getByLabel("3 invalid publications");
+  await expect(counter).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Submit" })).toBeDisabled();
+
+  await counter.click();
+  const errors = page.getByRole("dialog", {
+    name: "What is wrong with these rows",
+  });
+  const entries = errors.getByRole("listitem");
+  await expect(entries).toHaveCount(3);
+  await expect(entries.nth(0)).toContainText("Row 1");
+  await expect(entries.nth(0)).toContainText("Publishers");
+  await expect(entries.nth(0)).toContainText(
+    "This field cannot repeat the same entry",
+  );
+  await expect(entries.nth(1)).toContainText("Row 2");
+  await expect(entries.nth(1)).toContainText("Countries");
+  await expect(entries.nth(2)).toContainText("Row 4");
+  await expect(entries.nth(2)).toContainText(
+    "Another row of this import is the same publication",
+  );
+  await page.keyboard.press("Escape");
+  await expect(errors).not.toBeVisible();
+
+  // Removing the second Knopf, and the country named a second time, leaves
+  // each of those rows with its entries once.
+  const devil = table.getByRole("row", { name: /The Devil to Pay/ });
+  await devil.getByRole("button", { name: "Remove Knopf" }).last().click();
+  const passion = table.getByRole("row", { name: /The Passion According/ });
+  await passion
+    .getByRole("button", { name: /^Remove United States/ })
+    .last()
+    .click();
+  await expect(page.getByLabel("1 invalid publication")).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // The repeated row becomes a later printing of the same book, with a year of
+  // its own, so it no longer repeats the row above it.
+  const reprint = table
+    .getByRole("row", { name: /Epitaph of a Small Winner/ })
+    .nth(1);
+  const year = reprint.getByPlaceholder("Year", { exact: true });
+  await year.fill("1990");
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("All publications are valid")).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // A copy made with Duplicate repeats the row it was copied from, until it is
+  // discarded. Row-selection clicks land on the signal cell, off its center.
+  const select = (row: ReturnType<typeof table.getByRole>) =>
+    row
+      .getByRole("cell")
+      .first()
+      .click({ position: { x: 4, y: 4 } });
+
+  await select(table.getByRole("row", { name: /Macunaíma/ }));
+  await page.getByRole("button", { name: "Duplicate 1" }).click();
+  await expect(page.getByLabel("1 invalid publication")).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const copies = table.getByRole("row", { name: /Macunaíma/ });
+  await expect(copies).toHaveCount(2);
+  await select(copies.nth(1));
+  await page.getByRole("button", { name: "Discard 1" }).click();
+  await expect(page.getByLabel("All publications are valid")).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // Both printings of Epitaph of a Small Winner are stored, next to the corpus.
+  await submitWorkspace(page, 5);
+  await page.goto("/");
+  await expectPublicationCount(page, 12);
+});
+
 test("an admin imports publications from a CSV, sources included", async ({
   page,
 }) => {
