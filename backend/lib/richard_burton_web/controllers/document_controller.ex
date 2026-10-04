@@ -11,7 +11,7 @@ defmodule RichardBurtonWeb.DocumentController do
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.Document
-  alias RichardBurtonWeb.Endpoint
+  alias RichardBurtonWeb.DocumentChannel
 
   @doc """
   Returns a page of documents and whether more follow it, as
@@ -110,8 +110,7 @@ defmodule RichardBurtonWeb.DocumentController do
     with {:ok, document} <- Document.find(id),
          {:ok, bytes} <- decoded(update),
          {:ok, _} <- Document.append(document, bytes, integer_param(params["rows"])) do
-      if params["relay"] == true,
-        do: Endpoint.broadcast!("document:#{document.id}", "update", %{"update" => update})
+      if params["relay"] == true, do: DocumentChannel.relay!(document.id, update)
 
       send_resp(conn, :no_content, "")
     end

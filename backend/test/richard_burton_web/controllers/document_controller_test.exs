@@ -11,6 +11,7 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
   alias RichardBurton.Document
   alias RichardBurton.Repo
+  alias RichardBurtonWeb.DocumentChannel
 
   setup do
     {:ok, actor: create_session_user()}
@@ -191,7 +192,7 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
     test "an update appended to be relayed reaches the connections on the document", meta do
       document = create(meta.conn)
       update = Base.encode64(<<4, 5, 6>>)
-      RichardBurtonWeb.Endpoint.subscribe("document:#{document["id"]}")
+      RichardBurtonWeb.Endpoint.subscribe(DocumentChannel.topic(document["id"]))
 
       expect_auth_authorize_admin()
 
@@ -208,7 +209,7 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "an update appended without asking to relay it is only stored", meta do
       document = create(meta.conn)
-      RichardBurtonWeb.Endpoint.subscribe("document:#{document["id"]}")
+      RichardBurtonWeb.Endpoint.subscribe(DocumentChannel.topic(document["id"]))
 
       expect_auth_authorize_admin()
 
