@@ -226,6 +226,41 @@ defmodule RichardBurton.FlatPublicationTest do
 
       assert expected == FlatPublication.validate(attrs)
     end
+
+    test "refuses an attribute that holds the same entry twice, as the insert does" do
+      for {attribute, entry} <- [
+            {:publishers, "Bickers & Son"},
+            {:countries, "GB"},
+            {:authors, "Richard Burton"},
+            {:original_authors, "J. M. Pereira da Silva"}
+          ] do
+        attrs = Map.put(@valid_attrs, Atom.to_string(attribute), [entry, entry])
+
+        assert {:error, %{attribute => :duplicate}} == validate(attrs)
+        assert validate(attrs) == attrs |> Publication.Codec.nest() |> Publication.validate()
+      end
+    end
+
+    test "compares countries by code, so a country and its code are the same entry" do
+      assert {:error, %{countries: :duplicate}} ==
+               validate(Map.put(@valid_attrs, "countries", ["GB", "UK"]))
+    end
+
+    test "refuses an attribute with a blank entry among others" do
+      for attribute <- [:publishers, :countries, :authors, :original_authors],
+          blank <- ["", "   "] do
+        attrs = Map.update!(@valid_attrs, Atom.to_string(attribute), &(&1 ++ [blank]))
+
+        assert {:error, %{attribute => :required}} == validate(attrs), inspect({attribute, blank})
+        assert {:error, _} = attrs |> Publication.Codec.nest() |> Publication.validate()
+      end
+    end
+
+    test "reports a blank entry before a repeated one" do
+      attrs = Map.put(@valid_attrs, "publishers", ["Bickers & Son", "Bickers & Son", ""])
+
+      assert {:error, %{publishers: :required}} == validate(attrs)
+    end
   end
 
   describe "validate/2" do

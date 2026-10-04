@@ -236,9 +236,18 @@ function seedLookAlikes(store: Store): void {
     store,
     LOOK_ALIKE_IDS,
     new Map([
-      [LOOK_ALIKE_IDS[0], { stored: [LOOK_ALIKE_RECORD], others: [] }],
-      [LOOK_ALIKE_IDS[1], { stored: [], others: [LOOK_ALIKE_IDS[2]] }],
-      [LOOK_ALIKE_IDS[2], { stored: [], others: [LOOK_ALIKE_IDS[1]] }],
+      [
+        LOOK_ALIKE_IDS[0],
+        { stored: [LOOK_ALIKE_RECORD], others: [], repeats: null },
+      ],
+      [
+        LOOK_ALIKE_IDS[1],
+        { stored: [], others: [LOOK_ALIKE_IDS[2]], repeats: null },
+      ],
+      [
+        LOOK_ALIKE_IDS[2],
+        { stored: [], others: [LOOK_ALIKE_IDS[1]], repeats: null },
+      ],
     ]),
   );
 }
