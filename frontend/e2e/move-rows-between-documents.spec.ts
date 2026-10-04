@@ -56,7 +56,36 @@ test("rows that are not ready are set aside in a new document, and the rest of t
     .click({ position: { x: 4, y: 4 }, modifiers: ["Meta"] });
   await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
 
-  await moveSelectedRows(page, 2, { new: "Set aside" });
+  // Move them to a new document, and open it in a new tab from the dialog that
+  // says where they went.
+  await page.getByRole("button", { name: "Move 2" }).click();
+  const dialog = page.getByRole("dialog", {
+    name: "Move 2 rows to another document",
+  });
+  await dialog
+    .getByRole("textbox", { name: "Name of the new document" })
+    .fill("Set aside");
+  await dialog.getByRole("button", { name: "Move 2 rows" }).click();
+
+  const moved = page.getByRole("dialog", { name: "Moved 2 rows" });
+  await expect(moved).toContainText("They are now at the end of “Set aside”.", {
+    timeout: 30_000,
+  });
+
+  const [tab] = await Promise.all([
+    page.waitForEvent("popup"),
+    moved.getByRole("link", { name: "Open “Set aside” in a new tab" }).click(),
+  ]);
+  await expect(
+    indexTable(tab).getByRole("row", { name: /Dom Casmurro/ }),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(
+    indexTable(tab).getByRole("row", { name: /Macunaíma/ }),
+  ).toBeVisible();
+  await tab.close();
+
+  await moved.getByRole("button", { name: "Done" }).click();
+  await expect(moved).not.toBeVisible();
 
   // They leave the batch, which is now valid and imports on its own.
   await expect(table.getByRole("row", { name: /Dom Casmurro/ })).toHaveCount(0);
@@ -71,10 +100,13 @@ test("rows that are not ready are set aside in a new document, and the rest of t
 
   // The new document holds the two rows, with what is wrong with each.
   await page.goto("/admin/publications/documents");
-  await expect(page.getByRole("link", { name: /Set aside/ })).toContainText(
-    "2 rows",
-  );
-  await page.getByRole("link", { name: /Set aside/ }).click();
+  await expect(
+    page
+      .getByRole("list", { name: "Import documents" })
+      .getByRole("listitem")
+      .filter({ hasText: "Set aside" }),
+  ).toContainText("2 rows");
+  await page.getByRole("link", { name: "Open Set aside" }).click();
 
   const aside = indexTable(page);
   await expect(aside.getByRole("row", { name: /Dom Casmurro/ })).toBeVisible();

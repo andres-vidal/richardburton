@@ -368,6 +368,10 @@
     "repeated": "Outra linha desta importação é a mesma publicação"
   },
   "moving": {
+    "moved": "{count, plural, one {# linha movida} other {# linhas movidas}}",
+    "movedDetail": "Agora estão no final de “{name}”.",
+    "openTarget": "Abrir “{name}” em uma nova aba",
+    "done": "Concluir",
     "heading": "{count, plural, one {Mover # linha para outro documento} other {Mover # linhas para outro documento}}",
     "description": "As linhas saem deste documento e são adicionadas ao final do documento escolhido, para todos que trabalham em qualquer um dos dois.",
     "target": "Para onde movê-las",
@@ -377,8 +381,6 @@
     "confirm": "{count, plural, one {Mover # linha} other {Mover # linhas}}"
   },
   "notify": {
-    "rowsMoved": "{count, plural, one {# linha movida} other {# linhas movidas}}",
-    "rowsMovedDetail": "Agora estão no final de “{name}”.",
     "moveFailed": "Não foi possível mover as linhas",
     "moveFailedDetail": "Elas continuam neste documento. Verifique sua conexão e tente novamente.",
     "nothingChanged": "Nada mudou. Verifique sua conexão e tente novamente.",
@@ -502,6 +504,8 @@
     "alsoHere": "{who} também está trabalhando nisto",
     "editingHere": "{who} está com o cursor aqui",
     "rename": "Renomear",
+    "open": "Abrir",
+    "openLabel": "Abrir {name}",
     "renameLabel": "Nome de {name}",
     "archive": "Arquivar",
     "restore": "Restaurar",

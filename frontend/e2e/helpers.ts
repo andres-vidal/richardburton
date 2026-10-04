@@ -295,8 +295,8 @@ export const IMPORT_CSV =
 
 /**
  * Moves the rows selected in the open document to another import document: a
- * new one named `to.new`, or the existing one named `to.existing`. Waits until
- * the dialog closes and the move is confirmed.
+ * new one named `to.new`, or the existing one named `to.existing`. Waits for the
+ * dialog to say the rows moved, and closes it with **Done**.
  */
 export async function moveSelectedRows(
   page: Page,
@@ -321,8 +321,11 @@ export async function moveSelectedRows(
   }
 
   await dialog.getByRole("button", { name: `Move ${count} ${rows}` }).click();
-  await expect(dialog).not.toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(`Moved ${count} ${rows}`)).toBeVisible();
+
+  const moved = page.getByRole("dialog", { name: `Moved ${count} ${rows}` });
+  await expect(moved).toBeVisible({ timeout: 30_000 });
+  await moved.getByRole("button", { name: "Done" }).click();
+  await expect(moved).not.toBeVisible();
 }
 
 /** Uploads `csv` through the upload control, as a file called `name`. */

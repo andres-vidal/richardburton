@@ -83,7 +83,8 @@ async function openDialog(canvasElement: HTMLElement) {
 /**
  * Moves the two selected rows into a new document named on the spot. The
  * document is started with that name, the rows are moved into it, and the
- * selection is cleared.
+ * selection is cleared. The dialog then says where the rows went, with a link
+ * that opens that document in a new tab, until **Done** closes it.
  */
 export const ToANewDocument: Story = {
   play: async ({ args, canvasElement }) => {
@@ -103,6 +104,22 @@ export const ToANewDocument: Story = {
     await expect(args.start).toHaveBeenCalledWith("Set aside");
     await expect((args.move as ReturnType<typeof fn>).mock.calls[0][2]).toBe(9);
     await waitFor(() => expect(getSelection(store).size).toBe(0));
+
+    const result = await screen.findByRole("dialog", { name: "Moved 2 rows" });
+    await expect(result).toHaveTextContent(
+      "They are now at the end of “Set aside”.",
+    );
+
+    const open = within(result).getByRole("link", {
+      name: "Open “Set aside” in a new tab",
+    });
+    await expect(open).toHaveAttribute(
+      "href",
+      expect.stringContaining("/admin/publications/documents/9"),
+    );
+    await expect(open).toHaveAttribute("target", "_blank");
+
+    await userEvent.click(within(result).getByRole("button", { name: "Done" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   },
 };

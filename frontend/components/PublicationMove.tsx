@@ -19,6 +19,7 @@ import {
 import { useTranslations } from "next-intl";
 import { FC, FormEvent, useState } from "react";
 import Button from "./Button";
+import ButtonLink from "./ButtonLink";
 import { Modal } from "./Modal";
 import { useNotify } from "./Notifications";
 import TextInput from "./TextInput";
@@ -33,10 +34,11 @@ type Choice = "new" | number;
  * It renders the **Move N** button while rows are selected. The button opens a
  * dialog listing the other import documents that are not archived, newest
  * first, a page at a time. The rows are added at the end of the chosen document
- * and leave this one for everyone working on either. When the move fails, the
- * rows stay where they were and the dialog stays open. A new document created
- * before a failed move is kept and chosen, so trying again does not create a
- * second one.
+ * and leave this one for everyone working on either. The dialog then says where
+ * the rows went and offers to open that document in a new tab. When the move
+ * fails, the rows stay where they were and the dialog stays open. A new
+ * document created before a failed move is kept and chosen, so trying again
+ * does not create a second one.
  *
  * The dialog moves the rows that were selected when it opened. A click that is
  * not on a row clears the selection, including the click that opens the
@@ -67,6 +69,7 @@ const PublicationMove: FC<{
   const [choice, setChoice] = useState<Choice>("new");
   const [name, setName] = useState("");
   const [moving, setMoving] = useState(false);
+  const [moved, setMoved] = useState<DocumentSummary | null>(null);
 
   const others = page.entries.filter(({ id }) => id !== document);
   const canMove = choice !== "new" || name.trim() !== "";
@@ -97,6 +100,7 @@ const PublicationMove: FC<{
 
   function open() {
     setIds([...getSelection(store)] as PublicationId[]);
+    setMoved(null);
     setChoice("new");
     setName("");
     setPage({ entries: [], more: false });
@@ -133,13 +137,7 @@ const PublicationMove: FC<{
       await move(store, ids, destination.id);
 
       clearSelection(store);
-      setOpen(false);
-      notify({
-        message: "notify.rowsMoved",
-        detail: "notify.rowsMovedDetail",
-        values: { count: ids.length, name: destination.name },
-        level: "success",
-      });
+      setMoved(destination);
     } catch {
       notify({
         message: "notify.moveFailed",
@@ -166,80 +164,110 @@ const PublicationMove: FC<{
       <Modal
         isOpen={isOpen}
         onClose={close}
-        label={t("heading", { count: ids.length })}
+        label={
+          moved
+            ? t("moved", { count: ids.length })
+            : t("heading", { count: ids.length })
+        }
       >
-        <form
-          className="flex flex-col gap-5 p-8 w-full"
-          onSubmit={moveSelected}
-        >
-          <h1 className="text-2xl font-normal">
-            {t("heading", { count: ids.length })}
-          </h1>
-          <p className="text-gray-700">{t("description")}</p>
-          <fieldset className="flex flex-col gap-3">
-            <legend className="sr-only">{t("target")}</legend>
-            <label className="flex gap-3 items-center">
-              <input
-                type="radio"
-                name="target"
-                className="accent-indigo-600"
-                checked={choice === "new"}
-                onChange={() => setChoice("new")}
+        {moved ? (
+          <div className="flex flex-col gap-5 p-8 w-full">
+            <h1 className="text-2xl font-normal">
+              {t("moved", { count: ids.length })}
+            </h1>
+            <p className="text-gray-700">
+              {t("movedDetail", { name: moved.name })}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <ButtonLink
+                label={t("openTarget", { name: moved.name })}
+                href={`/admin/publications/documents/${moved.id}`}
+                variant="outline-primary"
+                size="medium"
+                newTab
               />
-              {t("newDocument")}
-            </label>
-            {choice === "new" ? (
-              <TextInput
-                label={t("nameLabel")}
-                placeholder={documents("namePlaceholder")}
-                value={name}
-                onChange={setName}
+              <Button
+                label={t("done")}
+                width="fit"
+                size="medium"
+                onClick={close}
               />
-            ) : null}
-            {others.map((other) => (
-              <label key={other.id} className="flex gap-3 items-center">
+            </div>
+          </div>
+        ) : (
+          <form
+            className="flex flex-col gap-5 p-8 w-full"
+            onSubmit={moveSelected}
+          >
+            <h1 className="text-2xl font-normal">
+              {t("heading", { count: ids.length })}
+            </h1>
+            <p className="text-gray-700">{t("description")}</p>
+            <fieldset className="flex flex-col gap-3">
+              <legend className="sr-only">{t("target")}</legend>
+              <label className="flex gap-3 items-center">
                 <input
                   type="radio"
                   name="target"
                   className="accent-indigo-600"
-                  checked={choice === other.id}
-                  onChange={() => setChoice(other.id)}
+                  checked={choice === "new"}
+                  onChange={() => setChoice("new")}
                 />
-                <span>{other.name}</span>
-                <span className="text-sm text-gray-500">
-                  {documents("rows", { count: other.rows })}
-                </span>
+                {t("newDocument")}
               </label>
-            ))}
-            {page.more ? (
+              {choice === "new" ? (
+                <TextInput
+                  label={t("nameLabel")}
+                  placeholder={documents("namePlaceholder")}
+                  value={name}
+                  onChange={setName}
+                />
+              ) : null}
+              {others.map((other) => (
+                <label key={other.id} className="flex gap-3 items-center">
+                  <input
+                    type="radio"
+                    name="target"
+                    className="accent-indigo-600"
+                    checked={choice === other.id}
+                    onChange={() => setChoice(other.id)}
+                  />
+                  <span>{other.name}</span>
+                  <span className="text-sm text-gray-500">
+                    {documents("rows", { count: other.rows })}
+                  </span>
+                </label>
+              ))}
+              {page.more ? (
+                <Button
+                  label={documents("more")}
+                  variant="outline"
+                  width="fit"
+                  loading={reading}
+                  onClick={() => read(page.entries.at(-1))}
+                />
+              ) : null}
+            </fieldset>
+            <div className="flex gap-3 justify-end">
               <Button
-                label={documents("more")}
+                label={t("cancel")}
                 variant="outline"
                 width="fit"
-                loading={reading}
-                onClick={() => read(page.entries.at(-1))}
+                size="medium"
+                disabled={moving}
+                onClick={close}
               />
-            ) : null}
-          </fieldset>
-          <div className="flex gap-3 justify-end">
-            <Button
-              label={t("cancel")}
-              variant="outline"
-              width="fit"
-              size="medium"
-              disabled={moving}
-              onClick={close}
-            />
-            <Button
-              type="submit"
-              label={t("confirm", { count: ids.length })}
-              width="fit"
-              size="medium"
-              loading={moving}
-              disabled={!canMove || moving}
-            />
-          </div>
-        </form>
+              <Button
+                type="submit"
+                label={t("confirm", { count: ids.length })}
+                width="fit"
+                size="medium"
+                loading={moving}
+                disabled={!canMove || moving}
+              />
+            </div>
+          </form>
+        )}
       </Modal>
     </>
   );
