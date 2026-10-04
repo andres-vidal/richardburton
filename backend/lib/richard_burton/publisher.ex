@@ -35,7 +35,7 @@ defmodule RichardBurton.Publisher do
     |> unique_constraint(:name)
   end
 
-  def maybe_insert!(attrs) do
+  def find_or_insert!(attrs) do
     %__MODULE__{}
     |> changeset(attrs)
     |> Repo.find_or_insert!(:name)
@@ -51,7 +51,7 @@ defmodule RichardBurton.Publisher do
       |> get_change(:publishers)
       |> Enum.reject(&(&1.action == :replace))
       |> Enum.map(&apply_changes/1)
-      |> Enum.map(&maybe_insert!/1)
+      |> Enum.map(&find_or_insert!/1)
 
     put_assoc(changeset, :publishers, publishers)
   end

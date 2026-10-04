@@ -42,16 +42,6 @@ defmodule RichardBurton.Repo do
     get_by(schema, [{column, value}]) || insert_unless_taken!(changeset, column, value)
   end
 
-  # Inserts `changeset`, or returns the row another transaction stored with the
-  # same `value` after the lookup. `ON CONFLICT DO NOTHING` inserts nothing in
-  # that case and returns a struct without an id, so the row is read back.
-  defp insert_unless_taken!(changeset = %Ecto.Changeset{data: %schema{}}, column, value) do
-    case insert!(changeset, on_conflict: :nothing, conflict_target: column) do
-      %{id: nil} -> get_by!(schema, [{column, value}])
-      inserted -> inserted
-    end
-  end
-
   @doc """
   Returns the stored row whose id `find` returns for the changeset, and inserts
   the changeset when `find` returns nil.
@@ -60,11 +50,25 @@ defmodule RichardBurton.Repo do
   composite key with a fingerprint. After an insert, `fields` are read back with
   `refresh/2`, because the database writes the fingerprints after the row's
   links are saved.
+
+  Unlike `find_or_insert!/2`, it does not reuse a row that another transaction
+  inserts at the same time. The composite keys refuse the second row when they
+  are checked.
   """
-  def maybe_insert!(changeset = %Ecto.Changeset{data: %schema{}}, find, fields) do
+  def find_or_insert!(changeset = %Ecto.Changeset{data: %schema{}}, find, fields) do
     case find.(changeset) do
       nil -> changeset |> insert!() |> refresh(fields)
       id -> get!(schema, id)
+    end
+  end
+
+  # Inserts `changeset`, or returns the row another transaction stored with the
+  # same `value` after the lookup. `ON CONFLICT DO NOTHING` inserts nothing in
+  # that case and returns a struct without an id, so the row is read back.
+  defp insert_unless_taken!(changeset = %Ecto.Changeset{data: %schema{}}, column, value) do
+    case insert!(changeset, on_conflict: :nothing, conflict_target: column) do
+      %{id: nil} -> get_by!(schema, [{column, value}])
+      inserted -> inserted
     end
   end
 end

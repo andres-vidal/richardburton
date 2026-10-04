@@ -90,9 +90,9 @@ defmodule RichardBurton.PublisherTest do
     end
   end
 
-  describe "maybe_insert/1" do
+  describe "find_or_insert/1" do
     test "when there is no publisher with the provided name, inserts it" do
-      publisher = Publisher.maybe_insert!(@valid_attrs)
+      publisher = Publisher.find_or_insert!(@valid_attrs)
 
       assert [publisher] == Publisher.all()
     end
@@ -101,7 +101,7 @@ defmodule RichardBurton.PublisherTest do
       insert(@valid_attrs)
       assert [preexistent_publisher] = Publisher.all()
 
-      publisher = Publisher.maybe_insert!(@valid_attrs)
+      publisher = Publisher.find_or_insert!(@valid_attrs)
 
       assert preexistent_publisher == publisher
       assert [publisher] == Publisher.all()

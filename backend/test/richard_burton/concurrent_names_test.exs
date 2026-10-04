@@ -24,7 +24,7 @@ defmodule RichardBurton.ConcurrentNamesTest do
   defp count(table), do: Race.unboxed(fn -> Repo.query!("SELECT count(*) FROM #{table}").rows end)
 
   test "two writes that store the same new author at once both get the one author" do
-    write = fn -> Author.maybe_insert!(%{"name" => "Helen Caldwell"}) end
+    write = fn -> Author.find_or_insert!(%{"name" => "Helen Caldwell"}) end
 
     assert %{first: first, second: second, waited: true} = Race.run(write, write)
     assert first.id == second.id
@@ -32,7 +32,7 @@ defmodule RichardBurton.ConcurrentNamesTest do
   end
 
   test "two writes that store the same new publisher at once both get the one publisher" do
-    write = fn -> Publisher.maybe_insert!(%{"name" => "Noonday Press"}) end
+    write = fn -> Publisher.find_or_insert!(%{"name" => "Noonday Press"}) end
 
     assert %{first: first, second: second, waited: true} = Race.run(write, write)
     assert first.id == second.id
@@ -40,7 +40,7 @@ defmodule RichardBurton.ConcurrentNamesTest do
   end
 
   test "two writes that store the same new country at once both get the one country" do
-    write = fn -> Country.maybe_insert!(%{"code" => "BR"}) end
+    write = fn -> Country.find_or_insert!(%{"code" => "BR"}) end
 
     assert %{first: first, second: second, waited: true} = Race.run(write, write)
     assert first.id == second.id
