@@ -14,9 +14,10 @@ import Tooltip from "./Tooltip";
  * A button with the number of rows that resemble something, which opens
  * the resemblance review at the first of them.
  *
- * The count updates as rows are edited, because `CheckResemblances` checks the
- * rows after each edit. The button is hidden when the count is zero, since the
- * error counter already reports when the set is valid.
+ * The count updates as rows are edited, because `watchChecks` checks the rows
+ * after each edit and stores the result in the import document. The button is
+ * hidden when the count is zero, since the error counter already reports when
+ * the set is valid.
  *
  * The button uses the same warning icon as the rows it counts.
  */

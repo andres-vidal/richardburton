@@ -3,7 +3,6 @@
 import CopyIcon from "assets/copy.svg";
 import { duplicate } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
-import { validate } from "modules/publication/remote";
 import { useTranslations } from "next-intl";
 import { FC } from "react";
 import {
@@ -22,8 +21,7 @@ const PublicationDuplicate: FC = () => {
   const duplicateSelected = () => {
     const selectedIds = getSelection(store) as Set<number>;
     if (selectedIds.size > 0) {
-      const newIds = duplicate(store, selectedIds);
-      validate(store, newIds);
+      duplicate(store, selectedIds);
       clearSelection(store);
     }
   };
