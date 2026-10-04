@@ -31,6 +31,16 @@ so the same publication offers the same affordances wherever it is read.
   index, which is what a page showing only this publication has to do; an
   overlay closes instead and leaves the database behind it in place.
 
+## The edit form
+
+The Edit control opens `PublicationEditForm`, which the module also exports. It
+edits every field of a publication in the enclosing store, validating each field
+as it changes, and its save button is disabled while the publication has
+errors. By default it saves with `update`. Its `save`, `heading` and
+`saveLabel` props replace the save action and the two labels, which is how the
+[trash](?path=/docs/publications-deleted-publications--docs) uses it to restore
+a publication with changes.
+
 ## States
 
 - **Default** — a fully sourced record, read by anyone.

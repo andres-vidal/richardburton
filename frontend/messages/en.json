@@ -441,6 +441,14 @@
     "cancel": "Cancel",
     "confirm": "{count, plural, =0 {Merge publication} one {Merge publication} other {Merge # publications}}"
   },
+  "restoring": {
+    "identical": "Another publication is identical to this one",
+    "identicalDetail": "It has the same title, year, countries, publishers and translated book. It may have been imported again, or a name may have been corrected to match. Change this publication so that the two differ, then restore it, or leave it deleted.",
+    "alreadyStored": "Already in the database",
+    "differences": "The highlighted text is where it differs from your changes.",
+    "thisOne": "The deleted publication",
+    "restoreWithChanges": "Restore with these changes"
+  },
   "historyActions": {
     "created": "Created",
     "updated": "Updated",

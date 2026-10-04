@@ -295,13 +295,32 @@ defmodule RichardBurtonWeb.PublicationController do
     json(conn, %{entries: entries})
   end
 
-  # Restores a deleted publication. It fails with `:conflict` when the same
-  # record was imported again after this one was deleted, and with `:absorbed`
-  # when a merge absorbed it. Only undoing the merge brings back an absorbed
-  # record.
-  def restore(conn, %{"id" => id}) do
-    with {:ok, _publication} <- Publication.restore(id, actor(conn)) do
-      send_resp(conn, :no_content, "")
+  # Restores a deleted publication. A body with the publication's fields is
+  # applied to it first, as an edit, so a restore that would conflict can be
+  # made with changes.
+  #
+  # When another publication that is not deleted has the same composite key,
+  # the response is a 409 with `error: "conflict"` and that publication. It
+  # fails with `:absorbed` when a merge absorbed the publication. Only undoing
+  # the merge brings back an absorbed record.
+  def restore(conn, params = %{"id" => id}) do
+    changes =
+      case Map.delete(params, "id") do
+        empty when map_size(empty) == 0 -> nil
+        fields -> Publication.Codec.nest(fields)
+      end
+
+    case Publication.restore(id, actor(conn), changes) do
+      {:ok, _publication} ->
+        send_resp(conn, :no_content, "")
+
+      {:error, {:conflict, twin}} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{error: :conflict, publication: Publication.Codec.flatten(twin)})
+
+      error ->
+        error
     end
   end
 
