@@ -5,15 +5,14 @@ import { useTranslations } from "next-intl";
 import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
 import PublicationCounter from "components/PublicationCounter";
-import PublicationDiscard from "components/PublicationDiscard";
 import PublicationDeselect from "components/PublicationDeselect";
 import PublicationDuplicate from "components/PublicationDuplicate";
 import PublicationErrorCounter from "components/PublicationErrorCounter";
+import PublicationMove from "components/PublicationMove";
 import PublicationResemblanceCounter from "components/PublicationResemblanceCounter";
 import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
 import PublicationWorkspace from "components/PublicationWorkspace";
-import ResetDiscarded from "components/ResetDiscarded";
 import DocumentPresence from "components/DocumentPresence";
 import DocumentStatus from "components/DocumentStatus";
 import WorkspaceUndo from "components/WorkspaceUndo";
@@ -33,10 +32,12 @@ function showEveryColumn(store: Store) {
   setAttributesVisible(store, Publication.ATTRIBUTES);
 }
 
-const Workspace: FC<{ title: string; description: string }> = ({
-  title,
-  description,
-}) => {
+const Workspace: FC<{
+  title: string;
+  description: string;
+  /** The import document these rows belong to. */
+  document: number;
+}> = ({ title, description, document }) => {
   const t = useTranslations("admin");
   const isSelectionEmpty = useIsSelectionEmpty();
 
@@ -70,7 +71,6 @@ const Workspace: FC<{ title: string; description: string }> = ({
               <PublicationErrorCounter />
               <PublicationResemblanceCounter />
               <WorkspaceUndo />
-              <ResetDiscarded />
               <RowIdToggle />
               <PublicationSubmit />
             </>
@@ -78,9 +78,9 @@ const Workspace: FC<{ title: string; description: string }> = ({
             <>
               <PublicationDeselect />
               <PublicationDuplicate />
-              <PublicationDiscard />
             </>
           )}
+          <PublicationMove document={document} />
         </div>
       }
     />
@@ -104,7 +104,7 @@ const BulkWorkspace: FC<{
 }> = ({ title, description, document }) => (
   <PublicationStoreProvider initialize={showEveryColumn}>
     <DocumentProvider document={document}>
-      <Workspace title={title} description={description} />
+      <Workspace title={title} description={description} document={document} />
     </DocumentProvider>
   </PublicationStoreProvider>
 );

@@ -217,10 +217,6 @@ const errorFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<PublicationError>(null),
 );
 
-const discardedFamily = atomFamily((_id: PublicationId) =>
-  atomWithReset<boolean>(false),
-);
-
 const lastValidatedFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<string | undefined>(undefined),
 );
@@ -269,58 +265,42 @@ const writeResemblancesAtom = atom(
 
 // --- Derived atoms ----------------------------------------------------------
 
-const visibleIdsAtom = atom((get) =>
-  get(publicationIdsAtom)?.filter((id) => !get(discardedFamily(id))),
-);
-
-const discardedIdsAtom = atom((get) =>
-  get(publicationIdsAtom)?.filter((id) => get(discardedFamily(id))),
-);
-
 const validIdsAtom = atom((get) =>
-  get(publicationIdsAtom)
-    ?.filter((id) => !get(discardedFamily(id)))
-    .filter((id) => !get(rowErrorFamily(id))),
+  get(publicationIdsAtom)?.filter((id) => !get(rowErrorFamily(id))),
 );
 
 /** The rows something is wrong with, in the order they are shown. */
 const invalidIdsAtom = atom(
-  (get) => get(visibleIdsAtom)?.filter((id) => get(rowErrorFamily(id))) ?? [],
+  (get) =>
+    get(publicationIdsAtom)?.filter((id) => get(rowErrorFamily(id))) ?? [],
 );
 
-const visibleCountAtom = atom((get) => get(visibleIdsAtom)?.length || 0);
-
-/**
- * Each visible row's position among the visible (not discarded) rows, counting
- * from one.
- */
+/** Each row's position in the list, counting from one. */
 const rowOrderAtom = atom((get) => {
   const at = new Map<PublicationId, number>();
 
-  (get(visibleIdsAtom) ?? []).forEach((id, index) => at.set(id, index + 1));
+  (get(publicationIdsAtom) ?? []).forEach((id, index) => at.set(id, index + 1));
 
   return at;
 });
 
 /**
- * A row's position among the visible (not discarded) rows, counting from one,
- * or 0 for a row that is not visible.
+ * A row's position in the list, counting from one, or 0 for a row that is not
+ * in it.
  *
  * The number comes from the order, because a key does not encode a position
  * and an unsaved row's key is a UUID. It is read from `rowOrderAtom`, one map
  * of every row's position, because searching the list once per row would be
- * slow when every visible row asks at the same time.
+ * slow when every row asks at the same time.
  */
 const rowNumberFamily = atomFamily((id: PublicationId) =>
   atom<number>((get) => get(rowOrderAtom).get(id) ?? 0),
 );
-const discardedCountAtom = atom((get) => get(discardedIdsAtom)?.length || 0);
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
 
-// The visible rows that resemble something. Discarded rows are not visible, so
-// they are not included.
+// The rows that resemble something, in the order they are shown.
 const resemblingIdsAtom = atom((get) =>
-  get(visibleIdsAtom)?.filter((id) => get(resemblanceFamily(id))),
+  get(publicationIdsAtom)?.filter((id) => get(resemblanceFamily(id))),
 );
 
 const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
@@ -416,20 +396,23 @@ const rowErrorFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * The subjects of all visible rows, in order, as one JSON string.
+ * The subjects of all rows, in order, as one JSON string.
  *
- * It changes only when a row's subject or the set of visible rows changes, so
+ * It changes only when a row's subject or the set of rows changes, so
  * editing a field outside `RESEMBLANCE_ATTRIBUTES`, such as the sources, leaves
  * it as it was. Being a string, an unchanged value compares equal and does not
  * notify the atom's subscribers.
  */
 const resemblanceSubjectAtom = atom((get) =>
   JSON.stringify(
-    (get(visibleIdsAtom) ?? []).map((id) => get(rowSubjectFamily(id))),
+    (get(publicationIdsAtom) ?? []).map((id) => get(rowSubjectFamily(id))),
   ),
 );
 
-const totalCountAtom = atom((get) => get(publicationIdsAtom)?.length || 0);
+/** The number of rows in the list. */
+const publicationCountAtom = atom(
+  (get) => get(publicationIdsAtom)?.length || 0,
+);
 
 const visibleAttributesAtom = atom((get) =>
   ATTRIBUTES.filter((key) => get(attributeVisibleFamily(key))),
@@ -553,7 +536,6 @@ const PUBLICATION_FAMILIES = [
   publicationFamily,
   savedFamily,
   errorFamily,
-  discardedFamily,
   lastValidatedFamily,
   publicationSourcesFamily,
   publicationExcerptsFamily,
@@ -793,14 +775,6 @@ function closeReview(store: Store): void {
   store.set(reviewingAtom, RESET);
 }
 
-function setDiscarded(
-  store: Store,
-  ids: PublicationId[],
-  isDeleted = true,
-): void {
-  ids.forEach((id) => store.set(discardedFamily(id), isDeleted));
-}
-
 function setFocusedRowId(store: Store, id: PublicationId | undefined): void {
   store.set(focusedRowIdAtom, id);
 }
@@ -937,7 +911,6 @@ function resetAll(store: Store): void {
     store.set(publicationFamily(id), RESET);
     store.set(savedFamily(id), RESET);
     store.set(errorFamily(id), RESET);
-    store.set(discardedFamily(id), RESET);
     store.set(lastValidatedFamily(id), RESET);
     store.set(measuredResemblanceFamily(id), RESET);
   });
@@ -955,16 +928,26 @@ function resetAll(store: Store): void {
   }
 }
 
-function resetDiscarded(store: Store): void {
-  store
-    .get(discardedIdsAtom)
-    ?.forEach((id) => store.set(discardedFamily(id), RESET));
+/**
+ * Removes the rows `ids` from the store's document because they were moved to
+ * another document, and resets what was checked about them.
+ *
+ * The removal is saved and relayed like an edit, but undo does not bring the
+ * rows back, because they are in the other document now (see `Doc.MOVED`).
+ */
+function moveOut(store: Store, ids: PublicationId[]): void {
+  Doc.moveOut(documentOf(store).doc, ids);
+
+  ids.forEach((id) => {
+    store.set(errorFamily(id), RESET);
+    store.set(lastValidatedFamily(id), RESET);
+    store.set(measuredResemblanceFamily(id), RESET);
+  });
 }
 
 /**
  * Drop a publication that no longer exists on the server (after a server-side
- * delete): remove its id from the index and reset its per-row state. Distinct
- * from the workspace's `setDiscarded`, which only hides rows in memory.
+ * delete): remove its id from the index and reset its per-row state.
  */
 function removePublication(store: Store, id: PublicationId): void {
   const { doc, undo } = documentOf(store);
@@ -975,7 +958,6 @@ function removePublication(store: Store, id: PublicationId): void {
   store.set(publicationFamily(id), RESET);
   store.set(savedFamily(id), RESET);
   store.set(errorFamily(id), RESET);
-  store.set(discardedFamily(id), RESET);
   store.set(lastValidatedFamily(id), RESET);
 
   // Keep the footer's "N publications registered" honest without a refetch.
@@ -991,16 +973,16 @@ function resetAttributes(store: Store): void {
 
 /** Focus the next invalid row after the currently focused one (wrapping). */
 function focusNextInvalid(store: Store): void {
-  const visibleIds = store.get(visibleIdsAtom);
-  if (!visibleIds) return;
+  const ids = store.get(publicationIdsAtom);
+  if (!ids) return;
 
   const isInvalid = (id: PublicationId) => store.get(rowErrorFamily(id));
   const focusedId = store.get(focusedRowIdAtom);
   // Walk by list position (ids are no longer monotonic once rows are keyed by
   // server id), then wrap to the first invalid row.
-  const start = focusedId === undefined ? -1 : visibleIds.indexOf(focusedId);
+  const start = focusedId === undefined ? -1 : ids.indexOf(focusedId);
   const nextInvalidId =
-    visibleIds.slice(start + 1).find(isInvalid) ?? visibleIds.find(isInvalid);
+    ids.slice(start + 1).find(isInvalid) ?? ids.find(isInvalid);
 
   store.set(focusedRowIdAtom, nextInvalidId);
 }
@@ -1013,7 +995,6 @@ export {
   attributeVisibleFamily,
   closeReview,
   createId,
-  discardedCountAtom,
   discardEdit,
   documentOf,
   DRAFT_ID,
@@ -1042,9 +1023,11 @@ export {
   perPageAtom,
   publicationExcerptsFamily,
   publicationFamily,
+  publicationCountAtom,
   publicationIdsAtom,
   publicationSourcesFamily,
   receiveIndex,
+  moveOut,
   remember,
   removePublication,
   resemblanceFamily,
@@ -1054,14 +1037,12 @@ export {
   resemblingIdsAtom,
   resetAll,
   resetAttributes,
-  resetDiscarded,
   reviewingAtom,
   rowNumberFamily,
   rowSubjectFamily,
   savedFamily,
   setAll,
   setAttributesVisible,
-  setDiscarded,
   setErrors,
   setField,
   setFocusedRowId,
@@ -1069,12 +1050,9 @@ export {
   setSources,
   storedFieldValueFamily,
   storedSourcesFamily,
-  totalCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
-  visibleCountAtom,
-  visibleIdsAtom,
 };
 export type { PublicationIndex };

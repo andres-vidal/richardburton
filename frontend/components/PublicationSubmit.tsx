@@ -3,7 +3,7 @@
 import {
   useIsValidating,
   useValidPublicationCount,
-  useVisiblePublicationCount,
+  usePublicationCount,
 } from "modules/publication/hooks";
 import { setAll } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
@@ -31,7 +31,7 @@ const PublicationSubmit: FC = () => {
     });
   }, [notify, store]);
 
-  const publicationCount = useVisiblePublicationCount();
+  const publicationCount = usePublicationCount();
   const validPublicationCount = useValidPublicationCount();
   const invalidPublicationCount = publicationCount - validPublicationCount;
 

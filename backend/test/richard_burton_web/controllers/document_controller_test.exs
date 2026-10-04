@@ -11,6 +11,7 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
   alias RichardBurton.Document
   alias RichardBurton.Repo
+  alias RichardBurtonWeb.DocumentChannel
 
   setup do
     {:ok, actor: create_session_user()}
@@ -186,6 +187,39 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
                |> json_response(200)
 
       assert Repo.get(Document, document["id"]).rows == 3
+    end
+
+    test "an update appended to be relayed reaches the connections on the document", meta do
+      document = create(meta.conn)
+      update = Base.encode64(<<4, 5, 6>>)
+      RichardBurtonWeb.Endpoint.subscribe(DocumentChannel.topic(document["id"]))
+
+      expect_auth_authorize_admin()
+
+      assert meta.conn
+             |> post(document_path(meta.conn, :append, document["id"]), %{
+               "update" => update,
+               "rows" => 2,
+               "relay" => true
+             })
+             |> response(204)
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "update", payload: %{"update" => ^update}}
+    end
+
+    test "an update appended without asking to relay it is only stored", meta do
+      document = create(meta.conn)
+      RichardBurtonWeb.Endpoint.subscribe(DocumentChannel.topic(document["id"]))
+
+      expect_auth_authorize_admin()
+
+      assert meta.conn
+             |> post(document_path(meta.conn, :append, document["id"]), %{
+               "update" => Base.encode64(<<7>>)
+             })
+             |> response(204)
+
+      refute_receive %Phoenix.Socket.Broadcast{event: "update"}, 100
     end
 
     test "a compaction replaces what is behind it", meta do

@@ -32,10 +32,10 @@ const NO_ROWS: PublicationId[] = [];
  * shown with the same `Candidate` card, compared with every other card of the
  * question, so the words that differ between them are highlighted.
  *
- * It has no controls that change the row. The person corrects or discards the
- * row in the workspace with the existing controls, or leaves it as it is, since
- * a row that leaves out its year, country or publisher can resemble another
- * edition of its book.
+ * It has no controls that change the row. The person corrects the row in the
+ * workspace, moves it to another document, or leaves it as it is, since a row
+ * that leaves out its year, country or publisher can resemble another edition
+ * of its book.
  *
  * Another row that has left the document since the check is not shown.
  */

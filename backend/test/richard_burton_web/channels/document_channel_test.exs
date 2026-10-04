@@ -50,7 +50,9 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
 
   defp joined(person, document) do
     {:ok, _reply, socket} =
-      person |> connected() |> subscribe_and_join(DocumentChannel, "document:#{document.id}")
+      person
+      |> connected()
+      |> subscribe_and_join(DocumentChannel, DocumentChannel.topic(document.id))
 
     socket
   end
@@ -123,14 +125,14 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
       assert {:ok, _reply, _socket} =
                signed_in("helen@example.com")
                |> connected()
-               |> subscribe_and_join(DocumentChannel, "document:#{document().id}")
+               |> subscribe_and_join(DocumentChannel, DocumentChannel.topic(document().id))
     end
 
     test "a document that does not exist cannot be joined" do
       assert {:error, %{reason: "not_found"}} =
                signed_in("helen@example.com")
                |> connected()
-               |> subscribe_and_join(DocumentChannel, "document:999999")
+               |> subscribe_and_join(DocumentChannel, DocumentChannel.topic(999_999))
     end
 
     test "a socket whose session has since gone cannot join anything" do
@@ -139,7 +141,7 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
       Session.revoke(person.cookie)
 
       assert {:error, %{reason: "refused"}} =
-               subscribe_and_join(socket, DocumentChannel, "document:#{document().id}")
+               subscribe_and_join(socket, DocumentChannel, DocumentChannel.topic(document().id))
     end
   end
 
@@ -167,7 +169,9 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
       {:ok, _reply, _socket} =
         signed_in("isabel@example.com")
         |> connected()
-        |> subscribe_and_join(DocumentChannel, "document:#{document.id}", %{"clientId" => 42})
+        |> subscribe_and_join(DocumentChannel, DocumentChannel.topic(document.id), %{
+          "clientId" => 42
+        })
 
       assert_broadcast("presence_diff", %{joins: joins})
       assert joins |> Map.values() |> Enum.any?(&has_client?(&1, 42, "isabel@example.com"))
@@ -237,7 +241,15 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
 
   describe "relaying" do
     setup do
-      {:ok, socket: joined(signed_in("helen@example.com"), document())}
+      document = document()
+
+      {:ok, socket: joined(signed_in("helen@example.com"), document), document: document}
+    end
+
+    test "an update relayed from outside the channel reaches the connections on it", meta do
+      DocumentChannel.relay!(meta.document.id, "AQIDBA==")
+
+      assert_push("update", %{"update" => "AQIDBA=="})
     end
 
     test "a change reaches the others, as the bytes it was sent as", meta do

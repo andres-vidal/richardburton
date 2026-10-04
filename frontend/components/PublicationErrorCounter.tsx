@@ -5,7 +5,7 @@ import ErrorCircleIcon from "assets/error-circle.svg";
 import { toString } from "lodash";
 import {
   useValidPublicationCount,
-  useVisiblePublicationCount,
+  usePublicationCount,
 } from "modules/publication/hooks";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
@@ -16,7 +16,7 @@ import Tooltip from "./Tooltip";
 const PublicationErrorCounter: FC = () => {
   const t = useTranslations("admin");
   const [isOpen, setOpen] = useState(false);
-  const publicationCount = useVisiblePublicationCount();
+  const publicationCount = usePublicationCount();
   const validPublicationCount = useValidPublicationCount();
   const invalidPublicationCount = publicationCount - validPublicationCount;
 

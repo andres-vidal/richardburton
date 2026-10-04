@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import {
+  moveOut,
   reviewingAtom,
-  setDiscarded,
   setResemblances,
 } from "modules/publication/store";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
@@ -62,11 +62,11 @@ export const NothingAlike: Story = {
 };
 
 /**
- * Discarding a row that resembles something lowers the count from 3 to 2. The
- * count also falls when a row is edited so that it no longer resembles
- * anything.
+ * Moving a row that resembles something to another document lowers the count
+ * from 3 to 2. The count also falls when a row is edited so that it no longer
+ * resembles anything.
  */
-export const DiscardingLowersIt: Story = {
+export const MovingARowOutLowersIt: Story = {
   play: async () => {
     await expect(
       await screen.findByRole("button", {
@@ -74,7 +74,7 @@ export const DiscardingLowersIt: Story = {
       }),
     ).toBeVisible();
 
-    setDiscarded(store, [ids[0]]);
+    moveOut(store, [ids[0]]);
 
     await expect(
       await screen.findByRole("button", {
