@@ -28,6 +28,8 @@ Never add `Co-Authored-By` trailers or any other tool attribution.
 
 Say what the change delivers and why. Call out an implementation detail when it is novel or surprising enough that the change is hard to follow without it, and leave the rest to the code. Use the same one-line-per-paragraph markdown as commit messages.
 
+Keep a description you write to 500 characters at most, unless the user explicitly allows a longer one.
+
 Do not restate what CI already reports — no section listing test counts or which checks pass. Do not describe what the branch is stacked on; that goes stale the moment the base merges.
 
 ## Documentation
