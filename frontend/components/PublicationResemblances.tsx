@@ -27,9 +27,9 @@ type Props = {
  * records, other rows of the same import, or both. Every record and row is
  * shown with the same `Candidate` card.
  *
- * It has no controls that change the row. The person corrects or discards the
- * row in the workspace with the existing controls, or leaves it as it is, since
- * two editions of one book are two publications.
+ * It has no controls that change the row. The person corrects the row in the
+ * workspace, moves it to another document, or leaves it as it is, since two
+ * editions of one book are two publications.
  */
 const Question: FC<{
   id: PublicationId;

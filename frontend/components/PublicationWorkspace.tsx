@@ -27,7 +27,7 @@ import {
   usePublicationField,
   usePublicationFieldError,
   useReviewing,
-  useVisiblePublicationIds,
+  usePublicationIds,
 } from "modules/publication/hooks";
 import { colourOf, useOnThisCell } from "modules/publication/presence";
 import { validate } from "modules/publication/remote";
@@ -247,7 +247,7 @@ const NewPublicationRow: FC = () => {
 
 const PublicationWorkspace: FC = () => {
   const store = usePublicationStore();
-  const ids = useVisiblePublicationIds();
+  const ids = usePublicationIds();
   const isSelectionEmpty = useIsSelectionEmpty();
   const reviewing = useReviewing();
 

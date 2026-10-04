@@ -1,7 +1,7 @@
 "use client";
 
 import UploadIcon from "assets/upload.svg";
-import { useTotalPublicationCount } from "modules/publication/hooks";
+import { usePublicationCount } from "modules/publication/hooks";
 import { usePublicationStore } from "modules/publication/workspace";
 import { upload } from "modules/publication/remote";
 import { useTranslations } from "next-intl";
@@ -25,7 +25,7 @@ import Tooltip from "./Tooltip";
 const PublicationUpload: FC = () => {
   const t = useTranslations("admin");
   const store = usePublicationStore();
-  const totalPublications = useTotalPublicationCount();
+  const totalPublications = usePublicationCount();
 
   const [key, setKey] = useState(1);
   const [asking, setAsking] = useState(false);

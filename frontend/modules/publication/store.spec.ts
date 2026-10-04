@@ -12,7 +12,6 @@ import {
   addNew,
   appendIndex,
   createId,
-  discardedCountAtom,
   discardEdit,
   duplicate,
   fieldValueFamily,
@@ -29,22 +28,21 @@ import {
   resemblanceFamily,
   resetAll,
   resetAttributes,
-  resetDiscarded,
   rowErrorFamily,
   savedFamily,
   setAll,
   setAttributesVisible,
-  setDiscarded,
   setErrors,
   setField,
   setResemblances,
   setSources,
   storedFieldValueFamily,
-  totalCountAtom,
   validCountAtom,
   visibleAttributesAtom,
-  visibleCountAtom,
-  visibleIdsAtom,
+  documentOf,
+  errorFamily,
+  moveOut,
+  publicationCountAtom,
 } from "./store";
 
 import type { Store } from "modules/store";
@@ -87,14 +85,12 @@ beforeEach(() => {
 });
 
 describe("setAll", () => {
-  test("registers the given ids and exposes them as visible", () => {
+  test("registers the given ids in their order", () => {
     const [a, b, c] = [createId(), createId(), createId()];
     setAll(store, [entry(a, { title: "Dom Casmurro" }), entry(b), entry(c)]);
 
     expect(store.get(publicationIdsAtom)).toEqual([a, b, c]);
-    expect(store.get(visibleIdsAtom)).toEqual([a, b, c]);
-    expect(store.get(totalCountAtom)).toBe(3);
-    expect(store.get(visibleCountAtom)).toBe(3);
+    expect(store.get(publicationCountAtom)).toBe(3);
   });
 
   test("a cell reads its publication's field", () => {
@@ -181,38 +177,38 @@ describe("validity", () => {
   });
 });
 
-describe("deletion", () => {
-  test("setDiscarded hides a row without dropping it from the list", () => {
-    const [a, b] = [createId(), createId()];
-    setAll(store, [entry(a), entry(b)]);
+describe("moving rows out", () => {
+  test("moveOut takes rows out of the list and out of the counts", () => {
+    const [a, b, c] = [createId(), createId(), createId()];
+    setAll(store, [entry(a), entry(b), entry(c)]);
 
-    setDiscarded(store, [a]);
+    moveOut(store, [a, c]);
 
-    expect(store.get(visibleIdsAtom)).toEqual([b]);
-    expect(store.get(visibleCountAtom)).toBe(1);
-    expect(store.get(discardedCountAtom)).toBe(1);
-    expect(store.get(totalCountAtom)).toBe(2);
-  });
-
-  test("a deleted row no longer counts as valid", () => {
-    const [a, b] = [createId(), createId()];
-    setAll(store, [entry(a), entry(b)]);
-    expect(store.get(validCountAtom)).toBe(2);
-
-    setDiscarded(store, [a]);
-
+    expect(store.get(publicationIdsAtom)).toEqual([b]);
+    expect(store.get(publicationCountAtom)).toBe(1);
     expect(store.get(validCountAtom)).toBe(1);
   });
 
-  test("resetDiscarded brings hidden rows back", () => {
+  test("an undo does not bring a moved row back", () => {
     const [a, b] = [createId(), createId()];
     setAll(store, [entry(a), entry(b)]);
-    setDiscarded(store, [a]);
-    expect(store.get(visibleCountAtom)).toBe(1);
+    setField(store, b, "title", "Dom Casmurro");
 
-    resetDiscarded(store);
+    moveOut(store, [a]);
+    documentOf(store).undo.undo();
 
-    expect(store.get(visibleIdsAtom)).toEqual([a, b]);
+    // The undo reverts the edit to the row that stayed, not the move.
+    expect(store.get(publicationIdsAtom)).toEqual([b]);
+    expect(store.get(fieldValueFamily({ id: b, key: "title" }))).toBe("");
+  });
+
+  test("what was checked about a moved row is dropped", () => {
+    const a = createId();
+    setAll(store, [entry(a, {}, "conflict")]);
+
+    moveOut(store, [a]);
+
+    expect(store.get(errorFamily(a))).toBeNull();
   });
 });
 

@@ -11,6 +11,7 @@ defmodule RichardBurtonWeb.DocumentController do
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.Document
+  alias RichardBurtonWeb.DocumentChannel
 
   @doc """
   Returns a page of documents and whether more follow it, as
@@ -99,11 +100,17 @@ defmodule RichardBurtonWeb.DocumentController do
   @doc """
   Appends one base64 update to a document, with an optional `rows` count. A
   missing or invalid `rows` leaves the stored count unchanged.
+
+  With `relay` set to true, the update is also broadcast as an `update` message
+  to the connections on the document's channel, as if a connection had sent it.
+  A connection relays its own edits, so `relay` is for an update from a writer
+  that is not connected to the document.
   """
   def append(conn, params = %{"id" => id, "update" => update}) do
     with {:ok, document} <- Document.find(id),
          {:ok, bytes} <- decoded(update),
-         {:ok, _} <- Document.append(document, bytes, integer_param(params["rows"])) do
+         {:ok, _} <- Document.append(document, bytes, integer_param(params["rows"])),
+         :ok <- relay(document, update, params["relay"]) do
       send_resp(conn, :no_content, "")
     end
   end
@@ -125,6 +132,11 @@ defmodule RichardBurtonWeb.DocumentController do
   end
 
   def compact(_conn, _params), do: {:error, :invalid_through}
+
+  # Relays `update` to the connections on `document` when the request asked for
+  # it with `relay` set to true, and does nothing otherwise. Returns `:ok`.
+  defp relay(document, update, true), do: DocumentChannel.relay!(document.id, update)
+  defp relay(_document, _update, _relay), do: :ok
 
   # Decodes a base64 update, or returns `{:error, :invalid_update}`.
   defp decoded(update) do

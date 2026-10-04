@@ -2,8 +2,9 @@
 
 import { Key } from "app";
 import Button from "components/Button";
+import ButtonLink from "components/ButtonLink";
 import TextInput from "components/TextInput";
-import { Link, useRouter } from "i18n/navigation";
+import { useRouter } from "i18n/navigation";
 import {
   DOCUMENTS_PER_PAGE,
   archive as archiveDocument,
@@ -22,9 +23,10 @@ import { FC, FormEvent, useState } from "react";
 type Side = "current" | "archived";
 
 /**
- * One document in the list. It links to the document and shows its name, row
- * count and last change date, with buttons to rename and archive it. An
- * archived document has a button to restore it instead.
+ * One document in the list. It shows the document's name, row count and last
+ * change date, with **Open**, which goes to the document, and buttons to rename
+ * and archive it. An archived document can still be opened, and has a button
+ * to restore it instead of the other two.
  *
  * **Rename** turns the name into a text field in the same row. Enter or leaving
  * the field saves the new name, and Escape keeps the old one. A blank or
@@ -89,10 +91,7 @@ const Entry: FC<{
           />
         </span>
       ) : (
-        <Link
-          href={`/admin/publications/documents/${document.id}`}
-          className="flex gap-4 justify-between items-center py-1 min-w-0 rounded grow focus-ring"
-        >
+        <span className="flex gap-4 justify-between items-center py-1 min-w-0 grow">
           <span className="min-w-0">
             <span className="block text-sm font-medium truncate">
               {document.name}
@@ -104,38 +103,46 @@ const Entry: FC<{
           <span className="text-xs text-gray-600 shrink-0 tabular-nums">
             {formatDate(document.updatedAt)}
           </span>
-        </Link>
+        </span>
       )}
 
-      {document.archivedAt ? (
-        <Button
-          label={t("restore")}
-          variant="outline"
-          width="fit"
-          size="small"
-          loading={working}
-          onClick={() => act(onMove)}
+      <span className="flex gap-2 shrink-0">
+        <ButtonLink
+          label={t("open")}
+          aria-label={t("openLabel", { name: document.name })}
+          href={`/admin/publications/documents/${document.id}`}
+          variant="outline-primary"
         />
-      ) : (
-        <span className="flex gap-2 shrink-0">
+        {document.archivedAt ? (
           <Button
-            label={t("rename")}
-            variant="outline"
-            width="fit"
-            size="small"
-            disabled={working || renaming}
-            onClick={() => setRenaming(true)}
-          />
-          <Button
-            label={t("archive")}
+            label={t("restore")}
             variant="outline"
             width="fit"
             size="small"
             loading={working}
             onClick={() => act(onMove)}
           />
-        </span>
-      )}
+        ) : (
+          <>
+            <Button
+              label={t("rename")}
+              variant="outline"
+              width="fit"
+              size="small"
+              disabled={working || renaming}
+              onClick={() => setRenaming(true)}
+            />
+            <Button
+              label={t("archive")}
+              variant="outline"
+              width="fit"
+              size="small"
+              loading={working}
+              onClick={() => act(onMove)}
+            />
+          </>
+        )}
+      </span>
     </li>
   );
 };

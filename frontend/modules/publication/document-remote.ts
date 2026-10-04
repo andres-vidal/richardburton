@@ -147,16 +147,25 @@ async function updates(id: number, after?: number): Promise<Held> {
   });
 }
 
-/** Stores one update, with the document's current row count. */
+/**
+ * Stores one update, with the document's current row count.
+ *
+ * With `relay`, the server also sends the update to the people who have the
+ * document open, as if it had come over the document's channel. A client that
+ * is connected to the document relays its own edits, so `relay` is for a client
+ * that writes to a document it does not have open.
+ */
 async function append(
   id: number,
   update: Uint8Array,
   rows: number,
+  { relay = false }: { relay?: boolean } = {},
 ): Promise<void> {
   return request(async (http) => {
     await http.post(`documents/${id}/updates`, {
       update: encode(update),
       rows,
+      ...(relay ? { relay: true } : {}),
     });
   });
 }

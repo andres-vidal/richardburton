@@ -42,15 +42,25 @@ type Order = Y.Array<string>;
 const LOCAL = Symbol("local");
 
 /**
+ * The transaction origin for rows this client removed because they were moved
+ * to another document.
+ *
+ * The undo manager does not track it, so an undo cannot bring a moved row back
+ * into this document while the row is also in the other one.
+ */
+const MOVED = Symbol("moved");
+
+/**
  * Returns whether a transaction origin belongs to a change made in this client.
  *
- * An edit has the origin `LOCAL`. An undo or redo has the `Y.UndoManager` that
- * made it as its origin, because Yjs does not reuse the origin of the change it
- * reverts. Both are local changes, so both must be saved and relayed. Checking
- * for `LOCAL` alone would leave an undo in this client only.
+ * An edit has the origin `LOCAL`, and removing moved rows has the origin
+ * `MOVED`. An undo or redo has the `Y.UndoManager` that made it as its origin,
+ * because Yjs does not reuse the origin of the change it reverts. All of them
+ * are local changes, so all of them must be saved and relayed. Checking for
+ * `LOCAL` alone would leave an undo in this client only.
  */
 const isLocal = (origin: unknown): boolean =>
-  origin === LOCAL || origin instanceof Y.UndoManager;
+  origin === LOCAL || origin === MOVED || origin instanceof Y.UndoManager;
 
 /**
  * The transaction origin for rows written into the document as the database
@@ -144,6 +154,39 @@ function setAll(
     );
     order(doc).push(entries.map(({ id }) => String(id)));
   });
+}
+
+/** Adds `entries` at the end, in their order, in one transaction. */
+function appendRows(
+  doc: Y.Doc,
+  entries: { id: PublicationId; publication: Publication }[],
+): void {
+  write(doc, () => {
+    entries.forEach(({ id, publication }) =>
+      rows(doc).set(String(id), rowOf(publication)),
+    );
+    order(doc).push(entries.map(({ id }) => String(id)));
+  });
+}
+
+/**
+ * Removes the rows `ids` and their keys in the reading order, in one
+ * transaction with the origin `MOVED`, because they were moved to another
+ * document.
+ */
+function moveOut(doc: Y.Doc, ids: PublicationId[]): void {
+  const leaving = new Set(ids.map(String));
+
+  doc.transact(() => {
+    dropRows(doc, ids);
+
+    // Deleted from the end, so the positions still to delete do not shift.
+    order(doc)
+      .toArray()
+      .flatMap((key, at) => (leaving.has(key) ? [at] : []))
+      .reverse()
+      .forEach((at) => order(doc).delete(at, 1));
+  }, MOVED);
 }
 
 /** Add one row at the end. */
@@ -336,14 +379,17 @@ function undoManager(doc: Y.Doc): Y.UndoManager {
 
 export {
   LOCAL,
+  MOVED,
   isLocal,
   addRow,
   addRowAfter,
   appendOrder,
+  appendRows,
   dropRows,
   hold,
   holds,
   keys,
+  moveOut,
   rowCount,
   observe,
   publicationOf,

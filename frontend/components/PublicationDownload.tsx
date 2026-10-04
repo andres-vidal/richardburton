@@ -6,7 +6,7 @@ import { snakeCase } from "lodash";
 import { Publication } from "modules/publication/model";
 import {
   useVisibleAttributes,
-  useVisiblePublicationCount,
+  usePublicationCount,
 } from "modules/publication/hooks";
 import { useSearchParams } from "next/navigation";
 import { FC, useRef } from "react";
@@ -39,7 +39,7 @@ function filenameFrom(disposition: unknown): string {
 const PublicationDownload: FC = () => {
   const t = useTranslations("download");
   const notify = useNotify();
-  const visibleCount = useVisiblePublicationCount();
+  const visibleCount = usePublicationCount();
   const visibleAttributes = useVisibleAttributes();
   const areAllAttributesVisible =
     visibleAttributes.length === Publication.ATTRIBUTES.length;
