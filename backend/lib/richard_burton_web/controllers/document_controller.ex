@@ -109,9 +109,8 @@ defmodule RichardBurtonWeb.DocumentController do
   def append(conn, params = %{"id" => id, "update" => update}) do
     with {:ok, document} <- Document.find(id),
          {:ok, bytes} <- decoded(update),
-         {:ok, _} <- Document.append(document, bytes, integer_param(params["rows"])) do
-      if params["relay"] == true, do: DocumentChannel.relay!(document.id, update)
-
+         {:ok, _} <- Document.append(document, bytes, integer_param(params["rows"])),
+         :ok <- relay(document, update, params["relay"]) do
       send_resp(conn, :no_content, "")
     end
   end
@@ -133,6 +132,11 @@ defmodule RichardBurtonWeb.DocumentController do
   end
 
   def compact(_conn, _params), do: {:error, :invalid_through}
+
+  # Relays `update` to the connections on `document` when the request asked for
+  # it with `relay` set to true, and does nothing otherwise. Returns `:ok`.
+  defp relay(document, update, true), do: DocumentChannel.relay!(document.id, update)
+  defp relay(_document, _update, _relay), do: :ok
 
   # Decodes a base64 update, or returns `{:error, :invalid_update}`.
   defp decoded(update) do
