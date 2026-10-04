@@ -509,8 +509,8 @@ defmodule RichardBurton.VocabularyTest do
       assert elem(fingerprints(copy), 1) == elem(fingerprints(kept), 1)
     end
 
-    test "restoring a deleted copy after the rename is refused as a duplicate" do
-      insert()
+    test "restoring a deleted copy after the rename is refused as a duplicate of the other" do
+      kept = insert()
       copy = insert(%{"translated_book" => %{"authors" => [%{"name" => "Helen Caldwel"}]}})
       {:ok, _} = Publication.delete(copy.id)
 
@@ -522,7 +522,8 @@ defmodule RichardBurton.VocabularyTest do
                  true
                )
 
-      assert {:error, :conflict} = Publication.restore(copy.id)
+      assert {:error, {:conflict, twin}} = Publication.restore(copy.id)
+      assert twin.id == kept.id
     end
   end
 

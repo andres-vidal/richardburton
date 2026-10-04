@@ -395,9 +395,9 @@ defmodule RichardBurton.CountryTest do
     end
   end
 
-  describe "maybe_insert/1" do
+  describe "find_or_insert/1" do
     test "when there is no country with the provided name, inserts it" do
-      country = Country.maybe_insert!(@valid_attrs)
+      country = Country.find_or_insert!(@valid_attrs)
 
       assert [country] == Country.all()
     end
@@ -406,14 +406,14 @@ defmodule RichardBurton.CountryTest do
       insert(@valid_attrs)
       assert [preexistent_country] = Country.all()
 
-      country = Country.maybe_insert!(@valid_attrs)
+      country = Country.find_or_insert!(@valid_attrs)
 
       assert preexistent_country == country
       assert [country] == Country.all()
     end
 
     test "stores the names the country is searchable by" do
-      country = Country.maybe_insert!(@valid_attrs)
+      country = Country.find_or_insert!(@valid_attrs)
 
       assert "United Kingdom" in country.names
       assert "Reino Unido" in country.names

@@ -23,7 +23,7 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
   ]
 
   def search_fixture(_) do
-    Enum.each(@books, &OriginalBook.maybe_insert!/1)
+    Enum.each(@books, &OriginalBook.find_or_insert!/1)
     []
   end
 

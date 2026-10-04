@@ -68,9 +68,9 @@ defmodule RichardBurton.AuthorTest do
     end
   end
 
-  describe "maybe_insert/1" do
+  describe "find_or_insert/1" do
     test "when there is no author with the provided name, inserts it" do
-      author = Author.maybe_insert!(@valid_attrs)
+      author = Author.find_or_insert!(@valid_attrs)
 
       assert [author] == Author.all()
     end
@@ -79,7 +79,7 @@ defmodule RichardBurton.AuthorTest do
       insert(@valid_attrs)
       assert [preexistent_author] = Author.all()
 
-      author = Author.maybe_insert!(@valid_attrs)
+      author = Author.find_or_insert!(@valid_attrs)
 
       assert preexistent_author == author
       assert [author] == Author.all()
