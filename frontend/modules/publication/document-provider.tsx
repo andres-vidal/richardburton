@@ -9,7 +9,7 @@ import { live, type Live, type LiveState } from "./document-live";
 import { sync, type SyncState } from "./document-sync";
 import { LiveProvider } from "./presence";
 import { validate } from "./remote";
-import { openWorkspace, visibleIdsAtom } from "./store";
+import { openWorkspace, publicationIdsAtom } from "./store";
 import { usePublicationStore } from "./workspace";
 
 /**
@@ -74,7 +74,7 @@ const DocumentProvider: FC<{ document: number; children: ReactNode }> = ({
     // unreachable, so the rejection is caught here instead of going unhandled.
     Promise.all([stored.whenSynced, running.ready])
       .then(() => {
-        const ids = store.get(visibleIdsAtom);
+        const ids = store.get(publicationIdsAtom);
 
         return ids && ids.length > 0 ? validate(store, ids) : undefined;
       })

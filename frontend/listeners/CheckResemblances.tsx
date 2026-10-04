@@ -3,7 +3,7 @@
 import { useAtomValue } from "jotai";
 import {
   resemblanceSubjectAtom,
-  visibleIdsAtom,
+  publicationIdsAtom,
 } from "modules/publication/store";
 import { REMOTE } from "modules/publication/remote";
 import type { Store } from "modules/store";
@@ -13,11 +13,11 @@ import { FC, useEffect } from "react";
 const SETTLE = 500;
 
 /**
- * Runs the look-alike check on all visible rows `SETTLE` ms after the last
- * change to a field the check reads or to the set of visible rows. It renders
+ * Runs the look-alike check on all rows `SETTLE` ms after the last
+ * change to a field the check reads or to the set of rows. It renders
  * nothing.
  *
- * It sends all visible rows, not only the row that changed, because each row is
+ * It sends all rows, not only the row that changed, because each row is
  * also compared with the other rows. Editing one row can make it resemble
  * another row that has not changed.
  *
@@ -27,7 +27,7 @@ const CheckResemblances: FC<{ store: Store }> = ({ store }) => {
   const subject = useAtomValue(resemblanceSubjectAtom);
 
   useEffect(() => {
-    const ids = store.get(visibleIdsAtom) ?? [];
+    const ids = store.get(publicationIdsAtom) ?? [];
     if (ids.length === 0) return;
 
     const timer = setTimeout(() => REMOTE.resemblances(store, ids), SETTLE);

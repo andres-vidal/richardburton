@@ -4,7 +4,7 @@ import {
   useHiddenAttributes,
   usePublicationExcerpts,
   usePublicationMarkedField,
-  useVisiblePublicationIds,
+  usePublicationIds,
 } from "modules/publication/hooks";
 import {
   Publication,
@@ -347,7 +347,7 @@ const PublicationIndexTable: FC<Props> = ({
   collapsible = true,
 }) => {
   const t = useTranslations("attributes");
-  const ids = useVisiblePublicationIds();
+  const ids = usePublicationIds();
   const hasSignal = Boolean(ExtendedSignalColumn);
   const hasTrailing = Boolean(ExtendedTrailingColumn);
   const visibleAttributes = useVisibleAttributes(collapsible);

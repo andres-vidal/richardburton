@@ -14,8 +14,8 @@ it (see _Extension points_ below).
 ## Data source
 
 Like the [index list](?path=/docs/publications-index-list--docs), the table is
-**state-driven** and takes no publication props — it reads the visible ids from
-the store (`useVisiblePublicationIds`) and each cell resolves its own value.
+**state-driven** and takes no publication props — it reads the row ids from
+the store (`usePublicationIds`) and each cell resolves its own value.
 Cell values are run through `Publication.describeValue`, so stored codes render
 as labels (e.g. a country code becomes the country name). Stories seed the store
 with the shared fixtures:

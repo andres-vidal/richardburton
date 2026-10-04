@@ -210,9 +210,8 @@
     "role": "Role",
     "undo": "Undo",
     "deselect": "Deselect {count}",
-    "discard": "Discard {count}",
     "duplicate": "Duplicate {count}",
-    "resetDiscarded": "{count, plural, one {Reset # discarded} other {Reset # discarded}}",
+    "move": "Move {count}",
     "resetOverridden": "{count, plural, one {Reset # overridden} other {Reset # overridden}}",
     "byActor": "{actor, select, system {by the system} other {by {actor}}}",
     "byActorOn": "{actor, select, system {by the system} other {by {actor}}} · {date}",
@@ -368,7 +367,20 @@
     "duplicate": "This field cannot repeat the same entry",
     "repeated": "Another row of this import is the same publication"
   },
+  "moving": {
+    "heading": "{count, plural, one {Move # row to another document} other {Move # rows to another document}}",
+    "description": "The rows leave this document and are added at the end of the one you choose, for everyone working on either.",
+    "target": "Where to move them",
+    "newDocument": "A new document",
+    "nameLabel": "Name of the new document",
+    "cancel": "Cancel",
+    "confirm": "{count, plural, one {Move # row} other {Move # rows}}"
+  },
   "notify": {
+    "rowsMoved": "{count, plural, one {Moved # row} other {Moved # rows}}",
+    "rowsMovedDetail": "They are now at the end of “{name}”.",
+    "moveFailed": "Could not move the rows",
+    "moveFailedDetail": "They are still in this document. Check your connection and try again.",
     "nothingChanged": "Nothing changed. Check your connection and try again.",
     "publicationUpdated": "Publication updated",
     "publicationUpdatedDetail": "“{title}” is saved.",

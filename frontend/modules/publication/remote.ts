@@ -39,7 +39,6 @@ import {
   setAll,
   setErrors,
   setResemblances,
-  visibleIdsAtom,
 } from "./store";
 
 /**
@@ -84,7 +83,7 @@ async function loadDetails(
 /** Submit the current (visible) working set. */
 async function bulk(store: Store): Promise<Publication[]> {
   return run(async (http) => {
-    const ids = store.get(visibleIdsAtom);
+    const ids = store.get(publicationIdsAtom);
     const publications = ids?.map((id) => store.get(publicationFamily(id)));
 
     store.set(publicationIdsAtom, RESET);

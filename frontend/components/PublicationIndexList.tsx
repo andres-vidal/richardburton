@@ -3,7 +3,7 @@
 import {
   usePublication,
   usePublicationMarking,
-  useVisiblePublicationIds,
+  usePublicationIds,
 } from "modules/publication/hooks";
 import {
   Publication,
@@ -83,7 +83,7 @@ interface Props {
 }
 
 const PublicationIndexList: FC<Props> = ({ onItemClick, itemHref }) => {
-  const ids = useVisiblePublicationIds();
+  const ids = usePublicationIds();
 
   return ids && ids.length > 0 ? (
     <ol className="space-y-4">

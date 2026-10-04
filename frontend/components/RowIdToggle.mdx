@@ -14,7 +14,7 @@ numbers" and "Hide row numbers" depending on the current state.
 
 The toggle is **state-driven**: it takes no props. It reads and writes the
 row-id visibility flag through `useAreRowIdsVisible`, and reads
-`useVisiblePublicationCount` to decide whether to render at all. In stories the
+`usePublicationCount` to decide whether to render at all. In stories the
 store is seeded through the shared fixtures:
 
 ```tsx

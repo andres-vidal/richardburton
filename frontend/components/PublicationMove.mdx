@@ -1,0 +1,70 @@
+import {
+  Canvas,
+  Controls,
+  Description,
+  Meta,
+} from "@storybook/addon-docs/blocks";
+
+import * as PublicationMoveStories from "./PublicationMove.stories";
+
+<Meta of={PublicationMoveStories} />
+
+# Publication move
+
+Moves the selected rows of an import document to another import document,
+either one that exists or a new one named on the spot. It is the **Move N**
+button in the workspace toolbar, shown while rows are selected, and the dialog
+it opens.
+
+Moving is how rows are set aside. Submit only works when every row of a
+document is valid, so rows that are not ready, such as a duplicate or a row
+still missing its publisher, are moved to another document to be finished and
+imported later.
+
+<Controls />
+
+## Moving to a new document
+
+**A new document** is chosen when the dialog opens. It needs a name before the
+rows can move, because a name is how documents are told apart.
+
+<Description of={PublicationMoveStories.ToANewDocument} />
+<Canvas of={PublicationMoveStories.ToANewDocument} />
+
+## Moving to a document that exists
+
+The dialog lists the import documents that are not archived, newest first,
+without the document the rows are in. Each one shows how many rows it holds.
+
+<Description of={PublicationMoveStories.ToAnExistingDocument} />
+<Canvas of={PublicationMoveStories.ToAnExistingDocument} />
+
+<Description of={PublicationMoveStories.ShowingOlderDocuments} />
+<Canvas of={PublicationMoveStories.ShowingOlderDocuments} />
+
+## What a move does
+
+The rows are added at the end of the chosen document, keeping their keys, and
+leave this one. Both changes reach everyone working on either document. The
+server relays the rows to the people who have the chosen document open, so they
+appear there without a reload.
+
+The rows leave this document only after the chosen one has stored them. Undo
+does not bring moved rows back, because they would then be in both documents.
+
+## The rows it moves
+
+A click that is not on a row clears the selection in the workspace, and that
+includes the click that opens the dialog. So the dialog takes the selected rows
+when it opens and moves those. The **Move N** button goes away with the
+selection, but the dialog stays.
+
+<Description of={PublicationMoveStories.AfterTheSelectionIsCleared} />
+<Canvas of={PublicationMoveStories.AfterTheSelectionIsCleared} />
+
+## When the move fails
+
+Nothing changes in either document when the move fails.
+
+<Description of={PublicationMoveStories.WhenTheMoveFails} />
+<Canvas of={PublicationMoveStories.WhenTheMoveFails} />
