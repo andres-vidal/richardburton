@@ -19,7 +19,6 @@ import {
   setAll,
   setField,
   setSources,
-  visibleIdsAtom,
 } from "./store";
 
 /**
@@ -98,7 +97,7 @@ describe("a store working in a document", () => {
     const id = addNew(store);
 
     expect(doc.getArray("order").toArray()).toEqual(["a", String(id)]);
-    expect(store.get(visibleIdsAtom)).toEqual(["a", id]);
+    expect(store.get(publicationIdsAtom)).toEqual(["a", id]);
   });
 
   test("a duplicate is placed right after the row it came from", () => {

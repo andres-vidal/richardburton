@@ -13,8 +13,8 @@ Submit persists the valid rows and clears the workspace.
 ## Data source
 
 The button is **state-driven**: it takes no props and reads everything it needs
-from the publication store. It compares the visible count
-(`useVisiblePublicationCount`) against the valid count
+from the publication store. It compares the row count
+(`usePublicationCount`) against the valid count
 (`useValidPublicationCount`) and watches the validation flag
 (`useIsValidating`) to decide whether it is enabled. Clicking calls `bulk()` to
 POST the rows, then `setAll([])` to reset the store and fires a success

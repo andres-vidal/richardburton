@@ -8,7 +8,6 @@ import {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
   batchNamesAtom,
-  discardedCountAtom,
   errorCodeFamily,
   fieldErrorCodeFamily,
   fieldValueFamily,
@@ -20,11 +19,12 @@ import {
   isValidatingAtom,
   publicationSourcesFamily,
   publicationExcerptsFamily,
+  publicationCountAtom,
   publicationFamily,
+  publicationIdsAtom,
   savedFamily,
   storedFieldValueFamily,
   storedSourcesFamily,
-  totalCountAtom,
   matchingCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
@@ -35,8 +35,6 @@ import {
   rowNumberFamily,
   validCountAtom,
   visibleAttributesAtom,
-  visibleCountAtom,
-  visibleIdsAtom,
 } from "./store";
 
 // Reads are thin `useAtomValue` wrappers; writes are the plain action functions
@@ -45,8 +43,9 @@ import {
 
 const NO_PUBLICATION = atom<Publication | undefined>(undefined);
 
-function useVisiblePublicationIds() {
-  return useAtomValue(visibleIdsAtom);
+/** The ids of the rows in the list, in order. */
+function usePublicationIds() {
+  return useAtomValue(publicationIdsAtom);
 }
 
 /** A row as it is being edited, including unsaved edits. */
@@ -153,15 +152,16 @@ function useIsPublicationFocused(id: PublicationId) {
 }
 
 /**
- * The row's position among the visible (not discarded) rows, counting from
- * one, or 0 when it is not visible.
+ * The row's position in the list, counting from one, or 0 when it is not in
+ * the list.
  */
 function usePublicationRowNumber(id: PublicationId) {
   return useAtomValue(rowNumberFamily(id));
 }
 
-function useVisiblePublicationCount() {
-  return useAtomValue(visibleCountAtom);
+/** The number of rows in the list. */
+function usePublicationCount() {
+  return useAtomValue(publicationCountAtom);
 }
 
 function useValidPublicationCount() {
@@ -185,17 +185,9 @@ function useReviewing() {
   return useAtomValue(reviewingAtom);
 }
 
-/** Returns how many visible rows resemble something. */
+/** Returns how many rows resemble something. */
 function useResemblingPublicationCount() {
   return useAtomValue(resemblingCountAtom);
-}
-
-function useDiscardedPublicationCount() {
-  return useAtomValue(discardedCountAtom);
-}
-
-function useTotalPublicationCount() {
-  return useAtomValue(totalCountAtom);
 }
 
 /** How many loaded publications still lack sources (live). */
@@ -243,9 +235,10 @@ function useAreRowIdsVisible(): [
 const useBatchNames = () => useAtomValue(batchNamesAtom);
 
 export {
+  usePublicationCount,
+  usePublicationIds,
   useAreRowIdsVisible,
   useBatchNames,
-  useDiscardedPublicationCount,
   useHiddenAttributes,
   useIsAttributeVisible,
   useInvalidPublicationIds,
@@ -266,7 +259,6 @@ export {
   usePublicationMarking,
   usePublicationStoredField,
   useStoredPublicationSources,
-  useTotalPublicationCount,
   useUnsourcedPublicationCount,
   usePublicationResemblance,
   useResemblingPublicationCount,
@@ -275,6 +267,4 @@ export {
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,
-  useVisiblePublicationCount,
-  useVisiblePublicationIds,
 };

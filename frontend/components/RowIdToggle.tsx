@@ -5,14 +5,14 @@ import { FC } from "react";
 import Tooltip from "./Tooltip";
 import {
   useAreRowIdsVisible,
-  useVisiblePublicationCount,
+  usePublicationCount,
 } from "modules/publication/hooks";
 import NumberedListIcon from "assets/numbered-list.svg";
 import Toggle from "./Toggle";
 
 const RowIdToggle: FC = () => {
   const t = useTranslations("admin");
-  const publicationCount = useVisiblePublicationCount();
+  const publicationCount = usePublicationCount();
   const [active, set] = useAreRowIdsVisible();
 
   return publicationCount !== 0 ? (
