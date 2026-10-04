@@ -22,6 +22,7 @@ import {
   knownIds,
   focusedRowIdAtom,
   hiddenAttributesAtom,
+  invalidIdsAtom,
   isValidFamily,
   publicationFamily,
   publicationIdsAtom,
@@ -29,6 +30,7 @@ import {
   resetAll,
   resetAttributes,
   resetDiscarded,
+  rowErrorFamily,
   savedFamily,
   setAll,
   setAttributesVisible,
@@ -470,6 +472,7 @@ describe("look-alikes", () => {
   const RESEMBLES = {
     stored: [{ ...empty(), id: 7, title: "Dom Casmurro" }],
     others: [],
+    repeats: null,
   };
 
   function measured() {
@@ -509,5 +512,55 @@ describe("look-alikes", () => {
     });
 
     expect(store.get(resemblanceFamily(1))).toBeNull();
+  });
+});
+
+describe("a row that repeats an earlier row", () => {
+  const ROW = { title: "Dom Casmurro", authors: ["Helen Caldwell"] };
+
+  // Rows 1 and 2 have the same key, so the look-alike check reports row 2 as a
+  // repeat of row 1.
+  function repeated() {
+    setAll(store, [entry(1, ROW), entry(2, ROW)]);
+    setResemblances(
+      store,
+      [1, 2],
+      new Map([
+        [1, { stored: [], others: [2], repeats: null }],
+        [2, { stored: [], others: [1], repeats: 1 }],
+      ]),
+    );
+  }
+
+  test("is invalid, with the error repeated, while the earlier row stays valid", () => {
+    repeated();
+
+    expect(store.get(rowErrorFamily(2))).toBe("repeated");
+    expect(store.get(isValidFamily(2))).toBe(false);
+    expect(store.get(isValidFamily(1))).toBe(true);
+    expect(store.get(validCountAtom)).toBe(1);
+    expect(store.get(invalidIdsAtom)).toEqual([2]);
+  });
+
+  test("shows its validation error rather than the repeat when it has one", () => {
+    repeated();
+    setErrors(store, [entry(2, ROW, "conflict")]);
+
+    expect(store.get(rowErrorFamily(2))).toBe("conflict");
+  });
+
+  test("is valid again once a field the check reads is edited", () => {
+    repeated();
+    setField(store, 2, "year", "1960");
+
+    expect(store.get(rowErrorFamily(2))).toBeNull();
+    expect(store.get(validCountAtom)).toBe(2);
+  });
+
+  test("is where focusing the next invalid row goes", () => {
+    repeated();
+    focusNextInvalid(store);
+
+    expect(store.get(focusedRowIdAtom)).toBe(2);
   });
 });

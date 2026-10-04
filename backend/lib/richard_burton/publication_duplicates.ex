@@ -6,7 +6,7 @@ defmodule RichardBurton.Publication.Duplicates do
   near-matches it cannot catch: a typo, a dropped accent, `St.` for `Saint`, a
   translator entered as "R. Burton" once and "Richard Burton" the next time.
 
-  Five words carry specific meanings here:
+  Six words carry specific meanings here:
 
     * **candidate pair** — two publications similar enough to be worth review.
     * **cluster** — a connected component of the candidate graph. If A matches B
@@ -18,6 +18,10 @@ defmodule RichardBurton.Publication.Duplicates do
     * **row** — a publication being imported that is not stored yet. It has no
       id, so `resemblances/1` refers to it by its position in the list it is
       given.
+    * **repeat** — a row with the same composite key as an earlier row in the
+      same list: the same title, year and original title, and the same names
+      in each list, in any order. The database would refuse to store both
+      rows, so a repeat is an error. A resemblance is not an error.
 
   Similarity is trigram distance, the measure the author lookup also uses, over
   the fields a duplicate would agree on. A pair is a candidate when the
@@ -49,6 +53,7 @@ defmodule RichardBurton.Publication.Duplicates do
 
   import Ecto.Query
 
+  alias RichardBurton.Country
   alias RichardBurton.FlatPublication
   alias RichardBurton.Repo
 
@@ -179,13 +184,15 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   @doc """
-  Returns what each row resembles: the stored records, and the other rows in
-  the list.
+  Returns what each row resembles, among the stored records and the other rows
+  in the list, and which earlier row it repeats.
 
-  The result has one entry for each row that resembles something, in position
-  order. An entry holds `position`, the row's index in `rows`; `stored`, the
-  flat publications it resembles; and `others`, the positions of the other rows
-  it resembles. A row that resembles nothing has no entry.
+  The result has one entry for each row that resembles something or is a
+  repeat, in position order. An entry holds `position`, the row's index in
+  `rows`; `stored`, the flat publications it resembles; `others`, the positions
+  of the other rows it resembles; and `repeats`, the position of the first row
+  with the same composite key when the row is a repeat, or nil. A row that
+  resembles nothing and is not a repeat has no entry.
 
   Rows are string-keyed flat publications, the same shape validation takes.
   This function writes nothing. It does not check or record distinctions,
@@ -196,13 +203,18 @@ defmodule RichardBurton.Publication.Duplicates do
   def resemblances(rows) when is_list(rows) do
     measured = measured(rows)
 
-    {:ok, {stored, among_rows}} =
+    {:ok, {stored, among_rows, repeats}} =
       Repo.transaction(fn ->
         put_threshold()
-        {Repo.all(resembling_stored(measured)), Repo.all(resembling_each_other(measured))}
+
+        {
+          Repo.all(resembling_stored(measured)),
+          Repo.all(resembling_each_other(measured)),
+          Repo.all(repeating(measured))
+        }
       end)
 
-    gather(stored, among_rows)
+    gather(stored, among_rows, Map.new(repeats))
   end
 
   # The fields of a row that the similarity rule reads.
@@ -218,17 +230,31 @@ defmodule RichardBurton.Publication.Duplicates do
 
   # Encodes the rows as the JSON array that `rows_to_measure/1` reads: each row's
   # measured fields, plus its `position` in the list. A year that is not a
-  # whole number, such as an empty one, is sent as null.
+  # whole number, such as an empty one, is sent as null. A country given by name
+  # is sent as its code, as validation stores it.
   defp measured(rows) do
+    codes = country_codes(rows)
+
     rows
     |> Enum.with_index()
     |> Enum.map(fn {row, position} ->
       row
       |> Map.take(@measured)
       |> Map.update("year", nil, &year/1)
+      |> Map.update("countries", [], &Enum.map(List.wrap(&1), fn c -> Map.get(codes, c, c) end))
       |> Map.put("position", position)
     end)
     |> Jason.encode!()
+  end
+
+  # Maps each country the rows name to its code, or to itself when it names no
+  # single country. Each value is looked up once, because a lookup is slow and
+  # the rows of an import mostly name the same few countries.
+  defp country_codes(rows) do
+    rows
+    |> Enum.flat_map(&List.wrap(Map.get(&1, "countries")))
+    |> Enum.uniq()
+    |> Map.new(&{&1, Country.code_for(&1) || &1})
   end
 
   # Reads a row's year as an integer, or nil when it is not one.
@@ -243,14 +269,15 @@ defmodule RichardBurton.Publication.Duplicates do
 
   defp year(_year), do: nil
 
-  # Builds the result of `resemblances/1` from the two query results: one entry
-  # per row that resembles something, in position order. A pair of resembling
-  # rows appears in the `others` of both rows.
-  defp gather(stored, among_rows) do
+  # Builds the result of `resemblances/1` from the two query results and the
+  # repeats: one entry per row that resembles something or is a repeat, in
+  # position order. A pair of resembling rows appears in the `others` of both
+  # rows.
+  defp gather(stored, among_rows, repeats) do
     resembled = Enum.group_by(stored, & &1.position, & &1.record)
     others = adjacency(among_rows)
 
-    [resembled, others]
+    [resembled, others, repeats]
     |> Enum.flat_map(&Map.keys/1)
     |> Enum.uniq()
     |> Enum.sort()
@@ -258,7 +285,8 @@ defmodule RichardBurton.Publication.Duplicates do
       %{
         position: position,
         stored: Map.get(resembled, position, []),
-        others: others |> Map.get(position, []) |> Enum.sort()
+        others: others |> Map.get(position, []) |> Enum.sort(),
+        repeats: Map.get(repeats, position)
       }
     end)
   end
@@ -305,6 +333,48 @@ defmodule RichardBurton.Publication.Duplicates do
       on: field(as(:left), :position) < field(as(:right), :position),
       where: ^worth_asking_about(),
       select: %{left: field(as(:left), :position), right: field(as(:right), :position)}
+    )
+  end
+
+  # Query for each repeat among the rows, selecting its position and the
+  # position of the first row with the same composite key. Rows have the same
+  # key when their titles, years and original titles are equal and
+  # `rb_set_fingerprint` gives each of their lists of names the same
+  # fingerprint, which is how the composite keys compare them. A row missing any
+  # of those fields repeats nothing.
+  defp repeating(measured) do
+    first_with_key =
+      from(row in rows_to_measure(measured),
+        where:
+          fragment("coalesce(?, '') <> ''", field(row, :title)) and
+            not is_nil(field(row, :year)) and
+            fragment("coalesce(?, '') <> ''", field(row, :original_title)) and
+            fragment("cardinality(?) > 0", field(row, :countries)) and
+            fragment("cardinality(?) > 0", field(row, :publishers)) and
+            fragment("cardinality(?) > 0", field(row, :authors)) and
+            fragment("cardinality(?) > 0", field(row, :original_authors)),
+        windows: [
+          same_key: [
+            partition_by: [
+              field(row, :title),
+              field(row, :year),
+              field(row, :original_title),
+              fragment("rb_set_fingerprint(?::text[])", field(row, :countries)),
+              fragment("rb_set_fingerprint(?::text[])", field(row, :publishers)),
+              fragment("rb_set_fingerprint(?::text[])", field(row, :authors)),
+              fragment("rb_set_fingerprint(?::text[])", field(row, :original_authors))
+            ]
+          ]
+        ],
+        select: %{
+          position: field(row, :position),
+          first: over(min(field(row, :position)), :same_key)
+        }
+      )
+
+    from(r in subquery(first_with_key),
+      where: r.position != r.first,
+      select: {r.position, r.first}
     )
   end
 

@@ -461,11 +461,11 @@ defmodule RichardBurton.Country do
     end
   end
 
-  def maybe_insert!(attrs) do
+  def find_or_insert!(attrs) do
     %__MODULE__{}
     |> changeset(attrs)
     |> put_names()
-    |> Repo.maybe_insert!([:code])
+    |> Repo.find_or_insert!(:code)
   end
 
   @doc "Returns every country, ordered by id, which is insertion order."
@@ -479,7 +479,7 @@ defmodule RichardBurton.Country do
       |> get_change(:countries)
       |> Enum.reject(&(&1.action == :replace))
       |> Enum.map(&apply_changes/1)
-      |> Enum.map(&maybe_insert!/1)
+      |> Enum.map(&find_or_insert!/1)
 
     put_assoc(changeset, :countries, countries)
   end

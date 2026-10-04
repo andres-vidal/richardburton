@@ -9,7 +9,6 @@ import {
   attributeVisibleFamily,
   discardedCountAtom,
   errorCodeFamily,
-  errorFamily,
   fieldErrorCodeFamily,
   fieldValueFamily,
   focusedRowIdAtom,
@@ -31,6 +30,7 @@ import {
   resemblanceFamily,
   reviewingAtom,
   resemblingCountAtom,
+  rowErrorFamily,
   rowNumberFamily,
   validCountAtom,
   visibleAttributesAtom,
@@ -121,7 +121,7 @@ function useInvalidPublicationIds() {
 }
 
 function usePublicationError(id: PublicationId) {
-  return useAtomValue(errorFamily(id));
+  return useAtomValue(rowErrorFamily(id));
 }
 
 /** An error code as a sentence, or the code itself where there is none for it. */

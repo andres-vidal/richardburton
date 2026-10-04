@@ -27,6 +27,7 @@ import {
   usePublicationStore,
 } from "modules/publication/workspace";
 import { useCountryNaming } from "modules/country-names";
+import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
 import { useFormatter, useTranslations } from "next-intl";
 import { Link } from "i18n/navigation";
@@ -235,11 +236,23 @@ const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
   );
 };
 
+/**
+ * A form that edits every field of the publication `id` in the enclosing store,
+ * validating each field as it changes, and saves it with `save`.
+ *
+ * `save` defaults to `update`, which saves the edit to the database. It returns
+ * whether the save succeeded, and `onSaved` runs only then. The save button is
+ * disabled while the publication has errors. `heading` and `saveLabel` replace
+ * the form's heading and the save button's label.
+ */
 const PublicationEditForm: FC<{
   id: PublicationId;
   onSaved: () => void;
   onCancel: () => void;
-}> = ({ id, onSaved, onCancel }) => {
+  save?: (store: Store, id: PublicationId) => Promise<boolean>;
+  heading?: string;
+  saveLabel?: string;
+}> = ({ id, onSaved, onCancel, save = update, heading, saveLabel }) => {
   const t = useTranslations("publication");
   const store = usePublicationStore();
   const [saving, setSaving] = useState(false);
@@ -250,14 +263,14 @@ const PublicationEditForm: FC<{
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
-    const saved = await update(store, id);
+    const saved = await save(store, id);
     setSaving(false);
     if (saved) onSaved();
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5 w-full">
-      <SectionHeading>{t("editPublication")}</SectionHeading>
+      <SectionHeading>{heading ?? t("editPublication")}</SectionHeading>
       <div className="grid gap-4 sm:grid-cols-2">
         {Publication.ATTRIBUTES.map((attribute) => (
           <EditField key={attribute} id={id} attribute={attribute} />
@@ -277,7 +290,7 @@ const PublicationEditForm: FC<{
           onClick={onCancel}
         />
         <Button
-          label={t("save")}
+          label={saveLabel ?? t("save")}
           type="submit"
           width="fit"
           size="medium"
@@ -448,4 +461,4 @@ const Detail: FC<PublicationDetailProps> = ({
 };
 
 export default PublicationDetail;
-export { PublicationHeading };
+export { PublicationEditForm, PublicationHeading };

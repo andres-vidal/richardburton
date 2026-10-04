@@ -35,6 +35,14 @@ wrong with it.
 
 <Canvas of={PublicationErrorsStories.RefusedAsAWhole} />
 
+A row with the same title, year, countries, publishers and book as an earlier
+row of the set is also refused as a whole. The database keeps one publication
+for each of those, so the later row is listed and the earlier one is not. The
+look-alike check finds these rows, because it is the check that compares the
+rows with each other.
+
+<Canvas of={PublicationErrorsStories.RepeatingAnEarlierRow} />
+
 ## Getting to the row
 
 Each entry leads back to the row it is about: it focuses that row, which scrolls
