@@ -305,7 +305,7 @@ const SignalColumn: FC<{
 }) => {
   return (
     <Aria.Cell
-      className="flex sticky left-0 z-10 justify-center items-center px-2 bg-gray-100 group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
+      className="flex sticky left-0 z-10 justify-center items-center px-2 bg-gray-100 transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
       data-selected={selected}
       data-selects-row={selectsRow}
       data-error={invalid}

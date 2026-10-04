@@ -28,7 +28,6 @@ defmodule RichardBurton.CountryTest do
     import Ecto.Changeset
 
     schema "with_many_countries" do
-      field(:countries_fingerprint, :string)
       has_many :countries, Country
     end
 
@@ -61,10 +60,6 @@ defmodule RichardBurton.CountryTest do
     changeset
     |> get_change(:countries)
     |> Enum.map(&apply_changes/1)
-  end
-
-  defp get_fingerprint(changeset = %Ecto.Changeset{}) do
-    get_change(changeset, :countries_fingerprint)
   end
 
   describe "changeset/2" do
@@ -400,9 +395,9 @@ defmodule RichardBurton.CountryTest do
     end
   end
 
-  describe "maybe_insert/1" do
+  describe "find_or_insert/1" do
     test "when there is no country with the provided name, inserts it" do
-      country = Country.maybe_insert!(@valid_attrs)
+      country = Country.find_or_insert!(@valid_attrs)
 
       assert [country] == Country.all()
     end
@@ -411,41 +406,18 @@ defmodule RichardBurton.CountryTest do
       insert(@valid_attrs)
       assert [preexistent_country] = Country.all()
 
-      country = Country.maybe_insert!(@valid_attrs)
+      country = Country.find_or_insert!(@valid_attrs)
 
       assert preexistent_country == country
       assert [country] == Country.all()
     end
 
     test "stores the names the country is searchable by" do
-      country = Country.maybe_insert!(@valid_attrs)
+      country = Country.find_or_insert!(@valid_attrs)
 
       assert "United Kingdom" in country.names
       assert "Reino Unido" in country.names
       assert "UK" in country.names
-    end
-  end
-
-  describe "fingerprint/1" do
-    test "given two different lists of countries, generates different fingerprints" do
-      countries1 = [%Country{code: "GB"}, %Country{code: "US"}]
-      countries2 = [%Country{code: "US"}, %Country{code: "IE"}]
-
-      refute Country.fingerprint(countries1) == Country.fingerprint(countries2)
-    end
-
-    test "given two lists of countries with the same names, generates the same fingerprints" do
-      countries1 = [%Country{code: "GB"}, %Country{code: "US"}]
-      countries2 = [%Country{code: "GB"}, %Country{code: "US"}]
-
-      assert Country.fingerprint(countries1) == Country.fingerprint(countries2)
-    end
-
-    test "given two lists of countries with the same and different order, generates the same fingerprints" do
-      countries1 = [%Country{code: "GB"}, %Country{code: "US"}]
-      countries2 = [%Country{code: "US"}, %Country{code: "GB"}]
-
-      assert Country.fingerprint(countries1) == Country.fingerprint(countries2)
     end
   end
 
@@ -494,35 +466,6 @@ defmodule RichardBurton.CountryTest do
 
       refute changeset.valid?
       assert Enum.empty?(Country.all())
-    end
-  end
-
-  describe "link_fingerprint/1" do
-    test "links fingerprint using country names to changeset" do
-      attrs = %{
-        "countries" => [
-          %{"code" => "GB"},
-          %{"code" => "US"}
-        ]
-      }
-
-      changeset =
-        attrs
-        |> WithManyCountries.changeset()
-        |> Country.link_fingerprint()
-
-      assert changeset.valid?
-      assert Country.fingerprint(get_countries(changeset)) == get_fingerprint(changeset)
-    end
-
-    test "does not link fingerprint to invalid changeset" do
-      changeset =
-        %{"countries" => [%{}]}
-        |> WithManyCountries.changeset()
-        |> Country.link_fingerprint()
-
-      refute changeset.valid?
-      assert is_nil(get_fingerprint(changeset))
     end
   end
 

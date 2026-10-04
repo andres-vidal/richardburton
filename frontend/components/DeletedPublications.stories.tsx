@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Publication } from "modules/publication/model";
 import type { DeletedPublicationEntry } from "modules/publication/model";
-import { expect, fn, screen, userEvent } from "storybook/test";
+import type { Restoration } from "modules/publication/remote";
+import { expect, fn, screen, userEvent, within } from "storybook/test";
 
 import DeletedPublications from "./DeletedPublications";
 
@@ -30,10 +31,22 @@ const ENTRIES: DeletedPublicationEntry[] = [
   },
 ];
 
+// The record imported again while the first "Dom Casmurro" was deleted.
+const TWIN = {
+  ...ENTRIES[0].publication,
+  id: 3,
+  originalTitle: "Dom Casmurro",
+  originalAuthors: ["Machado de Assis"],
+  countries: ["US"],
+};
+
 const meta = {
   title: "Publications/Deleted publications",
   component: DeletedPublications,
-  args: { entries: ENTRIES, onRestore: fn() },
+  args: {
+    entries: ENTRIES,
+    onRestore: fn(async (): Promise<Restoration> => ({ outcome: "restored" })),
+  },
 } satisfies Meta<typeof DeletedPublications>;
 
 export default meta;
@@ -62,7 +75,7 @@ export const Default: Story = {
 export const Restoring: Story = {
   args: {
     // Never resolves, so the in-flight window stays open for the assertions.
-    onRestore: fn(() => new Promise<boolean>(() => {})),
+    onRestore: fn(() => new Promise<Restoration>(() => {})),
   },
   play: async ({ args }) => {
     const [first, second] = screen.getAllByRole("button", { name: "Restore" });
@@ -73,6 +86,46 @@ export const Restoring: Story = {
     await expect(first).toBeDisabled();
     await expect(second).toBeDisabled();
     await expect(args.onRestore).toHaveBeenCalledTimes(1);
+  },
+};
+
+/**
+ * A restore refused because another publication has the same identity opens a
+ * dialog. It shows that publication, and the deleted one's edit form, which
+ * starts with the conflict as its error, so it cannot be restored unchanged.
+ */
+export const WhenAnIdenticalOneExists: Story = {
+  args: {
+    onRestore: fn(async (): Promise<Restoration> => ({
+      outcome: "identical",
+      twin: TWIN,
+    })),
+  },
+  play: async ({ args }) => {
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "Restore" })[0],
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Another publication is identical to this one",
+    });
+    await expect(args.onRestore).toHaveBeenCalledWith(1);
+
+    // The identical publication links to its own page.
+    await expect(
+      within(dialog).getByRole("link", { name: "Open this record" }),
+    ).toHaveAttribute("href", expect.stringMatching(/\/publications\/3$/));
+
+    // The deleted publication's fields can be changed, and it cannot be
+    // restored as it is.
+    await expect(
+      within(dialog).getByRole("textbox", { name: "Year" }),
+    ).toHaveValue("1953");
+    await expect(
+      within(dialog).getByRole("button", {
+        name: "Restore with these changes",
+      }),
+    ).toBeDisabled();
   },
 };
 

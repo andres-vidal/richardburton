@@ -3,9 +3,11 @@ defmodule RichardBurton.Publication do
   A publication: one translated edition of an original book, and the write paths
   that change one.
 
-  Identity is a composite key — title, year, and fingerprints of the countries,
-  publishers and translated book — so the same edition cannot be inserted twice.
-  The near-duplicates that key cannot catch are `Publication.Duplicates`.
+  Identity is a composite key: the title, the year, the translated book, and
+  the fingerprints of the countries and publishers. The database computes and
+  enforces it (see `RichardBurton.Identity`), so the same edition cannot be
+  stored twice. The near-duplicates that key cannot catch are
+  `Publication.Duplicates`.
 
   Five words carry specific meanings here:
 
@@ -35,6 +37,7 @@ defmodule RichardBurton.Publication do
   require Ecto.Query
 
   alias RichardBurton.Country
+  alias RichardBurton.Identity
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.History
@@ -52,9 +55,9 @@ defmodule RichardBurton.Publication do
   schema "publications" do
     field(:title, :string)
     field(:year, :integer)
-    field(:translated_book_fingerprint, :string)
-    field(:countries_fingerprint, :string)
-    field(:publishers_fingerprint, :string)
+    # Written by the database from the linked countries and publishers.
+    field(:countries_fingerprint, :string, writable: :never)
+    field(:publishers_fingerprint, :string, writable: :never)
     field(:deleted_at, :utc_datetime)
 
     belongs_to(:translated_book, TranslatedBook, on_replace: :nilify)
@@ -99,17 +102,6 @@ defmodule RichardBurton.Publication do
     |> validate_no_duplicates(:countries, :code)
     |> validate_no_duplicates(:publishers, :name)
     |> validate_required([:title, :year])
-    |> unique_constraint(
-      [
-        :title,
-        :year,
-        :publishers_fingerprint,
-        :countries_fingerprint,
-        :translated_book_fingerprint
-      ],
-      name: "publications_composite_key"
-    )
-    |> link_fingerprints()
   end
 
   @doc """
@@ -142,7 +134,8 @@ defmodule RichardBurton.Publication do
       |> Repo.insert()
       |> case do
         {:ok, publication} ->
-          publication = preload(publication)
+          settle!()
+          publication = publication |> fingerprinted() |> preload()
           History.record(:created, publication, actor)
           publication
 
@@ -191,8 +184,12 @@ defmodule RichardBurton.Publication do
       |> link_assocs()
       |> Repo.update()
       |> case do
-        {:ok, updated} -> record_if_changed(preload(updated), before, actor)
-        {:error, changeset} -> Repo.rollback(Validation.get_errors(changeset))
+        {:ok, updated} ->
+          settle!()
+          updated |> fingerprinted() |> preload() |> record_if_changed(before, actor)
+
+        {:error, changeset} ->
+          Repo.rollback(Validation.get_errors(changeset))
       end
     end)
   end
@@ -211,7 +208,7 @@ defmodule RichardBurton.Publication do
 
   @doc """
   Soft-delete a publication: stamp `deleted_at`, so every read path hides it
-  while its row, sources, and history survive — and `restore/2` can bring
+  while its row, sources, and history survive — and `restore/3` can bring
   it back. The final state rides along in the history snapshot.
   """
   def delete(id, actor \\ History.system_actor()) do
@@ -254,8 +251,13 @@ defmodule RichardBurton.Publication do
     delete(id, actor)
   end
 
+  # Undoing a delete restores the record as it was. When another record now has
+  # its composite key, the undo is a plain conflict.
   defp compensate(%{action: "deleted", publication_id: id}, _previous, _head, actor) do
-    restore(id, actor)
+    case restore(id, actor) do
+      {:error, {:conflict, _twin}} -> {:error, :conflict}
+      result -> result
+    end
   end
 
   defp compensate(entry = %{action: "updated", publication_id: id}, previous, head, actor) do
@@ -284,7 +286,8 @@ defmodule RichardBurton.Publication do
     Repo.transaction(fn ->
       with {:ok, restored} <- restore_absorbed(History.absorbed_ids(entry)),
            {:ok, winner} <- revert_winner(entry, previous, head) do
-        winner = preload(winner)
+        settle!()
+        winner = winner |> fingerprinted() |> preload()
         History.record(:unmerged, winner, actor, restored)
         winner
       else
@@ -298,7 +301,8 @@ defmodule RichardBurton.Publication do
   end
 
   # The rows never left, so putting them back is lifting the tombstone. A key
-  # taken by something else in the meantime is the same conflict a restore hits.
+  # taken by something else in the meantime is the same conflict a restore hits,
+  # which `settle!/0` reports once the whole un-merge is written.
   defp restore_absorbed(ids) do
     tombstoned =
       Ecto.Query.from(p in Publication, where: p.id in ^ids and not is_nil(p.deleted_at))
@@ -309,20 +313,11 @@ defmodule RichardBurton.Publication do
       else: {:error, :not_found}
   end
 
-  # Clears `deleted_at` on each record, stopping at the first that would collide
-  # with the composite key.
+  # Clears `deleted_at` on each record.
   defp lift_tombstones(publications) do
-    publications
-    |> Enum.reduce_while({:ok, []}, fn publication, {:ok, lifted} ->
-      case publication |> tombstone(nil) |> Repo.update() do
-        {:ok, back} -> {:cont, {:ok, [back | lifted]}}
-        {:error, _} -> {:halt, {:error, :conflict}}
-      end
-    end)
-    |> case do
-      {:ok, lifted} -> {:ok, preload(lifted)}
-      error -> error
-    end
+    lifted = Enum.map(publications, &(&1 |> tombstone(nil) |> Repo.update!()))
+
+    {:ok, preload(lifted)}
   end
 
   # The winner returns to what it held before it absorbed anything — the same
@@ -338,7 +333,7 @@ defmodule RichardBurton.Publication do
     |> Repo.update()
     |> case do
       {:ok, winner} -> {:ok, winner}
-      {:error, changeset} -> {:error, rejection(changeset)}
+      {:error, changeset} -> {:error, Validation.get_errors(changeset)}
     end
   end
 
@@ -415,7 +410,7 @@ defmodule RichardBurton.Publication do
       |> Repo.update()
       |> case do
         {:ok, updated} -> absorbing(updated, losers, actor)
-        {:error, changeset} -> Repo.rollback(rejection(changeset))
+        {:error, changeset} -> Repo.rollback(Validation.get_errors(changeset))
       end
     end)
   end
@@ -424,9 +419,14 @@ defmodule RichardBurton.Publication do
   # that did not. The losers get no entry of their own — nothing happened *to*
   # them that the merge does not already say, and an entry each would be a
   # merge that has to be undone in pieces.
+  #
+  # The keys are checked once the losers are tombstoned, so the winner may
+  # take on a key one of its own losers held.
   defp absorbing(winner, losers, actor) do
     winner = preload(winner)
     Enum.each(losers, &absorb/1)
+    settle!()
+    winner = fingerprinted(winner)
     History.record(:merged, winner, actor, losers)
 
     # Saying these are one record answers the same question a distinction did,
@@ -435,14 +435,6 @@ defmodule RichardBurton.Publication do
     Duplicates.reconsider([winner.id | Enum.map(losers, & &1.id)])
 
     winner
-  end
-
-  # The merged record would be one that already exists: the composite key is
-  # reported against the title.
-  defp rejection(changeset = %{errors: errors}) do
-    if Keyword.has_key?(errors, :title),
-      do: :conflict,
-      else: Validation.get_errors(changeset)
   end
 
   # A loser leaves the database the way a deleted publication does — the row,
@@ -458,22 +450,12 @@ defmodule RichardBurton.Publication do
     end
   end
 
-  # Stamping or clearing `deleted_at` moves the record in or out of the partial
-  # composite-key index — if the same record was written meanwhile, coming back
-  # is a conflict, not a crash.
+  # Builds the change that stamps or clears `deleted_at`. Clearing it brings the
+  # record back under the composite key, so the caller settles the keys
+  # afterwards: if the same record was written meanwhile, coming back is a
+  # conflict, not a crash.
   defp tombstone(publication, deleted_at) do
-    publication
-    |> change(deleted_at: deleted_at)
-    |> unique_constraint(
-      [
-        :title,
-        :year,
-        :publishers_fingerprint,
-        :countries_fingerprint,
-        :translated_book_fingerprint
-      ],
-      name: "publications_composite_key"
-    )
+    change(publication, deleted_at: deleted_at)
   end
 
   # What the merged record holds: the winner's own fields, the countries and
@@ -502,15 +484,78 @@ defmodule RichardBurton.Publication do
   end
 
   @doc """
-  Bring a soft-deleted publication back into the database.
+  Bring a soft-deleted publication back into the database. When `changes` are
+  given, they are applied to the publication first, in the same transaction,
+  and recorded as an update before the restore.
 
   Only one that someone deleted. A record absorbed by a merge is out of the
   database the same way, but it is not in the trash and does not come back on
   its own: `{:error, :absorbed}` says to take the merge apart instead.
+
+  When a publication that is not deleted has the same composite key, which
+  happens when the same record was imported again or a name was corrected to
+  match, the result is `{:error, {:conflict, twin}}`, where `twin` is that
+  publication. Nothing is written then, not even the changes. Changes that do
+  not validate return their errors and write nothing either.
   """
-  def restore(id, actor \\ History.system_actor()) do
+  def restore(id, actor \\ History.system_actor(), changes \\ nil) do
     with {:ok, publication} <- deleted_on_its_own(id) do
-      stamp_deleted(publication, nil, :restored, actor)
+      Repo.transaction(fn ->
+        publication
+        |> amend(changes, actor)
+        |> lift(actor)
+      end)
+      |> case do
+        {:ok, restored} ->
+          Index.Refresher.refresh()
+          {:ok, restored}
+
+        error ->
+          error
+      end
+    end
+  end
+
+  # Applies `changes` to a deleted publication and records them as an update.
+  # Without changes, returns the publication as it is. Rolls back with the
+  # errors when the changes do not validate.
+  defp amend(publication, nil, _actor), do: publication
+
+  defp amend(publication, changes, actor) do
+    case update_and_record(publication, changes, actor) do
+      {:ok, {amended, _changed?}} -> amended
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  # Clears `deleted_at` and records the restore. Rolls back with
+  # `{:conflict, twin}` when another publication that is not deleted has the
+  # same composite key.
+  #
+  # The twin is looked for before writing, because a failed statement aborts the
+  # transaction and the twin could not be read after it. `settle!/0` still
+  # catches a twin written in the meantime, as a plain `:conflict`.
+  defp lift(publication, actor) do
+    publication = preload(publication)
+
+    case twin(publication) do
+      nil ->
+        publication |> tombstone(nil) |> Repo.update!()
+        settle!()
+        History.record(:restored, publication, actor)
+        publication
+
+      twin ->
+        Repo.rollback({:conflict, twin})
+    end
+  end
+
+  # Returns the publication that is not deleted and has the same composite key
+  # as `publication`, preloaded, or nil when there is none.
+  defp twin(publication) do
+    case Identity.publication_with_key(Codec.flatten(publication), publication.id) do
+      nil -> nil
+      id -> Publication |> Repo.get!(id) |> preload()
     end
   end
 
@@ -526,9 +571,7 @@ defmodule RichardBurton.Publication do
     end
   end
 
-  # Sets or clears `deleted_at` and records the entry, in one transaction. The
-  # same path serves delete and restore, which differ only in the timestamp and
-  # the action recorded.
+  # Sets `deleted_at` and records `action`, in one transaction.
   defp stamp_deleted(publication, deleted_at, action, actor) do
     publication = preload(publication)
 
@@ -538,8 +581,12 @@ defmodule RichardBurton.Publication do
         |> tombstone(deleted_at)
         |> Repo.update()
         |> case do
-          {:ok, _} -> History.record(action, publication, actor)
-          {:error, changeset} -> Repo.rollback(Validation.get_errors(changeset))
+          {:ok, _} ->
+            settle!()
+            History.record(action, publication, actor)
+
+          {:error, changeset} ->
+            Repo.rollback(Validation.get_errors(changeset))
         end
       end)
 
@@ -601,13 +648,17 @@ defmodule RichardBurton.Publication do
     Repo.one(Ecto.Query.from(p in Publication, where: p.id == ^id and not is_nil(p.deleted_at)))
   end
 
-  # Computes the fingerprints the composite key is built from, before the
-  # associations they summarise are linked.
-  defp link_fingerprints(changeset) do
-    changeset
-    |> TranslatedBook.link_fingerprint()
-    |> Country.link_fingerprint()
-    |> Publisher.link_fingerprint()
+  # Reads back the fingerprints the database wrote once the publication's
+  # countries and publishers were saved.
+  defp fingerprinted(publication) do
+    Repo.refresh(publication, [:countries_fingerprint, :publishers_fingerprint])
+  end
+
+  # Checks the composite keys inside the current transaction, and rolls it back
+  # with `:conflict` when a write gave a publication or a book the same key as
+  # another.
+  defp settle! do
+    with {:error, :conflict} <- Identity.settle(), do: Repo.rollback(:conflict)
   end
 
   # Resolves each association to an existing row where one matches, so a

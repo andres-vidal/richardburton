@@ -10,7 +10,6 @@ defmodule RichardBurton.Author do
   alias RichardBurton.Repo
   alias RichardBurton.OriginalBook
   alias RichardBurton.TranslatedBook
-  alias RichardBurton.Fingerprint
 
   @readable_attributes [:name]
 
@@ -40,10 +39,10 @@ defmodule RichardBurton.Author do
     |> unique_constraint([:name])
   end
 
-  def maybe_insert!(attrs) do
+  def find_or_insert!(attrs) do
     %__MODULE__{}
     |> changeset(attrs)
-    |> Repo.maybe_insert!([:name])
+    |> Repo.find_or_insert!(:name)
   end
 
   def all do
@@ -55,29 +54,12 @@ defmodule RichardBurton.Author do
       changeset
       |> get_change(:authors)
       |> Enum.map(&apply_changes/1)
-      |> Enum.map(&Author.maybe_insert!/1)
+      |> Enum.map(&Author.find_or_insert!/1)
 
     put_assoc(changeset, :authors, authors)
   end
 
   def link(changeset = %{valid?: false}), do: changeset
-
-  def fingerprint(authors) when is_list(authors) do
-    authors
-    |> Enum.map(&get_name/1)
-    |> Fingerprint.of_set()
-  end
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: true}) do
-    authors_fingerprint =
-      changeset
-      |> get_field(:authors)
-      |> fingerprint
-
-    put_change(changeset, :authors_fingerprint, authors_fingerprint)
-  end
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: false}), do: changeset
 
   @spec search(binary(), :fuzzy | :prefix) :: any()
   def search(term, :prefix) when is_binary(term) do

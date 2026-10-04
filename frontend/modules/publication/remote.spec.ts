@@ -12,6 +12,7 @@ import {
   bulk,
   deletePublication,
   merge,
+  resemblances,
   restore,
   search,
   undo,
@@ -29,6 +30,8 @@ import {
   publicationFamily,
   publicationIdsAtom,
   remember,
+  resemblanceFamily,
+  rowErrorFamily,
   savedFamily,
   setAll,
   setField,
@@ -221,29 +224,70 @@ describe("undo", () => {
 
 describe("restore", () => {
   test("POSTs the restore and notifies success", async () => {
-    http.post.mockResolvedValue({});
+    http.post.mockResolvedValue({ status: 204, data: "" });
 
-    const ok = await restore(7);
+    const result = await restore(7);
 
-    expect(ok).toBe(true);
-    expect(http.post).toHaveBeenCalledWith("publications/7/restore");
+    expect(result).toEqual({ outcome: "restored" });
+    expect(http.post).toHaveBeenCalledWith(
+      "publications/7/restore",
+      undefined,
+      expect.objectContaining({ validateStatus: expect.any(Function) }),
+    );
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({ level: "success" }),
     );
   });
 
-  test("a 409 explains the record already exists again", async () => {
-    http.post.mockRejectedValue({ response: { status: 409 } });
+  test("sends the changes to apply before restoring", async () => {
+    http.post.mockResolvedValue({ status: 204, data: "" });
+    const changes = pub({ title: "Dom Casmurro", year: "1966" });
 
-    const ok = await restore(7);
+    await restore(7, changes);
 
-    expect(ok).toBe(false);
+    expect(http.post).toHaveBeenCalledWith(
+      "publications/7/restore",
+      changes,
+      expect.anything(),
+    );
+  });
+
+  test("a 409 that names the identical publication returns it, without a notice", async () => {
+    const twin = { ...pub({ title: "Dom Casmurro" }), id: 8 };
+    http.post.mockResolvedValue({
+      status: 409,
+      data: { error: "conflict", publication: twin },
+    });
+
+    const result = await restore(7);
+
+    expect(result).toEqual({ outcome: "identical", twin });
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  test("a 409 without a publication explains the record already exists again", async () => {
+    http.post.mockResolvedValue({ status: 409, data: { error: "conflict" } });
+
+    const result = await restore(7);
+
+    expect(result).toEqual({ outcome: "failed" });
     // Names the cause and the way out, rather than just failing.
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({
         level: "warning",
         detail: "notify.restoreOutpacedDetail",
       }),
+    );
+  });
+
+  test("any other refusal is a plain failure", async () => {
+    http.post.mockResolvedValue({ status: 409, data: { error: "absorbed" } });
+
+    const result = await restore(7);
+
+    expect(result).toEqual({ outcome: "failed" });
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "notify.restoreFailed" }),
     );
   });
 });
@@ -434,6 +478,37 @@ describe("validate", () => {
 
     expect(store.get(isValidatingAtom)).toBe(false);
     expect(mockNotify).toHaveBeenCalled();
+  });
+});
+
+describe("resemblances", () => {
+  test("names the rows of each entry by id, the repeated row included", async () => {
+    const [a, b, c] = [createId(), createId(), createId()];
+    const row = { title: "Dom Casmurro", authors: ["Helen Caldwell"] };
+    setAll(store, [
+      { id: a, publication: pub(row), errors: null },
+      { id: b, publication: pub({ title: "Iracema" }), errors: null },
+      { id: c, publication: pub(row), errors: null },
+    ]);
+    http.post.mockResolvedValue({
+      data: {
+        entries: [
+          { position: 0, stored: [], others: [2], repeats: null },
+          { position: 2, stored: [], others: [0], repeats: 0 },
+        ],
+      },
+    });
+
+    await resemblances(store, [a, b, c]);
+
+    expect(store.get(resemblanceFamily(a))).toEqual({
+      stored: [],
+      others: [c],
+      repeats: null,
+    });
+    expect(store.get(resemblanceFamily(b))).toBeNull();
+    expect(store.get(resemblanceFamily(c))?.repeats).toBe(a);
+    expect(store.get(rowErrorFamily(c))).toBe("repeated");
   });
 });
 

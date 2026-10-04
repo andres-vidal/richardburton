@@ -365,7 +365,8 @@
     "invalid_escape_sequence": "Could not parse publications from the provided file",
     "stray_escape_character": "Could not parse publications from the provided file",
     "alpha2": "This field should be a valid ISO 3166-1 alpha 2 country code",
-    "duplicate": "This field cannot repeat the same entry"
+    "duplicate": "This field cannot repeat the same entry",
+    "repeated": "Another row of this import is the same publication"
   },
   "notify": {
     "nothingChanged": "Nothing changed. Check your connection and try again.",
@@ -440,6 +441,14 @@
     "nothingNew": "Nothing new to take — “{title}” already says everything the others do. Merging still removes them.",
     "cancel": "Cancel",
     "confirm": "{count, plural, =0 {Merge publication} one {Merge publication} other {Merge # publications}}"
+  },
+  "restoring": {
+    "identical": "Another publication is identical to this one",
+    "identicalDetail": "It has the same title, year, countries, publishers and translated book. It may have been imported again, or a name may have been corrected to match. Change this publication so that the two differ, then restore it, or leave it deleted.",
+    "alreadyStored": "Already in the database",
+    "differences": "The highlighted text is where it differs from your changes.",
+    "thisOne": "The deleted publication",
+    "restoreWithChanges": "Restore with these changes"
   },
   "historyActions": {
     "created": "Created",

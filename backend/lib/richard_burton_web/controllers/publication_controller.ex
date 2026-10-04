@@ -266,18 +266,18 @@ defmodule RichardBurtonWeb.PublicationController do
   # reconcilable and what the compensating action is; the client only names the
   # entry.
   def undo(conn, %{"id" => id, "version" => version}) do
-    with {:ok, version} <- version_of(version),
+    with {:ok, version} <- integer_of(version),
          {:ok, _publication} <- Publication.undo(id, version, actor(conn)) do
       send_resp(conn, :no_content, "")
     end
   end
 
-  # Parses the history version from the path. A version that is not a number
-  # cannot match an entry, so it returns `{:error, :not_found}` rather than a
-  # 400.
-  defp version_of(version) do
-    case Integer.parse(version) do
-      {version, ""} -> {:ok, version}
+  # Parses an integer from the path, such as an id or a history version. A value
+  # that is not a number cannot name a stored row, so it returns
+  # `{:error, :not_found}` rather than a 400.
+  defp integer_of(value) do
+    case Integer.parse(value) do
+      {integer, ""} -> {:ok, integer}
       _ -> {:error, :not_found}
     end
   end
@@ -295,13 +295,32 @@ defmodule RichardBurtonWeb.PublicationController do
     json(conn, %{entries: entries})
   end
 
-  # Restores a deleted publication. It fails with `:conflict` when the same
-  # record was imported again after this one was deleted, and with `:absorbed`
-  # when a merge absorbed it. Only undoing the merge brings back an absorbed
-  # record.
-  def restore(conn, %{"id" => id}) do
-    with {:ok, _publication} <- Publication.restore(id, actor(conn)) do
-      send_resp(conn, :no_content, "")
+  # Restores a deleted publication. A body with the publication's fields is
+  # applied to it first, as an edit, so a restore that would conflict can be
+  # made with changes.
+  #
+  # When another publication that is not deleted has the same composite key,
+  # the response is a 409 with `error: "conflict"` and that publication. It
+  # fails with `:absorbed` when a merge absorbed the publication. Only undoing
+  # the merge brings back an absorbed record.
+  def restore(conn, params = %{"id" => id}) do
+    changes =
+      case Map.delete(params, "id") do
+        empty when map_size(empty) == 0 -> nil
+        fields -> Publication.Codec.nest(fields)
+      end
+
+    case Publication.restore(id, actor(conn), changes) do
+      {:ok, _publication} ->
+        send_resp(conn, :no_content, "")
+
+      {:error, {:conflict, twin}} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{error: :conflict, publication: Publication.Codec.flatten(twin)})
+
+      error ->
+        error
     end
   end
 
@@ -352,11 +371,13 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   def validate(conn, params = %{"id" => id}) do
-    publication = Map.delete(params, "id")
+    with {:ok, id} <- integer_of(id) do
+      publication = Map.delete(params, "id")
 
-    conn
-    |> put_status(:ok)
-    |> json(validate_publication(publication, id))
+      conn
+      |> put_status(:ok)
+      |> json(validate_publication(publication, id))
+    end
   end
 
   # One publication validated without being written, reported as the record and

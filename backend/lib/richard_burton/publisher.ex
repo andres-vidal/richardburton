@@ -9,7 +9,6 @@ defmodule RichardBurton.Publisher do
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
   alias RichardBurton.Publication
-  alias RichardBurton.Fingerprint
 
   @derive {Jason.Encoder, only: [:name]}
   schema "publishers" do
@@ -36,17 +35,10 @@ defmodule RichardBurton.Publisher do
     |> unique_constraint(:name)
   end
 
-  @spec fingerprint(maybe_improper_list()) :: binary()
-  def fingerprint(publishers) when is_list(publishers) do
-    publishers
-    |> Enum.map(&get_name/1)
-    |> Fingerprint.of_set()
-  end
-
-  def maybe_insert!(attrs) do
+  def find_or_insert!(attrs) do
     %__MODULE__{}
     |> changeset(attrs)
-    |> Repo.maybe_insert!([:name])
+    |> Repo.find_or_insert!(:name)
   end
 
   def all do
@@ -59,23 +51,12 @@ defmodule RichardBurton.Publisher do
       |> get_change(:publishers)
       |> Enum.reject(&(&1.action == :replace))
       |> Enum.map(&apply_changes/1)
-      |> Enum.map(&maybe_insert!/1)
+      |> Enum.map(&find_or_insert!/1)
 
     put_assoc(changeset, :publishers, publishers)
   end
 
   def link(changeset = %{valid?: false}), do: changeset
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: true}) do
-    publishers_fingerprint =
-      changeset
-      |> get_field(:publishers)
-      |> fingerprint
-
-    put_change(changeset, :publishers_fingerprint, publishers_fingerprint)
-  end
-
-  def link_fingerprint(changeset = %Ecto.Changeset{valid?: false}), do: changeset
 
   @spec search(binary(), :fuzzy | :prefix) :: any()
   def search(term, :prefix) when is_binary(term) do

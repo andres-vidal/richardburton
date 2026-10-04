@@ -46,10 +46,6 @@ defmodule RichardBurton.AuthorTest do
     |> Enum.map(&apply_changes/1)
   end
 
-  defp get_fingerprint(changeset = %Ecto.Changeset{}) do
-    get_change(changeset, :authors_fingerprint)
-  end
-
   describe "changeset/2" do
     test "when valid attributes are provided, is valid" do
       assert changeset(@valid_attrs).valid?
@@ -72,9 +68,9 @@ defmodule RichardBurton.AuthorTest do
     end
   end
 
-  describe "maybe_insert/1" do
+  describe "find_or_insert/1" do
     test "when there is no author with the provided name, inserts it" do
-      author = Author.maybe_insert!(@valid_attrs)
+      author = Author.find_or_insert!(@valid_attrs)
 
       assert [author] == Author.all()
     end
@@ -83,41 +79,10 @@ defmodule RichardBurton.AuthorTest do
       insert(@valid_attrs)
       assert [preexistent_author] = Author.all()
 
-      author = Author.maybe_insert!(@valid_attrs)
+      author = Author.find_or_insert!(@valid_attrs)
 
       assert preexistent_author == author
       assert [author] == Author.all()
-    end
-  end
-
-  describe "fingerprint/1" do
-    test "given two different lists of authors, generates different fingerprints" do
-      authors1 = [%Author{name: "Richard Burton"}, %Author{name: "Isabel Burton"}]
-      authors2 = [%Author{name: "Richard Burton"}]
-
-      refute Author.fingerprint(authors1) == Author.fingerprint(authors2)
-    end
-
-    test "given two lists of authors with the same names, generates the same fingerprints" do
-      authors1 = [%Author{name: "Richard Burton"}, %Author{name: "Isabel Burton"}]
-      authors2 = [%Author{name: "Richard Burton"}, %Author{name: "Isabel Burton"}]
-
-      assert Author.fingerprint(authors1) == Author.fingerprint(authors2)
-    end
-
-    test "given two lists of authors with the same and different order, generates the same fingerprints" do
-      authors1 = [%Author{name: "Isabel Burton"}, %Author{name: "Richard Burton"}]
-      authors2 = [%Author{name: "Richard Burton"}, %Author{name: "Isabel Burton"}]
-
-      assert Author.fingerprint(authors1) == Author.fingerprint(authors2)
-    end
-
-    test "given sets whose names concatenate the same, generates different fingerprints" do
-      # Without a delimiter, ["AnnBob"] and ["Ann", "Bob"] both join to "AnnBob".
-      one = [%Author{name: "AnnBob"}]
-      two = [%Author{name: "Ann"}, %Author{name: "Bob"}]
-
-      refute Author.fingerprint(one) == Author.fingerprint(two)
     end
   end
 
@@ -126,7 +91,6 @@ defmodule RichardBurton.AuthorTest do
     import Ecto.Changeset
 
     schema "with_many_authors" do
-      field(:authors_fingerprint, :string)
       has_many :authors, Author
     end
 
@@ -180,35 +144,6 @@ defmodule RichardBurton.AuthorTest do
 
       refute changeset.valid?
       assert Enum.empty?(Author.all())
-    end
-  end
-
-  describe "link_fingerprint/1" do
-    test "links fingerprint using author names to changeset" do
-      attrs = %{
-        "authors" => [
-          %{"name" => "Richard Burton"},
-          %{"name" => "Isabel Burton"}
-        ]
-      }
-
-      changeset =
-        attrs
-        |> WithManyAuthors.changeset()
-        |> Author.link_fingerprint()
-
-      assert changeset.valid?
-      assert Author.fingerprint(get_authors(changeset)) == get_fingerprint(changeset)
-    end
-
-    test "does not link fingerprint to invalid changeset" do
-      changeset =
-        %{"authors" => [%{}]}
-        |> WithManyAuthors.changeset()
-        |> Author.link_fingerprint()
-
-      refute changeset.valid?
-      assert is_nil(get_fingerprint(changeset))
     end
   end
 

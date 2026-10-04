@@ -66,7 +66,16 @@ type PublicationListKey = {
 
 type PublicationError = null | string | Record<PublicationKey, string>;
 
-type Resemblance = { stored: Publication[]; others: PublicationId[] };
+/**
+ * What the look-alike check found for a row: the stored records it resembles,
+ * the other rows it resembles, and `repeats`, the first earlier row with the
+ * same composite key, or null when there is none.
+ */
+type Resemblance = {
+  stored: Publication[];
+  others: PublicationId[];
+  repeats: PublicationId | null;
+};
 
 type ValidationResult = { publication: Publication; errors: PublicationError };
 type PublicationEntry = ValidationResult & { id: PublicationId };

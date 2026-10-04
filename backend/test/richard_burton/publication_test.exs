@@ -12,7 +12,6 @@ defmodule RichardBurton.PublicationTest do
   alias RichardBurton.Source
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Util
-  alias RichardBurton.Validation
 
   @valid_attrs %{
     "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
@@ -141,12 +140,10 @@ defmodule RichardBurton.PublicationTest do
       refute change_valid(%{"translated_book" => nil}).valid?
     end
 
-    test "when a publication with the provided attributes already exists, is invalid" do
-      {:ok, _} = insert(@valid_attrs)
-      {:error, changeset} = insert(@valid_attrs)
+    test "when a publication with the provided attributes already exists, is refused" do
+      insert_publication()
 
-      refute changeset.valid?
-      assert :conflict == Validation.get_errors(changeset)
+      assert {:error, :conflict} = Publication.insert(@valid_attrs)
     end
 
     test "has no side effects" do
@@ -343,9 +340,13 @@ defmodule RichardBurton.PublicationTest do
         )
 
       assert ["US"] == Enum.map(updated.countries, & &1.code)
-      # The stored fingerprint reflects the new country, not the stale one.
-      refute updated.countries_fingerprint == original_fingerprint
-      assert Country.fingerprint(["US"]) == updated.countries_fingerprint
+
+      # The database rewrote the stored fingerprint for the new country.
+      stored = Repo.get!(Publication, publication.id).countries_fingerprint
+      %{rows: [[expected]]} = Repo.query!("SELECT rb_set_fingerprint($1)", [["US"]])
+
+      refute stored == original_fingerprint
+      assert stored == expected
     end
 
     test "repoints the translated book when the original fields change, leaving the old one" do
@@ -626,7 +627,7 @@ defmodule RichardBurton.PublicationTest do
     end
   end
 
-  describe "restore/2" do
+  describe "restore/3" do
     test "brings a deleted publication back into the flat view" do
       publication = insert_publication()
       {:ok, _} = Publication.delete(publication.id)
@@ -644,6 +645,70 @@ defmodule RichardBurton.PublicationTest do
 
       assert {:error, :not_found} = Publication.restore(publication.id)
       assert {:error, :not_found} = Publication.restore(-1)
+    end
+
+    # The same record imported again while the first copy was deleted.
+    defp deleted_with_twin do
+      deleted = insert_publication()
+      {:ok, _} = Publication.delete(deleted.id)
+
+      {deleted, insert_publication()}
+    end
+
+    test "a conflict comes with the publication it conflicts with" do
+      {deleted, twin} = deleted_with_twin()
+
+      assert {:error, {:conflict, %Publication{id: id}}} = Publication.restore(deleted.id)
+      assert id == twin.id
+    end
+
+    test "applies changes before restoring, and records them as an update" do
+      {deleted, _twin} = deleted_with_twin()
+
+      assert {:ok, _} =
+               Publication.restore(
+                 deleted.id,
+                 History.system_actor(),
+                 Map.put(@valid_attrs, "year", 1887)
+               )
+
+      assert %Publication{deleted_at: nil, year: 1887} = Repo.get(Publication, deleted.id)
+
+      assert ["restored", "updated", "deleted", "created"] ==
+               Enum.map(History.of(deleted.id), & &1.action)
+    end
+
+    test "changes that still conflict write nothing" do
+      {deleted, _twin} = deleted_with_twin()
+      changes = Map.put(@valid_attrs, "sources", [%{"content" => "A source", "position" => 0}])
+
+      assert {:error, {:conflict, _twin}} =
+               Publication.restore(deleted.id, History.system_actor(), changes)
+
+      assert %Publication{deleted_at: deleted_at} = Repo.get(Publication, deleted.id)
+      refute is_nil(deleted_at)
+      assert ["deleted", "created"] == Enum.map(History.of(deleted.id), & &1.action)
+    end
+
+    test "changes that do not validate write nothing" do
+      {deleted, _twin} = deleted_with_twin()
+
+      assert {:error, %{year: _}} =
+               Publication.restore(
+                 deleted.id,
+                 History.system_actor(),
+                 Map.put(@valid_attrs, "year", "not a year")
+               )
+
+      assert %Publication{year: 1886} = Repo.get(Publication, deleted.id)
+      assert ["deleted", "created"] == Enum.map(History.of(deleted.id), & &1.action)
+    end
+
+    test "undoing a delete that would now conflict is a plain conflict" do
+      {deleted, _twin} = deleted_with_twin()
+      [deletion | _] = History.of(deleted.id)
+
+      assert {:error, :conflict} = Publication.undo(deleted.id, deletion.version)
     end
   end
 
@@ -667,6 +732,46 @@ defmodule RichardBurton.PublicationTest do
         )
 
       {winner, loser}
+    end
+
+    test "the winner may take on the key one of its losers held" do
+      # The same publication twice, the loser naming one more publisher. Merged,
+      # the winner names both, which is the loser's key. The key is checked once
+      # the loser is tombstoned, so the merge goes through.
+      winner = insert_publication()
+
+      loser =
+        insert_publication(
+          Map.update!(@valid_attrs, "publishers", &(&1 ++ [%{"name" => "Noonday Press"}]))
+        )
+
+      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
+      assert length(merged.publishers) == 2
+    end
+
+    test "undoing a merge in which the winner took a loser's key gives each its own key back" do
+      # The loser comes back holding the key the merged winner still holds, and
+      # the winner's revert then gives it up. The key is checked once both are
+      # written, so the undo goes through.
+      winner = insert_publication()
+
+      loser =
+        insert_publication(
+          Map.update!(@valid_attrs, "publishers", &(&1 ++ [%{"name" => "Noonday Press"}]))
+        )
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+      [merge | _] = History.of(winner.id)
+
+      assert {:ok, _} = Publication.undo(winner.id, merge.version)
+
+      assert %Publication{deleted_at: nil} = Repo.get(Publication, loser.id)
+
+      assert ["Bickers & Son"] ==
+               Publication.find(winner.id).publishers |> Enum.map(& &1.name)
+
+      assert ["Bickers & Son", "Noonday Press"] ==
+               Publication.find(loser.id).publishers |> Enum.map(& &1.name) |> Enum.sort()
     end
 
     test "the winner keeps what names it and gains what the loser held" do

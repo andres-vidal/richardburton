@@ -365,7 +365,8 @@
     "invalid_escape_sequence": "Não foi possível ler as publicações do arquivo enviado",
     "stray_escape_character": "Não foi possível ler as publicações do arquivo enviado",
     "alpha2": "Este campo deve ser um código de país ISO 3166-1 alfa 2 válido",
-    "duplicate": "Este campo não pode repetir a mesma entrada"
+    "duplicate": "Este campo não pode repetir a mesma entrada",
+    "repeated": "Outra linha desta importação é a mesma publicação"
   },
   "notify": {
     "nothingChanged": "Nada mudou. Verifique sua conexão e tente novamente.",
@@ -440,6 +441,14 @@
     "nothingNew": "Nada de novo a acrescentar — “{title}” já diz tudo o que as outras dizem. A união mesmo assim as remove.",
     "cancel": "Cancelar",
     "confirm": "{count, plural, =0 {Unir publicação} one {Unir publicação} other {Unir # publicações}}"
+  },
+  "restoring": {
+    "identical": "Outra publicação é idêntica a esta",
+    "identicalDetail": "Ela tem o mesmo título, ano, países, editoras e livro traduzido. Pode ter sido importada de novo, ou um nome pode ter sido corrigido até coincidir. Altere esta publicação para que as duas sejam diferentes e depois restaure-a, ou deixe-a excluída.",
+    "alreadyStored": "Já no banco de dados",
+    "differences": "O texto destacado é onde ela difere das suas alterações.",
+    "thisOne": "A publicação excluída",
+    "restoreWithChanges": "Restaurar com estas alterações"
   },
   "historyActions": {
     "created": "Criada",
