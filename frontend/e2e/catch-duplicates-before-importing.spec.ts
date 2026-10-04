@@ -8,6 +8,7 @@ import {
   CSV_HEADER,
   openDocument,
   uploadCsv,
+  moveSelectedRows,
 } from "./helpers";
 
 /**
@@ -186,8 +187,8 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(review).not.toBeVisible();
 
-  // Discard the first and second rows in the workspace, by selecting them with
-  // their leading cells and pressing Discard.
+  // Move the first and second rows to another document, by selecting them with
+  // their leading cells and pressing Move.
   await table
     .getByRole("row", { name: /Dom Casmuro/ })
     .getByRole("cell")
@@ -199,16 +200,16 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
     .first()
     .click({ modifiers: ["Meta"] });
   await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
-  await page.getByRole("button", { name: /^Discard/ }).click();
+  await moveSelectedRows(page, 2, { new: "To look into" });
 
-  // Both rows are gone from the working set, and the other three are still
+  // Both rows are gone from the document, and the other three are still
   // there.
   await expect(table.getByRole("row", { name: /Dom Casmuro/ })).toHaveCount(0);
   await expect(
     table.getByRole("row", { name: /The Devil to Pay in the Backlands/ }),
   ).toHaveCount(0);
-  // This pattern also matches the discarded second row's title, so a count of
-  // one means only the third row is left.
+  // This pattern also matches the moved second row's title, so a count of one
+  // means only the third row is left.
   await expect(
     table.getByRole("row", { name: /The Devil to Pay in the Backland/ }),
   ).toHaveCount(1);
@@ -219,8 +220,8 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
     table.getByRole("row", { name: /University of California Press/ }),
   ).toBeVisible();
 
-  // Discarding changes the visible rows, so the check runs again. The third
-  // row's only match was the second row, so no row resembles anything and the
-  // counter is gone.
+  // Moving rows out changes the rows, so the check runs again. The third row's
+  // only match was the second row, so no row resembles anything and the counter
+  // is gone.
   await expect(page.getByRole("button", { name: /rows? look/ })).toHaveCount(0);
 });

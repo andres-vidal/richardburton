@@ -12,8 +12,8 @@ to the backend to be parsed and staged into the workspace for review.
 
 ## Data source
 
-The button is **state-driven**: it takes no props. It reads the total
-publication count from the store (`useTotalPublicationCount`) only to decide
+The button is **state-driven**: it takes no props. It reads the row
+count from the store (`usePublicationCount`) only to decide
 whether to warn — when data is already loaded, the tooltip reads "Current data
 will be replaced!", since a new upload replaces the current set. Selecting a
 file builds a `FormData` and calls `upload()`; on failure the input is reset so

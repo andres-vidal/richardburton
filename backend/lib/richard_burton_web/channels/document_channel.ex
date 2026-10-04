@@ -29,6 +29,10 @@ defmodule RichardBurtonWeb.DocumentChannel do
       reply with the changes it lacks. This covers changes that were relayed
       before it joined but were not yet stored.
 
+  `topic/1` names a document's topic. `relay!/2` sends an update to the
+  connections on a document from outside the channel, as the same `update`
+  message a connection relays.
+
   After a connection joins, the channel calls
   `RichardBurtonWeb.DocumentSocket.allowed?/2` again to check that the person
   signed in on the connection still has access. It checks each time
@@ -43,13 +47,26 @@ defmodule RichardBurtonWeb.DocumentChannel do
   alias RichardBurton.Document
   alias RichardBurton.User
   alias RichardBurtonWeb.DocumentSocket
+  alias RichardBurtonWeb.Endpoint
   alias RichardBurtonWeb.Presence
 
   # How often a joined channel rechecks `DocumentSocket.allowed?/2`.
   @recheck_after :timer.minutes(5)
 
+  # What a document's topic starts with, before the document's id.
+  @prefix "document:"
+
+  @doc "Returns the topic of the document with the id `id`."
+  def topic(id), do: @prefix <> to_string(id)
+
+  @doc """
+  Sends `update`, a base64 Yjs update, to the connections on the document with
+  the id `id`, as an `update` message.
+  """
+  def relay!(id, update), do: Endpoint.broadcast!(topic(id), "update", %{"update" => update})
+
   @impl true
-  def join("document:" <> id, params, socket) do
+  def join(@prefix <> id, params, socket) do
     %{subject_id: subject_id, session_id: session_id} = socket.assigns
 
     with true <- DocumentSocket.allowed?(subject_id, session_id),

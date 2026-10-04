@@ -15,7 +15,7 @@ which takes over on wider screens.
 ## Data source
 
 The list is **state-driven**: it takes no publication props. It reads the
-visible ids from the publication store (`useVisiblePublicationIds`) and each
+row ids from the publication store (`usePublicationIds`) and each
 card resolves its own row (`usePublication`), so the list re-renders as the
 store changes. In stories the store is seeded through the shared fixtures:
 

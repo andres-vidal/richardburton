@@ -3,7 +3,7 @@
 import RestorePageIcon from "assets/restore-page.svg";
 import HistoryIcon from "assets/history.svg";
 import { useWorkspaceUndo } from "modules/publication/undo";
-import { useVisiblePublicationCount } from "modules/publication/hooks";
+import { usePublicationCount } from "modules/publication/hooks";
 import { useTranslations } from "next-intl";
 import { FC } from "react";
 import Button from "./Button";
@@ -22,7 +22,7 @@ import Tooltip from "./Tooltip";
 const WorkspaceUndo: FC = () => {
   const t = useTranslations("admin");
   const { canUndo, canRedo, undo, redo } = useWorkspaceUndo();
-  const publicationCount = useVisiblePublicationCount();
+  const publicationCount = usePublicationCount();
 
   return publicationCount === 0 || (!canUndo && !canRedo) ? null : (
     <div className="flex gap-1">

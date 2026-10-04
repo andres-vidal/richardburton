@@ -8,6 +8,29 @@ const Spinner: FC<{ className: string }> = ({ className }) => (
   <SpinnerIcon className={`animate-spin ${className}`} aria-hidden />
 );
 
+/**
+ * The classes of a button, shared with `ButtonLink` so that a link styled as a
+ * button looks the same. They read the `data-variant`, `data-size`,
+ * `data-width` and `data-alignment` attributes of the element.
+ */
+const BUTTON_CLASS_NAME = `
+  flex transition-colors items-center rounded font-base group gap-2 whitespace-nowrap
+  border border-transparent focus-ring
+  data-[size=small]:py-1.5 data-[size=small]:px-2 data-[size=small]:text-xs
+  data-[size=field]:py-1.5 data-[size=field]:px-2.5 data-[size=field]:text-sm
+  data-[size=medium]:py-2 data-[size=medium]:px-4 data-[size=medium]:text-sm
+  data-[loading=false]:disabled:bg-gray-100 data-[loading=false]:disabled:text-gray-300 data-[loading=false]:disabled:border-gray-200 data-[loading=false]:disabled:hover:bg-gray-100
+  data-[variant=primary]:text-white data-[variant=primary]:bg-indigo-600 data-[variant=primary]:hover:bg-indigo-700 data-[variant=primary]:loading:bg-indigo-700
+  data-[variant=secondary]:text-white data-[variant=secondary]:bg-amber-700 data-[variant=secondary]:hover:bg-amber-800 data-[variant=secondary]:loading:bg-amber-800
+  data-[variant=outline]:text-gray-700 data-[variant=outline]:bg-white data-[variant=outline]:border-gray-300 data-[variant=outline]:hover:bg-gray-100 data-[variant=outline]:loading:bg-gray-100
+  data-[variant=outline-primary]:text-indigo-600 data-[variant=outline-primary]:bg-white data-[variant=outline-primary]:border-indigo-500 data-[variant=outline-primary]:hover:bg-indigo-50 data-[variant=outline-primary]:loading:bg-indigo-50
+  data-[variant=danger]:text-white data-[variant=danger]:bg-red-600 data-[variant=danger]:hover:bg-red-700 data-[variant=danger]:loading:bg-red-700
+  data-[alignment=center]:justify-center
+  data-[width=full]:w-full
+  data-[width=fixed]:w-36
+  data-[width=fit]:w-fit
+`;
+
 type Props = Omit<HTMLProps<HTMLButtonElement>, "size"> & {
   label: string;
   variant?: "primary" | "secondary" | "outline" | "outline-primary" | "danger";
@@ -70,23 +93,7 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       data-alignment={alignment}
       data-icon-offset={iconOffset}
       data-size={size}
-      className={`
-        flex transition-colors items-center rounded font-base group gap-2 whitespace-nowrap
-        border border-transparent focus-ring
-        data-[size=small]:py-1.5 data-[size=small]:px-2 data-[size=small]:text-xs
-        data-[size=field]:py-1.5 data-[size=field]:px-2.5 data-[size=field]:text-sm
-        data-[size=medium]:py-2 data-[size=medium]:px-4 data-[size=medium]:text-sm
-        data-[loading=false]:disabled:bg-gray-100 data-[loading=false]:disabled:text-gray-300 data-[loading=false]:disabled:border-gray-200 data-[loading=false]:disabled:hover:bg-gray-100
-        data-[variant=primary]:text-white data-[variant=primary]:bg-indigo-600 data-[variant=primary]:hover:bg-indigo-700 data-[variant=primary]:loading:bg-indigo-700
-        data-[variant=secondary]:text-white data-[variant=secondary]:bg-amber-700 data-[variant=secondary]:hover:bg-amber-800 data-[variant=secondary]:loading:bg-amber-800
-        data-[variant=outline]:text-gray-700 data-[variant=outline]:bg-white data-[variant=outline]:border-gray-300 data-[variant=outline]:hover:bg-gray-100 data-[variant=outline]:loading:bg-gray-100
-        data-[variant=outline-primary]:text-indigo-600 data-[variant=outline-primary]:bg-white data-[variant=outline-primary]:border-indigo-500 data-[variant=outline-primary]:hover:bg-indigo-50 data-[variant=outline-primary]:loading:bg-indigo-50
-        data-[variant=danger]:text-white data-[variant=danger]:bg-red-600 data-[variant=danger]:hover:bg-red-700 data-[variant=danger]:loading:bg-red-700
-        data-[alignment=center]:justify-center
-        data-[width=full]:w-full
-        data-[width=fixed]:w-36
-        data-[width=fit]:w-fit
-      `}
+      className={BUTTON_CLASS_NAME}
       aria-busy={loading}
       data-loading={Boolean(loading)}
       onClick={onClick}
@@ -118,5 +125,6 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
 });
 
 export type { Props as ButtonProps };
+export { BUTTON_CLASS_NAME };
 
 export default Button;

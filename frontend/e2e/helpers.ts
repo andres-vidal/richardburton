@@ -293,6 +293,41 @@ export const IMPORT_CSV =
     `Iracema,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,`,
   ].join("\n") + "\n";
 
+/**
+ * Moves the rows selected in the open document to another import document: a
+ * new one named `to.new`, or the existing one named `to.existing`. Waits for the
+ * dialog to say the rows moved, and closes it with **Done**.
+ */
+export async function moveSelectedRows(
+  page: Page,
+  count: number,
+  to: { new: string } | { existing: string },
+) {
+  const rows = count === 1 ? "row" : "rows";
+
+  await page.getByRole("button", { name: `Move ${count}` }).click();
+
+  const dialog = page.getByRole("dialog", {
+    name: `Move ${count} ${rows} to another document`,
+  });
+
+  if ("new" in to) {
+    await dialog
+      .getByRole("textbox", { name: "Name of the new document" })
+      .fill(to.new);
+  } else {
+    const name = to.existing.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    await dialog.getByRole("radio", { name: new RegExp(`^${name} `) }).check();
+  }
+
+  await dialog.getByRole("button", { name: `Move ${count} ${rows}` }).click();
+
+  const moved = page.getByRole("dialog", { name: `Moved ${count} ${rows}` });
+  await expect(moved).toBeVisible({ timeout: 30_000 });
+  await moved.getByRole("button", { name: "Done" }).click();
+  await expect(moved).not.toBeVisible();
+}
+
 /** Uploads `csv` through the upload control, as a file called `name`. */
 export async function uploadCsv(page: Page, csv: string, name = "import.csv") {
   await page.locator("#upload-csv").setInputFiles({

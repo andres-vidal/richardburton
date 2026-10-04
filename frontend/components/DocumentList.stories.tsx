@@ -88,19 +88,27 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * The current documents, each with its row count. The client counts the rows,
- * because the server stores a document as Yjs updates that it does not parse.
+ * The current documents, each with its row count and an **Open** link to it.
+ * The client counts the rows, because the server stores a document as Yjs
+ * updates that it does not parse.
  */
 export const Default: Story = {
   play: async () => {
     await expect(
-      screen.getByRole("link", { name: /Second pass, 2026/ }),
+      screen.getByText("Second pass, 2026").closest("li"),
     ).toHaveTextContent("428 rows");
 
     // The count uses the singular for one row.
     await expect(
-      screen.getByRole("link", { name: /Amado retranslations/ }),
+      screen.getByText("Amado retranslations").closest("li"),
     ).toHaveTextContent("1 row");
+
+    await expect(
+      screen.getByRole("link", { name: "Open Second pass, 2026" }),
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining("/admin/publications/documents/1"),
+    );
   },
 };
 
@@ -164,9 +172,7 @@ export const RenamingCalledOff: Story = {
     await userEvent.type(field, "Something else{Escape}");
 
     await expect(args.rename).not.toHaveBeenCalled();
-    await expect(
-      within(first).getByRole("link", { name: /Second pass, 2026/ }),
-    ).toBeVisible();
+    await expect(within(first).getByText("Second pass, 2026")).toBeVisible();
   },
 };
 

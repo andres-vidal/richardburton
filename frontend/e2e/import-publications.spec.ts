@@ -14,6 +14,7 @@ import {
   type PublicationInput,
   openDocument,
   uploadCsv,
+  moveSelectedRows,
 } from "./helpers";
 
 // One row under the header every fixture writes.
@@ -70,7 +71,7 @@ test("an admin bulk-inserts publications with sources from the workspace", async
   await expect(page.getByRole("button", { name: /^Deselect/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Submit" })).toBeVisible();
 
-  // Duplicate the third row, then delete the copy again.
+  // Duplicate the third row, then move the copy to a document of its own.
   const duplicatedRows = table.getByRole("row", { name: DUPLICATED.title });
   await handleOf(DUPLICATED.title).click();
   await expect(page.getByRole("button", { name: "Deselect 1" })).toBeVisible();
@@ -78,11 +79,8 @@ test("an admin bulk-inserts publications with sources from the workspace", async
   await expect(duplicatedRows).toHaveCount(2);
 
   await duplicatedRows.nth(1).getByRole("cell").first().click();
-  await page.getByRole("button", { name: "Discard 1" }).click();
+  await moveSelectedRows(page, 1, { new: "Copies" });
   await expect(duplicatedRows).toHaveCount(1);
-  await expect(
-    page.getByRole("button", { name: "Reset 1 discarded" }),
-  ).toBeVisible();
 
   // One submit persists the whole batch.
   await submitWorkspace(page, PUBLICATIONS.length);
@@ -187,15 +185,16 @@ test("a duplicate of an existing publication is flagged as a conflict", async ({
   await expect(page.getByLabel("1 invalid publication")).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit" })).toBeDisabled();
 
-  // Drop the conflicting row. Row-selection clicks must land on the signal cell
-  // (field cells swallow them), and off its center — the centered error icon
-  // opens a hover tooltip that would swallow the click instead.
+  // Move the conflicting row to another document. Row-selection clicks must
+  // land on the signal cell (field cells swallow them), and off its center —
+  // the centered error icon opens a hover tooltip that would swallow the click
+  // instead.
   const duplicate = table.getByRole("row", { name: /Dom Casmurro/ });
   await duplicate
     .getByRole("cell")
     .first()
     .click({ position: { x: 4, y: 4 } });
-  await page.getByRole("button", { name: "Discard 1" }).click();
+  await moveSelectedRows(page, 1, { new: "Already stored" });
 
   await expect(page.getByLabel("All publications are valid")).toBeVisible();
   await submitWorkspace(page, 1);
@@ -277,7 +276,7 @@ test("an import that repeats an entry or a whole row is held back until each rep
   });
 
   // A copy made with Duplicate repeats the row it was copied from, until it is
-  // discarded. Row-selection clicks land on the signal cell, off its center.
+  // moved out. Row-selection clicks land on the signal cell, off its center.
   const select = (row: ReturnType<typeof table.getByRole>) =>
     row
       .getByRole("cell")
@@ -293,7 +292,7 @@ test("an import that repeats an entry or a whole row is held back until each rep
   const copies = table.getByRole("row", { name: /Macunaíma/ });
   await expect(copies).toHaveCount(2);
   await select(copies.nth(1));
-  await page.getByRole("button", { name: "Discard 1" }).click();
+  await moveSelectedRows(page, 1, { new: "Copies" });
   await expect(page.getByLabel("All publications are valid")).toBeVisible({
     timeout: 30_000,
   });
