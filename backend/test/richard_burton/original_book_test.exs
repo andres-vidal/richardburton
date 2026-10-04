@@ -39,7 +39,7 @@ defmodule RichardBurton.OriginalBookTest do
     attrs |> changeset() |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
   end
 
-  # A changeset whose authors are already stored, as `maybe_insert!/1` builds it.
+  # A changeset whose authors are already stored, as `find_or_insert!/1` builds it.
   defp changeset_linked(book, attrs), do: book |> OriginalBook.changeset(attrs) |> Author.link()
 
   defp maybe_preload(changeset, true), do: OriginalBook.preload(changeset)
@@ -86,9 +86,9 @@ defmodule RichardBurton.OriginalBookTest do
     end
 
     test "the database refuses a second original book with the same title and authors" do
-      OriginalBook.maybe_insert!(@valid_attrs)
+      OriginalBook.find_or_insert!(@valid_attrs)
 
-      # Inserted around the lookup in `maybe_insert!/1`, which would have found
+      # Inserted around the lookup in `find_or_insert!/1`, which would have found
       # the first book.
       %OriginalBook{} |> changeset_linked(@valid_attrs) |> Repo.insert!()
 
@@ -102,9 +102,9 @@ defmodule RichardBurton.OriginalBookTest do
     end
   end
 
-  describe "maybe_insert/1" do
+  describe "find_or_insert/1" do
     test "when there is no original book with the provided authors and title, inserts it" do
-      original_book = OriginalBook.maybe_insert!(@valid_attrs)
+      original_book = OriginalBook.find_or_insert!(@valid_attrs)
 
       assert [original_book] == OriginalBook.all()
     end
@@ -113,17 +113,17 @@ defmodule RichardBurton.OriginalBookTest do
       insert(@valid_attrs)
       assert [pre_existent_book] = OriginalBook.all()
 
-      original_book = OriginalBook.maybe_insert!(@valid_attrs) |> OriginalBook.preload()
+      original_book = OriginalBook.find_or_insert!(@valid_attrs) |> OriginalBook.preload()
 
       assert pre_existent_book == original_book
       assert [original_book] == OriginalBook.all()
     end
 
     test "the same authors in another order are the same book" do
-      book = OriginalBook.maybe_insert!(@valid_attrs)
+      book = OriginalBook.find_or_insert!(@valid_attrs)
 
       again =
-        OriginalBook.maybe_insert!(%{
+        OriginalBook.find_or_insert!(%{
           @valid_attrs
           | "authors" => Enum.reverse(@valid_attrs["authors"])
         })
@@ -132,10 +132,10 @@ defmodule RichardBurton.OriginalBookTest do
     end
 
     test "the same title by other authors is another book" do
-      book = OriginalBook.maybe_insert!(@valid_attrs)
+      book = OriginalBook.find_or_insert!(@valid_attrs)
 
       other =
-        OriginalBook.maybe_insert!(%{
+        OriginalBook.find_or_insert!(%{
           @valid_attrs
           | "authors" => [%{"name" => "Erico Verissimo"}]
         })
@@ -226,19 +226,19 @@ defmodule RichardBurton.OriginalBookTest do
     defp titles(books), do: Enum.map(books, & &1.title)
 
     defp search_fixture(_context) do
-      OriginalBook.maybe_insert!(%{
+      OriginalBook.find_or_insert!(%{
         "title" => "Dom Casmurro",
         "authors" => [%{"name" => "Machado de Assis"}]
       })
 
-      OriginalBook.maybe_insert!(%{
+      OriginalBook.find_or_insert!(%{
         "title" => "Memórias Póstumas",
         "authors" => [%{"name" => "Machado de Assis"}]
       })
 
       # Two of its authors answer to "J. M.", so a search for that would find
       # this book twice if the rows were not deduplicated.
-      OriginalBook.maybe_insert!(%{
+      OriginalBook.find_or_insert!(%{
         "title" => "Manuel de Moraes",
         "authors" => [
           %{"name" => "Machado de Assis"},
