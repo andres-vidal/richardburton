@@ -4,7 +4,6 @@ import { AxiosError, AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
 import { RESET } from "jotai/utils";
 import type { Store } from "modules/store";
-import hash from "object-hash";
 
 import type { Publication, PublicationHistoryEntry } from "./model";
 import {
@@ -24,8 +23,11 @@ type ResemblanceEntry = Omit<Resemblance, "others" | "repeats"> & {
   others: number[];
   repeats: number | null;
 };
+import * as Doc from "./doc";
 import {
+  contentKey,
   createId,
+  documentOf,
   errorFamily,
   isValidatingAtom,
   lastValidatedFamily,
@@ -34,6 +36,7 @@ import {
   RESEMBLANCE_ATTRIBUTES,
   remember,
   removePublication,
+  resemblanceSubjectAtom,
   resetAll,
   rowSubjectFamily,
   setAll,
@@ -379,7 +382,7 @@ async function distinguish(ids: PublicationId[]): Promise<boolean> {
  */
 async function validateUpdate(store: Store, id: PublicationId): Promise<void> {
   const publication = store.get(publicationFamily(id));
-  const fingerprint = hash(publication);
+  const fingerprint = contentKey(publication);
 
   // Same dedup as `validate`: this runs on every blur (and on every change for
   // array fields), so a field the user only tabbed through costs no round-trip.
@@ -391,24 +394,42 @@ async function validateUpdate(store: Store, id: PublicationId): Promise<void> {
       `publications/${id}/validate`,
       publication,
     );
-    setErrors(store, [{ ...data, id }]);
+    setErrors(store, [{ id, publication, errors: data.errors }]);
   });
 }
 
-/** Validate the given rows server-side, but only those whose value changed. */
-async function validate(store: Store, ids: PublicationId[]): Promise<void> {
+/**
+ * Validates the rows `ids` server-side and stores the results with `setErrors`.
+ *
+ * A row is left out when its content was already validated: when this client
+ * has sent that content (`lastValidatedFamily`), or when the store's document
+ * holds a result for it. With `force`, every row is sent. A row the store does
+ * not hold is left out.
+ */
+async function validate(
+  store: Store,
+  ids: PublicationId[],
+  { force = false }: { force?: boolean } = {},
+): Promise<void> {
   return run(async (http) => {
     store.set(isValidatingAtom, true);
     try {
+      const { doc } = documentOf(store);
       const pending = ids
         .map((id) => ({
           id,
           publication: store.get(publicationFamily(id)),
         }))
-        .map((entry) => ({ ...entry, hash: hash(entry.publication) }))
-        .filter(({ id, hash: h }) => h !== store.get(lastValidatedFamily(id)))
-        .map(({ id, publication, hash: h }) => {
-          store.set(lastValidatedFamily(id), h);
+        .filter(({ publication }) => publication !== undefined)
+        .map((entry) => ({ ...entry, content: contentKey(entry.publication) }))
+        .filter(
+          ({ id, content }) =>
+            force ||
+            (content !== store.get(lastValidatedFamily(id)) &&
+              content !== Doc.validationOf(doc, id)?.content),
+        )
+        .map(({ id, publication, content }) => {
+          store.set(lastValidatedFamily(id), content);
           return { id, publication };
         });
 
@@ -418,10 +439,15 @@ async function validate(store: Store, ids: PublicationId[]): Promise<void> {
           pending.map(({ publication }) => publication),
         );
         // Map results back to the rows we actually sent (the filtered set),
-        // not the original id list.
+        // not the original id list. Each result is stored for the content
+        // that was sent, not the server's copy of it.
         setErrors(
           store,
-          data.map((entry, i) => ({ ...entry, id: pending[i].id })),
+          data.map((entry, i) => ({
+            id: pending[i].id,
+            publication: pending[i].publication,
+            errors: entry.errors,
+          })),
         );
       }
     } finally {
@@ -441,6 +467,7 @@ async function validate(store: Store, ids: PublicationId[]): Promise<void> {
  */
 async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
   return run(async (http) => {
+    const subject = store.get(resemblanceSubjectAtom);
     const asked = ids.map((id) => store.get(rowSubjectFamily(id)));
     const rows = ids.map((id) =>
       pick(store.get(publicationFamily(id)), RESEMBLANCE_ATTRIBUTES),
@@ -451,12 +478,13 @@ async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
       rows,
     );
 
-    // If a row's subject (see `rowSubjectFamily`) changed while the request was
-    // in flight, the response describes old values and is dropped.
-    // `CheckResemblances` has already scheduled a new check for that change.
-    const moved = ids.some(
-      (id, index) => store.get(rowSubjectFamily(id)) !== asked[index],
-    );
+    // If a row's subject (see `rowSubjectFamily`) or the set of rows changed
+    // while the request was in flight, the response describes old values and
+    // is dropped. The change has already scheduled a new check
+    // (see `watchChecks`).
+    const moved =
+      store.get(resemblanceSubjectAtom) !== subject ||
+      ids.some((id, index) => store.get(rowSubjectFamily(id)) !== asked[index]);
 
     if (moved) return;
 

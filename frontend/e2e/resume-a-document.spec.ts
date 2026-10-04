@@ -113,9 +113,10 @@ test("a resumed document asks again whether its rows are valid", async ({
 
   await page.reload();
 
-  // The document does not store whether a row is valid. After the reload, the
-  // page sends the rows to the server to be validated again, so the row is
-  // still invalid and Submit stays disabled.
+  // The document stores the result of validating the row, so the row is still
+  // invalid after the reload and Submit stays disabled. Once the document has
+  // loaded, the page also sends its rows to be validated again, since a stored
+  // result can be out of date with the database.
   await expect(page.getByLabel("1 invalid publication")).toBeVisible({
     timeout: 30_000,
   });

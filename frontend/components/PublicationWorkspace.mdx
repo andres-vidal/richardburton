@@ -47,7 +47,11 @@ gesture, read by both the row that selects and the listener that clears.
 Cells are seeded from the store and edits flow back through it, so the grid is
 driven entirely by the publication state layer. The **new-publication row**
 commits on `Enter` (or the `+` button): it calls `addNew()` to promote the draft
-to a real row and `validate()` to check it server-side.
+to a real row.
+
+The cells do not validate their rows. `watchChecks`, which `DocumentProvider`
+starts for the import document, validates each row edited in this browser once
+the edits settle, and stores the result in the document for everyone.
 
 <Canvas of={WorkspaceStories.Default} />
 

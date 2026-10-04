@@ -13,7 +13,6 @@ import {
   RowProps,
   SignalColumn,
 } from "components/PublicationIndexTable";
-import CheckResemblances from "listeners/CheckResemblances";
 import ClearSelection from "listeners/ClearSelection";
 import { isElement } from "lodash";
 import WarningIcon from "assets/warning.svg";
@@ -30,7 +29,6 @@ import {
   usePublicationIds,
 } from "modules/publication/hooks";
 import { colourOf, useOnThisCell } from "modules/publication/presence";
-import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { DRAFT_ID, addNew, closeReview } from "modules/publication/store";
 import type { PublicationId } from "modules/publication/model";
@@ -136,15 +134,7 @@ const ExtendedContent: typeof Content = ({ rowId, colId }) => {
   const value = usePublicationField(rowId, colId);
   const error = usePublicationFieldError(rowId, colId);
 
-  return (
-    <DataInput
-      rowId={rowId}
-      colId={colId}
-      value={value}
-      error={error}
-      autoValidated
-    />
-  );
+  return <DataInput rowId={rowId} colId={colId} value={value} error={error} />;
 };
 
 const ExtendedRow: FC<RowProps> = (props) => {
@@ -179,8 +169,7 @@ const useSubmit = () => {
   const store = usePublicationStore();
 
   return useCallback(() => {
-    const id = addNew(store);
-    validate(store, [id]);
+    addNew(store);
   }, [store]);
 };
 
@@ -269,7 +258,6 @@ const PublicationWorkspace: FC = () => {
   return (
     <>
       <ClearSelection store={store} />
-      <CheckResemblances store={store} />
       <PublicationResemblances
         isOpen={reviewing !== null}
         startAt={reviewing?.startAt}
