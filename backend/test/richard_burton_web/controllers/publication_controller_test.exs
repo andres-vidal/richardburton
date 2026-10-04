@@ -625,6 +625,19 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
              ] = entries
     end
 
+    test "reports a row that repeats an earlier row's key", meta do
+      expect_auth_authorize_admin()
+
+      assert %{"entries" => entries} =
+               meta.conn
+               |> post(publication_path(meta.conn, :resemblances), %{
+                 "_json" => [@publication_attrs, @publication_attrs]
+               })
+               |> json_response(200)
+
+      assert [%{"repeats" => nil}, %{"repeats" => 0}] = entries
+    end
+
     test "a row unlike anything is not reported at all", meta do
       expect_auth_authorize_admin()
       insert_publication(@publication_attrs)

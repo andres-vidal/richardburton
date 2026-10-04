@@ -396,7 +396,8 @@
     "invalid_escape_sequence": "Não foi possível ler as publicações do arquivo enviado",
     "stray_escape_character": "Não foi possível ler as publicações do arquivo enviado",
     "alpha2": "Este campo deve ser um código de país ISO 3166-1 alfa 2 válido",
-    "duplicate": "Este campo não pode repetir a mesma entrada"
+    "duplicate": "Este campo não pode repetir a mesma entrada",
+    "repeated": "Outra linha desta importação é a mesma publicação"
   },
   "notify": {
     "nothingChanged": "Nada mudou. Verifique sua conexão e tente novamente.",

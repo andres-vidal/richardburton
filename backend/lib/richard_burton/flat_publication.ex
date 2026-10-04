@@ -57,11 +57,44 @@ defmodule RichardBurton.FlatPublication do
     |> validate_any_values()
     |> Country.resolve_countries()
     |> Country.validate_countries()
+    |> validate_entries()
   end
 
   defp validate_any_values(changeset) do
     Enum.reduce(@multivalued_attributes, changeset, &validate_length(&2, &1, min: 1))
   end
+
+  # Adds an error to each multivalued attribute whose entries the insert would
+  # refuse: `:required` when an entry is blank, and otherwise `:duplicate` when
+  # two entries are the same.
+  #
+  # Blank entries are looked for in the params, because `cast/3` drops empty
+  # strings from a list. Repeated entries are looked for in the cast field after
+  # `Country.resolve_countries/1`, so countries are compared by code.
+  defp validate_entries(changeset) do
+    Enum.reduce(@multivalued_attributes, changeset, &validate_entries(&2, &1))
+  end
+
+  # Checks the entries of `attribute` alone, as `validate_entries/1` describes.
+  defp validate_entries(changeset, attribute) do
+    given = Map.get(changeset.params, Atom.to_string(attribute))
+    entries = get_field(changeset, attribute) || []
+
+    cond do
+      is_list(given) and Enum.any?(given, &blank?/1) ->
+        add_error(changeset, attribute, "has a blank entry", validation: :required)
+
+      length(Enum.uniq(entries)) < length(entries) ->
+        add_error(changeset, attribute, "has duplicates", validation: :duplicate)
+
+      true ->
+        changeset
+    end
+  end
+
+  # Returns whether an entry is missing, empty or only whitespace, which is what
+  # `validate_required/2` treats as missing.
+  defp blank?(entry), do: is_nil(entry) or (is_binary(entry) and String.trim(entry) == "")
 
   def all() do
     Repo.all(FlatPublication)

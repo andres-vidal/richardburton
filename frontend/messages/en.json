@@ -396,7 +396,8 @@
     "invalid_escape_sequence": "Could not parse publications from the provided file",
     "stray_escape_character": "Could not parse publications from the provided file",
     "alpha2": "This field should be a valid ISO 3166-1 alpha 2 country code",
-    "duplicate": "This field cannot repeat the same entry"
+    "duplicate": "This field cannot repeat the same entry",
+    "repeated": "Another row of this import is the same publication"
   },
   "notify": {
     "nothingChanged": "Nothing changed. Check your connection and try again.",
