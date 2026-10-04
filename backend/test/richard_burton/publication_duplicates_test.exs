@@ -461,13 +461,22 @@ defmodule RichardBurton.Publication.DuplicatesTest do
       assert [nil, nil, 0, 0] == Enum.map(entries, & &1.repeats)
     end
 
+    test "a row that names its country agrees with a record that holds its code" do
+      insert(%{})
+
+      assert [%{position: 0, stored: [_]}] =
+               Duplicates.resemblances([
+                 row(%{"title" => "Dom Casmuro", "countries" => ["United States"]})
+               ])
+    end
+
     test "a row is not a repeat of a stored record, which validation reports instead" do
       insert(%{})
 
       assert [%{position: 0, repeats: nil, stored: [_]}] = Duplicates.resemblances([row(%{})])
     end
 
-    test "rows that are not valid repeat nothing" do
+    test "rows missing a field of the key repeat nothing" do
       assert [%{repeats: nil}, %{repeats: nil}] =
                Duplicates.resemblances([row(%{"year" => ""}), row(%{"year" => ""})])
     end

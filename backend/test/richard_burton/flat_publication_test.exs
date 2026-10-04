@@ -263,38 +263,6 @@ defmodule RichardBurton.FlatPublicationTest do
     end
   end
 
-  describe "key/1" do
-    test "is the same for the same publication with its lists in another order" do
-      reordered = %{
-        @valid_attrs
-        | "authors" => ["Isabel Burton", "Richard Burton"],
-          "countries" => ["UK"]
-      }
-
-      assert FlatPublication.key(@valid_attrs) == FlatPublication.key(reordered)
-    end
-
-    test "differs when any part of the key differs" do
-      for change <- [
-            %{"title" => "Manuel de Moraes"},
-            %{"year" => 1887},
-            %{"countries" => ["US"]},
-            %{"publishers" => ["Chatto & Windus"]},
-            %{"authors" => ["Richard Burton"]},
-            %{"original_title" => "Manuel de Moraes"},
-            %{"original_authors" => ["João Manuel Pereira da Silva"]}
-          ] do
-        refute FlatPublication.key(@valid_attrs) ==
-                 FlatPublication.key(Map.merge(@valid_attrs, change)),
-               inspect(change)
-      end
-    end
-
-    test "is nil for a publication that is not valid" do
-      assert nil == FlatPublication.key(Map.delete(@valid_attrs, "title"))
-    end
-  end
-
   describe "validate/2" do
     import FlatPublication, only: [validate: 2]
 

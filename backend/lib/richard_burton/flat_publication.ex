@@ -100,17 +100,6 @@ defmodule RichardBurton.FlatPublication do
     Repo.all(FlatPublication)
   end
 
-  @doc """
-  Returns the composite key of `attrs`, a flat publication, or nil when `attrs`
-  is not valid. Two publications with the same key are the same publication,
-  and the database stores only one of them.
-  """
-  def key(attrs) do
-    changeset = changeset(%FlatPublication{}, attrs)
-
-    if changeset.valid?, do: changeset |> apply_changes() |> Identity.publication_key()
-  end
-
   def validate(attrs, exclude_id \\ nil) do
     %FlatPublication{} |> changeset(attrs) |> validate_changeset(exclude_id)
   end
