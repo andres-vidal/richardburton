@@ -93,9 +93,9 @@ defmodule RichardBurton.TranslatedBookTest do
     end
 
     test "the database refuses a second translated book of one original book by the same translators" do
-      TranslatedBook.maybe_insert!(@valid_attrs)
+      TranslatedBook.find_or_insert!(@valid_attrs)
 
-      # Inserted around the lookup in `maybe_insert!/1`, which would have found
+      # Inserted around the lookup in `find_or_insert!/1`, which would have found
       # the first book.
       %TranslatedBook{}
       |> TranslatedBook.changeset(@valid_attrs)
@@ -115,9 +115,9 @@ defmodule RichardBurton.TranslatedBookTest do
     end
   end
 
-  describe "maybe_insert/1" do
+  describe "find_or_insert/1" do
     test "when there is no translated book with the provided authors and original book, inserts it" do
-      translated_book = TranslatedBook.maybe_insert!(@valid_attrs)
+      translated_book = TranslatedBook.find_or_insert!(@valid_attrs)
 
       assert [translated_book] == TranslatedBook.all()
     end
@@ -126,17 +126,17 @@ defmodule RichardBurton.TranslatedBookTest do
       insert(@valid_attrs)
       assert [pre_existent_book] = TranslatedBook.all()
 
-      translated_book = TranslatedBook.maybe_insert!(@valid_attrs) |> TranslatedBook.preload()
+      translated_book = TranslatedBook.find_or_insert!(@valid_attrs) |> TranslatedBook.preload()
 
       assert pre_existent_book == translated_book
       assert [translated_book] == TranslatedBook.all()
     end
 
     test "the same translators in another order are the same translated book" do
-      book = TranslatedBook.maybe_insert!(@valid_attrs)
+      book = TranslatedBook.find_or_insert!(@valid_attrs)
 
       again =
-        TranslatedBook.maybe_insert!(%{
+        TranslatedBook.find_or_insert!(%{
           @valid_attrs
           | "authors" => Enum.reverse(@valid_attrs["authors"])
         })
@@ -145,10 +145,13 @@ defmodule RichardBurton.TranslatedBookTest do
     end
 
     test "the same original book by other translators is another translated book" do
-      book = TranslatedBook.maybe_insert!(@valid_attrs)
+      book = TranslatedBook.find_or_insert!(@valid_attrs)
 
       other =
-        TranslatedBook.maybe_insert!(%{@valid_attrs | "authors" => [%{"name" => "John Gledson"}]})
+        TranslatedBook.find_or_insert!(%{
+          @valid_attrs
+          | "authors" => [%{"name" => "John Gledson"}]
+        })
 
       refute other.id == book.id
       assert other.original_book_id == book.original_book_id

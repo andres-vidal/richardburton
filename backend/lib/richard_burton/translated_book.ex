@@ -56,12 +56,12 @@ defmodule RichardBurton.TranslatedBook do
   translators as `attrs`, and inserts it when there is none. The original book
   and the translators are found, or inserted, first.
   """
-  def maybe_insert!(attrs) do
+  def find_or_insert!(attrs) do
     %TranslatedBook{}
     |> changeset(attrs)
     |> OriginalBook.link()
     |> Author.link()
-    |> Repo.maybe_insert!(&stored_id/1, [:authors_fingerprint])
+    |> Repo.find_or_insert!(&stored_id/1, [:authors_fingerprint])
   end
 
   # Returns the id of the stored translated book with the key of `changeset`,
@@ -89,7 +89,7 @@ defmodule RichardBurton.TranslatedBook do
       changeset
       |> get_change(:translated_book)
       |> apply_changes()
-      |> TranslatedBook.maybe_insert!()
+      |> TranslatedBook.find_or_insert!()
 
     put_assoc(changeset, :translated_book, translated_book)
   end

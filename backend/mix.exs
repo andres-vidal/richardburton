@@ -12,7 +12,19 @@ defmodule RichardBurton.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [tool: ExCoveralls],
+      dialyzer: dialyzer()
+    ]
+  end
+
+  # Checks the code and its specs with Dialyzer. Mix and ExUnit are added to the
+  # PLT because the Mix tasks and the test support modules call them. The PLTs
+  # are kept in `priv/plts`, so CI can cache them between runs.
+  defp dialyzer do
+    [
+      plt_add_apps: [:mix, :ex_unit],
+      plt_core_path: "priv/plts",
+      plt_local_path: "priv/plts"
     ]
   end
 
@@ -61,6 +73,7 @@ defmodule RichardBurton.MixProject do
       {:plug, "~> 1.16"},
       {:plug_cowboy, "~> 2.9"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:csv, "~> 3.2.1"},
