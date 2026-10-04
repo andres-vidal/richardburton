@@ -1,23 +1,54 @@
-defmodule RichardBurton.Race do
+defmodule RichardBurton.RaceCase do
   @moduledoc """
-  Runs two writes against each other, each on its own connection outside the
-  SQL sandbox and in a transaction that commits.
+  The test case for writes that race each other. It imports `race/2`, which
+  runs two writes against each other, and `unboxed/1`, which runs anything else
+  the test needs on the database.
 
-  `run/2` runs the first write and holds its transaction open. It then starts
-  the second write, and commits the first one only once the second is waiting
-  on a lock or has finished. So the second write always looks for a row before
-  the rows the first one wrote are visible to it, which is the interleaving a
-  sandboxed test cannot produce.
+  Each write runs on its own connection outside the SQL sandbox, in a
+  transaction that commits. `race/2` runs the first write and holds its
+  transaction open. It then starts the second write, and commits the first one
+  only once the second is waiting on a lock or has finished. So the second write
+  always looks for a row before the rows the first one wrote are visible to it,
+  which is the interleaving a sandboxed test cannot produce.
 
-  The writes commit, so a test that runs them removes what they wrote, for
-  example with `truncate!/1` in `on_exit`.
+  The test process has no sandbox connection, so a query it makes without
+  `unboxed/1` fails. Because the writes commit, the tables a publication write
+  reaches are emptied after each test, and the search index is rebuilt. Tests
+  that use this case cannot run asynchronously.
   """
+
+  use ExUnit.CaseTemplate
 
   import ExUnit.Assertions
 
   alias Ecto.Adapters.SQL.Sandbox
   alias RichardBurton.Publication.Index.Refresher
   alias RichardBurton.Repo
+
+  # The tables a publication write can reach, emptied after each test.
+  @written ~w[publication_history publication_sources publication_publishers publication_countries
+              publication_distinctions publications translated_book_authors translated_books
+              original_book_authors original_books authors publishers countries]
+
+  using opts do
+    if opts[:async],
+      do:
+        raise(
+          ArgumentError,
+          "a RaceCase test commits its writes, so it cannot run asynchronously"
+        )
+
+    quote do
+      alias RichardBurton.Repo
+
+      import Ecto.Query
+      import RichardBurton.RaceCase, only: [race: 2, unboxed: 1]
+    end
+  end
+
+  setup do
+    on_exit(&clear!/0)
+  end
 
   @doc "Runs `fun` on a connection outside the SQL sandbox, so its writes commit."
   def unboxed(fun), do: Sandbox.unboxed_run(Repo, fun)
@@ -31,7 +62,7 @@ defmodule RichardBurton.Race do
   waiting on a lock, which shows that it raced `first` rather than running
   after it.
   """
-  def run(first, second) do
+  def race(first, second) do
     test = self()
     holder = Task.async(fn -> unboxed(fn -> hold_open(first, test) end) end)
 
@@ -43,18 +74,13 @@ defmodule RichardBurton.Race do
     %{first: Task.await(holder), second: Task.await(challenger), waited: waited}
   end
 
-  @doc """
-  Empties `tables`, and every table that refers to them, then rebuilds the
-  search index.
-
-  The index is a set of materialized views over those tables. A write that
-  refreshes it during a race commits the refreshed views, and truncating the
-  tables leaves the views as they were, so they are rebuilt from the empty
-  tables.
-  """
-  def truncate!(tables) do
+  # Empties the tables a publication write reaches, and every table that refers
+  # to them, then rebuilds the search index. The index is a set of materialized
+  # views over those tables. A write that refreshes it during a race commits the
+  # refreshed views, and truncating the tables leaves the views as they were.
+  defp clear! do
     unboxed(fn ->
-      Repo.query!("TRUNCATE #{Enum.join(tables, ", ")} CASCADE")
+      Repo.query!("TRUNCATE #{Enum.join(@written, ", ")} CASCADE")
       Refresher.refresh()
     end)
   end

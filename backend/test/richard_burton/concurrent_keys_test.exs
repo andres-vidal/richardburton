@@ -1,17 +1,16 @@
 defmodule RichardBurton.ConcurrentKeysTest do
   @moduledoc """
   Tests for two writes that race over a composite key, raced with
-  `RichardBurton.Race`: the same publication or book written twice at once, or
-  two edits and restores that would give two publications the same key.
+  `RichardBurton.RaceCase`: the same publication or book written twice at once,
+  or two edits and restores that would give two publications the same key.
 
   The names each race uses (authors, publishers and countries) are stored
   beforehand, so that the race is over a composite key and not over a name.
   """
 
-  use RichardBurton.DataCase
+  use RichardBurton.RaceCase
 
   alias RichardBurton.Publication
-  alias RichardBurton.Race
   alias RichardBurton.Util
 
   @dom_casmurro %{
@@ -28,17 +27,9 @@ defmodule RichardBurton.ConcurrentKeysTest do
     }
   }
 
-  @tables ~w[publication_history publication_sources publication_publishers publication_countries
-             publication_distinctions publications translated_book_authors translated_books
-             original_book_authors original_books authors publishers countries]
-
-  setup do
-    on_exit(fn -> Race.truncate!(@tables) end)
-  end
-
   # Inserts `@dom_casmurro` with `attrs` merged in, and commits it.
   defp stored(attrs \\ %{}) do
-    {:ok, publication} = Race.unboxed(fn -> Publication.insert(dom_casmurro(attrs)) end)
+    {:ok, publication} = unboxed(fn -> Publication.insert(dom_casmurro(attrs)) end)
     publication
   end
 
@@ -47,7 +38,7 @@ defmodule RichardBurton.ConcurrentKeysTest do
   # Returns the number of stored publications matching `where`, deleted ones
   # left out.
   defp count_live(where) do
-    Race.unboxed(fn ->
+    unboxed(fn ->
       Repo.one(
         from(p in Publication, where: ^where, where: is_nil(p.deleted_at), select: count())
       )
@@ -55,7 +46,7 @@ defmodule RichardBurton.ConcurrentKeysTest do
   end
 
   defp count_rows(table) do
-    Race.unboxed(fn -> Repo.query!("SELECT count(*) FROM #{table}").rows end)
+    unboxed(fn -> Repo.query!("SELECT count(*) FROM #{table}").rows end)
   end
 
   test "the same publication of a stored book, inserted twice at once, is stored once" do
@@ -64,7 +55,7 @@ defmodule RichardBurton.ConcurrentKeysTest do
     insert = fn -> Publication.insert(@dom_casmurro) end
 
     assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
-             Race.run(insert, insert)
+             race(insert, insert)
 
     assert count_live(title: "Dom Casmurro", year: 1953) == 1
   end
@@ -80,7 +71,7 @@ defmodule RichardBurton.ConcurrentKeysTest do
     insert = fn -> Publication.insert(@dom_casmurro) end
 
     assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
-             Race.run(insert, insert)
+             race(insert, insert)
 
     assert count_live(title: "Dom Casmurro", year: 1953) == 1
     assert count_rows("original_books WHERE title = 'Dom Casmurro'") == [[1]]
@@ -101,14 +92,14 @@ defmodule RichardBurton.ConcurrentKeysTest do
       dom_casmurro(%{"translated_book" => %{"authors" => [%{"name" => "John Gledson"}]}})
 
     assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
-             Race.run(
+             race(
                fn -> Publication.insert(@dom_casmurro) end,
                fn -> Publication.insert(by_gledson) end
              )
 
     assert count_rows("original_books WHERE title = 'Dom Casmurro'") == [[1]]
 
-    assert {:ok, _} = Race.unboxed(fn -> Publication.insert(by_gledson) end)
+    assert {:ok, _} = unboxed(fn -> Publication.insert(by_gledson) end)
     assert count_rows("original_books WHERE title = 'Dom Casmurro'") == [[1]]
     assert count_rows("translated_books") == [[3]]
   end
@@ -118,7 +109,7 @@ defmodule RichardBurton.ConcurrentKeysTest do
     b = stored(%{"year" => 1954})
 
     assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
-             Race.run(
+             race(
                fn -> Publication.update(a.id, dom_casmurro(%{"year" => 1955})) end,
                fn -> Publication.update(b.id, dom_casmurro(%{"year" => 1955})) end
              )
@@ -129,15 +120,15 @@ defmodule RichardBurton.ConcurrentKeysTest do
 
   test "restoring a publication while the same one is inserted again leaves it deleted" do
     deleted = stored()
-    {:ok, _} = Race.unboxed(fn -> Publication.delete(deleted.id) end)
+    {:ok, _} = unboxed(fn -> Publication.delete(deleted.id) end)
 
     assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
-             Race.run(
+             race(
                fn -> Publication.insert(@dom_casmurro) end,
                fn -> Publication.restore(deleted.id) end
              )
 
     assert count_live(title: "Dom Casmurro", year: 1953) == 1
-    assert Race.unboxed(fn -> Repo.get!(Publication, deleted.id).deleted_at end)
+    assert unboxed(fn -> Repo.get!(Publication, deleted.id).deleted_at end)
   end
 end
