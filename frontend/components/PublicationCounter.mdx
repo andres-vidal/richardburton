@@ -13,9 +13,9 @@ submit.
 
 ## Data source
 
-The counter is **state-driven**: it takes no props. It reads the visible count
-from the publication store via `useVisiblePublicationCount` (visible = not
-deleted), so it updates on its own as rows are loaded, added, or removed. In
+The counter is **state-driven**: it takes no props. It reads the row count
+from the publication store via `usePublicationCount`, so it updates on its own
+as rows are loaded, added, or removed. In
 stories the store is seeded through the shared fixtures:
 
 ```tsx

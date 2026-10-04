@@ -14,7 +14,7 @@ red count button; clicking it jumps focus to the next invalid row
 ## Data source
 
 The counter is **state-driven**: it takes no props. It derives the invalid count
-from two store hooks — `useVisiblePublicationCount` and
+from two store hooks — `usePublicationCount` and
 `useValidPublicationCount` — so it recomputes on its own as rows are edited,
 validated, added, or removed. In stories the store is seeded through the shared
 fixtures, with `fieldErrors` attaching validation errors to specific rows:

@@ -6,7 +6,7 @@ import {
   usePublicationErrorDescription,
   usePublicationFieldError,
   useVisiblePublication,
-  useVisiblePublicationIds,
+  usePublicationIds,
 } from "modules/publication/hooks";
 import { ATTRIBUTES } from "modules/publication/model";
 import type { PublicationId, PublicationKey } from "modules/publication/model";
@@ -103,7 +103,7 @@ const PublicationErrors: FC<Props> = ({ isOpen, onClose }) => {
   const t = useTranslations("errors");
   const store = usePublicationStore();
   const invalid = useInvalidPublicationIds();
-  const visible = useVisiblePublicationIds() ?? [];
+  const visible = usePublicationIds() ?? [];
 
   function go(id: PublicationId) {
     setFocusedRowId(store, id);

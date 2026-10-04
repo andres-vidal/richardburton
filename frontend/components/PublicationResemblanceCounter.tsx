@@ -11,7 +11,7 @@ import Button from "./Button";
 import Tooltip from "./Tooltip";
 
 /**
- * A button with the number of visible rows that resemble something, which opens
+ * A button with the number of rows that resemble something, which opens
  * the resemblance review at the first of them.
  *
  * The count updates as rows are edited, because `CheckResemblances` checks the

@@ -12,8 +12,8 @@ the index.
 
 ## Data source
 
-The button is **state-driven**: it takes no props. It reads the visible count
-(`useVisiblePublicationCount`) to decide whether it is enabled, and the visible
+The button is **state-driven**: it takes no props. It reads the row count
+(`usePublicationCount`) to decide whether it is enabled, and the visible
 attributes (`useVisibleAttributes`) to build the export's `select` — omitted
 when every column is shown, otherwise the snake-cased visible columns. It also
 pulls the current `search` from the router query so the export respects the

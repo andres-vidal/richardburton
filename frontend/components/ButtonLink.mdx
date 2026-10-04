@@ -1,0 +1,41 @@
+import {
+  Canvas,
+  Controls,
+  Description,
+  Meta,
+} from "@storybook/addon-docs/blocks";
+
+import * as ButtonLinkStories from "./ButtonLink.stories";
+
+<Meta of={ButtonLinkStories} />
+
+# Button link
+
+A link that looks like a [button](?path=/docs/components-button--docs), for an
+action that goes to another page rather than doing something on this one. It
+takes the button's `variant`, `size` and `width`, and renders the app's
+localized `Link`, so the address keeps the current language.
+
+The two share one class list, `BUTTON_CLASS_NAME` from `Button`, so a link and a
+button side by side look alike.
+
+<Controls />
+
+<Description of={ButtonLinkStories.Default} />
+<Canvas of={ButtonLinkStories.Default} />
+
+## Saying what it opens
+
+In a list where every entry has the same label, such as **Open**, the
+accessible name should say which entry it opens.
+
+<Description of={ButtonLinkStories.NamedForWhatItOpens} />
+<Canvas of={ButtonLinkStories.NamedForWhatItOpens} />
+
+## In a new tab
+
+<Description of={ButtonLinkStories.InANewTab} />
+<Canvas of={ButtonLinkStories.InANewTab} />
+
+<Description of={ButtonLinkStories.Primary} />
+<Canvas of={ButtonLinkStories.Primary} />

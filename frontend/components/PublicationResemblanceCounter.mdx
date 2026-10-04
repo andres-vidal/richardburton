@@ -31,11 +31,11 @@ counted as soon as its title and translators resemble something.
 
 The check runs by itself as rows are edited, the same way validation does.
 `CheckResemblances` watches every field the rule reads, which is all of them
-except the sources, on every visible row. It runs the check 500 ms after the
+except the sources, on every row. It runs the check 500 ms after the
 last change to one of those fields. Editing a row's sources does not run the
 check.
 
-Each check sends every visible row, not only the row that changed, because each
+Each check sends every row, not only the row that changed, because each
 row is also compared with the other rows. Editing one row can make it resemble
 another row that has not changed. The comparison between rows is the expensive
 part of the check, and its cost grows with the square of the number of rows.
@@ -52,13 +52,13 @@ next check finds that the row still resembles something.
 - **Found** — the count, as a button that opens the review.
 - **Nothing alike** — no button. The error counter already reports when a set
   is valid.
-- **Discarding lowers it** — discarding a row takes it out of the count. So
-  does editing a row so that it no longer resembles anything.
+- **Moving a row out lowers it** — a row moved to another document leaves the
+  count. So does editing a row so that it no longer resembles anything.
 
 <Canvas of={PublicationResemblanceCounterStories.NothingAlike} />
 
-<Description of={PublicationResemblanceCounterStories.DiscardingLowersIt} />
-<Canvas of={PublicationResemblanceCounterStories.DiscardingLowersIt} />
+<Description of={PublicationResemblanceCounterStories.MovingARowOutLowersIt} />
+<Canvas of={PublicationResemblanceCounterStories.MovingARowOutLowersIt} />
 
 ## The look-alike button on each row
 
