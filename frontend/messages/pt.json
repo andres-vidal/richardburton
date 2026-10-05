@@ -37,10 +37,10 @@
   "views": {
     "label": "Modos de ler a base de dados",
     "list": "Publicações",
-    "insights": "Panorama"
+    "insights": "Estatísticas"
   },
   "insights": {
-    "title": "Panorama",
+    "title": "Estatísticas",
     "description": "O que a base de dados contém, em números. Uma obra é um livro original, e cada uma de suas edições em inglês é uma publicação. As listas contam publicações, de modo que um livro publicado duas vezes conta duas vezes.",
     "figures": "Em números",
     "publications": "Publicações",
