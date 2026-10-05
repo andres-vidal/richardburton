@@ -460,6 +460,62 @@ const publicationCountAtom = atom(
   (get) => get(publicationIdsAtom)?.length || 0,
 );
 
+/**
+ * The publication attributes that hold each kind of name, keyed by the kinds
+ * the vocabulary routes use.
+ *
+ * Translators (`authors`) and original authors (`originalAuthors`) are one
+ * kind, because the database stores both in one table. A person who translated
+ * one book and wrote another is one name, so `replaceName` corrects it in both
+ * attributes.
+ */
+const NAME_ATTRIBUTES = {
+  authors: ["authors", "originalAuthors"],
+  publishers: ["publishers"],
+} as const satisfies Record<string, readonly PublicationKey[]>;
+
+type NameKind = keyof typeof NAME_ATTRIBUTES;
+
+/** One name the batch would enter, and the rows that carry it. */
+type BatchName = { name: string; rows: PublicationId[] };
+
+/**
+ * Every name that the rows would enter, by kind, sorted alphabetically.
+ *
+ * Names are trimmed and blank names are dropped. A row that carries a name
+ * twice is listed once in `rows`, so `rows` holds the publications that would
+ * credit the name.
+ */
+const batchNamesAtom = atom((get) => {
+  const ids = get(publicationIdsAtom) ?? [];
+
+  const gather = (attributes: readonly PublicationKey[]): BatchName[] => {
+    const rows = new Map<string, Set<PublicationId>>();
+
+    for (const id of ids) {
+      const publication = get(publicationFamily(id));
+
+      for (const attribute of attributes) {
+        for (const value of (publication?.[attribute] as string[]) ?? []) {
+          const name = value.trim();
+          if (name === "") continue;
+
+          rows.set(name, (rows.get(name) ?? new Set()).add(id));
+        }
+      }
+    }
+
+    return [...rows]
+      .map(([name, on]) => ({ name, rows: [...on] }))
+      .sort((one, other) => one.name.localeCompare(other.name));
+  };
+
+  return {
+    authors: gather(NAME_ATTRIBUTES.authors),
+    publishers: gather(NAME_ATTRIBUTES.publishers),
+  };
+});
+
 const visibleAttributesAtom = atom((get) =>
   ATTRIBUTES.filter((key) => get(attributeVisibleFamily(key))),
 );
@@ -922,6 +978,44 @@ function writeRow(
 }
 
 /**
+ * Replaces the name `from` with `to` in the given rows, in the attributes of
+ * `kind`.
+ *
+ * Rows that do not contain `from` are left unchanged. When an attribute would
+ * then contain `to` twice, it keeps one copy.
+ *
+ * All the changes happen in one `Doc.write` transaction, so the document emits
+ * one update for them, which is saved and relayed as one change. The
+ * replacement is also a separate undo step from any edit made just before or
+ * after it.
+ */
+function replaceName(
+  store: Store,
+  kind: NameKind,
+  ids: PublicationId[],
+  from: string,
+  to: string,
+): void {
+  const { doc, undo } = documentOf(store);
+
+  undo.stopCapturing();
+  Doc.write(doc, () => {
+    for (const id of ids) {
+      const publication = store.get(publicationFamily(id));
+
+      for (const attribute of NAME_ATTRIBUTES[kind]) {
+        const values = publication?.[attribute] as string[] | undefined;
+        if (!values?.includes(from)) continue;
+
+        const written = values.map((value) => (value === from ? to : value));
+        setField(store, id, attribute, [...new Set(written)]);
+      }
+    }
+  });
+  undo.stopCapturing();
+}
+
+/**
  * Cancels an edit: puts a row back to its saved copy and clears its errors. A
  * row with no saved copy keeps its current values.
  */
@@ -1085,6 +1179,7 @@ export {
   appendIndex,
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
+  batchNamesAtom,
   closeReview,
   contentKey,
   createId,
@@ -1123,6 +1218,7 @@ export {
   moveOut,
   remember,
   removePublication,
+  replaceName,
   resemblanceFamily,
   rowErrorFamily,
   resemblanceSubjectAtom,
@@ -1149,4 +1245,4 @@ export {
   validCountAtom,
   visibleAttributesAtom,
 };
-export type { PublicationIndex };
+export type { BatchName, NameKind, PublicationIndex };

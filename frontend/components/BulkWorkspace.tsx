@@ -17,6 +17,7 @@ import DocumentPresence from "components/DocumentPresence";
 import DocumentStatus from "components/DocumentStatus";
 import WorkspaceUndo from "components/WorkspaceUndo";
 import RowIdToggle from "components/RowIdToggle";
+import WorkspaceNames from "components/WorkspaceNames";
 import { Publication } from "modules/publication/model";
 import { setAttributesVisible } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
@@ -69,6 +70,7 @@ const Workspace: FC<{
               <PublicationUpload />
               <PublicationCounter />
               <PublicationErrorCounter />
+              <WorkspaceNames />
               <PublicationResemblanceCounter />
               <WorkspaceUndo />
               <RowIdToggle />

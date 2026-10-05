@@ -7,6 +7,7 @@ import type { Marking } from "./model";
 import {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
+  batchNamesAtom,
   errorCodeFamily,
   fieldErrorCodeFamily,
   fieldValueFamily,
@@ -230,10 +231,14 @@ function useAreRowIdsVisible(): [
   return useAtom(areRowIdsVisibleAtom);
 }
 
+/** The names the batch would enter, by kind. */
+const useBatchNames = () => useAtomValue(batchNamesAtom);
+
 export {
   usePublicationCount,
   usePublicationIds,
   useAreRowIdsVisible,
+  useBatchNames,
   useHiddenAttributes,
   useIsAttributeVisible,
   useInvalidPublicationIds,
