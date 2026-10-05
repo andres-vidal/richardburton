@@ -17,6 +17,17 @@ two reviews show records the same way.
 
 <Canvas of={PublicationResemblancesStories.AgainstTheDatabase} />
 
+## What differs
+
+Every card is compared with the other cards of the question, field by field,
+the same way the duplicate review compares its records. The words a card has
+that at least one of the other cards lacks are highlighted, so a typo or a
+dropped accent stands out. Years, countries and sources are compared as whole
+values, and a field that one card leaves empty while another fills it reads
+"None", highlighted.
+
+<Canvas of={PublicationResemblancesStories.WhatDiffers} />
+
 ## No actions
 
 The review has no controls that change a row. To act on a look-alike, the

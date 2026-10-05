@@ -165,6 +165,16 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   ).toBeVisible();
   await expect(review.getByText("1 / 3")).toBeVisible();
 
+  // Each card highlights the text it has that the other lacks: the letter
+  // missing from the title and the one missing from the translator's name.
+  const marks = review.locator("mark");
+  await expect(marks).toHaveText([
+    "Casmuro",
+    "Caldwel",
+    "Casmurro",
+    "Caldwell",
+  ]);
+
   // Next and Previous move through the queue and are disabled at its ends.
   await expect(review.getByRole("button", { name: "Previous" })).toBeDisabled();
   await review.getByRole("button", { name: "Next" }).click();
@@ -176,6 +186,17 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await expect(
     review.getByRole("heading", { name: "Elsewhere in this import" }),
   ).toBeVisible();
+
+  // The two rows of the import differ in the title's last letter, the
+  // translator's initial and the accent in the original title.
+  await expect(marks).toHaveText([
+    "Backlands",
+    "L.",
+    "Sertão:",
+    "Backland",
+    "L",
+    "Sertao",
+  ]);
 
   await review.getByRole("button", { name: "Next" }).click();
   await expect(review.getByText("3 / 3")).toBeVisible();
