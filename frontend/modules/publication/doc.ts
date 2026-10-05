@@ -1,10 +1,14 @@
 import * as Y from "yjs";
 
+import { isEqual } from "lodash";
+
 import {
   empty,
   idFromText,
   type Publication,
+  type PublicationError,
   type PublicationId,
+  type Resemblance,
 } from "./model";
 
 /**
@@ -15,7 +19,7 @@ import {
  * its own document, which holds the rows it read from the database and the
  * edits made to them.
  *
- * The document holds two shared types. `rows` is a `Y.Map` from row key to a
+ * The rows are held in two shared types. `rows` is a `Y.Map` from row key to a
  * `Y.Map` of the row's fields, so an edit can find its row by key without
  * knowing its position. `order` is a `Y.Array` of the same keys in reading
  * order, since a map has no order.
@@ -26,12 +30,27 @@ import {
  * person typed. `sources` is the exception. It is stored as a `Y.Array`, so
  * when two people each add a source, both sources are kept.
  *
- * The document holds content only. Selection, focus, column visibility and
- * validation errors stay in local atoms, so one person hiding a column does not
- * hide it for anyone else.
+ * The document also holds the results of the last checks, so that a row is
+ * checked once and everyone reads the result. `validations` maps a row key to
+ * the errors validation found and the content it validated. `resemblances`
+ * maps a row key to what the look-alike check found for it, with the row's
+ * subject at the time. `checked` holds the subject of all the rows that the
+ * last look-alike check ran on, under the key `"resemblances"`. Results are
+ * written with the origin `CHECKED`, so they are saved and relayed but are not
+ * undo steps.
+ *
+ * Selection, focus and column visibility stay in local atoms, so one person
+ * hiding a column does not hide it for anyone else.
  */
 type Rows = Y.Map<Y.Map<unknown>>;
 type Order = Y.Array<string>;
+
+/** What validation found for a row, and the key of the content it validated. */
+type Validation = { content: string; errors: PublicationError };
+
+/** What the look-alike check found for a row, and the key of the row's
+ * subject at the time. */
+type Measured = { at: string; value: Resemblance };
 
 /**
  * The transaction origin for edits made in this client.
@@ -51,16 +70,32 @@ const LOCAL = Symbol("local");
 const MOVED = Symbol("moved");
 
 /**
- * Returns whether a transaction origin belongs to a change made in this client.
+ * The transaction origin for check results that this client writes into the
+ * document.
+ *
+ * The undo manager does not track it, so undo never reverts a result.
+ */
+const CHECKED = Symbol("checked");
+
+/**
+ * Returns whether a transaction origin belongs to a change to the rows made in
+ * this client: an edit, an undo or a redo, or removing moved rows.
  *
  * An edit has the origin `LOCAL`, and removing moved rows has the origin
  * `MOVED`. An undo or redo has the `Y.UndoManager` that made it as its origin,
- * because Yjs does not reuse the origin of the change it reverts. All of them
- * are local changes, so all of them must be saved and relayed. Checking for
- * `LOCAL` alone would leave an undo in this client only.
+ * because Yjs does not reuse the origin of the change it reverts.
+ */
+const isEdit = (origin: unknown): boolean =>
+  origin === LOCAL || origin === MOVED || origin instanceof Y.UndoManager;
+
+/**
+ * Returns whether a transaction origin belongs to a change made in this client,
+ * which must be saved and relayed: a change to the rows (see `isEdit`) or a
+ * check result with the origin `CHECKED`. Checking for `LOCAL` alone would
+ * leave an undo, or a result, in this client only.
  */
 const isLocal = (origin: unknown): boolean =>
-  origin === LOCAL || origin === MOVED || origin instanceof Y.UndoManager;
+  isEdit(origin) || origin === CHECKED;
 
 /**
  * The transaction origin for rows written into the document as the database
@@ -77,6 +112,24 @@ function rows(doc: Y.Doc): Rows {
 
 function order(doc: Y.Doc): Order {
   return doc.getArray("order");
+}
+
+function validations(doc: Y.Doc): Y.Map<Validation> {
+  return doc.getMap("validations");
+}
+
+function resemblances(doc: Y.Doc): Y.Map<Measured> {
+  return doc.getMap("resemblances");
+}
+
+function checked(doc: Y.Doc): Y.Map<string> {
+  return doc.getMap("checked");
+}
+
+/** Removes the check results stored for a row. */
+function forgetResults(doc: Y.Doc, key: string): void {
+  validations(doc).delete(key);
+  resemblances(doc).delete(key);
 }
 
 /** Runs `change` in a transaction with the origin `LOCAL`. */
@@ -139,7 +192,8 @@ function rowCount(doc: Y.Doc): number {
 }
 
 /**
- * Replaces every row and the reading order with `entries`.
+ * Replaces every row and the reading order with `entries`. No check result is
+ * kept.
  */
 function setAll(
   doc: Y.Doc,
@@ -148,6 +202,9 @@ function setAll(
   write(doc, () => {
     rows(doc).clear();
     order(doc).delete(0, order(doc).length);
+    validations(doc).clear();
+    resemblances(doc).clear();
+    checked(doc).clear();
 
     entries.forEach(({ id, publication }) =>
       rows(doc).set(String(id), rowOf(publication)),
@@ -170,9 +227,9 @@ function appendRows(
 }
 
 /**
- * Removes the rows `ids` and their keys in the reading order, in one
- * transaction with the origin `MOVED`, because they were moved to another
- * document.
+ * Removes the rows `ids`, their check results and their keys in the reading
+ * order, in one transaction with the origin `MOVED`, because they were moved to
+ * another document.
  */
 function moveOut(doc: Y.Doc, ids: PublicationId[]): void {
   const leaving = new Set(ids.map(String));
@@ -226,9 +283,15 @@ function putRow(doc: Y.Doc, id: PublicationId, publication: Publication): void {
   rows(doc).set(String(id), rowOf(publication));
 }
 
-/** Removes rows from `rows`. The caller updates the reading order. */
+/**
+ * Removes rows from `rows`, together with their check results. The caller
+ * updates the reading order.
+ */
 function dropRows(doc: Y.Doc, ids: PublicationId[]): void {
-  ids.forEach((id) => rows(doc).delete(String(id)));
+  ids.forEach((id) => {
+    rows(doc).delete(String(id));
+    forgetResults(doc, String(id));
+  });
 }
 
 /** Replace the reading order. */
@@ -242,13 +305,89 @@ function appendOrder(doc: Y.Doc, ids: PublicationId[]): void {
   order(doc).push(ids.map(String));
 }
 
+/** Removes a row from the document, with its place in the order and its check
+ * results. */
 function removeRow(doc: Y.Doc, id: PublicationId): void {
   write(doc, () => {
     rows(doc).delete(String(id));
+    forgetResults(doc, String(id));
 
     const at = order(doc).toArray().indexOf(String(id));
     if (at >= 0) order(doc).delete(at, 1);
   });
+}
+
+/**
+ * Stores the validation result of each row in `entries`, with the origin
+ * `CHECKED`. A `null` result removes the row's result.
+ */
+function putValidations(
+  doc: Y.Doc,
+  entries: (readonly [PublicationId, Validation | null])[],
+): void {
+  doc.transact(
+    () =>
+      entries.forEach(([id, validation]) =>
+        validation
+          ? validations(doc).set(String(id), validation)
+          : validations(doc).delete(String(id)),
+      ),
+    CHECKED,
+  );
+}
+
+/** Returns a row's stored validation result, or null when it has none. */
+function validationOf(doc: Y.Doc, id: PublicationId): Validation | null {
+  return validations(doc).get(String(id)) ?? null;
+}
+
+/**
+ * Stores the look-alike check result of each row in `entries`, and `subject`
+ * as the subject of the rows that the check ran on, with the origin `CHECKED`.
+ * A `null` result removes the row's result. A result equal to the stored one
+ * is not written again.
+ */
+function putResemblances(
+  doc: Y.Doc,
+  entries: (readonly [PublicationId, Measured | null])[],
+  subject: string,
+): void {
+  doc.transact(() => {
+    entries.forEach(([id, measured]) => {
+      const key = String(id);
+      if (isEqual(resemblances(doc).get(key) ?? null, measured)) return;
+
+      if (measured) resemblances(doc).set(key, measured);
+      else resemblances(doc).delete(key);
+    });
+
+    if (checked(doc).get("resemblances") !== subject) {
+      checked(doc).set("resemblances", subject);
+    }
+  }, CHECKED);
+}
+
+/** Returns a row's stored look-alike check result, or null when it has none. */
+function measuredOf(doc: Y.Doc, id: PublicationId): Measured | null {
+  return resemblances(doc).get(String(id)) ?? null;
+}
+
+/**
+ * Returns the subject of the rows that the last look-alike check ran on, or
+ * undefined when no check has run.
+ */
+function checkedSubject(doc: Y.Doc): string | undefined {
+  return checked(doc).get("resemblances");
+}
+
+/** Returns the keys of the rows with a stored validation result. */
+function validatedKeys(doc: Y.Doc): PublicationId[] {
+  return [...validations(doc).keys()].map(idFromText);
+}
+
+/** Returns the keys of the rows with a stored look-alike check result. */
+function measuredKeys(doc: Y.Doc): PublicationId[] {
+  return [...resemblances(doc).keys()].map(idFromText);
 }
 
 /**
@@ -309,7 +448,10 @@ function sharedPrefix(before: string[], after: string[]): number {
 
 /**
  * Calls `onRows` with the keys of the rows whose content changed, and `onOrder`
- * when the reading order changes. Returns a function that stops observing.
+ * when the reading order changes. Both also receive whether the change was
+ * made to the rows in this client (see `isEdit`). `onValidations` and
+ * `onResemblances` receive the keys of the rows whose check results changed.
+ * Returns a function that stops observing.
  *
  * Yjs calls observers synchronously at the end of each transaction, so a
  * keystroke can be read in the same tick it was typed. Nothing in `observe`
@@ -318,11 +460,16 @@ function sharedPrefix(before: string[], after: string[]): number {
 function observe(
   doc: Y.Doc,
   handlers: {
-    onRows: (changed: PublicationId[]) => void;
-    onOrder: () => void;
+    onRows: (changed: PublicationId[], edit: boolean) => void;
+    onOrder: (edit: boolean) => void;
+    onValidations?: (changed: PublicationId[]) => void;
+    onResemblances?: (changed: PublicationId[]) => void;
   },
 ): () => void {
-  const onRows = (events: Y.YEvent<Y.AbstractType<unknown>>[]) => {
+  const onRows = (
+    events: Y.YEvent<Y.AbstractType<unknown>>[],
+    transaction: Y.Transaction,
+  ) => {
     const changed = new Set<string>();
 
     events.forEach((event) => {
@@ -336,17 +483,28 @@ function observe(
       }
     });
 
-    handlers.onRows([...changed].map(idFromText));
+    handlers.onRows([...changed].map(idFromText), isEdit(transaction.origin));
   };
 
-  const onOrder = () => handlers.onOrder();
+  const onOrder = (_event: Y.YArrayEvent<string>, transaction: Y.Transaction) =>
+    handlers.onOrder(isEdit(transaction.origin));
+
+  const onValidations = (event: Y.YMapEvent<Validation>) =>
+    handlers.onValidations?.([...event.keysChanged].map(idFromText));
+
+  const onResemblances = (event: Y.YMapEvent<Measured>) =>
+    handlers.onResemblances?.([...event.keysChanged].map(idFromText));
 
   rows(doc).observeDeep(onRows);
   order(doc).observe(onOrder);
+  validations(doc).observe(onValidations);
+  resemblances(doc).observe(onResemblances);
 
   return () => {
     rows(doc).unobserveDeep(onRows);
     order(doc).unobserve(onOrder);
+    validations(doc).unobserve(onValidations);
+    resemblances(doc).unobserve(onResemblances);
   };
 }
 
@@ -378,9 +536,18 @@ function undoManager(doc: Y.Doc): Y.UndoManager {
 }
 
 export {
+  CHECKED,
   LOCAL,
   MOVED,
+  checkedSubject,
+  isEdit,
   isLocal,
+  measuredKeys,
+  measuredOf,
+  putResemblances,
+  putValidations,
+  validatedKeys,
+  validationOf,
   addRow,
   addRowAfter,
   appendOrder,
@@ -402,4 +569,4 @@ export {
   undoManager,
   write,
 };
-export type { Order, Rows };
+export type { Measured, Order, Rows, Validation };
