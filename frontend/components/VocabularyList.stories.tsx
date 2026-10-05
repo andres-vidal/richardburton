@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { Kind, Name, rename } from "modules/vocabulary";
+import type { Kind, Listed, Name, rename } from "modules/vocabulary";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
 import VocabularyList from "./VocabularyList";
@@ -205,13 +205,26 @@ export const OfferingTheOtherSpelling: Story = {
   },
 };
 
+// The two publications that credit "Alfred A.Knopf".
+const KNOPF_TYPO: Listed[] = [
+  { id: 31, title: "Dona Flor and Her Two Husbands", year: 1969 },
+  { id: 32, title: "Gabriela, Clove and Cinnamon", year: 1962 },
+];
+
 /**
  * A `write` that answers like the server does when the new name is taken:
- * `{ folds }` without `fold`, and `merged` with it.
+ * `{ folds, publications }` without `fold`, and `merged` with it. The
+ * publications are those that credit the renamed name, `KNOPF_TYPO` unless
+ * given.
  */
-const asksFirst = () =>
-  fn<typeof rename>(async (_kind, _id, _name, fold) =>
-    fold ? { outcome: "merged" } : { folds: PUBLISHERS[0] },
+const asksFirst = (publications: Listed[] = KNOPF_TYPO) =>
+  fn<typeof rename>(async (_kind, _id, name, fold) =>
+    fold
+      ? { outcome: "merged" }
+      : {
+          folds: PUBLISHERS.find((other) => other.name === name)!,
+          publications,
+        },
   );
 
 /**
@@ -233,13 +246,51 @@ export const AskingBeforeFolding: Story = {
       name: "Fold these two together?",
     });
 
-    // The dialog names both records, each with its publication count.
-    await expect(dialog).toHaveTextContent("Alfred A.Knopf (2 publications)");
-    await expect(dialog).toHaveTextContent("Alfred A. Knopf (21 publications)");
-    await expect(dialog).toHaveTextContent("There is no undo for this.");
+    // The dialog names both records, and lists the publications that would be
+    // credited to the other name, each linking to its page in a new tab.
+    await expect(dialog).toHaveTextContent(
+      "Alfred A.Knopf would stop existing. The 2 publications below would be credited to Alfred A. Knopf instead. There is no undo for this.",
+    );
+
+    const listed = within(dialog).getByRole("list", {
+      name: "Publications credited to Alfred A.Knopf",
+    });
+    const links = within(listed).getAllByRole("link");
+
+    await expect(links.map((link) => link.textContent)).toEqual([
+      "Dona Flor and Her Two Husbands (1969)",
+      "Gabriela, Clove and Cinnamon (1962)",
+    ]);
+    await expect(links[0]).toHaveAttribute(
+      "href",
+      expect.stringContaining("/publications/31"),
+    );
+    await expect(links[0]).toHaveAttribute("target", "_blank");
 
     // Only the first, unconfirmed request was sent.
     await expect(args.write).toHaveBeenCalledTimes(1);
+  },
+};
+
+/**
+ * Folding a name that no publication credits says so, and lists nothing.
+ */
+export const FoldingAnUnusedName: Story = {
+  args: { write: asksFirst([]) },
+  play: async () => {
+    const field = await screen.findByLabelText("Name, currently Peter Owen");
+
+    await userEvent.clear(field);
+    await userEvent.type(field, "Noonday Press{Enter}");
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Fold these two together?",
+    });
+
+    await expect(dialog).toHaveTextContent(
+      "Peter Owen would stop existing. No publication credits it.",
+    );
+    await expect(within(dialog).queryByRole("list")).toBeNull();
   },
 };
 

@@ -321,9 +321,12 @@ defmodule RichardBurton.Vocabulary do
   `Refresher.refresh/0`.
 
   A fold happens only when `folding?` is true. When it is false and the name is
-  taken, nothing is written and the result is `{:error, {:would_fold, keeper}}`,
-  where `keeper` is `%{id:, name:, publications:}`. A rename onto a free name
-  needs no flag, because renaming back undoes it.
+  taken, nothing is written and the result is
+  `{:error, {:would_fold, keeper, publications}}`. `keeper` is
+  `%{id:, name:, publications:}`. `publications` lists the publications that
+  credit the renamed record and are not deleted, as `%{id:, title:, year:}`,
+  sorted by title and year. A rename onto a free name needs no flag, because
+  renaming back undoes it.
 
   The other errors are `{:error, {:would_collide, publications}}` (see the
   module doc), `{:error, :blank}`, `{:error, :not_found}` and
@@ -355,15 +358,46 @@ defmodule RichardBurton.Vocabulary do
 
   # Returns :ok when the rename may go ahead. When `folding?` is false and
   # another record already has the new name, returns `:would_fold` as an error
-  # with that record and its publication count.
+  # with that record and its publication count, and the publications that
+  # credit `record`.
   defp permitted(_schema, _record, _name, true), do: :ok
 
   defp permitted(schema, record, name, false) do
     case Repo.get_by(schema, name: name) do
       nil -> :ok
       %{id: same} when same == record.id -> :ok
-      keeper -> {:error, {:would_fold, counted(schema, keeper)}}
+      keeper -> {:error, {:would_fold, counted(schema, keeper), crediting(schema, record)}}
     end
+  end
+
+  # Returns the publications that credit `record` and are not deleted, as
+  # `%{id:, title:, year:}`, sorted by title and year. An author is credited
+  # as translator or as original author, and a publication that credits them
+  # as both appears once.
+  defp crediting(schema, record) do
+    from(p in Publication,
+      where: p.id in subquery(credits(schema, record.id)),
+      where: is_nil(p.deleted_at),
+      order_by: [asc: p.title, asc: p.year, asc: p.id],
+      select: %{id: p.id, title: p.title, year: p.year}
+    )
+    |> Repo.all()
+  end
+
+  # Builds the query that selects the ids of the publications that credit the
+  # name with the id `id`.
+  defp credits(Author, id) do
+    from(pair in subquery(union(as_translator(), ^as_original_author())),
+      where: pair.author_id == ^id,
+      select: pair.publication_id
+    )
+  end
+
+  defp credits(Publisher, id) do
+    from(pp in "publication_publishers",
+      where: pp.publisher_id == ^id,
+      select: pp.publication_id
+    )
   end
 
   defp counted(schema, record) do

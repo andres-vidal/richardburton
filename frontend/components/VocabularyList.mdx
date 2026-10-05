@@ -95,14 +95,19 @@ A correction onto a free name can be undone by renaming back. A fold deletes a
 record and moves its publications to the other name, and it cannot be undone.
 
 The server refuses a rename onto a taken name unless the request says to fold.
-It writes nothing and returns the name that already has it, with its
-publication count. The page shows these in a confirmation dialog. Confirming
-sends the same rename again with `fold` set.
+It writes nothing and returns the name that already has it, and the
+publications that credit the renamed name, which the fold would credit to the
+other name. The page shows these in a confirmation dialog, with each
+publication linking to its page in a new tab. Confirming sends the same rename
+again with `fold` set.
 
 The server makes this check, rather than the page, because the page's list can
 be out of date. Someone may have renamed a name since the list was loaded.
 
 <Canvas of={VocabularyListStories.AskingBeforeFolding} />
+
+<Description of={VocabularyListStories.FoldingAnUnusedName} />
+<Canvas of={VocabularyListStories.FoldingAnUnusedName} />
 
 Cancelling leaves the name unchanged and resets the field to the stored name.
 

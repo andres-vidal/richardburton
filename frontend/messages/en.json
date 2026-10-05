@@ -527,7 +527,8 @@
     "alsoSpelt": "Also here as",
     "onlyDoubtful": "{count, plural, one {# name may be a duplicate} other {# names may be duplicates}}",
     "foldTitle": "Fold these two together?",
-    "foldMessage": "{from} ({moving, plural, =0 {nothing on it} one {# publication} other {# publications}}) would stop existing, and everything on it would be credited to {into} ({held, plural, =0 {nothing on it} one {# publication} other {# publications}}) instead. There is no undo for this.",
+    "foldMessage": "{from} would stop existing. {moving, plural, =0 {No publication credits it.} one {The publication below would be credited to {into} instead.} other {The # publications below would be credited to {into} instead.}} There is no undo for this.",
+    "foldPublications": "Publications credited to {name}",
     "foldConfirm": "Fold them"
   },
   "workspaceNames": {

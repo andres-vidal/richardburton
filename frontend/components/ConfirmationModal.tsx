@@ -1,6 +1,6 @@
 "use client";
 
-import { FC } from "react";
+import { FC, ReactNode } from "react";
 import Button from "./Button";
 import { Modal } from "./Modal";
 
@@ -10,6 +10,8 @@ interface Props {
   title: string;
   /** What is about to happen and what it affects. */
   message: string;
+  /** More detail on what the action affects, shown below the message. */
+  children?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   /** Shown on the confirm button while the action is in flight. */
@@ -28,6 +30,7 @@ const ConfirmationModal: FC<Props> = ({
   isOpen,
   title,
   message,
+  children,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   loading = false,
@@ -38,6 +41,7 @@ const ConfirmationModal: FC<Props> = ({
     <div className="flex flex-col gap-5 p-8 w-full">
       <h1 className="text-2xl font-normal">{title}</h1>
       <p className="text-gray-700">{message}</p>
+      {children}
       <div className="flex gap-3 justify-end">
         <Button
           label={cancelLabel}

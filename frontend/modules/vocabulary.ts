@@ -20,8 +20,8 @@ type Kind = "authors" | "publishers";
 /** The result of a rename: a plain rename, or a fold into another name. */
 type Outcome = "renamed" | "merged";
 
-/** A publication that a rename would give the same identity as another. */
-type Clashing = { id: number; title: string; year: number };
+/** A publication as the vocabulary routes list it. */
+type Listed = { id: number; title: string; year: number };
 
 /**
  * The server's answer for one name passed to `resemblances`.
@@ -50,8 +50,10 @@ async function list(kind: Kind): Promise<Name[]> {
  * the two are folded into one.
  *
  * A fold cannot be undone, so it happens only when `fold` is true. Without it,
- * a rename onto a taken name writes nothing and returns `{ folds }`, the name
- * that has it. Call again with `fold` once the person confirms.
+ * a rename onto a taken name writes nothing and returns `{ folds, publications }`:
+ * the name that has it, and the publications that credit the renamed name and
+ * would be credited to `folds` instead. Call again with `fold` once the person
+ * confirms.
  *
  * When the rename would give two publications the same identity, nothing is
  * written and the result is `{ collides }`, listing those publications.
@@ -61,7 +63,11 @@ async function rename(
   id: number,
   name: string,
   fold = false,
-): Promise<{ outcome: Outcome } | { folds: Name } | { collides: Clashing[] }> {
+): Promise<
+  | { outcome: Outcome }
+  | { folds: Name; publications: Listed[] }
+  | { collides: Listed[] }
+> {
   return request(async (http) => {
     try {
       const { data } = await http.patch<{ outcome: Outcome }>(
@@ -74,7 +80,10 @@ async function rename(
       const refusal = refused(error);
 
       if (refusal?.error === "would_fold" && refusal.into) {
-        return { folds: refusal.into };
+        return {
+          folds: refusal.into,
+          publications: refusal.publications ?? [],
+        };
       }
 
       if (refusal) return { collides: refusal.publications ?? [] };
@@ -90,7 +99,7 @@ function refused(error: unknown) {
     error as {
       response?: {
         status?: number;
-        data?: { error?: string; into?: Name; publications?: Clashing[] };
+        data?: { error?: string; into?: Name; publications?: Listed[] };
       };
     }
   ).response;
@@ -120,4 +129,4 @@ async function resemblances(
 }
 
 export { list, rename, resemblances };
-export type { Clashing, Kind, Name, Outcome, Resemblance };
+export type { Kind, Listed, Name, Outcome, Resemblance };

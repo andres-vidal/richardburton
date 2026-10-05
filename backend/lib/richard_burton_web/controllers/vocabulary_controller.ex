@@ -38,8 +38,9 @@ defmodule RichardBurtonWeb.VocabularyController do
   `"merged"`. See `RichardBurton.Vocabulary.rename/4`.
 
   Folding into a name that is already taken requires `"fold" => true`. Without
-  it, nothing is written and the response is 409 with `error: "would_fold"` and
-  `into`, the name that has it. A rename that would give two publications the
+  it, nothing is written and the response is 409 with `error: "would_fold"`,
+  `into`, the name that has it, and `publications`, the publications that
+  credit the name being renamed. A rename that would give two publications the
   same identity is also a 409, with `error: "would_collide"` and the
   `publications` involved.
   """
@@ -48,10 +49,10 @@ defmodule RichardBurtonWeb.VocabularyController do
       {:ok, outcome} ->
         json(conn, %{outcome: outcome})
 
-      {:error, {:would_fold, keeper}} ->
+      {:error, {:would_fold, keeper, publications}} ->
         conn
         |> put_status(:conflict)
-        |> json(%{error: :would_fold, into: keeper})
+        |> json(%{error: :would_fold, into: keeper, publications: publications})
 
       {:error, {:would_collide, publications}} ->
         conn
