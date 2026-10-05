@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
-import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
+import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
 import Button from "./Button";
 import ConfirmationModal, {
@@ -91,6 +91,39 @@ export const Cancelled: Story = {
       screen.getByRole("button", { name: "Open confirmation" }),
     );
     await screen.findByRole("dialog", { name: "Delete this publication?" });
+  },
+};
+
+/**
+ * Detail passed as children, here the publications the action affects, is shown
+ * between the message and the buttons.
+ */
+export const WithDetail: Story = {
+  args: {
+    title: "Fold these two together?",
+    message:
+      "Alfred A.Knopf would stop existing. The 2 publications below would be credited to Alfred A. Knopf instead.",
+    confirmLabel: "Fold them",
+    children: (
+      <ul aria-label="Publications" className="text-sm list-disc list-inside">
+        <li>Dona Flor and Her Two Husbands (1969)</li>
+        <li>Gabriela, Clove and Cinnamon (1962)</li>
+      </ul>
+    ),
+  },
+  play: async () => {
+    const dialog = await screen.findByRole("dialog", {
+      name: "Fold these two together?",
+    });
+
+    await expect(
+      within(dialog)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "Dona Flor and Her Two Husbands (1969)",
+      "Gabriela, Clove and Cinnamon (1962)",
+    ]);
   },
 };
 

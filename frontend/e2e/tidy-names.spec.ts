@@ -98,11 +98,33 @@ test("renaming onto a name already taken folds the two together", async ({
   await stray.fill("Penguin Books");
   await stray.press("Enter");
 
+  // The dialog lists the publication that would be credited to the other
+  // spelling, with a link that opens its page in a new tab.
+  const affected = page
+    .getByRole("dialog", { name: "Fold these two together?" })
+    .getByRole("list", { name: "Publications credited to Penguin books" });
+  await expect(affected.getByRole("link")).toHaveText(["Iracema (1886)"]);
+
+  const [iracema] = await Promise.all([
+    page.waitForEvent("popup"),
+    affected.getByRole("link", { name: "Iracema (1886)" }).click(),
+  ]);
+  await expect(iracema).toHaveTitle(/Iracema/);
+  await expect(
+    iracema.getByRole("link", { name: "Penguin books", exact: true }),
+  ).toBeVisible();
+
   // The fold happens only after it is confirmed.
   await agreeToFold(page);
 
   await expect(
     page.getByText("Penguin books folded into Penguin Books"),
+  ).toBeVisible();
+
+  // The publication's page now credits the spelling that was kept.
+  await iracema.reload();
+  await expect(
+    iracema.getByRole("link", { name: "Penguin Books", exact: true }),
   ).toBeVisible();
 
   // One name is left, with both publications.
@@ -142,12 +164,13 @@ test("a fold can be called off, and nothing moves", async ({ page }) => {
   await stray.fill("Penguin Books");
   await stray.press("Enter");
 
-  // The dialog names the name to be deleted and the name it joins, and says
-  // there is no undo.
+  // The dialog names the name to be deleted and the name it joins, lists the
+  // publication that would move, and says there is no undo.
   const asking = page.getByRole("dialog", { name: "Fold these two together?" });
-  await expect(asking).toContainText("Penguin books (1 publication)");
-  await expect(asking).toContainText("Penguin Books (1 publication)");
-  await expect(asking).toContainText("There is no undo for this.");
+  await expect(asking).toContainText(
+    "Penguin books would stop existing. The publication below would be credited to Penguin Books instead. There is no undo for this.",
+  );
+  await expect(asking.getByRole("listitem")).toHaveText(["Iracema (1886)"]);
 
   await asking.getByRole("button", { name: "Cancel" }).click();
 

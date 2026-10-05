@@ -396,18 +396,77 @@ defmodule RichardBurton.VocabularyTest do
       insert()
       insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
 
-      assert {:error, {:would_fold, keeper}} =
+      assert {:error, {:would_fold, keeper, publications}} =
                Vocabulary.rename(
                  "publishers",
                  id_of(Publisher, "Noonday press"),
                  "Noonday Press"
                )
 
-      # The error names the keeper and counts its publications.
+      # The error names the keeper and counts its publications, and lists the
+      # publications that would be credited to the keeper instead.
       assert %{name: "Noonday Press", publications: 1} = keeper
+      assert [%{title: "Iracema", year: 1953}] = publications
 
       # Both publishers still exist.
       assert Repo.aggregate(Publisher, :count) == 2
+    end
+
+    test "it lists each publication on the author once, by title, without the deleted ones" do
+      insert()
+
+      # "helen caldwell" translated "Ressurreição", wrote the original of "A Mão
+      # e a Luva", and both translated and wrote "Casa Velha", which is listed
+      # once. "Helena" is deleted, so it is not listed.
+      insert(%{
+        "title" => "Ressurreição",
+        "translated_book" => %{
+          "authors" => [%{"name" => "helen caldwell"}],
+          "original_book" => %{"title" => "Ressurreição"}
+        }
+      })
+
+      insert(%{
+        "title" => "A Mão e a Luva",
+        "translated_book" => %{
+          "authors" => [%{"name" => "Pat Kelly"}],
+          "original_book" => %{
+            "title" => "A Mão e a Luva",
+            "authors" => [%{"name" => "helen caldwell"}]
+          }
+        }
+      })
+
+      insert(%{
+        "title" => "Casa Velha",
+        "translated_book" => %{
+          "authors" => [%{"name" => "helen caldwell"}],
+          "original_book" => %{
+            "title" => "Casa Velha",
+            "authors" => [%{"name" => "helen caldwell"}]
+          }
+        }
+      })
+
+      deleted =
+        insert(%{
+          "title" => "Helena",
+          "translated_book" => %{
+            "authors" => [%{"name" => "helen caldwell"}],
+            "original_book" => %{"title" => "Helena"}
+          }
+        })
+
+      {:ok, _} = Publication.delete(deleted.id)
+
+      assert {:error, {:would_fold, _keeper, publications}} =
+               Vocabulary.rename("authors", id_of(Author, "helen caldwell"), "Helen Caldwell")
+
+      assert Enum.map(publications, & &1.title) == [
+               "A Mão e a Luva",
+               "Casa Velha",
+               "Ressurreição"
+             ]
     end
 
     test "correcting onto a free name needs no such permission" do

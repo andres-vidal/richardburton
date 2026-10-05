@@ -103,7 +103,7 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
 
       expect_auth_authorize_admin()
 
-      assert %{"error" => "would_fold", "into" => into} =
+      assert %{"error" => "would_fold", "into" => into, "publications" => publications} =
                meta.conn
                |> patch(
                  vocabulary_path(meta.conn, :update, "publishers", id_of("Noonday press")),
@@ -112,6 +112,7 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
                |> json_response(409)
 
       assert %{"name" => "Noonday Press", "publications" => 1} = into
+      assert [%{"title" => "Iracema", "year" => 1953}] = publications
     end
 
     test "asking for the fold says it merged", meta do

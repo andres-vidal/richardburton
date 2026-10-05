@@ -498,7 +498,8 @@
     "alsoSpelt": "Também aqui como",
     "onlyDoubtful": "{count, plural, one {# nome pode ser duplicata} other {# nomes podem ser duplicatas}}",
     "foldTitle": "Unir os dois?",
-    "foldMessage": "{from} ({moving, plural, =0 {sem uso} one {# publicação} other {# publicações}}) deixaria de existir, e tudo que está nele passaria a {into} ({held, plural, =0 {sem uso} one {# publicação} other {# publicações}}). Não há como desfazer isso.",
+    "foldMessage": "{from} deixaria de existir. {moving, plural, =0 {Nenhuma publicação está creditada a esse nome.} one {A publicação abaixo passaria a ser creditada a {into}.} other {As # publicações abaixo passariam a ser creditadas a {into}.}} Não há como desfazer isso.",
+    "foldPublications": "Publicações creditadas a {name}",
     "foldConfirm": "Unir"
   },
   "workspaceNames": {

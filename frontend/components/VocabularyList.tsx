@@ -7,8 +7,8 @@ import { notify } from "components/Notifications";
 import {
   list,
   rename,
-  type Clashing,
   type Kind,
+  type Listed,
   type Name,
 } from "modules/vocabulary";
 import { Link } from "i18n/navigation";
@@ -25,6 +25,8 @@ type Fold = {
   to: string;
   /** The name that already has `to`, with its publication count. */
   into: Name;
+  /** The publications that credit `name` and would be credited to `into`. */
+  publications: Listed[];
 };
 
 /**
@@ -121,12 +123,39 @@ const Entry: FC<{
 };
 
 /**
+ * A list of publications, each as its title and year, linking to the
+ * publication's own page in a new tab. A long list scrolls.
+ */
+const Publications: FC<{ publications: Listed[]; label?: string }> = ({
+  publications,
+  label,
+}) => (
+  <ul
+    aria-label={label}
+    className="overflow-y-auto max-h-60 text-sm list-disc list-inside"
+  >
+    {publications.map((publication) => (
+      <li key={publication.id}>
+        <Link
+          href={`/publications/${publication.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="anchor"
+        >
+          {publication.title} ({publication.year})
+        </Link>
+      </li>
+    ))}
+  </ul>
+);
+
+/**
  * An alert listing the publications a rename would give the same identity.
  * Each publication links to its own page, and a further link opens the
  * duplicate review, where such a pair can be merged. The links open in a new
  * tab, so the rename can be tried again here afterwards.
  */
-const Clash: FC<{ publications: Clashing[]; onDismiss: () => void }> = ({
+const Clash: FC<{ publications: Listed[]; onDismiss: () => void }> = ({
   publications,
   onDismiss,
 }) => {
@@ -135,24 +164,11 @@ const Clash: FC<{ publications: Clashing[]; onDismiss: () => void }> = ({
   return (
     <div
       role="alert"
-      className="p-4 space-y-2 rounded-lg border border-red-300 bg-red-50"
+      className="p-4 space-y-2 text-red-800 rounded-lg border border-red-300 bg-red-50"
     >
       <p className="text-sm font-medium text-red-800">{t("collides")}</p>
       <p className="text-sm text-red-700">{t("collidesDetail")}</p>
-      <ul className="text-sm text-red-800 list-disc list-inside">
-        {publications.map((publication) => (
-          <li key={publication.id}>
-            <Link
-              href={`/publications/${publication.id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="anchor"
-            >
-              {publication.title} ({publication.year})
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <Publications publications={publications} />
       <Link
         href="/admin/publications/duplicates"
         target="_blank"
@@ -197,7 +213,7 @@ const VocabularyList: FC<{
   const [names, setNames] = useState<Name[] | null>(null);
   const [filter, setFilter] = useState("");
   const [onlyDoubtful, setOnlyDoubtful] = useState(false);
-  const [collides, setCollides] = useState<Clashing[] | null>(null);
+  const [collides, setCollides] = useState<Listed[] | null>(null);
   const [asking, setAsking] = useState<Fold | null>(null);
   const [folding, setFolding] = useState(false);
   const [reverts, setReverts] = useState(0);
@@ -216,7 +232,12 @@ const VocabularyList: FC<{
     const answer = await write(kind, name.id, to, fold);
 
     if ("folds" in answer) {
-      setAsking({ name, to, into: answer.folds });
+      setAsking({
+        name,
+        to,
+        into: answer.folds,
+        publications: answer.publications,
+      });
       return;
     }
 
@@ -319,14 +340,20 @@ const VocabularyList: FC<{
         message={t("foldMessage", {
           from: asking?.name.name ?? "",
           into: asking?.into.name ?? "",
-          moving: asking?.name.publications ?? 0,
-          held: asking?.into.publications ?? 0,
+          moving: asking?.publications.length ?? 0,
         })}
         confirmLabel={t("foldConfirm")}
         loading={folding}
         onConfirm={confirmFold}
         onCancel={cancelFold}
-      />
+      >
+        {asking && asking.publications.length > 0 ? (
+          <Publications
+            label={t("foldPublications", { name: asking.name.name })}
+            publications={asking.publications}
+          />
+        ) : null}
+      </ConfirmationModal>
 
       {names === null ? (
         <p className="text-sm text-gray-600">{t("loading")}</p>
