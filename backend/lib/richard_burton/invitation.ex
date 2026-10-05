@@ -19,6 +19,7 @@ defmodule RichardBurton.Invitation do
   import Ecto.Query
   import EctoCommons.EmailValidator
 
+  alias RichardBurton.Auth.Access
   alias RichardBurton.Email
   alias RichardBurton.Invitation
   alias RichardBurton.Repo
@@ -81,6 +82,9 @@ defmodule RichardBurton.Invitation do
   already in hand.
 
   Someone who has been here before is admitted on the strength of their account.
+  If an invitation is also waiting for their address, they take it up, and
+  their role is raised to the offered one when the offered one is higher. An
+  invitation never lowers a role.
   """
   def admit(subject_id, email) when is_binary(subject_id) and is_binary(email) do
     case {User.get(subject_id), pending_for(email)} do
@@ -95,7 +99,8 @@ defmodule RichardBurton.Invitation do
       {user, nil} ->
         {:ok, user}
 
-      # Invited again while they already had an account: honour the offer.
+      # An existing account with an invitation waiting for its address takes
+      # the invitation up. Its role is raised if the offered role is higher.
       {user, invitation} ->
         accept(invitation, user)
     end
@@ -143,18 +148,39 @@ defmodule RichardBurton.Invitation do
 
   defp promote(_user, _attrs, _invited_by), do: {:error, %{role: "required"}}
 
-  # Grants the offered role and marks the invitation redeemed, in one
-  # transaction, so an invitation cannot be spent twice.
+  # Raises the user to the offered role and marks the invitation redeemed, in
+  # one transaction, so an invitation cannot be spent twice. A user who already
+  # holds the offered role or a higher one keeps their role. After the
+  # transaction commits, it calls `RichardBurton.Auth.Access.changed/1` for the
+  # user. Returns `{:ok, user}` with the user as they are after the change.
+  #
+  # `User.set_role/3` also calls `changed/1`, but that call happens inside the
+  # transaction, before a subscriber can read the new role.
   defp accept(invitation, user) do
-    Repo.transaction(fn ->
-      {:ok, updated} = User.set_role(user, invitation.role)
+    {:ok, updated} =
+      Repo.transaction(fn ->
+        updated = raise_role(user, invitation.role)
 
-      invitation
-      |> change(accepted_at: DateTime.utc_now() |> DateTime.truncate(:second))
-      |> Repo.update!()
+        invitation
+        |> change(accepted_at: DateTime.utc_now() |> DateTime.truncate(:second))
+        |> Repo.update!()
 
+        updated
+      end)
+
+    Access.changed(updated.subject_id)
+    {:ok, updated}
+  end
+
+  # Gives `user` the role `role` when it outranks the role they hold, and
+  # returns the user unchanged otherwise.
+  defp raise_role(user, role) do
+    if User.at_least?(user.role, role) do
+      user
+    else
+      {:ok, updated} = User.set_role(user, role)
       updated
-    end)
+    end
   end
 
   # The unredeemed invitation for an address, if there is one.
