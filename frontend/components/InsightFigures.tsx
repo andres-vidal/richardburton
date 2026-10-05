@@ -43,7 +43,7 @@ const InsightFigures: FC<{ insights: Insights }> = ({ insights }) => {
 
   return (
     <section aria-label={t("figures")}>
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded border border-gray-200 bg-gray-200 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded border border-gray-200 bg-gray-200 sm:grid-cols-4 xl:grid-cols-8">
         {figures.map(({ key, value }) => (
           <div key={key} className="flex flex-col-reverse gap-1 p-3 bg-white">
             <dt className="text-xs text-gray-600">{t(key)}</dt>

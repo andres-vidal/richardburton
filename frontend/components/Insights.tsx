@@ -66,7 +66,7 @@ const Insights: FC<Props> = ({ insights }) => {
       ) : (
         <>
           <InsightFigures insights={insights} />
-          <div className="grid gap-10 md:grid-cols-2">
+          <div className="grid gap-10 md:grid-cols-2 xl:grid-cols-3">
             <InsightBars
               title={t("byDecade")}
               bars={insights.decades.map(({ decade, count }) => ({

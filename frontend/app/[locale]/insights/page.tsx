@@ -32,6 +32,10 @@ export async function generateMetadata({
  * ones the `search` query parameter matches, and renders them with `Insights`
  * under an `InsightsHeading`.
  *
+ * It fills the width of the page like the index page, so the summary line, the
+ * links to the two views and the search box stay in place when switching
+ * between the list and the insights.
+ *
  * The page is wrapped in `Suspense` because `InsightsHeading` calls
  * `useSearchParams()`. The index page is wrapped for the same reason.
  */
@@ -46,7 +50,6 @@ export default async function InsightsPage({
   return (
     <Suspense>
       <Layout
-        measure="aligned"
         subheader={<InsightsHeading insights={insights} />}
         content={<Insights insights={insights} />}
       />
