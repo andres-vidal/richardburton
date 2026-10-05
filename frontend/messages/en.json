@@ -41,7 +41,7 @@
   },
   "insights": {
     "title": "Insights",
-    "description": "What the database holds, counted. Every figure counts publications, so a book published twice counts twice.",
+    "description": "What the database holds, counted. A work is an original book, and each of its editions in English is a publication. The lists count publications, so a book published twice counts twice.",
     "figures": "In figures",
     "publications": "Publications",
     "works": "Works",

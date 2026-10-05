@@ -41,7 +41,7 @@
   },
   "insights": {
     "title": "Panorama",
-    "description": "O que a base de dados contém, em números. Cada número conta publicações, de modo que um livro publicado duas vezes conta duas vezes.",
+    "description": "O que a base de dados contém, em números. Uma obra é um livro original, e cada uma de suas edições em inglês é uma publicação. As listas contam publicações, de modo que um livro publicado duas vezes conta duas vezes.",
     "figures": "Em números",
     "publications": "Publicações",
     "works": "Obras",
