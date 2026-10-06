@@ -18,6 +18,20 @@ defmodule RichardBurton.InvitationTest do
     expect(RichardBurton.MailerMock, :send, n, fn email -> {:ok, email} end)
   end
 
+  # Expects `n` emails, and sends each to the test process as `{:mailed, email}`.
+  defp capture_mail(n \\ 1) do
+    test = self()
+
+    expect(RichardBurton.MailerMock, :send, n, fn email ->
+      send(test, {:mailed, email})
+      {:ok, email}
+    end)
+  end
+
+  # Sets `name` back to `value`, or unsets it when `value` is nil.
+  defp restore_env(name, nil), do: System.delete_env(name)
+  defp restore_env(name, value), do: System.put_env(name, value)
+
   describe "invite/2 for someone who has never signed in" do
     test "records the offer and mails it" do
       expect_mail()
@@ -63,6 +77,59 @@ defmodule RichardBurton.InvitationTest do
 
       assert {:error, :conflict} =
                Invitation.invite(%{"email" => "NEW@example.com", "role" => "admin"})
+    end
+  end
+
+  describe "the invitation email" do
+    setup do
+      previous = System.get_env("APP_URL")
+      on_exit(fn -> restore_env("APP_URL", previous) end)
+    end
+
+    test "says the same thing in Portuguese, then in English" do
+      capture_mail()
+      System.put_env("APP_URL", "https://riburton.example.org")
+
+      Invitation.invite(%{"email" => "new@example.com", "role" => "contributor"})
+
+      assert_received {:mailed, email}
+      assert email.to == "new@example.com"
+      assert email.subject =~ "Convite para a Plataforma Richard & Isabel Burton"
+      assert email.subject =~ "Invitation to the Richard & Isabel Burton Platform"
+
+      assert [portuguese, english] = String.split(email.message, "\n---\n")
+      assert portuguese =~ "como colaborador, que pode acrescentar e corrigir publicações"
+      assert portuguese =~ "Entre com o Google em https://riburton.example.org"
+      assert portuguese =~ "(new@example.com)"
+      assert english =~ "as a contributor, who can add and correct publications"
+      assert english =~ "Sign in with Google at https://riburton.example.org"
+      assert english =~ "(new@example.com)"
+    end
+
+    test "names the admin who sent it, in both languages" do
+      capture_mail()
+      admin = user_fixture("admin@example.com", :admin)
+
+      Invitation.invite(%{"email" => "new@example.com", "role" => "admin"}, admin)
+
+      assert_received {:mailed, email}
+      assert email.message =~ "Burton por admin@example.com como administrador"
+      assert email.message =~ "Burton Platform by admin@example.com as an administrator"
+    end
+
+    test "points at the platform in general when APP_URL is unset or empty" do
+      capture_mail(2)
+
+      System.delete_env("APP_URL")
+      Invitation.invite(%{"email" => "unset@example.com", "role" => "reader"})
+      System.put_env("APP_URL", "")
+      Invitation.invite(%{"email" => "empty@example.com", "role" => "reader"})
+
+      for _ <- 1..2 do
+        assert_received {:mailed, email}
+        assert email.message =~ "Entre na plataforma com o Google usando este endereço"
+        assert email.message =~ "Sign in to the platform with Google using this address"
+      end
     end
   end
 

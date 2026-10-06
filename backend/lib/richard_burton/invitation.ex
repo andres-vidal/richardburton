@@ -200,19 +200,40 @@ defmodule RichardBurton.Invitation do
 
     Email.deliver(
       to: invitation.email,
-      subject: "You have been invited to the Richard & Isabel Burton Platform",
+      subject:
+        "Convite para a Plataforma Richard & Isabel Burton / " <>
+          "Invitation to the Richard & Isabel Burton Platform",
       message: message(invitation)
     )
   rescue
     error -> {:error, error}
   end
 
-  # The invitation email body.
+  # The invitation email body: the message in Portuguese, then the same message
+  # in English, separated by a line of dashes.
+  #
+  # An invitation records no language for the person it is sent to, so the
+  # email is written in both of the platform's languages.
   defp message(invitation) do
-    """
-    You have been invited to the Richard & Isabel Burton Platform#{invited_by(invitation)} as #{describe(invitation.role)}.
+    Enum.map_join([:pt, :en], "\n---\n\n", &message(invitation, &1))
+  end
 
-    Sign in with Google at #{app_url()} using this address — #{invitation.email} — and the access will be waiting for you.
+  # The invitation email body in one language, `:pt` or `:en`.
+  defp message(invitation, :pt) do
+    """
+    Você foi convidado para a Plataforma Richard & Isabel Burton#{invited_by(invitation, :pt)} como #{describe(invitation.role, :pt)}.
+
+    #{sign_in(:pt)} usando este endereço (#{invitation.email}), e o acesso estará esperando por você.
+
+    Se você não esperava este convite, pode ignorá-lo. Nada acontece até você entrar.
+    """
+  end
+
+  defp message(invitation, :en) do
+    """
+    You have been invited to the Richard & Isabel Burton Platform#{invited_by(invitation, :en)} as #{describe(invitation.role, :en)}.
+
+    #{sign_in(:en)} using this address (#{invitation.email}), and the access will be waiting for you.
 
     If you were not expecting this invitation, you can ignore it. Nothing happens until you sign in.
     """
@@ -220,15 +241,25 @@ defmodule RichardBurton.Invitation do
 
   # Names the inviter when the record still has one; an invitation outlives the
   # account that sent it.
-  defp invited_by(%{invited_by: %User{email: email}}), do: " by #{email}"
-  defp invited_by(_invitation), do: ""
+  defp invited_by(%{invited_by: %User{email: email}}, :pt), do: " por #{email}"
+  defp invited_by(%{invited_by: %User{email: email}}, :en), do: " by #{email}"
+  defp invited_by(_invitation, _language), do: ""
 
   # What each role allows, in the words the email uses.
-  defp describe(:admin), do: "an administrator, who can also manage who has access"
-  defp describe(:contributor), do: "a contributor, who can add and correct publications"
-  defp describe(:reader), do: "a reader"
+  defp describe(:admin, :pt), do: "administrador, que também pode decidir quem tem acesso"
+  defp describe(:contributor, :pt), do: "colaborador, que pode acrescentar e corrigir publicações"
+  defp describe(:reader, :pt), do: "leitor"
+  defp describe(:admin, :en), do: "an administrator, who can also manage who has access"
+  defp describe(:contributor, :en), do: "a contributor, who can add and correct publications"
+  defp describe(:reader, :en), do: "a reader"
 
-  # The address the email points at, falling back to a neutral phrase when it is
-  # not configured rather than sending a broken link.
-  defp app_url, do: System.get_env("APP_URL") || "the platform"
+  # The start of the sentence that says where to sign in. It names the address
+  # in `APP_URL` when that is set, and the platform in general when it is unset
+  # or empty, so the email never carries a broken link.
+  defp sign_in(language), do: sign_in(System.get_env("APP_URL", ""), language)
+
+  defp sign_in("", :pt), do: "Entre na plataforma com o Google"
+  defp sign_in(url, :pt), do: "Entre com o Google em #{url}"
+  defp sign_in("", :en), do: "Sign in to the platform with Google"
+  defp sign_in(url, :en), do: "Sign in with Google at #{url}"
 end
