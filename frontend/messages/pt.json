@@ -218,6 +218,7 @@
     "submit": "Enviar",
     "submitHint": "Salvar as publicações no repositório",
     "upload": "Enviar .csv",
+    "uploadHint": "Acrescenta as linhas de um arquivo .csv depois das linhas que já estão aqui.",
     "addPublication": "Adicionar publicação",
     "allValid": "Todas as publicações são válidas",
     "restore": "Restaurar",
@@ -262,7 +263,6 @@
     "invalidPublications": "{count, plural, one {1 publicação inválida} other {# publicações inválidas}}",
     "hideRowIds": "Ocultar números das linhas",
     "showRowIds": "Mostrar números das linhas",
-    "dataWillBeReplaced": "Os dados atuais serão substituídos!",
     "sourcesHint": "Fontes que respaldam este registro, para que um leitor possa verificá-lo.",
     "sourceNumber": "Fonte {number}",
     "moveSourceUp": "Mover fonte {number} para cima",
@@ -278,6 +278,8 @@
     "undo": "Desfazer",
     "deselect": "Desmarcar {count}",
     "duplicate": "Duplicar {count}",
+    "remove": "Remover {count}",
+    "removeHint": "Remove as linhas selecionadas para todos neste documento. Desfazer as traz de volta.",
     "move": "Mover {count}",
     "resetOverridden": "{count, plural, one {Restaurar # editada} other {Restaurar # editadas}}",
     "byActor": "{actor, select, system {pelo sistema} other {por {actor}}}",
@@ -289,11 +291,7 @@
     "namesDescription": "Tradutores, autores e editoras — corrija grafias ou una duplicatas.",
     "redo": "Refazer",
     "undoHint": "Desfaz sua última alteração. As alterações de outras pessoas não são afetadas.",
-    "redoHint": "Refaz a alteração desfeita.",
-    "replaceTitle": "Substituir tudo neste documento?",
-    "replaceMessage": "{count, plural, one {A # linha aqui} other {Todas as # linhas aqui}} será descartada e o arquivo entrará no lugar. Todos que trabalham neste documento as perdem.",
-    "replaceConfirm": "Substituir",
-    "replaceCancel": "Manter"
+    "redoHint": "Refaz a alteração desfeita."
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",

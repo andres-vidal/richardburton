@@ -9,6 +9,7 @@ import PublicationDeselect from "components/PublicationDeselect";
 import PublicationDuplicate from "components/PublicationDuplicate";
 import PublicationErrorCounter from "components/PublicationErrorCounter";
 import PublicationMove from "components/PublicationMove";
+import PublicationRemove from "components/PublicationRemove";
 import PublicationResemblanceCounter from "components/PublicationResemblanceCounter";
 import PublicationSubmit from "components/PublicationSubmit";
 import PublicationUpload from "components/PublicationUpload";
@@ -80,6 +81,7 @@ const Workspace: FC<{
             <>
               <PublicationDeselect />
               <PublicationDuplicate />
+              <PublicationRemove />
             </>
           )}
           <PublicationMove document={document} />

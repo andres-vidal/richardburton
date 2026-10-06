@@ -1163,6 +1163,37 @@ function resetAll(store: Store): void {
 }
 
 /**
+ * Adds `entries` after the rows already in the store's document, as one edit
+ * of this client, so one undo takes them all out again. Each entry's
+ * validation result is stored with it.
+ */
+function append(store: Store, entries: PublicationEntry[]): void {
+  const { doc, undo } = documentOf(store);
+
+  undo.stopCapturing();
+  Doc.appendRows(doc, entries);
+  undo.stopCapturing();
+
+  setErrors(store, entries);
+}
+
+/**
+ * Removes the rows `ids` from the store's document, for everyone in it, as one
+ * edit of this client, so one undo brings them all back. Their check results
+ * are removed too, and this client forgets the content it last validated for
+ * them, so a row brought back by undo is validated again.
+ */
+function remove(store: Store, ids: Set<PublicationId>): void {
+  const { doc, undo } = documentOf(store);
+
+  undo.stopCapturing();
+  Doc.removeRows(doc, [...ids]);
+  undo.stopCapturing();
+
+  ids.forEach((id) => store.set(lastValidatedFamily(id), RESET));
+}
+
+/**
  * Removes the rows `ids` from the store's document, with their check results,
  * because they were moved to another document. It also forgets the content
  * this client last validated for them.
@@ -1221,6 +1252,7 @@ function focusNextInvalid(store: Store): void {
 export {
   RESEMBLANCE_ATTRIBUTES,
   addNew,
+  append,
   appendIndex,
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
@@ -1260,6 +1292,7 @@ export {
   publicationSourcesFamily,
   receiveIndex,
   moveOut,
+  remove,
   remember,
   removePublication,
   replaceName,

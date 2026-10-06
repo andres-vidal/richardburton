@@ -581,7 +581,7 @@ describe("resemblances", () => {
 });
 
 describe("upload", () => {
-  test("replaces the working set from the server's validation", async () => {
+  test("adds the server's rows after the ones already in the working set", async () => {
     const old = createId();
     setAll(store, [
       { id: old, publication: pub({ title: "old" }), errors: null },
@@ -596,15 +596,42 @@ describe("upload", () => {
 
     await upload(store, new FormData());
 
-    const ids = store.get(publicationIdsAtom);
-    expect(ids).toHaveLength(2);
-    expect(ids).not.toContain(old);
-    expect(store.get(publicationFamily(ids![0])).title).toBe("New A");
-    expect(store.get(errorFamily(ids![1]))).toBe("conflict");
+    const ids = store.get(publicationIdsAtom)!;
+    expect(ids).toHaveLength(3);
+    expect(ids[0]).toBe(old);
+    expect(store.get(publicationFamily(ids[1])).title).toBe("New A");
+    expect(store.get(errorFamily(ids[2]))).toBe("conflict");
     expect(http.post).toHaveBeenCalledWith(
       "publications/validate",
       expect.any(FormData),
     );
+  });
+
+  test("one undo takes the uploaded rows out again", async () => {
+    const old = createId();
+    setAll(store, [
+      { id: old, publication: pub({ title: "old" }), errors: null },
+    ]);
+    http.post.mockResolvedValue({
+      data: [{ publication: pub({ title: "New A" }), errors: null }],
+    });
+
+    await upload(store, new FormData());
+    documentOf(store).undo.undo();
+
+    expect(store.get(publicationIdsAtom)).toEqual([old]);
+  });
+
+  test("a failed upload leaves the rows as they were", async () => {
+    const old = createId();
+    setAll(store, [
+      { id: old, publication: pub({ title: "old" }), errors: null },
+    ]);
+    http.post.mockRejectedValue("boom");
+
+    await expect(upload(store, new FormData())).rejects.toBe("boom");
+
+    expect(store.get(publicationIdsAtom)).toEqual([old]);
   });
 });
 

@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as UploadStories from "./PublicationUpload.stories";
 
@@ -6,44 +6,21 @@ import * as UploadStories from "./PublicationUpload.stories";
 
 # Publication upload
 
-The entry point for loading publications from a CSV. It renders an outlined
-"Upload .csv" button that opens a hidden file input; picking a file streams it
-to the backend to be parsed and staged into the workspace for review.
+An outlined "Upload .csv" button in the import workspace's footer. It opens a
+hidden file input, and the rows of the chosen file are added after the rows
+already in the import document.
 
-## Data source
+The server parses and validates the file, and `upload()` appends its rows with
+their validation results through `append` in the publication store. The rows
+are added as one edit of the person who uploaded them, so their Undo takes the
+whole upload out again. Rows already in the document, including other people's,
+are kept. After a failed upload, or after the upload finishes, the input is
+reset, so the same file can be chosen again.
 
-The button is **state-driven**: it takes no props. It reads the row
-count from the store (`usePublicationCount`) only to decide
-whether to warn — when data is already loaded, the tooltip reads "Current data
-will be replaced!", since a new upload replaces the current set. Selecting a
-file builds a `FormData` and calls `upload()`; on failure the input is reset so
-the same file can be re-picked. In stories the store is seeded through the
-shared fixtures:
-
-```tsx
-import { seed } from "test/publication-fixtures";
-
-seed(store, []); // start from an empty store
-```
+<Description of={UploadStories.Default} />
 
 <Canvas of={UploadStories.Default} />
 
-## States
+<Description of={UploadStories.WithExistingRows} />
 
-- **Empty** — the default (`seed([])`): the button is enabled with no warning
-  tooltip, since there is nothing to replace.
-- **With existing data** — when the store already holds publications, the
-  button stays enabled but its tooltip warns that the current data will be
-  replaced. See the
-  [With existing data](?path=/story/publications-upload--with-existing-data)
-  story.
-
-## Replacing a shared document
-
-An upload replaces every row in the import document, including rows that other
-people added. When the document already has rows, the button first opens a
-dialog that says how many rows will be discarded, and the file picker opens only
-after the person confirms. When the document is empty, the button opens the
-file picker straight away.
-
-<Canvas of={UploadStories.ReplacingASharedDocument} />
+<Canvas of={UploadStories.WithExistingRows} />

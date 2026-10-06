@@ -1,5 +1,6 @@
 import { createStore } from "jotai";
 
+import * as Doc from "./doc";
 import {
   PublicationEntry,
   PublicationError,
@@ -19,6 +20,7 @@ import {
   forget,
   hydrate,
   knownIds,
+  lastValidatedFamily,
   focusedRowIdAtom,
   hiddenAttributesAtom,
   invalidIdsAtom,
@@ -44,6 +46,7 @@ import {
   moveOut,
   publicationCountAtom,
   receiveIndex,
+  remove,
   uncheckedCountAtom,
 } from "./store";
 
@@ -154,6 +157,39 @@ describe("setAll", () => {
     // the id of a forgotten row.
     expect(knownIds().has(7)).toBe(false);
     expect(knownIds().has(minted)).toBe(false);
+  });
+});
+
+describe("remove", () => {
+  test("removes the rows from the document and keeps the others in order", () => {
+    const [a, b, c, d] = [createId(), createId(), createId(), createId()];
+    setAll(store, [entry(a), entry(b), entry(c), entry(d)]);
+
+    remove(store, new Set([b, d]));
+
+    expect(store.get(publicationIdsAtom)).toEqual([a, c]);
+    expect(Doc.holds(documentOf(store).doc, b)).toBe(false);
+  });
+
+  test("one undo brings every removed row back, in place, to be validated again", () => {
+    const [a, b, c] = [createId(), createId(), createId()];
+    setAll(store, [
+      entry(a, { title: "Dom Casmurro" }),
+      entry(b, { title: "Iracema" }),
+      entry(c, { title: "Barren Lives" }),
+    ]);
+    store.set(lastValidatedFamily(b), "content sent before the removal");
+
+    remove(store, new Set([a, b]));
+    documentOf(store).undo.undo();
+
+    expect(store.get(publicationIdsAtom)).toEqual([a, b, c]);
+    expect(store.get(publicationFamily(b)).title).toBe("Iracema");
+
+    // The check results went with the rows, so the restored rows are unchecked,
+    // and this client will send them again.
+    expect(store.get(uncheckedCountAtom)).toBe(2);
+    expect(store.get(lastValidatedFamily(b))).toBeUndefined();
   });
 });
 

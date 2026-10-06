@@ -25,6 +25,7 @@ type ResemblanceEntry = Omit<Resemblance, "others" | "repeats"> & {
 };
 import * as Doc from "./doc";
 import {
+  append,
   contentKey,
   createId,
   documentOf,
@@ -36,9 +37,7 @@ import {
   remember,
   removePublication,
   resemblanceSubjectAtom,
-  resetAll,
   rowSubjectFamily,
-  setAll,
   setErrors,
   setResemblances,
 } from "./store";
@@ -499,23 +498,21 @@ async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
   });
 }
 
-/** Replace the working set from an uploaded CSV (validated server-side). */
+/**
+ * Adds the rows of an uploaded CSV, validated by the server, after the rows
+ * already in the working set (see `append`). A failed upload leaves the rows as
+ * they were.
+ */
 async function upload(store: Store, payload: FormData): Promise<void> {
   return run(async (http) => {
-    resetAll(store);
-    try {
-      const { data } = await http.post<ValidationResult[]>(
-        "publications/validate",
-        payload,
-      );
-      setAll(
-        store,
-        data.map((entry) => ({ ...entry, id: createId() })),
-      );
-    } catch (error) {
-      setAll(store, []);
-      throw error;
-    }
+    const { data } = await http.post<ValidationResult[]>(
+      "publications/validate",
+      payload,
+    );
+    append(
+      store,
+      data.map((entry) => ({ ...entry, id: createId() })),
+    );
   });
 }
 
