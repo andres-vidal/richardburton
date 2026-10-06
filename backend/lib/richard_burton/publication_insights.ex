@@ -56,6 +56,29 @@ defmodule RichardBurton.Publication.Insights do
     publishers: :publishers
   ]
 
+  # What `describe/1` returns when no publication matches.
+  @nothing %{
+    publications: 0,
+    years: nil,
+    annual: %{countries: [], years: []},
+    decades: [],
+    debuts: [],
+    totals: %{works: 0, original_authors: 0, translators: 0, publishers: 0, countries: 0},
+    original_authors: [],
+    translators: [],
+    publishers: [],
+    pairs: [],
+    countries: [],
+    retranslated: [],
+    sourced: 0
+  }
+
+  # Builds the query expression for the first year of the decade `year` falls
+  # in, which is the year a decade is named by.
+  defmacrop decade_of(year) do
+    quote do: fragment("? / 10 * 10", unquote(year))
+  end
+
   @doc """
   Returns a map of counts for the publications a term matches, or for every
   publication when the term is `nil`.
@@ -73,9 +96,8 @@ defmodule RichardBurton.Publication.Insights do
       country of `countries`. A publication that names several of them counts
       under the first one in `countries`.
     * `decades` — the number of publications in each decade, from the first
-      decade to the last, as `count` and split into `first_translations`,
-      `retranslations` and `reissues`. Decades with no publications are
-      included.
+      decade to the last, split into `first_translations`, `retranslations` and
+      `reissues`. Decades with no publications are included.
     * `debuts` — the number of original authors whose debut falls in each
       decade, counting the authors the publications name. The decades run
       from the first debut to the last, including decades with none.
@@ -91,68 +113,91 @@ defmodule RichardBurton.Publication.Insights do
     * `countries` — every country of publication by its code, each with its
       number of publications, highest first.
     * `retranslated` — up to ten retranslated works, those with the most
-      translations, each with its number of translations and publications, and
-      `timeline`: the year of each translation's first publication in the
-      index, with its translators, earliest first.
+      translations, each with its number of translations and `timeline`: the
+      year of each translation's first publication in the index, with its
+      translators, earliest first.
     * `sourced` — the number of publications that cite at least one source.
+
+  A search is resolved to the publications it matches once, and the counts are
+  read from those publications. When it matches none, no other query runs.
   """
   def describe(term \\ nil) do
-    base = Index.matching(term)
-    years = years(base)
+    base = term |> Index.matching() |> resolved(term)
+
+    case summary(base) do
+      %{publications: 0} -> @nothing
+      summary -> counts(base, summary)
+    end
+  end
+
+  # Returns a query for the publications `query` matches, by id, so a search's
+  # full-text match runs once rather than in every query that reads it. Without
+  # a search, `query` is the whole index and is returned as it is.
+  defp resolved(query, nil), do: query
+
+  defp resolved(query, _term) do
+    ids = query |> select([fp], fp.id) |> Repo.all()
+
+    from(fp in FlatPublication, where: fp.id in ^ids)
+  end
+
+  # Returns the counts that one query can read for all the publications: how
+  # many there are, the first and last year, how many cite a source, and how
+  # many distinct works they hold.
+  defp summary(base) do
+    base
+    |> select([fp], %{
+      publications: count(),
+      first: min(fp.year),
+      last: max(fp.year),
+      sourced: filter(count(), fragment("cardinality(?) > 0", fp.sources)),
+      works: fragment("count(DISTINCT (?, ?))", fp.original_title, fp.original_authors)
+    })
+    |> Repo.one()
+  end
+
+  # Returns the map `describe/1` documents for publications that exist, from
+  # `base` and its `summary`.
+  defp counts(base, summary) do
+    years = %{first: summary.first, last: summary.last}
     countries = countries(base)
 
     %{
-      publications: Repo.aggregate(base, :count),
+      publications: summary.publications,
       years: years,
       annual: annual(base, years, countries),
       decades: decades(base, years),
       debuts: debuts(base),
-      totals: totals(base),
+      totals: totals(base, summary.works, countries),
       original_authors: leading(base, :original_authors),
       translators: base |> leading(:authors) |> with_years(base),
       publishers: leading(base, :publishers),
       pairs: pairs(base),
       countries: countries,
       retranslated: retranslated(base),
-      sourced: sourced(base)
+      sourced: summary.sourced
     }
-  end
-
-  # Returns the first and last year of publication, or nil when there are no
-  # publications.
-  defp years(base) do
-    case base |> select([fp], {min(fp.year), max(fp.year)}) |> Repo.one() do
-      {nil, nil} -> nil
-      {first, last} -> %{first: first, last: last}
-    end
   end
 
   # Counts the publications in each year from the first to the last, split by
   # the leading countries of `countries`. See `describe/1`.
-  defp annual(_base, nil, _countries), do: %{countries: [], years: []}
-
   defp annual(base, %{first: first, last: last}, countries) do
     codes = countries |> Enum.take(@split) |> Enum.map(& &1.code)
 
-    # `country` is the first code in `codes` that the publication's countries
+    # A publication's series is the first code in `codes` that its countries
     # include, or NULL when they include none.
     tally =
       base
-      |> exclude(:select)
       |> select([fp], %{
-        year: fp.year,
-        country:
+        key: fp.year,
+        series:
           fragment(
             "(SELECT code FROM unnest(?) WITH ORDINALITY AS listed(code, position) WHERE code = ANY(?) ORDER BY position LIMIT 1)",
             type(^codes, {:array, :string}),
             fp.countries
           )
       })
-      |> subquery()
-      |> group_by([r], [r.year, r.country])
-      |> select([r], {{r.year, r.country}, count()})
-      |> Repo.all()
-      |> Map.new()
+      |> tally()
 
     years =
       for year <- first..last do
@@ -166,37 +211,39 @@ defmodule RichardBurton.Publication.Insights do
     %{countries: codes, years: years}
   end
 
-  # Counts the publications in each decade from the first to the last, in all
-  # and by kind, with counts of 0 for a decade that has none. A decade is named
-  # by its first year. Returns an empty list when there are no years.
-  defp decades(_base, nil), do: []
-
+  # Counts the publications in each decade from the first to the last, by kind,
+  # with counts of 0 for a decade that has none.
   defp decades(base, %{first: first, last: last}) do
     tally =
       base
       |> join(:inner, [fp], k in subquery(kinds()), on: k.id == fp.id, as: :kind)
-      |> exclude(:select)
-      |> select([fp, kind: k], %{decade: fragment("? / 10 * 10", fp.year), kind: k.kind})
-      |> subquery()
-      |> group_by([r], [r.decade, r.kind])
-      |> select([r], {{r.decade, r.kind}, count()})
-      |> Repo.all()
-      |> Map.new()
+      |> select([fp, kind: k], %{key: decade_of(fp.year), series: k.kind})
+      |> tally()
 
-    for decade <- decade(first)..decade(last)//10 do
-      first_translations = Map.get(tally, {decade, "first_translation"}, 0)
-      retranslations = Map.get(tally, {decade, "retranslation"}, 0)
-      reissues = Map.get(tally, {decade, "reissue"}, 0)
-
+    for decade <- decades_between(first, last) do
       %{
         decade: decade,
-        count: first_translations + retranslations + reissues,
-        first_translations: first_translations,
-        retranslations: retranslations,
-        reissues: reissues
+        first_translations: Map.get(tally, {decade, "first_translation"}, 0),
+        retranslations: Map.get(tally, {decade, "retranslation"}, 0),
+        reissues: Map.get(tally, {decade, "reissue"}, 0)
       }
     end
   end
+
+  # Runs `query`, which selects a `key` and a `series` for each row, and returns
+  # a map from each `{key, series}` pair to the number of rows that have it.
+  defp tally(query) do
+    query
+    |> subquery()
+    |> group_by([r], [r.key, r.series])
+    |> select([r], {{r.key, r.series}, count()})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  # Returns the first year of every decade from the one `first` falls in to the
+  # one `last` falls in.
+  defp decades_between(first, last), do: (div(first, 10) * 10)..(div(last, 10) * 10)//10
 
   # A query for every publication in the index with its kind, as
   # `"first_translation"`, `"retranslation"` or `"reissue"`. See the module doc.
@@ -241,9 +288,8 @@ defmodule RichardBurton.Publication.Insights do
   # the whole index, not only from the publications counted.
   defp debuts(base) do
     debuts =
-      from(fp in FlatPublication,
-        select: %{name: fragment("unnest(?)", fp.original_authors), year: fp.year}
-      )
+      FlatPublication
+      |> named_years(:original_authors)
       |> subquery()
       |> group_by([n], n.name)
       |> select([n], %{name: n.name, year: min(n.year)})
@@ -254,8 +300,8 @@ defmodule RichardBurton.Publication.Insights do
       from(d in subquery(debuts),
         join: n in subquery(named),
         on: n.name == d.name,
-        group_by: fragment("? / 10 * 10", d.year),
-        select: {fragment("? / 10 * 10", d.year), count()}
+        group_by: decade_of(d.year),
+        select: {decade_of(d.year), count()}
       )
       |> Repo.all()
       |> Map.new()
@@ -265,31 +311,20 @@ defmodule RichardBurton.Publication.Insights do
         []
 
       decades ->
-        for decade <- Enum.min(decades)..Enum.max(decades)//10 do
+        for decade <- decades_between(Enum.min(decades), Enum.max(decades)) do
           %{decade: decade, count: Map.get(tally, decade, 0)}
         end
     end
   end
 
-  # Returns the first year of the decade a year falls in.
-  defp decade(year), do: div(year, 10) * 10
-
-  # Counts the distinct works, and the distinct names in each field of `@names`
-  # and in `countries`.
-  defp totals(base) do
-    works =
-      base
-      |> distinct([fp], [fp.original_title, fp.original_authors])
-      |> select([fp], fp.id)
-      |> subquery()
-      |> Repo.aggregate(:count)
-
-    names =
-      Map.new([{:countries, :countries} | @names], fn {name, field} ->
-        {name, base |> names(field) |> distinct(true) |> subquery() |> Repo.aggregate(:count)}
-      end)
-
-    Map.put(names, :works, works)
+  # Counts the distinct names in each field of `@names`, and adds `works` and
+  # the number of `countries`, which are counted elsewhere.
+  defp totals(base, works, countries) do
+    @names
+    |> Map.new(fn {name, field} ->
+      {name, base |> names(field) |> distinct(true) |> subquery() |> Repo.aggregate(:count)}
+    end)
+    |> Map.merge(%{works: works, countries: length(countries)})
   end
 
   # Returns the leading names in one field, each with its number of
@@ -308,8 +343,7 @@ defmodule RichardBurton.Publication.Insights do
 
     tally =
       base
-      |> exclude(:select)
-      |> select([fp], %{name: fragment("unnest(?)", fp.authors), year: fp.year})
+      |> named_years(:authors)
       |> subquery()
       |> where([r], r.name in ^names)
       |> group_by([r], [r.name, r.year])
@@ -329,7 +363,6 @@ defmodule RichardBurton.Publication.Insights do
   # combining every element of one with every element of the other.
   defp pairs(base) do
     base
-    |> exclude(:select)
     |> select([fp], %{author: fragment("unnest(?)", fp.original_authors), translators: fp.authors})
     |> subquery()
     |> select([r], %{author: r.author, translator: fragment("unnest(?)", r.translators)})
@@ -363,21 +396,25 @@ defmodule RichardBurton.Publication.Insights do
 
   # A query that returns one row for each name in each publication, by
   # unnesting an array field.
-  defp names(base, field) do
-    base
-    |> exclude(:select)
-    |> select([fp], %{name: fragment("unnest(?)", field(fp, ^field))})
+  defp names(query, field) do
+    select(query, [fp], %{name: fragment("unnest(?)", field(fp, ^field))})
+  end
+
+  # A query that returns one row for each name in each publication, with the
+  # publication's year.
+  defp named_years(query, field) do
+    select(query, [fp], %{name: fragment("unnest(?)", field(fp, ^field)), year: fp.year})
   end
 
   # Returns the works that have more than one translation, each with its number
-  # of translations and publications, and its timeline. It returns at most
-  # ten, sorted by translations, then publications, then title.
+  # of translations and its timeline. It returns at most ten, sorted by
+  # translations, then publications, then title.
   #
   # A translation is a translated book, so they are counted by the translated
   # book each publication belongs to, which the flat view does not carry and is
   # read from `publications`.
   defp retranslated(base) do
-    works =
+    leading =
       base
       |> join(:inner, [fp], p in Publication, on: p.id == fp.id, as: :publication)
       |> group_by([fp], [fp.original_title, fp.original_authors])
@@ -385,8 +422,7 @@ defmodule RichardBurton.Publication.Insights do
       |> select([fp, publication: p], %{
         title: fp.original_title,
         authors: fp.original_authors,
-        translations: count(p.translated_book_id, :distinct),
-        publications: count()
+        translations: count(p.translated_book_id, :distinct)
       })
       |> order_by([fp, publication: p],
         desc: count(p.translated_book_id, :distinct),
@@ -394,20 +430,19 @@ defmodule RichardBurton.Publication.Insights do
         asc: fp.original_title
       )
       |> limit(@leading)
-      |> Repo.all()
 
-    timelines = timelines(base)
+    timelines = timelines(base, leading)
 
-    Enum.map(works, fn work ->
-      Map.put(work, :timeline, Map.get(timelines, {work.title, work.authors}, []))
-    end)
+    leading
+    |> Repo.all()
+    |> Enum.map(&Map.put(&1, :timeline, Map.get(timelines, {&1.title, &1.authors}, [])))
   end
 
-  # Returns a map from each work, as `{original_title, original_authors}`, to
-  # its timeline: the year of the first publication in the whole index of each
-  # of its translations among the publications, with its translators, earliest
-  # first.
-  defp timelines(base) do
+  # Returns a map from each work `works` selects, as `{original_title,
+  # original_authors}`, to its timeline: the year of the first publication in
+  # the whole index of each of its translations among the publications, with
+  # its translators, earliest first.
+  defp timelines(base, works) do
     firsts =
       from(fp in FlatPublication,
         join: p in Publication,
@@ -417,6 +452,9 @@ defmodule RichardBurton.Publication.Insights do
       )
 
     base
+    |> join(:inner, [fp], w in subquery(works),
+      on: w.title == fp.original_title and w.authors == fp.original_authors
+    )
     |> join(:inner, [fp], p in Publication, on: p.id == fp.id, as: :publication)
     |> join(:inner, [publication: p], f in subquery(firsts),
       on: f.translation == p.translated_book_id,
@@ -427,7 +465,6 @@ defmodule RichardBurton.Publication.Insights do
       fp.original_authors,
       p.translated_book_id
     ])
-    |> exclude(:select)
     |> select([fp, first: f], %{
       title: fp.original_title,
       authors: fp.original_authors,
@@ -437,12 +474,5 @@ defmodule RichardBurton.Publication.Insights do
     |> Repo.all()
     |> Enum.sort_by(&{&1.year, &1.translators})
     |> Enum.group_by(&{&1.title, &1.authors}, &Map.take(&1, [:year, :translators]))
-  end
-
-  # Counts the publications that cite at least one source.
-  defp sourced(base) do
-    base
-    |> where([fp], fragment("cardinality(?) > 0", fp.sources))
-    |> Repo.aggregate(:count)
   end
 end

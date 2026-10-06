@@ -55,7 +55,6 @@ defmodule RichardBurtonWeb.InsightsControllerTest do
 
       assert hd(body["decades"]) == %{
                "decade" => 1950,
-               "count" => 1,
                "first_translations" => 1,
                "retranslations" => 0,
                "reissues" => 0

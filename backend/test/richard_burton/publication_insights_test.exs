@@ -111,12 +111,14 @@ defmodule RichardBurton.Publication.InsightsTest do
 
       # Caldwell's Dom Casmurro of 1966 is a reissue of her 1953 translation,
       # and Gledson's of 1997 is a retranslation of the work.
-      assert Enum.reject(decades, &(&1.count == 0)) == [
-               %{decade: 1880, count: 1, first_translations: 1, retranslations: 0, reissues: 0},
-               %{decade: 1950, count: 2, first_translations: 2, retranslations: 0, reissues: 0},
-               %{decade: 1960, count: 1, first_translations: 0, retranslations: 0, reissues: 1},
-               %{decade: 1980, count: 2, first_translations: 2, retranslations: 0, reissues: 0},
-               %{decade: 1990, count: 1, first_translations: 0, retranslations: 1, reissues: 0}
+      empty? = &(&1.first_translations + &1.retranslations + &1.reissues == 0)
+
+      assert Enum.reject(decades, empty?) == [
+               %{decade: 1880, first_translations: 1, retranslations: 0, reissues: 0},
+               %{decade: 1950, first_translations: 2, retranslations: 0, reissues: 0},
+               %{decade: 1960, first_translations: 0, retranslations: 0, reissues: 1},
+               %{decade: 1980, first_translations: 2, retranslations: 0, reissues: 0},
+               %{decade: 1990, first_translations: 0, retranslations: 1, reissues: 0}
              ]
     end
 
@@ -228,7 +230,6 @@ defmodule RichardBurton.Publication.InsightsTest do
                  title: "Dom Casmurro",
                  authors: ["Machado de Assis"],
                  translations: 2,
-                 publications: 3,
                  timeline: [
                    %{year: 1953, translators: ["Helen Caldwell"]},
                    %{year: 1997, translators: ["John Gledson"]}
@@ -278,7 +279,7 @@ defmodule RichardBurton.Publication.InsightsTest do
       assert insights.original_authors == [%{name: "Clarice Lispector", count: 2}]
 
       assert insights.decades == [
-               %{decade: 1980, count: 2, first_translations: 2, retranslations: 0, reissues: 0}
+               %{decade: 1980, first_translations: 2, retranslations: 0, reissues: 0}
              ]
     end
 
@@ -288,7 +289,7 @@ defmodule RichardBurton.Publication.InsightsTest do
       # The 1966 Dom Casmurro is a reissue even though the search leaves out the
       # 1953 edition, and Machado de Assis's debut is still 1952.
       assert insights.decades == [
-               %{decade: 1960, count: 1, first_translations: 0, retranslations: 0, reissues: 1}
+               %{decade: 1960, first_translations: 0, retranslations: 0, reissues: 1}
              ]
 
       assert insights.debuts == [%{decade: 1950, count: 1}]
