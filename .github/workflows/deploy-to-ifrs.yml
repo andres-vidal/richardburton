@@ -54,6 +54,6 @@ jobs:
       # Squashes the whole branch into a single temporary commit
       - run: git reset --soft ifrs-backend/stage
       - run: git add -A
-      - run: git restore --staged .gitignore Dockerfile .dockerignore .gitlab-ci.yml .ci '*gitkeep'
+      - run: git restore --staged .gitignore Dockerfile .dockerignore .gitlab-ci.yml .ci sonar-project.properties '*gitkeep'
       - run: git diff-index --quiet HEAD || git commit -m "Release to Stage `TZ=America/Sao_Paulo date '+%d %b %Y %T São Paulo (UTC%Z)'`" --allow-empty
       - run: git push -f ifrs-backend stage-release
