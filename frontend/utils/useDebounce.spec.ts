@@ -69,4 +69,17 @@ describe("useDebounce", () => {
     act(() => void vi.advanceTimersByTime(1));
     expect(run).toHaveBeenCalledTimes(1);
   });
+
+  test("flush runs a pending call at once, and only once", () => {
+    const run = vi.fn();
+    const { result } = renderHook(() => useDebounce(run, DELAY));
+
+    result.current("mac");
+    act(() => void result.current.flush());
+
+    expect(run).toHaveBeenCalledWith("mac");
+
+    act(() => void vi.advanceTimersByTime(DELAY));
+    expect(run).toHaveBeenCalledTimes(1);
+  });
 });
