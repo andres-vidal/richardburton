@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  useIsValidating,
-  useValidPublicationCount,
   usePublicationCount,
+  useUncheckedPublicationCount,
+  useValidPublicationCount,
 } from "modules/publication/hooks";
 import { setAll } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
@@ -14,6 +14,15 @@ import Button from "./Button";
 import { useNotify } from "./Notifications";
 import Tooltip from "./Tooltip";
 
+/**
+ * The button that inserts the rows of the workspace. It is enabled when there
+ * are rows, and every row has a validation result for its current content with
+ * no errors.
+ *
+ * A validation request in flight does not disable it. A row whose stored result
+ * still matches its content keeps counting as checked while it is validated
+ * again, and the insert validates every row once more before writing.
+ */
 const PublicationSubmit: FC = () => {
   const t = useTranslations("admin");
   const store = usePublicationStore();
@@ -35,10 +44,12 @@ const PublicationSubmit: FC = () => {
   const validPublicationCount = useValidPublicationCount();
   const invalidPublicationCount = publicationCount - validPublicationCount;
 
-  const isValidating = useIsValidating();
+  const uncheckedPublicationCount = useUncheckedPublicationCount();
 
   const isSubmitDisabled =
-    isValidating || publicationCount === 0 || invalidPublicationCount > 0;
+    publicationCount === 0 ||
+    invalidPublicationCount > 0 ||
+    uncheckedPublicationCount > 0;
 
   return (
     <Tooltip variant="info" message={t("submitHint")} placement="top">
