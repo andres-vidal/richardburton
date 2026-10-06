@@ -10,9 +10,10 @@ defmodule RichardBurton.Country do
   alias RichardBurton.Repo
   alias RichardBurton.Publication
 
-  # Every country, by ISO alpha-2 code: its alpha-3 code, the name it is shown
-  # by in each language the platform speaks, and the other names a reader might
-  # type for it. This is the one place countries are named — the editor's field
+  # Every country, by ISO alpha-2 code: its alpha-3 code, its numeric code, the
+  # name it is shown by in each language the platform speaks, and the other
+  # names a reader might type for it. A country ISO assigns no numeric code,
+  # such as Kosovo, has none here. This is the one place countries are named — the editor's field
   # and every page that shows a country read it from here, over the API, so a
   # country is searchable by the very name it is shown under.
   #
@@ -321,9 +322,11 @@ defmodule RichardBurton.Country do
   @doc """
   Every country the platform knows, named in `locale`, ordered by that name.
 
-  The shape the editor's country field reads: the code is what a publication
-  stores, the label is what a reader is shown. A locale the table has no names
-  for is answered in the default one.
+  Each country is `%{id:, label:, article:, numeric:}`. `id` is the alpha-2 code
+  a publication stores, `label` its name in `locale` and `article` the article
+  that name takes. `numeric` is its ISO 3166-1 numeric code, as three digits,
+  or nil for a country ISO assigns none. A locale the table has no names for is
+  answered in the default one.
   """
   def known(locale \\ @default_locale) do
     language = language(locale)
@@ -367,11 +370,12 @@ defmodule RichardBurton.Country do
     end
   end
 
-  # A country as both the things that travel: the code a publication stores, the
-  # name a reader is shown, and the article that name takes in a sentence.
+  # A country as the things that travel: the code a publication stores, the
+  # name a reader is shown, the article that name takes in a sentence, and the
+  # numeric code.
   defp shown(code, country, language) do
     named = country[language]
-    %{id: code, label: named["name"], article: named["article"]}
+    %{id: code, label: named["name"], article: named["article"], numeric: country["numeric"]}
   end
 
   # How well a country answers to a term, lower being better, or nil for one it

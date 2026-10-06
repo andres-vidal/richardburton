@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { INSIGHTS, NOTHING } from "modules/insights-fixtures";
+import { INSIGHTS, NOTHING } from "test/insights-fixtures";
 import { expect, within } from "storybook/test";
 
 import InsightFigures from "./InsightFigures";

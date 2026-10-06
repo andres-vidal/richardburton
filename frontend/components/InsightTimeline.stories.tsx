@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { INSIGHTS } from "modules/insights-fixtures";
+import { INSIGHTS } from "test/insights-fixtures";
 import { expect, within } from "storybook/test";
 
 import InsightTimeline, { type Track } from "./InsightTimeline";

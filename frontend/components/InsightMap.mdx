@@ -16,9 +16,11 @@ is below the map.
 
 - `title` and `hint` — see [Insight title](?path=/docs/insights-insight-title--docs).
 - `map` — the outlines to draw, from `worldMap` in `modules/world-map`. It
-  projects Natural Earth's outlines, from the `world-atlas` package, and is
-  meant to be computed on the server, so the outline data and the projection
-  library are not part of the page's JavaScript.
+  projects Natural Earth's outlines, from the `world-atlas` package, and names
+  each by the two-letter code that its numeric ISO code maps to, in the codes it
+  is given. Those come from the server's country list. It is meant to be
+  computed on the server, so the outline data and the projection library are
+  not part of the page's JavaScript.
 - `countries` — every country with publications, with its code, name and
   count, in the order they are listed.
 

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { INSIGHTS } from "modules/insights-fixtures";
+import { INSIGHTS } from "test/insights-fixtures";
 import { worldMap } from "modules/world-map";
+import { NUMERIC_CODES } from "test/messages";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import InsightMap from "./InsightMap";
@@ -19,7 +20,7 @@ const meta = {
   args: {
     title: "Publications by country",
     hint: "Each country is shaded by the number of publications published there.",
-    map: worldMap(),
+    map: worldMap(NUMERIC_CODES),
     countries: INSIGHTS.countries.map(({ code, count }) => ({
       code,
       name: NAMES[code] ?? code,

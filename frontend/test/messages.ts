@@ -3,13 +3,18 @@ import written from "messages/en.json";
 /** Enough countries to render a field. What a term finds is the server's, and
  * is checked there. */
 const COUNTRIES = [
-  { id: "AU", label: "Australia" },
-  { id: "BR", label: "Brazil" },
-  { id: "CA", label: "Canada" },
-  { id: "GB", label: "United Kingdom", article: "the" },
-  { id: "NL", label: "Netherlands", article: "the" },
-  { id: "US", label: "United States", article: "the" },
+  { id: "AU", label: "Australia", numeric: "036" },
+  { id: "BR", label: "Brazil", numeric: "076" },
+  { id: "CA", label: "Canada", numeric: "124" },
+  { id: "GB", label: "United Kingdom", article: "the", numeric: "826" },
+  { id: "NL", label: "Netherlands", article: "the", numeric: "528" },
+  { id: "US", label: "United States", article: "the", numeric: "840" },
 ];
+
+/** The numeric ISO code of each country in `COUNTRIES`, to its alpha-2 code. */
+const NUMERIC_CODES = Object.fromEntries(
+  COUNTRIES.map(({ id, numeric }) => [numeric, id]),
+);
 
 /**
  * The messages a story or a spec reads: `messages/en.json`, plus the country
@@ -23,4 +28,4 @@ const messages = {
   ),
 };
 
-export { COUNTRIES, messages };
+export { COUNTRIES, NUMERIC_CODES, messages };

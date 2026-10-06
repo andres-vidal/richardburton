@@ -1,4 +1,4 @@
-import type { Insights } from "./insights";
+import type { Insights } from "modules/insights";
 
 /**
  * The publications in the United States, in the United Kingdom and elsewhere,

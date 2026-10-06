@@ -291,6 +291,17 @@ defmodule RichardBurton.CountryTest do
     test "a language it has no names for is answered in the default one" do
       assert Country.known("de") == Country.known("en")
     end
+
+    test "carries each country's numeric code, as three digits" do
+      numeric = Map.new(Country.known("en"), &{&1.id, &1.numeric})
+
+      assert numeric["US"] == "840"
+      assert numeric["AU"] == "036"
+
+      # ISO assigns Kosovo no numeric code.
+      assert numeric["XK"] == nil
+      assert Enum.count(numeric, fn {_, code} -> is_nil(code) end) == 1
+    end
   end
 
   describe "validate_countries/1" do

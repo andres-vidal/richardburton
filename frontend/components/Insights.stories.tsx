@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { INSIGHTS, NOTHING } from "modules/insights-fixtures";
+import { INSIGHTS, NOTHING } from "test/insights-fixtures";
 import { worldMap } from "modules/world-map";
+import { NUMERIC_CODES } from "test/messages";
 import { expect, within } from "storybook/test";
 
 import Insights, { InsightsHeading } from "./Insights";
@@ -8,7 +9,7 @@ import Insights, { InsightsHeading } from "./Insights";
 const meta = {
   title: "Insights/Insights",
   component: Insights,
-  args: { insights: INSIGHTS, map: worldMap() },
+  args: { insights: INSIGHTS, map: worldMap(NUMERIC_CODES) },
   parameters: { layout: "padded" },
 } satisfies Meta<typeof Insights>;
 
