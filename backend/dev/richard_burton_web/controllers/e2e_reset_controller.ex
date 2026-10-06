@@ -7,6 +7,7 @@ defmodule RichardBurtonWeb.E2EResetController do
   """
   use RichardBurtonWeb, :controller
 
+  alias RichardBurton.Publication.Index.Refresher
   alias RichardBurton.Repo
 
   # Never truncate the migration ledger.
@@ -23,10 +24,10 @@ defmodule RichardBurtonWeb.E2EResetController do
     quoted = Enum.map_join(tables, ", ", &~s("#{&1}"))
     Repo.query!("TRUNCATE TABLE #{quoted} RESTART IDENTITY CASCADE")
 
-    # The materialized search views aren't cleared by TRUNCATE — rebuild them so a
-    # reset leaves an empty, consistent index.
-    Repo.query!("REFRESH MATERIALIZED VIEW search_documents")
-    Repo.query!("REFRESH MATERIALIZED VIEW search_keywords")
+    # TRUNCATE does not clear the materialized views the index reads, so they
+    # are rebuilt the way the write paths rebuild them. In :e2e the rebuild runs
+    # before `refresh/0` returns, so the next request reads an empty index.
+    Refresher.refresh()
 
     send_resp(conn, :no_content, "")
   end

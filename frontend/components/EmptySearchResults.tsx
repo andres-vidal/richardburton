@@ -1,10 +1,17 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { FC } from "react";
 
+/**
+ * A bookshelf with a line under it, shown when the index has no rows. When the
+ * URL has a search, the line says the search found nothing and suggests another
+ * one. Without a search, it says the database has no publications yet.
+ */
 const EmptySearchResults: FC = () => {
   const t = useTranslations("search");
+  const search = useSearchParams()?.get("search");
 
   return (
     <div className="flex items-center justify-center w-full h-full">
@@ -34,7 +41,7 @@ const EmptySearchResults: FC = () => {
           />
         </svg>
         <span className="text-xl text-gray-600 group-hover:text-indigo-600">
-          {t("empty")}
+          {search ? t("empty") : t("none")}
         </span>
       </div>
     </div>

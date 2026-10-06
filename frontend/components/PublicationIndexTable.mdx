@@ -42,7 +42,8 @@ seedIndex(store);
 ## States
 
 - **Populated** — the sample above.
-- **Empty** — ids loaded but none match; renders `EmptySearchResults`
+- **Empty** — ids loaded and none to show, because the database is empty or
+  the search matched nothing; renders `EmptySearchResults`
   ([Empty](?path=/story/publications-index-table--empty) story).
 - **Loading** — ids not loaded; renders a `ListSkeleton`
   ([Loading](?path=/story/publications-index-table--loading) story).

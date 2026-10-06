@@ -43,6 +43,7 @@ import {
   errorFamily,
   moveOut,
   publicationCountAtom,
+  receiveIndex,
 } from "./store";
 
 import type { Store } from "modules/store";
@@ -439,6 +440,36 @@ describe("family lifecycle", () => {
     expect(store.get(publicationFamily(1))).toBeUndefined();
     expect(other.get(publicationFamily(1))).toEqual(saved(1, "Dom Casmurro"));
     expect(other.get(publicationIdsAtom)).toEqual([1]);
+  });
+});
+
+describe("receiveIndex", () => {
+  /** An index page, as the backend answers a query. */
+  const page = (entries: ReturnType<typeof saved>[]) => ({
+    entries,
+    matched: [],
+    total: entries.length,
+    order: entries.map(({ id }) => id),
+    perPage: 50,
+  });
+
+  // A first load into a new store writes an empty order to an empty document,
+  // which changes nothing, so the document's observer never sets the ids.
+  test("an empty first page leaves a loaded working set with no rows", () => {
+    expect(store.get(publicationIdsAtom)).toBeUndefined();
+
+    receiveIndex(store, page([]));
+
+    expect(store.get(publicationIdsAtom)).toEqual([]);
+  });
+
+  test("an empty page after a full one leaves no rows", () => {
+    receiveIndex(store, page([saved(1), saved(2)]));
+    expect(store.get(publicationIdsAtom)).toEqual([1, 2]);
+
+    receiveIndex(store, page([]));
+
+    expect(store.get(publicationIdsAtom)).toEqual([]);
   });
 });
 

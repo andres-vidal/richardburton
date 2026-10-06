@@ -83,6 +83,26 @@ test("a search that matches nothing shows the empty state, not an error", async 
   await expect(indexTable(page).getByText("Dom Casmurro")).toHaveCount(0);
 });
 
+// Each test starts from an empty database. Its first page is empty, so the index
+// must settle on the empty state rather than keep its loading placeholder.
+test("an empty database shows the empty state, and the first import fills it", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await expectPublicationCount(page, 0);
+  await expect(page.getByText("No publications yet.").first()).toBeVisible();
+  await expect(page.getByRole("status", { name: "Loading" })).toHaveCount(0);
+
+  await seedCorpus(page);
+  await page.goto("/");
+
+  await expectPublicationCount(page, CORPUS_SIZE);
+  await expect(
+    indexTable(page).getByRole("link", { name: "Dom Casmurro" }),
+  ).toBeVisible();
+});
+
 // A full page of distinct publications — enough to overflow a short viewport so
 // the last rows sit below the fold, but no more than a page, so this exercises
 // virtualization without also tripping the scroll-to-load-more (its own test).
