@@ -1,0 +1,24 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as EmptySearchResultsStories from "./EmptySearchResults.stories";
+
+<Meta of={EmptySearchResultsStories} />
+
+# Empty search results
+
+The bookshelf the index shows when it has no rows, with a line under it. The
+line depends on the `search` query parameter in the URL, so the component takes
+no props.
+
+<Description of={EmptySearchResultsStories.EmptyDatabase} />
+
+<Canvas of={EmptySearchResultsStories.EmptyDatabase} />
+
+<Description of={EmptySearchResultsStories.NoMatches} />
+
+<Canvas of={EmptySearchResultsStories.NoMatches} />
+
+## Accessibility
+
+- The bookshelf is decorative and hidden from assistive technology. The line
+  under it is plain text, so a screen reader reads only the message.

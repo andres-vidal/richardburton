@@ -107,6 +107,7 @@
     "searching": "Searching the collection",
     "matched": "matched",
     "empty": "No results found, try another query.",
+    "none": "No publications yet.",
     "showLess": "Show less",
     "showAll": "Show all"
   },

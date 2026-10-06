@@ -779,8 +779,22 @@ function hydrate(store: Store, publications: Publication[]): PublicationId[] {
   });
 
   forget(leaving);
+  markLoadedWhenEmpty(store, ids.length);
 
   return ids;
+}
+
+/**
+ * Sets the reading order to `[]` when `count` is 0, which marks the working set
+ * as loaded with no rows.
+ *
+ * Writing an empty order to a document that is already empty changes nothing,
+ * so the document's observer does not run, and the order would stay unset,
+ * which reads as "not loaded yet". With rows, the observer has already set the
+ * order, and setting it again would re-render the whole table.
+ */
+function markLoadedWhenEmpty(store: Store, count: number): void {
+  if (count === 0) store.set(publicationIdsAtom, []);
 }
 
 /**
@@ -844,12 +858,7 @@ function setAll(store: Store, entries: PublicationEntry[]): void {
   Doc.setAll(doc, entries);
   undo.stopCapturing();
   setErrors(store, entries);
-
-  // With no entries, the document may already be empty. `Doc.setAll` then
-  // changes nothing and the observer does not run, so the order is set here.
-  // With entries, the observer has already set it, and setting it again would
-  // re-render the whole table.
-  if (entries.length === 0) store.set(publicationIdsAtom, []);
+  markLoadedWhenEmpty(store, entries.length);
 }
 
 /**

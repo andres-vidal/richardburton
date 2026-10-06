@@ -35,7 +35,8 @@ a parent can route to (or select) the tapped publication.
 The list resolves to one of three states from the store alone:
 
 - **Populated** — the sample above: an `<ol>` of cards for every visible id.
-- **Empty** — ids loaded but none match; renders `EmptySearchResults`. See the
+- **Empty** — ids loaded and none to show, because the database is empty or
+  the search matched nothing; renders `EmptySearchResults`. See the
   [Empty](?path=/story/publications-index-list--empty) story.
 - **Loading** — ids not loaded yet (`undefined`); renders a `ListSkeleton`
   placeholder. See the [Loading](?path=/story/publications-index-list--loading)
