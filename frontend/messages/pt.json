@@ -290,8 +290,8 @@
     "namesTitle": "Nomes",
     "namesDescription": "Tradutores, autores e editoras — corrija grafias ou una duplicatas.",
     "redo": "Refazer",
-    "undoHint": "Desfaz sua última alteração. As alterações de outras pessoas não são afetadas.",
-    "redoHint": "Refaz a alteração desfeita."
+    "undoHint": "Desfaz sua última alteração (Ctrl+Z, ou ⌘Z no Mac). As alterações de outras pessoas não são afetadas.",
+    "redoHint": "Refaz a alteração desfeita (Ctrl+Shift+Z ou Ctrl+Y, ou ⇧⌘Z no Mac)."
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",
