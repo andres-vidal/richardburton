@@ -1,4 +1,5 @@
 import { admits } from "app/api/auth/gate";
+import { appUrl } from "modules/app-url";
 import HTTP from "modules/http";
 import type { User } from "modules/users";
 import { NextRequest, NextResponse } from "next/server";
@@ -25,9 +26,11 @@ export async function GET(
   // before `finish`.
   const relayed: string[] = [];
 
-  // Always clear the handshake cookies, whatever the outcome.
+  // Redirects to `location` on `APP_URL` and clears the handshake cookies,
+  // whatever the outcome. `request.url` is not used as the base because behind
+  // a proxy it holds the address the server listens on, such as 0.0.0.0:3000.
   const finish = (location: string) => {
-    const response = NextResponse.redirect(new URL(location, request.url));
+    const response = NextResponse.redirect(new URL(location, appUrl()));
     for (const name of ["oauth_state", "oauth_verifier", "oauth_next"]) {
       response.headers.append("Set-Cookie", expire(name));
     }
