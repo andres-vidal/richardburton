@@ -36,6 +36,11 @@ country code.
 
 ## Hover and accessibility
 
-Hovering a shaded country darkens it by one shade and shows its name and count,
-from the shape's SVG `title`. The map has `aria-hidden`, and assistive technology reads
+Hovering a shaded country darkens it by one shade, shows its name and count from
+the shape's SVG `title`, and highlights its entry in the list. Hovering an entry
+in the list highlights it and darkens its country on the map. The map has `aria-hidden`, and assistive technology reads
 the list beside it, which has every count.
+
+<Description of={InsightMapStories.HoverLinksMapAndList} />
+
+<Canvas of={InsightMapStories.HoverLinksMapAndList} />

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { INSIGHTS } from "modules/insights-fixtures";
 import { worldMap } from "modules/world-map";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import InsightMap from "./InsightMap";
 
@@ -70,5 +70,38 @@ export const OnePublication: Story = {
     await expect(
       canvasElement.querySelectorAll('path[data-shade="1"]'),
     ).toHaveLength(1);
+  },
+};
+
+/**
+ * Hovering a country on the map highlights its entry in the list, and hovering
+ * an entry in the list darkens its country on the map.
+ */
+export const HoverLinksMapAndList: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const unitedStates = canvasElement.querySelector(
+      'path[data-code="US"]',
+    ) as SVGPathElement;
+    const canada = canvas
+      .getAllByRole("listitem")
+      .find((item) => item.textContent?.startsWith("Canada")) as HTMLElement;
+
+    await userEvent.hover(unitedStates);
+    await waitFor(() =>
+      expect(
+        canvas
+          .getAllByRole("listitem")
+          .find((item) => item.dataset.active === "true"),
+      ).toHaveTextContent("United States260"),
+    );
+
+    await userEvent.hover(canada);
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('path[data-code="CA"]'),
+      ).toHaveAttribute("data-active", "true"),
+    );
+    await expect(unitedStates).toHaveAttribute("data-active", "false");
   },
 };

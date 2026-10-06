@@ -2,7 +2,7 @@
 
 import type { WorldMap } from "modules/world-map";
 import { useFormatter, useTranslations } from "next-intl";
-import { FC, useId } from "react";
+import { FC, useId, useState } from "react";
 import InsightTitle from "./InsightTitle";
 
 /** A country with its name and its number of publications. */
@@ -40,8 +40,13 @@ const shade = (count: number) =>
  *
  * The shades are fixed bands rather than a scale of the largest count, so the
  * same shade means the same range on every search: one publication, two to
- * nine, ten to 99, and 100 or more. Countries with none are grey. Hovering a
- * shaded country darkens it by one shade and shows its name and count.
+ * nine, ten to 99, and 100 or more. Countries with none are grey.
+ *
+ * Hovering a shaded country darkens it by one shade, shows its name and count,
+ * and highlights its entry in the list. Hovering an entry in the list
+ * highlights it and darkens its country the same way. Both read the hovered
+ * country from one piece of state, and the map and the list mark it with
+ * `data-active`.
  *
  * The map is hidden from assistive technology, which reads the list.
  */
@@ -51,6 +56,7 @@ const InsightMap: FC<Props> = ({ title, hint, map, countries }) => {
   const format = useFormatter();
 
   const counts = new Map(countries.map((country) => [country.code, country]));
+  const [active, setActive] = useState<string | null>(null);
 
   return (
     <section aria-labelledby={id} className="space-y-3">
@@ -68,8 +74,14 @@ const InsightMap: FC<Props> = ({ title, hint, map, countries }) => {
                 <path
                   key={code ?? index}
                   d={d}
+                  data-code={country?.code}
                   data-shade={shade(country?.count ?? 0)}
-                  className="transition-colors fill-gray-200 stroke-white stroke-[0.5] data-[shade=1]:fill-indigo-200 data-[shade=2]:fill-indigo-400 data-[shade=3]:fill-indigo-600 data-[shade=4]:fill-indigo-800 data-[shade=1]:hover:fill-indigo-300 data-[shade=2]:hover:fill-indigo-500 data-[shade=3]:hover:fill-indigo-700 data-[shade=4]:hover:fill-indigo-950"
+                  data-active={country ? country.code === active : undefined}
+                  onMouseEnter={
+                    country ? () => setActive(country.code) : undefined
+                  }
+                  onMouseLeave={country ? () => setActive(null) : undefined}
+                  className="transition-colors fill-gray-200 stroke-white stroke-[0.5] data-[shade=1]:fill-indigo-200 data-[shade=2]:fill-indigo-400 data-[shade=3]:fill-indigo-600 data-[shade=4]:fill-indigo-800 data-[shade=1]:data-[active=true]:fill-indigo-300 data-[shade=2]:data-[active=true]:fill-indigo-500 data-[shade=3]:data-[active=true]:fill-indigo-700 data-[shade=4]:data-[active=true]:fill-indigo-950"
                 >
                   {country ? (
                     <title>{`${country.name} · ${format.number(country.count)}`}</title>
@@ -90,9 +102,15 @@ const InsightMap: FC<Props> = ({ title, hint, map, countries }) => {
             ))}
           </ul>
         </div>
-        <ol className="space-y-1 max-w-xs text-sm">
+        <ol className="space-y-0.5 max-w-xs text-sm">
           {countries.map(({ code, name, count }) => (
-            <li key={code} className="flex gap-3 justify-between">
+            <li
+              key={code}
+              data-active={code === active}
+              onMouseEnter={() => setActive(code)}
+              onMouseLeave={() => setActive(null)}
+              className="flex gap-3 justify-between py-0.5 px-2 -mx-2 rounded transition-colors data-[active=true]:bg-indigo-100"
+            >
               <span className="text-gray-900">{name}</span>
               <span className="text-gray-700 tabular-nums">
                 {format.number(count)}
