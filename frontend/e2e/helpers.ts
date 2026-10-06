@@ -305,7 +305,10 @@ export async function moveSelectedRows(
 ) {
   const rows = count === 1 ? "row" : "rows";
 
-  await page.getByRole("button", { name: `Move ${count}` }).click();
+  // Exact, because "Remove N" contains "Move N" in any letter case.
+  await page
+    .getByRole("button", { name: `Move ${count}`, exact: true })
+    .click();
 
   const dialog = page.getByRole("dialog", {
     name: `Move ${count} ${rows} to another document`,

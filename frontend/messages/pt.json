@@ -278,6 +278,8 @@
     "undo": "Desfazer",
     "deselect": "Desmarcar {count}",
     "duplicate": "Duplicar {count}",
+    "remove": "Remover {count}",
+    "removeHint": "Remove as linhas selecionadas para todos neste documento. Desfazer as traz de volta.",
     "move": "Mover {count}",
     "resetOverridden": "{count, plural, one {Restaurar # editada} other {Restaurar # editadas}}",
     "byActor": "{actor, select, system {pelo sistema} other {por {actor}}}",

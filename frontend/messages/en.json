@@ -278,6 +278,8 @@
     "undo": "Undo",
     "deselect": "Deselect {count}",
     "duplicate": "Duplicate {count}",
+    "remove": "Remove {count}",
+    "removeHint": "Removes the selected rows for everyone in this document. Undo brings them back.",
     "move": "Move {count}",
     "resetOverridden": "{count, plural, one {Reset # overridden} other {Reset # overridden}}",
     "byActor": "{actor, select, system {by the system} other {by {actor}}}",

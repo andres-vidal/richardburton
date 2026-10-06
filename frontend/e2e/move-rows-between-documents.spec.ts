@@ -58,7 +58,7 @@ test("rows that are not ready are set aside in a new document, and the rest of t
 
   // Move them to a new document, and open it in a new tab from the dialog that
   // says where they went.
-  await page.getByRole("button", { name: "Move 2" }).click();
+  await page.getByRole("button", { name: "Move 2", exact: true }).click();
   const dialog = page.getByRole("dialog", {
     name: "Move 2 rows to another document",
   });

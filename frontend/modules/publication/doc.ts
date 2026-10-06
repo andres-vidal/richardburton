@@ -228,22 +228,38 @@ function appendRows(
 
 /**
  * Removes the rows `ids`, their check results and their keys in the reading
+ * order. The caller runs it inside a transaction with the origin it needs.
+ */
+function withdraw(doc: Y.Doc, ids: PublicationId[]): void {
+  const leaving = new Set(ids.map(String));
+
+  dropRows(doc, ids);
+
+  // Deleted from the end, so the positions still to delete do not shift.
+  order(doc)
+    .toArray()
+    .flatMap((key, at) => (leaving.has(key) ? [at] : []))
+    .reverse()
+    .forEach((at) => order(doc).delete(at, 1));
+}
+
+/**
+ * Removes the rows `ids`, their check results and their keys in the reading
  * order, in one transaction with the origin `MOVED`, because they were moved to
  * another document.
  */
 function moveOut(doc: Y.Doc, ids: PublicationId[]): void {
-  const leaving = new Set(ids.map(String));
+  doc.transact(() => withdraw(doc, ids), MOVED);
+}
 
-  doc.transact(() => {
-    dropRows(doc, ids);
-
-    // Deleted from the end, so the positions still to delete do not shift.
-    order(doc)
-      .toArray()
-      .flatMap((key, at) => (leaving.has(key) ? [at] : []))
-      .reverse()
-      .forEach((at) => order(doc).delete(at, 1));
-  }, MOVED);
+/**
+ * Removes the rows `ids`, their check results and their keys in the reading
+ * order, in one transaction with the origin `LOCAL`. The undo manager tracks
+ * the removal, so one undo brings all the rows back, without their check
+ * results.
+ */
+function removeRows(doc: Y.Doc, ids: PublicationId[]): void {
+  write(doc, () => withdraw(doc, ids));
 }
 
 /** Add one row at the end. */
@@ -308,13 +324,7 @@ function appendOrder(doc: Y.Doc, ids: PublicationId[]): void {
 /** Removes a row from the document, with its place in the order and its check
  * results. */
 function removeRow(doc: Y.Doc, id: PublicationId): void {
-  write(doc, () => {
-    rows(doc).delete(String(id));
-    forgetResults(doc, String(id));
-
-    const at = order(doc).toArray().indexOf(String(id));
-    if (at >= 0) order(doc).delete(at, 1);
-  });
+  removeRows(doc, [id]);
 }
 
 /**
@@ -563,6 +573,7 @@ export {
   putRow,
   readRow,
   removeRow,
+  removeRows,
   setAll,
   setField,
   setOrder,

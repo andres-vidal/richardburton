@@ -1,0 +1,25 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as RemoveStories from "./PublicationRemove.stories";
+
+<Meta of={RemoveStories} />
+
+# Publication remove
+
+A secondary button in the import workspace's footer, shown while rows are
+selected. It removes the selected rows from the import document for everyone in
+it, and clears the selection. Its label counts the selected rows ("Remove 2").
+
+The removal asks for no confirmation. It is written to the document as one edit
+of the person who removed the rows, so their Undo brings the rows back, and the
+rows are then validated again. The button reads the selection from
+`modules/selection` and removes the rows with `remove` from the publication
+store.
+
+<Description of={RemoveStories.NothingSelected} />
+
+<Canvas of={RemoveStories.NothingSelected} />
+
+<Description of={RemoveStories.TwoRowsSelected} />
+
+<Canvas of={RemoveStories.TwoRowsSelected} />
