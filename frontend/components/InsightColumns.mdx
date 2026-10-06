@@ -1,0 +1,47 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightColumnsStories from "./InsightColumns.stories";
+
+<Meta of={InsightColumnsStories} />
+
+# Insight columns
+
+A titled column chart with one column for each year, drawn in an
+[Insight section](?path=/docs/insights-insight-section--docs). A column stacks its series from the bottom, and
+its height is its total as a fraction of the largest total, which is written at
+the top of the chart.
+
+<Canvas of={InsightColumnsStories.Years} />
+
+## Props
+
+- `title` — the heading of the chart, and the accessible name of the section
+  around it and of its table.
+- `hint` — an optional explanation of what the chart shows, in an
+  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
+- `heading` — the heading of the table's first column, such as "Year".
+- `series` — the name of each series, in the order they are stacked from the
+  bottom. They are listed in an [Insight legend](?path=/docs/insights-insight-legend--docs).
+- `years` — every year to draw, in order, each with its `counts` in the order
+  of `series`.
+
+## Labels under the columns
+
+Years divisible by 20 are always labelled under the chart, and the other
+decades only on screens at least as wide as the `md` breakpoint, where there is
+room for them. `tickOf` in `modules/insights` decides which. A label under the
+first or last column is aligned inwards, so it stays inside the chart.
+
+<Canvas of={InsightColumnsStories.OneDecade} />
+
+## Hover
+
+Hovering a column shows its year, its total, and its count in each series
+where that count is above 0. The play test of the first story checks the text
+it shows for 2012.
+
+## Accessibility
+
+The drawing has `aria-hidden`. The section holds an
+[Insight table](?path=/docs/insights-insight-table--docs) of the same counts,
+which assistive technology reads instead.

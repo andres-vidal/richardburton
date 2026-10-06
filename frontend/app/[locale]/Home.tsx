@@ -3,6 +3,7 @@
 import DashboardIcon from "assets/dashboard.svg";
 import Button from "components/Button";
 import ColumnMenu from "components/ColumnMenu";
+import DatabaseSummary from "components/DatabaseSummary";
 import Layout from "components/Layout";
 import PublicationDownload from "components/PublicationDownload";
 import { PublicationIndexList } from "components/PublicationIndexList";
@@ -91,18 +92,10 @@ function Database({ index }: Props) {
       }
       subheader={
         <div className="py-4 space-y-4">
-          <div className="flex items-center justify-center gap-3 text-sm text-indigo-700">
-            <span className="border-b grow h-fit" />
-            <span>
-              {search
-                ? t("matching", { count: matching })
-                : t("count", { count })}
-            </span>
-            <span className="border-b grow h-fit" />
-          </div>
+          <DatabaseSummary view="list" count={search ? matching : count} />
           <div className="flex gap-2 items-start pr-3 md:pr-0">
             <div className="grow min-w-0">
-              <PublicationSearch />
+              <PublicationSearch matched={index.matched} />
             </div>
             <div className="hidden sm:block">
               <ColumnMenu />

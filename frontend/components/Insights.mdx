@@ -1,0 +1,81 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightsStories from "./Insights.stories";
+
+<Meta of={InsightsStories} />
+
+# Insights
+
+Counts for every publication in the database, or for the ones a search
+matches. `Insights` is the content of the insights page at `/insights`, and
+`InsightsHeading` is the page's subheader.
+
+<Canvas of={InsightsStories.Everything} />
+
+## Props
+
+Both take an `insights` prop, the response of `GET /insights`. Most of its
+counts are numbers of publications, so a book published twice counts twice.
+`Insights` reads the outlines of the world map from the nearest
+`WorldMapProvider`, which the insights page's layout renders.
+
+Every figure and chart has an
+[Info hint](?path=/docs/components-info-hint--docs) that says what it counts.
+The page has no introduction of its own, and the definitions it needs, such as
+what a work is, are in the hints.
+
+- **Figures** — see [Insight figures](?path=/docs/insights-insight-figures--docs).
+- **Publications per year** — every year from the first to the last, split by
+  the two countries with the most publications and everything else, drawn with
+  [Insight columns](?path=/docs/insights-insight-columns--docs). Decades
+  divisible by 20 are labelled under the chart, and the others too on wider
+  screens.
+- **Publications by decade** — every decade from the first to the last, split
+  into first translations, retranslations and reissues, drawn with
+  [Insight stacks](?path=/docs/insights-insight-stacks--docs). A reissue is a
+  later publication of a translation, and a retranslation is the first
+  publication of a work's second or later translation. The backend judges
+  these over the whole database, so a search does not turn a reissue into a
+  first translation.
+- **Most translated authors** and **publishers** — up to ten names in each field
+  with the most publications.
+- **Authors first translated, by decade** — the authors the publications name,
+  counted by the decade of their first publication in the database.
+- **Translators with the most publications** — up to ten translators, each on
+  an [Insight timeline](?path=/docs/insights-insight-timeline--docs) with a dot
+  for each year they published in, sized by the publications that year.
+- **Most frequent author–translator pairs** — up to ten pairs of an original
+  author and a translator, by the publications they appear in together.
+- **Works translated more than once** — a work is an original book, and a
+  translation is one translated text of it by its translators. Each work is on
+  a timeline with a dot for each translation, in the year it was first
+  published, and its value counts translations, so a translation published
+  twice counts once.
+- **Publications by country** — every country, named in the reader's language,
+  shaded on an [Insight map](?path=/docs/insights-insight-map--docs) and listed
+  with its count beside it.
+
+The year chart and the map take the full width. The other charts share a grid
+of up to three columns, and the two timelines span two of them.
+
+## Empty lists and empty results
+
+The timeline of works translated more than once is left out when no work has
+more than one translation. The other charts always have entries when there are
+publications.
+
+<Canvas of={InsightsStories.NoWorkTranslatedTwice} />
+
+When a search matches no publications, the component shows a message instead
+of the figures and lists.
+
+<Canvas of={InsightsStories.NothingMatched} />
+
+## InsightsHeading
+
+`InsightsHeading` shows how many publications are counted, the links to the two
+views from `DatabaseSummary`, and the search box that filters what is counted.
+The backend parses the search the same way as for the index. The response's
+`matched` field is passed to `PublicationSearch` as its report.
+
+<Canvas of={InsightsStories.Heading} />

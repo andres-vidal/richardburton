@@ -1,0 +1,38 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightStacksStories from "./InsightStacks.stories";
+
+<Meta of={InsightStacksStories} />
+
+# Insight stacks
+
+A titled list of stacked bars, one for each entry, such as each decade. Each
+row shows its label and total above a grey track, and a bar on the track stacks
+the row's series from the left. A bar's length is the row's total as a fraction
+of the largest total, so a row with a total of 0, such as a decade with no
+publications, shows only the track.
+
+<Canvas of={InsightStacksStories.Decades} />
+
+## Props
+
+- `title` — the heading of the chart, and the accessible name of the section
+  around it and of its table.
+- `hint` — an optional explanation of what the chart shows, in an
+  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
+- `heading` — the heading of the table's first column, such as "Decade".
+- `series` — the name of each series, in the order they are stacked from the
+  left. They are listed in an [Insight legend](?path=/docs/insights-insight-legend--docs).
+- `rows` — the entries, each with a `key`, a `label` and its `counts` in the
+  order of `series`.
+
+## Hover
+
+Hovering a row shows its count in each series. The play test of the first
+story checks the text it shows for the 1960s.
+
+## Accessibility
+
+The bars have `aria-hidden`. The section holds an
+[Insight table](?path=/docs/insights-insight-table--docs) of the same counts,
+which assistive technology reads instead.

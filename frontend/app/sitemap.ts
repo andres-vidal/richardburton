@@ -19,8 +19,8 @@ function entry(path: string, priority: number): MetadataRoute.Sitemap {
 }
 
 /**
- * Every page worth finding from outside: the database itself and each
- * publication in it.
+ * Lists the pages a search engine should find: the database itself, the
+ * insights page, and the page of each publication.
  *
  * A record is only reachable by following a row, so without this a crawler gets
  * the front page and nothing else.
@@ -30,6 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...entry("", 1),
+    ...entry("/insights", 0.9),
     ...order.flatMap((id) => entry(`/publications/${id}`, 0.8)),
   ];
 }

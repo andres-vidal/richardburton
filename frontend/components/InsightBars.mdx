@@ -1,0 +1,40 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightBarsStories from "./InsightBars.stories";
+
+<Meta of={InsightBarsStories} />
+
+# Insight bars
+
+A titled list of counts, drawn in an [Insight section](?path=/docs/insights-insight-section--docs). Each item shows its
+label and its count, formatted for the reader's locale, above a bar whose length
+is its count as a fraction of the largest count in the list.
+
+<Canvas of={InsightBarsStories.Names} />
+
+## Props
+
+- `title` — the heading of the list. It is also the accessible name of the
+  section around the list.
+- `hint` — an optional explanation of what the list shows, in an
+  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
+- `bars` — the items, in the order they are listed. Each has a `key`, a
+  `label`, an optional `detail` shown after the label, and the `count`.
+
+The detail suits a second name for the item, such as the translator who
+appears with an author.
+
+<Canvas of={InsightBarsStories.WithDetails} />
+
+## Items with a count of 0
+
+An item with a count of 0 is listed with an empty bar. It is not left out, so a
+decade with no publications still appears in the list of decades.
+
+<Canvas of={InsightBarsStories.WithNothingCounted} />
+
+## Accessibility
+
+- The list is an `ol` inside a `section` labelled by the title.
+- The bars have `aria-hidden`. Assistive technology reads the label and the
+  count instead.

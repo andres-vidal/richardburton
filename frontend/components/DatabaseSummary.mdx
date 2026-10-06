@@ -1,0 +1,40 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DatabaseSummaryStories from "./DatabaseSummary.stories";
+
+<Meta of={DatabaseSummaryStories} />
+
+# Database summary
+
+The line at the top of the database pages. It shows how many publications there
+are, or how many a search found, and links to the two views of the database.
+The list view shows the publications, and the insights view shows counts about
+them.
+
+<Canvas of={DatabaseSummaryStories.OverTheList} />
+
+## Props
+
+- `count` — the number of publications, or the number a search found when the
+  URL has a search. The line reads "registered so far" for the first and
+  "found" for the second. The page passes the number in, because the list and
+  the insights page get their counts from different data.
+- `view` — the current view, `list` or `insights`. Its link is marked as the
+  current page.
+
+<Canvas of={DatabaseSummaryStories.OverTheInsights} />
+
+## The search in the links
+
+Both links keep the `search` query parameter from the current URL. Switching
+views keeps the same search, so a search for one author in the list opens the
+insights for that author, and the other way round.
+
+<Canvas of={DatabaseSummaryStories.WhileSearching} />
+
+## Accessibility
+
+- The links are in a `nav` labelled "Ways of reading the database", which makes
+  them a landmark.
+- The current view's link has `aria-current="page"`. The same attribute sets its
+  highlighted style.

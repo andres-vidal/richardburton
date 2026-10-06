@@ -192,12 +192,38 @@ defmodule RichardBurton.Publication.Index do
   @doc "How many publications a page holds."
   def per_page, do: @per_page
 
+  @doc """
+  Returns a query for the publications a term matches, or for every publication
+  when the term is `nil`. The query has no ordering.
+
+  It always returns a query. When the term has nothing to search for, the query
+  returns no rows, so callers can count over it without a separate check.
+  """
+  def matching(nil), do: from(fp in FlatPublication)
+
+  def matching(term) when is_binary(term) do
+    case criteria(term) do
+      :none -> from(fp in FlatPublication, where: false)
+      criteria -> matched(criteria)
+    end
+  end
+
   # The criteria that answer a term and the ids they matched, or `:none` if nothing
   # in the index matches.
-  #
-  # A term that quotes a phrase or excludes a word with `-` is saying exactly what
-  # it wants, so it is passed to Postgres as written and never widened.
   defp answering(term) do
+    case criteria(term) do
+      :none -> :none
+      criteria -> {criteria, order_ids(criteria)}
+    end
+  end
+
+  # Parses a term into criteria. Returns `:none` when the term has nothing to
+  # search for, because it is blank or because none of its words matches a word
+  # in the index and it has no operator.
+  #
+  # A term with quotes or a word excluded with `-`, and no operator, is passed
+  # to Postgres as written. Its words are not widened to similar words.
+  defp criteria(term) do
     alternatives = Term.parse(term)
 
     cond do
@@ -206,15 +232,11 @@ defmodule RichardBurton.Publication.Index do
 
       # Quotes or exclusions, with no operator: passed to Postgres as written.
       Term.plain?(alternatives) and Query.spelled_out?(term) ->
-        criteria = {:spelled_out, term}
-        {criteria, order_ids(criteria)}
+        {:spelled_out, term}
 
       true ->
         criteria = Query.criteria(alternatives)
-
-        if Query.empty?(criteria),
-          do: :none,
-          else: {criteria, order_ids(criteria)}
+        if Query.empty?(criteria), do: :none, else: criteria
     end
   end
 
@@ -226,11 +248,18 @@ defmodule RichardBurton.Publication.Index do
   # id. Rows with the same rank have to sort the same way every time, or paging
   # through the results would repeat or skip some.
   defp ranked(criteria) do
+    criteria
+    |> matched()
+    |> order_by(^[desc: Query.ranking(criteria), asc: :title, asc: :id])
+  end
+
+  # A query for the publications the criteria match. Each publication is joined
+  # to its search document, which the criteria are tested against.
+  defp matched(criteria) do
     from(p in FlatPublication,
       join: d in SearchDocument,
       on: d.id == p.id,
-      where: ^Query.matches(criteria),
-      order_by: ^[desc: Query.ranking(criteria), asc: :title, asc: :id]
+      where: ^Query.matches(criteria)
     )
   end
 

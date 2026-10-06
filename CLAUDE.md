@@ -69,6 +69,10 @@ Do not use early returns in components; express branches as ternaries in the ret
 
 Every component ships both a `*.stories.tsx` covering its meaningful states, with play tests where behaviour warrants, and a `*.mdx` doc with `<Meta of={…} />`, a short description, props and a `<Canvas>` of the key states. Give every story a JSDoc comment of a sentence or two saying what it shows, or what its play test checks. In the `.mdx`, put text right before every `<Canvas>`: prose about that state, or `<Description of={…} />`, which shows the story's JSDoc. When you add or change a component, update both files.
 
+## Test fixtures
+
+Keep fixtures, fakes and helpers that only tests and stories use in the test directories, `frontend/test/` and `backend/test/support/`, not among the application's modules in `frontend/modules/` or `backend/lib/`.
+
 ## E2E coverage
 
 Keep the Playwright suite (`frontend/e2e/`) exhaustive: every user-facing feature ships with a journey, and tests favour complex, realistic scenarios over minimal ones. Seed a corpus rather than a single row, exercise bulk flows rather than the shortest path, and assert cross-feature consequences. Tests drive the real UI only — no API calls to set up or assert state, the per-test database reset excepted. Extend the suite in the same change as the feature.

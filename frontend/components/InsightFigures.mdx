@@ -1,0 +1,38 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightFiguresStories from "./InsightFigures.stories";
+
+<Meta of={InsightFiguresStories} />
+
+# Insight figures
+
+The main figures for a set of publications: how many there are, how many
+distinct works and names they contain, the years they cover, and how many cite
+a source. They are the first section of the insights page.
+
+<Canvas of={InsightFiguresStories.Figures} />
+
+## Props
+
+A single `insights` prop, the response of `GET /insights`. The figures come from
+its `publications`, `totals`, `years` and `sourced` fields.
+
+## Number formatting
+
+Counts are formatted for the reader's locale, so large numbers use the locale's
+digit grouping. Years are written without grouping, because they are not
+quantities. When there are no publications, `years` is null and the Years
+figure shows a dash.
+
+<Canvas of={InsightFiguresStories.NothingCounted} />
+
+## Accessibility
+
+Each figure is a `dt` and `dd` pair in a description list. The value is
+displayed above its term but comes after it in the markup, so a screen reader
+reads a figure as "Publications, 428".
+
+Each term is followed by an [Info hint](?path=/docs/components-info-hint--docs)
+that says what the figure counts, such as what a work is. Its button is named
+"About" followed by the term, and it has no text of its own, so the term's text
+is the term alone.

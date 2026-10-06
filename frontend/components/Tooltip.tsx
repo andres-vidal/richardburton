@@ -10,6 +10,11 @@ type Props = Omit<TooltipProps, "content"> & {
   variant?: "error" | "warning" | "info";
 };
 
+/**
+ * A styled tooltip on its child, built on `TooltipProvider`, that shows
+ * `message` with the icon of its `variant`. The message wraps at 20rem, so a
+ * long one stays readable. Nothing is shown when `message` is empty.
+ */
 const Tooltip: FC<Props> = ({ children, message, variant, ...props }) => {
   const content = (
     <div
@@ -34,7 +39,7 @@ const Tooltip: FC<Props> = ({ children, message, variant, ...props }) => {
         {variant === "info" && <InfoCircleIcon className="w-5 aspect-square" />}
       </span>
 
-      <span>{message}</span>
+      <span className="max-w-xs">{message}</span>
     </div>
   );
 

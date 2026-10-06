@@ -1,0 +1,53 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightTimelineStories from "./InsightTimeline.stories";
+
+<Meta of={InsightTimelineStories} />
+
+# Insight timeline
+
+A titled list of rows on one axis of years. Each row shows its label and value,
+and a track with a dot at the year of each mark, joined by a line from the
+first mark to the last.
+
+<Canvas of={InsightTimelineStories.Weighted} />
+
+## Props
+
+- `title` — the heading of the chart, and the accessible name of the section
+  around it.
+- `hint` — an optional explanation of what the chart shows, in an
+  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
+- `tracks` — the rows, each with a `key`, a `label`, an optional `detail` shown
+  after the label, a `value`, which is the row's count as text, and its
+  `marks`.
+
+Each mark has a `year`, a `label` that says what the dot stands for, and an
+optional `weight`. A dot's size is its weight relative to the largest weight in
+the chart.
+
+## Dots without a weight
+
+When the marks have no weight, every dot is the same size, a third of the way
+between the smallest and the largest.
+
+<Canvas of={InsightTimelineStories.Unweighted} />
+
+## The axis
+
+The axis runs from the decade of the earliest mark to the end of the decade of
+the latest, the same for every row, so rows can be compared. Decades divisible
+by 20 are always labelled, and the others only on screens at least as wide as
+the `md` breakpoint. The labels at either end are aligned inwards, so they stay
+inside the axis. On narrow screens, each row's label is written above its
+track.
+
+## Hover
+
+Hovering a dot shows its mark's label, such as the year and translators of a
+translation.
+
+## Accessibility
+
+The tracks and the axis have `aria-hidden`. Each row is a list item that reads
+its label and value, and then the labels of its marks.
