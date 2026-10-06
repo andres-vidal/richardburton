@@ -1,6 +1,5 @@
 "use client";
 
-import { useMatched } from "modules/publication/hooks";
 import type { Matched } from "modules/publication/model";
 import { Link } from "i18n/navigation";
 import { usePathname, useRouter } from "i18n/navigation";
@@ -80,13 +79,12 @@ const SearchProgress: FC = () => {
 type Props = {
   /**
    * The words the search in the URL matched with something other than what was
-   * typed. When it is not given, the component reads them from the publication
-   * store, where the index page keeps them.
+   * typed, as the page read them with its results.
    */
-  matched?: Matched[];
+  matched: Matched[];
 };
 
-const PublicationSearch: FC<Props> = (props) => {
+const PublicationSearch: FC<Props> = ({ matched }) => {
   const t = useTranslations("search");
   const router = useRouter();
   const pathname = usePathname() ?? "";
@@ -95,8 +93,6 @@ const PublicationSearch: FC<Props> = (props) => {
   // reader is still on the page they typed into.
   const address = useAddressPathname();
   const searchParams = useSearchParams();
-  const stored = useMatched();
-  const matched = props.matched ?? stored;
   const [isNavigating, startTransition] = useTransition();
 
   const searchUrlParam = searchParams?.get("search") ?? "";

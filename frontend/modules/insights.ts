@@ -3,9 +3,6 @@ import type { Matched } from "modules/publication/model";
 /** A name and the number of publications it appears in. */
 type Counted = { name: string; count: number };
 
-/** A year and the number of publications in it. */
-type Dated = { year: number; count: number };
-
 /**
  * The response of `GET /insights`: counts for every publication in the
  * database, or for the ones a search matches.
@@ -40,13 +37,12 @@ type Insights = {
     years: { year: number; counts: number[]; elsewhere: number }[];
   };
   /**
-   * The number of publications in each decade, from the first to the last, in
-   * all and by kind. A decade is named by its first year. Decades with no
-   * publications are included with counts of 0.
+   * The number of publications in each decade, from the first to the last, by
+   * kind. A decade is named by its first year. Decades with no publications
+   * are included with counts of 0.
    */
   decades: {
     decade: number;
-    count: number;
     firstTranslations: number;
     retranslations: number;
     reissues: number;
@@ -70,7 +66,7 @@ type Insights = {
    * any, earliest first.
    */
   originalAuthors: Counted[];
-  translators: (Counted & { years: Dated[] })[];
+  translators: (Counted & { years: { year: number; count: number }[] })[];
   publishers: Counted[];
   /**
    * Up to ten pairs of an original author and a translator that appear
@@ -88,7 +84,6 @@ type Insights = {
     title: string;
     authors: string[];
     translations: number;
-    publications: number;
     timeline: { year: number; translators: string[] }[];
   }[];
   /** How many publications cite at least one source. */
@@ -100,4 +95,18 @@ type Insights = {
   matched: Matched[] | null;
 };
 
-export type { Counted, Dated, Insights };
+/** Returns the sum of `counts`. */
+const total = (counts: number[]) =>
+  counts.reduce((sum, count) => sum + count, 0);
+
+/**
+ * Returns how a year is labelled on a chart's axis: `"major"` for a year
+ * divisible by 20, which is always labelled, `"minor"` for another year
+ * divisible by 10, which is labelled where there is room, and undefined for
+ * any other year.
+ */
+const tickOf = (year: number) =>
+  year % 20 === 0 ? "major" : year % 10 === 0 ? "minor" : undefined;
+
+export { tickOf, total };
+export type { Counted, Insights };

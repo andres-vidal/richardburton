@@ -92,17 +92,10 @@ function Database({ index }: Props) {
       }
       subheader={
         <div className="py-4 space-y-4">
-          <DatabaseSummary
-            view="list"
-            summary={
-              search
-                ? t("matching", { count: matching })
-                : t("count", { count })
-            }
-          />
+          <DatabaseSummary view="list" count={search ? matching : count} />
           <div className="flex gap-2 items-start pr-3 md:pr-0">
             <div className="grow min-w-0">
-              <PublicationSearch />
+              <PublicationSearch matched={index.matched} />
             </div>
             <div className="hidden sm:block">
               <ColumnMenu />

@@ -23,8 +23,8 @@ new rows are ready — and is debounced, so a typist does not ask for a page per
 letter. "Searching…" shows while what has been typed and what the URL says have
 not met, or the page for it is still coming.
 
-The report below the input is **state-driven** — it reads what the index made of
-the term from the publication store (`useMatched`). Only the words the index read
+The report below the input shows `matched`, what the index made of the term,
+which the page passes in with its results. Only the words the index read
 differently from the way they were typed are there: a reader who typed `machado`
 and is told the search was for `machado` has learnt nothing, so most searches
 report nothing at all. A widened one reads `Maries matched marie, maria, mario`,

@@ -1,6 +1,8 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 import {
+  CORPUS_SIZE,
+  CORPUS_UNSOURCED,
   CSV_HEADER,
   expectMatchCount,
   expectPublicationCount,
@@ -45,18 +47,20 @@ test("the insights count what the database holds, and a search carries between t
   await signOut(page);
 
   await page.goto("/");
-  await expectPublicationCount(page, 7);
+  await expectPublicationCount(page, CORPUS_SIZE);
   await page.getByRole("link", { name: "Insights" }).click();
   await expect(page).toHaveURL(/\/insights$/);
 
-  await expect(figure(page, "Publications")).toHaveText("7");
+  await expect(figure(page, "Publications")).toHaveText(String(CORPUS_SIZE));
   await expect(figure(page, "Works")).toHaveText("7");
   await expect(figure(page, "Original authors")).toHaveText("5");
   await expect(figure(page, "Translators")).toHaveText("7");
   await expect(figure(page, "Publishers")).toHaveText("5");
   await expect(figure(page, "Countries")).toHaveText("2");
   await expect(figure(page, "Years")).toHaveText("1886–1986");
-  await expect(figure(page, "Cite a source")).toHaveText("3 of 7");
+  await expect(figure(page, "Cite a source")).toHaveText(
+    `${CORPUS_SIZE - CORPUS_UNSOURCED} of ${CORPUS_SIZE}`,
+  );
 
   // Each figure explains what it counts in a tooltip beside its term.
   await page.getByRole("button", { name: "About Works", exact: true }).hover();

@@ -1,9 +1,8 @@
 "use client";
 
 import type { Counted, Insights as Described } from "modules/insights";
-import type { WorldMap } from "modules/world-map";
 import { useCountryNaming } from "modules/country-names";
-import { useSearchParams } from "next/navigation";
+import { useWorldMap } from "modules/world-map-provider";
 import { useFormatter, useTranslations } from "next-intl";
 import { FC } from "react";
 import DatabaseSummary from "./DatabaseSummary";
@@ -24,22 +23,13 @@ type Props = { insights: Described };
  * links to the two views of the database, and the search box that filters what
  * is counted.
  */
-const InsightsHeading: FC<Props> = ({ insights }) => {
-  const t = useTranslations("home");
-  const search = useSearchParams()?.get("search");
-  const count = insights.publications;
-
-  return (
-    <div className="py-4 space-y-4">
-      <DatabaseSummary
-        view="insights"
-        summary={search ? t("matching", { count }) : t("count", { count })}
-      />
-      <PublicationSearch matched={insights.matched ?? []} />
-      <SearchHelpModal />
-    </div>
-  );
-};
+const InsightsHeading: FC<Props> = ({ insights }) => (
+  <div className="py-4 space-y-4">
+    <DatabaseSummary view="insights" count={insights.publications} />
+    <PublicationSearch matched={insights.matched ?? []} />
+    <SearchHelpModal />
+  </div>
+);
 
 /**
  * The content of the insights page: the main figures, the publications per
@@ -48,24 +38,21 @@ const InsightsHeading: FC<Props> = ({ insights }) => {
  * translators with the years of their publications, the most frequent
  * author–translator pairs, the works translated more than once with the year
  * of each translation, the leading publishers, and the countries of
- * publication on a map drawn from `map`.
+ * publication on a map.
  *
- * When there are no publications to count, it shows a message instead of the
- * figures and charts. The works translated more than once are left out when
- * there are none.
+ * It reads the map's outlines from the nearest `WorldMapProvider`. When there
+ * are no publications to count, it shows a message instead of the figures and
+ * charts. The works translated more than once are left out when there are
+ * none.
  */
-const Insights: FC<Props & { map: WorldMap }> = ({ insights, map }) => {
+const Insights: FC<Props> = ({ insights }) => {
   const t = useTranslations("insights");
   const naming = useCountryNaming();
   const format = useFormatter();
+  const map = useWorldMap();
 
   const counted = (names: Counted[]) =>
-    names.map(({ name, count }) => ({
-      key: name,
-      label: name,
-      count,
-      value: format.number(count),
-    }));
+    names.map(({ name, count }) => ({ key: name, label: name, count }));
 
   return (
     <div className="pb-8 space-y-10">
@@ -83,19 +70,10 @@ const Insights: FC<Props & { map: WorldMap }> = ({ insights, map }) => {
               ...insights.annual.countries.map((code) => naming.name(code)),
               t("elsewhere"),
             ]}
-            columns={insights.annual.years.map(
-              ({ year, counts, elsewhere }) => ({
-                key: String(year),
-                label: String(year),
-                counts: [...counts, elsewhere],
-                tick:
-                  year % 20 === 0
-                    ? "major"
-                    : year % 10 === 0
-                      ? "minor"
-                      : undefined,
-              }),
-            )}
+            years={insights.annual.years.map(({ year, counts, elsewhere }) => ({
+              year,
+              counts: [...counts, elsewhere],
+            }))}
           />
           <div className="grid gap-10 md:grid-cols-2 md:grid-flow-row-dense xl:grid-cols-3">
             <InsightStacks
@@ -110,7 +88,7 @@ const Insights: FC<Props & { map: WorldMap }> = ({ insights, map }) => {
               rows={insights.decades.map(
                 ({ decade, firstTranslations, retranslations, reissues }) => ({
                   key: String(decade),
-                  label: t("decade", { decade: String(decade) }),
+                  label: t("decade", { decade }),
                   counts: [firstTranslations, retranslations, reissues],
                 }),
               )}
@@ -125,9 +103,8 @@ const Insights: FC<Props & { map: WorldMap }> = ({ insights, map }) => {
               hint={t("hints.debuts")}
               bars={insights.debuts.map(({ decade, count }) => ({
                 key: String(decade),
-                label: t("decade", { decade: String(decade) }),
+                label: t("decade", { decade }),
                 count,
-                value: format.number(count),
               }))}
             />
             <div className="md:col-span-2">
@@ -154,7 +131,6 @@ const Insights: FC<Props & { map: WorldMap }> = ({ insights, map }) => {
                 label: author,
                 detail: translator,
                 count,
-                value: format.number(count),
               }))}
             />
             {insights.retranslated.length > 0 && (

@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { seed } from "test/publication-fixtures";
-import { matchedAtom } from "modules/publication/store";
 import { store } from "modules/store";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
@@ -9,6 +8,7 @@ import PublicationSearch from "./PublicationSearch";
 const meta = {
   title: "Publications/Publication search",
   component: PublicationSearch,
+  args: { matched: [] },
   parameters: { layout: "padded" },
 } satisfies Meta<typeof PublicationSearch>;
 
@@ -76,17 +76,16 @@ export const Typing: Story = {
  */
 export const Widened: Story = {
   parameters: { nextjs: { navigation: { query: { search: "Maries" } } } },
-  beforeEach: () => {
-    seed(store);
-    store.set(matchedAtom, [
+  args: {
+    matched: [
       {
         field: null,
         typed: "Maries",
         words: ["marie", "maria", "mario", "marias"],
       },
-    ]);
-    return () => store.set(matchedAtom, undefined);
+    ],
   },
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const report = canvasElement.querySelector("#search-report");
@@ -111,11 +110,7 @@ export const Widened: Story = {
  */
 export const TakenAsWritten: Story = {
   parameters: { nextjs: { navigation: { query: { search: "machado" } } } },
-  beforeEach: () => {
-    seed(store);
-    store.set(matchedAtom, []);
-    return () => store.set(matchedAtom, undefined);
-  },
+  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).queryByRole("button", { name: "Show all" }),

@@ -105,6 +105,34 @@ body {
   }
 }
 
+/*
+  Map shades, one rule per band of publication counts. An element sets the band
+  in `data-shade`, from 1 for the fewest publications to 4 for the most. The
+  rule sets `--shade` to the band's colour and `--shade-active` to a darker one,
+  for a country while it is hovered.
+*/
+@layer base {
+  [data-shade="1"] {
+    --shade: var(--color-indigo-200);
+    --shade-active: var(--color-indigo-300);
+  }
+
+  [data-shade="2"] {
+    --shade: var(--color-indigo-400);
+    --shade-active: var(--color-indigo-500);
+  }
+
+  [data-shade="3"] {
+    --shade: var(--color-indigo-600);
+    --shade-active: var(--color-indigo-700);
+  }
+
+  [data-shade="4"] {
+    --shade: var(--color-indigo-800);
+    --shade-active: var(--color-indigo-950);
+  }
+}
+
 @utility focus-ring {
   @apply outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white;
 }
@@ -126,6 +154,12 @@ body {
    and the chart it describes use the same colours. */
 @utility bg-series {
   @apply data-[series=0]:bg-indigo-600 data-[series=1]:bg-amber-400 data-[series=2]:bg-indigo-200;
+}
+
+/* The box a chart shows over the mark under the pointer. It is hidden until
+   its nearest `group` ancestor is hovered. */
+@utility chart-tip {
+  @apply hidden absolute bottom-full z-10 py-1 px-2 mb-1 text-xs text-white whitespace-nowrap bg-gray-900 rounded pointer-events-none group-hover:block;
 }
 
 @utility bg-stripes-diagonal {

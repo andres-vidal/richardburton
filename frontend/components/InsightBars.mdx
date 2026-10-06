@@ -6,8 +6,9 @@ import * as InsightBarsStories from "./InsightBars.stories";
 
 # Insight bars
 
-A titled list of counts. Each item has a bar, and the bar's length is the
-item's count as a fraction of the largest count in the list.
+A titled list of counts, drawn in an [Insight section](?path=/docs/insights-insight-section--docs). Each item shows its
+label and its count, formatted for the reader's locale, above a bar whose length
+is its count as a fraction of the largest count in the list.
 
 <Canvas of={InsightBarsStories.Names} />
 
@@ -18,12 +19,10 @@ item's count as a fraction of the largest count in the list.
 - `hint` — an optional explanation of what the list shows, in an
   [Info hint](?path=/docs/components-info-hint--docs) beside the title.
 - `bars` — the items, in the order they are listed. Each has a `key`, a
-  `label`, an optional `detail` shown after the label, the `count` that sets
-  the bar's length, and a `value`, which is the count as text.
+  `label`, an optional `detail` shown after the label, and the `count`.
 
-The caller formats each `value`, because the unit differs between lists. Most
-lists count publications, and the list of authors first translated in each
-decade counts authors.
+The detail suits a second name for the item, such as the translator who
+appears with an author.
 
 <Canvas of={InsightBarsStories.WithDetails} />
 
@@ -38,4 +37,4 @@ decade with no publications still appears in the list of decades.
 
 - The list is an `ol` inside a `section` labelled by the title.
 - The bars have `aria-hidden`. Assistive technology reads the label and the
-  value instead.
+  count instead.

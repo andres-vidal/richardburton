@@ -1,43 +1,38 @@
-import { CSSProperties, FC, useId } from "react";
-import InsightTitle from "./InsightTitle";
-
-/** One item in the list, with its count. */
-type Bar = {
-  key: string;
-  /** The item's label, such as a name, a decade or a work's title. */
-  label: string;
-  /** Extra text shown after the label, such as a work's authors. */
-  detail?: string;
-  count: number;
-  /** The count as text. It is shown beside the label, above the bar. */
-  value: string;
-};
+import { useFormatter } from "next-intl";
+import { CSSProperties, FC } from "react";
+import InsightSection from "./InsightSection";
 
 type Props = {
   title: string;
-  /** What the chart shows, in a tooltip beside the title. */
+  /** What the list shows, in a tooltip beside the title. */
   hint?: string;
-  bars: Bar[];
+  /** The items, in the order they are listed. */
+  bars: {
+    key: string;
+    /** The item's label, such as a name or a decade. */
+    label: string;
+    /** Extra text shown after the label, such as a translator. */
+    detail?: string;
+    count: number;
+  }[];
 };
 
 /**
- * A titled list of counts. Each item has a bar whose length is its count as a
- * fraction of the largest count in the list.
+ * A titled list of counts. Each item shows its label and its count, formatted
+ * for the reader's locale, above a bar whose length is its count as a fraction
+ * of the largest count in the list.
  *
- * The caller formats each count as `value`, because the unit differs between
- * lists, such as publications or translations. Each bar is drawn under its
- * label and value, and is hidden from assistive technology, which reads the
- * label and value instead.
+ * The bars are hidden from assistive technology, which reads the label and the
+ * count instead.
  */
 const InsightBars: FC<Props> = ({ title, hint, bars }) => {
-  const id = useId();
+  const format = useFormatter();
   const most = Math.max(1, ...bars.map(({ count }) => count));
 
   return (
-    <section aria-labelledby={id} className="space-y-3">
-      <InsightTitle id={id} title={title} hint={hint} />
+    <InsightSection title={title} hint={hint}>
       <ol className="space-y-2">
-        {bars.map(({ key, label, detail, count, value }) => (
+        {bars.map(({ key, label, detail, count }) => (
           <li
             key={key}
             className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-baseline text-sm"
@@ -46,7 +41,9 @@ const InsightBars: FC<Props> = ({ title, hint, bars }) => {
               {label}
               {detail && <span className="text-gray-600"> · {detail}</span>}
             </span>
-            <span className="text-gray-700 tabular-nums">{value}</span>
+            <span className="text-gray-700 tabular-nums">
+              {format.number(count)}
+            </span>
             <span
               aria-hidden
               className="col-span-2 h-1.5 rounded-full bg-indigo-100"
@@ -59,9 +56,8 @@ const InsightBars: FC<Props> = ({ title, hint, bars }) => {
           </li>
         ))}
       </ol>
-    </section>
+    </InsightSection>
   );
 };
 
 export default InsightBars;
-export type { Bar };

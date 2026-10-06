@@ -6,7 +6,7 @@ import DatabaseSummary from "./DatabaseSummary";
 const meta = {
   title: "Components/Database summary",
   component: DatabaseSummary,
-  args: { summary: "428 publications registered so far", view: "list" },
+  args: { count: 428, view: "list" },
   parameters: { layout: "padded" },
 } satisfies Meta<typeof DatabaseSummary>;
 
@@ -14,10 +14,17 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Above the list: the list is the current view, and the insights are a link. */
+/**
+ * Above the list: the count of every publication, the list as the current
+ * view, and the insights as a link.
+ */
 export const OverTheList: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+
+    await expect(canvasElement).toHaveTextContent(
+      "428 publications registered so far",
+    );
 
     await expect(
       canvas.getByRole("link", { name: "Publications" }),
@@ -38,12 +45,17 @@ export const OverTheInsights: Story = {
   },
 };
 
-/** With a search in the URL, both links keep it. */
+/**
+ * With a search in the URL, the count is what the search found, and both links
+ * keep the search.
+ */
 export const WhileSearching: Story = {
-  args: { summary: "35 publications found" },
+  args: { count: 35 },
   parameters: { nextjs: { navigation: { query: { search: "clarice" } } } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+
+    await expect(canvasElement).toHaveTextContent("35 publications found");
 
     await expect(
       canvas.getByRole("link", { name: "Publications" }),

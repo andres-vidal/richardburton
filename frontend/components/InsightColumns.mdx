@@ -6,9 +6,10 @@ import * as InsightColumnsStories from "./InsightColumns.stories";
 
 # Insight columns
 
-A titled column chart with one column for each entry, such as each year. A
-column stacks its series from the bottom, and its height is its total as a
-fraction of the largest total, which is written at the top of the chart.
+A titled column chart with one column for each year, drawn in an
+[Insight section](?path=/docs/insights-insight-section--docs). A column stacks its series from the bottom, and
+its height is its total as a fraction of the largest total, which is written at
+the top of the chart.
 
 <Canvas of={InsightColumnsStories.Years} />
 
@@ -21,21 +22,21 @@ fraction of the largest total, which is written at the top of the chart.
 - `heading` — the heading of the table's first column, such as "Year".
 - `series` — the name of each series, in the order they are stacked from the
   bottom. They are listed in an [Insight legend](?path=/docs/insights-insight-legend--docs).
-- `columns` — the entries, each with a `key`, a `label`, its `counts` in the
-  order of `series`, and an optional `tick`.
+- `years` — every year to draw, in order, each with its `counts` in the order
+  of `series`.
 
 ## Labels under the columns
 
-A column marked with a `tick` has its label written under the chart. A `major`
-label is always written, and a `minor` label only on screens at least as wide
-as the `md` breakpoint, where there is room for it. A label under the first or
-last column is aligned inwards, so it stays inside the chart.
+Years divisible by 20 are always labelled under the chart, and the other
+decades only on screens at least as wide as the `md` breakpoint, where there is
+room for them. `tickOf` in `modules/insights` decides which. A label under the
+first or last column is aligned inwards, so it stays inside the chart.
 
 <Canvas of={InsightColumnsStories.OneDecade} />
 
 ## Hover
 
-Hovering a column shows its label, its total, and its count in each series
+Hovering a column shows its year, its total, and its count in each series
 where that count is above 0. The play test of the first story checks the text
 it shows for 2012.
 

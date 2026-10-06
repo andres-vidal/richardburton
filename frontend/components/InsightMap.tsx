@@ -2,37 +2,77 @@
 
 import type { WorldMap } from "modules/world-map";
 import { useFormatter, useTranslations } from "next-intl";
-import { FC, useId, useState } from "react";
-import InsightTitle from "./InsightTitle";
+import { FC, memo, useMemo, useState } from "react";
+import InsightSection from "./InsightSection";
 
 /** A country with its name and its number of publications. */
-type Counted = { code: string; name: string; count: number };
+type Country = { code: string; name: string; count: number };
 
 type Props = {
   title: string;
-  /** What the chart shows, in a tooltip beside the title. */
+  /** What the map shows, in a tooltip beside the title. */
   hint?: string;
   /** The outlines to draw, from `worldMap`. */
   map: WorldMap;
   /** The countries with publications, in the order they are listed. */
-  countries: Counted[];
+  countries: Country[];
 };
 
 /**
- * Returns the shade of a country with `count` publications: 1 for one, 2 for
- * two to nine, 3 for ten to 99 and 4 for more. A country with none has no
- * shade.
+ * The bands countries are shaded in, from the fewest publications to the most.
+ * A country is in the last band whose `least` its count reaches, and its shade
+ * is that band's position, from 1. The colour of each shade is set by
+ * `data-shade` in `styles/globals.css`.
  */
-const shade = (count: number) =>
-  count === 0
-    ? undefined
-    : count === 1
-      ? 1
-      : count < 10
-        ? 2
-        : count < 100
-          ? 3
-          : 4;
+const BANDS = [
+  { least: 1, name: "one" },
+  { least: 2, name: "few" },
+  { least: 10, name: "many" },
+  { least: 100, name: "most" },
+] as const;
+
+/**
+ * Returns the shade of a country with `count` publications, from 1 to 4, or
+ * undefined when it has none.
+ */
+const shadeOf = (count: number) =>
+  BANDS.filter(({ least }) => count >= least).length || undefined;
+
+/**
+ * One country on the map. A shaded country reports being hovered through
+ * `onHover`, and is darkened while `active`. The outline is memoized, so a
+ * hover re-renders only the countries whose `active` changes.
+ */
+const Outline = memo(function Outline({
+  code,
+  d,
+  shade,
+  title,
+  active,
+  onHover,
+}: {
+  code: string | null;
+  d: string;
+  shade?: number;
+  /** The country's name and count, shown while it is hovered. */
+  title?: string;
+  active: boolean;
+  onHover: (code: string | null) => void;
+}) {
+  return (
+    <path
+      d={d}
+      data-code={shade ? code : undefined}
+      data-shade={shade}
+      data-active={shade ? active : undefined}
+      onMouseEnter={shade ? () => onHover(code) : undefined}
+      onMouseLeave={shade ? () => onHover(null) : undefined}
+      className="transition-colors stroke-white stroke-[0.5] fill-[var(--shade,var(--color-gray-200))] data-[active=true]:fill-(--shade-active)"
+    >
+      {title ? <title>{title}</title> : null}
+    </path>
+  );
+});
 
 /**
  * A titled world map with each country shaded by its number of publications,
@@ -40,7 +80,8 @@ const shade = (count: number) =>
  *
  * The shades are fixed bands rather than a scale of the largest count, so the
  * same shade means the same range on every search: one publication, two to
- * nine, ten to 99, and 100 or more. Countries with none are grey.
+ * nine, ten to 99, and 100 or more (see `BANDS`). Countries with none are
+ * grey.
  *
  * Hovering a shaded country darkens it by one shade, shows its name and count,
  * and highlights its entry in the list. Hovering an entry in the list
@@ -51,53 +92,55 @@ const shade = (count: number) =>
  * The map is hidden from assistive technology, which reads the list.
  */
 const InsightMap: FC<Props> = ({ title, hint, map, countries }) => {
-  const id = useId();
   const t = useTranslations("insights");
   const format = useFormatter();
-
-  const counts = new Map(countries.map((country) => [country.code, country]));
   const [active, setActive] = useState<string | null>(null);
 
+  const outlines = useMemo(() => {
+    const counted = new Map(
+      countries.map((country) => [country.code, country]),
+    );
+
+    return map.shapes.map(({ code, d }, index) => {
+      const country = code ? counted.get(code) : undefined;
+
+      return {
+        key: code ?? `unnamed ${index}`,
+        code,
+        d,
+        shade: shadeOf(country?.count ?? 0),
+        title: country
+          ? `${country.name} · ${format.number(country.count)}`
+          : undefined,
+      };
+    });
+  }, [map, countries, format]);
+
   return (
-    <section aria-labelledby={id} className="space-y-3">
-      <InsightTitle id={id} title={title} hint={hint} />
+    <InsightSection title={title} hint={hint}>
       <div className="grid gap-6 items-start lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
         <div aria-hidden className="space-y-2">
           <svg
             viewBox={`0 0 ${map.width} ${map.height}`}
             className="w-full h-auto"
           >
-            {map.shapes.map(({ code, d }, index) => {
-              const country = code ? counts.get(code) : undefined;
-
-              return (
-                <path
-                  key={code ?? index}
-                  d={d}
-                  data-code={country?.code}
-                  data-shade={shade(country?.count ?? 0)}
-                  data-active={country ? country.code === active : undefined}
-                  onMouseEnter={
-                    country ? () => setActive(country.code) : undefined
-                  }
-                  onMouseLeave={country ? () => setActive(null) : undefined}
-                  className="transition-colors fill-gray-200 stroke-white stroke-[0.5] data-[shade=1]:fill-indigo-200 data-[shade=2]:fill-indigo-400 data-[shade=3]:fill-indigo-600 data-[shade=4]:fill-indigo-800 data-[shade=1]:data-[active=true]:fill-indigo-300 data-[shade=2]:data-[active=true]:fill-indigo-500 data-[shade=3]:data-[active=true]:fill-indigo-700 data-[shade=4]:data-[active=true]:fill-indigo-950"
-                >
-                  {country ? (
-                    <title>{`${country.name} · ${format.number(country.count)}`}</title>
-                  ) : null}
-                </path>
-              );
-            })}
+            {outlines.map(({ key, ...outline }) => (
+              <Outline
+                key={key}
+                {...outline}
+                active={outline.code !== null && outline.code === active}
+                onHover={setActive}
+              />
+            ))}
           </svg>
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700">
-            {(["one", "few", "many", "most"] as const).map((band, index) => (
-              <li key={band} className="flex gap-1.5 items-center">
+            {BANDS.map(({ name }, index) => (
+              <li key={name} className="flex gap-1.5 items-center">
                 <span
                   data-shade={index + 1}
-                  className="size-2.5 rounded-sm data-[shade=1]:bg-indigo-200 data-[shade=2]:bg-indigo-400 data-[shade=3]:bg-indigo-600 data-[shade=4]:bg-indigo-800"
+                  className="size-2.5 rounded-sm bg-(--shade)"
                 />
-                {t(`shades.${band}`)}
+                {t(`shades.${name}`)}
               </li>
             ))}
           </ul>
@@ -119,9 +162,8 @@ const InsightMap: FC<Props> = ({ title, hint, map, countries }) => {
           ))}
         </ol>
       </div>
-    </section>
+    </InsightSection>
   );
 };
 
 export default InsightMap;
-export type { Counted };

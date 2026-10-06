@@ -29,10 +29,7 @@ const InsightFigures: FC<{ insights: Insights }> = ({ insights }) => {
     { key: "countries", value: format.number(totals.countries) },
     {
       key: "years",
-      // Years are passed as strings so they are not formatted with grouping.
-      value: years
-        ? t("span", { first: String(years.first), last: String(years.last) })
-        : "—",
+      value: years ? t("span", years) : "—",
     },
     {
       key: "sourced",

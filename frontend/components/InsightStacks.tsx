@@ -1,19 +1,11 @@
 "use client";
 
+import { total } from "modules/insights";
 import { useFormatter } from "next-intl";
-import { CSSProperties, FC, useId } from "react";
+import { CSSProperties, FC } from "react";
 import InsightLegend from "./InsightLegend";
-import InsightTable from "./InsightTable";
-import InsightTitle from "./InsightTitle";
-
-/** One row of the chart, such as a decade. */
-type Row = {
-  key: string;
-  /** The row's name, such as a decade. */
-  label: string;
-  /** The count of each series, in the order of `series`. */
-  counts: number[];
-};
+import InsightSection from "./InsightSection";
+import InsightTable, { type Row } from "./InsightTable";
 
 type Props = {
   title: string;
@@ -23,6 +15,7 @@ type Props = {
   heading: string;
   /** The name of each series, in the order they are stacked from the left. */
   series: string[];
+  /** The rows, such as decades, each with its count in each series. */
   rows: Row[];
 };
 
@@ -36,25 +29,21 @@ type Props = {
  * assistive technology, which reads a table of the same counts instead.
  */
 const InsightStacks: FC<Props> = ({ title, hint, heading, series, rows }) => {
-  const id = useId();
   const format = useFormatter();
-
-  const totals = rows.map(({ counts }) => counts.reduce((a, b) => a + b, 0));
-  const most = Math.max(1, ...totals);
+  const most = Math.max(1, ...rows.map(({ counts }) => total(counts)));
 
   return (
-    <section aria-labelledby={id} className="space-y-3">
-      <InsightTitle id={id} title={title} hint={hint} />
+    <InsightSection title={title} hint={hint}>
       <InsightLegend series={series} />
       <ol aria-hidden className="space-y-2">
-        {rows.map(({ key, label, counts }, index) => (
+        {rows.map(({ key, label, counts }) => (
           <li
             key={key}
             className="group relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-baseline text-sm"
           >
             <span className="text-gray-900">{label}</span>
             <span className="text-gray-700 tabular-nums">
-              {format.number(totals[index])}
+              {format.number(total(counts))}
             </span>
             <span className="flex overflow-hidden col-span-2 h-1.5 rounded-full bg-gray-200">
               {counts.map((count, series) => (
@@ -66,7 +55,7 @@ const InsightStacks: FC<Props> = ({ title, hint, heading, series, rows }) => {
                 />
               ))}
             </span>
-            <span className="hidden absolute right-0 bottom-full z-10 py-1 px-2 text-xs text-white whitespace-nowrap bg-gray-900 rounded pointer-events-none group-hover:block">
+            <span className="right-0 chart-tip">
               {series.map((name, which) => (
                 <span key={name} className="block">
                   {name} {format.number(counts[which])}
@@ -82,9 +71,8 @@ const InsightStacks: FC<Props> = ({ title, hint, heading, series, rows }) => {
         series={series}
         rows={rows}
       />
-    </section>
+    </InsightSection>
   );
 };
 
 export default InsightStacks;
-export type { Row };

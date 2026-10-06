@@ -197,11 +197,6 @@ const isLoadingMoreAtom = atom<boolean>(false);
 const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
-/** The words the current search matched with something other than what was
- * typed, grouped by field. Shown to the reader so that a widened or
- * field-scoped match explains itself. Note this is not what highlights the
- * rows — each row carries its own highlighting. */
-const matchedAtom = atom<Matched[] | undefined>(undefined);
 const isValidatingAtom = atom(false);
 const areRowIdsVisibleAtom = atom(false);
 const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
@@ -801,17 +796,16 @@ function remember(store: Store, publication: Publication): void {
 }
 
 /**
- * Take an index payload as the working set: the rows, what the search matched,
- * and how many publications exist in total.
+ * Take an index payload as the working set: the rows, their order, and how
+ * many publications exist in total.
  *
  * One definition of "these are the results now", wherever they were read.
  */
 function receiveIndex(
   store: Store,
-  { entries, matched, total, order, perPage }: PublicationIndex,
+  { entries, total, order, perPage }: PublicationIndex,
 ): PublicationId[] {
   if (total !== null) store.set(totalIndexCountAtom, total);
-  store.set(matchedAtom, matched);
   store.set(orderAtom, order);
   store.set(perPageAtom, perPage);
   // The first page has drawn as far into the ordering as it holds rows.
@@ -1203,7 +1197,6 @@ export {
   isValidFamily,
   knownIds,
   lastValidatedFamily,
-  matchedAtom,
   matchingCountAtom,
   openReview,
   openWorkspace,

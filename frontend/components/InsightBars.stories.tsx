@@ -9,11 +9,11 @@ const meta = {
   args: {
     title: "Most translated authors",
     bars: [
-      { key: "cl", label: "Clarice Lispector", count: 35, value: "35" },
-      { key: "pc", label: "Paulo Coelho", count: 35, value: "35" },
-      { key: "ma", label: "Machado de Assis", count: 24, value: "24" },
-      { key: "ja", label: "Jorge Amado", count: 18, value: "18" },
-      { key: "ev", label: "Erico Verissimo", count: 12, value: "12" },
+      { key: "cl", label: "Clarice Lispector", count: 35 },
+      { key: "pc", label: "Paulo Coelho", count: 35 },
+      { key: "ma", label: "Machado de Assis", count: 24 },
+      { key: "ja", label: "Jorge Amado", count: 18 },
+      { key: "ev", label: "Erico Verissimo", count: 12 },
     ],
   },
   decorators: [
@@ -56,11 +56,11 @@ export const WithNothingCounted: Story = {
   args: {
     title: "Publications by decade",
     bars: [
-      { key: "1880", label: "1880s", count: 3, value: "3" },
-      { key: "1890", label: "1890s", count: 0, value: "0" },
-      { key: "1900", label: "1900s", count: 2, value: "2" },
-      { key: "1910", label: "1910s", count: 0, value: "0" },
-      { key: "1920", label: "1920s", count: 6, value: "6" },
+      { key: "1880", label: "1880s", count: 3 },
+      { key: "1890", label: "1890s", count: 0 },
+      { key: "1900", label: "1900s", count: 2 },
+      { key: "1910", label: "1910s", count: 0 },
+      { key: "1920", label: "1920s", count: 6 },
     ],
   },
   play: async ({ canvasElement }) => {
@@ -83,14 +83,12 @@ export const WithDetails: Story = {
         label: "Paulo Coelho",
         detail: "Margaret Jull Costa",
         count: 17,
-        value: "17",
       },
       {
         key: "cl",
         label: "Clarice Lispector",
         detail: "Giovanni Pontiero",
         count: 9,
-        value: "9",
       },
     ],
   },

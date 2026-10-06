@@ -16,7 +16,8 @@ matches. `Insights` is the content of the insights page at `/insights`, and
 
 Both take an `insights` prop, the response of `GET /insights`. Most of its
 counts are numbers of publications, so a book published twice counts twice.
-`Insights` also takes `map`, the outlines of the world map, from `worldMap`.
+`Insights` reads the outlines of the world map from the nearest
+`WorldMapProvider`, which the insights page's layout renders.
 
 Every figure and chart has an
 [Info hint](?path=/docs/components-info-hint--docs) that says what it counts.

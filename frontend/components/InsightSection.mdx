@@ -1,0 +1,28 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightSectionStories from "./InsightSection.stories";
+
+<Meta of={InsightSectionStories} />
+
+# Insight section
+
+A titled section of the insights page: a heading, an
+[Info hint](?path=/docs/components-info-hint--docs) that explains the section,
+and the section's content. Every chart and list of insights is drawn inside one.
+
+<Canvas of={InsightSectionStories.WithHint} />
+
+## Props
+
+- `title` — the heading's text. The section is labelled by the heading, so this
+  is also the section's accessible name.
+- `hint` — what the section shows. The hint's button is named "About" followed
+  by the title.
+- `children` — the section's content.
+
+The hint sits beside the heading rather than inside it, so the heading's text,
+and the accessible name of the section, is the title alone.
+
+Without a `hint`, only the heading and the content are shown.
+
+<Canvas of={InsightSectionStories.WithoutHint} />

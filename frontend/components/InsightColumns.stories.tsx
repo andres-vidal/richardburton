@@ -2,17 +2,13 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { INSIGHTS } from "test/insights-fixtures";
 import { expect, within } from "storybook/test";
 
-import InsightColumns, { type Column } from "./InsightColumns";
+import InsightColumns from "./InsightColumns";
 
 // The publications of each year in the fixtures, by country.
-const YEARS: Column[] = INSIGHTS.annual.years.map(
-  ({ year, counts, elsewhere }) => ({
-    key: String(year),
-    label: String(year),
-    counts: [...counts, elsewhere],
-    tick: year % 20 === 0 ? "major" : year % 10 === 0 ? "minor" : undefined,
-  }),
-);
+const YEARS = INSIGHTS.annual.years.map(({ year, counts, elsewhere }) => ({
+  year,
+  counts: [...counts, elsewhere],
+}));
 
 const meta = {
   title: "Insights/Insight columns",
@@ -21,7 +17,7 @@ const meta = {
     title: "Publications per year",
     heading: "Year",
     series: ["United States", "United Kingdom", "Elsewhere"],
-    columns: YEARS,
+    years: YEARS,
   },
   parameters: { layout: "padded" },
 } satisfies Meta<typeof InsightColumns>;
@@ -65,17 +61,17 @@ export const Years: Story = {
 export const OneDecade: Story = {
   args: {
     series: ["United States", "Elsewhere"],
-    columns: [
-      { key: "1960", label: "1960", counts: [2, 0], tick: "minor" },
-      { key: "1961", label: "1961", counts: [0, 0] },
-      { key: "1962", label: "1962", counts: [1, 1] },
-      { key: "1963", label: "1963", counts: [3, 0] },
-      { key: "1964", label: "1964", counts: [0, 1] },
-      { key: "1965", label: "1965", counts: [1, 0] },
-      { key: "1966", label: "1966", counts: [2, 2] },
-      { key: "1967", label: "1967", counts: [0, 0] },
-      { key: "1968", label: "1968", counts: [1, 0] },
-      { key: "1969", label: "1969", counts: [0, 1] },
+    years: [
+      { year: 1960, counts: [2, 0] },
+      { year: 1961, counts: [0, 0] },
+      { year: 1962, counts: [1, 1] },
+      { year: 1963, counts: [3, 0] },
+      { year: 1964, counts: [0, 1] },
+      { year: 1965, counts: [1, 0] },
+      { year: 1966, counts: [2, 2] },
+      { year: 1967, counts: [0, 0] },
+      { year: 1968, counts: [1, 0] },
+      { year: 1969, counts: [0, 1] },
     ],
   },
 };

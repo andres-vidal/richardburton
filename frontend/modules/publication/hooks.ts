@@ -15,7 +15,6 @@ import {
   hiddenAttributesAtom,
   invalidIdsAtom,
   isValidFamily,
-  matchedAtom,
   isValidatingAtom,
   publicationSourcesFamily,
   publicationExcerptsFamily,
@@ -204,10 +203,6 @@ function useMatchingCount() {
   return useAtomValue(matchingCountAtom);
 }
 
-function useMatched() {
-  return useAtomValue(matchedAtom);
-}
-
 function useIsValidating() {
   return useAtomValue(isValidatingAtom);
 }
@@ -244,7 +239,6 @@ export {
   useInvalidPublicationIds,
   useIsPublicationFocused,
   useIsPublicationValid,
-  useMatched,
   useIsValidating,
   usePublication,
   usePublicationError,

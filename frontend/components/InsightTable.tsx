@@ -1,5 +1,6 @@
 "use client";
 
+import { total } from "modules/insights";
 import { useFormatter, useTranslations } from "next-intl";
 import { FC } from "react";
 
@@ -55,7 +56,7 @@ const InsightTable: FC<Props> = ({ title, heading, series, rows }) => {
               {counts.map((count, index) => (
                 <td key={index}>{format.number(count)}</td>
               ))}
-              <td>{format.number(counts.reduce((a, b) => a + b, 0))}</td>
+              <td>{format.number(total(counts))}</td>
             </tr>
           ))}
         </tbody>

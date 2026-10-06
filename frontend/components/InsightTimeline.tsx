@@ -1,5 +1,6 @@
-import { CSSProperties, FC, useId } from "react";
-import InsightTitle from "./InsightTitle";
+import { tickOf } from "modules/insights";
+import { CSSProperties, FC } from "react";
+import InsightSection from "./InsightSection";
 
 /** A dot on a row, at a year. */
 type Mark = {
@@ -40,15 +41,13 @@ const decade = (year: number) => Math.floor(year / 10) * 10;
  * value, and a track with a dot at the year of each mark, joined by a line
  * from the first mark to the last. The axis runs from the decade of the
  * earliest mark to the end of the decade of the latest, and its decades are
- * written under the rows. The labels at either end are aligned inwards, so
- * they stay inside the axis.
+ * written under the rows (see `tickOf`). The labels at either end are aligned
+ * inwards, so they stay inside the axis.
  *
  * Hovering a dot shows its mark's label. The tracks are hidden from assistive
  * technology, which reads each row's label, value and the labels of its marks.
  */
 const InsightTimeline: FC<Props> = ({ title, hint, tracks }) => {
-  const id = useId();
-
   const years = tracks.flatMap(({ marks }) => marks.map(({ year }) => year));
   const first = decade(Math.min(...years));
   const last = decade(Math.max(...years)) + 10;
@@ -67,8 +66,7 @@ const InsightTimeline: FC<Props> = ({ title, hint, tracks }) => {
   );
 
   return (
-    <section aria-labelledby={id} className="space-y-3">
-      <InsightTitle id={id} title={title} hint={hint} />
+    <InsightSection title={title} hint={hint}>
       <ol className="space-y-3 sm:space-y-2">
         {tracks.map(({ key, label, detail, value, marks }) => (
           <li
@@ -106,9 +104,7 @@ const InsightTimeline: FC<Props> = ({ title, hint, tracks }) => {
                   className="group absolute top-1/2 -translate-x-1/2 -translate-y-1/2 left-[calc(var(--at)*100%)]"
                 >
                   <span className="block rounded-full ring-1 ring-white transition-colors bg-indigo-600/80 size-[calc(0.5rem+var(--weight)*0.75rem)] group-hover:bg-indigo-900" />
-                  <span className="hidden absolute bottom-full z-10 py-1 px-2 mb-1 text-xs text-white whitespace-nowrap bg-gray-900 rounded pointer-events-none group-hover:block absolute-center-x">
-                    {label}
-                  </span>
+                  <span className="chart-tip absolute-center-x">{label}</span>
                 </span>
               ))}
             </span>
@@ -127,21 +123,18 @@ const InsightTimeline: FC<Props> = ({ title, hint, tracks }) => {
           {decades.map((year) => (
             <span
               key={year}
-              data-tick={year % 20 === 0 ? "major" : "minor"}
-              data-edge={
-                year === first ? "start" : year === last ? "end" : undefined
-              }
+              data-tick={tickOf(year)}
               style={{ "--at": at(year) } as CSSProperties}
-              className="hidden absolute top-1 text-xs text-gray-600 -translate-x-1/2 tabular-nums left-[calc(var(--at)*100%)] data-[edge=end]:-translate-x-full data-[edge=start]:translate-x-0 data-[tick=major]:block md:data-[tick=minor]:block"
+              className="hidden absolute top-1 text-xs text-gray-600 -translate-x-1/2 tabular-nums left-[calc(var(--at)*100%)] first:translate-x-0 last:-translate-x-full data-[tick=major]:block md:data-[tick=minor]:block"
             >
               {year}
             </span>
           ))}
         </span>
       </div>
-    </section>
+    </InsightSection>
   );
 };
 
 export default InsightTimeline;
-export type { Mark, Track };
+export type { Track };

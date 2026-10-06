@@ -1,24 +1,11 @@
 "use client";
 
+import { tickOf, total } from "modules/insights";
 import { useFormatter } from "next-intl";
-import { CSSProperties, FC, useId } from "react";
+import { CSSProperties, FC } from "react";
 import InsightLegend from "./InsightLegend";
+import InsightSection from "./InsightSection";
 import InsightTable from "./InsightTable";
-import InsightTitle from "./InsightTitle";
-
-/** One column of the chart, such as a year. */
-type Column = {
-  key: string;
-  /** The column's name, such as a year. It is shown on hover and in the table. */
-  label: string;
-  /** The count of each series, in the order of `series`. */
-  counts: number[];
-  /**
-   * Whether the column's label is written under the chart. `major` labels are
-   * always written, and `minor` labels only on wider screens.
-   */
-  tick?: "major" | "minor";
-};
 
 type Props = {
   title: string;
@@ -28,37 +15,29 @@ type Props = {
   heading: string;
   /** The name of each series, in the order they are stacked from the bottom. */
   series: string[];
-  columns: Column[];
+  /** Every year to draw, in order, with its count in each series. */
+  years: { year: number; counts: number[] }[];
 };
 
 /**
- * A titled column chart, with one column for each entry in `columns`. Each
- * column stacks its series from the bottom, and its height is its total as a
- * fraction of the largest total. The largest total is written at the top of
- * the chart.
+ * A titled column chart with one column for each year in `years`. Each column
+ * stacks its series from the bottom, and its height is its total as a fraction
+ * of the largest total. The largest total is written at the top of the chart.
  *
- * Hovering a column shows its label, its total, and its count in each series
- * where that count is above 0. Labels are written under the columns marked
- * with a `tick`, and a label under the first or last column is aligned
- * inwards, so it stays inside the chart. The chart is hidden from assistive
- * technology, which reads a table of the same counts instead.
+ * Years divisible by 20 are labelled under the chart, and the other decades
+ * too on wider screens (see `tickOf`). A label under the first or last column
+ * is aligned inwards, so it stays inside the chart.
+ *
+ * Hovering a column shows its year, its total, and its count in each series
+ * where that count is above 0. The chart is hidden from assistive technology,
+ * which reads a table of the same counts instead.
  */
-const InsightColumns: FC<Props> = ({
-  title,
-  hint,
-  heading,
-  series,
-  columns,
-}) => {
-  const id = useId();
+const InsightColumns: FC<Props> = ({ title, hint, heading, series, years }) => {
   const format = useFormatter();
-
-  const totals = columns.map(({ counts }) => counts.reduce((a, b) => a + b, 0));
-  const most = Math.max(1, ...totals);
+  const most = Math.max(1, ...years.map(({ counts }) => total(counts)));
 
   return (
-    <section aria-labelledby={id} className="space-y-3">
-      <InsightTitle id={id} title={title} hint={hint} />
+    <InsightSection title={title} hint={hint}>
       <InsightLegend series={series} />
       <div aria-hidden className="pt-5">
         <div className="relative flex gap-px items-end h-48 border-b border-gray-300">
@@ -66,9 +45,9 @@ const InsightColumns: FC<Props> = ({
           <span className="absolute left-0 -top-5 text-xs text-gray-600 tabular-nums">
             {format.number(most)}
           </span>
-          {columns.map(({ key, label, counts }, index) => (
+          {years.map(({ year, counts }) => (
             <div
-              key={key}
+              key={year}
               className="group relative flex flex-col-reverse flex-1 h-full min-w-0 hover:bg-indigo-50"
             >
               {counts.map((count, series) => (
@@ -79,8 +58,8 @@ const InsightColumns: FC<Props> = ({
                   className="shrink-0 h-[calc(var(--share)*100%)] bg-series"
                 />
               ))}
-              <span className="hidden absolute bottom-full z-10 py-1 px-2 mb-1 text-xs text-white whitespace-nowrap bg-gray-900 rounded pointer-events-none group-hover:block absolute-center-x">
-                {label} · {format.number(totals[index])}
+              <span className="chart-tip absolute-center-x">
+                {year} · {format.number(total(counts))}
                 {series.map((name, which) =>
                   counts[which] ? (
                     <span key={name} className="block text-gray-300">
@@ -93,20 +72,13 @@ const InsightColumns: FC<Props> = ({
           ))}
         </div>
         <div className="flex gap-px h-5">
-          {columns.map(({ key, label, tick }, index) => (
-            <span key={key} className="relative flex-1 min-w-0">
+          {years.map(({ year }) => (
+            <span key={year} className="relative flex-1 min-w-0 group/column">
               <span
-                data-tick={tick}
-                data-edge={
-                  index === 0
-                    ? "start"
-                    : index === columns.length - 1
-                      ? "end"
-                      : undefined
-                }
-                className="hidden absolute top-1 text-xs text-gray-600 tabular-nums data-[tick=major]:block md:data-[tick=minor]:block absolute-center-x data-[edge=start]:left-0 data-[edge=start]:translate-x-0 data-[edge=end]:left-auto data-[edge=end]:right-0 data-[edge=end]:translate-x-0"
+                data-tick={tickOf(year)}
+                className="hidden absolute top-1 text-xs text-gray-600 tabular-nums data-[tick=major]:block md:data-[tick=minor]:block absolute-center-x group-first/column:left-0 group-first/column:translate-x-0 group-last/column:left-auto group-last/column:right-0 group-last/column:translate-x-0"
               >
-                {label}
+                {year}
               </span>
             </span>
           ))}
@@ -116,11 +88,14 @@ const InsightColumns: FC<Props> = ({
         title={title}
         heading={heading}
         series={series}
-        rows={columns}
+        rows={years.map(({ year, counts }) => ({
+          key: String(year),
+          label: String(year),
+          counts,
+        }))}
       />
-    </section>
+    </InsightSection>
   );
 };
 
 export default InsightColumns;
-export type { Column };

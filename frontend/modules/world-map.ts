@@ -87,4 +87,4 @@ function worldMap(codes: Record<string, string>): WorldMap {
 }
 
 export { worldMap };
-export type { Shape, WorldMap };
+export type { WorldMap };
