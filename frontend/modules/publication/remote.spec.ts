@@ -27,7 +27,7 @@ import {
   documentOf,
   errorFamily,
   hydrate,
-  isValidatingAtom,
+  isCheckedFamily,
   lastValidatedFamily,
   publicationFamily,
   publicationIdsAtom,
@@ -453,7 +453,6 @@ describe("validate", () => {
     // Only the two changed rows were sent.
     const [, sent] = http.post.mock.calls[0];
     expect(sent).toHaveLength(2);
-    expect(store.get(isValidatingAtom)).toBe(false);
   });
 
   test("re-sends a row after its value changes and refreshes its error", async () => {
@@ -493,18 +492,17 @@ describe("validate", () => {
     await validate(store, [a]);
 
     expect(http.post).not.toHaveBeenCalled();
-    expect(store.get(isValidatingAtom)).toBe(false);
   });
 
-  test("clears the validating flag even when the request fails", async () => {
+  test("reports a failed request and stores no result", async () => {
     const a = createId();
     unchecked([{ id: a, title: "A" }]);
     http.post.mockRejectedValue("boom");
 
     await expect(validate(store, [a])).rejects.toBe("boom");
 
-    expect(store.get(isValidatingAtom)).toBe(false);
     expect(mockNotify).toHaveBeenCalled();
+    expect(store.get(isCheckedFamily(a))).toBe(false);
   });
 
   test("stores each result in the document, for the content that was sent", async () => {

@@ -44,6 +44,7 @@ import {
   moveOut,
   publicationCountAtom,
   receiveIndex,
+  uncheckedCountAtom,
 } from "./store";
 
 import type { Store } from "modules/store";
@@ -153,6 +154,40 @@ describe("setAll", () => {
     // the id of a forgotten row.
     expect(knownIds().has(7)).toBe(false);
     expect(knownIds().has(minted)).toBe(false);
+  });
+});
+
+describe("checked rows", () => {
+  test("rows loaded with their validation results are checked", () => {
+    setAll(store, [entry(createId()), entry(createId())]);
+
+    expect(store.get(uncheckedCountAtom)).toBe(0);
+  });
+
+  test("an edit leaves the row unchecked until a result for its new content arrives", () => {
+    const a = createId();
+    setAll(store, [entry(a, { title: "Dom Casmurro" }), entry(createId())]);
+
+    setField(store, a, "title", "Dom Casmurro, revised");
+    expect(store.get(uncheckedCountAtom)).toBe(1);
+
+    setErrors(store, [
+      { id: a, publication: store.get(publicationFamily(a)), errors: null },
+    ]);
+    expect(store.get(uncheckedCountAtom)).toBe(0);
+  });
+
+  // A result computed for content the row no longer has does not check it, so a
+  // slow response for an older version cannot enable the submit button.
+  test("a result for older content leaves the row unchecked", () => {
+    const a = createId();
+    setAll(store, [entry(a, { title: "Dom Casmurro" })]);
+    const before = store.get(publicationFamily(a));
+
+    setField(store, a, "title", "Dom Casmurro, revised");
+    setErrors(store, [{ id: a, publication: before, errors: null }]);
+
+    expect(store.get(uncheckedCountAtom)).toBe(1);
   });
 });
 

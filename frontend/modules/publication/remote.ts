@@ -29,7 +29,6 @@ import {
   createId,
   documentOf,
   errorFamily,
-  isValidatingAtom,
   lastValidatedFamily,
   publicationFamily,
   publicationIdsAtom,
@@ -412,47 +411,41 @@ async function validate(
   { force = false }: { force?: boolean } = {},
 ): Promise<void> {
   return run(async (http) => {
-    store.set(isValidatingAtom, true);
-    try {
-      const { doc } = documentOf(store);
-      const pending = ids
-        .map((id) => ({
-          id,
-          publication: store.get(publicationFamily(id)),
-        }))
-        .filter(({ publication }) => publication !== undefined)
-        .map((entry) => ({ ...entry, content: contentKey(entry.publication) }))
-        .filter(
-          ({ id, content }) =>
-            force ||
-            (content !== store.get(lastValidatedFamily(id)) &&
-              content !== Doc.validationOf(doc, id)?.content),
-        )
-        .map(({ id, publication, content }) => {
-          store.set(lastValidatedFamily(id), content);
-          return { id, publication };
-        });
+    const { doc } = documentOf(store);
+    const pending = ids
+      .map((id) => ({
+        id,
+        publication: store.get(publicationFamily(id)),
+      }))
+      .filter(({ publication }) => publication !== undefined)
+      .map((entry) => ({ ...entry, content: contentKey(entry.publication) }))
+      .filter(
+        ({ id, content }) =>
+          force ||
+          (content !== store.get(lastValidatedFamily(id)) &&
+            content !== Doc.validationOf(doc, id)?.content),
+      )
+      .map(({ id, publication, content }) => {
+        store.set(lastValidatedFamily(id), content);
+        return { id, publication };
+      });
 
-      if (pending.length > 0) {
-        const { data } = await http.post<ValidationResult[]>(
-          "publications/validate",
-          pending.map(({ publication }) => publication),
-        );
-        // Map results back to the rows we actually sent (the filtered set),
-        // not the original id list. Each result is stored for the content
-        // that was sent, not the server's copy of it.
-        setErrors(
-          store,
-          data.map((entry, i) => ({
-            id: pending[i].id,
-            publication: pending[i].publication,
-            errors: entry.errors,
-          })),
-        );
-      }
-    } finally {
-      // Always clear the flag, even if the request throws.
-      store.set(isValidatingAtom, false);
+    if (pending.length > 0) {
+      const { data } = await http.post<ValidationResult[]>(
+        "publications/validate",
+        pending.map(({ publication }) => publication),
+      );
+      // Map results back to the rows we actually sent (the filtered set),
+      // not the original id list. Each result is stored for the content
+      // that was sent, not the server's copy of it.
+      setErrors(
+        store,
+        data.map((entry, i) => ({
+          id: pending[i].id,
+          publication: pending[i].publication,
+          errors: entry.errors,
+        })),
+      );
     }
   });
 }

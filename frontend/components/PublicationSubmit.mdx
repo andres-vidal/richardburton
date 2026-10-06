@@ -13,10 +13,13 @@ Submit persists the valid rows and clears the workspace.
 ## Data source
 
 The button is **state-driven**: it takes no props and reads everything it needs
-from the publication store. It compares the row count
-(`usePublicationCount`) against the valid count
-(`useValidPublicationCount`) and watches the validation flag
-(`useIsValidating`) to decide whether it is enabled. Clicking calls `bulk()` to
+from the publication store. It is enabled when there are rows
+(`usePublicationCount`), every row is valid (`useValidPublicationCount`), and
+every row has a validation result for its current content
+(`useUncheckedPublicationCount`). A validation request in flight does not
+disable it: a row whose stored result still matches its content stays checked
+while it is validated again, and the insert validates every row once more.
+Clicking calls `bulk()` to
 POST the rows, then `setAll([])` to reset the store and fires a success
 notification. In stories the store is seeded through the shared fixtures:
 
@@ -37,4 +40,9 @@ seed(store); // load the sample publications before the story renders
 - **Invalid row** — at least one row has field errors, so submission is blocked
   and the button stays disabled. See the
   [With invalid row](?path=/story/publications-submit--with-invalid-row) story.
-- **Validating** — while validation is in flight the button is disabled.
+- **Unchecked row** — a row was edited after its last validation, so the button
+  stays disabled until the row is checked again. See the
+  [With unchecked row](?path=/story/publications-submit--with-unchecked-row)
+  story.
+
+<Canvas of={SubmitStories.WithUncheckedRow} />

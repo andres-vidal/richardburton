@@ -104,10 +104,8 @@ function bind(store: Store, doc: Y.Doc, owned: boolean): Binding {
 
   const onValidations = (changed: PublicationId[]) =>
     store.set(
-      writeErrorsAtom,
-      changed.map(
-        (id) => [id, Doc.validationOf(doc, id)?.errors ?? null] as const,
-      ),
+      writeValidationsAtom,
+      changed.map((id) => [id, Doc.validationOf(doc, id)] as const),
     );
 
   const onResemblances = (changed: PublicationId[]) =>
@@ -197,7 +195,6 @@ const isLoadingMoreAtom = atom<boolean>(false);
 const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
-const isValidatingAtom = atom(false);
 const areRowIdsVisibleAtom = atom(false);
 const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
 
@@ -243,6 +240,16 @@ const lastValidatedFamily = atomFamily((_id: PublicationId) =>
 );
 
 /**
+ * The content key (see `contentKey`) of the content each row's last validation
+ * result was computed for, or undefined when the row has none. When the row's
+ * content has changed since, the result no longer applies. See
+ * `isCheckedFamily`.
+ */
+const checkedContentFamily = atomFamily((_id: PublicationId) =>
+  atomWithReset<string | undefined>(undefined),
+);
+
+/**
  * The last look-alike check result for a row, as the store's document records
  * it, with the key of the row's subject at the time of the check (`at`). See
  * `rowSubjectKeyFamily`.
@@ -272,13 +279,17 @@ const writeRowsAtom = atom(
 );
 
 /**
- * Writes each `[id, errors]` pair into `errorFamily` in one store update, so
- * the valid rows are recomputed once.
+ * Writes each `[id, validation]` pair into `errorFamily` and
+ * `checkedContentFamily` in one store update, so the valid and checked rows are
+ * recomputed once. A `null` validation clears both.
  */
-const writeErrorsAtom = atom(
+const writeValidationsAtom = atom(
   null,
-  (_get, set, entries: (readonly [PublicationId, PublicationError])[]) =>
-    entries.forEach(([id, errors]) => set(errorFamily(id), errors)),
+  (_get, set, entries: (readonly [PublicationId, Doc.Validation | null])[]) =>
+    entries.forEach(([id, validation]) => {
+      set(errorFamily(id), validation?.errors ?? null);
+      set(checkedContentFamily(id), validation?.content);
+    }),
 );
 
 /**
@@ -557,6 +568,31 @@ const isValidFamily = atomFamily((id: PublicationId) =>
   atom((get) => !get(rowErrorFamily(id))),
 );
 
+/** The content key (see `contentKey`) of each row's current content. */
+const rowContentKeyFamily = atomFamily((id: PublicationId) =>
+  atom((get) => contentKey(get(publicationFamily(id)))),
+);
+
+/**
+ * Whether each row has a validation result for its current content. A row
+ * edited since its last result, or never validated, is unchecked, because its
+ * stored errors describe content it no longer has.
+ */
+const isCheckedFamily = atomFamily((id: PublicationId) =>
+  atom((get) => get(checkedContentFamily(id)) === get(rowContentKeyFamily(id))),
+);
+
+/**
+ * How many rows have no validation result for their current content. A row
+ * whose stored result still matches its content counts as checked, even while
+ * a new validation of it is in flight.
+ */
+const uncheckedCountAtom = atom(
+  (get) =>
+    (get(publicationIdsAtom) ?? []).filter((id) => !get(isCheckedFamily(id)))
+      .length,
+);
+
 const errorCodeFamily = atomFamily((id: PublicationId) =>
   atom((get) => errorCode(get(rowErrorFamily(id)))),
 );
@@ -634,6 +670,9 @@ const PUBLICATION_FAMILIES = [
   savedFamily,
   errorFamily,
   lastValidatedFamily,
+  checkedContentFamily,
+  rowContentKeyFamily,
+  isCheckedFamily,
   publicationSourcesFamily,
   publicationExcerptsFamily,
   storedSourcesFamily,
@@ -875,7 +914,10 @@ function setErrors(store: Store, entries: PublicationEntry[]): void {
 
   entries
     .filter(({ id }) => !Doc.holds(doc, id))
-    .forEach(({ id, errors }) => store.set(errorFamily(id), errors));
+    .forEach(({ id, publication, errors }) => {
+      store.set(errorFamily(id), errors);
+      store.set(checkedContentFamily(id), contentKey(publication));
+    });
 
   if (held.length > 0) {
     Doc.putValidations(
@@ -1202,7 +1244,7 @@ export {
   hydrate,
   invalidIdsAtom,
   isLoadingMoreAtom,
-  isValidatingAtom,
+  isCheckedFamily,
   isValidFamily,
   knownIds,
   lastValidatedFamily,
@@ -1244,6 +1286,7 @@ export {
   storedSourcesFamily,
   totalIndexCountAtom,
   unsourcedCountAtom,
+  uncheckedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
 };

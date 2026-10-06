@@ -122,3 +122,40 @@ test("a resumed document asks again whether its rows are valid", async ({
   });
   await expect(page.getByRole("button", { name: "Submit" })).toBeDisabled();
 });
+
+// Reopening a document validates every row again. The rows keep their stored
+// results meanwhile, so Submit stays enabled through a slow check, and an edit
+// disables it only until that row is checked again.
+test("a resumed document can be submitted while its rows are checked again", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await openDocument(page);
+  await uploadCsv(page, IMPORT_CSV, "resume.csv");
+
+  const table = indexTable(page);
+  const submit = page.getByRole("button", { name: "Submit" });
+  await expect(submit).toBeEnabled({ timeout: 30_000 });
+
+  // From here on, every validation answers 8 seconds late.
+  await page.route("**/publications/validate", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 8_000));
+    await route.continue();
+  });
+
+  await page.reload();
+  await expect(table.getByRole("row", { name: /Iracema/ })).toBeVisible();
+  await expect(submit).toBeEnabled({ timeout: 4_000 });
+
+  const title = table.getByRole("textbox", { name: "Title" }).first();
+  await title.fill("Dom Casmurro (revised)");
+  await title.blur();
+
+  await expect(submit).toBeDisabled();
+  await expect(submit).toBeEnabled({ timeout: 30_000 });
+
+  await submit.click();
+  await expect(
+    page.getByText("2 publications inserted successfully"),
+  ).toBeVisible({ timeout: 30_000 });
+});

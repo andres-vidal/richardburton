@@ -16,7 +16,6 @@ import {
   hiddenAttributesAtom,
   invalidIdsAtom,
   isValidFamily,
-  isValidatingAtom,
   publicationSourcesFamily,
   publicationExcerptsFamily,
   publicationCountAtom,
@@ -33,6 +32,7 @@ import {
   resemblingCountAtom,
   rowErrorFamily,
   rowNumberFamily,
+  uncheckedCountAtom,
   validCountAtom,
   visibleAttributesAtom,
 } from "./store";
@@ -184,6 +184,11 @@ function useValidPublicationCount() {
   return useAtomValue(validCountAtom);
 }
 
+/** How many rows have no validation result for their current content. */
+function useUncheckedPublicationCount() {
+  return useAtomValue(uncheckedCountAtom);
+}
+
 /**
  * Returns what this row resembles, or null when it resembles nothing or its
  * last result no longer matches the row.
@@ -220,10 +225,6 @@ function useMatchingCount() {
   return useAtomValue(matchingCountAtom);
 }
 
-function useIsValidating() {
-  return useAtomValue(isValidatingAtom);
-}
-
 function useVisibleAttributes() {
   return useAtomValue(visibleAttributesAtom);
 }
@@ -256,7 +257,6 @@ export {
   useInvalidPublicationIds,
   useIsPublicationFocused,
   useIsPublicationValid,
-  useIsValidating,
   usePublication,
   usePublicationError,
   usePublicationErrorDescription,
@@ -275,6 +275,7 @@ export {
   useResemblingPublicationCount,
   useReviewing,
   usePublicationRowNumber,
+  useUncheckedPublicationCount,
   useValidPublicationCount,
   useVisibleAttributes,
   useVisiblePublication,
