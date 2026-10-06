@@ -15,13 +15,15 @@ item's count as a fraction of the largest count in the list.
 
 - `title` — the heading of the list. It is also the accessible name of the
   section around the list.
+- `hint` — an optional explanation of what the list shows, in an
+  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
 - `bars` — the items, in the order they are listed. Each has a `key`, a
   `label`, an optional `detail` shown after the label, the `count` that sets
   the bar's length, and a `value`, which is the count as text.
 
 The caller formats each `value`, because the unit differs between lists. Most
-lists count publications, and the list of works translated more than once
-counts translations.
+lists count publications, and the list of authors first translated in each
+decade counts authors.
 
 <Canvas of={InsightBarsStories.WithDetails} />
 

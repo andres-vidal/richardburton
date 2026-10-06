@@ -207,3 +207,21 @@ export const NoMessage: Story = {
     await expect(trigger).toBeInTheDocument();
   },
 };
+
+/** A long message wraps at a readable width instead of stretching across the page. */
+export const LongMessage: Story = {
+  args: {
+    variant: "info",
+    message:
+      "A first translation is the first edition of a work's first translation. A retranslation is the first edition of a later translation of the same work. A reissue is any later edition of a translation.",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.hover(canvas.getByRole("button", { name: "Hover me" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/^A first translation/).getBoundingClientRect().width,
+      ).toBeLessThanOrEqual(320),
+    );
+  },
+};

@@ -71,32 +71,32 @@ export const WithNothingCounted: Story = {
 };
 
 /**
- * An item can have a detail after its label, and its value can count something
- * other than publications.
+ * An item can have a detail after its label. Here each item is an author with
+ * one of their translators.
  */
 export const WithDetails: Story = {
   args: {
-    title: "Works translated more than once",
+    title: "Most frequent author–translator pairs",
     bars: [
       {
-        key: "dc",
-        label: "Dom Casmurro",
-        detail: "Machado de Assis",
-        count: 3,
-        value: "3 translations",
+        key: "pc",
+        label: "Paulo Coelho",
+        detail: "Margaret Jull Costa",
+        count: 17,
+        value: "17",
       },
       {
-        key: "he",
-        label: "A hora da estrela",
-        detail: "Clarice Lispector",
-        count: 2,
-        value: "2 translations",
+        key: "cl",
+        label: "Clarice Lispector",
+        detail: "Giovanni Pontiero",
+        count: 9,
+        value: "9",
       },
     ],
   },
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).getAllByRole("listitem")[0],
-    ).toHaveTextContent("Dom Casmurro · Machado de Assis3 translations");
+    ).toHaveTextContent("Paulo Coelho · Margaret Jull Costa17");
   },
 };

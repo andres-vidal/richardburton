@@ -1,0 +1,27 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InfoHintStories from "./InfoHint.stories";
+
+<Meta of={InfoHintStories} />
+
+# Info hint
+
+A small info icon placed after a term or a title. It shows a definition or an
+explanation in an info [Tooltip](?path=/docs/components-tooltip--docs) while it
+is hovered or focused.
+
+<Description of={InfoHintStories.Hovered} />
+
+<Canvas of={InfoHintStories.Hovered} />
+
+## Props
+
+- `label` — the icon's accessible name, such as "About Works". It names what
+  the hint explains, since the icon has no text.
+- `message` — the text the tooltip shows.
+
+## Keyboard and touch
+
+<Description of={InfoHintStories.Focused} />
+
+<Canvas of={InfoHintStories.Focused} />

@@ -1,0 +1,27 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightLegendStories from "./InsightLegend.stories";
+
+<Meta of={InsightLegendStories} />
+
+# Insight legend
+
+The legend of a chart with up to three series. Each series is listed with a
+swatch of its colour, in the order the chart stacks them.
+
+<Canvas of={InsightLegendStories.ThreeSeries} />
+
+## Props
+
+- `series` — the name of each series. The first takes the main colour, the
+  second a colour that stands out from it, and the third a muted one.
+
+## Colours
+
+The colours come from the `bg-series` utility in `styles/globals.css`, which
+picks a fill from the element's `data-series` attribute. The charts use the
+same utility, so a series has the same colour in the legend and in the chart.
+
+A chart with fewer series uses the first colours.
+
+<Canvas of={InsightLegendStories.TwoSeries} />

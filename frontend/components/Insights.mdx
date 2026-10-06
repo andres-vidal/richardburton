@@ -14,24 +14,53 @@ matches. `Insights` is the content of the insights page at `/insights`, and
 
 ## Props
 
-Both take a single `insights` prop, the response of `GET /insights`. Most of
-its counts are numbers of publications, so a book published twice counts
-twice.
+Both take an `insights` prop, the response of `GET /insights`. Most of its
+counts are numbers of publications, so a book published twice counts twice.
+`Insights` also takes `map`, the outlines of the world map, from `worldMap`.
+
+Every figure and chart has an
+[Info hint](?path=/docs/components-info-hint--docs) that says what it counts.
+The page has no introduction of its own, and the definitions it needs, such as
+what a work is, are in the hints.
 
 - **Figures** — see [Insight figures](?path=/docs/insights-insight-figures--docs).
-- **Publications by decade** — every decade from the first to the last,
-  including decades with no publications.
-- **Most translated authors**, **translators** and **publishers** — up to ten
-  names in each field with the most publications.
-- **Countries of publication** — every country, named in the reader's language.
+- **Publications per year** — every year from the first to the last, split by
+  the two countries with the most publications and everything else, drawn with
+  [Insight columns](?path=/docs/insights-insight-columns--docs). Decades
+  divisible by 20 are labelled under the chart, and the others too on wider
+  screens.
+- **Publications by decade** — every decade from the first to the last, split
+  into first translations, retranslations and reissues, drawn with
+  [Insight stacks](?path=/docs/insights-insight-stacks--docs). A reissue is a
+  later publication of a translation, and a retranslation is the first
+  publication of a work's second or later translation. The backend judges
+  these over the whole database, so a search does not turn a reissue into a
+  first translation.
+- **Most translated authors** and **publishers** — up to ten names in each field
+  with the most publications.
+- **Authors first translated, by decade** — the authors the publications name,
+  counted by the decade of their first publication in the database.
+- **Translators with the most publications** — up to ten translators, each on
+  an [Insight timeline](?path=/docs/insights-insight-timeline--docs) with a dot
+  for each year they published in, sized by the publications that year.
+- **Most frequent author–translator pairs** — up to ten pairs of an original
+  author and a translator, by the publications they appear in together.
 - **Works translated more than once** — a work is an original book, and a
-  translation is one translated text of it by its translators. This list
-  counts translations, so a translation published twice counts once.
+  translation is one translated text of it by its translators. Each work is on
+  a timeline with a dot for each translation, in the year it was first
+  published, and its value counts translations, so a translation published
+  twice counts once.
+- **Publications by country** — every country, named in the reader's language,
+  shaded on an [Insight map](?path=/docs/insights-insight-map--docs) and listed
+  with its count beside it.
+
+The year chart and the map take the full width. The other charts share a grid
+of up to three columns, and the two timelines span two of them.
 
 ## Empty lists and empty results
 
-The list of works translated more than once is left out when no work has more
-than one translation. The other lists always have items when there are
+The timeline of works translated more than once is left out when no work has
+more than one translation. The other charts always have entries when there are
 publications.
 
 <Canvas of={InsightsStories.NoWorkTranslatedTwice} />

@@ -121,6 +121,13 @@ body {
   @apply left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2;
 }
 
+/* The fill of a chart series, chosen by the element's data-series attribute:
+   0 is the main series, 1 stands out from it, and 2 is muted. A legend swatch
+   and the chart it describes use the same colours. */
+@utility bg-series {
+  @apply data-[series=0]:bg-indigo-600 data-[series=1]:bg-amber-400 data-[series=2]:bg-indigo-200;
+}
+
 @utility bg-stripes-diagonal {
   @apply bg-[repeating-linear-gradient(45deg,#e1e1e1_0,#e1e1e1_1px,transparent_0,transparent_50%)] bg-size-[10px_10px];
 }

@@ -1,0 +1,41 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightMapStories from "./InsightMap.stories";
+
+<Meta of={InsightMapStories} />
+
+# Insight map
+
+A titled world map with each country shaded by its number of publications, and
+a list of the countries with their counts beside it. On narrow screens the list
+is below the map.
+
+<Canvas of={InsightMapStories.Countries} />
+
+## Props
+
+- `title` and `hint` — see [Insight title](?path=/docs/insights-insight-title--docs).
+- `map` — the outlines to draw, from `worldMap` in `modules/world-map`. It
+  projects Natural Earth's outlines, from the `world-atlas` package, and is
+  meant to be computed on the server, so the outline data and the projection
+  library are not part of the page's JavaScript.
+- `countries` — every country with publications, with its code, name and
+  count, in the order they are listed.
+
+## Shades
+
+The shades are fixed bands rather than a scale of the largest count, so a shade
+means the same range on every search: one publication, two to nine, ten to 99,
+and 100 or more. A legend under the map names the bands. Countries without
+publications are grey, and so are territories the atlas draws without a
+country code.
+
+<Description of={InsightMapStories.OnePublication} />
+
+<Canvas of={InsightMapStories.OnePublication} />
+
+## Hover and accessibility
+
+Hovering a shaded country darkens it by one shade and shows its name and count,
+from the shape's SVG `title`. The map has `aria-hidden`, and assistive technology reads
+the list beside it, which has every count.

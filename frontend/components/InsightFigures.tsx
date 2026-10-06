@@ -3,6 +3,7 @@
 import type { Insights } from "modules/insights";
 import { useFormatter, useTranslations } from "next-intl";
 import { FC } from "react";
+import InfoHint from "./InfoHint";
 
 /**
  * The main figures for a set of publications: how many there are, how many
@@ -11,7 +12,8 @@ import { FC } from "react";
  *
  * Each figure is a `dt` and `dd` pair in a description list. The value is
  * displayed above its term but comes after it in the markup, so it is read
- * after the term.
+ * after the term. Each term is followed by an `InfoHint` that says what the
+ * figure counts.
  */
 const InsightFigures: FC<{ insights: Insights }> = ({ insights }) => {
   const t = useTranslations("insights");
@@ -46,7 +48,13 @@ const InsightFigures: FC<{ insights: Insights }> = ({ insights }) => {
       <dl className="grid grid-cols-2 gap-px overflow-hidden rounded border border-gray-200 bg-gray-200 sm:grid-cols-4 xl:grid-cols-8">
         {figures.map(({ key, value }) => (
           <div key={key} className="flex flex-col-reverse gap-1 p-3 bg-white">
-            <dt className="text-xs text-gray-600">{t(key)}</dt>
+            <dt className="flex gap-1 items-center text-xs text-gray-600">
+              {t(key)}
+              <InfoHint
+                label={t("about", { name: t(key) })}
+                message={t(`hints.${key}`)}
+              />
+            </dt>
             <dd className="text-2xl text-gray-900 tabular-nums">{value}</dd>
           </div>
         ))}

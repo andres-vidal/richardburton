@@ -1,0 +1,25 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightTableStories from "./InsightTable.stories";
+
+<Meta of={InsightTableStories} />
+
+# Insight table
+
+A visually hidden table of the counts a chart draws. A chart that hides its
+drawing from assistive technology renders this table beside it, so a screen
+reader reads the same counts as rows and columns.
+
+The table is hidden with `sr-only`, so the canvas below is blank. Its play test
+reads the table by its rows.
+
+<Canvas of={InsightTableStories.Counts} />
+
+## Props
+
+- `title` — the caption, which is the title of the chart. It is also the
+  table's accessible name.
+- `heading` — the heading of the first column, such as "Year" or "Decade".
+- `series` — the name of each series, one column each.
+- `rows` — one row for each entry, with its `label` and its `counts` in the
+  order of `series`. The last column is the row's total.

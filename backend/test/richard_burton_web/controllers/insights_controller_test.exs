@@ -49,6 +49,17 @@ defmodule RichardBurtonWeb.InsightsControllerTest do
                %{"name" => "Clarice Lispector", "count" => 1},
                %{"name" => "Machado de Assis", "count" => 1}
              ]
+
+      # The two countries have one publication each, so they are sorted by code.
+      assert body["annual"]["countries"] == ["GB", "US"]
+
+      assert hd(body["decades"]) == %{
+               "decade" => 1950,
+               "count" => 1,
+               "first_translations" => 1,
+               "retranslations" => 0,
+               "reissues" => 0
+             }
     end
 
     test "describes the publications a search matches, and how it read the search", %{
@@ -60,7 +71,15 @@ defmodule RichardBurtonWeb.InsightsControllerTest do
         |> json_response(200)
 
       assert body["publications"] == 1
-      assert body["translators"] == [%{"name" => "Giovanni Pontiero", "count" => 1}]
+
+      assert body["translators"] == [
+               %{
+                 "name" => "Giovanni Pontiero",
+                 "count" => 1,
+                 "years" => [%{"year" => 1986, "count" => 1}]
+               }
+             ]
+
       assert [%{"typed" => "clarise", "words" => ["clarice"]}] = body["matched"]
     end
 

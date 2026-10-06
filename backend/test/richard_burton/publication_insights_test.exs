@@ -109,12 +109,72 @@ defmodule RichardBurton.Publication.InsightsTest do
 
       assert Enum.map(decades, & &1.decade) == Enum.to_list(1880..1990//10)
 
+      # Caldwell's Dom Casmurro of 1966 is a reissue of her 1953 translation,
+      # and Gledson's of 1997 is a retranslation of the work.
       assert Enum.reject(decades, &(&1.count == 0)) == [
+               %{decade: 1880, count: 1, first_translations: 1, retranslations: 0, reissues: 0},
+               %{decade: 1950, count: 2, first_translations: 2, retranslations: 0, reissues: 0},
+               %{decade: 1960, count: 1, first_translations: 0, retranslations: 0, reissues: 1},
+               %{decade: 1980, count: 2, first_translations: 2, retranslations: 0, reissues: 0},
+               %{decade: 1990, count: 1, first_translations: 0, retranslations: 1, reissues: 0}
+             ]
+    end
+
+    test "counts each year by the two countries with the most publications" do
+      annual = Insights.describe().annual
+
+      assert annual.countries == ["US", "GB"]
+      assert Enum.map(annual.years, & &1.year) == Enum.to_list(1886..1997)
+
+      # Gledson's Dom Casmurro names both countries, and counts once, under the
+      # United States.
+      assert Enum.reject(annual.years, &(&1.counts == [0, 0])) == [
+               %{year: 1886, counts: [0, 1], elsewhere: 0},
+               %{year: 1952, counts: [1, 0], elsewhere: 0},
+               %{year: 1953, counts: [1, 0], elsewhere: 0},
+               %{year: 1966, counts: [1, 0], elsewhere: 0},
+               %{year: 1986, counts: [0, 1], elsewhere: 0},
+               %{year: 1988, counts: [1, 0], elsewhere: 0},
+               %{year: 1997, counts: [1, 0], elsewhere: 0}
+             ]
+    end
+
+    test "counts a publication in neither leading country as elsewhere" do
+      seed([
+        %{
+          title: "The Devil to Pay in the Backlands",
+          year: 1963,
+          countries: ["CA"],
+          publishers: ["Knopf"],
+          authors: ["James L. Taylor"],
+          original_title: "Grande Sertão: Veredas",
+          original_authors: ["João Guimarães Rosa"]
+        }
+      ])
+
+      assert %{year: 1963, counts: [0, 0], elsewhere: 1} in Insights.describe().annual.years
+    end
+
+    test "counts the original authors by the decade of their first publication" do
+      debuts = Insights.describe().debuts
+
+      assert Enum.map(debuts, & &1.decade) == Enum.to_list(1880..1980//10)
+
+      assert Enum.reject(debuts, &(&1.count == 0)) == [
                %{decade: 1880, count: 1},
-               %{decade: 1950, count: 2},
-               %{decade: 1960, count: 1},
-               %{decade: 1980, count: 2},
-               %{decade: 1990, count: 1}
+               %{decade: 1950, count: 1},
+               %{decade: 1980, count: 1}
+             ]
+    end
+
+    test "leads with the authors and translators that appear together most" do
+      assert Insights.describe().pairs == [
+               %{author: "Machado de Assis", translator: "Helen Caldwell", count: 2},
+               %{author: "Clarice Lispector", translator: "Giovanni Pontiero", count: 1},
+               %{author: "Clarice Lispector", translator: "Ronald W. Sousa", count: 1},
+               %{author: "José de Alencar", translator: "Isabel Burton", count: 1},
+               %{author: "Machado de Assis", translator: "John Gledson", count: 1},
+               %{author: "Machado de Assis", translator: "William Grossman", count: 1}
              ]
     end
 
@@ -137,13 +197,19 @@ defmodule RichardBurton.Publication.InsightsTest do
                %{name: "José de Alencar", count: 1}
              ]
 
-      assert insights.translators == [
+      assert Enum.map(insights.translators, &Map.take(&1, [:name, :count])) == [
                %{name: "Helen Caldwell", count: 2},
                %{name: "Giovanni Pontiero", count: 1},
                %{name: "Isabel Burton", count: 1},
                %{name: "John Gledson", count: 1},
                %{name: "Ronald W. Sousa", count: 1},
                %{name: "William Grossman", count: 1}
+             ]
+
+      # Each translator also has the years of their publications.
+      assert hd(insights.translators).years == [
+               %{year: 1953, count: 1},
+               %{year: 1966, count: 1}
              ]
 
       assert hd(insights.publishers) == %{name: "Noonday Press", count: 2}
@@ -162,7 +228,11 @@ defmodule RichardBurton.Publication.InsightsTest do
                  title: "Dom Casmurro",
                  authors: ["Machado de Assis"],
                  translations: 2,
-                 publications: 3
+                 publications: 3,
+                 timeline: [
+                   %{year: 1953, translators: ["Helen Caldwell"]},
+                   %{year: 1997, translators: ["John Gledson"]}
+                 ]
                }
              ]
     end
@@ -206,14 +276,32 @@ defmodule RichardBurton.Publication.InsightsTest do
 
       assert insights.publications == 2
       assert insights.original_authors == [%{name: "Clarice Lispector", count: 2}]
-      assert insights.decades == [%{decade: 1980, count: 2}]
+
+      assert insights.decades == [
+               %{decade: 1980, count: 2, first_translations: 2, retranslations: 0, reissues: 0}
+             ]
+    end
+
+    test "tells kinds of publication and debuts apart over the whole index, not the search" do
+      insights = Insights.describe("year:1960-1969")
+
+      # The 1966 Dom Casmurro is a reissue even though the search leaves out the
+      # 1953 edition, and Machado de Assis's debut is still 1952.
+      assert insights.decades == [
+               %{decade: 1960, count: 1, first_translations: 0, retranslations: 0, reissues: 1}
+             ]
+
+      assert insights.debuts == [%{decade: 1950, count: 1}]
     end
 
     test "describes nothing when the search matches nothing" do
       assert Insights.describe("zzyzx") == %{
                publications: 0,
                years: nil,
+               annual: %{countries: [], years: []},
                decades: [],
+               debuts: [],
+               pairs: [],
                totals: %{
                  works: 0,
                  original_authors: 0,

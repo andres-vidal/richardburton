@@ -1,4 +1,5 @@
 import { CSSProperties, FC, useId } from "react";
+import InsightTitle from "./InsightTitle";
 
 /** One item in the list, with its count. */
 type Bar = {
@@ -14,6 +15,8 @@ type Bar = {
 
 type Props = {
   title: string;
+  /** What the chart shows, in a tooltip beside the title. */
+  hint?: string;
   bars: Bar[];
 };
 
@@ -26,15 +29,13 @@ type Props = {
  * label and value, and is hidden from assistive technology, which reads the
  * label and value instead.
  */
-const InsightBars: FC<Props> = ({ title, bars }) => {
+const InsightBars: FC<Props> = ({ title, hint, bars }) => {
   const id = useId();
   const most = Math.max(1, ...bars.map(({ count }) => count));
 
   return (
     <section aria-labelledby={id} className="space-y-3">
-      <h2 id={id} className="text-lg font-normal text-gray-900">
-        {title}
-      </h2>
+      <InsightTitle id={id} title={title} hint={hint} />
       <ol className="space-y-2">
         {bars.map(({ key, label, detail, count, value }) => (
           <li

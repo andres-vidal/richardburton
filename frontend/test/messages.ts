@@ -3,8 +3,10 @@ import written from "messages/en.json";
 /** Enough countries to render a field. What a term finds is the server's, and
  * is checked there. */
 const COUNTRIES = [
+  { id: "AU", label: "Australia" },
   { id: "BR", label: "Brazil" },
   { id: "CA", label: "Canada" },
+  { id: "GB", label: "United Kingdom", article: "the" },
   { id: "NL", label: "Netherlands", article: "the" },
   { id: "US", label: "United States", article: "the" },
 ];
