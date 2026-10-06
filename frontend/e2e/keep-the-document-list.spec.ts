@@ -5,6 +5,7 @@ import {
   indexTable,
   openDocument,
   uploadCsv,
+  CSV_HEADER,
   IMPORT_CSV,
 } from "./helpers";
 
@@ -114,33 +115,64 @@ test("an archived document leaves the list, keeps its rows, and can be put back"
   ).toBeVisible();
 });
 
-test("replacing a shared document's rows is asked about before it happens", async ({
+/**
+ * A second batch: two new publications, and a repeat of IMPORT_CSV's Dom
+ * Casmurro, which the document already holds.
+ */
+const SECOND_BATCH_CSV =
+  [
+    CSV_HEADER,
+    `Macunaíma,1984,US,Random House,E. A. Goodland,Macunaíma,Mário de Andrade,`,
+    `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+    `The Hour of the Star,1986,US,Carcanet,Giovanni Pontiero,A Hora da Estrela,Clarice Lispector,`,
+  ].join("\n") + "\n";
+
+test("a second upload adds its rows after the ones already there, and Undo takes them out again", async ({
   page,
 }) => {
   await signInAsAdmin(page);
   await openDocument(page, "Second pass");
+  const table = indexTable(page);
+  const titles = () =>
+    table.getByRole("textbox", { name: "Title" }).evaluateAll((inputs) =>
+      inputs
+        .map((input) => (input as HTMLInputElement).value)
+        // The empty line at the foot of the table, for a new row.
+        .filter(Boolean),
+    );
 
-  await uploadCsv(page, IMPORT_CSV, "import.csv");
-  await expect(
-    indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
-  ).toBeVisible();
+  await uploadCsv(page, IMPORT_CSV, "first.csv");
+  await expect(table.getByRole("row", { name: /Iracema/ })).toBeVisible();
 
-  await page.getByRole("button", { name: /Upload/ }).click();
+  // The second file's rows follow the first file's, which are all kept.
+  await uploadCsv(page, SECOND_BATCH_CSV, "second.csv");
+  await expect(table.getByRole("row", { name: /Macunaíma/ })).toBeVisible();
+  await expect
+    .poll(titles)
+    .toEqual([
+      "Dom Casmurro",
+      "Iracema",
+      "Macunaíma",
+      "Dom Casmurro",
+      "The Hour of the Star",
+    ]);
 
-  const asking = page.getByRole("dialog", {
-    name: "Replace everything in this document?",
+  // The repeated Dom Casmurro is caught across the two uploads, so Submit
+  // waits until it is dealt with.
+  await expect(page.getByLabel("1 invalid publication")).toBeVisible({
+    timeout: 30_000,
   });
+  await expect(page.getByRole("button", { name: "Submit" })).toBeDisabled();
 
-  await expect(asking).toContainText("All 2 rows here");
-  await expect(asking).toContainText(
-    "Everyone working on this document loses them",
-  );
+  // One Undo takes the whole second upload out, and the first file's rows stay.
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect.poll(titles).toEqual(["Dom Casmurro", "Iracema"]);
+  await expect(page.getByLabel("1 invalid publication")).toHaveCount(0);
 
-  // Choosing "Keep them" closes the dialog and leaves the rows in place.
-  await asking.getByRole("button", { name: "Keep them" }).click();
-  await expect(asking).not.toBeVisible();
+  // The same file can be chosen again.
+  await uploadCsv(page, SECOND_BATCH_CSV, "second.csv");
   await expect(
-    indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
+    table.getByRole("row", { name: /The Hour of the Star/ }),
   ).toBeVisible();
 });
 

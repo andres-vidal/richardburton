@@ -218,6 +218,7 @@
     "submit": "Submit",
     "submitHint": "Save the publications to the repository",
     "upload": "Upload.csv",
+    "uploadHint": "Adds the rows of a .csv file after the rows already here.",
     "addPublication": "Add publication",
     "allValid": "All publications are valid",
     "restore": "Restore",
@@ -262,7 +263,6 @@
     "invalidPublications": "{count, plural, one {1 invalid publication} other {# invalid publications}}",
     "hideRowIds": "Hide row numbers",
     "showRowIds": "Show row numbers",
-    "dataWillBeReplaced": "Current data will be replaced!",
     "sourcesHint": "Sources that back this record, so a reader can verify it.",
     "sourceNumber": "Source {number}",
     "moveSourceUp": "Move source {number} up",
@@ -291,11 +291,7 @@
     "namesDescription": "Translators, authors and publishers — correct a spelling, or fold duplicates together.",
     "redo": "Redo",
     "undoHint": "Walk back your last change. Edits made by others are left alone.",
-    "redoHint": "Put back the change you walked back.",
-    "replaceTitle": "Replace everything in this document?",
-    "replaceMessage": "{count, plural, one {The # row here} other {All # rows here}} will be discarded and the file put in their place. Everyone working on this document loses them.",
-    "replaceConfirm": "Replace them",
-    "replaceCancel": "Keep them"
+    "redoHint": "Put back the change you walked back."
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
