@@ -84,6 +84,15 @@ type Props = {
   matched: Matched[];
 };
 
+/**
+ * The search box over the publications. Typing replaces the `search` query
+ * parameter after `SEARCH_DELAY_MS`, and below the box it reports `matched`,
+ * the words the search was widened to.
+ *
+ * When the box loses focus, a search still waiting out the delay is sent at
+ * once. A navigation the reader starts next, such as opening a publication,
+ * then comes after the search instead of being replaced by it.
+ */
 const PublicationSearch: FC<Props> = ({ matched }) => {
   const t = useTranslations("search");
   const router = useRouter();
@@ -141,6 +150,7 @@ const PublicationSearch: FC<Props> = ({ matched }) => {
         aria-label={t("ariaLabel")}
         value={search}
         onChange={handleChange}
+        onBlur={() => navigate.flush()}
       />
       <div className="flex gap-3 items-baseline px-3 min-h-4 text-xs">
         <div

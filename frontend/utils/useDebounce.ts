@@ -1,4 +1,4 @@
-import { debounce, DebounceSettings } from "lodash";
+import { debounce, DebounceSettings, type DebouncedFunc } from "lodash";
 import { useEffect, useMemo, useRef } from "react";
 
 /**
@@ -6,13 +6,15 @@ import { useEffect, useMemo, useRef } from "react";
  *
  * The debounced wrapper is made once, so a caller that hands over a fresh
  * function each render — anything typed into, which re-renders as it goes —
- * still shares one timer instead of buying each call its own.
+ * still shares one timer instead of buying each call its own. It is lodash's
+ * debounced function, so `flush` runs a pending call at once and `cancel`
+ * drops it.
  */
 function useDebounce<F extends (...args: never[]) => unknown>(
   factory: F,
   delay: number,
   opts?: DebounceSettings,
-): F {
+): DebouncedFunc<F> {
   const latest = useRef(factory);
 
   useEffect(() => {
@@ -29,7 +31,7 @@ function useDebounce<F extends (...args: never[]) => unknown>(
         settings.current,
       ),
     [delay],
-  ) as unknown as F;
+  ) as unknown as DebouncedFunc<F>;
 }
 
 export default useDebounce;

@@ -23,6 +23,11 @@ new rows are ready — and is debounced, so a typist does not ask for a page per
 letter. "Searching…" shows while what has been typed and what the URL says have
 not met, or the page for it is still coming.
 
+When the input loses focus, a search still waiting out the delay is sent at
+once. Clicking a publication right after editing the search blurs the input
+first, so the search's navigation starts before the publication's, and the
+publication opens rather than being replaced by the search.
+
 The report below the input shows `matched`, what the index made of the term,
 which the page passes in with its results. Only the words the index read
 differently from the way they were typed are there: a reader who typed `machado`

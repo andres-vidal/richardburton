@@ -146,6 +146,31 @@ test("opening a publication does not read the database again", async ({
   expect(payloads).toHaveLength(0);
 });
 
+test("a publication clicked right after the search is cleared opens, however slowly it loads", async ({
+  page,
+}) => {
+  await seedCorpus(page);
+  await signOut(page);
+  await page.goto("/");
+
+  const search = page.getByRole("textbox", { name: "Search publications" });
+  await search.fill("Machado");
+  await expectMatchCount(page, 3);
+
+  // The publication answers slowly, as it does the first time a server builds
+  // its page. Clearing the search starts a navigation of its own, and the click
+  // that follows must still open the publication.
+  await page.route(/\/publications\/\d+/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await route.continue();
+  });
+
+  await search.clear();
+  const details = await openPublicationModal(page, "Dom Casmurro");
+
+  await expect(details).toContainText("Helen Caldwell");
+});
+
 test("reloading with a publication open keeps it open, over the search that found it", async ({
   page,
 }) => {
