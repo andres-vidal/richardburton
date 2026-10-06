@@ -32,6 +32,16 @@ burst of typing as a whole word, not one letter at a time.
 Adding a row is a separate undo step from typing into it, so undoing the
 typing in a new row does not also remove the row.
 
+## Keyboard shortcuts
+
+Ctrl+Z (⌘Z on a Mac) undoes, and Ctrl+Shift+Z, Ctrl+Y or ⇧⌘Z redoes. The
+buttons' tooltips name these keys. The keys are bound by `useUndoShortcuts`,
+not by this component, so they work even when no button is rendered.
+
+A key press in a text field is left to the browser, so the field undoes the
+text typed in it rather than the last change to the document. A key press in
+an open dialog is also left alone.
+
 ## Props
 
 None. It uses the undo manager of the workspace store it renders in, through

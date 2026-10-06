@@ -22,6 +22,7 @@ import WorkspaceNames from "components/WorkspaceNames";
 import { Publication } from "modules/publication/model";
 import { setAttributesVisible } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
+import { useUndoShortcuts, useWorkspaceUndo } from "modules/publication/undo";
 import { DocumentProvider } from "modules/publication/document-provider";
 import type { Store } from "modules/store";
 import { useIsSelectionEmpty } from "modules/selection";
@@ -42,6 +43,7 @@ const Workspace: FC<{
 }> = ({ title, description, document }) => {
   const t = useTranslations("admin");
   const isSelectionEmpty = useIsSelectionEmpty();
+  useUndoShortcuts(useWorkspaceUndo());
 
   const crumbs = [
     { label: t("home"), href: "/" },

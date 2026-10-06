@@ -331,6 +331,23 @@ export async function moveSelectedRows(
   await expect(moved).not.toBeVisible();
 }
 
+/**
+ * Selects the rows titled `titles` by their leading cells, with Cmd held after
+ * the first, and off their centers, where an error icon would open a tooltip.
+ */
+export async function selectRows(page: Page, titles: string[]) {
+  for (const [index, title] of titles.entries()) {
+    await indexTable(page)
+      .getByRole("row", { name: new RegExp(title) })
+      .getByRole("cell")
+      .first()
+      .click({
+        position: { x: 4, y: 4 },
+        modifiers: index === 0 ? [] : ["Meta"],
+      });
+  }
+}
+
 /** Uploads `csv` through the upload control, as a file called `name`. */
 export async function uploadCsv(page: Page, csv: string, name = "import.csv") {
   await page.locator("#upload-csv").setInputFiles({

@@ -1,10 +1,10 @@
-import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 import {
   CSV_HEADER,
   expectPublicationCount,
   indexTable,
   openDocument,
+  selectRows,
   signInAsAdmin,
   signInAsContributor,
   submitWorkspace,
@@ -20,23 +20,6 @@ const BATCH_CSV =
     `The Hour of the Star,1986,US,Carcanet,Giovanni Pontiero,A Hora da Estrela,Clarice Lispector,`,
     `The Passion According to G.H.,1988,US,University of Minnesota Press,Ronald W. Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
   ].join("\n") + "\n";
-
-/**
- * Selects the rows titled `titles` by their leading cells, with Cmd held after
- * the first, and off their centers, where an error icon would open a tooltip.
- */
-async function selectRows(page: Page, titles: string[]) {
-  for (const [index, title] of titles.entries()) {
-    await indexTable(page)
-      .getByRole("row", { name: new RegExp(title) })
-      .getByRole("cell")
-      .first()
-      .click({
-        position: { x: 4, y: 4 },
-        modifiers: index === 0 ? [] : ["Meta"],
-      });
-  }
-}
 
 test("rows removed from a shared document disappear for everyone, Undo brings them back, and the rest is imported", async ({
   page,

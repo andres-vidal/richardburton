@@ -290,8 +290,8 @@
     "namesTitle": "Names",
     "namesDescription": "Translators, authors and publishers — correct a spelling, or fold duplicates together.",
     "redo": "Redo",
-    "undoHint": "Walk back your last change. Edits made by others are left alone.",
-    "redoHint": "Put back the change you walked back."
+    "undoHint": "Walk back your last change (Ctrl+Z, or ⌘Z on a Mac). Edits made by others are left alone.",
+    "redoHint": "Put back the change you walked back (Ctrl+Shift+Z or Ctrl+Y, or ⇧⌘Z on a Mac)."
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
