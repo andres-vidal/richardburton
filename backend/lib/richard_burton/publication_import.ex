@@ -20,8 +20,6 @@ defmodule RichardBurton.Publication.Import do
   find the first one in conflict.
   """
 
-  import Ecto.Query, only: [from: 2]
-
   alias Ecto.Changeset
   alias RichardBurton.Identity
   alias RichardBurton.Publication
@@ -61,64 +59,49 @@ defmodule RichardBurton.Publication.Import do
   defp insert([], _actor), do: []
 
   defp insert(rows, actor) do
-    now = NaiveDateTime.utc_now(:second)
-    entries = Enum.map(rows, fn {_attrs, changeset} -> Changeset.apply_changes(changeset) end)
-    links = Links.resolve(entries)
-    publication_ids = insert_publications(entries, links, now)
+    {attrs_list, changesets} = Enum.unzip(rows)
+    links = changesets |> Enum.map(&Changeset.apply_changes/1) |> Links.resolve()
+    ids = insert_publications(changesets, links)
 
-    [rows, publication_ids, links]
-    |> Enum.zip_with(fn [{attrs, _changeset}, publication_id, links] ->
-      %{
-        attrs: attrs,
-        publication_id: publication_id,
-        translated_book_id: links.translated_book_id,
-        original_book_id: links.original_book_id
-      }
-    end)
-    |> settle!()
+    settle!(attrs_list, ids)
 
-    publications = load(publication_ids)
-    History.record_all(:created, publications, actor)
+    publications = Publication.with_ids(ids)
+    History.record_created(publications, actor)
     publications
   end
 
-  # Inserts a publication for each entry, with its links to the countries and
-  # publishers in `links`, and its sources. Returns the publications' ids in
-  # order.
-  defp insert_publications(entries, links, now) do
+  # Inserts a publication for each changeset, with its links to the countries
+  # and publishers in `links`, and its sources. The columns of each row are the
+  # changes the changeset casts. Returns the publications' ids in order.
+  defp insert_publications(changesets, links) do
     ids =
       Publication
       |> Repo.insert_in_chunks(
-        Enum.zip_with(entries, links, fn entry, links ->
-          timestamped(
-            %{title: entry.title, year: entry.year, translated_book_id: links.translated_book_id},
-            now
-          )
+        Enum.zip_with(changesets, links, fn changeset, links ->
+          changeset.changes
+          |> Map.drop(Publication.__schema__(:associations))
+          |> Map.put(:translated_book_id, links.translated_book_id)
         end),
         returning: [:id]
       )
       |> Enum.map(& &1.id)
 
-    published = Enum.zip([ids, entries, links])
+    published = Enum.zip([ids, changesets, links])
 
     country_links =
-      for {id, _entry, links} <- published,
+      for {id, _changeset, links} <- published,
           country <- links.countries,
           do: %{publication_id: id, country_id: country.id}
 
     publisher_links =
-      for {id, _entry, links} <- published,
+      for {id, _changeset, links} <- published,
           publisher <- links.publishers,
           do: %{publication_id: id, publisher_id: publisher.id}
 
     sources =
-      for {id, entry, _links} <- published,
-          source <- sources(entry),
-          do:
-            timestamped(
-              %{publication_id: id, content: source.content, position: source.position},
-              now
-            )
+      for {id, changeset, _links} <- published,
+          source <- Changeset.get_change(changeset, :sources, []),
+          do: Map.put(source.changes, :publication_id, id)
 
     Repo.insert_in_chunks("publication_countries", country_links)
     Repo.insert_in_chunks("publication_publishers", publisher_links)
@@ -127,58 +110,21 @@ defmodule RichardBurton.Publication.Import do
     ids
   end
 
-  # Checks the composite keys. When a row has the same key as another row or a
-  # stored publication, rolls the transaction back with the first such row's
-  # attrs and `:conflict`. Each of `rows` holds a row's attrs and the ids of its
-  # publication and books.
-  defp settle!(rows) do
+  # Checks the composite keys of the publications with the ids `ids`, inserted
+  # from `attrs_list` in the same order. When one of them, or one of its books,
+  # has the same key as another, rolls the transaction back with the first such
+  # publication's attrs and `:conflict`.
+  defp settle!(attrs_list, ids) do
     Repo.query!("SAVEPOINT import_settle")
 
     with {:error, :conflict} <- Identity.settle() do
       Repo.query!("ROLLBACK TO SAVEPOINT import_settle")
-      Repo.rollback({first_in_conflict(rows), :conflict})
+      conflicted = MapSet.new(Identity.publications_in_conflict(ids))
+
+      {attrs, _id} =
+        attrs_list |> Enum.zip(ids) |> Enum.find(fn {_attrs, id} -> id in conflicted end)
+
+      Repo.rollback({attrs, :conflict})
     end
   end
-
-  # Returns the attrs of the first of `rows` whose publication, translated book
-  # or original book has the same key as another.
-  defp first_in_conflict(rows) do
-    publications = in_conflict(rows, :publication_id, &Identity.publications_in_conflict/1)
-
-    translated_books =
-      in_conflict(rows, :translated_book_id, &Identity.translated_books_in_conflict/1)
-
-    original_books = in_conflict(rows, :original_book_id, &Identity.original_books_in_conflict/1)
-
-    %{attrs: attrs} =
-      Enum.find(rows, fn row ->
-        row.publication_id in publications or row.translated_book_id in translated_books or
-          row.original_book_id in original_books
-      end)
-
-    attrs
-  end
-
-  # Returns the ids under `key` in `rows` that `find` reports in conflict.
-  defp in_conflict(rows, key, find) do
-    rows |> Enum.map(&Map.fetch!(&1, key)) |> Enum.uniq() |> find.() |> MapSet.new()
-  end
-
-  # Reads back the publications with the ids `ids`, preloaded, in order.
-  defp load(ids) do
-    stored =
-      from(p in Publication, where: p.id in ^ids)
-      |> Repo.all()
-      |> Publication.preload()
-      |> Map.new(&{&1.id, &1})
-
-    Enum.map(ids, &Map.fetch!(stored, &1))
-  end
-
-  # Returns an entry's sources, or an empty list when its row gave none.
-  defp sources(%{sources: sources}) when is_list(sources), do: sources
-  defp sources(_entry), do: []
-
-  # Returns `columns` with the timestamps of a row inserted at `now`.
-  defp timestamped(columns, now), do: Map.merge(columns, %{inserted_at: now, updated_at: now})
 end

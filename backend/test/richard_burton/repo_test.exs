@@ -8,26 +8,29 @@ defmodule RichardBurton.RepoTest do
   alias RichardBurton.Author
 
   describe "insert_in_chunks/3" do
-    test "inserts 5,000 entries per statement and returns the rows in the order of the entries" do
-      now = NaiveDateTime.utc_now(:second)
-      names = for i <- 1..5_001, do: "Author #{i}"
-      entries = Enum.map(names, &%{name: &1, inserted_at: now, updated_at: now})
+    test "puts as many entries in a statement as 65,535 parameters allow, and returns the rows in order" do
+      # An author row has three columns: its name and two timestamps.
+      per_statement = div(65_535, 3)
+      names = for i <- 1..(per_statement + 1), do: "Author #{i}"
 
       {returned, statements} =
-        count_queries(fn -> Repo.insert_in_chunks(Author, entries, returning: [:name]) end)
+        count_queries(fn ->
+          Repo.insert_in_chunks(Author, Enum.map(names, &%{name: &1}), returning: [:name])
+        end)
 
       assert Enum.map(returned, & &1.name) == names
       assert statements == 2
-      assert Repo.aggregate(Author, :count) == 5_001
+    end
+
+    test "gives each entry of a schema the timestamps the schema generates" do
+      [author] = Repo.insert_in_chunks(Author, [%{name: "Author"}], returning: true)
+
+      assert %NaiveDateTime{} = author.inserted_at
+      assert author.updated_at == author.inserted_at
     end
 
     test "returns an empty list without :returning" do
-      now = NaiveDateTime.utc_now(:second)
-
-      assert [] ==
-               Repo.insert_in_chunks(Author, [
-                 %{name: "Author", inserted_at: now, updated_at: now}
-               ])
+      assert [] == Repo.insert_in_chunks(Author, [%{name: "Author"}])
     end
 
     test "sends no statement for no entries" do

@@ -23,19 +23,6 @@ defmodule RichardBurton.CountryTest do
     end
   end
 
-  defmodule WithManyCountries do
-    use Ecto.Schema
-    import Ecto.Changeset
-
-    schema "with_many_countries" do
-      has_many :countries, Country
-    end
-
-    def changeset(attrs) do
-      %WithManyCountries{} |> cast(attrs, []) |> cast_assoc(:countries)
-    end
-  end
-
   @valid_attrs %{
     "code" => "GB"
   }

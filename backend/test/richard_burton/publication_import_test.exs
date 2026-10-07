@@ -172,7 +172,7 @@ defmodule RichardBurton.Publication.ImportTest do
       assert {:error, {^repeated, :conflict}} =
                Publication.insert_all([first, second, repeated])
 
-      assert stored_count("publications") == 1
+      assert Repo.aggregate("publications", :count) == 1
     end
 
     test "is the row with the key of a stored publication" do
@@ -180,8 +180,8 @@ defmodule RichardBurton.Publication.ImportTest do
       stored = Codec.nest(@iracema)
 
       assert {:error, {^stored, :conflict}} = Publication.insert_all(batch ++ [stored])
-      assert stored_count("publications") == 1
-      assert stored_count("authors") == 2
+      assert Repo.aggregate("publications", :count) == 1
+      assert Repo.aggregate("authors", :count) == 2
     end
 
     test "is the first invalid row, ahead of a conflict before it" do
@@ -191,7 +191,7 @@ defmodule RichardBurton.Publication.ImportTest do
       assert {:error, {^invalid, %{year: :required}}} =
                Publication.insert_all([first | rest] ++ [first, invalid])
 
-      assert stored_count("publications") == 1
+      assert Repo.aggregate("publications", :count) == 1
     end
   end
 
@@ -220,10 +220,8 @@ defmodule RichardBurton.Publication.ImportTest do
       end)
       |> Enum.sort()
 
-    {publications, Map.new(@tables, &{&1, stored_count(&1)})}
+    {publications, Map.new(@tables, &{&1, Repo.aggregate(&1, :count)})}
   end
-
-  defp stored_count(table), do: Repo.one(from(r in table, select: count()))
 
   # Returns `n` publications, each of a new book by new names.
   defp works(n) do

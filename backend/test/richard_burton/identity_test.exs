@@ -44,11 +44,8 @@ defmodule RichardBurton.IdentityTest do
     do: Repo.one(from(r in schema, where: r.id == ^id, select: field(r, ^field)))
 
   # Each of these looks up a single key, through the lookup that takes many.
-  defp original_book_with_key(title, authors),
-    do: hd(Identity.original_books_with_keys([{title, authors}]))
-
-  defp translated_book_with_key(original_book_id, translators),
-    do: hd(Identity.translated_books_with_keys([{original_book_id, translators}]))
+  defp books_with_key(title, authors, translators),
+    do: hd(Identity.books_with_keys([{title, authors, translators}]))
 
   defp publication_with_key(publication, excluded \\ nil),
     do: hd(Identity.publications_with_keys([publication], excluded))
@@ -192,24 +189,13 @@ defmodule RichardBurton.IdentityTest do
     end
   end
 
-  describe "original_books_with_keys/1" do
-    test "answers each key in order, with nil for a key no book has" do
-      publication = insert()
-
-      original_book_id =
-        Repo.get!(TranslatedBook, publication.translated_book_id).original_book_id
-
-      assert Identity.original_books_with_keys([
-               {"Iracema", ["José de Alencar"]},
-               {"Dom Casmurro", ["Machado de Assis"]}
-             ]) == [nil, original_book_id]
-    end
-
-    test "finds the stored original book by its title and authors in any order" do
+  describe "books_with_keys/1" do
+    test "finds the stored books by their titles and names, in any order" do
       {:ok, publication} =
         Publication.insert(
           RichardBurton.Util.deep_merge_maps(@attrs, %{
             "translated_book" => %{
+              "authors" => [%{"name" => "Helen Caldwell"}, %{"name" => "John Gledson"}],
               "original_book" => %{
                 "authors" => [%{"name" => "Machado de Assis"}, %{"name" => "José de Alencar"}]
               }
@@ -217,58 +203,44 @@ defmodule RichardBurton.IdentityTest do
           })
         )
 
-      original_book_id =
-        Repo.get!(TranslatedBook, publication.translated_book_id).original_book_id
+      translated = Repo.get!(TranslatedBook, publication.translated_book_id)
 
-      assert original_book_with_key("Dom Casmurro", [
-               "José de Alencar",
-               "Machado de Assis"
-             ]) == original_book_id
+      assert books_with_key(
+               "Dom Casmurro",
+               ["José de Alencar", "Machado de Assis"],
+               ["John Gledson", "Helen Caldwell"]
+             ) == {translated.original_book_id, translated.id}
     end
 
-    test "returns nil when only some of the authors match" do
+    test "finds the original book but not a translation by other translators" do
+      publication = insert()
+      translated = Repo.get!(TranslatedBook, publication.translated_book_id)
+
+      assert books_with_key("Dom Casmurro", ["Machado de Assis"], ["John Gledson"]) ==
+               {translated.original_book_id, nil}
+    end
+
+    test "finds neither book when only some of the authors match" do
       insert()
 
-      assert original_book_with_key("Dom Casmurro", ["Machado de Assis", "Alencar"]) ==
-               nil
+      assert books_with_key("Dom Casmurro", ["Machado de Assis", "Alencar"], ["Helen Caldwell"]) ==
+               {nil, nil}
     end
 
-    test "returns nil for another title" do
+    test "finds neither book for another title" do
       insert()
 
-      assert original_book_with_key("Iracema", ["Machado de Assis"]) == nil
+      assert books_with_key("Iracema", ["Machado de Assis"], ["Helen Caldwell"]) == {nil, nil}
     end
-  end
 
-  describe "translated_books_with_keys/1" do
-    test "answers each key in order, with nil for a key no book has" do
+    test "answers each key in order" do
       publication = insert()
       translated = Repo.get!(TranslatedBook, publication.translated_book_id)
 
-      assert Identity.translated_books_with_keys([
-               {translated.original_book_id, ["Helen Caldwell"]},
-               {translated.original_book_id, ["John Gledson"]}
-             ]) == [translated.id, nil]
-    end
-
-    test "finds the stored translated book by its original book and translators" do
-      publication = insert()
-      translated = Repo.get!(TranslatedBook, publication.translated_book_id)
-
-      assert translated_book_with_key(translated.original_book_id, ["Helen Caldwell"]) ==
-               translated.id
-    end
-
-    test "returns nil for other translators" do
-      publication = insert()
-      translated = Repo.get!(TranslatedBook, publication.translated_book_id)
-
-      assert translated_book_with_key(translated.original_book_id, ["John Gledson"]) ==
-               nil
-    end
-
-    test "returns nil when there is no original book" do
-      assert translated_book_with_key(nil, ["Helen Caldwell"]) == nil
+      assert Identity.books_with_keys([
+               {"Iracema", ["José de Alencar"], ["Isabel Burton"]},
+               {"Dom Casmurro", ["Machado de Assis"], ["Helen Caldwell"]}
+             ]) == [{nil, nil}, {translated.original_book_id, translated.id}]
     end
   end
 

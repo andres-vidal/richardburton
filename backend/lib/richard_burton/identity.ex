@@ -18,9 +18,8 @@ defmodule RichardBurton.Identity do
   removed, or a linked name changes (see the migration
   `ComputeFingerprintsInTheDatabase`). The database also has functions that
   find the stored row with a key (see the migration
-  `LookUpCompositeKeysInTheDatabase`), and `original_books_with_keys/1`,
-  `translated_books_with_keys/1` and `publications_with_keys/2` call them for
-  many keys at once.
+  `LookUpCompositeKeysInTheDatabase`), and `books_with_keys/1` and
+  `publications_with_keys/2` call them for many keys at once.
 
   The keys are checked when a transaction commits, because a row's links are
   written one by one after the row, and until the last one is written the row
@@ -94,100 +93,43 @@ defmodule RichardBurton.Identity do
   end
 
   @doc """
-  Returns, for each `{title, authors}` in `keys`, the id of the stored original
-  book with that title and those authors, or nil when there is none. `authors`
-  is a list of names in any order. The ids come in the order of `keys`, from
-  one query.
+  Returns, for each `{title, authors, translators}` in `keys`, the ids of the
+  stored original book with that title and those authors, and of its stored
+  translated book by those translators, as a pair. Either id is nil when there
+  is no such book, and the translated book's is nil whenever the original
+  book's is. Names are lists in any order. The pairs come in the order of
+  `keys`, from one query.
   """
-  @spec original_books_with_keys([{String.t(), [String.t()]}]) :: [pos_integer() | nil]
-  def original_books_with_keys(keys) do
-    values(
-      """
+  @spec books_with_keys([{String.t(), [String.t()], [String.t()]}]) ::
+          [{pos_integer() | nil, pos_integer() | nil}]
+  def books_with_keys(keys) do
+    """
+    SELECT original.id, rb_translated_book_with_key(
+      original.id,
+      ARRAY(SELECT jsonb_array_elements_text(k->'translators'))
+    )
+    FROM jsonb_array_elements($1::jsonb) WITH ORDINALITY AS t(k, i),
+    LATERAL (
       SELECT rb_original_book_with_key(
         k->>'title',
-        ARRAY(SELECT jsonb_array_elements_text(k->'names'))
-      )
-      FROM jsonb_array_elements($1::jsonb) WITH ORDINALITY AS t(k, i)
-      ORDER BY i
-      """,
-      [Enum.map(keys, fn {title, authors} -> %{title: title, names: authors} end)]
-    )
-  end
-
-  @doc """
-  Returns, for each `{original_book_id, translators}` in `keys`, the id of the
-  stored translated book of that original book by those translators, or nil
-  when there is none. `translators` is a list of names in any order. The ids
-  come in the order of `keys`, from one query.
-  """
-  @spec translated_books_with_keys([{pos_integer(), [String.t()]}]) :: [pos_integer() | nil]
-  def translated_books_with_keys(keys) do
-    values(
-      """
-      SELECT rb_translated_book_with_key(
-        (k->>'original_book_id')::bigint,
-        ARRAY(SELECT jsonb_array_elements_text(k->'names'))
-      )
-      FROM jsonb_array_elements($1::jsonb) WITH ORDINALITY AS t(k, i)
-      ORDER BY i
-      """,
-      [
-        Enum.map(keys, fn {original_book_id, translators} ->
-          %{original_book_id: original_book_id, names: translators}
-        end)
-      ]
-    )
-  end
-
-  @doc """
-  Returns the ids among `ids` of the original books that have the same key as
-  another original book.
-  """
-  @spec original_books_in_conflict([pos_integer()]) :: [pos_integer()]
-  def original_books_in_conflict(ids) do
-    values(
-      """
-      SELECT b.id
-      FROM original_books b
-      WHERE b.id = ANY($1)
-        AND EXISTS (
-          SELECT 1
-          FROM original_books other
-          WHERE other.id <> b.id
-            AND other.title = b.title
-            AND other.authors_fingerprint = b.authors_fingerprint
-        )
-      """,
-      [ids]
-    )
-  end
-
-  @doc """
-  Returns the ids among `ids` of the translated books that have the same key
-  as another translated book.
-  """
-  @spec translated_books_in_conflict([pos_integer()]) :: [pos_integer()]
-  def translated_books_in_conflict(ids) do
-    values(
-      """
-      SELECT b.id
-      FROM translated_books b
-      WHERE b.id = ANY($1)
-        AND EXISTS (
-          SELECT 1
-          FROM translated_books other
-          WHERE other.id <> b.id
-            AND other.original_book_id = b.original_book_id
-            AND other.authors_fingerprint = b.authors_fingerprint
-        )
-      """,
-      [ids]
-    )
+        ARRAY(SELECT jsonb_array_elements_text(k->'authors'))
+      ) AS id
+    ) original
+    ORDER BY i
+    """
+    |> Repo.query!([
+      Enum.map(keys, fn {title, authors, translators} ->
+        %{title: title, authors: authors, translators: translators}
+      end)
+    ])
+    |> Map.fetch!(:rows)
+    |> Enum.map(&List.to_tuple/1)
   end
 
   @doc """
   Returns the ids among `ids` of the publications that have the same key as
-  another publication that is not deleted.
+  another publication that is not deleted, or whose translated or original
+  book has the same key as another book.
 
   Of two publications in `ids` with the same key, only the one with the higher
   id is returned. A publication outside `ids` counts whatever its id.
@@ -198,18 +140,36 @@ defmodule RichardBurton.Identity do
       """
       SELECT p.id
       FROM publications p
+      JOIN translated_books tb ON tb.id = p.translated_book_id
+      JOIN original_books ob ON ob.id = tb.original_book_id
       WHERE p.id = ANY($1)
         AND p.deleted_at IS NULL
-        AND EXISTS (
-          SELECT 1
-          FROM publications other
-          WHERE (other.id < p.id OR other.id <> ALL($1))
-            AND other.deleted_at IS NULL
-            AND other.title = p.title
-            AND other.year = p.year
-            AND other.translated_book_id = p.translated_book_id
-            AND other.publishers_fingerprint = p.publishers_fingerprint
-            AND other.countries_fingerprint = p.countries_fingerprint
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM publications other
+            WHERE (other.id < p.id OR other.id <> ALL($1))
+              AND other.deleted_at IS NULL
+              AND other.title = p.title
+              AND other.year = p.year
+              AND other.translated_book_id = p.translated_book_id
+              AND other.publishers_fingerprint = p.publishers_fingerprint
+              AND other.countries_fingerprint = p.countries_fingerprint
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM translated_books other
+            WHERE other.id <> tb.id
+              AND other.original_book_id = tb.original_book_id
+              AND other.authors_fingerprint = tb.authors_fingerprint
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM original_books other
+            WHERE other.id <> ob.id
+              AND other.title = ob.title
+              AND other.authors_fingerprint = ob.authors_fingerprint
+          )
         )
       """,
       [ids]

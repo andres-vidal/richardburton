@@ -376,18 +376,19 @@ defmodule RichardBurtonWeb.PublicationController do
 
       conn
       |> put_status(:ok)
-      |> json(hd(validate_publications([publication], id)))
+      |> json(reported(FlatPublication.validate(publication, id), publication))
     end
   end
 
   # Publications validated without being written, each reported as the record
   # and its errors so a client can show both.
-  defp validate_publications(publications, exclude_id \\ nil) do
+  defp validate_publications(publications) do
     publications
-    |> FlatPublication.validate_all(exclude_id)
-    |> Enum.zip_with(publications, fn
-      :ok, p -> %{publication: p, errors: nil}
-      {:error, errors}, p -> %{publication: p, errors: errors}
-    end)
+    |> FlatPublication.validate_all()
+    |> Enum.zip_with(publications, &reported/2)
   end
+
+  # A validation result reported with the publication it is for.
+  defp reported(:ok, publication), do: %{publication: publication, errors: nil}
+  defp reported({:error, errors}, publication), do: %{publication: publication, errors: errors}
 end

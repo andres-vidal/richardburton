@@ -30,6 +30,10 @@ defmodule RichardBurton.Publication.LinksTest do
     |> apply_changes()
   end
 
+  # Returns the id of the original book that `links` leads to.
+  defp original_book_id(links),
+    do: Repo.get!(TranslatedBook, links.translated_book_id).original_book_id
+
   # Returns the ids that `links` holds.
   defp ids(links) do
     %{
@@ -80,7 +84,7 @@ defmodule RichardBurton.Publication.LinksTest do
       [first] = Links.resolve([entry(%{original_authors: authors})])
       [again] = Links.resolve([entry(%{original_authors: Enum.reverse(authors)})])
 
-      assert again.original_book_id == first.original_book_id
+      assert original_book_id(again) == original_book_id(first)
     end
 
     test "is another book with another title or other authors" do
@@ -88,8 +92,8 @@ defmodule RichardBurton.Publication.LinksTest do
       [retitled] = Links.resolve([entry(%{original_title: "Memorial de Aires"})])
       [reauthored] = Links.resolve([entry(%{original_authors: ["José de Alencar"]})])
 
-      assert retitled.original_book_id != first.original_book_id
-      assert reauthored.original_book_id != first.original_book_id
+      assert original_book_id(retitled) != original_book_id(first)
+      assert original_book_id(reauthored) != original_book_id(first)
     end
   end
 
@@ -106,7 +110,7 @@ defmodule RichardBurton.Publication.LinksTest do
       [first] = Links.resolve([entry()])
       [other] = Links.resolve([entry(%{authors: ["John Gledson"]})])
 
-      assert other.original_book_id == first.original_book_id
+      assert original_book_id(other) == original_book_id(first)
       assert other.translated_book_id != first.translated_book_id
     end
   end

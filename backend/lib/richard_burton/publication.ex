@@ -126,6 +126,20 @@ defmodule RichardBurton.Publication do
     |> preload
   end
 
+  @doc """
+  Returns the publications with the ids `ids`, deleted ones included,
+  preloaded, in the order of `ids`. Every id must be a stored publication's.
+  """
+  def with_ids(ids) do
+    by_id =
+      Ecto.Query.from(p in Publication, where: p.id in ^ids)
+      |> Repo.all()
+      |> preload()
+      |> Map.new(&{&1.id, &1})
+
+    Enum.map(ids, &Map.fetch!(by_id, &1))
+  end
+
   def preload(data) do
     Repo.preload(data, [
       :countries,
@@ -176,12 +190,12 @@ defmodule RichardBurton.Publication do
     # Snapshots are the yardstick, not the changeset: cast_assoc(:sources)
     # treats every incoming entry as new (children carry no client id), so a
     # changeset always looks dirty even when the record is untouched.
-    before = History.snapshot(preload(publication))
+    publication = preload(publication)
+    before = History.snapshot(publication)
 
     # The update and its history row commit or roll back together.
     Repo.transaction(fn ->
       publication
-      |> preload()
       |> changeset(attrs)
       |> link_assocs()
       |> Repo.update()
@@ -649,13 +663,11 @@ defmodule RichardBurton.Publication do
     Repo.one(Ecto.Query.from(p in Publication, where: p.id == ^id and not is_nil(p.deleted_at)))
   end
 
-  # Reads `publication` back from the database, preloaded. A struct a write
+  # Reads `publication` back from the database, preloaded. The struct a write
   # returns holds the fingerprints as they were before its links were saved,
-  # and its names in the order the write gave them, so a write reads its
-  # publication back before recording it.
-  defp reloaded(publication) do
-    Publication |> Repo.get!(publication.id) |> preload()
-  end
+  # the translated book it had before `link_assocs/1` pointed it at another,
+  # and its names in the order the write gave them.
+  defp reloaded(publication), do: hd(with_ids([publication.id]))
 
   # Checks the composite keys inside the current transaction, and rolls it back
   # with `:conflict` when a write gave a publication or a book the same key as

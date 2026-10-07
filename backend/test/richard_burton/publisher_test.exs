@@ -9,19 +9,6 @@ defmodule RichardBurton.PublisherTest do
   alias RichardBurton.Validation
   alias RichardBurton.Util
 
-  defmodule WithManyPublishers do
-    use Ecto.Schema
-    import Ecto.Changeset
-
-    schema "with_many_publishers" do
-      has_many :publishers, Publisher
-    end
-
-    def changeset(attrs) do
-      %WithManyPublishers{} |> cast(attrs, []) |> cast_assoc(:publishers)
-    end
-  end
-
   @valid_attrs %{
     "name" => "Noonday Press"
   }

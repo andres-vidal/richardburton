@@ -7,6 +7,7 @@ defmodule RichardBurton.Publication.HistoryTest do
 
   alias RichardBurton.Publication
   alias RichardBurton.Publication.History
+  alias RichardBurton.Publisher
 
   doctest RichardBurton.Publication.History
 
@@ -51,6 +52,15 @@ defmodule RichardBurton.Publication.HistoryTest do
       # The case a changeset cannot detect: sources are replaced wholesale,
       # so only the resulting state tells you whether anything moved.
       refute History.snapshot(publication) == History.snapshot(sourced)
+    end
+
+    test "lists each set of names sorted", %{publication: publication} do
+      reordered = %{
+        publication
+        | publishers: [%Publisher{name: "Noonday Press"}, %Publisher{name: "Bickers & Son"}]
+      }
+
+      assert History.snapshot(reordered).publishers == ["Bickers & Son", "Noonday Press"]
     end
 
     test "ignores when the record was touched, only what it says", %{
@@ -119,6 +129,32 @@ defmodule RichardBurton.Publication.HistoryTest do
       # Only what moved: untouched fields are absent, not present-and-equal.
       refute Map.has_key?(diff.fields, "publishers")
       assert diff.sources == nil
+    end
+
+    # A stored snapshot can list a set of names in any order. The diff compares
+    # each set by its members.
+    test "an entry that lists a set of names in another order shows no change to it" do
+      publishers = [%{"name" => "Bickers & Son"}, %{"name" => "Noonday Press"}]
+      {:ok, publication} = Publication.insert(Map.put(@attrs, "publishers", publishers))
+      [created] = History.of(publication.id)
+
+      snapshot =
+        created.snapshot
+        |> Map.update!("publishers", &Enum.reverse/1)
+        |> Map.put("title", "Manuel de Moraes")
+
+      %History{}
+      |> History.changeset(%{
+        publication_id: publication.id,
+        version: 2,
+        action: "updated",
+        snapshot: snapshot,
+        actor: "a@b.com"
+      })
+      |> Repo.insert!()
+
+      assert [%History{diff: diff} | _] = History.of(publication.id)
+      assert Map.keys(diff.fields) == ["title"]
     end
 
     # Sources are positional, so a fixture has to say where each one sits —

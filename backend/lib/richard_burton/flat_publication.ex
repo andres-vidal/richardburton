@@ -120,25 +120,29 @@ defmodule RichardBurton.FlatPublication do
 
   The lookup reads the publications table rather than the materialized view
   behind this schema, so it also finds a publication inserted since the view
-  was last refreshed.
+  was last refreshed. Each entry is checked against the stored publications
+  only, not against the other entries. `Publication.Duplicates.resemblances/1`
+  reports an entry that repeats an earlier one.
   """
   def validate_all(attrs_list, exclude_id \\ nil) do
     changesets = Enum.map(attrs_list, &changeset(%FlatPublication{}, &1))
 
-    taken =
+    stored_ids =
       for(changeset <- changesets, changeset.valid?, do: apply_changes(changeset))
       |> Identity.publications_with_keys(exclude_id)
-      |> Enum.map(&is_integer/1)
 
-    {results, []} = Enum.map_reduce(changesets, taken, &result/2)
+    {results, []} =
+      Enum.map_reduce(changesets, stored_ids, fn
+        changeset = %{valid?: false}, stored_ids ->
+          {{:error, Validation.get_errors(changeset)}, stored_ids}
+
+        _changeset, [nil | stored_ids] ->
+          {:ok, stored_ids}
+
+        _changeset, [_id | stored_ids] ->
+          {{:error, :conflict}, stored_ids}
+      end)
+
     results
   end
-
-  # Returns the result for `changeset`, taking the next of `taken`, whether a
-  # stored publication has its key, when the changeset is valid.
-  defp result(changeset = %{valid?: false}, taken),
-    do: {{:error, Validation.get_errors(changeset)}, taken}
-
-  defp result(_changeset, [true | taken]), do: {{:error, :conflict}, taken}
-  defp result(_changeset, [false | taken]), do: {:ok, taken}
 end

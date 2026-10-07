@@ -9,12 +9,12 @@ defmodule RichardBurton.Publication.Links do
   An *entry* is a publication as `Ecto.Changeset.apply_changes/1` returns it
   from a valid `Publication.changeset/2`. It holds names, but no ids.
 
-  A *book key* identifies a book among the entries the way
-  `RichardBurton.Identity` identifies it in the database. The key of an
-  original book is its title and its authors' names, and the key of a
-  translated book is its original book's id and its translators' names. The
-  names are sorted, so the same names in another order give the same key, and
-  entries with the same key share one book.
+  An original book is identified by its title and its authors' names, and a
+  translated book by its original book and its translators' names, as
+  `RichardBurton.Identity` describes. An entry's *book key* holds its original
+  title, its original authors' names and its translators' names, with the
+  names sorted. So the same names in another order give the same key, and
+  entries with the same key share one original book and one translated book.
 
   Another transaction can insert the same name at the same time. The insert
   here then waits for that transaction to finish, skips the name once it has
@@ -34,12 +34,10 @@ defmodule RichardBurton.Publication.Links do
   alias RichardBurton.TranslatedBook
 
   @typedoc """
-  The stored rows one entry links to: the ids of its original and translated
-  books, and its countries and publishers, loaded, in the order the entry
-  lists them.
+  The stored rows one entry links to: the id of its translated book, and its
+  countries and publishers, loaded, in the order the entry lists them.
   """
   @type t :: %{
-          original_book_id: pos_integer(),
           translated_book_id: pos_integer(),
           countries: [Ecto.Schema.t()],
           publishers: [Ecto.Schema.t()]
@@ -52,40 +50,33 @@ defmodule RichardBurton.Publication.Links do
   """
   @spec resolve([Ecto.Schema.t()]) :: [t()]
   def resolve(entries) do
-    now = NaiveDateTime.utc_now(:second)
-
-    names =
-      for entry <- entries,
-          book <- [entry.translated_book.original_book, entry.translated_book],
-          author <- book.authors,
-          do: author.name
-
-    authors = rows_by(Author, :name, names, now)
-    original_book_ids = original_book_ids(entries, authors, now)
-    translated_book_ids = translated_book_ids(entries, original_book_ids, authors, now)
+    authors = rows_by(Author, :name, Enum.flat_map(entries, &author_names/1))
+    translated_book_ids = book_ids(Enum.map(entries, &book_key/1), authors)
 
     countries =
-      rows_by(Country, :code, codes(entries), now, &%{names: Country.names_for(&1)})
+      rows_by(
+        Country,
+        :code,
+        Enum.flat_map(entries, &Country.flatten(&1.countries)),
+        &%{names: Country.names_for(&1)}
+      )
 
-    publishers = rows_by(Publisher, :name, publisher_names(entries), now)
+    publishers =
+      rows_by(Publisher, :name, Enum.flat_map(entries, &Publisher.flatten(&1.publishers)))
 
-    Enum.zip_with(
-      [entries, original_book_ids, translated_book_ids],
-      fn [entry, original_book_id, translated_book_id] ->
-        %{
-          original_book_id: original_book_id,
-          translated_book_id: translated_book_id,
-          countries: Enum.map(entry.countries, &Map.fetch!(countries, &1.code)),
-          publishers: Enum.map(entry.publishers, &Map.fetch!(publishers, &1.name))
-        }
-      end
-    )
+    Enum.zip_with(entries, translated_book_ids, fn entry, translated_book_id ->
+      %{
+        translated_book_id: translated_book_id,
+        countries: Enum.map(entry.countries, &Map.fetch!(countries, &1.code)),
+        publishers: Enum.map(entry.publishers, &Map.fetch!(publishers, &1.name))
+      }
+    end)
   end
 
   # Returns a map from each of `values` to the row of `schema` whose `column`
   # holds it, and inserts the rows that are missing. `columns` gives the other
   # columns of a new row from its value.
-  defp rows_by(schema, column, values, now, columns \\ fn _value -> %{} end) do
+  defp rows_by(schema, column, values, columns \\ fn _value -> %{} end) do
     values = Enum.uniq(values)
     stored = stored_rows(schema, column, values)
     missing = Enum.reject(values, &Map.has_key?(stored, &1))
@@ -93,7 +84,7 @@ defmodule RichardBurton.Publication.Links do
     inserted =
       schema
       |> Repo.insert_in_chunks(
-        Enum.map(missing, &Map.merge(columns.(&1), timestamped(%{column => &1}, now))),
+        Enum.map(missing, &Map.put(columns.(&1), column, &1)),
         on_conflict: :nothing,
         conflict_target: column,
         returning: true
@@ -115,105 +106,87 @@ defmodule RichardBurton.Publication.Links do
     |> Map.new(&{Map.fetch!(&1, column), &1})
   end
 
-  # Returns the id of each entry's original book, in order, and inserts the
-  # books that are not stored, linked to their authors.
-  defp original_book_ids(entries, authors, now) do
-    keyed =
-      Enum.map(entries, fn entry ->
-        book = entry.translated_book.original_book
-        {{book.title, names(book.authors)}, book}
-      end)
+  # Returns the id of the translated book each of `keys` names, in order, and
+  # inserts the original and translated books that are not stored, linked to
+  # their authors. `authors` maps each author's name to its row.
+  defp book_ids(keys, authors) do
+    distinct = Enum.uniq(keys)
+    found = Enum.zip(distinct, Identity.books_with_keys(distinct))
 
-    ids =
-      ids_by_key(keyed, &Identity.original_books_with_keys/1, fn missing ->
-        insert_books(
-          OriginalBook,
-          missing,
-          fn {{title, _names}, _book} -> %{title: title} end,
-          {"original_book_authors", :original_book_id},
-          authors,
-          now
-        )
-      end)
+    stored_originals =
+      for {{title, names, _translators}, {id, _}} <- found,
+          id,
+          into: %{},
+          do: {{title, names}, id}
 
-    Enum.map(keyed, fn {key, _book} -> Map.fetch!(ids, key) end)
+    originals =
+      distinct
+      |> Enum.map(fn {title, names, _translators} -> {title, names} end)
+      |> Enum.uniq()
+      |> Enum.reject(&Map.has_key?(stored_originals, &1))
+      |> insert_books(OriginalBook, :title, {"original_book_authors", :original_book_id}, authors)
+      |> Map.merge(stored_originals)
+
+    # A translated book's key: the id of its original book, and its
+    # translators' names.
+    translation = fn {title, names, translators} ->
+      {Map.fetch!(originals, {title, names}), translators}
+    end
+
+    stored_translations =
+      for {key, {_, id}} <- found, id, into: %{}, do: {translation.(key), id}
+
+    translations =
+      distinct
+      |> Enum.map(translation)
+      |> Enum.reject(&Map.has_key?(stored_translations, &1))
+      |> insert_books(
+        TranslatedBook,
+        :original_book_id,
+        {"translated_book_authors", :translated_book_id},
+        authors
+      )
+      |> Map.merge(stored_translations)
+
+    Enum.map(keys, &Map.fetch!(translations, translation.(&1)))
   end
 
-  # Returns the id of each entry's translated book, in order, and inserts the
-  # books that are not stored, linked to their translators.
-  defp translated_book_ids(entries, original_book_ids, authors, now) do
-    keyed =
-      Enum.zip_with(entries, original_book_ids, fn entry, original_book_id ->
-        book = entry.translated_book
-        {{original_book_id, names(book.authors)}, book}
-      end)
-
-    ids =
-      ids_by_key(keyed, &Identity.translated_books_with_keys/1, fn missing ->
-        insert_books(
-          TranslatedBook,
-          missing,
-          fn {{original_book_id, _names}, _book} -> %{original_book_id: original_book_id} end,
-          {"translated_book_authors", :translated_book_id},
-          authors,
-          now
-        )
-      end)
-
-    Enum.map(keyed, fn {key, _book} -> Map.fetch!(ids, key) end)
-  end
-
-  # Returns a map from each book key in `keyed` to the id of its book.
-  #
-  # `keyed` pairs each book with its key. `find` takes the distinct keys and
-  # returns the stored id of each, or nil. `insert` takes the keys `find`
-  # returns nil for, each paired with the first book that has it, inserts the
-  # books, and returns their ids in order.
-  defp ids_by_key(keyed, find, insert) do
-    distinct = Enum.uniq_by(keyed, fn {key, _book} -> key end)
-    found = Enum.zip(distinct, find.(Enum.map(distinct, fn {key, _book} -> key end)))
-    missing = for {pair, nil} <- found, do: pair
-    stored = for {{key, _book}, id} <- found, id != nil, into: %{}, do: {key, id}
-
-    missing
-    |> Enum.map(fn {key, _book} -> key end)
-    |> Enum.zip(insert.(missing))
-    |> Map.new()
-    |> Map.merge(stored)
-  end
-
-  # Inserts a book of `schema` for each `{key, book}` in `missing`, with the
-  # columns that `columns` gives for the pair. Links each book to its authors
-  # through a join table, given with the column that names the book in it.
-  # `authors` maps each author's name to its row. Returns the ids of the new
-  # books in order.
-  defp insert_books(schema, missing, columns, {link_table, book_column}, authors, now) do
+  # Inserts a book of `schema` for each `{value, names}` in `keys`, holding
+  # `value` in `column`, and links it to the authors named `names` through a
+  # join table, given with the column that names the book in it. `authors` maps
+  # each name to its row. Returns a map from each key to its new book's id.
+  defp insert_books(keys, schema, column, {link_table, book_column}, authors) do
     ids =
       schema
-      |> Repo.insert_in_chunks(Enum.map(missing, &timestamped(columns.(&1), now)),
+      |> Repo.insert_in_chunks(
+        Enum.map(keys, fn {value, _names} -> %{column => value} end),
         returning: [:id]
       )
       |> Enum.map(& &1.id)
 
     links =
-      for {{_key, book}, id} <- Enum.zip(missing, ids),
-          author <- book.authors,
-          do: %{book_column => id, author_id: Map.fetch!(authors, author.name).id}
+      for {{_value, names}, id} <- Enum.zip(keys, ids),
+          name <- names,
+          do: %{book_column => id, author_id: Map.fetch!(authors, name).id}
 
     Repo.insert_in_chunks(link_table, links)
-    ids
+    keys |> Enum.zip(ids) |> Map.new()
   end
 
-  # Returns the names of `authors`, sorted, as a book key holds them.
-  defp names(authors), do: authors |> Enum.map(& &1.name) |> Enum.sort()
+  # Returns the names of an entry's original authors and translators.
+  defp author_names(entry) do
+    book = entry.translated_book
+    Author.flatten(book.original_book.authors) ++ Author.flatten(book.authors)
+  end
 
-  # Returns the country codes of every entry, in order.
-  defp codes(entries), do: for(entry <- entries, country <- entry.countries, do: country.code)
+  # Returns an entry's book key.
+  defp book_key(entry) do
+    book = entry.translated_book
 
-  # Returns the publishers' names of every entry, in order.
-  defp publisher_names(entries),
-    do: for(entry <- entries, publisher <- entry.publishers, do: publisher.name)
+    {book.original_book.title, sorted_names(book.original_book.authors),
+     sorted_names(book.authors)}
+  end
 
-  # Returns `columns` with the timestamps of a row inserted at `now`.
-  defp timestamped(columns, now), do: Map.merge(columns, %{inserted_at: now, updated_at: now})
+  # Returns the names of `authors`, sorted.
+  defp sorted_names(authors), do: authors |> Author.flatten() |> Enum.sort()
 end
