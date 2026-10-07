@@ -380,8 +380,8 @@ defmodule RichardBurtonWeb.PublicationController do
     end
   end
 
-  # Publications validated without being written, each reported as the record
-  # and its errors so a client can show both.
+  # Validates `publications` without writing them, and returns each one with
+  # its errors, or nil errors when it is valid.
   defp validate_publications(publications) do
     publications
     |> FlatPublication.validate_all()
