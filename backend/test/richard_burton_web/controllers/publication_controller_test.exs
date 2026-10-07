@@ -939,7 +939,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       ]
 
       assert 3 == FlatPublication.all() |> length()
-      assert ["GB", "US", "BR"] == Country.all() |> Enum.map(&Country.get_code/1)
+      assert ["BR", "GB", "US"] == Country.all() |> Enum.map(&Country.get_code/1)
 
       assert output ==
                Enum.map(

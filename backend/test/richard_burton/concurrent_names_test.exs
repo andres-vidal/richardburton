@@ -74,4 +74,37 @@ defmodule RichardBurton.ConcurrentNamesTest do
     assert count("publishers WHERE name = 'Knopf'") == [[1]]
     assert count("publication_publishers") == [[2]]
   end
+
+  test "two imports that add the same new names in opposite orders at once are both stored" do
+    # The two imports name the same translators, the second in the opposite
+    # order, and each import inserts all of its new names in one statement.
+    translators = for i <- 1..1_000, do: "Translator #{i}"
+
+    rows = fn label, translators ->
+      for {translator, i} <- Enum.with_index(translators) do
+        Map.merge(@dom_casmurro, %{
+          "title" => "#{label} #{i}",
+          "translated_book" => %{
+            "authors" => [%{"name" => translator}],
+            "original_book" => %{
+              "title" => "#{label} original #{i}",
+              "authors" => [%{"name" => "#{label} author #{i}"}]
+            }
+          }
+        })
+      end
+    end
+
+    imports = [rows.("Forward", translators), rows.("Backward", Enum.reverse(translators))]
+
+    results =
+      imports
+      |> Enum.map(fn batch ->
+        Task.async(fn -> unboxed(fn -> Publication.insert_all(batch) end) end)
+      end)
+      |> Enum.map(&Task.await(&1, 60_000))
+
+    assert [{:ok, _}, {:ok, _}] = results
+    assert count("authors") == [[3_000]]
+  end
 end

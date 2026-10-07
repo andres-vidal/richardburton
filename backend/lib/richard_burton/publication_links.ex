@@ -18,9 +18,11 @@ defmodule RichardBurton.Publication.Links do
 
   Another transaction can insert the same name at the same time. The insert
   here then waits for that transaction to finish, skips the name once it has
-  committed, and reads the row it stored instead. Two transactions that insert
-  the same book are left to the composite keys, which refuse the second when
-  they are checked.
+  committed, and reads the row it stored instead. Names and books are inserted
+  in sorted order, so two transactions that insert some of the same ones wait
+  for each other in the same order, and neither waits for the other while the
+  other waits for it. Two transactions that insert the same book are left to
+  the composite keys, which refuse the second when they are checked.
   """
 
   import Ecto.Query, only: [from: 2]
@@ -74,10 +76,10 @@ defmodule RichardBurton.Publication.Links do
   end
 
   # Returns a map from each of `values` to the row of `schema` whose `column`
-  # holds it, and inserts the rows that are missing. `columns` gives the other
-  # columns of a new row from its value.
+  # holds it, and inserts the rows that are missing, in sorted order. `columns`
+  # gives the other columns of a new row from its value.
   defp rows_by(schema, column, values, columns \\ fn _value -> %{} end) do
-    values = Enum.uniq(values)
+    values = values |> Enum.uniq() |> Enum.sort()
     stored = stored_rows(schema, column, values)
     missing = Enum.reject(values, &Map.has_key?(stored, &1))
 
@@ -124,6 +126,7 @@ defmodule RichardBurton.Publication.Links do
       |> Enum.map(fn {title, names, _translators} -> {title, names} end)
       |> Enum.uniq()
       |> Enum.reject(&Map.has_key?(stored_originals, &1))
+      |> Enum.sort()
       |> insert_books(OriginalBook, :title, {"original_book_authors", :original_book_id}, authors)
       |> Map.merge(stored_originals)
 
@@ -140,6 +143,7 @@ defmodule RichardBurton.Publication.Links do
       distinct
       |> Enum.map(translation)
       |> Enum.reject(&Map.has_key?(stored_translations, &1))
+      |> Enum.sort()
       |> insert_books(
         TranslatedBook,
         :original_book_id,
