@@ -39,7 +39,7 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
                %{"title" => "Iracema", "authors" => ["José de Alencar"]},
                %{
                  "title" => "Manuel de Moraes",
-                 "authors" => ["Machado de Assis", "J. M. Pereira da Silva"]
+                 "authors" => ["J. M. Pereira da Silva", "Machado de Assis"]
                }
              ] = conn |> get(original_book_path(conn, :index)) |> json_response(200)
     end

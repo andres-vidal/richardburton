@@ -12,10 +12,12 @@ defmodule RichardBurton.TranslatedBookTest do
   alias RichardBurton.Publication
   alias RichardBurton.Util
 
+  # The translators are listed in the order a preload reads them, so that a
+  # book inserted from these attrs equals the same book read back.
   @valid_attrs %{
     "authors" => [
-      %{"name" => "Richard Burton"},
-      %{"name" => "Isabel Burton"}
+      %{"name" => "Isabel Burton"},
+      %{"name" => "Richard Burton"}
     ],
     "original_book" => %{
       "title" => "Manuel de Moraes: crônica do século XVII",
@@ -166,8 +168,8 @@ defmodule RichardBurton.TranslatedBookTest do
       "publishers" => [%{"name" => "Bickers & Son"}],
       "translated_book" => %{
         "authors" => [
-          %{"name" => "Richard Burton"},
-          %{"name" => "Isabel Burton"}
+          %{"name" => "Isabel Burton"},
+          %{"name" => "Richard Burton"}
         ],
         "original_book" => %{
           "authors" => [

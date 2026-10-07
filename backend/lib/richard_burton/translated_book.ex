@@ -28,7 +28,10 @@ defmodule RichardBurton.TranslatedBook do
 
     belongs_to(:original_book, OriginalBook)
 
-    many_to_many(:authors, Author, join_through: "translated_book_authors")
+    many_to_many(:authors, Author,
+      join_through: "translated_book_authors",
+      preload_order: [asc: :name]
+    )
 
     timestamps()
   end

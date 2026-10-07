@@ -138,34 +138,24 @@ defmodule RichardBurton.Publication.ImportTest do
       assert at_once == one_at_a_time
     end
 
-    test "is returned in order, with each row's countries and publishers in the order the row lists them" do
+    test "is returned in order, with each publication's names sorted" do
       {:ok, publications} = Publication.insert_all(Codec.nest(@batch))
-      fields = [:title, :year, :countries, :publishers, :sources]
+      fields = Map.keys(hd(@batch))
+      sorted = ~w[authors original_authors countries publishers]a
 
       returned = Enum.map(publications, &(&1 |> Codec.flatten() |> Map.take(fields)))
-      expected = Enum.map(@batch, &(&1 |> Map.put_new(:sources, []) |> Map.take(fields)))
+
+      expected =
+        Enum.map(@batch, fn row ->
+          row
+          |> Map.put_new(:sources, [])
+          |> Map.take(fields)
+          |> Map.new(fn {field, value} ->
+            {field, if(field in sorted, do: Enum.sort(value), else: value)}
+          end)
+        end)
 
       assert returned == expected
-    end
-
-    test "is returned with the authors of a book in the order of the row that stored it" do
-      # Isabel Burton is stored as a translator before Richard Burton, so the
-      # stored order of the two can differ from the order a row gives.
-      by_both = fn title, year, translators ->
-        Map.merge(@iracema, %{title: title, year: year, authors: translators})
-      end
-
-      batch =
-        Codec.nest([
-          by_both.("Iracema", 1887, ["Richard Burton", "Isabel Burton"]),
-          by_both.("Iracema", 1888, ["Isabel Burton", "Richard Burton"])
-        ])
-
-      {:ok, [storing, reusing]} = Publication.insert_all(batch)
-      assert Codec.flatten(storing).authors == ["Richard Burton", "Isabel Burton"]
-
-      assert Codec.flatten(reusing).authors ==
-               stored_authors(reusing.translated_book_id)
     end
 
     test "is stored with the same number of queries whatever its size" do
@@ -241,16 +231,6 @@ defmodule RichardBurton.Publication.ImportTest do
   end
 
   defp stored_count(table), do: Repo.one(from(r in table, select: count()))
-
-  # Returns the translators of the translated book with the id `id`, as a
-  # preload reads them.
-  defp stored_authors(id) do
-    RichardBurton.TranslatedBook
-    |> Repo.get!(id)
-    |> Repo.preload(:authors)
-    |> Map.fetch!(:authors)
-    |> Enum.map(& &1.name)
-  end
 
   # Returns `n` publications, each of a new book by new names.
   defp works(n) do

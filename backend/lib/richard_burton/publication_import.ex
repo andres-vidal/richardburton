@@ -45,10 +45,8 @@ defmodule RichardBurton.Publication.Import do
   Inserts the publications that `attrs_list` describes, and records `actor` as
   the author of each one's `created` history entry.
 
-  Returns `{:ok, publications}` in the order of `attrs_list`. Each publication
-  is preloaded like `Publication.preload/1`. Its countries and publishers are
-  in the order its row lists them, and so are the authors of a book the row
-  stored. The authors of a book stored before keep their stored order.
+  Returns `{:ok, publications}` in the order of `attrs_list`, each preloaded
+  with `Publication.preload/1`.
 
   Returns `{:error, {attrs, errors}}` for the first invalid row, where
   `errors` is what `Validation.get_errors/1` returns for it, before anything is
@@ -84,10 +82,8 @@ defmodule RichardBurton.Publication.Import do
 
     authors = ids_by(Author, :name, names, now)
 
-    {original_book_ids, stores_original_book} = original_book_ids(entries, authors, now)
-
-    {translated_book_ids, stores_translated_book} =
-      translated_book_ids(entries, original_book_ids, authors, now)
+    original_book_ids = original_book_ids(entries, authors, now)
+    translated_book_ids = translated_book_ids(entries, original_book_ids, authors, now)
 
     publication_ids = insert_publications(entries, translated_book_ids, now)
 
@@ -102,13 +98,7 @@ defmodule RichardBurton.Publication.Import do
     end)
     |> settle!()
 
-    publications =
-      Enum.zip_with(
-        [load(publication_ids), entries, stores_translated_book, stores_original_book],
-        fn [publication, entry, stores_translated_book, stores_original_book] ->
-          as_entered(publication, entry, stores_translated_book, stores_original_book)
-        end
-      )
+    publications = load(publication_ids)
 
     History.record_all(:created, publications, actor)
     publications
@@ -152,8 +142,7 @@ defmodule RichardBurton.Publication.Import do
   end
 
   # Returns the id of each entry's original book, in order, and inserts the
-  # books that are not stored, linked to their authors. Also returns, for each
-  # entry, whether its row is the one that stored the book.
+  # books that are not stored, linked to their authors.
   defp original_book_ids(entries, authors, now) do
     keyed =
       Enum.map(entries, fn entry ->
@@ -161,7 +150,7 @@ defmodule RichardBurton.Publication.Import do
         {{book.title, names(book.authors)}, book}
       end)
 
-    {ids, new_keys} =
+    ids =
       ids_by_key(keyed, &Identity.original_books_with_keys/1, fn missing ->
         insert_books(
           OriginalBook,
@@ -173,12 +162,11 @@ defmodule RichardBurton.Publication.Import do
         )
       end)
 
-    {Enum.map(keyed, fn {key, _book} -> Map.fetch!(ids, key) end), first_with(keyed, new_keys)}
+    Enum.map(keyed, fn {key, _book} -> Map.fetch!(ids, key) end)
   end
 
   # Returns the id of each entry's translated book, in order, and inserts the
-  # books that are not stored, linked to their translators. Also returns, for
-  # each entry, whether its row is the one that stored the book.
+  # books that are not stored, linked to their translators.
   defp translated_book_ids(entries, original_book_ids, authors, now) do
     keyed =
       Enum.zip_with(entries, original_book_ids, fn entry, original_book_id ->
@@ -186,7 +174,7 @@ defmodule RichardBurton.Publication.Import do
         {{original_book_id, names(book.authors)}, book}
       end)
 
-    {ids, new_keys} =
+    ids =
       ids_by_key(keyed, &Identity.translated_books_with_keys/1, fn missing ->
         insert_books(
           TranslatedBook,
@@ -198,11 +186,10 @@ defmodule RichardBurton.Publication.Import do
         )
       end)
 
-    {Enum.map(keyed, fn {key, _book} -> Map.fetch!(ids, key) end), first_with(keyed, new_keys)}
+    Enum.map(keyed, fn {key, _book} -> Map.fetch!(ids, key) end)
   end
 
-  # Returns a map from each book key in `keyed` to the id of its book, and the
-  # set of keys whose books it inserted.
+  # Returns a map from each book key in `keyed` to the id of its book.
   #
   # `keyed` pairs each book with its key. `find` takes the distinct keys and
   # returns the stored id of each, or nil. `insert` takes the keys `find`
@@ -214,21 +201,11 @@ defmodule RichardBurton.Publication.Import do
     missing = for {pair, nil} <- found, do: pair
     stored = for {{key, _book}, id} <- found, id != nil, into: %{}, do: {key, id}
 
-    new_keys = Enum.map(missing, fn {key, _book} -> key end)
-    ids = new_keys |> Enum.zip(insert.(missing)) |> Map.new() |> Map.merge(stored)
-
-    {ids, MapSet.new(new_keys)}
-  end
-
-  # Returns, for each pair in `keyed`, whether it is the first pair with a key
-  # in `keys`.
-  defp first_with(keyed, keys) do
-    {firsts, _seen} =
-      Enum.map_reduce(keyed, MapSet.new(), fn {key, _book}, seen ->
-        {key in keys and key not in seen, MapSet.put(seen, key)}
-      end)
-
-    firsts
+    missing
+    |> Enum.map(fn {key, _book} -> key end)
+    |> Enum.zip(insert.(missing))
+    |> Map.new()
+    |> Map.merge(stored)
   end
 
   # Inserts a book of `schema` for each `{key, book}` in `missing`, with the
@@ -345,45 +322,6 @@ defmodule RichardBurton.Publication.Import do
       |> Map.new(&{&1.id, &1})
 
     Enum.map(ids, &Map.fetch!(stored, &1))
-  end
-
-  # Returns `publication` with its countries and publishers in the order that
-  # `entry` lists them. The authors of a book the row stored are put in the
-  # order the row lists them too, and the authors of a book that was stored
-  # before keep the order they were read in. `Publication.insert/2` returns a
-  # publication's names in the same order.
-  defp as_entered(publication, entry, stores_translated_book, stores_original_book) do
-    translated_book = publication.translated_book
-    entered = entry.translated_book
-
-    original_book =
-      authors_as(
-        translated_book.original_book,
-        entered.original_book.authors,
-        stores_original_book
-      )
-
-    translated_book = authors_as(translated_book, entered.authors, stores_translated_book)
-
-    %{
-      publication
-      | countries: sorted_like(publication.countries, entry.countries, & &1.code),
-        publishers: sorted_like(publication.publishers, entry.publishers, & &1.name),
-        translated_book: %{translated_book | original_book: original_book}
-    }
-  end
-
-  # Returns `book` with its authors in the order of `entered` when `reorder` is
-  # true, and `book` unchanged when it is false.
-  defp authors_as(book, _entered, false), do: book
-
-  defp authors_as(book, entered, true),
-    do: %{book | authors: sorted_like(book.authors, entered, & &1.name)}
-
-  # Returns `stored` sorted in the order of `entered`, matching the two by `key`.
-  defp sorted_like(stored, entered, key) do
-    positions = entered |> Enum.map(key) |> Enum.with_index() |> Map.new()
-    Enum.sort_by(stored, &Map.fetch!(positions, key.(&1)))
   end
 
   # Returns the names of `authors`, sorted, as a book key holds them.

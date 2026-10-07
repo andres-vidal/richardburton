@@ -835,7 +835,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :create_all), input)
         |> json_response(201)
 
-      assert publications ==
+      # The response lists each publication's names sorted, as they are stored.
+      [manuel_de_moraes, iracema] = publications
+
+      assert [%{manuel_de_moraes | "authors" => ["Isabel Burton", "Richard Burton"]}, iracema] ==
                Enum.map(
                  result,
                  &Map.drop(&1, [
@@ -911,7 +914,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "countries" => ["GB", "US"],
           "year" => 1886,
           "publishers" => ["Bickers & Son"],
-          "authors" => ["Richard Burton", "Isabel Burton"],
+          "authors" => ["Isabel Burton", "Richard Burton"],
           "original_authors" => ["J. M. Pereira da Silva"],
           "original_title" => "Manuel de Moraes: crônica do século XVII"
         },
@@ -926,7 +929,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         },
         %{
           "authors" => ["Isabel Burton", "Richard Burton"],
-          "countries" => ["GB", "BR", "US"],
+          "countries" => ["BR", "GB", "US"],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
           "publishers" => ["Bickers & Son"],
@@ -996,7 +999,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "countries" => ["GB"],
           "year" => 1886,
           "publishers" => ["Bickers & Son", "Noonday Press"],
-          "authors" => ["Richard Burton", "Isabel Burton"],
+          "authors" => ["Isabel Burton", "Richard Burton"],
           "original_authors" => ["J. M. Pereira da Silva"],
           "original_title" => "Manuel de Moraes: crônica do século XVII"
         },

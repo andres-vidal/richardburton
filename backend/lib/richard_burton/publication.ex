@@ -26,6 +26,12 @@ defmodule RichardBurton.Publication do
       Nothing is erased: the compensating action is appended to the log as a new
       entry, and is itself undoable.
 
+  A publication's countries, publishers, translators and original authors are
+  sets. The link tables keep no order, and a preload reads each set sorted, by
+  code for countries and by name for the others, as the search index lists
+  them. A history snapshot lists them in that order too, so two snapshots
+  differ only when a set changed.
+
   Every mutation records an entry in `Publication.History` inside the same
   transaction, and signals `Publication.Index.Refresher` once per operation.
   """
@@ -65,12 +71,14 @@ defmodule RichardBurton.Publication do
 
     many_to_many(:countries, Country,
       join_through: "publication_countries",
-      on_replace: :delete
+      on_replace: :delete,
+      preload_order: [asc: :code]
     )
 
     many_to_many(:publishers, Publisher,
       join_through: "publication_publishers",
-      on_replace: :delete
+      on_replace: :delete,
+      preload_order: [asc: :name]
     )
 
     # Owned provenance: replaced wholesale on edit (children carry no client id,
@@ -183,7 +191,7 @@ defmodule RichardBurton.Publication do
       |> case do
         {:ok, updated} ->
           settle!()
-          updated |> fingerprinted() |> preload() |> record_if_changed(before, actor)
+          updated |> reloaded() |> record_if_changed(before, actor)
 
         {:error, changeset} ->
           Repo.rollback(Validation.get_errors(changeset))
@@ -284,7 +292,7 @@ defmodule RichardBurton.Publication do
       with {:ok, restored} <- restore_absorbed(History.absorbed_ids(entry)),
            {:ok, winner} <- revert_winner(entry, previous, head) do
         settle!()
-        winner = winner |> fingerprinted() |> preload()
+        winner = reloaded(winner)
         History.record(:unmerged, winner, actor, restored)
         winner
       else
@@ -420,10 +428,9 @@ defmodule RichardBurton.Publication do
   # The keys are checked once the losers are tombstoned, so the winner may
   # take on a key one of its own losers held.
   defp absorbing(winner, losers, actor) do
-    winner = preload(winner)
     Enum.each(losers, &absorb/1)
     settle!()
-    winner = fingerprinted(winner)
+    winner = reloaded(winner)
     History.record(:merged, winner, actor, losers)
 
     # Saying these are one record answers the same question a distinction did,
@@ -645,10 +652,12 @@ defmodule RichardBurton.Publication do
     Repo.one(Ecto.Query.from(p in Publication, where: p.id == ^id and not is_nil(p.deleted_at)))
   end
 
-  # Reads back the fingerprints the database wrote once the publication's
-  # countries and publishers were saved.
-  defp fingerprinted(publication) do
-    Repo.refresh(publication, [:countries_fingerprint, :publishers_fingerprint])
+  # Reads `publication` back from the database, preloaded. A struct a write
+  # returns holds the fingerprints as they were before its links were saved,
+  # and its names in the order the write gave them, so a write reads its
+  # publication back before recording it.
+  defp reloaded(publication) do
+    Publication |> Repo.get!(publication.id) |> preload()
   end
 
   # Checks the composite keys inside the current transaction, and rolls it back

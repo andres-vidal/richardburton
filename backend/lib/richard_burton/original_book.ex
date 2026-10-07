@@ -27,7 +27,10 @@ defmodule RichardBurton.OriginalBook do
 
     has_many(:translated_books, TranslatedBook)
 
-    many_to_many(:authors, Author, join_through: "original_book_authors")
+    many_to_many(:authors, Author,
+      join_through: "original_book_authors",
+      preload_order: [asc: :name]
+    )
 
     timestamps()
   end
