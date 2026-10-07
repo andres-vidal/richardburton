@@ -89,6 +89,41 @@ defmodule RichardBurton.Publication.History do
     |> Repo.insert!()
   end
 
+  @doc """
+  Appends a history row with `action` for each of `publications`, with one
+  query for their versions and one insert, inside the caller's transaction.
+  Each row takes the next version of its publication, as `record/4` gives it.
+  """
+  def record_all(action, publications, actor)
+      when action in [:created, :updated, :deleted, :restored, :merged, :unmerged] do
+    ids = Enum.map(publications, & &1.id)
+
+    latest =
+      from(h in History,
+        where: h.publication_id in ^ids,
+        group_by: h.publication_id,
+        select: {h.publication_id, max(h.version)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    now = NaiveDateTime.utc_now(:second)
+
+    entries =
+      Enum.map(publications, fn publication ->
+        %{
+          publication_id: publication.id,
+          version: Map.get(latest, publication.id, 0) + 1,
+          action: to_string(action),
+          snapshot: snapshot(publication),
+          actor: actor,
+          inserted_at: now
+        }
+      end)
+
+    Repo.insert_in_chunks(History, entries)
+  end
+
   # The records an entry took in or gave back, against the state they were in.
   # Keyed by id, since that is what putting one back needs to name.
   defp absorbed_snapshots([]), do: nil

@@ -42,6 +42,7 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.History
   alias RichardBurton.Publication.Duplicates
+  alias RichardBurton.Publication.Import
   alias RichardBurton.Publication.Index
   alias RichardBurton.Publisher
   alias RichardBurton.Source
@@ -671,11 +672,13 @@ defmodule RichardBurton.Publication do
     |> Publisher.link()
   end
 
+  @doc """
+  Inserts the publications `attrs_list` describes in one transaction, all or
+  none, and records each with a `created` history entry by `actor`. See
+  `Publication.Import.insert_all/2` for what it returns.
+  """
   def insert_all(attrs_list, actor \\ History.system_actor()) do
-    result =
-      Repo.transaction(fn ->
-        Enum.map(attrs_list, &insert_or_rollback(&1, actor))
-      end)
+    result = Import.insert_all(attrs_list, actor)
 
     case result do
       {:ok, _publications} ->
@@ -687,18 +690,6 @@ defmodule RichardBurton.Publication do
       error ->
         # Rolled back: nothing changed, so the index needs no refresh.
         error
-    end
-  end
-
-  # Inserts one publication inside a bulk transaction, rolling the whole batch
-  # back on the first failure so a partial import cannot land.
-  defp insert_or_rollback(attrs, actor) do
-    case insert(attrs, actor) do
-      {:ok, publication} ->
-        publication
-
-      {:error, errors} ->
-        Repo.rollback({attrs, errors})
     end
   end
 end

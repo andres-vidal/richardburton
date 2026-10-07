@@ -12,6 +12,28 @@ defmodule RichardBurton.ConcurrentNamesTest do
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
 
+  # Dom Casmurro, in Helen Caldwell's translation, published by Noonday Press
+  # in the United States.
+  @dom_casmurro %{
+    "title" => "Dom Casmurro",
+    "year" => 1953,
+    "countries" => [%{"code" => "US"}],
+    "publishers" => [%{"name" => "Noonday Press"}],
+    "translated_book" => %{
+      "authors" => [%{"name" => "Helen Caldwell"}],
+      "original_book" => %{
+        "title" => "Dom Casmurro",
+        "authors" => [%{"name" => "Machado de Assis"}]
+      }
+    }
+  }
+
+  # Another book by Machado de Assis with the same translator, publisher and
+  # country as `@dom_casmurro`.
+  @counselor_ayres @dom_casmurro
+                   |> Map.put("title", "Counselor Ayres' Memorial")
+                   |> put_in(["translated_book", "original_book", "title"], "Memorial de Aires")
+
   defp count(table), do: unboxed(fn -> Repo.query!("SELECT count(*) FROM #{table}").rows end)
 
   test "two writes that store the same new author at once both get the one author" do
@@ -39,31 +61,25 @@ defmodule RichardBurton.ConcurrentNamesTest do
   end
 
   test "two publications of different books that share new names, inserted at once, are both stored" do
-    # Both are Machado de Assis in Helen Caldwell's translation, published by
-    # Noonday Press in the United States, and none of those names is stored yet.
-    dom_casmurro = %{
-      "title" => "Dom Casmurro",
-      "year" => 1953,
-      "countries" => [%{"code" => "US"}],
-      "publishers" => [%{"name" => "Noonday Press"}],
-      "translated_book" => %{
-        "authors" => [%{"name" => "Helen Caldwell"}],
-        "original_book" => %{
-          "title" => "Dom Casmurro",
-          "authors" => [%{"name" => "Machado de Assis"}]
-        }
-      }
-    }
-
-    counselor_ayres =
-      dom_casmurro
-      |> Map.put("title", "Counselor Ayres' Memorial")
-      |> put_in(["translated_book", "original_book", "title"], "Memorial de Aires")
-
+    # None of the names is stored yet.
     assert %{first: {:ok, _}, second: {:ok, _}, waited: true} =
              race(
-               fn -> Publication.insert(dom_casmurro) end,
-               fn -> Publication.insert(counselor_ayres) end
+               fn -> Publication.insert(@dom_casmurro) end,
+               fn -> Publication.insert(@counselor_ayres) end
+             )
+
+    assert count("publications") == [[2]]
+    assert count("authors") == [[2]]
+    assert count("publishers") == [[1]]
+    assert count("countries") == [[1]]
+  end
+
+  test "two imports of different books that share new names, at once, are both stored" do
+    # None of the names is stored yet.
+    assert %{first: {:ok, _}, second: {:ok, _}, waited: true} =
+             race(
+               fn -> Publication.insert_all([@dom_casmurro]) end,
+               fn -> Publication.insert_all([@counselor_ayres]) end
              )
 
     assert count("publications") == [[2]]
