@@ -129,12 +129,31 @@ defmodule RichardBurton.Publication do
   @doc """
   Returns the publications with the ids `ids`, deleted ones included,
   preloaded, in the order of `ids`. Every id must be a stored publication's.
+
+  The countries, publishers, translated book, original book and both lists of
+  authors are read in one query that joins them, sorted the way the
+  associations' `preload_order` sorts them. The sources are read in a second
+  query, so that many sources do not multiply the rows of the first.
   """
   def with_ids(ids) do
     by_id =
-      Ecto.Query.from(p in Publication, where: p.id in ^ids)
+      Ecto.Query.from(p in Publication,
+        where: p.id in ^ids,
+        left_join: c in assoc(p, :countries),
+        left_join: pb in assoc(p, :publishers),
+        left_join: tb in assoc(p, :translated_book),
+        left_join: ta in assoc(tb, :authors),
+        left_join: ob in assoc(tb, :original_book),
+        left_join: oa in assoc(ob, :authors),
+        order_by: [p.id, c.code, pb.name, ta.name, oa.name],
+        preload: [
+          countries: c,
+          publishers: pb,
+          translated_book: {tb, authors: ta, original_book: {ob, authors: oa}}
+        ]
+      )
       |> Repo.all()
-      |> preload()
+      |> Repo.preload(:sources)
       |> Map.new(&{&1.id, &1})
 
     Enum.map(ids, &Map.fetch!(by_id, &1))
