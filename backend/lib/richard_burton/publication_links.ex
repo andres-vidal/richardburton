@@ -18,11 +18,19 @@ defmodule RichardBurton.Publication.Links do
 
   Another transaction can insert the same name at the same time. The insert
   here then waits for that transaction to finish, skips the name once it has
-  committed, and reads the row it stored instead. Names and books are inserted
-  in sorted order, so two transactions that insert some of the same ones wait
-  for each other in the same order, and neither waits for the other while the
-  other waits for it. Two transactions that insert the same book are left to
-  the composite keys, which refuse the second when they are checked.
+  committed, and reads the row it stored instead.
+
+  Books have no unique index to wait on, because their keys are checked when
+  the transaction ends. So before it looks the books up, `resolve/1` takes an
+  advisory lock on each original book's key, held until the transaction ends.
+  Another transaction that names one of those original books waits for the
+  lock, and then finds the books this one stored. Every translated book has an
+  original book, so the same lock covers both.
+
+  Names, and then the locks, are taken in sorted order, and every name is
+  inserted before any lock is taken. So two transactions that need some of the
+  same names or books wait for each other in the same order, and neither waits
+  for the other while the other waits for it.
   """
 
   import Ecto.Query, only: [from: 2]
@@ -53,7 +61,6 @@ defmodule RichardBurton.Publication.Links do
   @spec resolve([Ecto.Schema.t()]) :: [t()]
   def resolve(entries) do
     authors = rows_by(Author, :name, Enum.flat_map(entries, &author_names/1))
-    translated_book_ids = book_ids(Enum.map(entries, &book_key/1), authors)
 
     countries =
       rows_by(
@@ -65,6 +72,8 @@ defmodule RichardBurton.Publication.Links do
 
     publishers =
       rows_by(Publisher, :name, Enum.flat_map(entries, &Publisher.flatten(&1.publishers)))
+
+    translated_book_ids = book_ids(Enum.map(entries, &book_key/1), authors)
 
     Enum.zip_with(entries, translated_book_ids, fn entry, translated_book_id ->
       %{
@@ -113,6 +122,7 @@ defmodule RichardBurton.Publication.Links do
   # their authors. `authors` maps each author's name to its row.
   defp book_ids(keys, authors) do
     distinct = Enum.uniq(keys)
+    lock_original_books(distinct)
     found = Enum.zip(distinct, Identity.books_with_keys(distinct))
 
     stored_originals =
@@ -153,6 +163,23 @@ defmodule RichardBurton.Publication.Links do
       |> Map.merge(stored_translations)
 
     Enum.map(keys, &Map.fetch!(translations, translation.(&1)))
+  end
+
+  # Takes the advisory lock on the key of each original book that `keys` name,
+  # in sorted order, and holds it until the transaction ends. The lock is a hash
+  # of the key, so two keys can share one, which only makes a transaction wait
+  # for another it did not need to.
+  defp lock_original_books(keys) do
+    locks =
+      keys
+      |> Enum.map(fn {title, names, _translators} -> Jason.encode!([title | names]) end)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    Repo.query!(
+      "SELECT pg_advisory_xact_lock(hashtextextended(k, 0)) FROM unnest($1::text[]) AS k",
+      [locks]
+    )
   end
 
   # Inserts a book of `schema` for each `{value, names}` in `keys`, holding
