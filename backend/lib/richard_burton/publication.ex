@@ -564,33 +564,26 @@ defmodule RichardBurton.Publication do
 
   # Clears `deleted_at` and records the restore. Rolls back with
   # `{:conflict, twin}` when another publication that is not deleted has the
-  # same composite key.
-  #
-  # The twin is looked for before writing, because a failed statement aborts the
-  # transaction and the twin could not be read after it. `settle!/0` still
-  # catches a twin written in the meantime, as a plain `:conflict`.
+  # same composite key, where `twin` is that publication, preloaded.
   defp lift(publication, actor) do
     publication = preload(publication)
+    publication |> tombstone(nil) |> Repo.update!()
 
-    case twin(publication) do
-      nil ->
-        publication |> tombstone(nil) |> Repo.update!()
-        settle!()
+    case Identity.settle() do
+      :ok ->
         History.record(:restored, publication, actor)
         publication
 
-      twin ->
-        Repo.rollback({:conflict, twin})
+      {:error, :conflict} ->
+        Repo.rollback({:conflict, twin(publication)})
     end
   end
 
   # Returns the publication that is not deleted and has the same composite key
-  # as `publication`, preloaded, or nil when there is none.
+  # as `publication`, preloaded.
   defp twin(publication) do
-    case Identity.publications_with_keys([Codec.flatten(publication)], publication.id) do
-      [nil] -> nil
-      [id] -> Publication |> Repo.get!(id) |> preload()
-    end
+    [id] = Identity.publications_with_keys([Codec.flatten(publication)], publication.id)
+    Publication |> Repo.get!(id) |> preload()
   end
 
   # Putting an absorbed record back would recreate the duplicate the merge

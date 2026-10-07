@@ -156,16 +156,17 @@ defmodule RichardBurton.ConcurrentKeysTest do
     assert count_live(title: "Dom Casmurro", year: 1954) == 1
   end
 
-  test "restoring a publication while the same one is inserted again leaves it deleted" do
+  test "restoring a publication while the same one is inserted again leaves it deleted, and names the other" do
     deleted = stored()
     {:ok, _} = unboxed(fn -> Publication.delete(deleted.id) end)
 
-    assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
+    assert %{first: {:ok, inserted}, second: {:error, {:conflict, twin}}, waited: true} =
              race(
                fn -> Publication.insert(@dom_casmurro) end,
                fn -> Publication.restore(deleted.id) end
              )
 
+    assert twin.id == inserted.id
     assert count_live(title: "Dom Casmurro", year: 1953) == 1
     assert unboxed(fn -> Repo.get!(Publication, deleted.id).deleted_at end)
   end
