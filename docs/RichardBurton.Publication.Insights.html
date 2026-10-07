@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Publication.Insights — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-BFC8D99F.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Publication.<wbr />Insights</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Counts the publications in the index, and the distinct works and names in
+them. <a href="#describe/1"><code class="inline">describe/1</code></a> counts either every publication or the ones a search
+matches.</p><p>The counts are read from <code class="inline">flat_publications</code>, the same rows the index lists,
+so they agree with the index. A write is included in both only after
+<a href="RichardBurton.Publication.Index.Refresher.html"><code class="inline">RichardBurton.Publication.Index.Refresher</code></a> refreshes the index.</p><p>Terms used here:</p><ul><li><strong>work</strong> — an original book, identified by its original title and
+original authors.</li><li><strong>translation</strong> — one translated text of a work, identified by the work
+and its translators. Each publication belongs to one translation. A
+translation has several publications when the same text is published
+again, in another year, by another publisher or in another country.</li><li><strong>retranslated</strong> — describes a work that has more than one translation.</li><li><strong>first translation</strong>, <strong>retranslation</strong> and <strong>reissue</strong> — the three
+kinds of publication. A publication is a reissue when an earlier
+publication of its translation exists. Otherwise it is the first
+publication of its translation, which is a first translation when its
+translation is the work's earliest, and a retranslation when the work had
+an earlier translation. Publications are ordered by year, and by id
+within a year, and this order is taken over the whole index, so a search
+does not turn a reissue into a first translation.</li><li><strong>debut</strong> — the year of an original author's first publication in the
+index.</li><li><strong>leading</strong> — the names in one field that appear in the most
+publications, at most ten. Names with the same count are sorted
+alphabetically.</li></ul>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#describe/1" data-no-tooltip="" translate="no">describe(term \\ nil)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns a map of counts for the publications a term matches, or for every
+publication when the term is <code class="inline">nil</code>.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="describe/1">
+
+    <span id="describe/0"></span>
+
+  <div class="detail-header">
+    <a href="#describe/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">describe(term \\ nil)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns a map of counts for the publications a term matches, or for every
+publication when the term is <code class="inline">nil</code>.</p><p>The map has these keys:</p><ul><li><code class="inline">publications</code> — the number of publications.</li><li><code class="inline">years</code> — the first and the last year of publication, or <code class="inline">nil</code> when there
+are no publications.</li><li><code class="inline">annual</code> — the number of publications in each year, from the first year
+to the last, split by country. <code class="inline">countries</code> holds the codes of the two
+countries with the most publications, or fewer when there are fewer.
+Each entry of <code class="inline">years</code> holds <code class="inline">counts</code>, the publications in each of those
+countries in the same order, and <code class="inline">elsewhere</code>, the publications in no
+country of <code class="inline">countries</code>. A publication that names several of them counts
+under the first one in <code class="inline">countries</code>.</li><li><code class="inline">decades</code> — the number of publications in each decade, from the first
+decade to the last, split into <code class="inline">first_translations</code>, <code class="inline">retranslations</code> and
+<code class="inline">reissues</code>. Decades with no publications are included.</li><li><code class="inline">debuts</code> — the number of original authors whose debut falls in each
+decade, counting the authors the publications name. The decades run
+from the first debut to the last, including decades with none.</li><li><code class="inline">totals</code> — the number of distinct works, original authors, translators,
+publishers and countries in the publications.</li><li><code class="inline">original_authors</code>, <code class="inline">translators</code>, <code class="inline">publishers</code> — the leading names in
+each field, each with its number of publications. Each translator also
+has <code class="inline">years</code>, the number of publications in each year that has any,
+earliest first.</li><li><code class="inline">pairs</code> — up to ten pairs of an original author and a translator, those
+that appear together in the most publications, each with that number.
+Pairs with the same count are sorted by author and then translator.</li><li><code class="inline">countries</code> — every country of publication by its code, each with its
+number of publications, highest first.</li><li><code class="inline">retranslated</code> — up to ten retranslated works, those with the most
+translations, each with its number of translations and <code class="inline">timeline</code>: the
+year of each translation's first publication in the index, with its
+translators, earliest first.</li><li><code class="inline">sourced</code> — the number of publications that cite at least one source.</li></ul><p>A search is resolved to the publications it matches once, and the counts are
+read from those publications. When it matches none, no other query runs.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

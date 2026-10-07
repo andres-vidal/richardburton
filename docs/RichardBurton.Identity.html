@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Identity — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-BFC8D99F.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Identity</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>The composite keys that stop an original book, a translated book or a
+publication from being stored twice. The database computes and enforces
+them, and this module is how the application asks it.</p><p>A <em>fingerprint</em> is a hash of a set of names. The keys are:</p><ul><li>an original book: its title, and the fingerprint of its authors' names;</li><li>a translated book: the original book it translates, and the fingerprint
+of its translators' names;</li><li>a publication that is not deleted: its title, year and translated book,
+and the fingerprints of its publishers' names and its country codes.</li></ul><p>The database computes a fingerprint with <code class="inline">rb_set_fingerprint</code>, from the names
+sorted, so the same names in another order give the same fingerprint. Each
+stored fingerprint is kept up to date by triggers when a link is added or
+removed, or a linked name changes (see the migration
+<code class="inline">ComputeFingerprintsInTheDatabase</code>). The database also has functions that
+find the stored row with a key (see the migration
+<code class="inline">LookUpCompositeKeysInTheDatabase</code>), and <a href="#books_with_keys/1"><code class="inline">books_with_keys/1</code></a> and
+<a href="#publications_with_keys/2"><code class="inline">publications_with_keys/2</code></a> call them for many keys at once.</p><p>The keys are checked when a transaction commits, because a row's links are
+written one by one after the row, and until the last one is written the row
+can match another row's key. <a href="#settle/0"><code class="inline">settle/0</code></a> checks them earlier, so that a write
+can report a conflict as its own result.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-types summary">
+  <h3>
+    <a href="#types">Types</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#t:key_fields/0" data-no-tooltip="" translate="no">key_fields()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The fields of a flat publication that its composite key is built from. Names
+and country codes are lists, in any order. Other fields are allowed and
+ignored.</p></div>
+
+    </div>
+
+</div>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#books_with_keys/1" data-no-tooltip="" translate="no">books_with_keys(keys)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns, for each <code class="inline">{title, authors, translators}</code> in <code class="inline">keys</code>, the ids of the
+stored original book with that title and those authors, and of its stored
+translated book by those translators, as a pair. Either id is nil when there
+is no such book, and the translated book's is nil whenever the original
+book's is. Names are lists in any order. The pairs come in the order of
+<code class="inline">keys</code>, from one query.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#publications_in_conflict/1" data-no-tooltip="" translate="no">publications_in_conflict(ids)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the ids among <code class="inline">ids</code> of the publications that have the same key as
+another publication that is not deleted, or whose translated or original
+book has the same key as another book.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#publications_with_keys/2" data-no-tooltip="" translate="no">publications_with_keys(publications, excluded \\ nil)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns, for each of <code class="inline">publications</code>, the id of a stored publication that is
+not deleted and has its key, or nil when there is none. The ids come in the
+order of <code class="inline">publications</code>, from one query. The publication with the id
+<code class="inline">excluded</code> is left out, so an edit does not match the publication it edits.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#settle/0" data-no-tooltip="" translate="no">settle()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Checks the composite keys now, inside the current transaction, with one call
+to the database function <code class="inline">rb_settle</code> (see the migration
+<code class="inline">CheckCompositeKeysInOneCall</code>).</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="types" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#types">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Types</span>
+    </h2>
+
+    <div class="types-list">
+<section class="detail" id="t:key_fields/0">
+
+  <div class="detail-header">
+    <a href="#t:key_fields/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">key_fields()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@type</span> key_fields() :: %{
+  :title =&gt; <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(),
+  :year =&gt; <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">integer</a>(),
+  :countries =&gt; [<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()],
+  :publishers =&gt; [<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()],
+  :authors =&gt; [<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()],
+  :original_title =&gt; <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(),
+  :original_authors =&gt; [<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()],
+  optional(<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">atom</a>()) =&gt; <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">any</a>()
+}</pre>
+
+      </div>
+
+<p>The fields of a flat publication that its composite key is built from. Names
+and country codes are lists, in any order. Other fields are allowed and
+ignored.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="books_with_keys/1">
+
+  <div class="detail-header">
+    <a href="#books_with_keys/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">books_with_keys(keys)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> books_with_keys([{<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(), [<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()], [<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()]}]) :: [
+  {<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">pos_integer</a>() | nil, <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">pos_integer</a>() | nil}
+]</pre>
+
+      </div>
+
+<p>Returns, for each <code class="inline">{title, authors, translators}</code> in <code class="inline">keys</code>, the ids of the
+stored original book with that title and those authors, and of its stored
+translated book by those translators, as a pair. Either id is nil when there
+is no such book, and the translated book's is nil whenever the original
+book's is. Names are lists in any order. The pairs come in the order of
+<code class="inline">keys</code>, from one query.</p>
+  </section>
+</section>
+<section class="detail" id="publications_in_conflict/1">
+
+  <div class="detail-header">
+    <a href="#publications_in_conflict/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">publications_in_conflict(ids)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> publications_in_conflict([<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">pos_integer</a>()]) :: [<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">pos_integer</a>()]</pre>
+
+      </div>
+
+<p>Returns the ids among <code class="inline">ids</code> of the publications that have the same key as
+another publication that is not deleted, or whose translated or original
+book has the same key as another book.</p><p>Of two publications in <code class="inline">ids</code> with the same key, only the one with the higher
+id is returned. A publication outside <code class="inline">ids</code> counts whatever its id.</p>
+  </section>
+</section>
+<section class="detail" id="publications_with_keys/2">
+
+    <span id="publications_with_keys/1"></span>
+
+  <div class="detail-header">
+    <a href="#publications_with_keys/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">publications_with_keys(publications, excluded \\ nil)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> publications_with_keys([<a href="#t:key_fields/0">key_fields</a>()], <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">pos_integer</a>() | nil) :: [
+  <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">pos_integer</a>() | nil
+]</pre>
+
+      </div>
+
+<p>Returns, for each of <code class="inline">publications</code>, the id of a stored publication that is
+not deleted and has its key, or nil when there is none. The ids come in the
+order of <code class="inline">publications</code>, from one query. The publication with the id
+<code class="inline">excluded</code> is left out, so an edit does not match the publication it edits.</p><p>Each of <code class="inline">publications</code> holds the fields in <a href="#t:key_fields/0"><code class="inline">key_fields/0</code></a>, where <code class="inline">:authors</code>
+are the translators.</p>
+  </section>
+</section>
+<section class="detail" id="settle/0">
+
+  <div class="detail-header">
+    <a href="#settle/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">settle()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> settle() :: :ok | {:error, :conflict}</pre>
+
+      </div>
+
+<p>Checks the composite keys now, inside the current transaction, with one call
+to the database function <code class="inline">rb_settle</code> (see the migration
+<code class="inline">CheckCompositeKeysInOneCall</code>).</p><p>Returns <code class="inline">:ok</code>, or <code class="inline">{:error, :conflict}</code> when a row has the same key as
+another. After a conflict, only the check is rolled back, so the transaction
+can still run queries, for instance to find the rows in conflict. The keys
+are deferred again afterwards, so the next write in the same transaction can
+pass through states that match another key, as the first could.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

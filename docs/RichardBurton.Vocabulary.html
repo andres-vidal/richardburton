@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Vocabulary — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-BFC8D99F.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Vocabulary</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Lists, checks and renames the names that publications are built from:
+authors, who are translators or original authors, and publishers.</p><p>These names are typed by hand, so one name can be stored under two
+spellings, such as &quot;Penguin books&quot; and &quot;Penguin Books&quot;, or &quot;Alfred A.Knopf&quot;
+and &quot;Alfred A. Knopf&quot;. Each spelling is a separate record, and each
+publication links to only one of them.</p><p>A <em>kind</em> is <code class="inline">&quot;authors&quot;</code> or <code class="inline">&quot;publishers&quot;</code>, the word the routes use for each
+schema.</p><h2 id="module-renaming-and-folding" class="section-heading"><a href="#module-renaming-and-folding" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Renaming and folding</span></h2><p><a href="#rename/4"><code class="inline">rename/4</code></a> is the only function that changes a name. There is no separate
+merge. Names are unique within a kind, so a rename has one of two outcomes:</p><ul><li><code class="inline">:renamed</code> means the new name is free, and the record takes it.</li><li><code class="inline">:merged</code> means another record, the <em>keeper</em>, already has the new name.
+The renamed record is <em>folded</em> into the keeper: its links move to the
+keeper and the record is deleted.</li></ul><p>A fold cannot be undone, so <a href="#rename/4"><code class="inline">rename/4</code></a> folds only when its <code class="inline">folding?</code>
+argument is true.</p><h2 id="module-books-that-become-one" class="section-heading"><a href="#module-books-that-become-one" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Books that become one</span></h2><p>The composite keys of books and publications include fingerprints of these
+names, which the database recomputes when a name changes or a link moves
+(see <a href="RichardBurton.Identity.html"><code class="inline">RichardBurton.Identity</code></a>). A publisher's name is part of a
+publication's key. An author's name is part of the key of each original
+book they wrote and each translated book they translated.</p><p>When a rename gives a book the same key as an older book, <a href="#rename/4"><code class="inline">rename/4</code></a> folds
+the newer book into the older one, in the same transaction: the newer book's
+translations, or its publications, move to the older book, and the newer
+book is deleted. When two original books are folded and each has a
+translation by the same translators, those two translations are folded into
+one as well.</p><h2 id="module-renames-that-would-duplicate-a-publication" class="section-heading"><a href="#module-renames-that-would-duplicate-a-publication" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Renames that would duplicate a publication</span></h2><p>A rename can give two publications the same composite key: the same title,
+year and translated book, and the same publishers and countries. This
+happens when one publication was entered twice and the two copies differ
+only in the spelling of a name. The composite key applies to the
+publications that are not deleted, so the database cannot store both.</p><p>In that case <a href="#rename/4"><code class="inline">rename/4</code></a> rolls back and returns
+<code class="inline">{:error, {:would_collide, publications}}</code>, listing the two publications. It
+does not merge them. Merging publications is done by
+<a href="RichardBurton.Publication.html#merge/3"><code class="inline">RichardBurton.Publication.merge/3</code></a>, which takes the publication to keep and
+can be undone.</p><p>Deleted publications follow the rename as well, so a restored publication
+matches its names. They are never reported as a collision, because the
+composite key does not cover them.</p><h2 id="module-checking-names-before-they-are-entered" class="section-heading"><a href="#module-checking-names-before-they-are-entered" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Checking names before they are entered</span></h2><p><a href="#resemblances/2"><code class="inline">resemblances/2</code></a> compares names that are not stored yet with the stored
+names. A name is <em>held</em> when a record has exactly that name. A name
+<em>resembles</em> a stored name when the two differ but their trigram similarity,
+with accents removed, is above 0.7. A name that is neither held nor
+resembles a stored name is new.</p><p>Two publishers' names also resemble each other when one contains the other's
+words, as &quot;Alfred A. Knopf&quot; contains &quot;Knopf&quot;. Authors' names do not, because
+one author record can hold two people, such as &quot;William L. Grossman &amp; Helen
+Caldwell&quot;, and each person's own name would then resemble it.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#all/1" data-no-tooltip="" translate="no">all(kind)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns every name of the given kind, sorted by name, as
+<code class="inline">%{id:, name:, publications:, resembles:}</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#kinds/0" data-no-tooltip="" translate="no">kinds()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the kinds of name, as the words the routes use.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#rename/4" data-no-tooltip="" translate="no">rename(kind, id, name, folding? \\ false)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Renames the name with the given id. When another name of the same kind
+already has the new name, folds this one into it.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#resemblances/2" data-no-tooltip="" translate="no">resemblances(kind, names)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Compares the given names with the stored names of the given kind.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="all/1">
+
+  <div class="detail-header">
+    <a href="#all/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">all(kind)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns every name of the given kind, sorted by name, as
+<code class="inline">%{id:, name:, publications:, resembles:}</code>.</p><p><code class="inline">publications</code> counts the publications that credit the name and are not
+deleted. <code class="inline">resembles</code> lists the ids of the other names of this kind that the
+name resembles. Each of those ids is also in the returned list.</p><p>Returns <code class="inline">{:error, :no_such_kind}</code> when the kind is unknown.</p>
+  </section>
+</section>
+<section class="detail" id="kinds/0">
+
+  <div class="detail-header">
+    <a href="#kinds/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">kinds()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the kinds of name, as the words the routes use.</p>
+  </section>
+</section>
+<section class="detail" id="rename/4">
+
+    <span id="rename/3"></span>
+
+  <div class="detail-header">
+    <a href="#rename/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">rename(kind, id, name, folding? \\ false)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Renames the name with the given id. When another name of the same kind
+already has the new name, folds this one into it.</p><p>The new name is trimmed. Returns <code class="inline">{:ok, :renamed}</code> when the record takes the
+new name, and <code class="inline">{:ok, :merged}</code> when it is folded. After either, it calls
+<code class="inline">Refresher.refresh/0</code>.</p><p>A fold happens only when <code class="inline">folding?</code> is true. When it is false and the name is
+taken, nothing is written and the result is
+<code class="inline">{:error, {:would_fold, keeper, publications}}</code>. <code class="inline">keeper</code> is
+<code class="inline">%{id:, name:, publications:}</code>. <code class="inline">publications</code> lists the publications that
+credit the renamed record and are not deleted, as <code class="inline">%{id:, title:, year:}</code>,
+sorted by title and year. A rename onto a free name needs no flag, because
+renaming back undoes it.</p><p>The other errors are <code class="inline">{:error, {:would_collide, publications}}</code> (see the
+module doc), <code class="inline">{:error, :blank}</code>, <code class="inline">{:error, :not_found}</code> and
+<code class="inline">{:error, :no_such_kind}</code>.</p>
+  </section>
+</section>
+<section class="detail" id="resemblances/2">
+
+  <div class="detail-header">
+    <a href="#resemblances/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">resemblances(kind, names)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Compares the given names with the stored names of the given kind.</p><p>Returns <code class="inline">{:ok, entries}</code>, with one <code class="inline">%{name:, held:, resembles:}</code> per name.
+<code class="inline">held</code> is true when a stored name matches exactly. <code class="inline">resembles</code> lists the
+stored names that resemble it, as <code class="inline">%{id:, name:, publications:}</code>, with the
+most used first.</p><p>The names are trimmed, blank names are dropped, and a repeated name appears
+once. Returns <code class="inline">{:error, :no_such_kind}</code> when the kind is unknown.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

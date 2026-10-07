@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Document — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-BFC8D99F.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Document</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>An import document: a named batch of rows being prepared for the database,
+stored so that work on it can continue later.</p><p>The list of documents is shared. A document has no owner and no members,
+because everyone preparing the database works on the same data. Anyone who
+may edit publications may open any document.</p><p>A document's content is a Yjs document, and this module never parses it. A
+Yjs document is a set of updates that can be applied in any order and more
+than once, so storing one only needs appending updates and returning them.
+Because the server does not parse Yjs, the deployment needs no precompiled
+native dependency. Validating and submitting the rows use the publication
+endpoints, which take plain JSON.</p><p>These terms have specific meanings here:</p><ul><li><strong>update</strong> — one change to the content, as Yjs encoded it, stored as
+opaque bytes.</li><li><strong>compaction</strong> — one update that has the same effect as every update up
+to a given id, written in their place. It keeps the number of updates a
+long-lived document has to load small. Once written it is an ordinary
+update, and nothing marks it or reads it differently.</li><li><strong>archiving</strong> — taking a document off the list without deleting its
+content.</li><li><strong>cursor</strong> — the position a page of the list starts after: the
+<code class="inline">updated_at</code> and id of the last document on the previous page.</li></ul><p><code class="inline">rows</code> is the row count given with each write. The server cannot count rows
+in content it does not parse, so it stores the count as given and does not
+check it.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#append/3" data-no-tooltip="" translate="no">append(document, update, rows)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Appends an update to a document and stores <code class="inline">rows</code> as its row count.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#archive/1" data-no-tooltip="" translate="no">archive(document)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Archives a document by setting <code class="inline">archived_at</code>. The document leaves the list,
+and its updates are kept.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#compact/3" data-no-tooltip="" translate="no">compact(document, merged, through)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Replaces every update of the document up to <code class="inline">through</code> with the single update
+<code class="inline">merged</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#create/1" data-no-tooltip="" translate="no">create(attrs)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Creates a document from <code class="inline">attrs</code>, which must include a <code class="inline">name</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#find/1" data-no-tooltip="" translate="no">find(id)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns <code class="inline">{:ok, document}</code> for the id, or <code class="inline">{:error, :not_found}</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#page/1" data-no-tooltip="" translate="no">page(opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns a page of documents, most recently changed first, as
+<code class="inline">%{entries: documents, more: boolean}</code>. <code class="inline">more</code> is true when more documents
+follow the page.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#rename/2" data-no-tooltip="" translate="no">rename(document, name)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Renames a document.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#unarchive/1" data-no-tooltip="" translate="no">unarchive(document)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Clears <code class="inline">archived_at</code>, which puts an archived document back on the list.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#updates/2" data-no-tooltip="" translate="no">updates(document, opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns <code class="inline">{updates, through}</code>: the document's updates in id order, and the id
+of the last one returned.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="append/3">
+
+  <div class="detail-header">
+    <a href="#append/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">append(document, update, rows)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Appends an update to a document and stores <code class="inline">rows</code> as its row count.</p><p>It also sets the document's <code class="inline">updated_at</code> to now, which moves the document to
+the top of the list. When <code class="inline">rows</code> is <code class="inline">nil</code>, the stored count is kept and the
+update is still appended, so a missing count never loses an update.</p>
+  </section>
+</section>
+<section class="detail" id="archive/1">
+
+  <div class="detail-header">
+    <a href="#archive/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">archive(document)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Archives a document by setting <code class="inline">archived_at</code>. The document leaves the list,
+and its updates are kept.</p><p>Archiving does not delete anything, because the rows are a record of what was
+prepared. An archived document can still be found by id and can be
+unarchived.</p>
+  </section>
+</section>
+<section class="detail" id="compact/3">
+
+  <div class="detail-header">
+    <a href="#compact/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">compact(document, merged, through)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Replaces every update of the document up to <code class="inline">through</code> with the single update
+<code class="inline">merged</code>.</p><p>The caller builds <code class="inline">merged</code>, because the server does not parse the content.
+<code class="inline">through</code> is the id of the last update the caller merged, as returned by
+<a href="#updates/2"><code class="inline">updates/2</code></a>. Updates with a larger id were appended after that read, so they
+are not in the merge and are kept.</p><p>The old updates are deleted and <code class="inline">merged</code> is inserted in one transaction, so a
+reader never gets both.</p>
+  </section>
+</section>
+<section class="detail" id="create/1">
+
+  <div class="detail-header">
+    <a href="#create/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">create(attrs)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Creates a document from <code class="inline">attrs</code>, which must include a <code class="inline">name</code>.</p>
+  </section>
+</section>
+<section class="detail" id="find/1">
+
+  <div class="detail-header">
+    <a href="#find/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">find(id)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns <code class="inline">{:ok, document}</code> for the id, or <code class="inline">{:error, :not_found}</code>.</p><p>It finds archived documents too, so an archived document stays reachable by
+id.</p>
+  </section>
+</section>
+<section class="detail" id="page/1">
+
+    <span id="page/0"></span>
+
+  <div class="detail-header">
+    <a href="#page/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">page(opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns a page of documents, most recently changed first, as
+<code class="inline">%{entries: documents, more: boolean}</code>. <code class="inline">more</code> is true when more documents
+follow the page.</p><p>The page is not scoped to a person, because the list is shared. It holds the
+documents that are not archived, or only the archived ones when
+<code class="inline">archived: true</code> is given. Documents with the same <code class="inline">updated_at</code> are ordered
+by id, newest first, so the order is the same on every read.</p><p><code class="inline">limit</code> sets the page size. It defaults to 50 and is capped at 200, so a
+read never returns the whole table.</p><p><code class="inline">after</code> is a cursor, and the page starts with the document that follows it.
+A cursor is used instead of an offset because a change moves a document to
+the top of the list. With an offset, that move would shift every document
+below it by one, and a page could repeat or skip a document.</p>
+  </section>
+</section>
+<section class="detail" id="rename/2">
+
+  <div class="detail-header">
+    <a href="#rename/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">rename(document, name)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Renames a document.</p>
+  </section>
+</section>
+<section class="detail" id="unarchive/1">
+
+  <div class="detail-header">
+    <a href="#unarchive/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">unarchive(document)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Clears <code class="inline">archived_at</code>, which puts an archived document back on the list.</p>
+  </section>
+</section>
+<section class="detail" id="updates/2">
+
+    <span id="updates/1"></span>
+
+  <div class="detail-header">
+    <a href="#updates/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">updates(document, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns <code class="inline">{updates, through}</code>: the document's updates in id order, and the id
+of the last one returned.</p><p>Applying the updates in any order rebuilds the document's content. <code class="inline">through</code>
+is the id to pass to <a href="#compact/3"><code class="inline">compact/3</code></a> later, so that the compaction replaces only
+the updates that were read and keeps any appended after them.</p><p>With <code class="inline">after: id</code>, only the updates with a larger id are returned. When there
+are none, <code class="inline">through</code> is the id that was given. No update is missed this way,
+because every write to a document's updates holds the document's row lock
+until it commits. Writes to one document therefore commit one at a time, in
+id order, and once an id has been read no update with a smaller id can still
+appear.</p><p>Every update after the given id is returned, compactions included. A
+compaction deletes the updates it replaces, so any update left beside it is
+one it does not include. Returning an update that a reader already has does
+no harm, because Yjs ignores an update it has already applied.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
