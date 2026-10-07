@@ -106,20 +106,38 @@ defmodule RichardBurton.Country do
     nil
   """
   def code_for(value) when is_binary(value) do
-    written = normalize(value)
-
-    named =
-      @countries
-      |> Map.keys()
-      |> Enum.filter(fn code -> Enum.any?(names_for(code), &(normalize(&1) == written)) end)
-
-    case named do
+    case Map.get(codes_by_name(), normalize(value)) do
       [code] -> code
       _ -> nil
     end
   end
 
   def code_for(_value), do: nil
+
+  # The key `codes_by_name/0` keeps its map under. It includes a hash of the
+  # country table, so a recompiled table gets a new map.
+  @codes_by_name_key {__MODULE__, :codes_by_name, :erlang.phash2(@countries)}
+
+  # Returns a map from each name a country goes by, normalized, to the codes of
+  # the countries that go by it. The map is built on the first call and kept in
+  # `:persistent_term`, because `code_for/1` runs for every country of every
+  # publication written, and building it normalizes every name of every
+  # country.
+  defp codes_by_name do
+    case :persistent_term.get(@codes_by_name_key, nil) do
+      nil ->
+        index =
+          for code <- Map.keys(@countries), name <- names_for(code), reduce: %{} do
+            index -> Map.update(index, normalize(name), [code], &Enum.uniq([code | &1]))
+          end
+
+        :persistent_term.put(@codes_by_name_key, index)
+        index
+
+      index ->
+        index
+    end
+  end
 
   @doc """
   Replaces each country in a changeset with its ISO code: "UK" becomes `GB`,
