@@ -149,6 +149,35 @@ defmodule RichardBurton.IdentityTest do
                fingerprint_of(["Machado"])
     end
 
+    test "follow a link moved to another publication" do
+      moved_from = insert(%{"publishers" => [%{"name" => "Noonday Press"}, %{"name" => "Knopf"}]})
+      moved_to = insert(%{"year" => 1960})
+      knopf = Repo.get_by!(Publisher, name: "Knopf")
+
+      Repo.update_all(
+        from(l in "publication_publishers",
+          where: l.publication_id == ^moved_from.id and l.publisher_id == ^knopf.id
+        ),
+        set: [publication_id: moved_to.id]
+      )
+
+      assert stored(Publication, moved_from.id, :publishers_fingerprint) ==
+               fingerprint_of(["Noonday Press"])
+
+      assert stored(Publication, moved_to.id, :publishers_fingerprint) ==
+               fingerprint_of(["Knopf", "Noonday Press"])
+    end
+
+    test "are the fingerprint of no names once every link of a row is removed" do
+      publication = insert()
+
+      Repo.delete_all(
+        from(l in "publication_countries", where: l.publication_id == ^publication.id)
+      )
+
+      assert stored(Publication, publication.id, :countries_fingerprint) == fingerprint_of([])
+    end
+
     test "follow a country whose code changes" do
       publication = insert()
 
