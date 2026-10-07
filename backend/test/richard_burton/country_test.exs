@@ -56,12 +56,6 @@ defmodule RichardBurton.CountryTest do
     attrs |> changeset() |> Repo.insert!()
   end
 
-  defp get_countries(changeset = %Ecto.Changeset{}) do
-    changeset
-    |> get_change(:countries)
-    |> Enum.map(&apply_changes/1)
-  end
-
   describe "changeset/2" do
     test "when valid attributes are provided, is valid" do
       assert changeset(@valid_attrs).valid?
@@ -403,80 +397,6 @@ defmodule RichardBurton.CountryTest do
       Repo.update_all(from(c in Country, where: c.id == ^first.id), set: [names: first.names])
 
       assert Enum.map(Country.all(), & &1.id) == [first.id, second.id]
-    end
-  end
-
-  describe "find_or_insert/1" do
-    test "when there is no country with the provided name, inserts it" do
-      country = Country.find_or_insert!(@valid_attrs)
-
-      assert [country] == Country.all()
-    end
-
-    test "when there is a country with the provided name, returns the pre-existent one" do
-      insert(@valid_attrs)
-      assert [preexistent_country] = Country.all()
-
-      country = Country.find_or_insert!(@valid_attrs)
-
-      assert preexistent_country == country
-      assert [country] == Country.all()
-    end
-
-    test "stores the names the country is searchable by" do
-      country = Country.find_or_insert!(@valid_attrs)
-
-      assert "United Kingdom" in country.names
-      assert "Reino Unido" in country.names
-      assert "UK" in country.names
-    end
-  end
-
-  describe "link/1" do
-    test "links existing countries to changeset" do
-      attrs = %{
-        "countries" => [
-          %{"code" => "GB"},
-          %{"code" => "US"}
-        ]
-      }
-
-      countries = Enum.map(attrs["countries"], &insert!/1)
-
-      changeset =
-        attrs
-        |> WithManyCountries.changeset()
-        |> Country.link()
-
-      assert changeset.valid?
-      assert countries == get_countries(changeset)
-    end
-
-    test "links non-existing countries to changeset, inserting them" do
-      attrs = %{
-        "countries" => [
-          %{"code" => "GB"},
-          %{"code" => "US"}
-        ]
-      }
-
-      changeset =
-        attrs
-        |> WithManyCountries.changeset()
-        |> Country.link()
-
-      assert changeset.valid?
-      assert Country.all() == get_countries(changeset)
-    end
-
-    test "has no side effects when changeset is invalid" do
-      changeset =
-        %{"countries" => [%{}]}
-        |> WithManyCountries.changeset()
-        |> Country.link()
-
-      refute changeset.valid?
-      assert Enum.empty?(Country.all())
     end
   end
 

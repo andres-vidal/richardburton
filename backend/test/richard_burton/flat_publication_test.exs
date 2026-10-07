@@ -57,6 +57,17 @@ defmodule RichardBurton.FlatPublicationTest do
     publication
   end
 
+  # Returns what `Publication.insert/2` gives for `nested`, `:ok` or
+  # `{:error, errors}`, and rolls the insert back.
+  defp insert_result(nested) do
+    rolled_back(fn ->
+      case Publication.insert(nested) do
+        {:ok, _publication} -> :ok
+        error -> error
+      end
+    end)
+  end
+
   describe "changeset/2" do
     test "when valid attributes are provided, is valid" do
       assert changeset(@valid_attrs).valid?
@@ -178,20 +189,20 @@ defmodule RichardBurton.FlatPublicationTest do
       assert {:error, %{year: :integer}} = validate(Map.put(@valid_attrs, "year", "A"))
     end
 
-    test "generates results analog to those of Publication.validate/1 on valid attrs" do
+    test "generates results analog to those of Publication.insert/2 on valid attrs" do
       expected =
         @valid_attrs
         |> Publication.Codec.nest()
-        |> Publication.validate()
+        |> insert_result()
 
       assert FlatPublication.validate(@valid_attrs) == expected
     end
 
-    test "generates results analog to those of Publication.validate/1 on empty attrs" do
+    test "generates results analog to those of Publication.insert/2 on empty attrs" do
       {:error, expected} =
         @skeleton_attrs
         |> Publication.Codec.nest()
-        |> Publication.validate()
+        |> insert_result()
 
       expected = {:error, Publication.Codec.flatten(expected)}
 
@@ -202,18 +213,18 @@ defmodule RichardBurton.FlatPublicationTest do
       assert actual == expected
     end
 
-    test "generates results analog to those of Publication.validate/1 on duplicate attrs" do
+    test "generates results analog to those of Publication.insert/2 on duplicate attrs" do
       insert(@valid_attrs)
 
       expected =
         @valid_attrs
         |> Publication.Codec.nest()
-        |> Publication.validate()
+        |> insert_result()
 
       assert expected == FlatPublication.validate(@valid_attrs)
     end
 
-    test "generates results analog to those of Publication.validate/1 on attrs with invalid types" do
+    test "generates results analog to those of Publication.insert/2 on attrs with invalid types" do
       attrs =
         @valid_attrs
         |> Map.put("year", "AAAA")
@@ -222,7 +233,7 @@ defmodule RichardBurton.FlatPublicationTest do
       expected =
         attrs
         |> Publication.Codec.nest()
-        |> Publication.validate()
+        |> insert_result()
 
       assert expected == FlatPublication.validate(attrs)
     end
@@ -237,7 +248,7 @@ defmodule RichardBurton.FlatPublicationTest do
         attrs = Map.put(@valid_attrs, Atom.to_string(attribute), [entry, entry])
 
         assert {:error, %{attribute => :duplicate}} == validate(attrs)
-        assert validate(attrs) == attrs |> Publication.Codec.nest() |> Publication.validate()
+        assert validate(attrs) == attrs |> Publication.Codec.nest() |> insert_result()
       end
     end
 
@@ -252,7 +263,7 @@ defmodule RichardBurton.FlatPublicationTest do
         attrs = Map.update!(@valid_attrs, Atom.to_string(attribute), &(&1 ++ [blank]))
 
         assert {:error, %{attribute => :required}} == validate(attrs), inspect({attribute, blank})
-        assert {:error, _} = attrs |> Publication.Codec.nest() |> Publication.validate()
+        assert {:error, _} = attrs |> Publication.Codec.nest() |> insert_result()
       end
     end
 

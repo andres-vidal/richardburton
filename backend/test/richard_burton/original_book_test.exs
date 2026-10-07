@@ -11,7 +11,6 @@ defmodule RichardBurton.OriginalBookTest do
   doctest RichardBurton.OriginalBook
   alias RichardBurton.Util
   alias RichardBurton.OriginalBook
-  alias RichardBurton.TranslatedBook
 
   @valid_attrs %{
     "title" => "Manuel de Moraes: crônica do século XVII",
@@ -27,33 +26,6 @@ defmodule RichardBurton.OriginalBookTest do
 
   defp change_valid(attrs = %{}) do
     changeset(Util.deep_merge_maps(@valid_attrs, attrs))
-  end
-
-  defp insert(attrs) do
-    attrs |> changeset() |> Repo.insert()
-  end
-
-  # Inserts the book and reads back the fingerprint the database writes once
-  # its authors are linked.
-  defp insert!(attrs) do
-    attrs |> changeset() |> Repo.insert!() |> Repo.refresh([:authors_fingerprint])
-  end
-
-  # A changeset whose authors are already stored, as `find_or_insert!/1` builds it.
-  defp changeset_linked(book, attrs), do: book |> OriginalBook.changeset(attrs) |> Author.link()
-
-  defp maybe_preload(changeset, true), do: OriginalBook.preload(changeset)
-  defp maybe_preload(changeset, false), do: changeset
-
-  defp linked(changeset, preload: preload) do
-    changeset
-    |> get_change(:original_book)
-    |> apply_changes
-    |> maybe_preload(preload)
-  end
-
-  defp linked(changeset) do
-    linked(changeset, preload: false)
   end
 
   describe "changeset/2" do
@@ -86,11 +58,9 @@ defmodule RichardBurton.OriginalBookTest do
     end
 
     test "the database refuses a second original book with the same title and authors" do
-      OriginalBook.find_or_insert!(@valid_attrs)
-
-      # Inserted around the lookup in `find_or_insert!/1`, which would have found
-      # the first book.
-      %OriginalBook{} |> changeset_linked(@valid_attrs) |> Repo.insert!()
+      authors = ["J. M. Pereira da Silva", "Machado de Assis"]
+      original_book_fixture("Manuel de Moraes", authors)
+      original_book_fixture("Manuel de Moraes", Enum.reverse(authors))
 
       assert {:error, :conflict} = Identity.settle()
     end
@@ -99,97 +69,6 @@ defmodule RichardBurton.OriginalBookTest do
       assert Enum.empty?(Author.all())
       changeset(@valid_attrs)
       assert Enum.empty?(Author.all())
-    end
-  end
-
-  describe "find_or_insert/1" do
-    test "when there is no original book with the provided authors and title, inserts it" do
-      original_book = OriginalBook.find_or_insert!(@valid_attrs)
-
-      assert [original_book] == OriginalBook.all()
-    end
-
-    test "when there is a original book with the provided authors and title, returns the pre-existent one" do
-      insert(@valid_attrs)
-      assert [pre_existent_book] = OriginalBook.all()
-
-      original_book = OriginalBook.find_or_insert!(@valid_attrs) |> OriginalBook.preload()
-
-      assert pre_existent_book == original_book
-      assert [original_book] == OriginalBook.all()
-    end
-
-    test "the same authors in another order are the same book" do
-      book = OriginalBook.find_or_insert!(@valid_attrs)
-
-      again =
-        OriginalBook.find_or_insert!(%{
-          @valid_attrs
-          | "authors" => Enum.reverse(@valid_attrs["authors"])
-        })
-
-      assert again.id == book.id
-    end
-
-    test "the same title by other authors is another book" do
-      book = OriginalBook.find_or_insert!(@valid_attrs)
-
-      other =
-        OriginalBook.find_or_insert!(%{
-          @valid_attrs
-          | "authors" => [%{"name" => "Erico Verissimo"}]
-        })
-
-      refute other.id == book.id
-      assert length(OriginalBook.all()) == 2
-    end
-  end
-
-  describe "link/1" do
-    @translated_book_attrs %{
-      "authors" => [
-        %{"name" => "Richard Burton"},
-        %{"name" => "Isabel Burton"}
-      ],
-      "original_book" => %{
-        "title" => "Dom Casmurro",
-        "authors" => [%{"name" => "Machado de Assis"}]
-      }
-    }
-
-    test "links existing original book to TranslatedBook changeset" do
-      original_book = insert!(@translated_book_attrs["original_book"])
-
-      changeset =
-        %TranslatedBook{}
-        |> TranslatedBook.changeset(@translated_book_attrs)
-        |> OriginalBook.link()
-
-      assert changeset.valid?
-
-      assert original_book == linked(changeset, preload: true)
-    end
-
-    test "links non-existing authors to TranslatedBook changeset, inserting them" do
-      changeset =
-        %TranslatedBook{}
-        |> TranslatedBook.changeset(@translated_book_attrs)
-        |> OriginalBook.link()
-
-      assert changeset.valid?
-
-      assert OriginalBook.all() == [linked(changeset)]
-    end
-
-    test "has no side effects when TranslatedBook changeset is invalid" do
-      changeset =
-        %TranslatedBook{}
-        |> TranslatedBook.changeset(%{})
-        |> OriginalBook.link()
-
-      refute changeset.valid?
-
-      assert Enum.empty?(OriginalBook.all())
     end
   end
 
@@ -226,26 +105,16 @@ defmodule RichardBurton.OriginalBookTest do
     defp titles(books), do: Enum.map(books, & &1.title)
 
     defp search_fixture(_context) do
-      OriginalBook.find_or_insert!(%{
-        "title" => "Dom Casmurro",
-        "authors" => [%{"name" => "Machado de Assis"}]
-      })
-
-      OriginalBook.find_or_insert!(%{
-        "title" => "Memórias Póstumas",
-        "authors" => [%{"name" => "Machado de Assis"}]
-      })
+      original_book_fixture("Dom Casmurro", ["Machado de Assis"])
+      original_book_fixture("Memórias Póstumas", ["Machado de Assis"])
 
       # Two of its authors answer to "J. M.", so a search for that would find
       # this book twice if the rows were not deduplicated.
-      OriginalBook.find_or_insert!(%{
-        "title" => "Manuel de Moraes",
-        "authors" => [
-          %{"name" => "Machado de Assis"},
-          %{"name" => "J. M. Pereira da Silva"},
-          %{"name" => "J. M. Velho da Silva"}
-        ]
-      })
+      original_book_fixture("Manuel de Moraes", [
+        "Machado de Assis",
+        "J. M. Pereira da Silva",
+        "J. M. Velho da Silva"
+      ])
 
       :ok
     end

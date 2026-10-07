@@ -46,16 +46,6 @@ defmodule RichardBurton.PublisherTest do
     %Publisher{} |> Publisher.changeset(attrs) |> Repo.insert()
   end
 
-  defp insert!(attrs) do
-    attrs |> changeset() |> Repo.insert!()
-  end
-
-  defp get_publishers(changeset = %Ecto.Changeset{}) do
-    changeset
-    |> get_change(:publishers)
-    |> Enum.map(&apply_changes/1)
-  end
-
   def search_fixture(_) do
     @publishers
     |> Enum.map(&Publisher.changeset(%Publisher{}, &1))
@@ -87,72 +77,6 @@ defmodule RichardBurton.PublisherTest do
 
       refute changeset.valid?
       assert :conflict == Validation.get_errors(changeset)
-    end
-  end
-
-  describe "find_or_insert/1" do
-    test "when there is no publisher with the provided name, inserts it" do
-      publisher = Publisher.find_or_insert!(@valid_attrs)
-
-      assert [publisher] == Publisher.all()
-    end
-
-    test "when there is a publisher with the provided name, returns the pre-existent one" do
-      insert(@valid_attrs)
-      assert [preexistent_publisher] = Publisher.all()
-
-      publisher = Publisher.find_or_insert!(@valid_attrs)
-
-      assert preexistent_publisher == publisher
-      assert [publisher] == Publisher.all()
-    end
-  end
-
-  describe "link/1" do
-    test "links existing publishers to changeset" do
-      attrs = %{
-        "publishers" => [
-          %{"name" => "Noonday Press"},
-          %{"name" => "Bickers & Son"}
-        ]
-      }
-
-      publishers = Enum.map(attrs["publishers"], &insert!/1)
-
-      changeset =
-        attrs
-        |> WithManyPublishers.changeset()
-        |> Publisher.link()
-
-      assert changeset.valid?
-      assert publishers == get_publishers(changeset)
-    end
-
-    test "links non-existing publishers to changeset, inserting them" do
-      attrs = %{
-        "publishers" => [
-          %{"name" => "Noonday Press"},
-          %{"name" => "Bickers & Son"}
-        ]
-      }
-
-      changeset =
-        attrs
-        |> WithManyPublishers.changeset()
-        |> Publisher.link()
-
-      assert changeset.valid?
-      assert Publisher.all() == get_publishers(changeset)
-    end
-
-    test "has no side effects when changeset is invalid" do
-      changeset =
-        %{"publishers" => [%{}]}
-        |> WithManyPublishers.changeset()
-        |> Publisher.link()
-
-      refute changeset.valid?
-      assert Enum.empty?(Publisher.all())
     end
   end
 

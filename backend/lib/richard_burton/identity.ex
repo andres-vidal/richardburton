@@ -18,8 +18,9 @@ defmodule RichardBurton.Identity do
   removed, or a linked name changes (see the migration
   `ComputeFingerprintsInTheDatabase`). The database also has functions that
   find the stored row with a key (see the migration
-  `LookUpCompositeKeysInTheDatabase`), and `original_book_with_key/2`,
-  `translated_book_with_key/2` and `publications_with_keys/2` call them.
+  `LookUpCompositeKeysInTheDatabase`), and `original_books_with_keys/1`,
+  `translated_books_with_keys/1` and `publications_with_keys/2` call them for
+  many keys at once.
 
   The keys are checked when a transaction commits, because a row's links are
   written one by one after the row, and until the last one is written the row
@@ -57,25 +58,6 @@ defmodule RichardBurton.Identity do
           required(:original_authors) => [String.t()],
           optional(atom()) => any()
         }
-
-  @doc """
-  Returns the id of the stored original book titled `title` and written by
-  `authors`, a list of names in any order, or nil when there is none.
-  """
-  @spec original_book_with_key(String.t(), [String.t()]) :: pos_integer() | nil
-  def original_book_with_key(title, authors) do
-    value("SELECT rb_original_book_with_key($1, $2)", [title, authors])
-  end
-
-  @doc """
-  Returns the id of the stored translated book of the original book with the id
-  `original_book_id` by `translators`, a list of names in any order, or nil
-  when there is none.
-  """
-  @spec translated_book_with_key(pos_integer() | nil, [String.t()]) :: pos_integer() | nil
-  def translated_book_with_key(original_book_id, translators) do
-    value("SELECT rb_translated_book_with_key($1, $2)", [original_book_id, translators])
-  end
 
   @doc """
   Returns, for each of `publications`, the id of a stored publication that is
@@ -232,12 +214,6 @@ defmodule RichardBurton.Identity do
       """,
       [ids]
     )
-  end
-
-  # Runs a query that returns one value, and returns that value.
-  defp value(sql, params) do
-    %{rows: [[value]]} = Repo.query!(sql, params)
-    value
   end
 
   # Runs a query that returns one column, and returns its values in order.

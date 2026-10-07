@@ -50,6 +50,7 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.Publication.Duplicates
   alias RichardBurton.Publication.Import
   alias RichardBurton.Publication.Index
+  alias RichardBurton.Publication.Links
   alias RichardBurton.Publisher
   alias RichardBurton.Source
   alias RichardBurton.Repo
@@ -148,10 +149,6 @@ defmodule RichardBurton.Publication do
       {:ok, [publication]} -> {:ok, publication}
       {:error, {_attrs, errors}} -> {:error, errors}
     end
-  end
-
-  def validate(attrs) do
-    Validation.validate(changeset(%Publication{}, attrs), &link_assocs/1)
   end
 
   def update(id, attrs, actor \\ History.system_actor()) do
@@ -667,15 +664,21 @@ defmodule RichardBurton.Publication do
     with {:error, :conflict} <- Identity.settle(), do: Repo.rollback(:conflict)
   end
 
-  # Resolves each association to an existing row where one matches, so a
+  # Points a valid changeset's translated book, countries and publishers at
+  # the stored rows it names, which `Publication.Links` finds or inserts, so a
   # publication reuses countries, books and publishers rather than duplicating
-  # them.
-  defp link_assocs(changeset) do
+  # them. Returns an invalid changeset unchanged.
+  defp link_assocs(changeset = %Ecto.Changeset{valid?: true}) do
+    [links] = Links.resolve([apply_changes(changeset)])
+
     changeset
-    |> Country.link()
-    |> TranslatedBook.link()
-    |> Publisher.link()
+    |> delete_change(:translated_book)
+    |> put_change(:translated_book_id, links.translated_book_id)
+    |> put_assoc(:countries, links.countries)
+    |> put_assoc(:publishers, links.publishers)
   end
+
+  defp link_assocs(changeset), do: changeset
 
   @doc """
   Inserts the publications `attrs_list` describes in one transaction, all or

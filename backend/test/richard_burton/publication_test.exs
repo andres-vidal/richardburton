@@ -174,41 +174,6 @@ defmodule RichardBurton.PublicationTest do
     end
   end
 
-  describe "validate/1" do
-    import Publication, only: [validate: 1]
-
-    test "when validating valid publications, returns :ok" do
-      # Insert a dummy publication to make sure the test passes on a non-empty database
-      insert(Map.put(@valid_attrs, "title", "New title"))
-      assert :ok == validate(@valid_attrs)
-    end
-
-    test "when validating a duplicate publication, returns {:error, :conflict}" do
-      insert(@valid_attrs)
-      assert {:error, :conflict} == validate(@valid_attrs)
-    end
-
-    test "when validating an empty publication, returns an error map with :required errors" do
-      assert {:error, @empty_attrs_error_map} == validate(@empty_attrs)
-    end
-
-    test "when validating an skeleton publication, returns a deep error map with :required errors" do
-      assert {:error, @skeleton_attrs_error_map} == validate(@skeleton_attrs)
-    end
-
-    test "when a single field is invalid, returns the corresponding error map" do
-      assert {:error, %{year: :integer}} = validate(Map.put(@valid_attrs, "year", "A"))
-    end
-
-    test "has no side effects" do
-      assert Enum.empty?(TranslatedBook.all())
-
-      validate(@valid_attrs)
-
-      assert Enum.empty?(TranslatedBook.all())
-    end
-  end
-
   describe "all/0" do
     # Postgres writes an updated row as a new row version later in the table,
     # so a query without ORDER BY can return it after rows inserted later.

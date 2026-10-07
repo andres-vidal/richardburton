@@ -43,7 +43,13 @@ defmodule RichardBurton.IdentityTest do
   defp stored(schema, id, field),
     do: Repo.one(from(r in schema, where: r.id == ^id, select: field(r, ^field)))
 
-  # Looks up a single publication's key, through the lookup that takes many.
+  # Each of these looks up a single key, through the lookup that takes many.
+  defp original_book_with_key(title, authors),
+    do: hd(Identity.original_books_with_keys([{title, authors}]))
+
+  defp translated_book_with_key(original_book_id, translators),
+    do: hd(Identity.translated_books_with_keys([{original_book_id, translators}]))
+
   defp publication_with_key(publication, excluded \\ nil),
     do: hd(Identity.publications_with_keys([publication], excluded))
 
@@ -186,7 +192,19 @@ defmodule RichardBurton.IdentityTest do
     end
   end
 
-  describe "original_book_with_key/2" do
+  describe "original_books_with_keys/1" do
+    test "answers each key in order, with nil for a key no book has" do
+      publication = insert()
+
+      original_book_id =
+        Repo.get!(TranslatedBook, publication.translated_book_id).original_book_id
+
+      assert Identity.original_books_with_keys([
+               {"Iracema", ["José de Alencar"]},
+               {"Dom Casmurro", ["Machado de Assis"]}
+             ]) == [nil, original_book_id]
+    end
+
     test "finds the stored original book by its title and authors in any order" do
       {:ok, publication} =
         Publication.insert(
@@ -202,7 +220,7 @@ defmodule RichardBurton.IdentityTest do
       original_book_id =
         Repo.get!(TranslatedBook, publication.translated_book_id).original_book_id
 
-      assert Identity.original_book_with_key("Dom Casmurro", [
+      assert original_book_with_key("Dom Casmurro", [
                "José de Alencar",
                "Machado de Assis"
              ]) == original_book_id
@@ -211,23 +229,33 @@ defmodule RichardBurton.IdentityTest do
     test "returns nil when only some of the authors match" do
       insert()
 
-      assert Identity.original_book_with_key("Dom Casmurro", ["Machado de Assis", "Alencar"]) ==
+      assert original_book_with_key("Dom Casmurro", ["Machado de Assis", "Alencar"]) ==
                nil
     end
 
     test "returns nil for another title" do
       insert()
 
-      assert Identity.original_book_with_key("Iracema", ["Machado de Assis"]) == nil
+      assert original_book_with_key("Iracema", ["Machado de Assis"]) == nil
     end
   end
 
-  describe "translated_book_with_key/2" do
+  describe "translated_books_with_keys/1" do
+    test "answers each key in order, with nil for a key no book has" do
+      publication = insert()
+      translated = Repo.get!(TranslatedBook, publication.translated_book_id)
+
+      assert Identity.translated_books_with_keys([
+               {translated.original_book_id, ["Helen Caldwell"]},
+               {translated.original_book_id, ["John Gledson"]}
+             ]) == [translated.id, nil]
+    end
+
     test "finds the stored translated book by its original book and translators" do
       publication = insert()
       translated = Repo.get!(TranslatedBook, publication.translated_book_id)
 
-      assert Identity.translated_book_with_key(translated.original_book_id, ["Helen Caldwell"]) ==
+      assert translated_book_with_key(translated.original_book_id, ["Helen Caldwell"]) ==
                translated.id
     end
 
@@ -235,12 +263,12 @@ defmodule RichardBurton.IdentityTest do
       publication = insert()
       translated = Repo.get!(TranslatedBook, publication.translated_book_id)
 
-      assert Identity.translated_book_with_key(translated.original_book_id, ["John Gledson"]) ==
+      assert translated_book_with_key(translated.original_book_id, ["John Gledson"]) ==
                nil
     end
 
     test "returns nil when there is no original book" do
-      assert Identity.translated_book_with_key(nil, ["Helen Caldwell"]) == nil
+      assert translated_book_with_key(nil, ["Helen Caldwell"]) == nil
     end
   end
 
