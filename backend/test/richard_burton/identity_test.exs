@@ -43,6 +43,30 @@ defmodule RichardBurton.IdentityTest do
   defp stored(schema, id, field),
     do: Repo.one(from(r in schema, where: r.id == ^id, select: field(r, ^field)))
 
+  # Writes a copy of the publication `first` straight to the tables, around
+  # `Publication.insert/2`, so the copy has the same key.
+  defp insert_copy(first) do
+    Repo.insert_all("publications", [
+      %{
+        title: first.title,
+        year: first.year,
+        translated_book_id: first.translated_book_id,
+        inserted_at: NaiveDateTime.utc_now(:second),
+        updated_at: NaiveDateTime.utc_now(:second)
+      }
+    ])
+
+    [copy] = Repo.all(from(p in Publication, where: p.id != ^first.id, select: p.id))
+
+    Repo.insert_all("publication_countries", [
+      %{publication_id: copy, country_id: hd(Repo.preload(first, :countries).countries).id}
+    ])
+
+    Repo.insert_all("publication_publishers", [
+      %{publication_id: copy, publisher_id: hd(Repo.preload(first, :publishers).publishers).id}
+    ])
+  end
+
   # Each of these looks up a single key, through the lookup that takes many.
   defp books_with_key(title, authors, translators),
     do: hd(Identity.books_with_keys([{title, authors, translators}]))
@@ -142,30 +166,16 @@ defmodule RichardBurton.IdentityTest do
     end
 
     test "are refused for a second publication with the same key, when settled" do
-      first = insert()
-
-      # A copy written straight to the table, around `Publication.insert/2`.
-      Repo.insert_all("publications", [
-        %{
-          title: first.title,
-          year: first.year,
-          translated_book_id: first.translated_book_id,
-          inserted_at: NaiveDateTime.utc_now(:second),
-          updated_at: NaiveDateTime.utc_now(:second)
-        }
-      ])
-
-      [copy] = Repo.all(from(p in Publication, where: p.id != ^first.id, select: p.id))
-
-      Repo.insert_all("publication_countries", [
-        %{publication_id: copy, country_id: hd(Repo.preload(first, :countries).countries).id}
-      ])
-
-      Repo.insert_all("publication_publishers", [
-        %{publication_id: copy, publisher_id: hd(Repo.preload(first, :publishers).publishers).id}
-      ])
+      insert_copy(insert())
 
       assert {:error, :conflict} = Identity.settle()
+    end
+
+    test "leave the transaction usable after a conflict" do
+      insert_copy(insert())
+
+      assert {:error, :conflict} = Identity.settle()
+      assert Repo.aggregate(Publication, :count) == 2
     end
 
     test "let a publication pass through another's key while its links are written" do

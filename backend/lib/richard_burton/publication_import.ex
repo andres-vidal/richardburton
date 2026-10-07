@@ -15,9 +15,9 @@ defmodule RichardBurton.Publication.Import do
   `Publication.Links` finds or inserts the names and books that the rows use.
   The publications, their links, their sources and their history entries are
   then inserted with one statement per table. The composite keys are checked
-  once, after every row is written, inside a savepoint. After a conflict, the
-  transaction rolls back to the savepoint, so the rows can still be read to
-  find the first one in conflict.
+  once, after every row is written, with `Identity.settle/0`. A conflict leaves
+  the transaction usable, so the rows can still be read to find the first one
+  in conflict.
   """
 
   alias Ecto.Changeset
@@ -115,10 +115,7 @@ defmodule RichardBurton.Publication.Import do
   # has the same key as another, rolls the transaction back with the first such
   # publication's attrs and `:conflict`.
   defp settle!(attrs_list, ids) do
-    Repo.query!("SAVEPOINT import_settle")
-
     with {:error, :conflict} <- Identity.settle() do
-      Repo.query!("ROLLBACK TO SAVEPOINT import_settle")
       conflicted = MapSet.new(Identity.publications_in_conflict(ids))
 
       {attrs, _id} =

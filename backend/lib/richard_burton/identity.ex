@@ -182,22 +182,21 @@ defmodule RichardBurton.Identity do
   end
 
   @doc """
-  Checks the composite keys now, inside the current transaction.
+  Checks the composite keys now, inside the current transaction, with one call
+  to the database function `rb_settle` (see the migration
+  `CheckCompositeKeysInOneCall`).
 
   Returns `:ok`, or `{:error, :conflict}` when a row has the same key as
-  another. After a conflict the transaction can only be rolled back. The keys
+  another. After a conflict, only the check is rolled back, so the transaction
+  can still run queries, for instance to find the rows in conflict. The keys
   are deferred again afterwards, so the next write in the same transaction can
   pass through states that match another key, as the first could.
   """
   @spec settle() :: :ok | {:error, :conflict}
   def settle do
-    Repo.query!("SET CONSTRAINTS ALL IMMEDIATE")
-    Repo.query!("SET CONSTRAINTS ALL DEFERRED")
-    :ok
-  rescue
-    error in Postgrex.Error ->
-      if error.postgres[:constraint] in @keys,
-        do: {:error, :conflict},
-        else: reraise(error, __STACKTRACE__)
+    case values("SELECT rb_settle()", []) do
+      [nil] -> :ok
+      [constraint] when constraint in @keys -> {:error, :conflict}
+    end
   end
 end
