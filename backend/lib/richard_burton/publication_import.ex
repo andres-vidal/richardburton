@@ -51,32 +51,26 @@ defmodule RichardBurton.Publication.Import do
   in the order its row lists them, and so are the authors of a book the row
   stored. The authors of a book stored before keep their stored order.
 
-  Returns `{:error, {attrs, errors}}` for the first row that is invalid or in
-  conflict, where `errors` is what `Validation.get_errors/1` returns for the
-  row, or `:conflict`.
+  Returns `{:error, {attrs, errors}}` for the first invalid row, where
+  `errors` is what `Validation.get_errors/1` returns for it, before anything is
+  written. When every row is valid, returns `{:error, {attrs, :conflict}}` for
+  the first row with the same composite key as a stored publication or an
+  earlier row.
   """
   @spec insert_all([map()], String.t()) ::
           {:ok, [Ecto.Schema.t()]} | {:error, {map(), atom() | map()}}
   def insert_all(attrs_list, actor) do
     rows = Enum.map(attrs_list, &{&1, Publication.changeset(%Publication{}, &1)})
 
-    # The rows before the first invalid one are written, so that a conflict
-    # among them is returned ahead of the invalid row, as it would be if the
-    # rows were inserted one at a time.
-    {valid, invalid} = Enum.split_while(rows, fn {_attrs, changeset} -> changeset.valid? end)
-
-    Repo.transaction(fn ->
-      publications = insert(valid, actor)
-
-      case invalid do
-        [] -> publications
-        [{attrs, changeset} | _] -> Repo.rollback({attrs, Validation.get_errors(changeset)})
-      end
-    end)
+    case Enum.find(rows, fn {_attrs, changeset} -> not changeset.valid? end) do
+      nil -> Repo.transaction(fn -> insert(rows, actor) end)
+      {attrs, changeset} -> {:error, {attrs, Validation.get_errors(changeset)}}
+    end
   end
 
-  # Writes the valid `rows` and their history entries, and returns the stored
-  # publications. Rolls the transaction back with the first row in conflict.
+  # Writes `rows`, which are all valid, and their history entries, and returns
+  # the stored publications. Rolls the transaction back with the first row in
+  # conflict.
   defp insert([], _actor), do: []
 
   defp insert(rows, actor) do

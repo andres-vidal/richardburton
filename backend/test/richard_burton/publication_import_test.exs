@@ -3,7 +3,7 @@ defmodule RichardBurton.Publication.ImportTest do
   Tests for `Publication.Import`, through `Publication.insert_all/2`: that a
   batch is stored as inserting its rows one at a time would store it, with a
   number of queries that does not depend on the number of rows, and that the
-  first invalid or conflicting row is returned.
+  first invalid row, or else the first conflicting row, is returned.
   """
 
   use RichardBurton.DataCase
@@ -194,20 +194,12 @@ defmodule RichardBurton.Publication.ImportTest do
       assert stored_count("authors") == 2
     end
 
-    test "is a conflict among the rows before an invalid row, ahead of the invalid row" do
-      [first | rest] = Codec.nest(@batch)
-      invalid = Map.delete(first, "year")
-
-      assert {:error, {^first, :conflict}} =
-               Publication.insert_all([first | rest] ++ [first, invalid])
-    end
-
-    test "is an invalid row ahead of a conflict after it" do
+    test "is the first invalid row, ahead of a conflict before it" do
       [first | rest] = Codec.nest(@batch)
       invalid = Map.delete(first, "year")
 
       assert {:error, {^invalid, %{year: :required}}} =
-               Publication.insert_all([first | rest] ++ [invalid, first])
+               Publication.insert_all([first | rest] ++ [first, invalid])
 
       assert stored_count("publications") == 1
     end
