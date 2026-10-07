@@ -13,7 +13,6 @@ defmodule RichardBurton.OriginalBook do
   import RichardBurton.Validation
 
   alias RichardBurton.Author
-  alias RichardBurton.Identity
   alias RichardBurton.OriginalBook
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
@@ -27,7 +26,10 @@ defmodule RichardBurton.OriginalBook do
 
     has_many(:translated_books, TranslatedBook)
 
-    many_to_many(:authors, Author, join_through: "original_book_authors")
+    many_to_many(:authors, Author,
+      join_through: "original_book_authors",
+      preload_order: [asc: :name]
+    )
 
     timestamps()
   end
@@ -48,26 +50,6 @@ defmodule RichardBurton.OriginalBook do
     |> validate_required([:title])
     |> validate_length(:authors, min: 1)
     |> validate_no_duplicates(:authors, :name, as: :original_authors)
-  end
-
-  @doc """
-  Returns the stored original book with the same title and the same authors as
-  `attrs`, and inserts it when there is none. The authors are found by name, or
-  inserted, first.
-  """
-  def find_or_insert!(attrs) do
-    %OriginalBook{}
-    |> changeset(attrs)
-    |> Author.link()
-    |> Repo.find_or_insert!(&stored_id/1, [:authors_fingerprint])
-  end
-
-  # Returns the id of the stored original book with the key of `changeset`, the
-  # same title and the same authors' names, or nil when there is none.
-  defp stored_id(changeset) do
-    names = changeset |> get_field(:authors) |> Enum.map(&Author.get_name/1)
-
-    Identity.original_book_with_key(get_field(changeset, :title), names)
   end
 
   def all() do
@@ -146,16 +128,4 @@ defmodule RichardBurton.OriginalBook do
   def preload(data) do
     Repo.preload(data, :authors)
   end
-
-  def link(changeset = %{valid?: true}) do
-    original_book =
-      changeset
-      |> get_change(:original_book)
-      |> apply_changes()
-      |> OriginalBook.find_or_insert!()
-
-    put_assoc(changeset, :original_book, original_book)
-  end
-
-  def link(changeset = %{valid?: false}), do: changeset
 end

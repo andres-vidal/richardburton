@@ -5,8 +5,6 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
   use RichardBurtonWeb.ConnCase
   import Routes, only: [original_book_path: 2]
 
-  alias RichardBurton.OriginalBook
-
   @books [
     %{"title" => "Dom Casmurro", "authors" => [%{"name" => "Machado de Assis"}]},
     %{
@@ -23,7 +21,9 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
   ]
 
   def search_fixture(_) do
-    Enum.each(@books, &OriginalBook.find_or_insert!/1)
+    for %{"title" => title, "authors" => authors} <- @books,
+        do: original_book_fixture(title, Enum.map(authors, & &1["name"]))
+
     []
   end
 
@@ -39,7 +39,7 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
                %{"title" => "Iracema", "authors" => ["José de Alencar"]},
                %{
                  "title" => "Manuel de Moraes",
-                 "authors" => ["Machado de Assis", "J. M. Pereira da Silva"]
+                 "authors" => ["J. M. Pereira da Silva", "Machado de Assis"]
                }
              ] = conn |> get(original_book_path(conn, :index)) |> json_response(200)
     end

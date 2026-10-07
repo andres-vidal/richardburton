@@ -100,31 +100,49 @@ defmodule RichardBurton.FlatPublication do
     Repo.all(FlatPublication)
   end
 
+  @doc """
+  Validates `attrs` as `validate_all/2` validates each entry of a list.
+  """
   def validate(attrs, exclude_id \\ nil) do
-    %FlatPublication{} |> changeset(attrs) |> validate_changeset(exclude_id)
+    [result] = validate_all([attrs], exclude_id)
+    result
   end
 
-  # An invalid changeset reports its own errors; a valid one is then checked
-  # against the composite key, excluding the record being updated.
-  defp validate_changeset(changeset = %{valid?: false}, _exclude_id) do
-    {:error, Validation.get_errors(changeset)}
-  end
+  @doc """
+  Validates each of `attrs_list` without writing anything, and returns the
+  results in order.
 
-  defp validate_changeset(changeset = %{valid?: true}, exclude_id) do
-    if key_taken?(changeset, exclude_id), do: {:error, :conflict}, else: :ok
-  end
+  A result is `{:error, errors}` when the attrs are invalid, `{:error,
+  :conflict}` when a stored publication that is not deleted has their
+  composite key, and `:ok` otherwise. The publication with the id
+  `exclude_id` is left out of the key check, so an edit does not count against
+  itself. The keys are looked up with one query for the whole list.
 
-  # Returns whether a stored publication that is not deleted already has the
-  # composite key of `changeset`. The publication with `exclude_id` is left out,
-  # so an edit does not count against itself.
-  #
-  # The lookup reads the publications table rather than the materialized view
-  # behind this schema, so it also finds a publication inserted since the view
-  # was last refreshed.
-  defp key_taken?(changeset, exclude_id) do
-    changeset
-    |> apply_changes()
-    |> Identity.publication_with_key(exclude_id)
-    |> is_integer()
+  The lookup reads the publications table rather than the materialized view
+  behind this schema, so it also finds a publication inserted since the view
+  was last refreshed. Each entry is checked against the stored publications
+  only, not against the other entries. `Publication.Duplicates.resemblances/1`
+  reports an entry that repeats an earlier one.
+  """
+  def validate_all(attrs_list, exclude_id \\ nil) do
+    changesets = Enum.map(attrs_list, &changeset(%FlatPublication{}, &1))
+
+    stored_ids =
+      for(changeset <- changesets, changeset.valid?, do: apply_changes(changeset))
+      |> Identity.publications_with_keys(exclude_id)
+
+    {results, []} =
+      Enum.map_reduce(changesets, stored_ids, fn
+        changeset = %{valid?: false}, stored_ids ->
+          {{:error, Validation.get_errors(changeset)}, stored_ids}
+
+        _changeset, [nil | stored_ids] ->
+          {:ok, stored_ids}
+
+        _changeset, [_id | stored_ids] ->
+          {{:error, :conflict}, stored_ids}
+      end)
+
+    results
   end
 end

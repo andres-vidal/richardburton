@@ -1,74 +1,55 @@
 defmodule RichardBurton.Repo do
   @moduledoc """
-  The Ecto repository, extended with the helpers the schemas share: linking a
-  row by its unique key rather than duplicating it, and reading back columns
-  the database writes.
+  The Ecto repository, extended with `insert_in_chunks/3`, which inserts a
+  list longer than one statement can hold.
   """
 
   use Ecto.Repo,
     otp_app: :richard_burton,
     adapter: Ecto.Adapters.Postgres
 
-  import Ecto.Query, only: [from: 2]
+  # The most parameters Postgres takes in one statement.
+  @max_parameters 65_535
 
   @doc """
-  Returns `struct` with `fields` read back from its row.
+  Inserts `entries` with `insert_all/3`, as many per statement as fit within
+  Postgres's limit of 65,535 parameters, and returns the rows the statements
+  returned, in the order of `entries`. It returns an empty list when `opts`
+  has no `:returning`, and sends no statement when `entries` is empty.
 
-  It is for columns the database writes after the statement that saved the
-  row, such as the fingerprints, which triggers write once the row's links are
-  saved. The struct a write returns still holds the old values of those columns.
+  When `schema_or_source` is a schema, each entry gets the values the schema
+  generates on insert, such as its timestamps, as `insert/2` gives them. Every
+  entry must have the same keys.
   """
-  def refresh(struct = %schema{id: id}, fields) do
-    from(r in schema, where: r.id == ^id, select: map(r, ^fields))
-    |> one!()
-    |> then(&Map.merge(struct, &1))
+  def insert_in_chunks(schema_or_source, entries, opts \\ [])
+
+  def insert_in_chunks(_schema_or_source, [], _opts), do: []
+
+  def insert_in_chunks(schema_or_source, entries, opts) do
+    entries = with_generated(schema_or_source, entries)
+
+    entries
+    |> Enum.chunk_every(div(@max_parameters, map_size(hd(entries))))
+    |> Enum.flat_map(fn chunk ->
+      {_count, returned} = insert_all(schema_or_source, chunk, opts)
+      returned || []
+    end)
   end
 
-  @doc """
-  Returns the stored row whose `column` has the changeset's value, and inserts
-  the changeset when there is none.
+  # Returns `entries` with the values `schema` generates on insert added to
+  # each, one value per field for the whole list. A table name generates
+  # nothing.
+  defp with_generated(schema, entries) when is_atom(schema) do
+    generated =
+      schema.__schema__(:autogenerate)
+      |> Enum.flat_map(fn {fields, {module, function, args}} ->
+        value = apply(module, function, args)
+        Enum.map(fields, &{&1, value})
+      end)
+      |> Map.new()
 
-  Another transaction can insert the same value between the lookup and the
-  insert. The insert then waits for that transaction to finish, and once it has
-  committed, this returns the row it stored rather than raising on the unique
-  index.
-
-  `column` must have a unique index of its own, which the insert names as its
-  conflict target, and the changeset must have no associations.
-  """
-  def find_or_insert!(changeset = %Ecto.Changeset{data: %schema{}}, column) do
-    value = Ecto.Changeset.get_field(changeset, column)
-
-    get_by(schema, [{column, value}]) || insert_unless_taken!(changeset, column, value)
+    Enum.map(entries, &Map.merge(generated, &1))
   end
 
-  @doc """
-  Returns the stored row whose id `find` returns for the changeset, and inserts
-  the changeset when `find` returns nil.
-
-  `find` is for a key the row's own columns cannot be compared on, such as a
-  composite key with a fingerprint. After an insert, `fields` are read back with
-  `refresh/2`, because the database writes the fingerprints after the row's
-  links are saved.
-
-  Unlike `find_or_insert!/2`, it does not reuse a row that another transaction
-  inserts at the same time. The composite keys refuse the second row when they
-  are checked.
-  """
-  def find_or_insert!(changeset = %Ecto.Changeset{data: %schema{}}, find, fields) do
-    case find.(changeset) do
-      nil -> changeset |> insert!() |> refresh(fields)
-      id -> get!(schema, id)
-    end
-  end
-
-  # Inserts `changeset`, or returns the row another transaction stored with the
-  # same `value` after the lookup. `ON CONFLICT DO NOTHING` inserts nothing in
-  # that case and returns a struct without an id, so the row is read back.
-  defp insert_unless_taken!(changeset = %Ecto.Changeset{data: %schema{}}, column, value) do
-    case insert!(changeset, on_conflict: :nothing, conflict_target: column) do
-      %{id: nil} -> get_by!(schema, [{column, value}])
-      inserted -> inserted
-    end
-  end
+  defp with_generated(_source, entries), do: entries
 end

@@ -106,20 +106,38 @@ defmodule RichardBurton.Country do
     nil
   """
   def code_for(value) when is_binary(value) do
-    written = normalize(value)
-
-    named =
-      @countries
-      |> Map.keys()
-      |> Enum.filter(fn code -> Enum.any?(names_for(code), &(normalize(&1) == written)) end)
-
-    case named do
+    case Map.get(codes_by_name(), normalize(value)) do
       [code] -> code
       _ -> nil
     end
   end
 
   def code_for(_value), do: nil
+
+  # The key `codes_by_name/0` keeps its map under. It includes a hash of the
+  # country table, so a recompiled table gets a new map.
+  @codes_by_name_key {__MODULE__, :codes_by_name, :erlang.phash2(@countries)}
+
+  # Returns a map from each name a country goes by, normalized, to the codes of
+  # the countries that go by it. The map is built on the first call and kept in
+  # `:persistent_term`, because `code_for/1` runs for every country of every
+  # publication written, and building it normalizes every name of every
+  # country.
+  defp codes_by_name do
+    case :persistent_term.get(@codes_by_name_key, nil) do
+      nil ->
+        index =
+          for code <- Map.keys(@countries), name <- names_for(code), reduce: %{} do
+            index -> Map.update(index, normalize(name), [code], &Enum.uniq([code | &1]))
+          end
+
+        :persistent_term.put(@codes_by_name_key, index)
+        index
+
+      index ->
+        index
+    end
+  end
 
   @doc """
   Replaces each country in a changeset with its ISO code: "UK" becomes `GB`,
@@ -416,18 +434,6 @@ defmodule RichardBurton.Country do
 
   defp language(_), do: @default_locale
 
-  # Derived index data rather than editor input, so it is set where a country is
-  # persisted instead of in the changeset, which also shapes the codec's nested
-  # form.
-  defp put_names(changeset = %Ecto.Changeset{valid?: true}) do
-    case get_field(changeset, :code) do
-      nil -> changeset
-      code -> put_change(changeset, :names, names_for(code))
-    end
-  end
-
-  defp put_names(changeset), do: changeset
-
   def validate_code(changeset) do
     validate_change(changeset, :code, fn :code, code ->
       if Countries.exists?(:alpha2, code) do
@@ -465,30 +471,10 @@ defmodule RichardBurton.Country do
     end
   end
 
-  def find_or_insert!(attrs) do
-    %__MODULE__{}
-    |> changeset(attrs)
-    |> put_names()
-    |> Repo.find_or_insert!(:code)
-  end
-
   @doc "Returns every country, ordered by id, which is insertion order."
   def all do
     Country |> order_by(:id) |> Repo.all()
   end
-
-  def link(changeset = %{valid?: true}) do
-    countries =
-      changeset
-      |> get_change(:countries)
-      |> Enum.reject(&(&1.action == :replace))
-      |> Enum.map(&apply_changes/1)
-      |> Enum.map(&find_or_insert!/1)
-
-    put_assoc(changeset, :countries, countries)
-  end
-
-  def link(changeset = %{valid?: false}), do: changeset
 
   @doc ~S"""
   Nest country codes into the maps the schema casts.

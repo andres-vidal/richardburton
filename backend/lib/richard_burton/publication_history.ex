@@ -35,6 +35,10 @@ defmodule RichardBurton.Publication.History do
   # handled apart from the scalar fields.
   @undiffed ["sources" | @derived]
 
+  # The fields that hold a set of names. A snapshot lists each one sorted, and
+  # two snapshots are compared on the members of each set.
+  @sets ~w[authors original_authors countries publishers]
+
   schema "publication_history" do
     field(:publication_id, :integer)
     field(:version, :integer)
@@ -78,15 +82,30 @@ defmodule RichardBurton.Publication.History do
   def record(action, publication = %Publication{}, actor, absorbed \\ [])
       when action in [:created, :updated, :deleted, :restored, :merged, :unmerged] do
     %History{}
-    |> changeset(%{
+    |> changeset(entry(action, publication, actor, next_version(publication.id), absorbed))
+    |> Repo.insert!()
+  end
+
+  @doc """
+  Appends a `created` history row for each of `publications`, with one insert,
+  inside the caller's transaction. The publications must be ones the
+  transaction inserted, so each row is its publication's first version.
+  """
+  def record_created(publications, actor) do
+    Repo.insert_in_chunks(History, Enum.map(publications, &entry(:created, &1, actor, 1)))
+  end
+
+  # Returns the fields of the history row that records `action` on
+  # `publication` as its `version`.
+  defp entry(action, publication, actor, version, absorbed \\ []) do
+    %{
       publication_id: publication.id,
-      version: next_version(publication.id),
+      version: version,
       action: to_string(action),
       snapshot: snapshot(publication),
       actor: actor,
       absorbed: absorbed_snapshots(absorbed)
-    })
-    |> Repo.insert!()
+    }
   end
 
   # The records an entry took in or gave back, against the state they were in.
@@ -277,8 +296,10 @@ defmodule RichardBurton.Publication.History do
   end
 
   # Sources are compared as a list rather than by value, and a missing list is
-  # the same as an empty one.
+  # the same as an empty one. The sets of names are compared by their members,
+  # so a snapshot that lists them in another order holds the same set.
   defp field_changed?(a, b, "sources"), do: (a["sources"] || []) != (b["sources"] || [])
+  defp field_changed?(a, b, field) when field in @sets, do: sorted(a[field]) != sorted(b[field])
   defp field_changed?(a, b, field), do: a[field] != b[field]
 
   # Structural only — field keys and raw values, no labels and no formatting.
@@ -303,7 +324,7 @@ defmodule RichardBurton.Publication.History do
       (Map.keys(previous) ++ Map.keys(current))
       |> Enum.uniq()
       |> Enum.reject(&(&1 in @undiffed))
-      |> Enum.filter(&(previous[&1] != current[&1]))
+      |> Enum.filter(&field_changed?(previous, current, &1))
       |> Map.new(&{&1, %{from: previous[&1], to: current[&1]}})
 
     %{fields: fields, sources: source_change(previous["sources"], current["sources"])}
@@ -361,7 +382,14 @@ defmodule RichardBurton.Publication.History do
     |> Codec.flatten()
     |> Map.from_struct()
     |> Map.delete(:__meta__)
+    |> Map.new(fn {field, value} ->
+      {field, if(to_string(field) in @sets, do: sorted(value), else: value)}
+    end)
   end
+
+  # Returns `names` sorted, or nil when there are none.
+  defp sorted(names) when is_list(names), do: Enum.sort(names)
+  defp sorted(nil), do: nil
 
   # The next version for a record's stream, counting from its current maximum so
   # versions stay contiguous per publication rather than global.

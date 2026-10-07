@@ -26,6 +26,12 @@ defmodule RichardBurton.Publication do
       Nothing is erased: the compensating action is appended to the log as a new
       entry, and is itself undoable.
 
+  A publication's countries, publishers, translators and original authors are
+  sets. The link tables keep no order, and a preload reads each set sorted, by
+  code for countries and by name for the others, as the search index lists
+  them. A history snapshot lists them in that order too, so two snapshots
+  differ only when a set changed.
+
   Every mutation records an entry in `Publication.History` inside the same
   transaction, and signals `Publication.Index.Refresher` once per operation.
   """
@@ -42,7 +48,9 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.History
   alias RichardBurton.Publication.Duplicates
+  alias RichardBurton.Publication.Import
   alias RichardBurton.Publication.Index
+  alias RichardBurton.Publication.Links
   alias RichardBurton.Publisher
   alias RichardBurton.Source
   alias RichardBurton.Repo
@@ -64,12 +72,14 @@ defmodule RichardBurton.Publication do
 
     many_to_many(:countries, Country,
       join_through: "publication_countries",
-      on_replace: :delete
+      on_replace: :delete,
+      preload_order: [asc: :code]
     )
 
     many_to_many(:publishers, Publisher,
       join_through: "publication_publishers",
-      on_replace: :delete
+      on_replace: :delete,
+      preload_order: [asc: :name]
     )
 
     # Owned provenance: replaced wholesale on edit (children carry no client id,
@@ -116,6 +126,39 @@ defmodule RichardBurton.Publication do
     |> preload
   end
 
+  @doc """
+  Returns the publications with the ids `ids`, deleted ones included,
+  preloaded, in the order of `ids`. Every id must be a stored publication's.
+
+  The countries, publishers, translated book, original book and both lists of
+  authors are read in one query that joins them, sorted the way the
+  associations' `preload_order` sorts them. The sources are read in a second
+  query, so that many sources do not multiply the rows of the first.
+  """
+  def with_ids(ids) do
+    by_id =
+      Ecto.Query.from(p in Publication,
+        where: p.id in ^ids,
+        left_join: c in assoc(p, :countries),
+        left_join: pb in assoc(p, :publishers),
+        left_join: tb in assoc(p, :translated_book),
+        left_join: ta in assoc(tb, :authors),
+        left_join: ob in assoc(tb, :original_book),
+        left_join: oa in assoc(ob, :authors),
+        order_by: [p.id, c.code, pb.name, ta.name, oa.name],
+        preload: [
+          countries: c,
+          publishers: pb,
+          translated_book: {tb, authors: ta, original_book: {ob, authors: oa}}
+        ]
+      )
+      |> Repo.all()
+      |> Repo.preload(:sources)
+      |> Map.new(&{&1.id, &1})
+
+    Enum.map(ids, &Map.fetch!(by_id, &1))
+  end
+
   def preload(data) do
     Repo.preload(data, [
       :countries,
@@ -125,28 +168,20 @@ defmodule RichardBurton.Publication do
     ])
   end
 
+  @doc """
+  Inserts the publication `attrs` describes, and records it with a `created`
+  history entry by `actor`, in one transaction.
+
+  Returns `{:ok, publication}`, preloaded. Returns `{:error, errors}` when
+  `attrs` is invalid, and `{:error, :conflict}` when a stored publication has
+  the same composite key. It is `Publication.Import.insert_all/2` with a batch
+  of one.
+  """
   def insert(attrs, actor \\ History.system_actor()) do
-    # The insert and its history row commit or roll back together.
-    Repo.transaction(fn ->
-      %Publication{}
-      |> changeset(attrs)
-      |> link_assocs()
-      |> Repo.insert()
-      |> case do
-        {:ok, publication} ->
-          settle!()
-          publication = publication |> fingerprinted() |> preload()
-          History.record(:created, publication, actor)
-          publication
-
-        {:error, changeset} ->
-          Repo.rollback(Validation.get_errors(changeset))
-      end
-    end)
-  end
-
-  def validate(attrs) do
-    Validation.validate(changeset(%Publication{}, attrs), &link_assocs/1)
+    case Import.insert_all([attrs], actor) do
+      {:ok, [publication]} -> {:ok, publication}
+      {:error, {_attrs, errors}} -> {:error, errors}
+    end
   end
 
   def update(id, attrs, actor \\ History.system_actor()) do
@@ -174,19 +209,19 @@ defmodule RichardBurton.Publication do
     # Snapshots are the yardstick, not the changeset: cast_assoc(:sources)
     # treats every incoming entry as new (children carry no client id), so a
     # changeset always looks dirty even when the record is untouched.
-    before = History.snapshot(preload(publication))
+    publication = preload(publication)
+    before = History.snapshot(publication)
 
     # The update and its history row commit or roll back together.
     Repo.transaction(fn ->
       publication
-      |> preload()
       |> changeset(attrs)
       |> link_assocs()
       |> Repo.update()
       |> case do
         {:ok, updated} ->
           settle!()
-          updated |> fingerprinted() |> preload() |> record_if_changed(before, actor)
+          updated |> reloaded() |> record_if_changed(before, actor)
 
         {:error, changeset} ->
           Repo.rollback(Validation.get_errors(changeset))
@@ -287,7 +322,7 @@ defmodule RichardBurton.Publication do
       with {:ok, restored} <- restore_absorbed(History.absorbed_ids(entry)),
            {:ok, winner} <- revert_winner(entry, previous, head) do
         settle!()
-        winner = winner |> fingerprinted() |> preload()
+        winner = reloaded(winner)
         History.record(:unmerged, winner, actor, restored)
         winner
       else
@@ -423,10 +458,9 @@ defmodule RichardBurton.Publication do
   # The keys are checked once the losers are tombstoned, so the winner may
   # take on a key one of its own losers held.
   defp absorbing(winner, losers, actor) do
-    winner = preload(winner)
     Enum.each(losers, &absorb/1)
     settle!()
-    winner = fingerprinted(winner)
+    winner = reloaded(winner)
     History.record(:merged, winner, actor, losers)
 
     # Saying these are one record answers the same question a distinction did,
@@ -530,33 +564,26 @@ defmodule RichardBurton.Publication do
 
   # Clears `deleted_at` and records the restore. Rolls back with
   # `{:conflict, twin}` when another publication that is not deleted has the
-  # same composite key.
-  #
-  # The twin is looked for before writing, because a failed statement aborts the
-  # transaction and the twin could not be read after it. `settle!/0` still
-  # catches a twin written in the meantime, as a plain `:conflict`.
+  # same composite key, where `twin` is that publication, preloaded.
   defp lift(publication, actor) do
     publication = preload(publication)
+    publication |> tombstone(nil) |> Repo.update!()
 
-    case twin(publication) do
-      nil ->
-        publication |> tombstone(nil) |> Repo.update!()
-        settle!()
+    case Identity.settle() do
+      :ok ->
         History.record(:restored, publication, actor)
         publication
 
-      twin ->
-        Repo.rollback({:conflict, twin})
+      {:error, :conflict} ->
+        Repo.rollback({:conflict, twin(publication)})
     end
   end
 
   # Returns the publication that is not deleted and has the same composite key
-  # as `publication`, preloaded, or nil when there is none.
+  # as `publication`, preloaded.
   defp twin(publication) do
-    case Identity.publication_with_key(Codec.flatten(publication), publication.id) do
-      nil -> nil
-      id -> Publication |> Repo.get!(id) |> preload()
-    end
+    [id] = Identity.publications_with_keys([Codec.flatten(publication)], publication.id)
+    Publication |> Repo.get!(id) |> preload()
   end
 
   # Putting an absorbed record back would recreate the duplicate the merge
@@ -648,11 +675,11 @@ defmodule RichardBurton.Publication do
     Repo.one(Ecto.Query.from(p in Publication, where: p.id == ^id and not is_nil(p.deleted_at)))
   end
 
-  # Reads back the fingerprints the database wrote once the publication's
-  # countries and publishers were saved.
-  defp fingerprinted(publication) do
-    Repo.refresh(publication, [:countries_fingerprint, :publishers_fingerprint])
-  end
+  # Reads `publication` back from the database, preloaded. The struct a write
+  # returns holds the fingerprints as they were before its links were saved,
+  # the translated book it had before `link_assocs/1` pointed it at another,
+  # and its names in the order the write gave them.
+  defp reloaded(publication), do: hd(with_ids([publication.id]))
 
   # Checks the composite keys inside the current transaction, and rolls it back
   # with `:conflict` when a write gave a publication or a book the same key as
@@ -661,21 +688,29 @@ defmodule RichardBurton.Publication do
     with {:error, :conflict} <- Identity.settle(), do: Repo.rollback(:conflict)
   end
 
-  # Resolves each association to an existing row where one matches, so a
+  # Points a valid changeset's translated book, countries and publishers at
+  # the stored rows it names, which `Publication.Links` finds or inserts, so a
   # publication reuses countries, books and publishers rather than duplicating
-  # them.
-  defp link_assocs(changeset) do
+  # them. Returns an invalid changeset unchanged.
+  defp link_assocs(changeset = %Ecto.Changeset{valid?: true}) do
+    [links] = Links.resolve([apply_changes(changeset)])
+
     changeset
-    |> Country.link()
-    |> TranslatedBook.link()
-    |> Publisher.link()
+    |> delete_change(:translated_book)
+    |> put_change(:translated_book_id, links.translated_book_id)
+    |> put_assoc(:countries, links.countries)
+    |> put_assoc(:publishers, links.publishers)
   end
 
+  defp link_assocs(changeset), do: changeset
+
+  @doc """
+  Inserts the publications `attrs_list` describes in one transaction, all or
+  none, and records each with a `created` history entry by `actor`. See
+  `Publication.Import.insert_all/2` for what it returns.
+  """
   def insert_all(attrs_list, actor \\ History.system_actor()) do
-    result =
-      Repo.transaction(fn ->
-        Enum.map(attrs_list, &insert_or_rollback(&1, actor))
-      end)
+    result = Import.insert_all(attrs_list, actor)
 
     case result do
       {:ok, _publications} ->
@@ -687,18 +722,6 @@ defmodule RichardBurton.Publication do
       error ->
         # Rolled back: nothing changed, so the index needs no refresh.
         error
-    end
-  end
-
-  # Inserts one publication inside a bulk transaction, rolling the whole batch
-  # back on the first failure so a partial import cannot land.
-  defp insert_or_rollback(attrs, actor) do
-    case insert(attrs, actor) do
-      {:ok, publication} ->
-        publication
-
-      {:error, errors} ->
-        Repo.rollback({attrs, errors})
     end
   end
 end

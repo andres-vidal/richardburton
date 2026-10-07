@@ -4,7 +4,6 @@ defmodule RichardBurton.AuthorTest do
   """
 
   use RichardBurton.DataCase
-  import Ecto.Changeset
   doctest RichardBurton.Author
 
   alias RichardBurton.Author
@@ -36,16 +35,6 @@ defmodule RichardBurton.AuthorTest do
     attrs |> changeset() |> Repo.insert()
   end
 
-  defp insert!(attrs) do
-    attrs |> changeset() |> Repo.insert!()
-  end
-
-  defp get_authors(changeset = %Ecto.Changeset{}) do
-    changeset
-    |> get_change(:authors)
-    |> Enum.map(&apply_changes/1)
-  end
-
   describe "changeset/2" do
     test "when valid attributes are provided, is valid" do
       assert changeset(@valid_attrs).valid?
@@ -65,85 +54,6 @@ defmodule RichardBurton.AuthorTest do
 
       refute changeset.valid?
       assert :conflict == Validation.get_errors(changeset)
-    end
-  end
-
-  describe "find_or_insert/1" do
-    test "when there is no author with the provided name, inserts it" do
-      author = Author.find_or_insert!(@valid_attrs)
-
-      assert [author] == Author.all()
-    end
-
-    test "when there is a author with the provided name, returns the pre-existent one" do
-      insert(@valid_attrs)
-      assert [preexistent_author] = Author.all()
-
-      author = Author.find_or_insert!(@valid_attrs)
-
-      assert preexistent_author == author
-      assert [author] == Author.all()
-    end
-  end
-
-  defmodule WithManyAuthors do
-    use Ecto.Schema
-    import Ecto.Changeset
-
-    schema "with_many_authors" do
-      has_many :authors, Author
-    end
-
-    def changeset(attrs) do
-      %WithManyAuthors{} |> cast(attrs, []) |> cast_assoc(:authors)
-    end
-  end
-
-  describe "link/1" do
-    test "links existing authors to changeset" do
-      attrs = %{
-        "authors" => [
-          %{"name" => "Richard Burton"},
-          %{"name" => "Isabel Burton"}
-        ]
-      }
-
-      authors = Enum.map(attrs["authors"], &insert!/1)
-
-      changeset =
-        attrs
-        |> WithManyAuthors.changeset()
-        |> Author.link()
-
-      assert changeset.valid?
-      assert authors == get_authors(changeset)
-    end
-
-    test "links non-existing authors to changeset, inserting them" do
-      attrs = %{
-        "authors" => [
-          %{"name" => "Richard Burton"},
-          %{"name" => "Isabel Burton"}
-        ]
-      }
-
-      changeset =
-        attrs
-        |> WithManyAuthors.changeset()
-        |> Author.link()
-
-      assert changeset.valid?
-      assert Author.all() == get_authors(changeset)
-    end
-
-    test "has no side effects when changeset is invalid" do
-      changeset =
-        %{"authors" => [%{}]}
-        |> WithManyAuthors.changeset()
-        |> Author.link()
-
-      refute changeset.valid?
-      assert Enum.empty?(Author.all())
     end
   end
 

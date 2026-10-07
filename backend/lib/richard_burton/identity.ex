@@ -18,8 +18,8 @@ defmodule RichardBurton.Identity do
   removed, or a linked name changes (see the migration
   `ComputeFingerprintsInTheDatabase`). The database also has functions that
   find the stored row with a key (see the migration
-  `LookUpCompositeKeysInTheDatabase`), and `original_book_with_key/2`,
-  `translated_book_with_key/2` and `publication_with_key/2` call them.
+  `LookUpCompositeKeysInTheDatabase`), and `books_with_keys/1` and
+  `publications_with_keys/2` call them for many keys at once.
 
   The keys are checked when a transaction commits, because a row's links are
   written one by one after the row, and until the last one is written the row
@@ -30,6 +30,17 @@ defmodule RichardBurton.Identity do
   alias RichardBurton.Repo
 
   @keys ~w(original_books_composite_key translated_books_composite_key publications_composite_key)
+
+  # The fields of `t:key_fields/0` that a key is built from.
+  @key_fields [
+    :title,
+    :year,
+    :countries,
+    :publishers,
+    :authors,
+    :original_title,
+    :original_authors
+  ]
 
   @typedoc """
   The fields of a flat publication that its composite key is built from. Names
@@ -48,72 +59,144 @@ defmodule RichardBurton.Identity do
         }
 
   @doc """
-  Returns the id of the stored original book titled `title` and written by
-  `authors`, a list of names in any order, or nil when there is none.
-  """
-  @spec original_book_with_key(String.t(), [String.t()]) :: pos_integer() | nil
-  def original_book_with_key(title, authors) do
-    value("SELECT rb_original_book_with_key($1, $2)", [title, authors])
-  end
-
-  @doc """
-  Returns the id of the stored translated book of the original book with the id
-  `original_book_id` by `translators`, a list of names in any order, or nil
-  when there is none.
-  """
-  @spec translated_book_with_key(pos_integer() | nil, [String.t()]) :: pos_integer() | nil
-  def translated_book_with_key(original_book_id, translators) do
-    value("SELECT rb_translated_book_with_key($1, $2)", [original_book_id, translators])
-  end
-
-  @doc """
-  Returns the id of a stored publication that is not deleted and has the key of
-  `publication`, or nil when there is none. The publication with the id
+  Returns, for each of `publications`, the id of a stored publication that is
+  not deleted and has its key, or nil when there is none. The ids come in the
+  order of `publications`, from one query. The publication with the id
   `excluded` is left out, so an edit does not match the publication it edits.
 
-  `publication` holds the fields in `t:key_fields/0`, where `:authors` are the
-  translators.
+  Each of `publications` holds the fields in `t:key_fields/0`, where `:authors`
+  are the translators.
   """
-  @spec publication_with_key(key_fields(), pos_integer() | nil) :: pos_integer() | nil
-  def publication_with_key(publication, excluded \\ nil) do
-    value(
-      "SELECT rb_publication_with_key($1, $2, $3, $4, $5, $6, $7, $8)",
-      [
-        publication.title,
-        publication.year,
-        publication.countries,
-        publication.publishers,
-        publication.authors,
-        publication.original_title,
-        publication.original_authors,
-        excluded
-      ]
+  @spec publications_with_keys([key_fields()], pos_integer() | nil) :: [pos_integer() | nil]
+  def publications_with_keys(publications, excluded \\ nil)
+
+  def publications_with_keys([], _excluded), do: []
+
+  def publications_with_keys(publications, excluded) do
+    values(
+      """
+      SELECT rb_publication_with_key(
+        k->>'title',
+        (k->>'year')::integer,
+        ARRAY(SELECT jsonb_array_elements_text(k->'countries')),
+        ARRAY(SELECT jsonb_array_elements_text(k->'publishers')),
+        ARRAY(SELECT jsonb_array_elements_text(k->'authors')),
+        k->>'original_title',
+        ARRAY(SELECT jsonb_array_elements_text(k->'original_authors')),
+        $2
+      )
+      FROM jsonb_array_elements($1::jsonb) WITH ORDINALITY AS t(k, i)
+      ORDER BY i
+      """,
+      [Enum.map(publications, &Map.take(&1, @key_fields)), excluded]
     )
   end
 
-  # Runs a query that returns one value, and returns that value.
-  defp value(sql, params) do
-    %{rows: [[value]]} = Repo.query!(sql, params)
-    value
+  @doc """
+  Returns, for each `{title, authors, translators}` in `keys`, the ids of the
+  stored original book with that title and those authors, and of its stored
+  translated book by those translators, as a pair. Either id is nil when there
+  is no such book, and the translated book's is nil whenever the original
+  book's is. Names are lists in any order. The pairs come in the order of
+  `keys`, from one query.
+  """
+  @spec books_with_keys([{String.t(), [String.t()], [String.t()]}]) ::
+          [{pos_integer() | nil, pos_integer() | nil}]
+  def books_with_keys(keys) do
+    """
+    SELECT original.id, rb_translated_book_with_key(
+      original.id,
+      ARRAY(SELECT jsonb_array_elements_text(k->'translators'))
+    )
+    FROM jsonb_array_elements($1::jsonb) WITH ORDINALITY AS t(k, i),
+    LATERAL (
+      SELECT rb_original_book_with_key(
+        k->>'title',
+        ARRAY(SELECT jsonb_array_elements_text(k->'authors'))
+      ) AS id
+    ) original
+    ORDER BY i
+    """
+    |> Repo.query!([
+      Enum.map(keys, fn {title, authors, translators} ->
+        %{title: title, authors: authors, translators: translators}
+      end)
+    ])
+    |> Map.fetch!(:rows)
+    |> Enum.map(&List.to_tuple/1)
   end
 
   @doc """
-  Checks the composite keys now, inside the current transaction.
+  Returns the ids among `ids` of the publications that have the same key as
+  another publication that is not deleted, or whose translated or original
+  book has the same key as another book.
+
+  Of two publications in `ids` with the same key, only the one with the higher
+  id is returned. A publication outside `ids` counts whatever its id.
+  """
+  @spec publications_in_conflict([pos_integer()]) :: [pos_integer()]
+  def publications_in_conflict(ids) do
+    values(
+      """
+      SELECT p.id
+      FROM publications p
+      JOIN translated_books tb ON tb.id = p.translated_book_id
+      JOIN original_books ob ON ob.id = tb.original_book_id
+      WHERE p.id = ANY($1)
+        AND p.deleted_at IS NULL
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM publications other
+            WHERE (other.id < p.id OR other.id <> ALL($1))
+              AND other.deleted_at IS NULL
+              AND other.title = p.title
+              AND other.year = p.year
+              AND other.translated_book_id = p.translated_book_id
+              AND other.publishers_fingerprint = p.publishers_fingerprint
+              AND other.countries_fingerprint = p.countries_fingerprint
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM translated_books other
+            WHERE other.id <> tb.id
+              AND other.original_book_id = tb.original_book_id
+              AND other.authors_fingerprint = tb.authors_fingerprint
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM original_books other
+            WHERE other.id <> ob.id
+              AND other.title = ob.title
+              AND other.authors_fingerprint = ob.authors_fingerprint
+          )
+        )
+      """,
+      [ids]
+    )
+  end
+
+  # Runs a query that returns one column, and returns its values in order.
+  defp values(sql, params) do
+    sql |> Repo.query!(params) |> Map.fetch!(:rows) |> Enum.map(fn [value] -> value end)
+  end
+
+  @doc """
+  Checks the composite keys now, inside the current transaction, with one call
+  to the database function `rb_settle` (see the migration
+  `CheckCompositeKeysInOneCall`).
 
   Returns `:ok`, or `{:error, :conflict}` when a row has the same key as
-  another. After a conflict the transaction can only be rolled back. The keys
+  another. After a conflict, only the check is rolled back, so the transaction
+  can still run queries, for instance to find the rows in conflict. The keys
   are deferred again afterwards, so the next write in the same transaction can
   pass through states that match another key, as the first could.
   """
   @spec settle() :: :ok | {:error, :conflict}
   def settle do
-    Repo.query!("SET CONSTRAINTS ALL IMMEDIATE")
-    Repo.query!("SET CONSTRAINTS ALL DEFERRED")
-    :ok
-  rescue
-    error in Postgrex.Error ->
-      if error.postgres[:constraint] in @keys,
-        do: {:error, :conflict},
-        else: reraise(error, __STACKTRACE__)
+    case values("SELECT rb_settle()", []) do
+      [nil] -> :ok
+      [constraint] when constraint in @keys -> {:error, :conflict}
+    end
   end
 end

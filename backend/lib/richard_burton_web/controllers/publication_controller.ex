@@ -351,7 +351,7 @@ defmodule RichardBurtonWeb.PublicationController do
   def validate(conn, %{"csv" => %Plug.Upload{path: path}}) do
     case Publication.Codec.from_csv(path) do
       {:ok, publications} ->
-        result = Enum.map(publications, &validate_publication/1)
+        result = validate_publications(publications)
 
         conn
         |> put_status(:ok)
@@ -363,7 +363,7 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   def validate(conn, %{"_json" => publications}) do
-    result = Enum.map(publications, &validate_publication/1)
+    result = validate_publications(publications)
 
     conn
     |> put_status(:ok)
@@ -376,16 +376,19 @@ defmodule RichardBurtonWeb.PublicationController do
 
       conn
       |> put_status(:ok)
-      |> json(validate_publication(publication, id))
+      |> json(reported(FlatPublication.validate(publication, id), publication))
     end
   end
 
-  # One publication validated without being written, reported as the record and
-  # its errors so a client can show both.
-  defp validate_publication(p, exclude_id \\ nil) do
-    case FlatPublication.validate(p, exclude_id) do
-      :ok -> %{publication: p, errors: nil}
-      {:error, errors} -> %{publication: p, errors: errors}
-    end
+  # Validates `publications` without writing them, and returns each one with
+  # its errors, or nil errors when it is valid.
+  defp validate_publications(publications) do
+    publications
+    |> FlatPublication.validate_all()
+    |> Enum.zip_with(publications, &reported/2)
   end
+
+  # A validation result reported with the publication it is for.
+  defp reported(:ok, publication), do: %{publication: publication, errors: nil}
+  defp reported({:error, errors}, publication), do: %{publication: publication, errors: errors}
 end

@@ -43,6 +43,37 @@ defmodule RichardBurton.IdentityTest do
   defp stored(schema, id, field),
     do: Repo.one(from(r in schema, where: r.id == ^id, select: field(r, ^field)))
 
+  # Writes a copy of the publication `first` straight to the tables, around
+  # `Publication.insert/2`, so the copy has the same key.
+  defp insert_copy(first) do
+    Repo.insert_all("publications", [
+      %{
+        title: first.title,
+        year: first.year,
+        translated_book_id: first.translated_book_id,
+        inserted_at: NaiveDateTime.utc_now(:second),
+        updated_at: NaiveDateTime.utc_now(:second)
+      }
+    ])
+
+    [copy] = Repo.all(from(p in Publication, where: p.id != ^first.id, select: p.id))
+
+    Repo.insert_all("publication_countries", [
+      %{publication_id: copy, country_id: hd(Repo.preload(first, :countries).countries).id}
+    ])
+
+    Repo.insert_all("publication_publishers", [
+      %{publication_id: copy, publisher_id: hd(Repo.preload(first, :publishers).publishers).id}
+    ])
+  end
+
+  # Each of these looks up a single key, through the lookup that takes many.
+  defp books_with_key(title, authors, translators),
+    do: hd(Identity.books_with_keys([{title, authors, translators}]))
+
+  defp publication_with_key(publication, excluded \\ nil),
+    do: hd(Identity.publications_with_keys([publication], excluded))
+
   describe "a fingerprint" do
     test "is the uppercase hex SHA-256 of the names, sorted and joined with NUL" do
       expected = :crypto.hash(:sha256, "Ann\0Bob") |> Base.encode16()
@@ -118,6 +149,35 @@ defmodule RichardBurton.IdentityTest do
                fingerprint_of(["Machado"])
     end
 
+    test "follow a link moved to another publication" do
+      moved_from = insert(%{"publishers" => [%{"name" => "Noonday Press"}, %{"name" => "Knopf"}]})
+      moved_to = insert(%{"year" => 1960})
+      knopf = Repo.get_by!(Publisher, name: "Knopf")
+
+      Repo.update_all(
+        from(l in "publication_publishers",
+          where: l.publication_id == ^moved_from.id and l.publisher_id == ^knopf.id
+        ),
+        set: [publication_id: moved_to.id]
+      )
+
+      assert stored(Publication, moved_from.id, :publishers_fingerprint) ==
+               fingerprint_of(["Noonday Press"])
+
+      assert stored(Publication, moved_to.id, :publishers_fingerprint) ==
+               fingerprint_of(["Knopf", "Noonday Press"])
+    end
+
+    test "are the fingerprint of no names once every link of a row is removed" do
+      publication = insert()
+
+      Repo.delete_all(
+        from(l in "publication_countries", where: l.publication_id == ^publication.id)
+      )
+
+      assert stored(Publication, publication.id, :countries_fingerprint) == fingerprint_of([])
+    end
+
     test "follow a country whose code changes" do
       publication = insert()
 
@@ -135,30 +195,16 @@ defmodule RichardBurton.IdentityTest do
     end
 
     test "are refused for a second publication with the same key, when settled" do
-      first = insert()
-
-      # A copy written straight to the table, around `Publication.insert/2`.
-      Repo.insert_all("publications", [
-        %{
-          title: first.title,
-          year: first.year,
-          translated_book_id: first.translated_book_id,
-          inserted_at: NaiveDateTime.utc_now(:second),
-          updated_at: NaiveDateTime.utc_now(:second)
-        }
-      ])
-
-      [copy] = Repo.all(from(p in Publication, where: p.id != ^first.id, select: p.id))
-
-      Repo.insert_all("publication_countries", [
-        %{publication_id: copy, country_id: hd(Repo.preload(first, :countries).countries).id}
-      ])
-
-      Repo.insert_all("publication_publishers", [
-        %{publication_id: copy, publisher_id: hd(Repo.preload(first, :publishers).publishers).id}
-      ])
+      insert_copy(insert())
 
       assert {:error, :conflict} = Identity.settle()
+    end
+
+    test "leave the transaction usable after a conflict" do
+      insert_copy(insert())
+
+      assert {:error, :conflict} = Identity.settle()
+      assert Repo.aggregate(Publication, :count) == 2
     end
 
     test "let a publication pass through another's key while its links are written" do
@@ -182,12 +228,13 @@ defmodule RichardBurton.IdentityTest do
     end
   end
 
-  describe "original_book_with_key/2" do
-    test "finds the stored original book by its title and authors in any order" do
+  describe "books_with_keys/1" do
+    test "finds the stored books by their titles and names, in any order" do
       {:ok, publication} =
         Publication.insert(
           RichardBurton.Util.deep_merge_maps(@attrs, %{
             "translated_book" => %{
+              "authors" => [%{"name" => "Helen Caldwell"}, %{"name" => "John Gledson"}],
               "original_book" => %{
                 "authors" => [%{"name" => "Machado de Assis"}, %{"name" => "José de Alencar"}]
               }
@@ -195,52 +242,48 @@ defmodule RichardBurton.IdentityTest do
           })
         )
 
-      original_book_id =
-        Repo.get!(TranslatedBook, publication.translated_book_id).original_book_id
+      translated = Repo.get!(TranslatedBook, publication.translated_book_id)
 
-      assert Identity.original_book_with_key("Dom Casmurro", [
-               "José de Alencar",
-               "Machado de Assis"
-             ]) == original_book_id
+      assert books_with_key(
+               "Dom Casmurro",
+               ["José de Alencar", "Machado de Assis"],
+               ["John Gledson", "Helen Caldwell"]
+             ) == {translated.original_book_id, translated.id}
     end
 
-    test "returns nil when only some of the authors match" do
-      insert()
-
-      assert Identity.original_book_with_key("Dom Casmurro", ["Machado de Assis", "Alencar"]) ==
-               nil
-    end
-
-    test "returns nil for another title" do
-      insert()
-
-      assert Identity.original_book_with_key("Iracema", ["Machado de Assis"]) == nil
-    end
-  end
-
-  describe "translated_book_with_key/2" do
-    test "finds the stored translated book by its original book and translators" do
+    test "finds the original book but not a translation by other translators" do
       publication = insert()
       translated = Repo.get!(TranslatedBook, publication.translated_book_id)
 
-      assert Identity.translated_book_with_key(translated.original_book_id, ["Helen Caldwell"]) ==
-               translated.id
+      assert books_with_key("Dom Casmurro", ["Machado de Assis"], ["John Gledson"]) ==
+               {translated.original_book_id, nil}
     end
 
-    test "returns nil for other translators" do
+    test "finds neither book when only some of the authors match" do
+      insert()
+
+      assert books_with_key("Dom Casmurro", ["Machado de Assis", "Alencar"], ["Helen Caldwell"]) ==
+               {nil, nil}
+    end
+
+    test "finds neither book for another title" do
+      insert()
+
+      assert books_with_key("Iracema", ["Machado de Assis"], ["Helen Caldwell"]) == {nil, nil}
+    end
+
+    test "answers each key in order" do
       publication = insert()
       translated = Repo.get!(TranslatedBook, publication.translated_book_id)
 
-      assert Identity.translated_book_with_key(translated.original_book_id, ["John Gledson"]) ==
-               nil
-    end
-
-    test "returns nil when there is no original book" do
-      assert Identity.translated_book_with_key(nil, ["Helen Caldwell"]) == nil
+      assert Identity.books_with_keys([
+               {"Iracema", ["José de Alencar"], ["Isabel Burton"]},
+               {"Dom Casmurro", ["Machado de Assis"], ["Helen Caldwell"]}
+             ]) == [{nil, nil}, {translated.original_book_id, translated.id}]
     end
   end
 
-  describe "publication_with_key/2" do
+  describe "publications_with_keys/2" do
     @flat %{
       title: "Dom Casmurro",
       year: 1953,
@@ -254,7 +297,14 @@ defmodule RichardBurton.IdentityTest do
     test "finds the stored publication with the key" do
       publication = insert()
 
-      assert Identity.publication_with_key(@flat) == publication.id
+      assert publication_with_key(@flat) == publication.id
+    end
+
+    test "answers each publication in order, with nil for a key no publication has" do
+      publication = insert()
+
+      assert Identity.publications_with_keys([%{@flat | year: 1960}, @flat]) ==
+               [nil, publication.id]
     end
 
     test "matches publishers and countries in any order" do
@@ -264,7 +314,7 @@ defmodule RichardBurton.IdentityTest do
           "publishers" => [%{"name" => "Noonday Press"}, %{"name" => "Knopf"}]
         })
 
-      assert Identity.publication_with_key(%{
+      assert publication_with_key(%{
                @flat
                | countries: ["GB", "US"],
                  publishers: ["Knopf", "Noonday Press"]
@@ -274,14 +324,14 @@ defmodule RichardBurton.IdentityTest do
     test "leaves out the excluded publication" do
       publication = insert()
 
-      assert Identity.publication_with_key(@flat, publication.id) == nil
+      assert publication_with_key(@flat, publication.id) == nil
     end
 
     test "leaves out a deleted publication" do
       publication = insert()
       {:ok, _} = Publication.delete(publication.id)
 
-      assert Identity.publication_with_key(@flat) == nil
+      assert publication_with_key(@flat) == nil
     end
 
     test "returns nil when any part of the key differs" do
@@ -296,7 +346,7 @@ defmodule RichardBurton.IdentityTest do
             %{original_title: "Memórias Póstumas de Brás Cubas"},
             %{original_authors: ["José de Alencar"]}
           ] do
-        assert Identity.publication_with_key(Map.merge(@flat, change)) == nil, inspect(change)
+        assert publication_with_key(Map.merge(@flat, change)) == nil, inspect(change)
       end
     end
   end

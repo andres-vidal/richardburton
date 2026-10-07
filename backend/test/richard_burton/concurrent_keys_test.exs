@@ -77,7 +77,7 @@ defmodule RichardBurton.ConcurrentKeysTest do
     assert count_rows("original_books WHERE title = 'Dom Casmurro'") == [[1]]
   end
 
-  test "two translations of a new book inserted at once store the book once, and the second succeeds when retried" do
+  test "two translations of a new book inserted at once store the book once, and both are stored" do
     # Both translators are stored, with another book, so the race is over the
     # new original book that both translations share.
     stored(%{
@@ -91,17 +91,55 @@ defmodule RichardBurton.ConcurrentKeysTest do
     by_gledson =
       dom_casmurro(%{"translated_book" => %{"authors" => [%{"name" => "John Gledson"}]}})
 
-    assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
+    assert %{first: {:ok, _}, second: {:ok, _}, waited: true} =
              race(
                fn -> Publication.insert(@dom_casmurro) end,
                fn -> Publication.insert(by_gledson) end
              )
 
     assert count_rows("original_books WHERE title = 'Dom Casmurro'") == [[1]]
-
-    assert {:ok, _} = unboxed(fn -> Publication.insert(by_gledson) end)
-    assert count_rows("original_books WHERE title = 'Dom Casmurro'") == [[1]]
     assert count_rows("translated_books") == [[3]]
+  end
+
+  test "two imports that share a new book at once store the book once, and both are stored" do
+    # Both translators are stored with Quincas Borba, so the race is over the
+    # new original book, Dom Casmurro.
+    quincas_borba = %{
+      "title" => "Philosopher or Dog?",
+      "translated_book" => %{
+        "authors" => [%{"name" => "Helen Caldwell"}, %{"name" => "John Gledson"}],
+        "original_book" => %{"title" => "Quincas Borba"}
+      }
+    }
+
+    stored(quincas_borba)
+
+    reprinted = dom_casmurro(Map.put(quincas_borba, "year", 1960))
+
+    by_gledson =
+      dom_casmurro(%{"translated_book" => %{"authors" => [%{"name" => "John Gledson"}]}})
+
+    assert %{first: {:ok, _}, second: {:ok, _}, waited: true} =
+             race(
+               fn -> Publication.insert_all([@dom_casmurro]) end,
+               fn -> Publication.insert_all([reprinted, by_gledson]) end
+             )
+
+    assert count_rows("original_books WHERE title = 'Dom Casmurro'") == [[1]]
+    assert count_live(title: "Philosopher or Dog?", year: 1960) == 1
+    assert count_live(title: "Dom Casmurro", year: 1953) == 2
+  end
+
+  test "two imports of the same publication at once store it once, and the second returns the row" do
+    stored(%{"year" => 1960})
+
+    assert %{first: {:ok, _}, second: {:error, {@dom_casmurro, :conflict}}, waited: true} =
+             race(
+               fn -> Publication.insert_all([@dom_casmurro]) end,
+               fn -> Publication.insert_all([@dom_casmurro]) end
+             )
+
+    assert count_live(title: "Dom Casmurro", year: 1953) == 1
   end
 
   test "two edits that would give two publications the same key at once leave the second unchanged" do
@@ -118,16 +156,17 @@ defmodule RichardBurton.ConcurrentKeysTest do
     assert count_live(title: "Dom Casmurro", year: 1954) == 1
   end
 
-  test "restoring a publication while the same one is inserted again leaves it deleted" do
+  test "restoring a publication while the same one is inserted again leaves it deleted, and names the other" do
     deleted = stored()
     {:ok, _} = unboxed(fn -> Publication.delete(deleted.id) end)
 
-    assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
+    assert %{first: {:ok, inserted}, second: {:error, {:conflict, twin}}, waited: true} =
              race(
                fn -> Publication.insert(@dom_casmurro) end,
                fn -> Publication.restore(deleted.id) end
              )
 
+    assert twin.id == inserted.id
     assert count_live(title: "Dom Casmurro", year: 1953) == 1
     assert unboxed(fn -> Repo.get!(Publication, deleted.id).deleted_at end)
   end

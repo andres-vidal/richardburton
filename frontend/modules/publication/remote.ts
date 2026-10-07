@@ -81,13 +81,14 @@ async function loadDetails(
   return data.entries;
 }
 
-/** Submit the current (visible) working set. */
+/**
+ * Inserts the rows of the workspace, and returns the stored publications. The
+ * rows stay in the workspace while the request runs, and after it fails.
+ */
 async function bulk(store: Store): Promise<Publication[]> {
   return run(async (http) => {
     const ids = store.get(publicationIdsAtom);
     const publications = ids?.map((id) => store.get(publicationFamily(id)));
-
-    store.set(publicationIdsAtom, RESET);
 
     const { data } = await http.post<Publication[]>(
       "publications/bulk",

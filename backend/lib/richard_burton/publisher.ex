@@ -35,28 +35,9 @@ defmodule RichardBurton.Publisher do
     |> unique_constraint(:name)
   end
 
-  def find_or_insert!(attrs) do
-    %__MODULE__{}
-    |> changeset(attrs)
-    |> Repo.find_or_insert!(:name)
-  end
-
   def all do
     Repo.all(Publisher)
   end
-
-  def link(changeset = %{valid?: true}) do
-    publishers =
-      changeset
-      |> get_change(:publishers)
-      |> Enum.reject(&(&1.action == :replace))
-      |> Enum.map(&apply_changes/1)
-      |> Enum.map(&find_or_insert!/1)
-
-    put_assoc(changeset, :publishers, publishers)
-  end
-
-  def link(changeset = %{valid?: false}), do: changeset
 
   @spec search(binary(), :fuzzy | :prefix) :: any()
   def search(term, :prefix) when is_binary(term) do

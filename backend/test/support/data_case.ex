@@ -60,4 +60,48 @@ defmodule RichardBurton.DataCase do
       end)
     end)
   end
+
+  @doc """
+  Runs `fun`, and returns what it returned and the number of queries it sent
+  through the repository.
+  """
+  def count_queries(fun) do
+    test = self()
+    handler = "count-queries-#{inspect(test)}"
+
+    :telemetry.attach(
+      handler,
+      [:richard_burton, :repo, :query],
+      fn _event, _measurements, _metadata, _config -> send(test, :query) end,
+      nil
+    )
+
+    try do
+      result = fun.()
+      {result, received(:query, 0)}
+    after
+      :telemetry.detach(handler)
+    end
+  end
+
+  # Returns `count` plus the number of `message`s in the mailbox, and takes them
+  # out of it.
+  defp received(message, count) do
+    receive do
+      ^message -> received(message, count + 1)
+    after
+      0 -> count
+    end
+  end
+
+  @doc """
+  Runs `fun` in a transaction that is rolled back, and returns what it
+  returned.
+  """
+  def rolled_back(fun) do
+    {:error, result} =
+      RichardBurton.Repo.transaction(fn -> RichardBurton.Repo.rollback(fun.()) end)
+
+    result
+  end
 end

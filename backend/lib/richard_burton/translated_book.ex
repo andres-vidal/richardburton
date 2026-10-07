@@ -12,7 +12,6 @@ defmodule RichardBurton.TranslatedBook do
   import RichardBurton.Validation
 
   alias RichardBurton.Author
-  alias RichardBurton.Identity
   alias RichardBurton.OriginalBook
   alias RichardBurton.Publication
   alias RichardBurton.Repo
@@ -28,7 +27,10 @@ defmodule RichardBurton.TranslatedBook do
 
     belongs_to(:original_book, OriginalBook)
 
-    many_to_many(:authors, Author, join_through: "translated_book_authors")
+    many_to_many(:authors, Author,
+      join_through: "translated_book_authors",
+      preload_order: [asc: :name]
+    )
 
     timestamps()
   end
@@ -51,29 +53,6 @@ defmodule RichardBurton.TranslatedBook do
     |> validate_no_duplicates(:authors, :name)
   end
 
-  @doc """
-  Returns the stored translated book of the same original book by the same
-  translators as `attrs`, and inserts it when there is none. The original book
-  and the translators are found, or inserted, first.
-  """
-  def find_or_insert!(attrs) do
-    %TranslatedBook{}
-    |> changeset(attrs)
-    |> OriginalBook.link()
-    |> Author.link()
-    |> Repo.find_or_insert!(&stored_id/1, [:authors_fingerprint])
-  end
-
-  # Returns the id of the stored translated book with the key of `changeset`,
-  # the same original book and the same translators' names, or nil when there is
-  # none.
-  defp stored_id(changeset) do
-    original_book = get_field(changeset, :original_book)
-    names = changeset |> get_field(:authors) |> Enum.map(&Author.get_name/1)
-
-    Identity.translated_book_with_key(original_book.id, names)
-  end
-
   def all() do
     TranslatedBook
     |> Repo.all()
@@ -83,16 +62,4 @@ defmodule RichardBurton.TranslatedBook do
   def preload(data) do
     Repo.preload(data, [:authors, original_book: [:authors]])
   end
-
-  def link(changeset = %{valid?: true}) do
-    translated_book =
-      changeset
-      |> get_change(:translated_book)
-      |> apply_changes()
-      |> TranslatedBook.find_or_insert!()
-
-    put_assoc(changeset, :translated_book, translated_book)
-  end
-
-  def link(changeset = %{valid?: false}), do: changeset
 end
