@@ -43,6 +43,10 @@ defmodule RichardBurton.IdentityTest do
   defp stored(schema, id, field),
     do: Repo.one(from(r in schema, where: r.id == ^id, select: field(r, ^field)))
 
+  # Looks up a single publication's key, through the lookup that takes many.
+  defp publication_with_key(publication, excluded \\ nil),
+    do: hd(Identity.publications_with_keys([publication], excluded))
+
   describe "a fingerprint" do
     test "is the uppercase hex SHA-256 of the names, sorted and joined with NUL" do
       expected = :crypto.hash(:sha256, "Ann\0Bob") |> Base.encode16()
@@ -240,7 +244,7 @@ defmodule RichardBurton.IdentityTest do
     end
   end
 
-  describe "publication_with_key/2" do
+  describe "publications_with_keys/2" do
     @flat %{
       title: "Dom Casmurro",
       year: 1953,
@@ -254,7 +258,14 @@ defmodule RichardBurton.IdentityTest do
     test "finds the stored publication with the key" do
       publication = insert()
 
-      assert Identity.publication_with_key(@flat) == publication.id
+      assert publication_with_key(@flat) == publication.id
+    end
+
+    test "answers each publication in order, with nil for a key no publication has" do
+      publication = insert()
+
+      assert Identity.publications_with_keys([%{@flat | year: 1960}, @flat]) ==
+               [nil, publication.id]
     end
 
     test "matches publishers and countries in any order" do
@@ -264,7 +275,7 @@ defmodule RichardBurton.IdentityTest do
           "publishers" => [%{"name" => "Noonday Press"}, %{"name" => "Knopf"}]
         })
 
-      assert Identity.publication_with_key(%{
+      assert publication_with_key(%{
                @flat
                | countries: ["GB", "US"],
                  publishers: ["Knopf", "Noonday Press"]
@@ -274,14 +285,14 @@ defmodule RichardBurton.IdentityTest do
     test "leaves out the excluded publication" do
       publication = insert()
 
-      assert Identity.publication_with_key(@flat, publication.id) == nil
+      assert publication_with_key(@flat, publication.id) == nil
     end
 
     test "leaves out a deleted publication" do
       publication = insert()
       {:ok, _} = Publication.delete(publication.id)
 
-      assert Identity.publication_with_key(@flat) == nil
+      assert publication_with_key(@flat) == nil
     end
 
     test "returns nil when any part of the key differs" do
@@ -296,7 +307,7 @@ defmodule RichardBurton.IdentityTest do
             %{original_title: "Memórias Póstumas de Brás Cubas"},
             %{original_authors: ["José de Alencar"]}
           ] do
-        assert Identity.publication_with_key(Map.merge(@flat, change)) == nil, inspect(change)
+        assert publication_with_key(Map.merge(@flat, change)) == nil, inspect(change)
       end
     end
   end

@@ -287,4 +287,31 @@ defmodule RichardBurton.FlatPublicationTest do
       assert {:error, :conflict} == validate(@valid_attrs, nil)
     end
   end
+
+  describe "validate_all/2" do
+    test "returns each row's result in order" do
+      stored = insert_publication(@valid_attrs)
+      new = Map.put(@valid_attrs, "year", 1887)
+      invalid = Map.delete(@valid_attrs, "year")
+
+      assert [:ok, {:error, %{year: :required}}, {:error, :conflict}] ==
+               FlatPublication.validate_all([new, invalid, @valid_attrs])
+
+      assert [:ok] == FlatPublication.validate_all([@valid_attrs], stored.id)
+    end
+
+    test "looks up the keys of every row with the same number of queries" do
+      rows = fn n -> for year <- 1..n, do: Map.put(@valid_attrs, "year", 1800 + year) end
+
+      {_results, few} = count_queries(fn -> FlatPublication.validate_all(rows.(2)) end)
+      {_results, many} = count_queries(fn -> FlatPublication.validate_all(rows.(40)) end)
+
+      assert few == many
+    end
+
+    test "sends no query when no row is valid" do
+      assert {[{:error, _}], 0} =
+               count_queries(fn -> FlatPublication.validate_all([@empty_attrs]) end)
+    end
+  end
 end

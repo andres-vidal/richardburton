@@ -19,7 +19,7 @@ defmodule RichardBurton.Identity do
   `ComputeFingerprintsInTheDatabase`). The database also has functions that
   find the stored row with a key (see the migration
   `LookUpCompositeKeysInTheDatabase`), and `original_book_with_key/2`,
-  `translated_book_with_key/2` and `publication_with_key/2` call them.
+  `translated_book_with_key/2` and `publications_with_keys/2` call them.
 
   The keys are checked when a transaction commits, because a row's links are
   written one by one after the row, and until the last one is written the row
@@ -30,6 +30,17 @@ defmodule RichardBurton.Identity do
   alias RichardBurton.Repo
 
   @keys ~w(original_books_composite_key translated_books_composite_key publications_composite_key)
+
+  # The fields of `t:key_fields/0` that a key is built from.
+  @key_fields [
+    :title,
+    :year,
+    :countries,
+    :publishers,
+    :authors,
+    :original_title,
+    :original_authors
+  ]
 
   @typedoc """
   The fields of a flat publication that its composite key is built from. Names
@@ -67,27 +78,36 @@ defmodule RichardBurton.Identity do
   end
 
   @doc """
-  Returns the id of a stored publication that is not deleted and has the key of
-  `publication`, or nil when there is none. The publication with the id
+  Returns, for each of `publications`, the id of a stored publication that is
+  not deleted and has its key, or nil when there is none. The ids come in the
+  order of `publications`, from one query. The publication with the id
   `excluded` is left out, so an edit does not match the publication it edits.
 
-  `publication` holds the fields in `t:key_fields/0`, where `:authors` are the
-  translators.
+  Each of `publications` holds the fields in `t:key_fields/0`, where `:authors`
+  are the translators.
   """
-  @spec publication_with_key(key_fields(), pos_integer() | nil) :: pos_integer() | nil
-  def publication_with_key(publication, excluded \\ nil) do
-    value(
-      "SELECT rb_publication_with_key($1, $2, $3, $4, $5, $6, $7, $8)",
-      [
-        publication.title,
-        publication.year,
-        publication.countries,
-        publication.publishers,
-        publication.authors,
-        publication.original_title,
-        publication.original_authors,
-        excluded
-      ]
+  @spec publications_with_keys([key_fields()], pos_integer() | nil) :: [pos_integer() | nil]
+  def publications_with_keys(publications, excluded \\ nil)
+
+  def publications_with_keys([], _excluded), do: []
+
+  def publications_with_keys(publications, excluded) do
+    values(
+      """
+      SELECT rb_publication_with_key(
+        k->>'title',
+        (k->>'year')::integer,
+        ARRAY(SELECT jsonb_array_elements_text(k->'countries')),
+        ARRAY(SELECT jsonb_array_elements_text(k->'publishers')),
+        ARRAY(SELECT jsonb_array_elements_text(k->'authors')),
+        k->>'original_title',
+        ARRAY(SELECT jsonb_array_elements_text(k->'original_authors')),
+        $2
+      )
+      FROM jsonb_array_elements($1::jsonb) WITH ORDINALITY AS t(k, i)
+      ORDER BY i
+      """,
+      [Enum.map(publications, &Map.take(&1, @key_fields)), excluded]
     )
   end
 

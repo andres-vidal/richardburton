@@ -100,31 +100,45 @@ defmodule RichardBurton.FlatPublication do
     Repo.all(FlatPublication)
   end
 
+  @doc """
+  Validates `attrs` as `validate_all/2` validates each entry of a list.
+  """
   def validate(attrs, exclude_id \\ nil) do
-    %FlatPublication{} |> changeset(attrs) |> validate_changeset(exclude_id)
+    [result] = validate_all([attrs], exclude_id)
+    result
   end
 
-  # An invalid changeset reports its own errors; a valid one is then checked
-  # against the composite key, excluding the record being updated.
-  defp validate_changeset(changeset = %{valid?: false}, _exclude_id) do
-    {:error, Validation.get_errors(changeset)}
+  @doc """
+  Validates each of `attrs_list` without writing anything, and returns the
+  results in order.
+
+  A result is `{:error, errors}` when the attrs are invalid, `{:error,
+  :conflict}` when a stored publication that is not deleted has their
+  composite key, and `:ok` otherwise. The publication with the id
+  `exclude_id` is left out of the key check, so an edit does not count against
+  itself. The keys are looked up with one query for the whole list.
+
+  The lookup reads the publications table rather than the materialized view
+  behind this schema, so it also finds a publication inserted since the view
+  was last refreshed.
+  """
+  def validate_all(attrs_list, exclude_id \\ nil) do
+    changesets = Enum.map(attrs_list, &changeset(%FlatPublication{}, &1))
+
+    taken =
+      for(changeset <- changesets, changeset.valid?, do: apply_changes(changeset))
+      |> Identity.publications_with_keys(exclude_id)
+      |> Enum.map(&is_integer/1)
+
+    {results, []} = Enum.map_reduce(changesets, taken, &result/2)
+    results
   end
 
-  defp validate_changeset(changeset = %{valid?: true}, exclude_id) do
-    if key_taken?(changeset, exclude_id), do: {:error, :conflict}, else: :ok
-  end
+  # Returns the result for `changeset`, taking the next of `taken`, whether a
+  # stored publication has its key, when the changeset is valid.
+  defp result(changeset = %{valid?: false}, taken),
+    do: {{:error, Validation.get_errors(changeset)}, taken}
 
-  # Returns whether a stored publication that is not deleted already has the
-  # composite key of `changeset`. The publication with `exclude_id` is left out,
-  # so an edit does not count against itself.
-  #
-  # The lookup reads the publications table rather than the materialized view
-  # behind this schema, so it also finds a publication inserted since the view
-  # was last refreshed.
-  defp key_taken?(changeset, exclude_id) do
-    changeset
-    |> apply_changes()
-    |> Identity.publication_with_key(exclude_id)
-    |> is_integer()
-  end
+  defp result(_changeset, [true | taken]), do: {{:error, :conflict}, taken}
+  defp result(_changeset, [false | taken]), do: {:ok, taken}
 end

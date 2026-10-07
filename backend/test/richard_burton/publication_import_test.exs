@@ -195,13 +195,6 @@ defmodule RichardBurton.Publication.ImportTest do
     end
   end
 
-  # Runs `fun` in a transaction that is rolled back, and returns what it
-  # returned.
-  defp rolled_back(fun) do
-    {:error, result} = Repo.transaction(fn -> Repo.rollback(fun.()) end)
-    result
-  end
-
   # Returns what an import leaves stored: each publication that is not deleted
   # as it reads, with its fingerprints and its history, and the number of rows
   # in each table a publication write reaches. Ids and timestamps are left out,
@@ -252,29 +245,7 @@ defmodule RichardBurton.Publication.ImportTest do
 
   # Returns the number of queries `fun` sends, rolling back what it writes.
   defp queries(fun) do
-    test = self()
-    handler = "count-queries-#{inspect(test)}"
-
-    :telemetry.attach(
-      handler,
-      [:richard_burton, :repo, :query],
-      fn _event, _measurements, _metadata, _config -> send(test, :query) end,
-      nil
-    )
-
-    try do
-      rolled_back(fn -> {:ok, _} = fun.() end)
-      count_received(:query, 0)
-    after
-      :telemetry.detach(handler)
-    end
-  end
-
-  defp count_received(message, count) do
-    receive do
-      ^message -> count_received(message, count + 1)
-    after
-      0 -> count
-    end
+    {_result, count} = count_queries(fn -> rolled_back(fn -> {:ok, _} = fun.() end) end)
+    count
   end
 end

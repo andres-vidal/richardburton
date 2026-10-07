@@ -557,9 +557,9 @@ defmodule RichardBurton.Publication do
   # Returns the publication that is not deleted and has the same composite key
   # as `publication`, preloaded, or nil when there is none.
   defp twin(publication) do
-    case Identity.publication_with_key(Codec.flatten(publication), publication.id) do
-      nil -> nil
-      id -> Publication |> Repo.get!(id) |> preload()
+    case Identity.publications_with_keys([Codec.flatten(publication)], publication.id) do
+      [nil] -> nil
+      [id] -> Publication |> Repo.get!(id) |> preload()
     end
   end
 

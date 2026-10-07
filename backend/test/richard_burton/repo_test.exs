@@ -14,7 +14,7 @@ defmodule RichardBurton.RepoTest do
       entries = Enum.map(names, &%{name: &1, inserted_at: now, updated_at: now})
 
       {returned, statements} =
-        sent(fn -> Repo.insert_in_chunks(Author, entries, returning: [:name]) end)
+        count_queries(fn -> Repo.insert_in_chunks(Author, entries, returning: [:name]) end)
 
       assert Enum.map(returned, & &1.name) == names
       assert statements == 2
@@ -31,35 +31,8 @@ defmodule RichardBurton.RepoTest do
     end
 
     test "sends no statement for no entries" do
-      assert {[], 0} == sent(fn -> Repo.insert_in_chunks(Author, [], returning: [:id]) end)
-    end
-  end
-
-  # Runs `fun`, and returns what it returned and the number of queries it sent.
-  defp sent(fun) do
-    test = self()
-    handler = "count-queries-#{inspect(test)}"
-
-    :telemetry.attach(
-      handler,
-      [:richard_burton, :repo, :query],
-      fn _event, _measurements, _metadata, _config -> send(test, :query) end,
-      nil
-    )
-
-    try do
-      result = fun.()
-      {result, count_received(:query, 0)}
-    after
-      :telemetry.detach(handler)
-    end
-  end
-
-  defp count_received(message, count) do
-    receive do
-      ^message -> count_received(message, count + 1)
-    after
-      0 -> count
+      assert {[], 0} ==
+               count_queries(fn -> Repo.insert_in_chunks(Author, [], returning: [:id]) end)
     end
   end
 end
