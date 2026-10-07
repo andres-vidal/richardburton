@@ -74,7 +74,7 @@ beforeEach(() => {
 });
 
 describe("bulk", () => {
-  test("submits the visible working set and clears the list", async () => {
+  test("submits the rows and leaves them in place while the request runs", async () => {
     const [a, b] = [createId(), createId()];
     setAll(store, [
       { id: a, publication: pub({ title: "A" }), errors: null },
@@ -91,8 +91,18 @@ describe("bulk", () => {
     expect(body).toHaveLength(2);
     expect((body as Publication[])[0].title).toBe("A");
     expect(result).toBe(created);
-    // The list is reset while the server responds.
-    expect(store.get(publicationIdsAtom)).toBeUndefined();
+    expect(store.get(publicationIdsAtom)).toEqual([a, b]);
+  });
+
+  test("a failed insert leaves the rows as they were", async () => {
+    const id = createId();
+    setAll(store, [{ id, publication: pub({ title: "A" }), errors: null }]);
+    http.post.mockRejectedValue("conflict");
+
+    await expect(bulk(store)).rejects.toBe("conflict");
+
+    expect(store.get(publicationIdsAtom)).toEqual([id]);
+    expect(store.get(publicationFamily(id))?.title).toBe("A");
   });
 });
 

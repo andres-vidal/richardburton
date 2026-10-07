@@ -21,7 +21,14 @@ disable it: a row whose stored result still matches its content stays checked
 while it is validated again, and the insert validates every row once more.
 Clicking calls `bulk()` to
 POST the rows, then `setAll([])` to reset the store and fires a success
-notification. In stories the store is seeded through the shared fixtures:
+notification. The button stays disabled while the request runs.
+
+When the insert fails, the rows stay in the workspace and `bulk()` reports the
+error. Every row is then validated again with `force`, so a row the insert
+refused, such as one another person has just stored, is marked and keeps the
+button disabled until it is fixed. The stories do not click the button, because
+a click sends the request; the e2e journey `submit-a-batch-someone-else-stored`
+covers this. In stories the store is seeded through the shared fixtures:
 
 ```tsx
 import { seed } from "test/publication-fixtures";
