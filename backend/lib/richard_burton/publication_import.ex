@@ -3,12 +3,12 @@ defmodule RichardBurton.Publication.Import do
   Inserts a batch of new publications in one transaction, with a number of
   queries that does not depend on the number of rows.
 
-  The result is the one `Publication.insert/2` would give for each row in turn.
-  The same publications are stored, linked to the same countries, publishers,
-  authors and books, and each is recorded in the history with a `created`
-  entry. When a row is invalid, or has the same composite key as a stored
-  publication or an earlier row, nothing is stored, and the first such row is
-  returned with its errors or with `:conflict`.
+  The batch is stored as its rows would be if each were imported alone, one
+  after another. A row links to the stored countries, publishers, authors and
+  books it names, and to those an earlier row of the batch stored, and each
+  publication is recorded in the history with a `created` entry. When a row is
+  invalid, or has the same composite key as a stored publication or an earlier
+  row, nothing is stored.
 
   A *row* is one entry of the batch, cast with `Publication.changeset/2`. A
   *book key* identifies a book within the batch the way
@@ -46,8 +46,7 @@ defmodule RichardBurton.Publication.Import do
   the author of each one's `created` history entry.
 
   Returns `{:ok, publications}` in the order of `attrs_list`. Each publication
-  is preloaded like `Publication.preload/1`, with its names in the order
-  `Publication.insert/2` would return them. Its countries and publishers are
+  is preloaded like `Publication.preload/1`. Its countries and publishers are
   in the order its row lists them, and so are the authors of a book the row
   stored. The authors of a book stored before keep their stored order.
 

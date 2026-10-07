@@ -1,7 +1,7 @@
 defmodule RichardBurton.Publication.ImportTest do
   @moduledoc """
   Tests for `Publication.Import`, through `Publication.insert_all/2`: that a
-  batch is stored as inserting its rows one at a time would store it, with a
+  batch is stored as importing its rows one at a time would store it, with a
   number of queries that does not depend on the number of rows, and that the
   first invalid row, or else the first conflicting row, is returned.
   """
@@ -116,7 +116,7 @@ defmodule RichardBurton.Publication.ImportTest do
   end
 
   describe "a batch" do
-    test "is stored as inserting its rows one at a time stores it" do
+    test "is stored as importing its rows one at a time stores it" do
       # Dom Casmurro was stored once and deleted, which leaves its key free.
       {:ok, deleted} = Publication.insert(Codec.nest(Enum.at(@batch, 4)))
       {:ok, _} = Publication.delete(deleted.id)

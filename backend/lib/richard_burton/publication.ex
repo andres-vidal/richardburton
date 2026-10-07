@@ -126,24 +126,20 @@ defmodule RichardBurton.Publication do
     ])
   end
 
-  def insert(attrs, actor \\ History.system_actor()) do
-    # The insert and its history row commit or roll back together.
-    Repo.transaction(fn ->
-      %Publication{}
-      |> changeset(attrs)
-      |> link_assocs()
-      |> Repo.insert()
-      |> case do
-        {:ok, publication} ->
-          settle!()
-          publication = publication |> fingerprinted() |> preload()
-          History.record(:created, publication, actor)
-          publication
+  @doc """
+  Inserts the publication `attrs` describes, and records it with a `created`
+  history entry by `actor`, in one transaction.
 
-        {:error, changeset} ->
-          Repo.rollback(Validation.get_errors(changeset))
-      end
-    end)
+  Returns `{:ok, publication}`, preloaded. Returns `{:error, errors}` when
+  `attrs` is invalid, and `{:error, :conflict}` when a stored publication has
+  the same composite key. It is `Publication.Import.insert_all/2` with a batch
+  of one.
+  """
+  def insert(attrs, actor \\ History.system_actor()) do
+    case Import.insert_all([attrs], actor) do
+      {:ok, [publication]} -> {:ok, publication}
+      {:error, {_attrs, errors}} -> {:error, errors}
+    end
   end
 
   def validate(attrs) do
