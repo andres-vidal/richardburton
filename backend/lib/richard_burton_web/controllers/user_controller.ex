@@ -11,17 +11,16 @@ defmodule RichardBurtonWeb.UserController do
 
   alias RichardBurton.Auth.Session
   alias RichardBurton.User
+  alias RichardBurtonWeb.Plugs.Authenticate
 
   @doc """
   Returns the current user for a valid `rb-session` cookie, or `null`. Public
   (reads the cookie itself) so the SPA can poll auth state without a 401.
   """
   def me(conn, _params) do
-    with token when is_binary(token) <- fetch_cookies(conn).cookies[Session.cookie_name()],
-         {:ok, %Session{subject_id: subject_id}} <- Session.verify(token) do
-      json(conn, User.get(subject_id))
-    else
-      _ -> json(conn, nil)
+    case Authenticate.Cookie.verify(conn) do
+      {:ok, %Session{subject_id: subject_id}} -> json(conn, User.get(subject_id))
+      :error -> json(conn, nil)
     end
   end
 

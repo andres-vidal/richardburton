@@ -13,17 +13,17 @@ defmodule RichardBurtonWeb.SessionController do
   """
   use RichardBurtonWeb, :controller
 
-  alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
   alias RichardBurton.Invitation
+  alias RichardBurtonWeb.SignInCookies
 
   def create(conn = %{assigns: %{subject_id: subject_id, email: email}}, _attrs) do
     case Invitation.admit(subject_id, email) do
       {:ok, user} ->
-        conn |> put_session_cookie(subject_id) |> put_status(:ok) |> json(user)
+        conn |> SignInCookies.put(subject_id) |> put_status(:ok) |> json(user)
 
       :not_invited ->
-        conn |> put_status(:forbidden) |> json(%{error: :not_invited})
+        {:error, :forbidden, :not_invited}
 
       {:error, _} ->
         conn |> put_status(:bad_request) |> json(nil)
@@ -50,36 +50,7 @@ defmodule RichardBurtonWeb.SessionController do
     end
 
     conn
-    |> delete_resp_cookie(Session.cookie_name(), same_site: "Lax", secure: secure_cookie?())
-    |> delete_resp_cookie("csrf-token",
-      same_site: "Lax",
-      secure: secure_cookie?(),
-      http_only: false
-    )
+    |> SignInCookies.delete()
     |> send_resp(:no_content, "")
   end
-
-  # Sets the httpOnly `rb-session` cookie plus the readable `csrf-token` cookie
-  # the browser echoes back in the `rb-csrf-token` header (see Auth.Csrf).
-  defp put_session_cookie(conn, subject_id) do
-    {:ok, token} = Session.create(subject_id)
-
-    conn
-    |> put_resp_cookie(Session.cookie_name(), token,
-      http_only: true,
-      same_site: "Lax",
-      secure: secure_cookie?(),
-      max_age: Session.max_age()
-    )
-    |> put_resp_cookie("csrf-token", Csrf.sign(subject_id),
-      http_only: false,
-      same_site: "Lax",
-      secure: secure_cookie?(),
-      max_age: Session.max_age()
-    )
-  end
-
-  # The session cookie is secure unless configured otherwise, which only local
-  # development over plain HTTP needs.
-  defp secure_cookie?, do: Application.get_env(:richard_burton, :phx_session_tls, true)
 end

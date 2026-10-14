@@ -4,9 +4,9 @@ defmodule RichardBurton.Publisher do
   """
   use Ecto.Schema
   import Ecto.Changeset
-  import Ecto.Query
 
   alias RichardBurton.Publisher
+  alias RichardBurton.Name
   alias RichardBurton.Repo
   alias RichardBurton.Publication
 
@@ -35,60 +35,21 @@ defmodule RichardBurton.Publisher do
     |> unique_constraint(:name)
   end
 
-  def all do
-    Repo.all(Publisher)
-  end
+  @doc "Returns every publisher."
+  def all, do: Repo.all(Publisher)
 
-  @spec search(binary(), :fuzzy | :prefix) :: any()
-  def search(term, :prefix) when is_binary(term) do
-    from(p in Publisher, where: ilike(p.name, ^"#{term}%"))
-    |> Repo.all()
-  end
+  @doc "Returns the publishers found by `term`. See `RichardBurton.Name.search/2`."
+  def search(term), do: Name.search(Publisher, term)
 
-  def search(term, :fuzzy) when is_binary(term) do
-    from(p in Publisher, where: fragment("similarity((?), (?)) > 0.3", p.name, ^term))
-    |> Repo.all()
-  end
+  @doc "Returns the publishers found by `term` in one pass. See `RichardBurton.Name.search/3`."
+  def search(term, pass), do: Name.search(Publisher, term, pass)
 
-  def search(term) when is_binary(term) do
-    case search(term, :prefix) do
-      [] -> search(term, :fuzzy)
-      keywords when is_list(keywords) -> keywords
-    end
-  end
+  @doc "Nests publisher names into the maps the schema casts. See `RichardBurton.Name.nest/1`."
+  defdelegate nest(publishers), to: Name
 
-  @doc ~S"""
-  Nest publisher names into the maps the schema casts.
+  @doc "Flattens publishers to their names. See `RichardBurton.Name.flatten/1`."
+  defdelegate flatten(publishers), to: Name
 
-  Takes the list the client and the flat schema both speak in. Splitting a
-  written-down string into values is the CSV codec's, and is done before a value
-  reaches here.
-
-  ## Examples
-
-    iex> RichardBurton.Publisher.nest(["Noonday Press", "Penguin"])
-    [%{"name" => "Noonday Press"}, %{"name" => "Penguin"}]
-  """
-  def nest(publishers) when is_list(publishers),
-    do: Enum.map(publishers, &%{"name" => get_name(&1)})
-
-  @doc ~S"""
-  Flatten publishers to the names they are. A value that is not a list is
-  returned unchanged.
-
-  ## Examples
-
-    iex> RichardBurton.Publisher.flatten([%{"name" => "Noonday Press"}, %{"name" => "Penguin"}])
-    ["Noonday Press", "Penguin"]
-
-    iex> RichardBurton.Publisher.flatten("Noonday Press")
-    "Noonday Press"
-  """
-  def flatten(publishers) when is_list(publishers), do: Enum.map(publishers, &get_name/1)
-  def flatten(publishers), do: publishers
-
-  def get_name(name) when is_binary(name), do: name
-  def get_name(%Publisher{name: name}), do: name
-  def get_name(%{"name" => name}), do: name
-  def get_name(%{name: name}), do: name
+  @doc "Returns the name of a publisher. See `RichardBurton.Name.get_name/1`."
+  defdelegate get_name(publisher), to: Name
 end

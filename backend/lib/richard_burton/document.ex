@@ -139,15 +139,18 @@ defmodule RichardBurton.Document do
   defp bound(_), do: @default_limit
 
   @doc """
-  Returns `{:ok, document}` for the id, or `{:error, :not_found}`.
+  Returns `{:ok, document}` for the id, or `{:error, :not_found}` when no
+  document has it, including when the id is not an integer.
 
   It finds archived documents too, so an archived document stays reachable by
   id.
   """
   def find(id) do
-    case Repo.get(Document, id) do
-      nil -> {:error, :not_found}
-      document -> {:ok, document}
+    with {:ok, id} <- Ecto.Type.cast(:id, id),
+         document = %Document{} <- Repo.get(Document, id) do
+      {:ok, document}
+    else
+      _ -> {:error, :not_found}
     end
   end
 

@@ -62,7 +62,6 @@ defmodule RichardBurton.MixProject do
     [
       {:phoenix, "~> 1.8"},
       {:phoenix_ecto, "~> 4.7"},
-      {:phoenix_view, "~> 2.0.3"},
       {:ecto_sql, "~> 3.13"},
       {:ecto_commons, "~> 0.3.4"},
       {:postgrex, "~> 0.20"},

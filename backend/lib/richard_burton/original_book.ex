@@ -13,6 +13,7 @@ defmodule RichardBurton.OriginalBook do
   import RichardBurton.Validation
 
   alias RichardBurton.Author
+  alias RichardBurton.Name
   alias RichardBurton.OriginalBook
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
@@ -72,25 +73,14 @@ defmodule RichardBurton.OriginalBook do
   end
 
   def search(term, :prefix) when is_binary(term) do
-    matching(dynamic(^starts_with(:book, :title, term) or ^starts_with(:author, :name, term)))
+    matching(
+      dynamic(^Name.starts_with(:book, :title, term) or ^Name.starts_with(:author, :name, term))
+    )
   end
 
   def search(term, :fuzzy) when is_binary(term) do
-    matching(dynamic(^similar_to(:book, :title, term) or ^similar_to(:author, :name, term)))
-  end
-
-  # Prefix match on one column of a named binding.
-  defp starts_with(binding, field, term) do
-    dynamic(ilike(field(as(^binding), ^field), ^"#{term}%"))
-  end
-
-  # How much of a name a misspelling has to share to still answer for it.
-  @similarity 0.3
-
-  # Trigram match on one column of a named binding, for the fuzzy pass.
-  defp similar_to(binding, field, term) do
-    dynamic(
-      fragment("similarity((?), (?)) > ?", field(as(^binding), ^field), ^term, ^@similarity)
+    matching(
+      dynamic(^Name.similar_to(:book, :title, term) or ^Name.similar_to(:author, :name, term))
     )
   end
 

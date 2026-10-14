@@ -16,8 +16,13 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.Cookie do
     end
   end
 
-  # The session token from the cookie, verified against the stored sessions.
-  defp verify(conn) do
+  @doc """
+  Returns `{:ok, session}` for the request's `rb-session` cookie when it holds
+  a valid session, and `:error` when there is no cookie or its session is not
+  valid. It does not halt the request.
+  """
+  @spec verify(Plug.Conn.t()) :: {:ok, Session.t()} | :error
+  def verify(conn) do
     case fetch_cookies(conn).cookies[Session.cookie_name()] do
       nil -> :error
       token -> Session.verify(token)

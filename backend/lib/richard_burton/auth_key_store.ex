@@ -7,6 +7,9 @@ defmodule RichardBurton.Auth.KeyStore do
   implementation returns. The implementation is configured via the `:jwks_provider`
   application env and can be overridden per instance with the `:provider` option.
 
+  The first fetch runs right after the process starts, in `handle_continue/2`,
+  so it does not hold up the supervisor. Calls made meanwhile wait for it.
+
   Keys are refreshed:
 
     * on a schedule, honouring the `max-age` advertised by the provider; and
@@ -51,9 +54,14 @@ defmodule RichardBurton.Auth.KeyStore do
       refreshed_at: nil
     }
 
+    {:ok, state, {:continue, :refresh}}
+  end
+
+  @impl true
+  def handle_continue(:refresh, state) do
     state = do_refresh(state)
     schedule_next(state)
-    {:ok, state}
+    {:noreply, state}
   end
 
   @impl true
@@ -71,11 +79,7 @@ defmodule RichardBurton.Auth.KeyStore do
   end
 
   @impl true
-  def handle_info(:scheduled_refresh, state) do
-    state = do_refresh(state)
-    schedule_next(state)
-    {:noreply, state}
-  end
+  def handle_info(:scheduled_refresh, state), do: handle_continue(:refresh, state)
 
   # The JWKS provider, overridable in config so tests can supply their own.
   defp configured_provider do

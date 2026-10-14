@@ -154,13 +154,6 @@ defmodule RichardBurton.Publication.Codec do
     end)
   end
 
-  def from_csv!(path) do
-    case from_csv(path) do
-      {:ok, publications} -> publications
-      {:error, error} -> throw(error)
-    end
-  end
-
   @doc ~S"""
   Nest a flat publication — a `FlatPublication` struct, a flat map, or a list of
   them — into the shape the `Publication` changeset expects: multi-value fields

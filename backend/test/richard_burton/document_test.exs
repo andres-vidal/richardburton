@@ -357,5 +357,9 @@ defmodule RichardBurton.DocumentTest do
     test "one that does not exist is not found" do
       assert {:error, :not_found} = Document.find(999_999)
     end
+
+    test "an id that is not a number is not found" do
+      assert {:error, :not_found} = Document.find("abc")
+    end
   end
 end

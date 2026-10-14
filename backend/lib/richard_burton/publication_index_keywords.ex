@@ -8,12 +8,12 @@ defmodule RichardBurton.Publication.Index.Keywords do
   single word, and trigram similarity between a word and a whole phrase drops
   towards zero as the phrase gets longer.
 
-  The caller picks one of two modes:
+  `standing_for/1` matches a word in one of two modes:
 
-    * `:prefix` — the indexed words that start with the given word. Used when
-      matching a term as typed.
-    * `:fuzzy` — the indexed words that merely resemble it. Used for the second
-      attempt, after nothing matched as typed.
+    * `:prefix` — the indexed words that start with the given word. This is
+      tried first, matching the word as typed.
+    * `:fuzzy` — the indexed words that merely resemble it. This is tried when
+      nothing matched as typed.
   """
 
   import Ecto.Query
@@ -23,19 +23,16 @@ defmodule RichardBurton.Publication.Index.Keywords do
 
   @similarity 0.3
 
-  @doc """
-  The indexed words a single word stands for, in the given mode.
-
-  The index holds words with their accents folded away, so the word is folded
-  the same way before it is compared to them.
-  """
-  def resolve(word, :prefix) do
+  # Returns the indexed words a single word stands for, in the given mode. The
+  # index holds words with their accents folded away, so the word is folded the
+  # same way before it is compared to them.
+  defp resolve(word, :prefix) do
     from(w in SearchKeyword, where: ilike(w.word, fragment("unaccent(?)", ^"#{word}%")))
     |> Repo.all()
     |> Enum.map(& &1.word)
   end
 
-  def resolve(word, :fuzzy) do
+  defp resolve(word, :fuzzy) do
     from(w in SearchKeyword,
       where: fragment("similarity((?), unaccent(?)) > ?", w.word, ^word, ^@similarity),
       # Most similar first. All of them are searched on regardless, so this does

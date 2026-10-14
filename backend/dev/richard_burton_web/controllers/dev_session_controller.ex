@@ -15,30 +15,17 @@ defmodule RichardBurtonWeb.DevSessionController do
   """
   use RichardBurtonWeb, :controller
 
-  alias RichardBurton.Auth.Csrf
-  alias RichardBurton.Auth.Session
   alias RichardBurton.Repo
   alias RichardBurton.User
+  alias RichardBurtonWeb.SignInCookies
 
   @doc "Upserts the dev user for the asked-for role and sets its session cookies."
   def create(conn, params) do
     role = role_from(params)
     user = upsert(role)
-    {:ok, token} = Session.create(subject_id(role))
 
     conn
-    |> put_resp_cookie(Session.cookie_name(), token,
-      http_only: true,
-      same_site: "Lax",
-      secure: false,
-      max_age: Session.max_age()
-    )
-    |> put_resp_cookie("csrf-token", Csrf.sign(subject_id(role)),
-      http_only: false,
-      same_site: "Lax",
-      secure: false,
-      max_age: Session.max_age()
-    )
+    |> SignInCookies.put(subject_id(role), secure: false)
     |> put_status(:created)
     |> json(user)
   end

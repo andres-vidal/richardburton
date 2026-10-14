@@ -91,7 +91,8 @@ defmodule RichardBurtonWeb.PublicationController do
   # the reader arrived from a search, that search is sent along too, so the record
   # highlights what matched exactly as the index did.
   def show(conn, params = %{"id" => id}) do
-    with {:ok, publication} <- found(Publication.find(id)) do
+    with {:ok, id} <- integer_of(id),
+         {:ok, publication} <- found(Publication.find(id)) do
       flat = Publication.Codec.flatten(publication)
       json(conn, excerpted(flat, Map.get(params, "search")))
     end
@@ -253,7 +254,9 @@ defmodule RichardBurtonWeb.PublicationController do
   # A publication's mutation stream, newest first, for the admin history viewer.
   # Records created before the history log simply have no entries.
   def history(conn, %{"id" => id}) do
-    json(conn, %{entries: id |> Publication.History.of() |> Enum.map(&serialize_history/1)})
+    with {:ok, id} <- integer_of(id) do
+      json(conn, %{entries: id |> Publication.History.of() |> Enum.map(&serialize_history/1)})
+    end
   end
 
   # Every recorded change across the database, newest first — the admin feed.

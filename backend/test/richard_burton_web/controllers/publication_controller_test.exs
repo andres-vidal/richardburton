@@ -202,6 +202,11 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert json_response(conn, 404) == %{"error" => "not_found"}
     end
 
+    test "returns 404 for an id that is not a number", meta do
+      conn = get(meta.conn, publication_path(meta.conn, :show, "abc"))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
+    end
+
     test "a deleted publication reads as missing, not merely hidden", meta do
       expect_auth_authorize_admin()
       delete(meta.conn, publication_path(meta.conn, :delete, meta.publication.id))
@@ -333,6 +338,13 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> Publication.insert("importer@example.com")
 
       [conn: conn, publication: publication]
+    end
+
+    test "returns 404 for an id that is not a number", meta do
+      expect_auth_authorize_admin()
+
+      conn = get(meta.conn, publication_path(meta.conn, :history, "abc"))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
     end
 
     test "returns the ordered mutation stream with actors and snapshots", meta do
