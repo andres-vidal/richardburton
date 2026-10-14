@@ -60,6 +60,13 @@ defmodule RichardBurton.Publication.DuplicatesTest do
       assert [["Dom Casmuro", "Dom Casmurro"]] = titles(Duplicates.clusters())
     end
 
+    test "records whose comments differ are put together all the same" do
+      publication_fixture(%{comments: "Bought in 1953."})
+      publication_fixture(%{title: "Dom Casmuro", comments: "A note of another kind."})
+
+      assert [["Dom Casmuro", "Dom Casmurro"]] = titles(Duplicates.clusters())
+    end
+
     test "one translator's work entered under another title is found by the book behind it" do
       publication_fixture()
       publication_fixture(%{title: "The Confessions of a Jealous Man"})
@@ -395,6 +402,18 @@ defmodule RichardBurton.Publication.DuplicatesTest do
                    "original_authors" => ["Jose de Alencar"]
                  })
                ])
+    end
+
+    test "comments play no part in a resemblance or a repeat" do
+      stored = publication_fixture(%{comments: "Bought in 1953."})
+
+      assert [%{position: 0, stored: [found]}, %{position: 1, repeats: 0}] =
+               Duplicates.resemblances([
+                 row(%{"title" => "Dom Casmuro", "comments" => "Another note."}),
+                 row(%{"title" => "Dom Casmuro", "comments" => "A third note."})
+               ])
+
+      assert found.id == stored.id
     end
 
     test "a row that all but spells a stored record is reported against it" do

@@ -7,6 +7,17 @@ defmodule RichardBurton.Validation do
   `:required` or `:alpha2`, instead of a sentence.
   """
 
+  # The most characters a publication's comments may hold.
+  @comments_max_length 10_000
+
+  @doc """
+  Adds a `:comments` error to `changeset` when its comments are longer than
+  10,000 characters. `get_errors/1` reports it as `:too_long`.
+  """
+  def validate_comments(changeset) do
+    Ecto.Changeset.validate_length(changeset, :comments, max: @comments_max_length)
+  end
+
   @doc """
   Rejects repeated entries in a cast association, comparing each child by
   `key`. Without this a publication carrying the same country, publisher or
@@ -52,8 +63,9 @@ defmodule RichardBurton.Validation do
 
   The codes are `:required`, `:array` for a list field given something other
   than a list, the type of a field that could not be cast to it, such as
-  `:integer`, `:alpha2`, `:duplicate`, `:conflict`, and `:invalid` for any
-  other failed validation.
+  `:integer`, `:alpha2`, `:duplicate`, `:conflict`, `:too_long` for a value
+  longer than its field's maximum length, and `:invalid` for any other failed
+  validation.
   """
   def get_errors(changeset) do
     changeset
@@ -70,6 +82,7 @@ defmodule RichardBurton.Validation do
   defp get_description(%{validation: :cast, type: {:array, _element}}), do: :array
   defp get_description(%{validation: :cast, type: type}) when is_atom(type), do: type
   defp get_description(%{validation: :length, kind: :min, count: 1}), do: :required
+  defp get_description(%{validation: :length, kind: :max}), do: :too_long
   defp get_description(%{validation: :assoc}), do: :required
   defp get_description(%{validation: :alpha2}), do: :alpha2
   defp get_description(%{validation: :duplicate}), do: :duplicate

@@ -61,6 +61,13 @@ defmodule RichardBurton.FlatPublicationTest do
       refute change_valid(%{"title" => ""}).valid?
     end
 
+    test "when comments are blank, casts them as nil" do
+      changeset = change_valid(%{"comments" => " \n "})
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_field(changeset, :comments) == nil
+    end
+
     test "when title is nil, is invalid" do
       refute change_valid(%{"title" => nil}).valid?
     end
@@ -160,6 +167,13 @@ defmodule RichardBurton.FlatPublicationTest do
 
     test "when a single field is invalid, returns the corresponding error map" do
       assert {:error, %{year: :integer}} = validate(Map.put(@valid_attrs, "year", "A"))
+    end
+
+    test "when comments are longer than 10,000 characters, reports them as too long" do
+      assert :ok == validate(Map.put(@valid_attrs, "comments", String.duplicate("a", 10_000)))
+
+      assert {:error, %{comments: :too_long}} ==
+               validate(Map.put(@valid_attrs, "comments", String.duplicate("a", 10_001)))
     end
 
     test "generates results analog to those of Publication.insert/2 on valid attrs" do

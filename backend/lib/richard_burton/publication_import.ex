@@ -72,7 +72,9 @@ defmodule RichardBurton.Publication.Import do
 
   # Inserts a publication for each changeset, with its links to the countries
   # and publishers in `links`, and its sources. The columns of each row are the
-  # changes the changeset casts. Returns the publications' ids in order.
+  # changes the changeset casts, and `comments`, which is nil when the changeset
+  # does not change it, so that every row has the same columns. Returns the
+  # publications' ids in order.
   defp insert_publications(changesets, links) do
     ids =
       Publication
@@ -80,6 +82,7 @@ defmodule RichardBurton.Publication.Import do
         Enum.zip_with(changesets, links, fn changeset, links ->
           changeset.changes
           |> Map.drop(Publication.__schema__(:associations))
+          |> Map.put_new(:comments, nil)
           |> Map.put(:translated_book_id, links.translated_book_id)
         end),
         returning: [:id]

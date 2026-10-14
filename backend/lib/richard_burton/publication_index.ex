@@ -27,6 +27,12 @@ defmodule RichardBurton.Publication.Index do
       `{:spelled_out, term}` or `{:alternatives, alternatives}`. `matches/1` and
       `ranking/1` are built from it, and it is the only thing that differs
       between the two ways of reading a term.
+    * **listed row** — a publication as a page of the index holds it: a map of
+      the fields of a `RichardBurton.FlatPublication` other than `comments`,
+      with `excerpts` and `marked`. It has no `comments` key, so that a page
+      stays small however long the comments are. `details/3` and
+      `without_sources/0` return listed rows. `all/1` and `search/2` return
+      whole `FlatPublication` structs, comments included.
 
   Each word is matched on its own: as a prefix when the index holds words
   beginning with it, and by resemblance when it does not. So a word matched by
@@ -62,6 +68,12 @@ defmodule RichardBurton.Publication.Index do
   # suffices, small enough that it arrives in one response.
   @per_page Application.compile_env(:richard_burton, :publications_per_page, 50)
 
+  # The fields a listed row reads from the view. See the module doc.
+  @listed FlatPublication.__schema__(:fields) -- [:comments]
+
+  # The keys of a listed row.
+  @listed_keys [:excerpts, :marked | @listed]
+
   @doc "Name of the response header carrying the index's total count."
   @spec count_header() :: String.t()
   def count_header, do: @count_header
@@ -94,16 +106,17 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  Returns `{:ok, publications}`, the publications in the index that cite no
-  source, ordered by id, so the order is the same on every call.
+  Returns `{:ok, rows}`, the listed rows of the publications in the index that
+  cite no source, ordered by id, so the order is the same on every call.
   """
   def without_sources do
     results =
-      from(fp in FlatPublication,
+      from(fp in listed(),
         where: fragment("cardinality(?) = 0", fp.sources),
         order_by: [asc: fp.id]
       )
       |> Repo.all()
+      |> Enum.map(&listed_row/1)
 
     {:ok, results}
   end
@@ -177,11 +190,12 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  Returns the full rows for the given ids, in that order: one page of an
+  Returns the listed rows for the given ids, in that order: one page of an
   ordering that `search_order/1` or `all_order/0` returned earlier.
 
-  Pass `nil` as the term for a plain listing. Pass the term itself and each row
-  comes back with an excerpt of every field that matched it.
+  Pass `nil` as the term for a plain listing, whose rows hold nil `excerpts`
+  and `marked`. Pass the term itself and each row comes back with an excerpt
+  of every field that matched it.
 
   An id that is no longer in the database is left out. That is what a deletion
   looks like after the order was fixed: a gap in the page, rather than rows
@@ -190,8 +204,9 @@ defmodule RichardBurton.Publication.Index do
   def details(ids, term \\ nil)
 
   def details(ids, nil) when is_list(ids) do
-    from(fp in FlatPublication, where: fp.id in ^ids)
+    from(fp in listed(), where: fp.id in ^ids)
     |> Repo.all()
+    |> Enum.map(&listed_row/1)
     |> in_order(ids)
   end
 
@@ -206,9 +221,10 @@ defmodule RichardBurton.Publication.Index do
   def details(ids, nil, _standings), do: details(ids, nil)
 
   def details(ids, term, standings) when is_list(ids) and is_binary(term) do
-    from(fp in FlatPublication, where: fp.id in ^ids)
+    from(fp in listed(), where: fp.id in ^ids)
     |> Excerpt.select(term, standings)
     |> Repo.all()
+    |> Enum.map(&listed_row/1)
     |> in_order(ids)
   end
 
@@ -308,6 +324,14 @@ defmodule RichardBurton.Publication.Index do
   defp maybe_select(query, attributes) do
     select(query, [fp], map(fp, ^attributes))
   end
+
+  # A query for the publications in the index, each selected as a
+  # `FlatPublication` without its comments.
+  defp listed, do: from(fp in FlatPublication, select: struct(fp, ^@listed))
+
+  # Returns a `FlatPublication` as a listed row: a map of its `@listed` fields,
+  # its `excerpts` and its `marked`.
+  defp listed_row(publication), do: Map.take(publication, @listed_keys)
 
   # Puts rows into the order the given ids are in, dropping any id that is no longer
   # in the database. The database returns them in whatever order it likes.

@@ -5,8 +5,8 @@ defmodule RichardBurton.Publication.Codec do
 
   The **flat** shape is the one `RichardBurton.FlatPublication` has: `title`,
   `year`, `countries`, `publishers`, `authors`, `original_title`,
-  `original_authors` and `sources`, side by side, with each list field holding
-  names, codes or source texts.
+  `original_authors`, `sources` and `comments`, side by side, with each list
+  field holding names, codes or source texts.
 
   The **nested** shape is the one `RichardBurton.Publication.changeset/2`
   casts. Its list fields hold child maps, such as `%{"name" => name}`, and the
@@ -16,6 +16,7 @@ defmodule RichardBurton.Publication.Codec do
       %{
         "title" => title,
         "year" => year,
+        "comments" => text,
         "countries" => [%{"code" => code}],
         "publishers" => [%{"name" => name}],
         "sources" => [%{"content" => text, "position" => 0}],
@@ -43,7 +44,8 @@ defmodule RichardBurton.Publication.Codec do
     "publishers" => "",
     "authors" => "",
     "original_title" => "",
-    "original_authors" => ""
+    "original_authors" => "",
+    "comments" => nil
   }
 
   # The columns a file may carry, by the name its header gives them. Singular
@@ -59,7 +61,9 @@ defmodule RichardBurton.Publication.Codec do
     "translators" => "authors",
     "original_title" => "original_title",
     "original_authors" => "original_authors",
-    "sources" => "sources"
+    "sources" => "sources",
+    "comment" => "comments",
+    "comments" => "comments"
   }
 
   # The order an exported file writes its columns in.
@@ -71,7 +75,8 @@ defmodule RichardBurton.Publication.Codec do
     "authors",
     "original_title",
     "original_authors",
-    "sources"
+    "sources",
+    "comments"
   ]
 
   # The cells holding several values, and what separates them. A semicolon,
@@ -94,6 +99,9 @@ defmodule RichardBurton.Publication.Codec do
   The header decides which column is which, so they may be written in any order
   and a column the file does not carry reads as empty. A name the table does not
   know is ignored, which is what lets a spreadsheet keep a column of its own.
+
+  A `comments` cell may hold several lines, inside quotes. A blank or missing
+  `comments` cell reads as nil.
   """
   def from_csv(path) do
     try do
@@ -104,6 +112,7 @@ defmodule RichardBurton.Publication.Codec do
         |> Enum.map(&rename_columns/1)
         |> Enum.map(&Util.deep_merge_maps(@empty_flat_attrs, &1))
         |> Enum.map(&parse_list_cells/1)
+        |> Enum.map(&parse_comments/1)
 
       {:ok, publications}
     rescue
@@ -120,15 +129,27 @@ defmodule RichardBurton.Publication.Codec do
 
   @doc """
   Writes publications as a CSV with a header, in the shape `from_csv/1` reads.
+
+  The columns come in this order: `title`, `year`, `countries`, `publishers`,
+  `authors`, `original_title`, `original_authors`, `sources` and `comments`.
+  The file has a column for each of them that the first publication holds, so
+  every publication must hold the same fields.
   """
   def to_csv(flat_publications) do
-    flat_publications
-    |> Enum.map(&Util.stringify_keys/1)
-    |> Enum.map(&join_list_cells/1)
-    |> Enum.map(&Map.take(&1, @csv_headers))
-    |> CSV.encode(delimiter: "\n", headers: true)
+    rows =
+      flat_publications
+      |> Enum.map(&Util.stringify_keys/1)
+      |> Enum.map(&join_list_cells/1)
+
+    rows
+    |> CSV.encode(delimiter: "\n", headers: columns(rows))
     |> Enum.to_list()
   end
+
+  # Returns the fields of `@csv_headers` that the first of `rows` holds, in
+  # the order `@csv_headers` lists them.
+  defp columns([]), do: []
+  defp columns([row | _]), do: Enum.filter(@csv_headers, &Map.has_key?(row, &1))
 
   # Returns a row with its columns renamed to the flat fields `@csv_columns`
   # maps them to, and its values trimmed, leaving out the columns it does not
@@ -168,6 +189,11 @@ defmodule RichardBurton.Publication.Codec do
   end
 
   defp split_cell(_absent, _separator), do: []
+
+  # Returns a row with a blank `comments` cell as nil, the value a publication
+  # without comments holds. The cell is already trimmed.
+  defp parse_comments(row = %{"comments" => ""}), do: %{row | "comments" => nil}
+  defp parse_comments(row), do: row
 
   # Joins each list of the fields in `@csv_lists` into one cell. A field the
   # row does not hold is left out rather than written empty, because an

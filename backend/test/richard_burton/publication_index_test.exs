@@ -1220,4 +1220,52 @@ defmodule RichardBurton.Publication.IndexTest do
       )
     end
   end
+
+  describe "comments" do
+    setup do
+      [publication] =
+        seed_index([
+          %{
+            title: "Dona Flor and Her Two Husbands",
+            year: 1969,
+            countries: ["US"],
+            publishers: ["Knopf"],
+            authors: ["Harriet de Onís"],
+            original_title: "Dona Flor e seus dois maridos",
+            original_authors: ["Jorge Amado"],
+            comments: "Reviewed in *The New Yorker*, with a zanzibarian flourish."
+          }
+        ])
+
+      [publication: publication]
+    end
+
+    test "a listed row leaves them out", %{publication: publication} do
+      assert [row] = Publication.Index.details([publication.id])
+      assert row.title == "Dona Flor and Her Two Husbands"
+      refute Map.has_key?(row, :comments)
+
+      assert [row] = Publication.Index.details([publication.id], "Flor")
+      assert row.excerpts.title =~ "[[Flor]]"
+      refute Map.has_key?(row, :comments)
+
+      {:ok, unsourced} = Publication.Index.without_sources()
+      assert Enum.any?(unsourced, &(&1.id == publication.id))
+      refute Enum.any?(unsourced, &Map.has_key?(&1, :comments))
+    end
+
+    test "all/0 and search/1 return them", %{publication: publication} do
+      comments = "Reviewed in *The New Yorker*, with a zanzibarian flourish."
+
+      {:ok, all} = Publication.Index.all()
+      assert %FlatPublication{comments: ^comments} = Enum.find(all, &(&1.id == publication.id))
+
+      {:ok, found} = Publication.Index.search("Flor")
+      assert %FlatPublication{comments: ^comments} = Enum.find(found, &(&1.id == publication.id))
+    end
+
+    test "the search does not read them" do
+      assert Publication.Index.search_order("zanzibarian") == :none
+    end
+  end
 end

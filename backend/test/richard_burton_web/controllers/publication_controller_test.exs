@@ -820,7 +820,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                    "id",
                    "sources",
                    "excerpts",
-                   "marked"
+                   "marked",
+                   "comments"
                  ])
                )
     end
@@ -920,7 +921,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                    "id",
                    "sources",
                    "excerpts",
-                   "marked"
+                   "marked",
+                   "comments"
                  ])
                )
     end
@@ -1005,7 +1007,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                    "id",
                    "sources",
                    "excerpts",
-                   "marked"
+                   "marked",
+                   "comments"
                  ])
                )
     end
@@ -1214,7 +1217,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => ["Isabel Burton", "Richard Burton"],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "sources" => []
+          "sources" => [],
+          "comments" => nil
         },
         "errors" => nil
       },
@@ -1227,7 +1231,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => ["J. T. W. Sadler"],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Ubirajara",
-          "sources" => []
+          "sources" => [],
+          "comments" => nil
         },
         "errors" => nil
       },
@@ -1240,7 +1245,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => [],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "sources" => []
+          "sources" => [],
+          "comments" => nil
         },
         "errors" => %{
           "year" => "integer",
@@ -1281,7 +1287,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
       expected_data =
-        "authors,countries,original_authors,original_title,publishers,sources,title,year\nIsabel Burton,GB,José de Alencar,Iracema,Bickers & Son,,Iraçéma the Honey-Lips: A Legend of Brazil,1886\n"
+        "title,year,countries,publishers,authors,original_title,original_authors,sources,comments\nIraçéma the Honey-Lips: A Legend of Brazil,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,,\n"
 
       expected_filename = "publications.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1333,7 +1339,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors,countries,original_authors,original_title,publishers,sources,title,year\nIsabel Burton,GB,José de Alencar,Iracema,Bickers & Son,,Iraçéma the Honey-Lips: A Legend of Brazil,1886\n"
+        "title,year,countries,publishers,authors,original_title,original_authors,sources,comments\nIraçéma the Honey-Lips: A Legend of Brazil,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,,\n"
 
       expected_filename = "publications-#{search}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1359,7 +1365,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors,original_title,title\nIsabel Burton,Iracema,Iraçéma the Honey-Lips: A Legend of Brazil\n"
+        "title,authors,original_title\nIraçéma the Honey-Lips: A Legend of Brazil,Isabel Burton,Iracema\n"
 
       expected_filename = "publications-#{search}-#{Enum.join(attributes, "-")}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1385,7 +1391,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors,original_title,title\nIsabel Burton,Iracema,Iraçéma the Honey-Lips: A Legend of Brazil\n"
+        "title,authors,original_title\nIraçéma the Honey-Lips: A Legend of Brazil,Isabel Burton,Iracema\n"
 
       expected_filename = "publications-#{Enum.join(attributes, "-")}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1526,6 +1532,182 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       meta.conn
       |> post("/api/publications/abc/validate", @iracema)
       |> json_response(404)
+    end
+  end
+
+  describe "comments" do
+    @comments "**First** edition, in English.\n\n- Bound in green cloth\n- Signed \"I. Burton\" on the title page"
+
+    test "GET /publications/:id carries them, and null for a publication without any", meta do
+      with_comments = publication_fixture(Map.put(@iracema, :comments, @comments))
+      without_comments = publication_fixture(%{@iracema | title: "Iracema"})
+
+      assert %{"comments" => @comments} =
+               meta.conn
+               |> get(publication_path(meta.conn, :show, with_comments.id))
+               |> json_response(200)
+
+      assert %{"comments" => nil} =
+               meta.conn
+               |> get(publication_path(meta.conn, :show, without_comments.id))
+               |> json_response(200)
+    end
+
+    test "the rows of the index leave them out", meta do
+      publication = publication_fixture(Map.put(@iracema, :comments, @comments))
+
+      first_page =
+        meta.conn |> get(publication_path(meta.conn, :index)) |> json_response(200)
+
+      later_page =
+        meta.conn
+        |> get("#{publication_path(meta.conn, :index)}?ids[]=#{publication.id}&search=Honey")
+        |> json_response(200)
+
+      unsourced =
+        meta.conn
+        |> get("#{publication_path(meta.conn, :index)}?unsourced=true")
+        |> json_response(200)
+
+      for %{"entries" => [entry]} <- [first_page, later_page, unsourced] do
+        assert entry["id"] == publication.id
+        refute Map.has_key?(entry, "comments")
+      end
+    end
+
+    test "PUT /publications/:id sets them, clears them when blank, and keeps them when left out",
+         meta do
+      publication = publication_fixture(@iracema)
+      path = publication_path(meta.conn, :update, publication.id)
+
+      assert %{"comments" => @comments} =
+               meta.conn
+               |> put(path, Map.put(@iracema, :comments, @comments))
+               |> json_response(200)
+
+      assert %{"comments" => @comments} =
+               meta.conn |> put(path, %{@iracema | year: "1887"}) |> json_response(200)
+
+      assert %{"comments" => nil} =
+               meta.conn |> put(path, Map.put(@iracema, :comments, " \n ")) |> json_response(200)
+    end
+
+    test "PUT /publications/:id refuses comments longer than 10,000 characters", meta do
+      publication = publication_fixture(@iracema)
+      attrs = Map.put(@iracema, :comments, String.duplicate("a", 10_001))
+
+      conn = put(meta.conn, publication_path(meta.conn, :update, publication.id), attrs)
+
+      assert json_response(conn, 400) == %{"errors" => %{"comments" => "too_long"}}
+    end
+
+    test "POST /publications/bulk stores them and returns them", meta do
+      input = %{
+        "_json" => [
+          Map.put(@iracema, :comments, @comments),
+          %{@iracema | title: "Iracema"}
+        ]
+      }
+
+      assert [%{"comments" => @comments}, %{"comments" => nil}] =
+               meta.conn
+               |> post(publication_path(meta.conn, :create_all), input)
+               |> json_response(201)
+
+      assert [@comments, nil] ==
+               FlatPublication |> Repo.all() |> Enum.sort_by(& &1.id) |> Enum.map(& &1.comments)
+    end
+
+    test "POST /publications/validate reports comments that are too long", meta do
+      rows = [
+        Map.put(@iracema, :comments, @comments),
+        %{@iracema | title: "Iracema"} |> Map.put(:comments, String.duplicate("a", 10_001))
+      ]
+
+      assert [
+               %{"publication" => %{"comments" => @comments}, "errors" => nil},
+               %{"errors" => %{"comments" => "too_long"}}
+             ] =
+               meta.conn
+               |> post(publication_path(meta.conn, :validate), %{"_json" => rows})
+               |> json_response(200)
+    end
+
+    test "POST /publications/validate reads a CSV cell of several lines", meta do
+      input = uploaded_csv_fixture("test/fixtures/data_with_comments.csv")
+
+      assert [
+               %{"publication" => %{"comments" => @comments}, "errors" => nil},
+               %{"publication" => %{"comments" => nil}, "errors" => nil}
+             ] =
+               meta.conn
+               |> post(publication_path(meta.conn, :validate), input)
+               |> json_response(200)
+    end
+
+    test "GET /files/publications writes them in the last column", meta do
+      publication_fixture(Map.put(@iracema, :comments, @comments))
+
+      csv = meta.conn |> get(publication_path(meta.conn, :export)) |> response(200)
+
+      assert csv ==
+               "title,year,countries,publishers,authors,original_title,original_authors,sources,comments\n" <>
+                 "Iraçéma the Honey-Lips: A Legend of Brazil,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,," <>
+                 "\"**First** edition, in English.\n\n- Bound in green cloth\n- Signed \"\"I. Burton\"\" on the title page\"\n"
+    end
+
+    test "POST /publications/:id/merge returns the winner with its own comments", meta do
+      winner = publication_fixture(Map.put(@iracema, :comments, @comments))
+
+      loser =
+        publication_fixture(%{
+          @iracema
+          | countries: ["US"],
+            publishers: ["Noonday Press"]
+        })
+
+      assert %{"id" => id, "comments" => @comments} =
+               meta.conn
+               |> post(publication_path(meta.conn, :merge, winner.id), %{"losers" => [loser.id]})
+               |> json_response(200)
+
+      assert id == winner.id
+    end
+
+    test "the history reports a change to them", meta do
+      publication = publication_fixture(@iracema)
+
+      meta.conn
+      |> put(
+        publication_path(meta.conn, :update, publication.id),
+        Map.put(@iracema, :comments, @comments)
+      )
+      |> json_response(200)
+
+      assert %{"entries" => [updated, _created]} =
+               meta.conn
+               |> get(publication_path(meta.conn, :history, publication.id))
+               |> json_response(200)
+
+      assert updated["snapshot"]["comments"] == @comments
+      assert updated["diff"]["fields"] == %{"comments" => %{"from" => nil, "to" => @comments}}
+    end
+
+    test "a restore with changes sets them, and the trash lists them", meta do
+      publication = publication_fixture(Map.put(@iracema, :comments, "Deleted with a note."))
+      {:ok, _} = Publication.delete(publication.id)
+
+      assert %{"entries" => [%{"publication" => %{"comments" => "Deleted with a note."}}]} =
+               meta.conn |> get(publication_path(meta.conn, :index_deleted)) |> json_response(200)
+
+      meta.conn
+      |> post(
+        publication_path(meta.conn, :restore, publication.id),
+        Map.put(@iracema, :comments, @comments)
+      )
+      |> response(204)
+
+      assert Publication.find(publication.id).comments == @comments
     end
   end
 end

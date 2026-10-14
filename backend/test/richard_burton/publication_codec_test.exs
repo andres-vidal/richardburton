@@ -28,7 +28,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => ["Bickers & Son"],
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
-          "sources" => []
+          "sources" => [],
+          "comments" => nil
         },
         %{
           "authors" => ["J. T. W. Sadler"],
@@ -38,7 +39,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => ["Ronald Massey"],
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "1922",
-          "sources" => []
+          "sources" => [],
+          "comments" => nil
         },
         %{
           "authors" => [],
@@ -48,7 +50,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => ["Bickers & Son"],
           "title" => "",
           "year" => "AAAA",
-          "sources" => []
+          "sources" => [],
+          "comments" => nil
         }
       ]
 
@@ -675,6 +678,77 @@ defmodule RichardBurton.Publication.CodecTest do
 
       # The newline lives inside a quoted field, so the row stays intact.
       assert csv =~ "\"First source\nSecond source\""
+    end
+  end
+
+  describe "comments" do
+    @comments "**First** edition, in English.\n\n- Bound in green cloth\n- Signed \"I. Burton\" on the title page"
+
+    test "nest and flatten keep the comments at the top of both shapes" do
+      flat = %{"title" => "Iracema", "comments" => @comments}
+
+      nested = Publication.Codec.nest(flat)
+
+      assert nested["comments"] == @comments
+      assert Publication.Codec.flatten(nested) == flat
+    end
+
+    test "a publication flattens with its comments, and without any as nil" do
+      publication =
+        Publication.Codec.nest(%FlatPublication{title: "Iracema", comments: @comments})
+
+      assert %Publication{comments: @comments} = publication
+      assert %FlatPublication{comments: @comments} = Publication.Codec.flatten(publication)
+
+      assert %FlatPublication{comments: nil} =
+               Publication.Codec.flatten(%Publication{title: "Iracema"})
+    end
+
+    test "the error of the comments keeps its own key" do
+      assert %{"comments" => :too_long} ==
+               Publication.Codec.flatten_errors(%{comments: :too_long})
+    end
+
+    test "from_csv reads a quoted cell of several lines as one value, and a blank one as nil" do
+      assert {:ok, [iracema, ubirajara]} =
+               Publication.Codec.from_csv("test/fixtures/data_with_comments.csv")
+
+      assert iracema["comments"] == @comments
+      assert ubirajara["comments"] == nil
+    end
+
+    test "from_csv reads a file without a comments column as having no comments" do
+      assert {:ok, [row]} = Publication.Codec.from_csv("test/fixtures/data_with_sources.csv")
+
+      assert Map.fetch(row, "comments") == {:ok, nil}
+    end
+
+    test "to_csv writes the comments last, quoted, and from_csv reads them back" do
+      flat = %{
+        "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
+        "year" => "1886",
+        "countries" => ["GB"],
+        "publishers" => ["Bickers & Son"],
+        "authors" => ["Isabel Burton"],
+        "original_title" => "Iracema",
+        "original_authors" => ["José de Alencar"],
+        "sources" => [],
+        "comments" => @comments
+      }
+
+      csv = [flat] |> Publication.Codec.to_csv() |> Enum.join()
+
+      assert [header | _] = String.split(csv, "\n")
+
+      assert header ==
+               "title,year,countries,publishers,authors,original_title,original_authors,sources,comments"
+
+      path = Path.join(System.tmp_dir!(), "comments-#{System.unique_integer([:positive])}.csv")
+      File.write!(path, csv)
+      on_exit(fn -> File.rm(path) end)
+
+      assert {:ok, [read]} = Publication.Codec.from_csv(path)
+      assert read["comments"] == @comments
     end
   end
 end

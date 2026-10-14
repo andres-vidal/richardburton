@@ -1,8 +1,9 @@
 defmodule RichardBurton.FlatPublication do
   @moduledoc """
   A publication in its flat shape: the title, year, countries, publishers,
-  translators (`authors`), original title, original authors and sources side
-  by side, each list holding names, country codes or source texts.
+  translators (`authors`), original title, original authors, sources and
+  comments side by side, each list holding names, country codes or source
+  texts. The comments are Markdown text, or nil.
 
   The schema reads the `flat_publications` materialized view, which holds one
   row for each publication that is not deleted, and which
@@ -27,9 +28,9 @@ defmodule RichardBurton.FlatPublication do
     :original_authors
   ]
 
-  # Writable but not required: a publication may legitimately have no provenance,
-  # and the bulk CSV import doesn't carry it.
-  @writable_attributes [:sources | @required_attributes]
+  # Writable but not required: a publication may legitimately have no provenance
+  # or comments, and a CSV file may leave either column out.
+  @writable_attributes [:sources, :comments | @required_attributes]
 
   # The attributes that hold several values. An empty list is not "blank" to
   # `validate_required/2`, so saying a record has no countries at all takes a
@@ -50,6 +51,7 @@ defmodule RichardBurton.FlatPublication do
     field(:original_title, :string)
     field(:original_authors, {:array, :string})
     field(:sources, {:array, :string})
+    field(:comments, :string)
 
     field(:excerpts, :map, virtual: true)
     field(:marked, :map, virtual: true)
@@ -61,6 +63,7 @@ defmodule RichardBurton.FlatPublication do
     |> cast(attrs, @writable_attributes)
     |> validate_required(@required_attributes)
     |> validate_any_values()
+    |> Validation.validate_comments()
     |> Country.resolve_countries()
     |> Country.validate_countries()
     |> validate_entries()

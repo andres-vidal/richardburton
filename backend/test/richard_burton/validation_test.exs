@@ -35,11 +35,19 @@ defmodule RichardBurton.ValidationTest do
       assert Validation.get_errors(changeset) == %{rows: :integer}
     end
 
-    test "returns :invalid for any other failed validation" do
+    test "returns :too_long for a value longer than its field's maximum length" do
       changeset =
         %Author{}
         |> Ecto.Changeset.cast(%{"name" => "Isabel Burton"}, [:name])
         |> Ecto.Changeset.validate_length(:name, max: 5)
+
+      assert Validation.get_errors(changeset) == %{name: :too_long}
+    end
+
+    test "returns :invalid for any other failed validation" do
+      changeset =
+        %Author{}
+        |> Ecto.Changeset.cast(%{"name" => "Isabel Burton"}, [:name])
         |> Ecto.Changeset.validate_inclusion(:name, ["Richard Burton"])
 
       assert Validation.get_errors(changeset) == %{name: :invalid}

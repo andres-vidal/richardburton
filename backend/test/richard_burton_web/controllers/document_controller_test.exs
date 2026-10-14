@@ -137,7 +137,7 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
     test "a name longer than 200 characters is refused", meta do
       document = create(meta.conn)
 
-      assert %{"errors" => %{"name" => "invalid"}} ==
+      assert %{"errors" => %{"name" => "too_long"}} ==
                meta.conn
                |> patch(document_path(meta.conn, :update, document["id"]), %{
                  "name" => String.duplicate("a", 201)

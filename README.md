@@ -206,12 +206,18 @@ docker exec richard-burton-prod-phoenix-1 bin/migrate
 
 This app provides a mix task to initialize the database from a CSV file, `data.csv` placed on the project's root directory. This project should already include such file. Run the task with `mix rb.load_data`.
 
-A `data.csv` entry is a `Publication`, with their associated entities embedded. The fields, ordered, are:
+Each row of `data.csv` is one publication. The first line is a header that names the columns, so the columns can come in any order, and a column whose name is not listed below is ignored. The columns are:
 
-- `original book authors` (separated by commas)
-- `publication year`
-- `publication country`
-- `original book title`
-- `publication title`
-- `publication authors` (separated by commas)
-- `publication publisher`
+| Column                        | Holds                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `title`                       | The publication's title                                                      |
+| `year`                        | The year it was published                                                    |
+| `countries` (or `country`)    | The countries it was published in, as ISO codes or names, separated by `;`   |
+| `publishers` (or `publisher`) | Its publishers, separated by `;`                                             |
+| `authors` (or `translators`)  | Its translators, separated by `;`                                            |
+| `original_title`              | The title of the original book                                               |
+| `original_authors`            | The authors of the original book, separated by `;`                           |
+| `sources`                     | The sources it cites, one per line                                           |
+| `comments` (or `comment`)     | Free text about the publication, written as Markdown, over one or more lines |
+
+A cell that holds a comma, a quote or a line break is written inside double quotes. The CSV export writes the same columns, in the order of this table.

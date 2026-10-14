@@ -11,6 +11,7 @@ defmodule RichardBurton.PublicationTest do
   alias RichardBurton.Publication.History
   alias RichardBurton.Source
   alias RichardBurton.TranslatedBook
+  alias RichardBurton.Validation
 
   @empty_attrs %{}
   @skeleton_attrs %{translated_book: %{original_book: %{}}}
@@ -117,6 +118,78 @@ defmodule RichardBurton.PublicationTest do
       assert Enum.empty?(Repo.all(TranslatedBook))
       changeset(publication_attrs())
       assert Enum.empty?(Repo.all(TranslatedBook))
+    end
+  end
+
+  describe "comments" do
+    @comments "A note in **bold**, with a [link](https://example.com).\n\n1. One\n2. Two"
+
+    test "are stored as written, and the flat view carries them" do
+      publication = publication_fixture(%{comments: @comments})
+
+      assert Publication.find(publication.id).comments == @comments
+      assert [%FlatPublication{comments: @comments}] = Repo.all(FlatPublication)
+    end
+
+    test "a blank value is stored as nil" do
+      publication = publication_fixture(%{comments: @comments})
+
+      assert {:ok, updated} =
+               Publication.update(publication.id, publication_attrs(%{comments: "  \n "}))
+
+      assert updated.comments == nil
+      assert Publication.find(publication.id).comments == nil
+    end
+
+    test "an update without comments keeps the stored ones" do
+      publication = publication_fixture(%{comments: @comments})
+
+      assert {:ok, updated} =
+               Publication.update(
+                 publication.id,
+                 publication_attrs(%{title: "Dom Casmurro: A Novel"})
+               )
+
+      assert updated.comments == @comments
+    end
+
+    test "comments longer than 10,000 characters are too long" do
+      assert change_valid(%{"comments" => String.duplicate("a", 10_000)}).valid?
+
+      assert %{comments: :too_long} ==
+               Validation.get_errors(change_valid(%{"comments" => String.duplicate("a", 10_001)}))
+    end
+
+    test "are not part of the composite key" do
+      publication_fixture(%{comments: @comments})
+
+      assert {:error, :conflict} ==
+               Publication.insert(publication_attrs(%{comments: "Another note."}))
+    end
+
+    test "a batch may hold rows with comments and rows without" do
+      assert {:ok, [with_comments, without_comments]} =
+               Publication.insert_all([
+                 publication_attrs(%{comments: @comments}),
+                 publication_attrs(%{year: 1954})
+               ])
+
+      assert with_comments.comments == @comments
+      assert without_comments.comments == nil
+    end
+
+    test "a restore with changes can set them" do
+      publication = publication_fixture()
+      {:ok, _} = Publication.delete(publication.id)
+
+      assert {:ok, _} =
+               Publication.restore(
+                 publication.id,
+                 History.system_actor(),
+                 publication_attrs(%{comments: @comments})
+               )
+
+      assert Publication.find(publication.id).comments == @comments
     end
   end
 
@@ -649,6 +722,19 @@ defmodule RichardBurton.PublicationTest do
 
       assert ["A source", "Another source"] ==
                merged.sources |> Enum.map(& &1.content) |> Enum.sort()
+    end
+
+    test "the winner keeps its comments, and the loser's are not added to them" do
+      winner = publication_fixture(%{comments: "The winner's note."})
+
+      loser =
+        publication_fixture(%{
+          title: "Dom Casmurro: Another Printing",
+          comments: "The loser's note."
+        })
+
+      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
+      assert merged.comments == "The winner's note."
     end
 
     test "a source both of them recorded is recorded once" do

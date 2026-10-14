@@ -136,6 +136,36 @@ defmodule RichardBurton.Publication.HistoryTest do
       assert Map.keys(diff.fields) == ["title"]
     end
 
+    test "a change to the comments is diffed like any other field", %{publication: publication} do
+      edit(publication, %{comments: "Bound in **green** cloth."})
+
+      assert [%History{diff: diff} | _] = History.of(publication.id)
+      assert diff.fields == %{"comments" => %{from: nil, to: "Bound in **green** cloth."}}
+    end
+
+    test "a snapshot without a comments key holds the same comments as one whose comments are nil",
+         %{publication: publication} do
+      [created] = History.of(publication.id)
+
+      snapshot =
+        created.snapshot
+        |> Map.delete("comments")
+        |> Map.put("title", "Dom Casmurro: A Novel")
+
+      %History{}
+      |> History.changeset(%{
+        publication_id: publication.id,
+        version: 2,
+        action: "updated",
+        snapshot: snapshot,
+        actor: "a@b.com"
+      })
+      |> Repo.insert!()
+
+      assert [%History{diff: diff} | _] = History.of(publication.id)
+      assert Map.keys(diff.fields) == ["title"]
+    end
+
     test "sources diff as the exact entries added and removed", %{publication: publication} do
       edit(publication, %{sources: ["Pontiero, Giovanni."]})
       edit(publication, %{sources: ["Moser, Benjamin."]})
@@ -281,6 +311,16 @@ defmodule RichardBurton.Publication.HistoryTest do
 
       assert ["restored", "deleted", "created"] = actions(publication)
       refute Enum.any?(Publication.all_deleted(), &(&1.id == publication.id))
+    end
+
+    test "undoing an update that added comments takes them away", %{publication: publication} do
+      {:ok, _} =
+        Publication.update(publication.id, publication_attrs(%{comments: "A note."}), "a@b.com")
+
+      version = version_of(publication, "updated")
+
+      assert {:ok, reverted} = Publication.undo(publication.id, version, "a@b.com")
+      assert reverted.comments == nil
     end
 
     test "an update is undone by putting its fields back", %{publication: publication} do
