@@ -22,9 +22,9 @@ defmodule RichardBurtonWeb.DocumentSocket do
 
   use Phoenix.Socket
 
-  alias RichardBurton.Auth
   alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
+  alias RichardBurton.User
 
   channel("document:*", RichardBurtonWeb.DocumentChannel)
 
@@ -33,7 +33,7 @@ defmodule RichardBurtonWeb.DocumentSocket do
   contributor role or a higher one.
   """
   def allowed?(subject_id, session_id) do
-    Session.active?(session_id) and Auth.authorize(subject_id, :contributor) == :ok
+    Session.active?(session_id) and User.authorize(subject_id, :contributor) == :ok
   end
 
   @impl true

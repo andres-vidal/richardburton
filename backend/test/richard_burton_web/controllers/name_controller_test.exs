@@ -11,6 +11,8 @@ defmodule RichardBurtonWeb.NameControllerTest do
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
 
+  @moduletag role: :admin
+
   @author_names [
     "Machado de Assis",
     "Richard Burton",
@@ -35,19 +37,16 @@ defmodule RichardBurtonWeb.NameControllerTest do
 
   describe "GET /authors" do
     test "returns every author's name when there is no search", %{conn: conn} do
-      expect_auth_authorize_admin()
       conn = get(conn, author_path(conn, :index))
       assert @author_names == json_response(conn, 200)
     end
 
     test "returns the names of the authors a search finds", %{conn: conn} do
-      expect_auth_authorize_admin()
       conn = get(conn, author_path(conn, :index), %{"search" => "Richard"})
       assert ["Richard Burton", "Richard A. Mazzara"] == json_response(conn, 200)
     end
 
     test "falls back to names that resemble a misspelt search", %{conn: conn} do
-      expect_auth_authorize_admin()
       conn = get(conn, author_path(conn, :index), %{"search" => "Clarisse Lispector"})
       assert ["Clarice Lispector"] == json_response(conn, 200)
     end
@@ -60,20 +59,17 @@ defmodule RichardBurtonWeb.NameControllerTest do
 
   describe "GET /publishers" do
     test "returns every publisher's name when there is no search", %{conn: conn} do
-      expect_auth_authorize_admin()
       conn = get(conn, publisher_path(conn, :index))
       assert @publisher_names == json_response(conn, 200)
     end
 
     test "returns the names of the publishers a search finds", %{conn: conn} do
-      expect_auth_authorize_admin()
       conn = get(conn, publisher_path(conn, :index), %{"search" => "U"})
       assert ["UMass Dartmouth", "University Press of Kentucky"] == json_response(conn, 200)
     end
 
+    @tag role: :reader
     test "is refused to someone whose role does not reach it", %{conn: conn} do
-      refuse_auth_authorize(:contributor)
-
       conn = get(conn, publisher_path(conn, :index))
 
       assert %{"error" => "forbidden"} == json_response(conn, 403)

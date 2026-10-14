@@ -13,13 +13,9 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
   alias RichardBurton.Repo
   alias RichardBurtonWeb.DocumentChannel
 
-  setup do
-    {:ok, actor: create_session_user()}
-  end
+  @moduletag role: :admin
 
   defp create(conn, name \\ "Second pass") do
-    expect_auth_authorize_admin()
-
     conn
     |> post(document_path(conn, :create), %{"name" => name})
     |> json_response(201)
@@ -34,8 +30,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
     end
 
     test "a document needs a name", meta do
-      expect_auth_authorize_admin()
-
       assert %{"errors" => _} =
                meta.conn
                |> post(document_path(meta.conn, :create), %{"name" => ""})
@@ -50,8 +44,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       # A document this person did not create.
       theirs = document_fixture("Theirs")
 
-      expect_auth_authorize_admin()
-
       assert %{"entries" => entries} =
                meta.conn |> get(document_path(meta.conn, :index)) |> json_response(200)
 
@@ -61,8 +53,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "a page of them, and whether more follow it", meta do
       for name <- ["One", "Two", "Three"], do: document_fixture(name)
-
-      expect_auth_authorize_admin()
 
       assert %{"entries" => entries, "more" => true} =
                meta.conn
@@ -80,14 +70,10 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
         |> Repo.update!()
       end
 
-      expect_auth_authorize_admin()
-
       %{"entries" => [_, last]} =
         meta.conn
         |> get(document_path(meta.conn, :index), %{"limit" => "2"})
         |> json_response(200)
-
-      expect_auth_authorize_admin()
 
       # The cursor is sent back exactly as the previous page returned it.
       assert %{"entries" => [%{"name" => "Third"}], "more" => false} =
@@ -100,8 +86,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
     end
 
     test "a cursor that is not one is refused rather than read as the first page", meta do
-      expect_auth_authorize_admin()
-
       assert %{"error" => "invalid_after"} =
                meta.conn
                |> get(document_path(meta.conn, :index), %{
@@ -115,8 +99,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       retired = document_fixture("Retired")
       {:ok, _} = Document.archive(retired)
 
-      expect_auth_authorize_admin()
-
       assert %{"entries" => entries} =
                meta.conn |> get(document_path(meta.conn, :index)) |> json_response(200)
 
@@ -127,7 +109,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
   describe "renaming and retiring" do
     test "a document can be given a different name", meta do
       document = create(meta.conn, "Before")
-      expect_auth_authorize_admin()
 
       assert %{"name" => "After"} =
                meta.conn
@@ -137,7 +118,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "a name it could not be told apart by is refused", meta do
       document = create(meta.conn)
-      expect_auth_authorize_admin()
 
       assert %{"errors" => %{"name" => "required"}} ==
                meta.conn
@@ -147,7 +127,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "a rename without a name is refused, naming the field", meta do
       document = create(meta.conn)
-      expect_auth_authorize_admin()
 
       assert %{"errors" => %{"name" => "required"}} ==
                meta.conn
@@ -157,7 +136,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "a name longer than 200 characters is refused", meta do
       document = create(meta.conn)
-      expect_auth_authorize_admin()
 
       assert %{"errors" => %{"name" => "invalid"}} ==
                meta.conn
@@ -169,7 +147,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "archiving takes it off the list and putting it back returns it", meta do
       document = create(meta.conn)
-      expect_auth_authorize_admin()
 
       assert %{"archived_at" => archived_at} =
                meta.conn
@@ -177,8 +154,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
                |> json_response(200)
 
       assert archived_at
-
-      expect_auth_authorize_admin()
 
       assert %{"archived_at" => nil} =
                meta.conn
@@ -192,16 +167,12 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       document = create(meta.conn)
       update = Base.encode64(<<1, 2, 3>>)
 
-      expect_auth_authorize_admin()
-
       assert meta.conn
              |> post(document_path(meta.conn, :append, document["id"]), %{
                "update" => update,
                "rows" => 3
              })
              |> response(204)
-
-      expect_auth_authorize_admin()
 
       assert %{"entries" => [^update]} =
                meta.conn
@@ -215,8 +186,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       document = create(meta.conn)
       update = Base.encode64(<<4, 5, 6>>)
       RichardBurtonWeb.Endpoint.subscribe(DocumentChannel.topic(document["id"]))
-
-      expect_auth_authorize_admin()
 
       assert meta.conn
              |> post(document_path(meta.conn, :append, document["id"]), %{
@@ -233,8 +202,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       document = create(meta.conn)
       RichardBurtonWeb.Endpoint.subscribe(DocumentChannel.topic(document["id"]))
 
-      expect_auth_authorize_admin()
-
       assert meta.conn
              |> post(document_path(meta.conn, :append, document["id"]), %{
                "update" => Base.encode64(<<7>>)
@@ -248,8 +215,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       document = create(meta.conn)
 
       for bytes <- [<<1>>, <<2>>] do
-        expect_auth_authorize_admin()
-
         meta.conn
         |> post(document_path(meta.conn, :append, document["id"]), %{
           "update" => Base.encode64(bytes),
@@ -258,15 +223,12 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
         |> response(204)
       end
 
-      expect_auth_authorize_admin()
-
       %{"through" => through} =
         meta.conn
         |> get(document_path(meta.conn, :updates, document["id"]))
         |> json_response(200)
 
       merged = Base.encode64(<<1, 2>>)
-      expect_auth_authorize_admin()
 
       assert meta.conn
              |> post(document_path(meta.conn, :compact, document["id"]), %{
@@ -274,8 +236,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
                "through" => through
              })
              |> response(204)
-
-      expect_auth_authorize_admin()
 
       assert %{"entries" => [^merged]} =
                meta.conn
@@ -287,8 +247,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       document = create(meta.conn)
 
       append = fn bytes ->
-        expect_auth_authorize_admin()
-
         meta.conn
         |> post(document_path(meta.conn, :append, document["id"]), %{
           "update" => Base.encode64(bytes),
@@ -298,7 +256,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       end
 
       append.(<<1>>)
-      expect_auth_authorize_admin()
 
       %{"through" => through} =
         meta.conn
@@ -306,7 +263,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
         |> json_response(200)
 
       append.(<<2>>)
-      expect_auth_authorize_admin()
 
       later = Base.encode64(<<2>>)
 
@@ -322,7 +278,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "a point to read after that is not one is refused", meta do
       document = create(meta.conn)
-      expect_auth_authorize_admin()
 
       assert %{"error" => "invalid_after"} =
                meta.conn
@@ -334,7 +289,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "a compaction that names no point it reaches is refused", meta do
       document = create(meta.conn)
-      expect_auth_authorize_admin()
 
       assert %{"error" => "invalid_through"} =
                meta.conn
@@ -346,7 +300,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "a row count that is not one is not a reason to refuse the change", meta do
       document = create(meta.conn)
-      expect_auth_authorize_admin()
 
       assert meta.conn
              |> post(document_path(meta.conn, :append, document["id"]), %{
@@ -360,7 +313,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "an append or a compaction without an update is refused", meta do
       document = create(meta.conn)
-      expect_auth_authorize_admin(2)
 
       assert %{"error" => "invalid_update"} =
                meta.conn
@@ -375,7 +327,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
 
     test "something that is not base64 is refused", meta do
       document = create(meta.conn)
-      expect_auth_authorize_admin()
 
       assert %{"error" => "invalid_update"} =
                meta.conn
@@ -386,8 +337,6 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
     end
 
     test "a document that does not exist, or an id that is not a number, is not found", meta do
-      expect_auth_authorize_admin(2)
-
       for id <- [999_999, "abc"] do
         assert %{"error" => "not_found"} ==
                  meta.conn

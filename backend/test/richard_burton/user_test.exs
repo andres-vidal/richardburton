@@ -80,7 +80,44 @@ defmodule RichardBurton.UserTest do
     end
   end
 
+  describe "authorize/2" do
+    test "admits an account that holds the role" do
+      user = user_fixture("helen@example.com", :contributor)
+
+      assert User.authorize(user.subject_id, :contributor) == :ok
+    end
+
+    test "admits an account whose role outranks the one asked for" do
+      user = user_fixture("helen@example.com", :admin)
+
+      assert User.authorize(user.subject_id, :contributor) == :ok
+    end
+
+    test "refuses an account whose role is below the one asked for" do
+      user = user_fixture("helen@example.com", :contributor)
+
+      assert User.authorize(user.subject_id, :admin) == :error
+    end
+
+    test "refuses a subject with no account" do
+      assert User.authorize("ghost", :reader) == :error
+    end
+
+    test "refuses a role that is not one" do
+      user = user_fixture("helen@example.com", :admin)
+
+      assert User.authorize(user.subject_id, :emperor) == :error
+    end
+  end
+
   describe "set_role/3" do
+    test "refuses to demote the last admin" do
+      only_admin = user_fixture("only-admin@example.com", :admin)
+
+      assert {:error, :last_admin} = User.set_role(only_admin, :contributor)
+      assert User.get_by_id(only_admin.id).role == :admin
+    end
+
     # `set_role/3` broadcasts on the person's access topic, so a document
     # channel they already joined checks the new role, not only their next
     # request.
@@ -112,6 +149,13 @@ defmodule RichardBurton.UserTest do
   end
 
   describe "delete/2" do
+    test "refuses to remove the last admin" do
+      only_admin = user_fixture("only-admin@example.com", :admin)
+
+      assert {:error, :last_admin} = User.delete(only_admin)
+      refute is_nil(User.get_by_id(only_admin.id))
+    end
+
     # Tests that a channel which checks access after the announcement finds the
     # session gone. A channel reads on its own database connection, so it only
     # sees committed rows. The test reads the same way, on a connection outside

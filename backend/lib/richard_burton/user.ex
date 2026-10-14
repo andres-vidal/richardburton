@@ -49,6 +49,19 @@ defmodule RichardBurton.User do
   def at_least?(_role, _required), do: false
 
   @doc """
+  Returns `:ok` when the account with `subject_id` holds `role` or a role that
+  outranks it. Returns `:error` otherwise, including when there is no such
+  account.
+  """
+  @spec authorize(subject_id :: String.t(), role :: atom()) :: :ok | :error
+  def authorize(subject_id, role) do
+    case get(subject_id) do
+      %User{role: held} -> if at_least?(held, role), do: :ok, else: :error
+      nil -> :error
+    end
+  end
+
+  @doc """
   Casts a new account's `subject_id` and `email`, both required. The role is
   always `:reader`, whatever `attrs` say.
   """
@@ -108,8 +121,10 @@ defmodule RichardBurton.User do
   def set_role(user = %User{}, role, actor \\ nil) do
     with {:ok, role} <- cast_role(role),
          :ok <- refuse_self(user, actor),
-         :ok <- refuse_last_admin(user, role),
-         {:ok, updated} <- user |> role_changeset(%{role: role}) |> Repo.update() do
+         {:ok, updated} <-
+           keeping_an_admin(user, role, fn ->
+             user |> role_changeset(%{role: role}) |> Repo.update()
+           end) do
       Access.changed(updated.subject_id)
       {:ok, updated}
     end
@@ -131,23 +146,14 @@ defmodule RichardBurton.User do
   """
   def delete(user = %User{}, actor \\ nil) do
     with :ok <- refuse_self(user, actor),
-         :ok <- refuse_last_admin(user, nil) do
-      delete_with_sessions(user)
+         {:ok, deleted} <-
+           keeping_an_admin(user, nil, fn ->
+             Session.revoke_all(user.subject_id)
+             Repo.delete(user)
+           end) do
+      Access.changed(user.subject_id)
+      {:ok, deleted}
     end
-  end
-
-  # Deletes the user's sessions and then the user, in one transaction, and calls
-  # `RichardBurton.Auth.Access.changed/1` after the transaction commits. Returns
-  # `{:ok, user}` with the deleted user.
-  defp delete_with_sessions(user) do
-    {:ok, deleted} =
-      Repo.transaction(fn ->
-        Session.revoke_all(user.subject_id)
-        Repo.delete!(user)
-      end)
-
-    Access.changed(user.subject_id)
-    {:ok, deleted}
   end
 
   # Changing your own role or removing your own account is a mistake often
@@ -156,18 +162,35 @@ defmodule RichardBurton.User do
   defp refuse_self(%User{subject_id: subject_id}, subject_id), do: {:error, :self}
   defp refuse_self(_user, _actor), do: :ok
 
-  # The last admin keeps the role: with nobody left who can grant access, the
-  # database is the only way back, so the demotion is refused rather than
-  # confirmed.
-  defp refuse_last_admin(user, role) do
-    if last_admin?(user) and role != :admin, do: {:error, :last_admin}, else: :ok
+  # Runs `write`, which changes `user` so that it holds `role` afterwards, or
+  # deletes it when `role` is nil, and returns what `write` returns. It returns
+  # `{:error, :last_admin}` without running `write` when `user` is the only
+  # admin and would no longer be one: with nobody left who can grant access,
+  # the database would be the only way back.
+  #
+  # The check and the write run in one transaction that first locks every
+  # admin's row. Two changes that would each leave one admin, such as two
+  # admins demoting each other at once, then run one after the other, and the
+  # second sees that the first left only one admin.
+  defp keeping_an_admin(user, role, write) do
+    Repo.transaction(fn ->
+      admins =
+        from(u in User, where: u.role == :admin, select: u.id, lock: "FOR UPDATE")
+        |> Repo.all()
+
+      with :ok <- refuse_last_admin(admins, user, role),
+           {:ok, result} <- write.() do
+        result
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
-  # Whether this is the only administrator left, which neither a demotion nor a
-  # deletion may leave the platform without.
-  defp last_admin?(%User{role: :admin, id: id}) do
-    from(u in User, where: u.role == :admin and u.id != ^id) |> Repo.aggregate(:count) == 0
-  end
+  # Returns `{:error, :last_admin}` when `user` is the only one of `admins`, the
+  # ids of every admin, and `role` is not admin. Returns `:ok` otherwise.
+  defp refuse_last_admin([id], %User{id: id}, role) when role != :admin,
+    do: {:error, :last_admin}
 
-  defp last_admin?(_user), do: false
+  defp refuse_last_admin(_admins, _user, _role), do: :ok
 end
