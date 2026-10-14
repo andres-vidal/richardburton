@@ -33,8 +33,10 @@ type Props = InputProps & {
   /**
    * Where the field's error is written. `"tooltip"`, the default, tints the
    * field and puts the message in a tooltip, which takes no room around the
-   * field. `"inline"` writes the message under the field, in a slot that is
-   * always reserved so that the field does not move when a message appears.
+   * field. `"inline"` writes the message under the field, in a slot two lines
+   * tall that is always reserved, so that the field does not move when a
+   * message appears. A longer message is cut at two lines on screen, and is
+   * read in full by assistive technology.
    */
   errorDisplay?: "tooltip" | "inline";
 };
@@ -131,7 +133,7 @@ const DataInput: FC<Props> = ({
   return errorDisplay === "inline" ? (
     <div className="flex flex-col gap-1">
       {field}
-      <p role="alert" className="min-h-4 text-xs text-red-700">
+      <p role="alert" className="min-h-8 text-xs text-red-700 line-clamp-2">
         {error}
       </p>
     </div>
