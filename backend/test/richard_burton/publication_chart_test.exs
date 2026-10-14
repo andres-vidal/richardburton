@@ -8,92 +8,12 @@ defmodule RichardBurton.Publication.ChartTest do
   use RichardBurton.DataCase
 
   alias RichardBurton.FlatPublication
-  alias RichardBurton.Publication
   alias RichardBurton.Publication.Chart
   alias RichardBurton.Publication.Index
 
-  # Seven publications of five works. Dom Casmurro has two translations, and
-  # Helen Caldwell's translation is published twice. John Gledson's Dom Casmurro
-  # names two countries.
-  @publications [
-    %{
-      title: "Dom Casmurro",
-      year: 1953,
-      countries: ["US"],
-      publishers: ["Noonday Press"],
-      authors: ["Helen Caldwell"],
-      original_title: "Dom Casmurro",
-      original_authors: ["Machado de Assis"]
-    },
-    %{
-      title: "Dom Casmurro",
-      year: 1966,
-      countries: ["US"],
-      publishers: ["University of California Press"],
-      authors: ["Helen Caldwell"],
-      original_title: "Dom Casmurro",
-      original_authors: ["Machado de Assis"]
-    },
-    %{
-      title: "Dom Casmurro",
-      year: 1997,
-      countries: ["GB", "US"],
-      publishers: ["Oxford University Press"],
-      authors: ["John Gledson"],
-      original_title: "Dom Casmurro",
-      original_authors: ["Machado de Assis"]
-    },
-    %{
-      title: "Epitaph of a Small Winner",
-      year: 1952,
-      countries: ["US"],
-      publishers: ["Noonday Press"],
-      authors: ["William Grossman"],
-      original_title: "Memórias póstumas de Brás Cubas",
-      original_authors: ["Machado de Assis"]
-    },
-    %{
-      title: "The Hour of the Star",
-      year: 1986,
-      countries: ["GB"],
-      publishers: ["Carcanet"],
-      authors: ["Giovanni Pontiero"],
-      original_title: "A hora da estrela",
-      original_authors: ["Clarice Lispector"]
-    },
-    %{
-      title: "The Passion According to G.H.",
-      year: 1988,
-      countries: ["US"],
-      publishers: ["University of Minnesota Press"],
-      authors: ["Ronald W. Sousa"],
-      original_title: "A paixão segundo G.H.",
-      original_authors: ["Clarice Lispector"]
-    },
-    %{
-      title: "Iraçéma the Honey-Lips",
-      year: 1886,
-      countries: ["GB"],
-      publishers: ["Bickers & Son"],
-      authors: ["Isabel Burton"],
-      original_title: "Iracema",
-      original_authors: ["José de Alencar"]
-    }
-  ]
-
   setup do
-    seed(@publications)
+    seed_index(insights_corpus())
     []
-  end
-
-  # Inserts flat publications the way an import does, then refreshes the index
-  # that `Chart` reads from.
-  defp seed(publications) do
-    publications
-    |> Publication.Codec.nest()
-    |> Enum.each(&({:ok, _} = Publication.insert(&1)))
-
-    Publication.Index.Refresher.refresh()
   end
 
   # Counts a chart with `fields` over every publication, or over the ones
@@ -189,7 +109,7 @@ defmodule RichardBurton.Publication.ChartTest do
     end
 
     test "counts a publication in neither leading country in the last series" do
-      seed([
+      seed_index([
         %{
           title: "The Devil to Pay in the Backlands",
           year: 1963,
@@ -284,7 +204,7 @@ defmodule RichardBurton.Publication.ChartTest do
     end
 
     test "keeps the top groups, and says how many it left out" do
-      seed(
+      seed_index(
         for n <- 1..5 do
           %{
             title: "Paged Work #{n}",

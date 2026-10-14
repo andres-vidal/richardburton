@@ -6,6 +6,7 @@ defmodule RichardBurton.Fixtures do
   alias RichardBurton.Author
   alias RichardBurton.Document
   alias RichardBurton.OriginalBook
+  alias RichardBurton.Publication
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
   alias RichardBurton.User
@@ -53,5 +54,93 @@ defmodule RichardBurton.Fixtures do
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_assoc(:authors, Enum.map(translators, &author_fixture/1))
     |> Repo.insert!()
+  end
+
+  @doc """
+  Returns seven flat publications of five works, for tests that count them.
+  Dom Casmurro has two translations, and Helen Caldwell's translation is
+  published twice. John Gledson's Dom Casmurro names two countries, and two
+  publications cite a source.
+  """
+  def insights_corpus do
+    [
+      %{
+        title: "Dom Casmurro",
+        year: 1953,
+        countries: ["US"],
+        publishers: ["Noonday Press"],
+        authors: ["Helen Caldwell"],
+        original_title: "Dom Casmurro",
+        original_authors: ["Machado de Assis"],
+        sources: ["Caldwell, Helen. Introduction, 1953."]
+      },
+      %{
+        title: "Dom Casmurro",
+        year: 1966,
+        countries: ["US"],
+        publishers: ["University of California Press"],
+        authors: ["Helen Caldwell"],
+        original_title: "Dom Casmurro",
+        original_authors: ["Machado de Assis"]
+      },
+      %{
+        title: "Dom Casmurro",
+        year: 1997,
+        countries: ["GB", "US"],
+        publishers: ["Oxford University Press"],
+        authors: ["John Gledson"],
+        original_title: "Dom Casmurro",
+        original_authors: ["Machado de Assis"]
+      },
+      %{
+        title: "Epitaph of a Small Winner",
+        year: 1952,
+        countries: ["US"],
+        publishers: ["Noonday Press"],
+        authors: ["William Grossman"],
+        original_title: "Memórias póstumas de Brás Cubas",
+        original_authors: ["Machado de Assis"]
+      },
+      %{
+        title: "The Hour of the Star",
+        year: 1986,
+        countries: ["GB"],
+        publishers: ["Carcanet"],
+        authors: ["Giovanni Pontiero"],
+        original_title: "A hora da estrela",
+        original_authors: ["Clarice Lispector"]
+      },
+      %{
+        title: "The Passion According to G.H.",
+        year: 1988,
+        countries: ["US"],
+        publishers: ["University of Minnesota Press"],
+        authors: ["Ronald W. Sousa"],
+        original_title: "A paixão segundo G.H.",
+        original_authors: ["Clarice Lispector"]
+      },
+      %{
+        title: "Iraçéma the Honey-Lips",
+        year: 1886,
+        countries: ["GB"],
+        publishers: ["Bickers & Son"],
+        authors: ["Isabel Burton"],
+        original_title: "Iracema",
+        original_authors: ["José de Alencar"],
+        sources: ["Burton, Isabel. Preface, 1886."]
+      }
+    ]
+  end
+
+  @doc """
+  Inserts flat publications the way an import does, then refreshes the index
+  that the insights and the charts read from.
+  """
+  def seed_index(publications) do
+    publications
+    |> Publication.Codec.nest()
+    |> Enum.each(&({:ok, _} = Publication.insert(&1)))
+
+    Publication.Index.Refresher.refresh()
   end
 end
