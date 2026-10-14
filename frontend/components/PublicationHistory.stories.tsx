@@ -268,7 +268,7 @@ export const Decisions: Story = {
         timestamp: "2026-10-14T10:00:00",
         snapshot: SNAPSHOT,
         diff: null,
-        related: [{ id: 7, ...SNAPSHOT, title: "Dom Casmuro", year: 1954 }],
+        others: [{ id: 7, ...SNAPSHOT, title: "Dom Casmuro", year: 1954 }],
       },
       {
         version: 2,
@@ -278,7 +278,7 @@ export const Decisions: Story = {
         timestamp: "2026-10-13T10:00:00",
         snapshot: SNAPSHOT,
         diff: null,
-        related: [{ id: 7, ...SNAPSHOT, title: "Dom Casmuro", year: 1954 }],
+        others: [{ id: 7, ...SNAPSHOT, title: "Dom Casmuro", year: 1954 }],
       },
       {
         version: 1,

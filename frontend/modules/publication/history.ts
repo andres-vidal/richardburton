@@ -88,12 +88,16 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
 }
 
 /**
- * Returns the records an entry took in or gave back as one `AbsorbedChange`,
- * each record with its title, every other field that has a value, and its
- * sources. Returns an empty list for an entry that took in no records.
+ * Returns the records a merge took in, or an un-merge gave back, as one
+ * `AbsorbedChange`, each record with its title, every other field that has a
+ * value, and its sources. The records are the entry's `others`. Returns an
+ * empty list for an entry of any other action, or one that names no records.
  */
 function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
-  const absorbed = entry.absorbed ?? [];
+  const absorbed =
+    entry.action === "merged" || entry.action === "unmerged"
+      ? (entry.others ?? [])
+      : [];
   if (absorbed.length === 0) return [];
 
   const records = absorbed.map((publication) => ({
@@ -119,11 +123,15 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
 
 /**
  * Returns the other publications a duplicate decision is about as one
- * `RelatedChange`, each named by its title, year and translators. Returns an
- * empty list for an entry that names no other publications.
+ * `RelatedChange`, each named by its title, year and translators. The
+ * publications are the entry's `others`. Returns an empty list for an entry
+ * that is not a decision, or one that names no other publications.
  */
 function presentRelated(entry: PublicationHistoryEntry): Change[] {
-  const related = entry.related ?? [];
+  const related =
+    entry.action === "distinguished" || entry.action === "reconsidered"
+      ? (entry.others ?? [])
+      : [];
 
   return related.length === 0
     ? []

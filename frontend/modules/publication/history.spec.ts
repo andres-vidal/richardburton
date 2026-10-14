@@ -120,8 +120,8 @@ describe("keyOf", () => {
 describe("presentAbsorbed", () => {
   const absorbing = (
     action: FullHistoryEntry["action"],
-    absorbed: FullHistoryEntry["absorbed"],
-  ) => ({ ...entry(1, 2, action), absorbed });
+    others: FullHistoryEntry["others"],
+  ) => ({ ...entry(1, 2, action), others });
 
   test("spells out a record a merge took in, field by field", () => {
     const [change] = presentAbsorbed(
@@ -156,6 +156,9 @@ describe("presentAbsorbed", () => {
   test("an entry that moved no records adds nothing", () => {
     expect(presentAbsorbed(entry(1, 2, "updated"))).toEqual([]);
     expect(presentAbsorbed(absorbing("merged", []))).toEqual([]);
+    expect(
+      presentAbsorbed(absorbing("distinguished", [{ id: 9, ...snapshot() }])),
+    ).toEqual([]);
   });
 
   test("the whole record travels with the entry, sources included", () => {
@@ -180,7 +183,7 @@ describe("presentRelated", () => {
   test("names the other publications of a decision by title, year and translators", () => {
     const decision = {
       ...entry(1, 2, "distinguished"),
-      related: [
+      others: [
         {
           id: 7,
           ...snapshot({
@@ -211,10 +214,15 @@ describe("presentRelated", () => {
   test("a reconsidered decision puts them back, and other entries name nothing", () => {
     const reopened = {
       ...entry(1, 3, "reconsidered"),
-      related: [{ id: 7, ...snapshot() }],
+      others: [{ id: 7, ...snapshot() }],
+    };
+    const merge = {
+      ...entry(1, 4, "merged"),
+      others: [{ id: 7, ...snapshot() }],
     };
 
     expect(presentRelated(reopened)[0]).toMatchObject({ direction: "again" });
     expect(presentRelated(entry(1, 1, "created"))).toEqual([]);
+    expect(presentRelated(merge)).toEqual([]);
   });
 });
