@@ -1,7 +1,18 @@
 defmodule RichardBurtonWeb.ConnCase do
   @moduledoc """
-  The test case for requests to the endpoint. It imports `Phoenix.ConnTest`,
-  the fixtures and the helpers below, and sets up the database sandbox.
+  This module defines the test case to be used by
+  tests that require setting up a connection.
+
+  Such tests rely on `Phoenix.ConnTest` and also
+  import other functionality to make it easier
+  to build common data structures and query the data layer.
+
+  Finally, if the test case interacts with the database,
+  we enable the SQL sandbox, so changes done to the database
+  are reverted at the end of every test. If you are using
+  PostgreSQL, you can even run database tests asynchronously
+  by setting `use RichardBurtonWeb.ConnCase, async: true`, although
+  this option is not recommended for other databases.
 
   Each test gets a `conn` signed in as the **session user**: it carries an
   `rb-session` cookie for a real session of that user's subject, the matching
@@ -28,6 +39,7 @@ defmodule RichardBurtonWeb.ConnCase do
 
   using do
     quote do
+      # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
       import RichardBurton.Fixtures
@@ -35,6 +47,7 @@ defmodule RichardBurtonWeb.ConnCase do
 
       alias RichardBurtonWeb.Router.Helpers, as: Routes
 
+      # The default endpoint for testing
       @endpoint RichardBurtonWeb.Endpoint
     end
   end

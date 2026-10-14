@@ -41,6 +41,8 @@ defmodule RichardBurton.MixProject do
   end
 
   # Configuration for the OTP application.
+  #
+  # Type `mix help compile.app` for more information.
   def application do
     [
       mod: {RichardBurton.Application, []},
@@ -48,14 +50,17 @@ defmodule RichardBurton.MixProject do
     ]
   end
 
-  # The compile paths. `dev/` holds the controllers of the development routes,
-  # and `test/support` the test cases and helpers.
+  # Specifies which paths to compile per environment. `dev/` holds the
+  # controllers of the development routes, and `test/support` the test cases
+  # and helpers.
   defp elixirc_paths(:test), do: ["lib", "test/support", "dev"]
   defp elixirc_paths(:dev), do: ["lib", "dev"]
   defp elixirc_paths(:e2e), do: ["lib", "dev"]
   defp elixirc_paths(_), do: ["lib"]
 
-  # The project dependencies.
+  # Specifies your project dependencies.
+  #
+  # Type `mix help deps` for examples and options.
   defp deps do
     [
       {:phoenix, "~> 1.8"},
@@ -86,8 +91,12 @@ defmodule RichardBurton.MixProject do
     ]
   end
 
-  # Shortcuts for setting up the database. `mix test` creates and migrates the
-  # test database before it runs.
+  # Aliases are shortcuts or tasks specific to the current project.
+  # For example, to install project dependencies and perform other setup tasks, run:
+  #
+  #     $ mix setup
+  #
+  # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
       setup: ["deps.get", "ecto.setup"],

@@ -1,10 +1,29 @@
 defmodule RichardBurtonWeb.Telemetry do
   @moduledoc """
-  The metrics the LiveDashboard charts: request and query durations, and the
-  memory and run queues of the VM. The VM measurements come from the default
-  poller that the `:telemetry_poller` application starts.
+  Runs a telemetry poller for the app's own periodic measurements, and lists
+  the metrics the LiveDashboard charts: request and query durations, and the
+  memory and run queues of the VM.
   """
+  use Supervisor
   import Telemetry.Metrics
+
+  @doc "Starts the supervisor."
+  def start_link(arg) do
+    Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
+  end
+
+  @impl true
+  def init(_arg) do
+    children = [
+      # Telemetry poller will execute the given period measurements
+      # every 10_000ms. Learn more here: https://hexdocs.pm/telemetry_metrics
+      {:telemetry_poller, measurements: periodic_measurements(), period: 10_000}
+      # Add reporters as children of your supervision tree.
+      # {Telemetry.Metrics.ConsoleReporter, metrics: metrics()}
+    ]
+
+    Supervisor.init(children, strategy: :one_for_one)
+  end
 
   @doc "Returns the metrics the LiveDashboard charts."
   def metrics do
@@ -46,6 +65,15 @@ defmodule RichardBurtonWeb.Telemetry do
       summary("vm.total_run_queue_lengths.total"),
       summary("vm.total_run_queue_lengths.cpu"),
       summary("vm.total_run_queue_lengths.io")
+    ]
+  end
+
+  # Measurements polled on a timer rather than emitted by an event.
+  defp periodic_measurements do
+    [
+      # A module, function and arguments to be invoked periodically.
+      # This function must call :telemetry.execute/3 and a metric must be added above.
+      # {RichardBurtonWeb, :count_users, []}
     ]
   end
 end
