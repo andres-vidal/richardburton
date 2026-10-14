@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as DuplicateStories from "./PublicationDuplicate.stories";
 
@@ -6,32 +6,21 @@ import * as DuplicateStories from "./PublicationDuplicate.stories";
 
 # Publication duplicate
 
-A secondary button in the review toolbar that copies the currently selected rows.
-Its label tracks the selection size ("Duplicate 2"), and on click it clones those
-ids in the store (`duplicate`), validates the new rows (`validate`), and clears
-the selection.
+A secondary button in the import workspace's footer, shown while rows are
+selected. It copies the selected rows, each copy right after its row, and
+clears the selection. Its label counts the selected rows ("Duplicate 2").
 
-## Data source
+The copies are written to the import document as one edit of the person who
+made them, so one undo removes them all. The document's checks validate the
+new rows, as they do after any edit.
 
-The button bridges two pieces of state. The selection comes from
-`react-selection-manager` (`useSelectionSize` for the label, `getSelection` for
-the ids on click), while the copy itself is a **state-driven** write to the
-publication store via `duplicate` — the new rows appear in the list
-everywhere and are validated immediately. In stories the publication store is
-seeded through the shared fixtures:
+## Props
 
-```tsx
-import { seed } from "test/publication-fixtures";
+None. The button reads the selection from `modules/selection`, and copies the
+rows with `duplicate` from the publication store.
 
-seed(store); // load the sample publications before the story renders
-```
-
+<Description of={DuplicateStories.Default} />
 <Canvas of={DuplicateStories.Default} />
 
-## States
-
-- **Nothing selected** — the sample above: the button still renders and reads
-  "Duplicate 0". Clicking it is a safe no-op (it bails out when the selection is
-  empty).
-- **Rows selected** — the label counts up ("Duplicate 2"); clicking clones those
-  rows, validates them, and clears the selection.
+<Description of={DuplicateStories.TwoRowsSelected} />
+<Canvas of={DuplicateStories.TwoRowsSelected} />

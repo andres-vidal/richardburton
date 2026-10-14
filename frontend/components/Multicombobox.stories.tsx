@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { FC, useState } from "react";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
+import { TYPING_DELAY_MS } from "utils/useLookup";
 
 import Multicombobox from "./Multicombobox";
 
@@ -40,9 +41,9 @@ const ControlledEnum: FC<{ onChange: (value: Enum[]) => void }> = ({
   );
 };
 
-// Multicombobox is controlled: `value` lives in the parent. This wrapper holds
-// it in state so pills actually add/remove as you interact, while still
-// forwarding every change to the `onChange` spy for assertions.
+// Multicombobox is controlled. This wrapper holds `value` in state, so chips
+// are added and removed on screen, and passes every change on to the
+// `onChange` spy. The field accepts typed text, like the fields for names.
 const Controlled: FC<{
   value?: string[];
   error?: string;
@@ -63,6 +64,7 @@ const Controlled: FC<{
         setValue(next);
         onChange(next);
       }}
+      freeText
     />
   );
 };
@@ -70,7 +72,6 @@ const Controlled: FC<{
 const meta = {
   title: "Components/Multicombobox",
   component: Multicombobox,
-  tags: ["autodocs"],
   args: {
     value: [],
     onChange: fn(),
@@ -96,14 +97,12 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * A single walkthrough of the whole component: type + Enter to add pills, an
- * async lookup on keystroke, and Backspace on an empty input to remove the last
- * pill.
+ * Typing and Enter add a chip, and Backspace in the empty field removes the
+ * last one. The play test also checks that typing runs the lookup.
  */
 export const Default: Story = {
-  // With the dropdown open, floating-ui inserts focus guards (tabindex=0 +
-  // aria-hidden) to trap focus — a deliberate pattern axe's aria-hidden-focus
-  // rule over-reports, so disable it for this open-menu story.
+  // The open menu adds focus guards that are focusable and aria-hidden, which
+  // axe's aria-hidden-focus rule reports, so the rule is off for this story.
   parameters: {
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
   },
@@ -137,9 +136,8 @@ export const Default: Story = {
 };
 
 /**
- * `bordered` — the outlined variant used in forms (e.g. the edit modal). The
- * dropdown adopts the matching outlined style (white, bordered, `text-sm`)
- * rather than the subtle dense style of the workspace table.
+ * `bordered` outlines the field for a form, and its menu matches it. The play
+ * test checks the menu's border and text size.
  */
 export const Bordered: Story = {
   args: { bordered: true, value: ["Fiction"] },
@@ -169,9 +167,8 @@ export const WithError: Story = {
 };
 
 /**
- * The same value can't be added twice: `select` guards on `!value.includes(item)`,
- * so re-entering an existing value is a no-op — no duplicate pill, no extra
- * `onChange`.
+ * An entry that is already chosen is not added again, even with spaces around
+ * it. The play test enters "Fiction" three times and checks for one chip.
  */
 export const DuplicateFilter: Story = {
   parameters: {
@@ -191,9 +188,7 @@ export const DuplicateFilter: Story = {
     await expect(canvas.getAllByText("Fiction")).toHaveLength(1);
     await expect(args.onChange).toHaveBeenLastCalledWith(["Fiction"]);
 
-    // Padding doesn't smuggle a duplicate through: the server trims before
-    // storing, so the comparison trims too — otherwise the record would be
-    // rejected on save for repeating an entry.
+    // The comparison trims the text, as the server does before storing it.
     await userEvent.type(input, "  Fiction  {Enter}");
     await expect(canvas.getAllByText("Fiction")).toHaveLength(1);
     await expect(args.onChange).toHaveBeenLastCalledWith(["Fiction"]);
@@ -201,8 +196,9 @@ export const DuplicateFilter: Story = {
 };
 
 /**
- * Inside a form — the edit modal's context. Committing an entry with Enter
- * must not submit the surrounding form: the keystroke belongs to the field.
+ * Inside a form, Enter that adds an entry does not submit the form. The play
+ * test checks typed text, a highlighted option and a click, and then checks
+ * that Enter in the empty field submits.
  */
 export const InsideAForm: Story = {
   parameters: {
@@ -237,7 +233,9 @@ export const InsideAForm: Story = {
     await expect(onSubmit).not.toHaveBeenCalled();
 
     // Enter picks the highlighted option without submitting either.
-    await userEvent.type(input, "dr{Enter}");
+    await userEvent.type(input, "dr");
+    await screen.findByRole("option", { name: "Drama" });
+    await userEvent.keyboard("{Enter}");
     await expect(args.onChange).toHaveBeenLastCalledWith(["Fiction", "Drama"]);
     await expect(onSubmit).not.toHaveBeenCalled();
 
@@ -259,9 +257,46 @@ export const InsideAForm: Story = {
 };
 
 /**
- * Object items — the shape the Countries field uses. Each lookup builds fresh
- * objects, so identity has to come from `id`; source equality would let the
- * same country in twice.
+ * The input carries `aria-busy` from a keystroke until the options for what
+ * was typed arrive.
+ */
+export const BusyWhileLookingUp: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ canvasElement }) => {
+    const input = within(canvasElement).getByRole("combobox");
+    await expect(input).toHaveAttribute("aria-busy", "false");
+
+    await userEvent.type(input, "dr");
+    await expect(input).toHaveAttribute("aria-busy", "true");
+
+    await screen.findByRole("option", { name: "Drama" });
+    await expect(input).toHaveAttribute("aria-busy", "false");
+  },
+};
+
+/**
+ * Adding the typed text drops the lookup that is still pending for it, so no
+ * menu opens over the emptied field when that lookup would have been answered.
+ */
+export const AnEntryDropsThePendingLookup: Story = {
+  play: async ({ args, canvasElement }) => {
+    const input = within(canvasElement).getByRole("combobox");
+
+    await userEvent.type(input, "Drama{Enter}");
+    await expect(args.onChange).toHaveBeenLastCalledWith(["Drama"]);
+    await expect(input).toHaveAttribute("aria-busy", "false");
+
+    await new Promise((resolve) => setTimeout(resolve, TYPING_DELAY_MS * 2));
+    await expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  },
+};
+
+/**
+ * Entries can be `{ id, label }` items, as countries are. Each lookup builds
+ * new objects, so an item is matched by its `id`. The play test checks that a
+ * chosen country is not offered again.
  */
 export const ObjectItems: StoryObj = {
   parameters: {
@@ -344,10 +379,7 @@ export const NoMatches: Story = {
   },
 };
 
-/**
- * Positioning (the `size` middleware in MenuProvider): the dropdown is pinned to
- * the trigger's width. Verified by geometry (getBoundingClientRect), not pixels.
- */
+/** The menu is as wide as the field. The play test compares the two widths. */
 export const MenuMatchesTriggerWidth: Story = {
   parameters: {
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
@@ -359,8 +391,7 @@ export const MenuMatchesTriggerWidth: Story = {
     await userEvent.type(input, "e");
     const listbox = await screen.findByRole("listbox");
 
-    // The source floating-ui measures is the input's wrapper (TextInput's
-    // root), and `size` sets the menu width to it.
+    // The menu is measured against the field around the input.
     const source = input.parentElement!.getBoundingClientRect();
     const menu = listbox.getBoundingClientRect();
     await expect(Math.round(menu.width)).toBe(Math.round(source.width));
@@ -368,10 +399,8 @@ export const MenuMatchesTriggerWidth: Story = {
 };
 
 /**
- * Arrow keys move the highlight through the options (MenuProvider's
- * `useListNavigation`), and Enter commits the highlighted one — here the second
- * match, not the auto-highlighted first. A floating-ui bump that broke list
- * navigation would surface here.
+ * The arrow keys move the highlight through the options, and Enter adds the
+ * highlighted one. The play test adds the second match.
  */
 export const NavigatesOptionsWithArrowKeys: Story = {
   parameters: {
@@ -385,8 +414,6 @@ export const NavigatesOptionsWithArrowKeys: Story = {
     await userEvent.type(input, "e");
     await screen.findByRole("listbox");
 
-    // Move the highlight down to the second option, then commit it: Enter selects
-    // the navigated-to option, not the one that was auto-highlighted on typing.
     await userEvent.keyboard("{ArrowDown}{Enter}");
 
     await expect(args.onChange).toHaveBeenLastCalledWith(["Essay"]);
@@ -433,5 +460,57 @@ export const AChipDoesNotChangeTheHeightWhenBordered: Story = {
     await expect(canvas.getByText("Fiction")).toBeInTheDocument();
 
     await expect(field.getBoundingClientRect().height).toBe(empty);
+  },
+};
+
+/**
+ * A comma adds the typed text and closes the menu. The play test checks that
+ * no menu is left open over the empty field.
+ */
+export const ACommaClosesTheMenu: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ args, canvasElement }) => {
+    const input = within(canvasElement).getByRole("combobox");
+
+    await userEvent.type(input, "dr");
+    await screen.findByRole("option", { name: "Drama" });
+
+    await userEvent.keyboard(",");
+
+    await expect(args.onChange).toHaveBeenLastCalledWith(["dr"]);
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument(),
+    );
+  },
+};
+
+/**
+ * Without `freeText`, only an offered option can be added. The play test
+ * presses a comma and Enter before the options arrive, and checks that neither
+ * adds the typed text. Enter then adds the option once it is offered.
+ */
+export const OnlyOptionsWithoutFreeText: StoryObj = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  render: () => <ControlledEnum onChange={onEnumChange} />,
+  beforeEach: () => {
+    onEnumChange.mockClear();
+  },
+  play: async ({ canvasElement }) => {
+    const input = within(canvasElement).getByRole("combobox");
+
+    await userEvent.type(input, "braz,{Enter}");
+    await expect(onEnumChange).not.toHaveBeenCalled();
+    await expect(input).toHaveValue("braz");
+
+    await screen.findByRole("option", { name: "Brazil" });
+    await userEvent.keyboard("{Enter}");
+
+    await expect(onEnumChange).toHaveBeenLastCalledWith([
+      { id: "BR", label: "Brazil" },
+    ]);
   },
 };

@@ -380,7 +380,9 @@
     "redoHint": "Refaz a alteração desfeita (Ctrl+Shift+Z ou Ctrl+Y, ou ⇧⌘Z no Mac).",
     "renamedNote": "Um nome foi alterado em Nomes, em todas as publicações que o creditam. Altere-o lá de novo para desfazer.",
     "notDuplicateOf": "Não é duplicata de",
-    "reviewAgainWith": "De volta à revisão de duplicatas com"
+    "reviewAgainWith": "De volta à revisão de duplicatas com",
+    "noBaseline": "Nada anterior com que comparar — o histórico do registro começa aqui.",
+    "reordered": "reordenadas"
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",
@@ -435,10 +437,10 @@
     "subject": "Assunto",
     "message": "Escreva sua mensagem aqui...",
     "thanks": "Obrigado pelo seu contato!",
-    "cancel": "Cancelar",
     "send": "Enviar",
     "sent": "Sua mensagem foi enviada!",
-    "failed": "Algo deu errado."
+    "failed": "Algo deu errado.",
+    "captchaFailed": "A verificação do reCAPTCHA falhou. Tente enviar sua mensagem novamente."
   },
   "about": {
     "label": "Sobre a plataforma",
@@ -462,7 +464,8 @@
     "allCaughtUpDetail": "Todas as publicações já têm fontes.",
     "backToIndex": "Voltar ao índice",
     "line": "{originalTitle} — {originalAuthors} · {year} · {countries} · {publishers}",
-    "skip": "Pular"
+    "skip": "Pular",
+    "sourced": "— com fontes"
   },
   "access": {
     "roleToInvite": "Perfil do convite",
@@ -476,14 +479,15 @@
     "breadcrumb": "Trilha de navegação",
     "increase": "Aumentar",
     "decrease": "Diminuir",
-    "sources": "Fontes",
     "moreNotifications": "{count, plural, one {mais 1 notificação} other {mais # notificações}}",
     "noMatches": "Nenhuma correspondência",
     "addAnother": "Adicionar outro",
     "hideOptions": "Ocultar opções",
     "showOptions": "Mostrar opções",
     "remove": "Remover {label}",
-    "progress": "{position} / {total}"
+    "progress": "{position} / {total}",
+    "loadingMore": "Carregando mais…",
+    "close": "Fechar"
   },
   "publication": {
     "details": "Detalhes da publicação",
@@ -519,7 +523,8 @@
     "stray_escape_character": "Não foi possível ler as publicações do arquivo enviado",
     "alpha2": "Este campo deve ser um código de país ISO 3166-1 alfa 2 válido",
     "duplicate": "Este campo não pode repetir a mesma entrada",
-    "repeated": "Outra linha desta importação é a mesma publicação"
+    "repeated": "Outra linha desta importação é a mesma publicação",
+    "invalid": "Uma publicação não é válida, então nada foi inserido"
   },
   "moving": {
     "moved": "{count, plural, one {# linha movida} other {# linhas movidas}}",
@@ -591,7 +596,8 @@
     "resendFailed": "Não foi possível enviar o convite",
     "resendFailedDetail": "Verifique se o e-mail está funcionando e tente novamente.",
     "refusalSelf": "Outro administrador precisa fazer isto por você.",
-    "refusalLastAdmin": "Este é o único administrador. Torne outra pessoa administradora primeiro."
+    "refusalLastAdmin": "Este é o único administrador. Torne outra pessoa administradora primeiro.",
+    "inserted": "{count, plural, one {# publicação inserida} other {# publicações inseridas}}"
   },
   "merge": {
     "label": "Unir publicações",
@@ -665,7 +671,6 @@
     "count": "{count, plural, one {# nome} other {# nomes}}",
     "doubtfulCount": "{count, plural, one {# nome pode estar grafado errado} other {# nomes podem estar grafados errado}}",
     "onRows": "{count, plural, one {# linha} other {# linhas}}",
-    "onPublications": "{count, plural, =0 {sem uso} one {# publicação} other {# publicações}}",
     "didYouMean": "Já aqui como",
     "doubtful": "pode estar errado",
     "held": "já está aqui",

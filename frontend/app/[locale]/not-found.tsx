@@ -4,18 +4,19 @@ import { Link } from "i18n/navigation";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+/** Returns the page's title. */
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("notFound"))("title") };
 }
 
 /**
- * What a URL under a locale shows when nothing answers it, and what
- * `notFound()` raises to anywhere in the locale tree.
+ * The 404 page of an address under a locale that no route answers, and of a
+ * page under a locale that calls `notFound()`. It says there is no such page
+ * and links to the index.
  *
- * It renders inside the locale layout, which is where `<html>` and `<body>` are
- * written. Without it Next falls back to its own 404, which renders under the
- * root layout — and that one only passes its children through, so the page
- * arrives with no document around it.
+ * It renders inside the locale layout, which writes `<html>` and `<body>`. The
+ * root layout writes neither, so Next's own 404, which renders under the root
+ * layout, would arrive with no document around it.
  */
 export default async function NotFoundPage() {
   const t = await getTranslations("notFound");

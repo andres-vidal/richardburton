@@ -16,18 +16,34 @@ type Props = Omit<
   value: string;
   error?: string;
   onChange?: (value: string) => void;
+  /** Rendered inside the field, before the input. */
   left?: ReactNode;
+  /** Rendered inside the field, after the input. */
   right?: ReactNode;
+  /** Receives the input element. The component's own `ref` receives the field. */
   inputRef?: Ref<HTMLInputElement>;
   label?: string;
-  /** Stretch to fill the parent's height (e.g. a table cell). Defaults to
-   * fitting the content. */
+  /** Stretches the field to its parent's height. It fits its content by default. */
   fill?: boolean;
-  /** Draw a visible bordered box — for standalone forms. Off by default, which
-   * keeps the subtle look the dense table cells rely on. */
+  /**
+   * Outlines the field and sets it in `text-sm`, for a form. Without it the
+   * field is borderless and small, for a dense table cell.
+   */
   bordered?: boolean;
 };
 
+/**
+ * A single-line text field that shows `value` and passes each edit to
+ * `onChange`.
+ *
+ * `label` floats above the field in place of the placeholder, and holds the
+ * error message when there is one. `error` marks the input invalid
+ * (`aria-invalid`) and tints the field red. The remaining props go to the input
+ * element.
+ *
+ * An input that carries `data-multiselect-input="true"` is padded to the
+ * height of a chip, so a field that holds chips is as tall empty as full.
+ */
 export default forwardRef<HTMLDivElement, Props>(function TextInput(
   {
     value,
@@ -102,3 +118,5 @@ export default forwardRef<HTMLDivElement, Props>(function TextInput(
     </div>
   );
 });
+
+export type { Props as TextInputProps };

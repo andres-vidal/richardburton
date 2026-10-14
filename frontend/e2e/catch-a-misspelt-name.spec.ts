@@ -1,10 +1,11 @@
 import { test, expect } from "./fixtures";
 import {
+  agreeToFold,
+  csv,
   seedCorpus,
   submitWorkspace,
   indexTable,
   openDocument,
-  CSV_HEADER,
   uploadCsv,
 } from "./helpers";
 
@@ -12,12 +13,10 @@ import {
  * A batch that misspells two of the corpus's names, as "Noonday press" and
  * "Helen Caldwel".
  */
-const SECOND_BATCH =
-  [
-    CSV_HEADER,
-    `Esau and Jacob,1965,US,Noonday press,Helen Caldwel,Esaú e Jacó,Machado de Assis,`,
-    `Counselor Ayres' Memorial,1972,US,Noonday press,Helen Caldwel,Memorial de Aires,Machado de Assis,`,
-  ].join("\n") + "\n";
+const SECOND_BATCH = csv([
+  `Esau and Jacob,1965,US,Noonday press,Helen Caldwel,Esaú e Jacó,Machado de Assis,`,
+  `Counselor Ayres' Memorial,1972,US,Noonday press,Helen Caldwel,Memorial de Aires,Machado de Assis,`,
+]);
 
 test("the workspace names the spellings a batch would add, and corrects them in every row at once", async ({
   page,
@@ -88,10 +87,9 @@ test("a batch of names the database already holds raises nothing", async ({
   await openDocument(page);
   await uploadCsv(
     page,
-    [
-      CSV_HEADER,
+    csv([
       `Esau and Jacob,1965,US,Noonday Press,Helen Caldwell,Esaú e Jacó,Machado de Assis,`,
-    ].join("\n") + "\n",
+    ]),
     "same-names.csv",
   );
 
@@ -146,10 +144,7 @@ test("the names view marks which of the names it holds may be the same name twic
 
   // Pressing Enter sends the rename, and the fold happens once it is confirmed.
   await stray.press("Enter");
-  await page
-    .getByRole("dialog", { name: "Fold these two together?" })
-    .getByRole("button", { name: "Fold them" })
-    .click();
+  await agreeToFold(page);
 
   await expect(
     page.getByText("Noonday press folded into Noonday Press"),

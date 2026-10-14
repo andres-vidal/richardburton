@@ -7,10 +7,10 @@ import { store } from "modules/store";
 import type { User } from "modules/users";
 import { ReactNode } from "react";
 
-// The app's client-side chrome — ports the providers from the (Pages Router)
-// `_app.tsx`: the Jotai store plus the global notification/selection listeners.
-// `session` is fetched server-side in the locale layout (see
-// app/[locale]/layout.tsx).
+/**
+ * Renders the providers every page runs inside: `session` for `useSession`,
+ * the app's Jotai `store`, and the `Notifications` stack, above `children`.
+ */
 export function Providers({
   session,
   children,

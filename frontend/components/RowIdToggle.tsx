@@ -10,6 +10,10 @@ import {
 import NumberedListIcon from "assets/numbered-list.svg";
 import Toggle from "./Toggle";
 
+/**
+ * A toggle that shows or hides the number of each row in the workspace's
+ * leading cells. It renders nothing while there are no rows.
+ */
 const RowIdToggle: FC = () => {
   const t = useTranslations("admin");
   const publicationCount = usePublicationCount();

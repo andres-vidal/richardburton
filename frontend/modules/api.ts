@@ -1,14 +1,20 @@
-// Custom cookie and header names on the wire with the Phoenix backend. This is a
-// contract: each value must match the backend's exactly (see the owning modules
-// RichardBurton.Auth.Session, RichardBurton.Auth.Csrf, and
-// RichardBurton.Publication.Index). Kept dependency-free so it can be imported
-// from anywhere, including the edge middleware.
+/**
+ * The cookie and header names the frontend and the Phoenix backend share. Each
+ * value must match the backend's exactly: see `RichardBurton.Auth.Session`,
+ * `RichardBurtonWeb.SignInCookies`, `RichardBurton.Auth.Csrf` and
+ * `RichardBurton.Publication.Index`.
+ *
+ * The module imports nothing, so code that runs anywhere can read it.
+ */
 
-/** httpOnly cookie carrying the raw session token. */
+/** The httpOnly cookie that holds the raw session token. */
 export const SESSION_COOKIE = "rb-session";
 
-/** Request header echoing the double-submit CSRF token. */
+/** The readable cookie that holds the double-submit CSRF token. */
+export const CSRF_COOKIE = "csrf-token";
+
+/** The request header that echoes the CSRF token from `CSRF_COOKIE`. */
 export const CSRF_HEADER = "rb-csrf-token";
 
-/** Response header carrying the index's total publication count. */
+/** The response header that holds the index's total publication count. */
 export const TOTAL_COUNT_HEADER = "rb-total-count";

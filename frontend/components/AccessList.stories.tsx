@@ -58,8 +58,8 @@ export const Default: Story = {
 };
 
 /**
- * Your own row is shown but not editable: another admin can demote or remove
- * you, and having to ask is what stops a slip from locking you out.
+ * The reader's own row is shown, but its role and access cannot be changed.
+ * The play test checks that both controls are disabled.
  */
 export const YourOwnRow: Story = {
   play: async () => {
@@ -95,8 +95,8 @@ export const ChangingSomeoneElsesRole: Story = {
 };
 
 /**
- * Revoking asks first, and names who it is about — the row it was clicked from
- * is not visible once a dialog is over it.
+ * Revoking asks for confirmation in a dialog that names the person, since the
+ * row is hidden behind it. The play test cancels it.
  */
 export const RevokingAsksFirst: Story = {
   play: async () => {

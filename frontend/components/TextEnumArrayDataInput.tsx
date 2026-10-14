@@ -1,58 +1,34 @@
 "use client";
 
 import { useCountryNaming } from "modules/country-names";
-import { Publication } from "modules/publication/model";
-import pDebounce from "p-debounce";
+import { LOOKUP, type Country } from "modules/lookup";
 import { useLocale } from "next-intl";
-import { FC, forwardRef, useCallback, useMemo } from "react";
-import { ListDataInputProps } from "./DataInput";
+import { FC } from "react";
+import { DataInputFieldProps } from "./DataInput";
 import Multicombobox from "./Multicombobox";
 
-type Enum = { id: string; label: string };
+/**
+ * A field for an attribute that holds a list of country codes. Each code is
+ * shown as a chip with the country's name, and typing suggests the countries
+ * that `LOOKUP.countries` finds, named in the reader's locale. Only a found
+ * country can be added. `onChange` receives the codes.
+ */
+const TextEnumArrayDataInput: FC<DataInputFieldProps<string[]>> = ({
+  value,
+  onChange,
+  ...props
+}) => {
+  const locale = useLocale();
+  const country = useCountryNaming();
 
-export default forwardRef<HTMLDivElement, ListDataInputProps>(
-  function TextEnumArrayDataInput(
-    {
-      rowId: _rowId,
-      autoValidated: _autoValidated,
-      colId,
-      value,
-      onChange,
-      ...props
-    },
-    ref,
-  ) {
-    const locale = useLocale();
-    const country = useCountryNaming();
+  return (
+    <Multicombobox<Country>
+      {...props}
+      value={value.map((id) => ({ id, label: country.name(id) }))}
+      onChange={(next) => onChange?.(next.map(({ id }) => id))}
+      getOptions={(term) => LOOKUP.countries(term, locale)}
+    />
+  );
+};
 
-    const toEnum = useCallback(
-      (id: string): Enum => ({ id, label: country.name(id) }),
-      [country],
-    );
-
-    const items = useMemo(() => value.map(toEnum), [value, toEnum]);
-
-    function handleChange(value: Enum[]) {
-      onChange?.(value.map(({ id }) => id));
-    }
-
-    const getOptions = useMemo(
-      () =>
-        pDebounce(
-          (search: string) => Publication.autocomplete(search, colId, locale),
-          350,
-        ),
-      [colId, locale],
-    );
-
-    return (
-      <Multicombobox<Enum>
-        {...props}
-        forwardedRef={ref}
-        value={items}
-        onChange={handleChange}
-        getOptions={getOptions}
-      />
-    );
-  },
-) as FC<ListDataInputProps>;
+export default TextEnumArrayDataInput;

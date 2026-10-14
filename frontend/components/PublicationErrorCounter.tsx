@@ -2,14 +2,14 @@
 
 import CheckIcon from "assets/check.svg";
 import ErrorCircleIcon from "assets/error-circle.svg";
-import { toString } from "lodash";
 import {
   useValidPublicationCount,
   usePublicationCount,
 } from "modules/publication/hooks";
-import { useTranslations } from "next-intl";
-import { FC, useState } from "react";
+import { useFormatter, useTranslations } from "next-intl";
+import { FC } from "react";
 import Button from "./Button";
+import { useModal } from "./Modal";
 import PublicationErrors from "./PublicationErrors";
 import Tooltip from "./Tooltip";
 
@@ -20,7 +20,8 @@ import Tooltip from "./Tooltip";
  */
 const PublicationErrorCounter: FC = () => {
   const t = useTranslations("admin");
-  const [isOpen, setOpen] = useState(false);
+  const format = useFormatter();
+  const errors = useModal();
   const publicationCount = usePublicationCount();
   const validPublicationCount = useValidPublicationCount();
   const invalidPublicationCount = publicationCount - validPublicationCount;
@@ -46,15 +47,15 @@ const PublicationErrorCounter: FC = () => {
           width="fit"
           alignment="left"
           Icon={ErrorCircleIcon}
-          label={toString(invalidPublicationCount)}
+          label={format.number(invalidPublicationCount)}
           aria-label={t("invalidPublications", {
             count: invalidPublicationCount,
           })}
-          onClick={() => setOpen(true)}
+          onClick={errors.open}
         />
       </Tooltip>
 
-      <PublicationErrors isOpen={isOpen} onClose={() => setOpen(false)} />
+      <PublicationErrors isOpen={errors.isOpen} onClose={errors.close} />
     </>
   );
 };

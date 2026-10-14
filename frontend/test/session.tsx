@@ -15,4 +15,4 @@ const asAdmin: Decorator = (Story) => (
   </SessionProvider>
 );
 
-export { ADMIN, asAdmin };
+export { asAdmin };

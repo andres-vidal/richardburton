@@ -68,6 +68,7 @@ export const OneDecade: Story = {
       [1, 0],
       [0, 1],
     ].map((counts, index) => ({
+      key: String(1960 + index),
       at: 1960 + index,
       label: String(1960 + index),
       counts,

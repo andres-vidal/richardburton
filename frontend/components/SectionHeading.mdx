@@ -6,9 +6,8 @@ import * as SectionHeadingStories from "./SectionHeading.stories";
 
 # Section heading
 
-What a part of a page or a dialog is called. Small, uppercase and grey, so a
-page of several sections reads as one thing rather than as a stack of headings
-competing with the content under them.
+The name of a section of a page or a dialog, in small, grey capitals, so it
+stays quieter than the content under it.
 
 <Canvas of={SectionHeadingStories.Default} />
 
@@ -19,6 +18,5 @@ page's `h1` is.
 
 ## The class list on its own
 
-`SECTION_HEADING` is exported for the places where the heading is not an `h2` —
-a `<summary>` that opens a collapsible section, for one, which has to stay a
-`summary` to keep its behaviour.
+`SECTION_HEADING` holds the heading's classes, for a heading that cannot be an
+`h2`, such as the `<summary>` of a collapsible section.

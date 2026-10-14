@@ -6,20 +6,24 @@ import { FC } from "react";
 import Button from "./Button";
 
 type Props = {
-  next?: string;
-  /** Overrides the plain offer, for a page that says why it is asking. */
+  /** Replaces the plain offer to sign in, for a page that says why it asks. */
   label?: string;
+  /** Centres the icon and label in the button instead of aligning them left. */
   centered?: boolean;
 };
 
-const SignInButton: FC<Props> = ({ next = "/", label, centered = false }) => {
+/**
+ * An outline button with the Google logo that starts signing in with Google.
+ * It loads the `/api/auth/google` route handler as a whole page, since the
+ * handler answers with a redirect to Google that the client router cannot
+ * follow.
+ */
+const SignInButton: FC<Props> = ({ label, centered = false }) => {
   const t = useTranslations("auth");
 
   const handleClick = () => {
-    // A whole-page navigation, not the router: this is a route handler that
-    // answers with a redirect to Google, not a page the client router can render.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`);
+    window.location.assign("/api/auth/google");
   };
 
   return (

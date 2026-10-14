@@ -145,7 +145,10 @@ export const LeadingTranslators: Story = {
   },
 };
 
-/** The ten pairs of an original author and a translator, with the translator as the detail. */
+/**
+ * The ten pairs of an original author and a translator, with the translator
+ * as the detail.
+ */
 export const Pairs: Story = {
   args: { description: preset("pairs"), drawn: CHARTS.pairs },
   play: async ({ canvasElement }) => {

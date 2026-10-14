@@ -5,17 +5,13 @@ import { useFormatter } from "next-intl";
 import { CSSProperties, FC } from "react";
 import InsightAxis from "./InsightAxis";
 import InsightLegend from "./InsightLegend";
-import InsightTable from "./InsightTable";
+import InsightTable, { type Row } from "./InsightTable";
 
-/** One column, a year or a decade. */
-type Column = {
-  /** The column's year, or the first year of its decade. */
-  at: number;
-  /** How the column is named, such as "1950s". */
-  label: string;
-  /** The count of each series, in the order of `series`. */
-  counts: number[];
-};
+/**
+ * One column, a year or a decade: a row of the table of counts, with the
+ * column's year, or the first year of its decade, in `at`.
+ */
+type Column = Row & { at: number };
 
 type Props = {
   /** The caption of the table of counts, which is the title of the chart. */
@@ -55,10 +51,10 @@ const InsightColumns: FC<Props> = ({
 }) => {
   const format = useFormatter();
   const most = Math.max(1, ...columns.map(({ counts }) => total(counts)));
+  // Returns the count that fills a column with `counts`: the largest sum, or
+  // with `shares`, the column's own sum.
   const scale = (counts: number[]) =>
     shares ? Math.max(1, total(counts)) : most;
-  const percent = (count: number, counts: number[]) =>
-    format.number(count / Math.max(1, total(counts)), { style: "percent" });
 
   return (
     <div className="space-y-3">
@@ -91,7 +87,9 @@ const InsightColumns: FC<Props> = ({
                       counts[which] ? (
                         <span key={name} className="block text-gray-300">
                           {name} {format.number(counts[which])}
-                          {shares ? ` · ${percent(counts[which], counts)}` : ""}
+                          {shares
+                            ? ` · ${format.number(counts[which] / scale(counts), { style: "percent" })}`
+                            : ""}
                         </span>
                       ) : null,
                     )
@@ -105,11 +103,7 @@ const InsightColumns: FC<Props> = ({
         title={title}
         heading={heading}
         series={series}
-        rows={columns.map(({ at, label, counts }) => ({
-          key: String(at),
-          label,
-          counts,
-        }))}
+        rows={columns}
       />
     </div>
   );

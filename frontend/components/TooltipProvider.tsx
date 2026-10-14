@@ -28,8 +28,11 @@ import { mergeRefs } from "react-merge-refs";
 // Adapted from https://floating-ui.com/docs/tooltip
 
 type TooltipOptions = {
+  /** Where the tooltip goes relative to its child. Defaults to `top`. */
   placement?: Placement;
+  /** With `main`, the tooltip stays inside the page's `<main>` element. */
   boundary?: "main";
+  /** Centres the tooltip horizontally in the viewport instead of on its child. */
   absoluteCenter?: boolean;
 };
 
@@ -84,6 +87,12 @@ type Props = {
   content: ReactElement;
 } & TooltipOptions;
 
+/**
+ * Shows `content` in a portal next to its only child while the child is
+ * hovered or focused, with the `tooltip` role. The tooltip closes when the
+ * pointer leaves, when the child loses focus, and on Escape or a click outside.
+ * It flips and shifts to stay in view. The child must take a ref.
+ */
 const TooltipProvider: FC<Props> = ({
   children,
   content,
@@ -102,20 +111,26 @@ const TooltipProvider: FC<Props> = ({
     [state.refs.setReference, childProps.ref],
   );
 
+  // The child's props, merged with the tooltip's, are built again only when the
+  // child or the tooltip's handlers change, not each time the tooltip opens or
+  // closes, so a memoised child does not render again for it.
+  const { getReferenceProps, setOpen } = state;
+  const referenceProps = useMemo(
+    () =>
+      getReferenceProps({
+        ...childProps,
+        ref: ref as Ref<Element>,
+        onBlur(event: FocusEvent<Element>) {
+          childProps.onBlur?.(event);
+          setOpen(false);
+        },
+      }),
+    [getReferenceProps, setOpen, childProps, ref],
+  );
+
   return (
     <>
-      {cloneElement(
-        children,
-        state.getReferenceProps({
-          ...childProps,
-          ...{ "data-state": state.open ? "open" : "closed" },
-          ref: ref as Ref<Element>,
-          onBlur(event: FocusEvent<Element>) {
-            childProps.onBlur?.(event);
-            state.setOpen(false);
-          },
-        }),
-      )}
+      {cloneElement(children, referenceProps)}
       <FloatingPortal>
         {state.open && (
           <div

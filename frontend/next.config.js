@@ -7,22 +7,19 @@ const withNextIntl = createNextIntlPlugin();
 const nextConfig = {
   reactStrictMode: true,
 
-  // Per-process build dir so parallel E2E `next dev` workers don't collide on a
-  // shared `.next` (each Playwright worker sets E2E_DIST_DIR). Defaults to `.next`.
+  // Each Playwright worker runs its own `next dev` and sets E2E_DIST_DIR to a
+  // build directory of its own, so the workers do not share `.next`.
   distDir: process.env.E2E_DIST_DIR || ".next",
 
-  // …and its own tsconfig while it is at it. Next writes the build directory's
-  // generated route types into the `include` of whichever config it is handed,
-  // so pointing E2E at the real one left `tsconfig.json` dirty after every run.
-  // A separate file absorbs that, and keeps `tsc` from type-checking throwaway
-  // builds — including the stale ones an earlier branch left behind.
+  // An E2E build also writes its generated route types into tsconfig.e2e.json
+  // rather than tsconfig.json, so `tsconfig.json` stays unchanged and `tsc`
+  // does not type-check the E2E builds.
   typescript: process.env.E2E_DIST_DIR
     ? { tsconfigPath: "tsconfig.e2e.json" }
     : {},
 
-  // Import SVGs as React components. Turbopack (Next 16's default bundler) runs
-  // the @svgr/webpack loader via turbopack.rules; the webpack block is the
-  // equivalent for `next build --webpack`.
+  // Imports an SVG as a React component, with Turbopack, Next's default
+  // bundler, and with webpack under `next build --webpack`.
   turbopack: {
     rules: {
       "*.svg": {
@@ -42,17 +39,8 @@ const nextConfig = {
     return config;
   },
 
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "lh3.googleusercontent.com",
-        pathname: "/a/**",
-      },
-    ],
-  },
-
-  // Silence the multi-lockfile "inferred workspace root" warning.
+  // Traces the files a standalone build needs from this directory, which also
+  // silences the warning about several lockfiles.
   outputFileTracingRoot: path.join(__dirname),
   output: "standalone",
 };

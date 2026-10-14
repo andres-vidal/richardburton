@@ -1,6 +1,5 @@
 import {
   ATTRIBUTES,
-  autocomplete,
   contrast,
   define,
   empty,
@@ -10,14 +9,8 @@ import {
   searchHref,
 } from "./model";
 import type { Publication } from "./model";
-import { Country } from "modules/country";
 import { routing } from "i18n/routing";
 import { messages } from "test/messages";
-
-vi.mock("modules/country", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("modules/country")>()),
-  Country: { REMOTE: { search: vi.fn() } },
-}));
 
 const COUNTRIES = messages.countryNames;
 
@@ -201,35 +194,6 @@ describe("define", () => {
   test("has no constraints for other attributes", () => {
     expect(define("title")).toEqual({});
     expect(define("authors")).toEqual({});
-  });
-});
-
-describe("autocomplete", () => {
-  // Which countries a term finds is the server's to decide — it is the only
-  // side that knows every name a country goes by. See the Country specs.
-  test("asks the server for the countries a term finds, in the reader's language", async () => {
-    const netherlands = { id: "NL", label: "Países Baixos" };
-    vi.mocked(Country.REMOTE.search).mockResolvedValue([netherlands]);
-
-    await expect(autocomplete("holanda", "countries", "pt")).resolves.toEqual([
-      netherlands,
-    ]);
-    expect(Country.REMOTE.search).toHaveBeenCalledWith("holanda", "pt");
-  });
-
-  test("asks in the default language when none is given", async () => {
-    vi.mocked(Country.REMOTE.search).mockResolvedValue([]);
-
-    await autocomplete("anything", "countries");
-
-    expect(Country.REMOTE.search).toHaveBeenCalledWith(
-      "anything",
-      routing.defaultLocale,
-    );
-  });
-
-  test("resolves to an empty list for attributes without suggestions", async () => {
-    await expect(autocomplete("anything", "year")).resolves.toEqual([]);
   });
 });
 

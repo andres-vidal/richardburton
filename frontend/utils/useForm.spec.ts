@@ -1,10 +1,9 @@
-import { renderHook } from "test/render";
-import { act } from "react-dom/test-utils";
+import { act, renderHook } from "test/render";
 import { z } from "zod";
 import { useForm } from "./useForm";
 
 describe("useForm", () => {
-  test("returns input props for each value in the schema", () => {
+  test("returns input props for each value in the schema, empty until typed in", () => {
     const Schema = z.object({
       foo: z.string(),
       bar: z.string(),
@@ -15,14 +14,14 @@ describe("useForm", () => {
     expect(hook.result.current).toMatchObject({
       inputs: {
         foo: {
-          value: undefined,
+          value: "",
           error: undefined,
           onChange: expect.any(Function),
           onBlur: expect.any(Function),
         },
 
         bar: {
-          value: undefined,
+          value: "",
           error: undefined,
           onChange: expect.any(Function),
           onBlur: expect.any(Function),

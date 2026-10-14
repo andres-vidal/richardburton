@@ -6,10 +6,9 @@ import * as WorkspaceSourcesCellStories from "./WorkspaceSourcesCell.stories";
 
 # Workspace sources cell
 
-The trailing "sources" cell for a row in the Add-publications workspace.
-Sources are a list, not a scalar, so they live outside the attribute grid: a
-design-system `Button` (outline) that fills the cell shows the source count and
-opens the list editor in a modal.
+The cell at the end of a row in the import workspace. Sources are a list, not
+one value, so they are edited outside the attribute grid: an outlined `Button`
+shows the source count and opens the sources editor in a dialog.
 
 ## Props
 
@@ -37,9 +36,8 @@ the row.
 - **With sources** — the button reads "N sources", labelled "Edit sources
   (N)".
 
-Note: the stories wrap the cell in a plain `role="row"` for valid ARIA, so it
-sits at its natural height there; in the real workspace grid the button stretches
-to fill the row.
+The stories wrap the cell in a `role="row"` inside a `role="table"`, since a
+cell is only valid ARIA inside a row.
 
 ## The look-alike button
 

@@ -50,7 +50,10 @@ const InsightLines: FC<Props> = ({
     ),
   );
   const most = Math.max(1, ...tops.flat());
+  // Returns the y coordinate of `value` in the SVG's units: 100 at the bottom
+  // for 0, and 0 at the top for the largest value drawn.
   const y = (value: number) => 100 - (value / most) * 100;
+  // Returns the points of series `which`, one in the middle of each slot.
   const line = (which: number) =>
     tops.map((heights, index) => `${index + 0.5},${y(heights[which])}`);
 
@@ -120,11 +123,7 @@ const InsightLines: FC<Props> = ({
         title={title}
         heading={heading}
         series={series}
-        rows={points.map(({ at, label, counts }) => ({
-          key: String(at),
-          label,
-          counts,
-        }))}
+        rows={points}
       />
     </div>
   );

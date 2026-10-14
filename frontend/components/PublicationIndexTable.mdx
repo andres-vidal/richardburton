@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as IndexTableStories from "./PublicationIndexTable.stories";
 
@@ -15,10 +15,10 @@ it (see _Extension points_ below).
 
 Like the [index list](?path=/docs/publications-index-list--docs), the table is
 **state-driven** and takes no publication props — it reads the row ids from
-the store (`usePublicationIds`) and each cell resolves its own value.
-Cell values are run through `Publication.describeValue`, so stored codes render
-as labels (e.g. a country code becomes the country name). Stories seed the store
-with the shared fixtures:
+the store (`usePublicationIds`) and each cell reads its own value. A cell shows
+the saved value, as the search marked it, so a country code shows as the
+country's name and an unsaved edit does not show. Stories seed the store with
+the shared fixtures:
 
 ```tsx
 import { seedIndex } from "test/publication-fixtures";
@@ -26,6 +26,7 @@ import { seedIndex } from "test/publication-fixtures";
 seedIndex(store);
 ```
 
+<Description of={IndexTableStories.Default} />
 <Canvas of={IndexTableStories.Default} />
 
 ## Column visibility & virtualization
@@ -50,8 +51,20 @@ seedIndex(store);
 
 ## Extension points
 
-The table accepts injectable pieces — `ExtendedRow`, `ExtendedColumn`,
-`ExtendedColumnHeader`, `ExtendedContent`, `ExtendedSignalColumn`, and an
-`ExtraRow` — each defaulting to the read-only implementation. Overriding them is
-how [`PublicationWorkspace`](?path=/docs/publications-workspace--docs) turns this same
-table into an editable, validated grid without duplicating its structure.
+The table accepts pieces that replace its own: `ExtendedRow`, `ExtendedColumn`
+and `ExtendedContent`, which default to the read-only row, cell and cell
+content. `ExtendedSignalColumn` and `ExtendedTrailingColumn` add a cell before
+and after the attributes of every row, and `ExtraRow` adds a row at the end.
+[`PublicationWorkspace`](?path=/docs/publications-workspace--docs) builds the
+editable table from these.
+
+## Props
+
+- `onRowClick(id, event)` — called when a row is clicked. Rows are memoised, so
+  a function that keeps its identity lets a row skip rendering when only the
+  table renders again.
+- `rowHref(id)` — the address of a row's record. With it, the title cell is a
+  link.
+- `selectable` — whether the text in the table can be selected.
+- `collapsible` — whether the column menu can hide columns. With `false`
+  every column shows.

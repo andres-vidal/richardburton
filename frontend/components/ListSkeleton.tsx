@@ -3,14 +3,18 @@ import { useTranslations } from "next-intl";
 import { FC } from "react";
 
 interface Props {
+  /** How many placeholder rows to draw. */
   rows: number;
 }
 
+/**
+ * Renders `rows` grey bars that pulse while a list loads. Past the eighth, the
+ * bars fade towards the end of the list. The wrapper is a status named
+ * "Loading", and the bars are hidden from assistive technology.
+ */
 const ListSkeleton: FC<Props> = ({ rows }) => {
   const t = useTranslations("common");
-  // `role="status"` on the wrapper announces "Loading"; the bars themselves are
-  // decorative, so hide the list from assistive tech (an `aria-hidden` also keeps
-  // its <li>s from being flagged as orphaned once the status role is applied).
+
   return (
     <div role="status" aria-label={t("loading")}>
       <ul aria-hidden="true" className="w-full space-y-2 animate-pulse">

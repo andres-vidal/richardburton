@@ -65,55 +65,55 @@ const GROUPS = [
 const exampleKey = (row: string) => `${row.replace(/Field$/, "")}Example`;
 
 /**
- * Documents the search syntax: accent and misspelling tolerance, per-word
- * narrowing, and the field operators. None of that is discoverable from a text
- * box.
- *
- * Every row states a query and what it matches; none describes the
- * implementation.
+ * Renders a table of the search syntax: accent and misspelling tolerance,
+ * per-word narrowing, and the field operators, in groups. Each row gives an
+ * example query and what it matches, without describing how the search works.
  */
 const SearchHelp: FC = () => {
   const t = useTranslations("searchHelp");
 
   return (
-    <div className="space-y-6">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="border-b border-gray-300">
-            <th
-              scope="col"
-              className="py-1 pr-4 w-1/3 text-xs font-medium text-left text-gray-500"
-            >
-              {t("exampleHeader")}
-            </th>
-            <th
-              scope="col"
-              className="py-1 text-xs font-medium text-left text-gray-500"
-            >
-              {t("returnsHeader")}
-            </th>
-          </tr>
-        </thead>
+    <table className="w-full border-collapse">
+      <thead>
+        <tr className="border-b border-gray-300">
+          <th
+            scope="col"
+            className="py-1 pr-4 w-1/3 text-xs font-medium text-left text-gray-500"
+          >
+            {t("exampleHeader")}
+          </th>
+          <th
+            scope="col"
+            className="py-1 text-xs font-medium text-left text-gray-500"
+          >
+            {t("returnsHeader")}
+          </th>
+        </tr>
+      </thead>
 
-        {GROUPS.map(({ title, rows }) => (
-          <Group key={title} title={t(title)}>
-            {rows.map((row) => (
-              <Row key={row} type={t(exampleKey(row))}>
-                {t.rich(row, {
-                  em: (chunks) => <em>{chunks}</em>,
-                  code: (chunks) => (
-                    <code className="font-mono text-xs">{chunks}</code>
-                  ),
-                })}
-              </Row>
-            ))}
-          </Group>
-        ))}
-      </table>
-    </div>
+      {GROUPS.map(({ title, rows }) => (
+        <Group key={title} title={t(title)}>
+          {rows.map((row) => (
+            <Row key={row} type={t(exampleKey(row))}>
+              {t.rich(row, {
+                em: (chunks) => <em>{chunks}</em>,
+                code: (chunks) => (
+                  <code className="font-mono text-xs">{chunks}</code>
+                ),
+              })}
+            </Row>
+          ))}
+        </Group>
+      ))}
+    </table>
   );
 };
 
+/**
+ * A modal holding the search help, as an `Article` headed by its title. It is
+ * open while the URL has a `search-help` query parameter, which keeps the rest
+ * of the query, so the search being refined stays behind it.
+ */
 const SearchHelpModal: FC = () => {
   const { isOpen, close } = useURLQueryModal(SEARCH_HELP_MODAL_KEY);
   const t = useTranslations("searchHelp");

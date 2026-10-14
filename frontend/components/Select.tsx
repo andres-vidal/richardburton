@@ -21,21 +21,33 @@ type Props = Omit<
   HTMLProps<HTMLInputElement>,
   "value" | "onChange" | "className"
 > & {
+  /** Marks the field invalid when it is not empty. */
   error: string;
   value?: Option;
-  /** Outlined style — applies to the input *and* its dropdown. */
+  /** Draws the input and its menu outlined. */
   bordered?: boolean;
   onChange: (option: Option) => void;
+  /** Returns the options matching `search`, or all of them for `""`. */
   getOptions: (search: string) => Promise<Option[]>;
 };
 
+/**
+ * A combobox for one value: an input that shows the label of `value`, and a
+ * menu of the options `getOptions` returns. Focusing or clicking the input, or
+ * clicking the chevron, opens the menu on every option. Typing asks for the
+ * options matching what was typed and highlights the first. Clicking an option,
+ * or pressing Enter or the right arrow on the highlighted one, calls
+ * `onChange` with it, closes the menu and keeps focus in the input.
+ *
+ * The typed text lasts while the menu is open. When the menu closes, the input
+ * shows the label of `value` again.
+ */
 export default forwardRef<HTMLInputElement, Props>(function Select(
   {
     value,
     error,
     bordered,
     onChange,
-    onBlur,
     onFocus,
     onKeyDown,
     onClick,
@@ -49,23 +61,21 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [search, setSearch] = useState<string | undefined>();
   const [options, setOptions] = useState<Option[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  function handleBlur(event: FocusEvent<HTMLInputElement>) {
-    onBlur?.(event);
-  }
-
-  /** The unfiltered list, for a menu that is about to be shown. */
+  /** Loads every option into the menu. */
   function loadOptions() {
     getOptions("").then(setOptions);
   }
 
-  /** Opens the menu on the unfiltered list. */
+  /** Opens the menu on every option, dropping any typed text. */
   function open() {
     setSearch("");
     setIsOpen(true);
     loadOptions();
   }
 
+  /** Opens the menu when the input takes focus. */
   function handleFocus(event: FocusEvent<HTMLInputElement>) {
     open();
     onFocus?.(event);
@@ -80,6 +90,10 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
     onClick?.(event);
   }
 
+  /**
+   * Keeps the typed text, and opens the menu on the options matching it with
+   * the first highlighted. Emptying the input closes the menu.
+   */
   async function handleInputChange(v: string) {
     setSearch(v);
 
@@ -93,21 +107,23 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
     }
   }
 
+  /** Picks the highlighted option on Enter or the right arrow. */
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (
       (event.key === Key.ENTER || event.key === Key.ARROW_RIGHT) &&
       activeIndex != null
     ) {
-      handleSelect(options[activeIndex]);
+      onChange(options[activeIndex]);
       setIsOpen(false);
-      // Keep focus in the input (combobox pattern). Blurring here bounced focus
-      // through the menu's focus manager, whose focus-return re-triggered
-      // handleFocus and reopened an emptied menu over the fresh selection.
     }
 
     onKeyDown?.(event);
   }
 
+  /**
+   * Toggles the menu from the chevron. Opening it focuses the input and loads
+   * every option, and closing it takes focus from the input.
+   */
   function handleToggleClick() {
     setIsOpen((isOpen) => !isOpen);
     if (!isOpen) {
@@ -118,14 +134,10 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
     }
   }
 
-  function handleSelect(option: Option) {
-    onChange?.(option);
-  }
-
-  const inputRef = useRef<HTMLInputElement>(null);
-
   const inputValue = search === undefined ? value?.label || "" : search;
 
+  // Drops the typed text when the menu closes, during render rather than in an
+  // effect, so the input never shows a stale search.
   const [wasOpen, setWasOpen] = useState(isOpen);
 
   if (isOpen !== wasOpen) {
@@ -140,7 +152,7 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
       activeIndex={activeIndex}
       setIsOpen={setIsOpen}
       setActiveIndex={setActiveIndex}
-      onSelect={handleSelect}
+      onSelect={onChange}
       bordered={bordered}
     >
       <TextInput
@@ -149,7 +161,6 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
         ref={ref}
         inputRef={inputRef}
         onChange={handleInputChange}
-        onBlur={handleBlur}
         onFocus={handleFocus}
         onClick={handleClick}
         onKeyDown={handleKeyDown}

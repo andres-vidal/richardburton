@@ -1,0 +1,50 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ContactModalStories from "./ContactModal.stories";
+
+<Meta of={ContactModalStories} />
+
+# Contact modal
+
+The contact form in a modal. The modal is open while the URL has a `contact`
+query parameter, such as `?contact=true`, so a link can open it.
+
+<Description of={ContactModalStories.Default} />
+<Canvas of={ContactModalStories.Default} />
+
+## Props
+
+- `onSend` — sends a message, given the form's values and the reCAPTCHA widget
+  to take a token from. It defaults to `sendContact`, which posts the message to
+  the contact endpoint.
+
+`CONTACT_MODAL_KEY` is the name of the query parameter that opens the modal.
+
+## Sending a message
+
+The form checks its fields before it sends anything. It then sends the message
+with an invisible reCAPTCHA token. Once the message is sent, a notification says
+so and the modal closes.
+
+<Canvas of={ContactModalStories.Sent} />
+
+## When the server refuses it
+
+The contact endpoint answers a refused message with a reason, and the form
+treats each one differently. In every case the form stays open with what was
+typed.
+
+- **Refused fields** — a 400 whose `errors` hold a code for each field. Each one
+  is shown at its field, in the same words the form uses for its own checks.
+
+<Canvas of={ContactModalStories.RefusedFields} />
+
+- **A refused reCAPTCHA check** — a 403 with the code `invalid_captcha`. A
+  notification says the check failed, so the reader can send again.
+
+<Canvas of={ContactModalStories.CaptchaRefused} />
+
+- **A message that could not be sent** — a 502 with the code `unsent`, or any
+  other failure. A notification says something went wrong.
+
+<Canvas of={ContactModalStories.NotSent} />

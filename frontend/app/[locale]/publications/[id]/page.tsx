@@ -1,4 +1,3 @@
-import { routing } from "i18n/routing";
 import Breadcrumb from "components/Breadcrumb";
 import Layout from "components/Layout";
 import PublicationDetail, {
@@ -11,12 +10,19 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import Home from "../../Home";
+import { alternates } from "app/alternates";
 import { readIndex, readPublication } from "app/publications/read";
 
+// Returns `readPublication(id, search)`, or renders the 404 page when there is
+// no such publication.
 async function read(id: string, search?: string) {
   return (await readPublication(id, search)) ?? notFound();
 }
 
+/**
+ * Returns the publication's title, a description naming the work it
+ * translates, and its address in every locale.
+ */
 export async function generateMetadata({
   params,
   searchParams,
@@ -38,15 +44,7 @@ export async function generateMetadata({
       authors: String(authors),
       year,
     }),
-    alternates: {
-      canonical: `/${locale}/publications/${publication.id}`,
-      languages: Object.fromEntries(
-        routing.locales.map((other) => [
-          other,
-          `/${other}/publications/${publication.id}`,
-        ]),
-      ),
-    },
+    alternates: alternates(`/publications/${publication.id}`, locale),
   };
 }
 
@@ -85,7 +83,10 @@ export default async function PublicationPage({
     );
   }
 
-  const { publication, history } = await read(id, query.search);
+  const [t, { publication, history }] = await Promise.all([
+    getTranslations("admin"),
+    read(id, query.search),
+  ]);
 
   return (
     <Layout
@@ -93,7 +94,10 @@ export default async function PublicationPage({
       subheader={
         <>
           <Breadcrumb
-            items={[{ label: "Home", href: "/" }, { label: publication.title }]}
+            items={[
+              { label: t("home"), href: "/" },
+              { label: publication.title },
+            ]}
           />
           <div className="py-2">
             <PublicationHeading publication={publication} />

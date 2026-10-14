@@ -8,13 +8,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { ReactElement, ReactNode } from "react";
 import { messages } from "./messages";
 
-/**
- * Renders a component with the copy it reads, the way the locale layout
- * supplies it.
- *
- * `useTranslations` throws without a provider, so specs use this in place of
- * Testing Library's `render`. They are written in the default locale.
- */
+// Provides the default locale's messages, as the locale layout provides them.
 const Wrapper = ({ children }: { children: ReactNode }) => (
   <NextIntlClientProvider
     locale={routing.defaultLocale}
@@ -25,16 +19,17 @@ const Wrapper = ({ children }: { children: ReactNode }) => (
   </NextIntlClientProvider>
 );
 
-export function render(ui: ReactElement, ...rest: unknown[]) {
-  return rtlRender(ui, { wrapper: Wrapper, ...(rest[0] as object) });
+/**
+ * Renders `ui` with Testing Library's `render`, inside the messages of the
+ * default locale. `useTranslations` throws without them.
+ */
+export function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: Wrapper });
 }
 
-/** A hook that reads copy needs the provider as much as a component does. */
-export function renderHook<Result, Props>(
-  hook: (props: Props) => Result,
-  ...rest: unknown[]
-) {
-  return rtlRenderHook(hook, { wrapper: Wrapper, ...(rest[0] as object) });
+/** Renders `hook` like `render`, inside the messages of the default locale. */
+export function renderHook<Result>(hook: () => Result) {
+  return rtlRenderHook(hook, { wrapper: Wrapper });
 }
 
 export * from "@testing-library/react";

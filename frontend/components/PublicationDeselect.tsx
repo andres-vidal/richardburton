@@ -7,6 +7,10 @@ import { usePublicationStore } from "modules/publication/workspace";
 import { clearSelection, useSelectionSize } from "modules/selection";
 import Button from "./Button";
 
+/**
+ * A button that clears the selection of rows. Its label counts the selected
+ * rows ("Deselect 2").
+ */
 const PublicationDeselect: FC = () => {
   const t = useTranslations("admin");
   const store = usePublicationStore();

@@ -9,9 +9,9 @@ import { publicationIdsAtom, setAll } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { bulk, validate } from "modules/publication/remote";
 import { useTranslations } from "next-intl";
-import { FC, useCallback, useState } from "react";
+import { FC, useState } from "react";
 import Button from "./Button";
-import { useNotify } from "./Notifications";
+import { notify } from "./Notifications";
 import Tooltip from "./Tooltip";
 
 /**
@@ -31,10 +31,9 @@ import Tooltip from "./Tooltip";
 const PublicationSubmit: FC = () => {
   const t = useTranslations("admin");
   const store = usePublicationStore();
-  const notify = useNotify();
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = useCallback(() => {
+  function handleSubmit() {
     const ids = store.get(publicationIdsAtom) ?? [];
     setSubmitting(true);
 
@@ -43,18 +42,18 @@ const PublicationSubmit: FC = () => {
         (publications) => {
           setAll(store, []);
           notify({
-            message: `${publications.length} ${
-              publications.length === 1 ? "publication" : "publications"
-            } inserted successfully`,
+            message: "notify.inserted",
+            values: { count: publications.length },
             level: "success",
           });
         },
         () => validate(store, ids, { force: true }),
       )
-      // `run` has already reported any error to the person.
+      // `bulk` has already reported its error, and a failed validation leaves
+      // the rows as they were.
       .catch(() => {})
       .finally(() => setSubmitting(false));
-  }, [notify, store]);
+  }
 
   const publicationCount = usePublicationCount();
   const validPublicationCount = useValidPublicationCount();

@@ -1,0 +1,69 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as TooltipStories from "./Tooltip.stories";
+import * as TooltipProviderStories from "./TooltipProvider.stories";
+
+<Meta of={TooltipStories} />
+
+# Tooltip
+
+Shows a message in a tooltip on its child while the child is hovered or
+focused. The child must take a ref, and should be focusable, such as a button,
+so the message can be reached from the keyboard.
+
+<Description of={TooltipStories.Default} />
+<Canvas of={TooltipStories.Default} />
+
+## Props
+
+- `message` — the text shown. When it is empty, the child renders alone, with
+  no tooltip.
+- `variant` — `error`, `warning` or `info`, each with its own colours and icon.
+- `placement` — where the tooltip goes relative to its child, `top` by default.
+- `boundary` — with `main`, the tooltip stays inside the page's `<main>`
+  element.
+- `absoluteCenter` — centres the tooltip horizontally in the viewport instead
+  of on its child.
+
+## Variants
+
+<Description of={TooltipStories.Error} />
+<Canvas of={TooltipStories.Error} />
+
+<Description of={TooltipStories.Warning} />
+<Canvas of={TooltipStories.Warning} />
+
+<Description of={TooltipStories.Info} />
+<Canvas of={TooltipStories.Info} />
+
+A long message wraps at 20rem rather than stretching across the page.
+
+<Canvas of={TooltipStories.LongMessage} />
+
+## Placement
+
+The tooltip flips to the other side of its child when there is no room, and
+shifts along it to stay inside the viewport.
+
+<Description of={TooltipStories.PlacedAboveTheTrigger} />
+<Canvas of={TooltipStories.PlacedAboveTheTrigger} />
+
+<Description of={TooltipStories.FlipsBelowNearViewportTop} />
+<Canvas of={TooltipStories.FlipsBelowNearViewportTop} />
+
+<Description of={TooltipStories.PlacedBelowWhenRequested} />
+<Canvas of={TooltipStories.PlacedBelowWhenRequested} />
+
+## TooltipProvider
+
+`TooltipProvider` is the unstyled part of a tooltip, and is documented here
+rather than on its own page. It shows any `content` next to its child, in a
+portal with the `tooltip` role, while the child is hovered or focused. It closes
+when the pointer leaves, when the child loses focus, and on Escape or a click
+outside. It takes the same `placement`, `boundary` and `absoluteCenter` props.
+
+<Description of={TooltipProviderStories.Default} />
+<Canvas of={TooltipProviderStories.Default} />
+
+<Description of={TooltipProviderStories.OpensOnFocus} />
+<Canvas of={TooltipProviderStories.OpensOnFocus} />

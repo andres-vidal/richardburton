@@ -14,8 +14,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * The search syntax source. Open state lives in the URL, so the search it
- * documents stays on screen behind it.
+ * The modal opened by `?search-help=true` in the URL. The play test checks
+ * that it documents the tolerances and an example of each kind of operator.
  */
 export const Open: Story = {
   parameters: {
@@ -36,7 +36,10 @@ export const Open: Story = {
   },
 };
 
-/** Every operator accepts a Portuguese name. */
+/**
+ * The last group lists the Portuguese name of the operators. The play test
+ * checks some of them.
+ */
 export const InPortuguese: Story = {
   parameters: {
     nextjs: { navigation: { pathname: "/", query: { "search-help": "true" } } },
@@ -50,7 +53,7 @@ export const InPortuguese: Story = {
   },
 };
 
-/** Renders nothing when closed; the URL parameter controls it. */
+/** Without the URL parameter, nothing is rendered. */
 export const Closed: Story = {
   parameters: { nextjs: { navigation: { pathname: "/" } } },
   play: async () => {

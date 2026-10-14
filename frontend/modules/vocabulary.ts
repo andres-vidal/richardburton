@@ -1,4 +1,5 @@
 import { request } from "app";
+import { ApiError } from "modules/http";
 
 /** An author or publisher name stored in the database. */
 type Name = {
@@ -7,9 +8,8 @@ type Name = {
   /** How many publications credit this name. */
   publications: number;
   /**
-   * The ids of the other names of the same kind that this name resembles.
-   * Each id is also in the list that `list` returns. Empty when the name
-   * resembles no other name.
+   * The ids of the other names of the same kind that this name resembles, or
+   * an empty list when it resembles no other name.
    */
   resembles: number[];
 };
@@ -37,14 +37,6 @@ type Resemblance = {
   resembles: Omit<Name, "resembles">[];
 };
 
-async function list(kind: Kind): Promise<Name[]> {
-  return request(async (http) => {
-    const { data } = await http.get<{ entries: Name[] }>(`vocabulary/${kind}`);
-
-    return data.entries;
-  });
-}
-
 /**
  * Renames a name. When another name of the same kind already has the new name,
  * the two are folded into one.
@@ -68,43 +60,30 @@ async function rename(
   | { folds: Name; publications: Listed[] }
   | { collides: Listed[] }
 > {
-  return request(async (http) => {
-    try {
-      const { data } = await http.patch<{ outcome: Outcome }>(
-        `vocabulary/${kind}/${id}`,
-        { name, fold },
-      );
+  try {
+    const { data } = await request((http) =>
+      http.patch<{ outcome: Outcome }>(`vocabulary/${kind}/${id}`, {
+        name,
+        fold,
+      }),
+    );
 
-      return { outcome: data.outcome };
-    } catch (error) {
-      const refusal = refused(error);
+    return { outcome: data.outcome };
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
 
-      if (refusal?.error === "would_fold" && refusal.into) {
-        return {
-          folds: refusal.into,
-          publications: refusal.publications ?? [],
-        };
-      }
+    const { into, publications = [] } = (error.body ?? {}) as {
+      into?: Name;
+      publications?: Listed[];
+    };
 
-      if (refusal) return { collides: refusal.publications ?? [] };
-
-      throw error;
+    if (error.code === "would_fold" && into) {
+      return { folds: into, publications };
     }
-  });
-}
+    if (error.code === "would_collide") return { collides: publications };
 
-/** Returns the body of a 409 response, or null for any other error. */
-function refused(error: unknown) {
-  const response = (
-    error as {
-      response?: {
-        status?: number;
-        data?: { error?: string; into?: Name; publications?: Listed[] };
-      };
-    }
-  ).response;
-
-  return response?.status === 409 ? (response.data ?? {}) : null;
+    throw error;
+  }
 }
 
 /**
@@ -128,5 +107,5 @@ async function resemblances(
   });
 }
 
-export { list, rename, resemblances };
-export type { Kind, Listed, Name, Outcome, Resemblance };
+export { rename, resemblances };
+export type { Kind, Listed, Name, Resemblance };

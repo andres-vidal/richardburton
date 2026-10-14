@@ -7,7 +7,6 @@ import MenuItem from "./MenuItem";
 const meta = {
   title: "Components/Menu",
   component: Menu,
-  tags: ["autodocs"],
   parameters: { layout: "centered" },
 } satisfies Meta<typeof Menu>;
 
@@ -15,7 +14,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** The bare scrollable list container — usually populated with `MenuItem`s. */
+/** A list of `MenuItem`s, the second one highlighted. */
 export const Default: Story = {
   render: (args) => (
     <Menu {...args} aria-label="Books">
@@ -34,10 +33,7 @@ export const Default: Story = {
   },
 };
 
-/**
- * `bordered` — the outlined dropdown that pairs with a bordered input (white,
- * bordered, `text-sm`), instead of the subtle borderless dense style.
- */
+/** `bordered` draws the list outlined on white, to match a bordered input. */
 export const Bordered: Story = {
   args: { bordered: true },
   render: (args) => (

@@ -25,8 +25,8 @@ so the same publication offers the same affordances wherever it is read.
 ## Props
 
 - `publication` — the record to show.
-- `onNavigate` — called when a search link is followed. An overlay uses it to
-  close itself; a page has nothing to close and omits it.
+- `history` — the record's log, read with it. It is given only to an admin,
+  and the section is absent without it.
 - `onDeleted` — called once the record is gone. Defaults to leaving for the
   index, which is what a page showing only this publication has to do; an
   overlay closes instead and leaves the database behind it in place.
@@ -34,9 +34,10 @@ so the same publication offers the same affordances wherever it is read.
 ## The edit form
 
 The Edit control opens `PublicationEditForm`, which the module also exports. It
-edits every field of a publication in the enclosing store, validating each field
-as it changes, and its save button is disabled while the publication has
-errors. By default it saves with `update`. Its `save`, `heading` and
+edits every field of a publication in the enclosing store. While it is open,
+`watchEdit` validates the publication shortly after each change, and each field
+writes its error under itself. The save button is disabled while the
+publication has errors. By default it saves with `update`. Its `save`, `heading` and
 `saveLabel` props replace the save action and the two labels, which is how the
 [trash](?path=/docs/publications-deleted-publications--docs) uses it to restore
 a publication with changes.
@@ -51,6 +52,6 @@ a publication with changes.
 - **Merging** — the
   [merge dialog](?path=/docs/publications-publication-merge--docs), opened over
   the record that survives it.
-- **Notifies on navigate** — following a link tells the caller.
+- **Search links** — every value in the sentence links to a search for it.
 
 <Canvas of={PublicationDetailStories.WithoutSources} />

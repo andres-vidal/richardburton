@@ -16,19 +16,23 @@ type Props = {
   content: ReactNode;
   subheader?: ReactNode;
   /**
-   * How the page is laid out across the viewport. `full` fills it, which is
-   * what the index and the bulk workspace need from their tables. `aligned`
-   * holds the subheader and the content to one column of readable width and
-   * starts both at the page's own gutter — so a page's breadcrumb, its title and
-   * what they introduce all begin where the header's content begins, instead of
-   * a narrow column floating in the middle of an empty page.
+   * How the page is laid out across the viewport. `full` fills it, for wide
+   * tables. `aligned` holds the subheader and the content to one column of
+   * readable width, both starting at the page's gutter, where the banner's
+   * content begins.
    */
   measure?: "full" | "aligned";
 };
 
 /**
  * Renders the app shell: a sticky header with the banner and the `subheader`,
- * the `content` in the page's `<main>`, and an optional sticky `footer`.
+ * the `content` in the page's `<main>`, and an optional sticky `footer`. The
+ * banner links to the Learn more and Contact modals, which the shell renders,
+ * and offers Sign out while someone is signed in.
+ *
+ * The shell sets the `--app-header-h` CSS variable on the document to the
+ * header's height, and keeps it current with a `ResizeObserver`, so a sticky
+ * element in the content can pin just under the header.
  */
 const Layout: FC<Props> = ({
   footer,
@@ -40,10 +44,6 @@ const Layout: FC<Props> = ({
   const headerRef = useRef<HTMLElement>(null);
   const isAuthenticated = useIsAuthenticated();
 
-  // Publish the header's height as `--app-header-h` so the table's column headers
-  // can pin at its bottom (the end of the searchbar panel), not behind it. A
-  // ResizeObserver keeps it current as the searchbar panel grows/shrinks or the
-  // banner wraps at the mobile breakpoint.
   useEffect(() => {
     const header = headerRef.current;
     if (!header) return;

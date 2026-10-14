@@ -6,7 +6,6 @@ import Pill from "./Pill";
 const meta = {
   title: "Components/Pill",
   component: Pill,
-  tags: ["autodocs"],
   args: { label: "Machado de Assis", onRemove: fn() },
   parameters: { layout: "centered" },
 } satisfies Meta<typeof Pill>;
@@ -15,13 +14,18 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** A removable tag — a label with a close button that fires `onRemove`. */
+/**
+ * A tag with a button that removes it. The play test clicks the button by its
+ * name and checks that `onRemove` is called.
+ */
 export const Default: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Machado de Assis")).toBeInTheDocument();
 
-    await userEvent.click(canvas.getByRole("button"));
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Remove Machado de Assis" }),
+    );
     await expect(args.onRemove).toHaveBeenCalledTimes(1);
   },
 };

@@ -6,6 +6,7 @@ import { expect, within } from "storybook/test";
 
 import AdminMenu from "./AdminMenu";
 
+/** A decorator that signs in as `role` and gives the menu a white page. */
 const signedInAs = (role: UserRole) =>
   function SignedIn(Story: () => ReactElement) {
     return (
@@ -17,8 +18,6 @@ const signedInAs = (role: UserRole) =>
     );
   };
 
-// The admin hub: a card per admin tool. Linked from the home footer so admin
-// actions live on one page instead of cluttering the footer.
 const meta = {
   title: "Admin/Admin menu",
   component: AdminMenu,
@@ -29,7 +28,10 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Each tool is a card linking to its route. */
+/**
+ * Signed in as an admin, every tool has a card. The play test checks that the
+ * cards link to their routes.
+ */
 export const Default: Story = {
   decorators: [signedInAs("admin")],
   play: async ({ canvasElement }) => {
@@ -59,7 +61,10 @@ export const Default: Story = {
   },
 };
 
-/** The database is a contributor's; deciding who may work on it is not. */
+/**
+ * Signed in as a contributor, every tool but Access has a card. The play test
+ * checks that Access is missing.
+ */
 export const AsAContributor: Story = {
   decorators: [signedInAs("contributor")],
   play: async ({ canvasElement }) => {

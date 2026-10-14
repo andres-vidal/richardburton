@@ -7,9 +7,7 @@ import * as HighlightStories from "./Highlight.stories";
 # Highlight
 
 Renders the highlighting the index put on an excerpt, so a reader can see what
-the search matched instead of having to work it out. Used wherever a publication
-is shown during a search: the rows of the index, the list, and a record opened
-over them.
+the search matched.
 
 <Canvas of={HighlightStories.Matched} />
 
@@ -28,9 +26,9 @@ matched words wrapped in `[[ ]]` (see the backend's
 markers and wraps every other piece in a `<mark>`. It makes no decision about
 what matched; it only renders what the database already decided.
 
-That is the whole point of doing it this way. Whether two spellings count as the
-same word, where one word ends, and which field an operator applied to are all
-decided by the search configuration, which only the database knows. `title:night`
+Whether two spellings count as the same word, where one word ends, and which
+field an operator applied to are all decided by the search configuration, which
+only the database knows, so the highlighting cannot drift from the search. `title:night`
 highlights the title and nothing else because the index built an excerpt for the
 title alone.
 
@@ -56,7 +54,7 @@ a publication's own page opened without a query.
 
 ## Restyling the mark
 
-The sources line under a title uses a dimmer highlight, because the whole line is
-secondary to the row it explains.
+`className` replaces the classes of every mark, for text that needs a
+different highlight, such as a line set quieter than the text around it.
 
 <Canvas of={HighlightStories.Restyled} />

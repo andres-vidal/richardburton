@@ -6,14 +6,13 @@ import { useTranslations } from "next-intl";
 import { merge, search } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { ChangeEventHandler, FC, useState } from "react";
-import useDebounce from "utils/useDebounce";
+import useLookup from "utils/useLookup";
 import Button from "./Button";
 import Highlight from "./Highlight";
 import { Modal } from "./Modal";
+import ModalHeading from "./ModalHeading";
+import { SEARCH_INPUT_CLASS_NAME } from "./PublicationSearch";
 import SectionHeading from "./SectionHeading";
-
-/** Long enough that a typist does not query on every letter. */
-const SEARCH_DELAY_MS = 350;
 
 type Props = {
   /** The record the others fold into: it keeps its identity and its address. */
@@ -22,7 +21,10 @@ type Props = {
   onClose: () => void;
   /** Run once the merge has happened, so the view showing the record can re-read it. */
   onMerged: () => void;
-  /** How a term finds candidates. Defaults to searching the database. */
+  /**
+   * Finds the candidates for a term, which it receives in lower case. Defaults
+   * to searching the database.
+   */
   find?: (term: string) => Promise<Publication[]>;
 };
 
@@ -158,12 +160,14 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
 };
 
 /**
- * Collapse duplicates of a publication into it: find them, see what the record
- * becomes, and confirm.
+ * A dialog that merges duplicates into `publication`: find them, see what the
+ * record becomes, and confirm.
  *
- * A merge is deliberately not undoable, so the dialog shows the outcome rather
- * than describing it — everything the survivor gains is marked before the
- * question is asked.
+ * The search runs through `useLookup`, so it waits for typing to pause and
+ * only the newest search fills the list. A merge is not undoable, so the
+ * dialog shows the outcome rather than describing it: everything the survivor
+ * gains is marked before the question is asked. Closing the dialog clears the
+ * search and the picks.
  */
 const PublicationMerge: FC<Props> = ({
   publication,
@@ -176,25 +180,22 @@ const PublicationMerge: FC<Props> = ({
   const store = usePublicationStore();
 
   const [term, setTerm] = useState("");
-  const [searching, setSearching] = useState(false);
   const [candidates, setCandidates] = useState<Publication[]>([]);
   const [chosen, setChosen] = useState<Publication[]>([]);
   const [merging, setMerging] = useState(false);
+  const {
+    lookup,
+    cancel,
+    busy: searching,
+  } = useLookup<Publication>(findPublications);
 
-  const find = useDebounce(async (value: string) => {
-    if (!value.trim()) {
-      setCandidates([]);
-      setSearching(false);
-      return;
-    }
-    setCandidates(await findPublications(value));
-    setSearching(false);
-  }, SEARCH_DELAY_MS);
+  const handleTerm: ChangeEventHandler<HTMLInputElement> = async (event) => {
+    const typed = event.target.value;
+    setTerm(typed);
+    if (!typed.trim()) setCandidates([]);
 
-  const handleTerm: ChangeEventHandler<HTMLInputElement> = (event) => {
-    setTerm(event.target.value);
-    setSearching(Boolean(event.target.value.trim()));
-    find(event.target.value);
+    const found = await lookup(typed.trim());
+    if (found) setCandidates(found);
   };
 
   // A record cannot be folded into itself, and one already picked is offered
@@ -206,6 +207,7 @@ const PublicationMerge: FC<Props> = ({
   );
 
   function reset() {
+    cancel();
     setTerm("");
     setCandidates([]);
     setChosen([]);
@@ -230,26 +232,24 @@ const PublicationMerge: FC<Props> = ({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} label={t("label")}>
       <div className="flex flex-col gap-5 p-8 w-full h-full sm:h-[70vh]">
-        <div className="space-y-1 shrink-0">
-          <h1 className="text-2xl font-normal">{t("heading")}</h1>
-          <p className="text-sm text-gray-500">
-            {t("subheading", {
-              title: publication.title,
-              year: publication.year,
-            })}
-          </p>
-        </div>
+        <ModalHeading
+          heading={t("heading")}
+          subheading={t("subheading", {
+            title: publication.title,
+            year: publication.year,
+          })}
+        />
 
         <section className="space-y-2 shrink-0">
           <SectionHeading>{t("find")}</SectionHeading>
           <input
-            className="w-full py-2 px-3 bg-white rounded border border-gray-300 transition-colors outline-none placeholder:text-sm focus:bg-gray-100 hover:bg-gray-100 shrink-0"
+            className={SEARCH_INPUT_CLASS_NAME}
             placeholder={t("searchPlaceholder")}
             aria-label={t("searchLabel")}
             value={term}
             onChange={handleTerm}
           />
-          <div aria-live="polite" className="shrink-0">
+          <div aria-live="polite">
             {searching ? (
               <p className="text-xs text-gray-500">{t("searching")}</p>
             ) : (
@@ -326,7 +326,7 @@ const PublicationMerge: FC<Props> = ({
             width="fit"
             size="medium"
             loading={merging}
-            disabled={chosen.length === 0 || merging}
+            disabled={chosen.length === 0}
             onClick={handleMerge}
           />
         </div>

@@ -259,10 +259,9 @@ export {
   LiveProvider,
   colourOf,
   initial,
-  useDocument,
   useDocumentHealth,
   useOnThisCell,
   useOthersPresent,
   useReportPosition,
 };
-export type { At, DocumentHealth, Live };
+export type { At, DocumentHealth };

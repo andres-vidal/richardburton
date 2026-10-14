@@ -12,6 +12,11 @@ type Props = Omit<
   label?: string;
 };
 
+/**
+ * A multi-line text field that shows `value` and passes each edit to
+ * `onChange`. `label` floats above the field in place of the placeholder, and
+ * `error` marks the field invalid and tints it red.
+ */
 export default forwardRef<HTMLDivElement, Props>(function TextArea(
   { value, error, onChange, label, ...props },
   ref,
@@ -30,7 +35,7 @@ export default forwardRef<HTMLDivElement, Props>(function TextArea(
       className={`
         relative group bg-white
         w-full h-fit gap-1 inline-flex items-center rounded scrollbar scrollbar-none
-        error-within:shadow-sm focus-within:error-within:bg-red-400/80, error-within:bg-red-300/40
+        error-within:shadow-sm focus-within:error-within:bg-red-400/80 error-within:bg-red-300/40
         has-disabled:opacity-60 has-disabled:cursor-not-allowed
         data-[labeled=true]:mt-2 data-[labeled=true]:px-2 data-[labeled=true]:py-2 data-[labeled=true]:bg-gray-active data-[labeled=true]:shadow-sm data-[labeled=true]:focus-within:bg-indigo-500/10
         data-[labeled=false]:text-xs data-[labeled=false]:p-1 data-[labeled=false]:overflow-x-scroll data-[labeled=false]:focus-within:bg-gray-active data-[labeled=false]:focus-within:shadow-sm

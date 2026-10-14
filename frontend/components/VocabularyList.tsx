@@ -1,19 +1,15 @@
 "use client";
 
+import { Key } from "app";
 import Button from "components/Button";
 import ConfirmationModal from "components/ConfirmationModal";
 import TextInput from "components/TextInput";
 import { notify } from "components/Notifications";
-import {
-  list,
-  rename,
-  type Kind,
-  type Listed,
-  type Name,
-} from "modules/vocabulary";
-import { Link } from "i18n/navigation";
+import OtherSpellings, { type Spelling } from "components/OtherSpellings";
+import { rename, type Kind, type Listed, type Name } from "modules/vocabulary";
+import { Link, useRouter } from "i18n/navigation";
 import { useTranslations } from "next-intl";
-import { FC, useCallback, useEffect, useRef, useState } from "react";
+import { FC, useOptimistic, useRef, useState, useTransition } from "react";
 
 const KINDS: Kind[] = ["authors", "publishers"];
 
@@ -36,26 +32,25 @@ type Fold = {
  *
  * Typing a name that another entry already has asks to fold the two, so the
  * entry has no separate merge button.
+ *
+ * The field starts with the stored name. To start it again from the stored
+ * name, give the entry a new `key`.
  */
 const Entry: FC<{
   name: Name;
   /** The names this one resembles, taken from the same list. */
   near: Name[];
-  /** Incremented to reset the field to the stored name. */
-  revert: number;
   onRename: (name: Name, to: string) => Promise<void>;
-}> = ({ name, near, revert, onRename }) => {
+}> = ({ name, near, onRename }) => {
   const t = useTranslations("vocabulary");
   const [value, setValue] = useState(name.name);
   const [saving, setSaving] = useState(false);
   const field = useRef<HTMLInputElement>(null);
 
-  useEffect(() => setValue(name.name), [name.name, revert]);
-
   // Writes the other spelling into the field and focuses it, without renaming.
   // The rename is sent only when the person commits the field, because a fold
   // cannot be undone.
-  function propose(other: Name) {
+  function propose(other: Spelling) {
     setValue(other.name);
     field.current?.focus();
   }
@@ -90,8 +85,8 @@ const Entry: FC<{
             disabled={saving}
             onBlur={commit}
             onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-              if (event.key === "Escape") setValue(name.name);
+              if (event.key === Key.ENTER) event.currentTarget.blur();
+              if (event.key === Key.ESCAPE) setValue(name.name);
             }}
           />
         </span>
@@ -101,22 +96,11 @@ const Entry: FC<{
       </div>
 
       {near.length > 0 && (
-        <p className="flex flex-wrap gap-1.5 items-baseline pt-2 text-xs text-amber-900">
-          {t("alsoSpelt")}
-          {near.map((other) => (
-            <button
-              key={other.id}
-              type="button"
-              className="py-0.5 px-2 bg-white rounded-full border border-amber-300 hover:bg-amber-100"
-              onClick={() => propose(other)}
-            >
-              {other.name}{" "}
-              <span className="text-amber-700 tabular-nums">
-                {t("onPublications", { count: other.publications })}
-              </span>
-            </button>
-          ))}
-        </p>
+        <OtherSpellings
+          label={t("alsoSpelt")}
+          spellings={near}
+          onPick={propose}
+        />
       )}
     </li>
   );
@@ -188,6 +172,12 @@ const Clash: FC<{ publications: Listed[]; onDismiss: () => void }> = ({
   );
 };
 
+/** The address of the names page that lists each kind. */
+const ADDRESSES: Record<Kind, string> = {
+  publishers: "/admin/vocabulary",
+  authors: "/admin/vocabulary?kind=authors",
+};
+
 /**
  * Lists the author or publisher names that publications are built from, and
  * lets the person rename them.
@@ -200,17 +190,24 @@ const Clash: FC<{ publications: Listed[]; onDismiss: () => void }> = ({
  * The list is sorted by name and can be filtered by text. Each name also lists
  * the other names it resembles, and a toggle shows only the names that
  * resemble another.
+ *
+ * `names` are the stored names of `kind`, read where the page is rendered.
+ * Choosing the other kind navigates to its address, `/admin/vocabulary` for
+ * publishers and `?kind=authors` for translators and authors, and the list
+ * shows the loading message until the new names arrive. The filter is kept.
+ * After a rename or a fold, `router.refresh()` reads the names again.
  */
 const VocabularyList: FC<{
-  /** Loads the names of a kind. Defaults to `list`. */
-  read?: (kind: Kind) => Promise<Name[]>;
+  kind: Kind;
+  names: Name[];
   /** Renames a name. Defaults to `rename`. */
   write?: typeof rename;
-}> = ({ read = list, write = rename }) => {
+}> = ({ kind, names, write = rename }) => {
   const t = useTranslations("vocabulary");
+  const router = useRouter();
 
-  const [kind, setKind] = useState<Kind>("publishers");
-  const [names, setNames] = useState<Name[] | null>(null);
+  const [switching, startSwitching] = useTransition();
+  const [chosen, setChosen] = useOptimistic(kind);
   const [filter, setFilter] = useState("");
   const [onlyDoubtful, setOnlyDoubtful] = useState(false);
   const [collides, setCollides] = useState<Listed[] | null>(null);
@@ -218,15 +215,15 @@ const VocabularyList: FC<{
   const [folding, setFolding] = useState(false);
   const [reverts, setReverts] = useState(0);
 
-  const load = useCallback(
-    (which: Kind) => {
-      setNames(null);
-      read(which).then(setNames);
-    },
-    [read],
-  );
+  // Navigates to the address that lists `which`, unless it is already chosen.
+  function choose(which: Kind) {
+    if (which === chosen) return;
 
-  useEffect(() => load(kind), [kind, load]);
+    startSwitching(() => {
+      setChosen(which);
+      router.push(ADDRESSES[which]);
+    });
+  }
 
   async function handleRename(name: Name, to: string, fold = false) {
     const answer = await write(kind, name.id, to, fold);
@@ -258,12 +255,12 @@ const VocabularyList: FC<{
       level: "success",
     });
 
-    load(kind);
+    router.refresh();
   }
 
-  // Resets every field to its stored name. A field commits when it loses
-  // focus, so only one field can hold unsaved text, and that is the field the
-  // fold was for.
+  // Resets every field to its stored name by giving every entry a new key. A
+  // field commits when it loses focus, so only one field can hold unsaved
+  // text, and that is the field the fold was for.
   function cancelFold() {
     setAsking(null);
     setReverts(reverts + 1);
@@ -280,7 +277,7 @@ const VocabularyList: FC<{
     }
   }
 
-  const all = names ?? [];
+  const all = switching ? [] : names;
   const byId = new Map(all.map((name) => [name.id, name]));
   const doubtful = all.filter((name) => name.resembles.length > 0);
 
@@ -298,11 +295,11 @@ const VocabularyList: FC<{
             <Button
               key={which}
               label={t(which)}
-              variant={which === kind ? "primary" : "outline"}
+              variant={which === chosen ? "primary" : "outline"}
               width="fit"
               size="small"
-              aria-pressed={which === kind}
-              onClick={() => setKind(which)}
+              aria-pressed={which === chosen}
+              onClick={() => choose(which)}
             />
           ))}
         </div>
@@ -355,7 +352,7 @@ const VocabularyList: FC<{
         ) : null}
       </ConfirmationModal>
 
-      {names === null ? (
+      {switching ? (
         <p className="text-sm text-gray-600">{t("loading")}</p>
       ) : shown.length === 0 ? (
         <p className="text-sm text-gray-600">{t("none")}</p>
@@ -363,9 +360,8 @@ const VocabularyList: FC<{
         <ul aria-label={t(kind)} className="space-y-1">
           {shown.map((name) => (
             <Entry
-              key={name.id}
+              key={`${name.id}:${name.name}:${reverts}`}
               name={name}
-              revert={reverts}
               near={name.resembles
                 .map((id) => byId.get(id))
                 .filter((other) => other !== undefined)}

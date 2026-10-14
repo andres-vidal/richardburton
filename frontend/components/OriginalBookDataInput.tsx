@@ -1,21 +1,28 @@
 "use client";
 
-import type { OriginalBookValue } from "modules/original-book";
-import { Publication } from "modules/publication/model";
+import { LOOKUP, type OriginalBook } from "modules/lookup";
+import type { PublicationId } from "modules/publication/model";
 import { setField } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
-import pDebounce from "p-debounce";
-import { FC, forwardRef, useMemo, useRef, useState } from "react";
-import { ScalarDataInputProps } from "./DataInput";
+import { Key } from "app";
+import { FC, KeyboardEvent, useState } from "react";
+import useLookup from "utils/useLookup";
+import { DataInputFieldProps } from "./DataInput";
 import MenuProvider from "./MenuProvider";
 import TextInput from "./TextInput";
 
 /**
- * What tells one offered book from another. Two books can share a title, and
- * two can share their authors, so neither half identifies one on its own.
+ * Returns what tells one offered book from another. Two books can share a
+ * title, and two can share their authors, so neither half identifies one on
+ * its own.
  */
-const identify = (book: OriginalBookValue) =>
+const identify = (book: OriginalBook) =>
   `${book.title} — ${book.authors.join(", ")}`;
+
+type Props = DataInputFieldProps<string> & {
+  /** The row whose original authors a picked book fills. */
+  rowId: PublicationId;
+};
 
 /**
  * The original title, offering the books already in the database.
@@ -27,91 +34,91 @@ const identify = (book: OriginalBookValue) =>
  * by either half of it.
  *
  * Free text stands: a book nobody has entered yet is typed, and the field keeps
- * what it is given.
+ * what it is given. Enter picks the highlighted book while the menu is open,
+ * and is `preventDefault`ed then. Otherwise Enter is left to whatever is
+ * around the field.
  */
-export default forwardRef<HTMLDivElement, ScalarDataInputProps>(
-  function OriginalBookDataInput(
-    { rowId, colId, autoValidated: _autoValidated, value, onChange, ...props },
-    ref,
-  ) {
-    const store = usePublicationStore();
+const OriginalBookDataInput: FC<Props> = ({
+  rowId,
+  value,
+  onChange,
+  onKeyDown,
+  ...props
+}) => {
+  const store = usePublicationStore();
 
-    const [isOpen, setIsOpen] = useState(false);
-    const [activeIndex, setActiveIndex] = useState<number | null>(null);
-    const [books, setBooks] = useState<OriginalBookValue[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [books, setBooks] = useState<OriginalBook[]>([]);
 
-    const latest = useRef(0);
-    const inputRef = useRef<HTMLInputElement>(null);
+  const { lookup, cancel, busy } = useLookup((term) =>
+    LOOKUP.originalBooks(term),
+  );
 
-    const getBooks = useMemo(
-      () =>
-        pDebounce(
-          (search: string) => Publication.autocomplete(search, "originalTitle"),
-          350,
-        ),
-      [],
-    );
+  async function handleChange(typed: string) {
+    onChange?.(typed);
+    if (!typed) setIsOpen(false);
 
-    async function handleChange(typed: string) {
-      onChange?.(typed);
+    const found = await lookup(typed);
 
-      const mine = ++latest.current;
-
-      if (!typed) {
-        setIsOpen(false);
-        return;
-      }
-
-      // A lookup that fails offers nothing: the field is usable without
-      // suggestions, and what is being typed is not worth interrupting.
-      const found = await getBooks(typed.toLowerCase()).catch(() => []);
-
-      // Only the newest lookup writes, and only while the field is still on the
-      // page to hear it.
-      if (mine !== latest.current || !inputRef.current?.isConnected) return;
-
+    if (found) {
       setBooks(found);
       setActiveIndex(0);
       setIsOpen(found.length > 0);
     }
+  }
 
-    function handleSelect(option: { id: string; label: string }) {
-      const book = books.find((candidate) => identify(candidate) === option.id);
-      if (!book) return;
+  // Writes the book's title to this field and its authors to the row's
+  // original authors, and closes the menu.
+  function choose(book: OriginalBook) {
+    setField(store, rowId, "originalAuthors", book.authors);
+    onChange?.(book.title);
 
-      // The other half of the book, written straight to its own field — the
-      // point of the suggestion is that the two never disagree.
-      setField(store, rowId, "originalAuthors", book.authors);
-      onChange?.(book.title);
+    cancel();
+    setIsOpen(false);
+  }
 
-      latest.current += 1;
-      setIsOpen(false);
+  function handleSelect(option: { id: string; label: string }) {
+    const book = books.find((candidate) => identify(candidate) === option.id);
+    if (book) choose(book);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    const highlighted =
+      isOpen && activeIndex !== null ? books[activeIndex] : undefined;
+
+    if (event.key === Key.ENTER && highlighted) {
+      event.preventDefault();
+      choose(highlighted);
     }
 
-    return (
-      <MenuProvider
-        options={books.map((book) => ({
-          id: identify(book),
-          label: book.title,
-          description: book.authors.join(", "),
-        }))}
-        isOpen={isOpen}
-        activeIndex={activeIndex}
-        setIsOpen={setIsOpen}
-        setActiveIndex={setActiveIndex}
-        onSelect={handleSelect}
-        bordered={props.bordered}
-      >
-        <TextInput
-          {...props}
-          ref={ref}
-          inputRef={inputRef}
-          value={value}
-          onChange={handleChange}
-          aria-autocomplete="list"
-          data-col-id={colId}
-        />
-      </MenuProvider>
-    );
-  },
-) as FC<ScalarDataInputProps>;
+    onKeyDown?.(event);
+  }
+
+  return (
+    <MenuProvider
+      options={books.map((book) => ({
+        id: identify(book),
+        label: book.title,
+        description: book.authors.join(", "),
+      }))}
+      isOpen={isOpen}
+      activeIndex={activeIndex}
+      setIsOpen={setIsOpen}
+      setActiveIndex={setActiveIndex}
+      onSelect={handleSelect}
+      bordered={props.bordered}
+    >
+      <TextInput
+        {...props}
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        aria-autocomplete="list"
+        aria-busy={busy}
+      />
+    </MenuProvider>
+  );
+};
+
+export default OriginalBookDataInput;

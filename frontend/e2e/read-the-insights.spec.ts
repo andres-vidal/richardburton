@@ -4,7 +4,8 @@ import {
   chooseOption,
   CORPUS_SIZE,
   CORPUS_UNSOURCED,
-  CSV_HEADER,
+  copiedLink,
+  csv,
   expectMatchCount,
   expectPublicationCount,
   indexTable,
@@ -39,6 +40,23 @@ function tabled(page: Page, heading: string) {
   return page.getByRole("table", { name: heading }).getByRole("row");
 }
 
+/**
+ * Returns a list that collects the address of every request the browser makes
+ * for the insights page from now on. Each one asks the server to render the
+ * page, which reads `GET /insights`.
+ */
+function insightsReads(page: Page): string[] {
+  const reads: string[] = [];
+
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/insights")) {
+      reads.push(request.url());
+    }
+  });
+
+  return reads;
+}
+
 /** Chooses the preset named `name`, and waits for its chart. */
 async function choosePreset(page: Page, name: string) {
   await chooseOption(page, "Preset", name);
@@ -53,11 +71,10 @@ async function addRetranslations(page: Page) {
   await openDocument(page, "Retranslations");
   await uploadCsv(
     page,
-    [
-      CSV_HEADER,
+    csv([
       `Dom Casmurro,1997,GB,Oxford University Press,John Gledson,Dom Casmurro,Machado de Assis,`,
       `Dom Casmurro,1966,US,University of California Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
-    ].join("\n") + "\n",
+    ]),
     "retranslations.csv",
   );
   await submitWorkspace(page, 2);
@@ -107,10 +124,30 @@ test("the insights count what the database holds in every preset, and a search c
   await expect(years.filter({ hasText: /^1886/ })).toHaveText("18860101");
   await expect(years.filter({ hasText: /^1953/ })).toHaveText("19531001");
 
+  // Lines need the same counts as columns, so switching to them writes the
+  // address and draws the lines without reading the page from the server
+  // again. The chart is no longer a preset, so its title names what it counts.
+  const reads = insightsReads(page);
+  await chooseOption(page, "Show as", "as lines");
+  await expect(page).toHaveURL(/by=year&split=country&form=lines$/);
+  await expect(page.getByLabel("Preset", { exact: true })).toHaveValue(
+    "Custom",
+  );
+  const lines = "Publications by year and leading countries";
+  await expect(
+    page.getByRole("region", { name: lines }).locator("polyline"),
+  ).toHaveCount(3);
+  await expect(tabled(page, lines).filter({ hasText: /^1953/ })).toHaveText(
+    "19531001",
+  );
+  expect(reads).toEqual([]);
+
   // Every decade from the first to the last, including those with none. Each
   // work in the corpus has one publication, so each is a first translation.
   await choosePreset(page, "Publications by decade");
   await expect(page).toHaveURL(/by=decade&split=kind&form=bars/);
+  // Decades need other counts, so this time the page is read from the server.
+  expect(reads).not.toEqual([]);
   await expect(tabled(page, "Publications by decade")).toHaveText([
     "DecadeFirst translationsRetranslationsReissuesTotal",
     "1880s1001",
@@ -346,11 +383,7 @@ test("a reader builds a chart of their own, narrows it with a search, and shares
   // The copied link opens the same chart in a new tab.
   await context.grantPermissions(["clipboard-write"]);
   await page.getByRole("button", { name: "Copy link" }).click();
-  const notifications = page.locator("section[aria-label='Notifications']");
-  await expect(notifications).toContainText(/Link copied[\s\S]*\/insights\?/);
-  const link = (await notifications.innerText()).match(
-    /\/en\/insights\?\S+/,
-  )![0];
+  const link = await copiedLink(page, /\/en\/insights\?\S+/);
   expect(link).toContain("form=timeline&least=2");
 
   const shared = await context.newPage();

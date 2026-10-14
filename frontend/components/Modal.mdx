@@ -1,0 +1,52 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ModalStories from "./Modal.stories";
+
+<Meta of={ModalStories} />
+
+# Modal
+
+A dialog over a dimmed overlay, rendered in a portal while `isOpen`. It calls
+`onClose` on <kbd>Esc</kbd> and on a press on the overlay outside the dialog,
+keeps focus inside the dialog, and locks the page's scroll. On a small screen
+the dialog fills the screen, under a bar with the app's name and a close button.
+
+<Description of={ModalStories.Default} />
+<Canvas of={ModalStories.Default} />
+
+## Props
+
+- `isOpen` — whether the dialog is shown.
+- `onClose` — called when the reader asks to close it.
+- `heading` — what the dialog is called. The modal renders it as the dialog's
+  `h1` in a [Modal heading](?path=/docs/layout-modal-heading--docs) bar, and
+  the dialog takes its accessible name from it.
+- `subheading` and `aside` — a line under the heading, and a short text at the
+  end of its bar, such as a position in a queue.
+- `label` — the accessible name. Required without a `heading`. With one, it
+  names the dialog instead of the heading.
+
+## With a heading
+
+The heading sits at the top of a padded body and stays pinned while the content
+scrolls under it. The children follow it as the items of a column, 1.5rem apart,
+so a caller passes its paragraphs, sections and buttons as they are.
+
+<Canvas of={ModalStories.WithAHeading} />
+
+## Without a heading
+
+The children fill the dialog as they are, so they bring their own padding and
+heading, such as an [Article](?path=/docs/components-article--docs), and `label`
+names the dialog.
+
+<Canvas of={ModalStories.WithoutAHeading} />
+
+## Hooks
+
+- `useModal()` keeps the open state in component state. It returns `isOpen`,
+  `open` and `close`.
+- `useURLQueryModal(param)` keeps it in the URL. The modal is open while the
+  `param` query parameter has a value, so a link such as `?contact=true` opens
+  it. `open` and `close` replace the current history entry, keep the rest of the
+  query and leave the scroll position alone.

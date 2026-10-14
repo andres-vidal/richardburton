@@ -7,11 +7,13 @@ import type {
   PublicationHistoryAction,
 } from "modules/publication/model";
 import { HISTORY_ACTIONS } from "modules/publication/model";
-import { useRouter } from "i18n/navigation";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import { undo } from "modules/publication/remote";
+import { useMutation } from "utils/useMutation";
+import Button from "./Button";
 import { Entry, UNDO_DISABLED } from "./PublicationHistory";
+import TextInput from "./TextInput";
 
 type FeedEntry = WithChanges<FullHistoryEntry>;
 
@@ -19,20 +21,19 @@ type Filter = { actions: PublicationHistoryAction[]; query: string };
 
 /**
  * Every recorded change across the database, newest first, each entry naming
- * its publication. Entries arrive with their changes already resolved — the
- * server diffs each version against its own record's previous one, never the
- * feed's previous row — so filters cannot affect what a diff says: they only
- * narrow what is *shown*.
+ * its publication. Each entry arrives with its changes, which the server
+ * compared with the previous version of the same record, so the filters only
+ * narrow which entries are shown.
  *
- * Every entry the server marks `undoable` carries **Undo**, and it decides both
- * the rule and the compensating action — this feed only names the entry. Being
- * a server rule rather than a drawing rule, it holds whoever asks. Deletion is
- * soft and the log only grows, so every undo is itself undoable from here — no
- * confirmation gates.
+ * The filters are a toggle per action and a text that matches the
+ * publication's title or the person who made the change. They are kept in the
+ * component and not in the address.
  *
- * The filters are view state, not navigation: what is *currently* deleted is
- * its own page, since a log of deletion events is a different question from
- * the set of records presently in the trash.
+ * Every entry the server marks `undoable` has an Undo button, which calls
+ * `onUndo` with the entry. `onUndo` defaults to `undo`, which asks the server
+ * to undo the entry. While one undo runs, the other Undo buttons are disabled.
+ * A successful undo reads the page again, since the undo adds an entry and can
+ * change which other entries are undoable.
  */
 const PublicationHistoryFeed: FC<{
   entries: FeedEntry[];
@@ -44,18 +45,10 @@ const PublicationHistoryFeed: FC<{
   const t = useTranslations("admin");
   const actionName = useTranslations("historyActions");
   const [filter, setFilter] = useState<Filter>({ actions: [], query: "" });
-  const router = useRouter();
-  const [undoing, setUndoing] = useState(false);
+  const { pending: undoing, run } = useMutation();
 
-  // A successful undo asks the server to render again: it is itself a new entry,
-  // and it may have changed which *other* entries are still undoable.
   async function handleUndo(entry: FeedEntry) {
-    setUndoing(true);
-    try {
-      if (await onUndo(entry)) router.refresh();
-    } finally {
-      setUndoing(false);
-    }
+    await run(() => onUndo(entry));
   }
 
   function toggleAction(action: PublicationHistoryAction) {
@@ -81,31 +74,27 @@ const PublicationHistoryFeed: FC<{
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
         {HISTORY_ACTIONS.map((action) => (
-          <button
+          <Button
             key={action}
-            type="button"
-            data-active={filter.actions.includes(action)}
+            label={actionName(action)}
+            variant={filter.actions.includes(action) ? "primary" : "outline"}
+            width="fit"
+            size="small"
             aria-pressed={filter.actions.includes(action)}
-            className="
-              px-2.5 py-1 text-xs font-medium rounded-full border transition-colors focus-ring
-              border-gray-400 text-gray-700 hover:border-indigo-600
-              data-[active=true]:border-indigo-600 data-[active=true]:bg-indigo-600 data-[active=true]:text-white
-            "
             onClick={() => toggleAction(action)}
-          >
-            {actionName(action)}
-          </button>
+          />
         ))}
-        <input
-          type="text"
-          aria-label={t("filter")}
-          placeholder={t("filter")}
-          value={filter.query}
-          className="px-3 py-1 ml-auto text-sm rounded border border-gray-400 placeholder:text-gray-600"
-          onChange={(event) =>
-            setFilter((current) => ({ ...current, query: event.target.value }))
-          }
-        />
+        <span className="ml-auto w-full sm:w-64">
+          <TextInput
+            bordered
+            aria-label={t("filter")}
+            placeholder={t("filter")}
+            value={filter.query}
+            onChange={(query) =>
+              setFilter((current) => ({ ...current, query }))
+            }
+          />
+        </span>
       </div>
       {visible.length === 0 ? (
         <p className="text-sm text-gray-600">

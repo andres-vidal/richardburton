@@ -3,19 +3,25 @@ import { SESSION_COOKIE } from "modules/api";
 import HTTP from "modules/http";
 import { cookies } from "next/headers";
 
+/**
+ * The HTTP client for the backend at the address the Next.js server reaches it
+ * on, `NEXT_INTERNAL_API_URL`. It is built by `HTTP.client` like the browser's
+ * client, so it converts bodies between camelCase and snake_case and leaves
+ * header names as they are. Use it only in code that runs on the server.
+ *
+ * It sends no session cookie of its own. `get` and its variants forward the
+ * request's `rb-session` cookie.
+ */
 const api = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
 
 /**
- * Read from the backend inside a server component, as the signed-in user.
+ * Reads `path` from the backend as the signed-in user, and returns the body.
  *
  * The browser's `rb-session` cookie is httpOnly, so `get` forwards it to the
  * backend explicitly. Admin endpoints answer 401 without it, and `get` throws
  * that error, so the route's error boundary renders instead of an empty page.
- *
- * Responses come back camelCased, since this is the same client the browser
- * uses.
  */
-export async function get<T>(
+async function get<T>(
   path: string,
   params?: Record<string, unknown>,
 ): Promise<T> {
@@ -26,7 +32,7 @@ export async function get<T>(
  * Returns what `get` returns, or `null` when the backend answers 404. It throws
  * any other error.
  */
-export async function getOrNull<T>(
+async function getOrNull<T>(
   path: string,
   params?: Record<string, unknown>,
 ): Promise<T | null> {
@@ -41,10 +47,11 @@ export async function getOrNull<T>(
 }
 
 /**
- * The same read, with the response headers — some answers are partly in them
- * (the index reports how many publications exist in `rb-total-count`).
+ * Reads `path` like `get`, and returns the body with the response headers,
+ * for an answer that is partly in its headers, such as the index's total count
+ * in `rb-total-count`.
  */
-export async function getWithHeaders<T>(
+async function getWithHeaders<T>(
   path: string,
   params?: Record<string, unknown>,
 ): Promise<{ data: T; headers: Record<string, string> }> {
@@ -57,3 +64,5 @@ export async function getWithHeaders<T>(
 
   return { data, headers: headers as Record<string, string> };
 }
+
+export { api, get, getOrNull, getWithHeaders };

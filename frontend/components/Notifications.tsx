@@ -11,9 +11,9 @@ import { v4 as uuid } from "uuid";
 import Notification, { isFailure, NotificationLevel } from "./Notification";
 
 /**
- * A notification names its copy rather than holding it: what raises one is
- * usually a remote call or a store write, with no locale to write in. The card
- * has one.
+ * A notification waiting to be shown. It holds the keys of its text in the
+ * message catalogue rather than the text, so code without a locale, such as a
+ * remote call, can raise one. `Notifications` writes the text when it renders.
  */
 type NotificationEntry = {
   id: string;
@@ -34,8 +34,8 @@ const MAX_SNACKBARS = 5;
 type Notifier = (notification: Omit<NotificationEntry, "id">) => void;
 
 /**
- * Push a notification imperatively. Safe to call outside React (e.g. from the
- * publication remote layer) since it writes straight to the app store.
+ * Adds a notification to the stack. It writes to the app store, so code
+ * outside React can call it.
  */
 const notify: Notifier = ({ message, level, detail, values }) => {
   store.set(notificationsAtom, (current) => [
@@ -44,19 +44,20 @@ const notify: Notifier = ({ message, level, detail, values }) => {
   ]);
 };
 
-function useNotify(): Notifier {
-  return notify;
-}
-
 /**
- * Where notifications live and how long: a stack pinned near the top, capped,
- * with confirmations timing out and failures waiting to be dismissed. The
- * cards themselves are `Notification`.
+ * Renders the notifications as a stack of `Notification` cards pinned near the
+ * top of the page, in a portal. It shows up to five, and summarises any more as
+ * a count. A confirmation disappears after four seconds, and a failure stays
+ * until it is dismissed. Moving to another page clears them all.
+ *
+ * The stack is marked `data-live-region`, so a modal that is open leaves it
+ * visible to assistive technology and a notification raised from the modal is
+ * still announced.
  */
 const Notifications: FC = () => {
-  // Rooted, not scoped, so a name can point anywhere in the catalogue. An
-  // unknown name falls back to its last part, so a code the server invented
-  // still reaches the reader.
+  // The translator is not scoped to a namespace, so a key can name any message.
+  // A key with no message falls back to its last part, so a code the server
+  // sent that has no message is still shown.
   const t = useTranslations();
   const write = (key: string, values?: NotificationEntry["values"]) =>
     t.has(key) ? t(key, values) : (key.split(".").pop() ?? key);
@@ -73,11 +74,13 @@ const Notifications: FC = () => {
     const transient = notifications.find(({ level }) => !isFailure(level));
 
     if (transient) {
-      const timeout = setTimeout(() => {
-        return setNotifications((current) =>
-          current.filter(({ id }) => id !== transient.id),
-        );
-      }, NOTIFICATION_TIMEOUT_MS);
+      const timeout = setTimeout(
+        () =>
+          setNotifications((current) =>
+            current.filter(({ id }) => id !== transient.id),
+          ),
+        NOTIFICATION_TIMEOUT_MS,
+      );
       return () => clearTimeout(timeout);
     }
   }, [notifications, setNotifications]);
@@ -96,6 +99,7 @@ const Notifications: FC = () => {
   return (
     <FloatingPortal>
       <section
+        data-live-region
         aria-label={t("common.notifications")}
         className="flex fixed top-10 left-1/2 flex-col items-center space-y-2 -translate-x-1/2 z-70"
       >
@@ -143,4 +147,4 @@ const Notifications: FC = () => {
 };
 
 export default Notifications;
-export { notify, useNotify };
+export { notify };

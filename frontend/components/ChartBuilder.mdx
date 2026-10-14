@@ -15,8 +15,8 @@ that refine it in its title row.
 
 ## Props
 
-- `description` — the chart the page's address describes, as
-  `parseDescription` in `modules/chart` reads it.
+- `description` — the chart the page's address described when the server
+  rendered the page, as `parseDescription` in `modules/chart` reads it.
 - `drawn` — its counts, from `GET /insights`.
 
 ## The toolbar
@@ -70,6 +70,10 @@ does not fit groups it by year.
 A form is offered only for the groupings and counts it can draw, so the map is
 offered only for publications by country.
 
+<Description of={ChartBuilderStories.SharesOfKinds} />
+
+<Canvas of={ChartBuilderStories.SharesOfKinds} />
+
 ## The chart's title row
 
 The title row has how many groups to keep and how many items each needs. They
@@ -93,15 +97,34 @@ not apply, so changing one control does not move the others.
 
 ## The address
 
-Every change goes through `normalize` and is written to the page's address in a
-transition, keeping the search. The page reads the new chart on the server. The
-controls show the new choice at once, and the current chart stays on screen,
-dimmed, until the new one arrives. The play tests check the address each change
-writes.
+Every change goes through `normalize` and is written to the page's address,
+keeping the search. The play tests check the address each change writes.
 
 <Description of={ChartBuilderStories.KeepingTheSearch} />
 
 <Canvas of={ChartBuilderStories.KeepingTheSearch} />
+
+Most changes ask `GET /insights` for other counts. The builder replaces the
+address with `router.replace` in a transition, and the page reads the new chart
+on the server. The controls show the new choice at once, and the current chart
+stays on screen, dimmed, until the new one arrives.
+
+Some changes ask for the same counts, as `chartParams` in `modules/chart`
+writes them, such as a switch between columns, lines, stacked areas and
+running totals of the same groups. The builder draws such a change
+from the counts it has, and writes the address with `ADDRESS.replace` from
+`modules/address`, which calls `window.history.replaceState`. Next.js updates
+`useSearchParams` and `usePathname` to the new address without asking the
+server for the page. The stories replace `ADDRESS.replace` with a mock, so the
+story frame keeps its own address.
+
+A change made while another is still pending goes through the server too.
+Otherwise the pending chart would replace the one drawn without it when it
+arrives.
+
+<Description of={ChartBuilderStories.DrawingTheSameCounts} />
+
+<Canvas of={ChartBuilderStories.DrawingTheSameCounts} />
 
 ## Chart or table
 

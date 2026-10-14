@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as ErrorCounterStories from "./PublicationErrorCounter.stories";
 
@@ -25,6 +25,7 @@ import { fieldErrors, seed } from "test/publication-fixtures";
 seed(store, [{ title: "", errors: fieldErrors({ title: "required" }) }]);
 ```
 
+<Description of={ErrorCounterStories.Default} />
 <Canvas of={ErrorCounterStories.Default} />
 
 ## States

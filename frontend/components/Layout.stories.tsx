@@ -10,7 +10,7 @@ const meta = {
   args: {
     content: <div>Main content</div>,
   },
-  // Drag the bottom-right corner to resize; the shell fills the box (h-full).
+  // A resizable box, so the layout can be seen at different widths.
   decorators: [
     (Story) => (
       <div
@@ -28,7 +28,10 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** The app shell: fixed header/footer around a scrollable main content slot. */
+/**
+ * The banner over the content. The play test checks the content, the app's
+ * name and the links to Learn More and Contact Us.
+ */
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -41,10 +44,7 @@ export const Default: Story = {
   },
 };
 
-/**
- * Signed in, the header offers the way out. It is the one control that has to
- * be on every page, and the header is the only thing every page has.
- */
+/** Signed in, the banner offers Sign out. The play test checks the button. */
 export const SignedIn: Story = {
   decorators: [
     (Story) => (
@@ -61,7 +61,7 @@ export const SignedIn: Story = {
   },
 };
 
-/** Signed out, there is nothing to leave. */
+/** Signed out, the banner has no Sign out. */
 export const SignedOut: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -69,7 +69,7 @@ export const SignedOut: Story = {
   },
 };
 
-/** Every optional slot filled — the subheader and the footer both render. */
+/** The subheader and the footer filled. The play test checks both. */
 export const AllSlots: Story = {
   args: {
     content: <div>Main content</div>,
@@ -86,9 +86,8 @@ export const AllSlots: Story = {
 
 /**
  * `measure="aligned"` holds the subheader and the content to one column of
- * readable width, starting both at the page's gutter — where the header's own
- * content begins. Without it a narrow page reads as misaligned: the heading sits
- * at the viewport edge while the content floats in the middle.
+ * readable width, starting both at the page's gutter. The play test checks
+ * that the two share their left and right edges.
  */
 export const AlignedMeasure: Story = {
   args: {
@@ -99,7 +98,6 @@ export const AlignedMeasure: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // Both regions share a left edge — that is the whole point of the measure.
     const subheader = canvas.getByTestId("subheader").getBoundingClientRect();
     const content = canvas.getByTestId("content").getBoundingClientRect();
 

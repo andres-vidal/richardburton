@@ -5,8 +5,8 @@ import {
   usePublicationError,
   usePublicationErrorDescription,
   usePublicationFieldError,
+  usePublicationRowNumber,
   useVisiblePublication,
-  usePublicationIds,
 } from "modules/publication/hooks";
 import { ATTRIBUTES } from "modules/publication/model";
 import type { PublicationId, PublicationKey } from "modules/publication/model";
@@ -16,7 +16,6 @@ import { useTranslations } from "next-intl";
 import { FC } from "react";
 import Button from "./Button";
 import { Modal } from "./Modal";
-import ModalHeading from "./ModalHeading";
 
 type Props = {
   isOpen: boolean;
@@ -40,17 +39,18 @@ const FieldError: FC<{ id: PublicationId; field: PublicationKey }> = ({
 };
 
 /**
- * One row that was refused: which row it is, and what is wrong with it.
+ * One row that was refused: its number and title, and what is wrong with it.
+ * `onGo` runs when the person asks to go to the row.
  *
- * A row whose error is not about any one field — a conflict with a record
- * already stored — has the row's own sentence and no list under it.
+ * A row whose error is not about any one field, such as a conflict with a
+ * record already stored, has the row's own sentence and no list under it.
  */
 const RowErrors: FC<{
   id: PublicationId;
-  position: number;
   onGo: () => void;
-}> = ({ id, position, onGo }) => {
+}> = ({ id, onGo }) => {
   const t = useTranslations("errors");
+  const position = usePublicationRowNumber(id);
   const publication = useVisiblePublication(id);
   const error = usePublicationError(id);
   const description = usePublicationErrorDescription(id);
@@ -92,18 +92,17 @@ const RowErrors: FC<{
 };
 
 /**
- * Everything the workspace refuses, in one place.
+ * A dialog that lists every row of the workspace that has an error, in the
+ * order of the rows, with what is wrong with each.
  *
- * The row-by-row signals say which rows are wrong and the cells say which
- * fields; neither reads as a list, and a set assembled from a spreadsheet can be
- * wrong in thirty places at once. This is that list, and each entry leads back
- * to the row it is about.
+ * Going to a row focuses it, which scrolls the workspace to it, and closes the
+ * dialog. The rows and cells of the workspace mark what is wrong one place at a
+ * time, and this is the same information as a list.
  */
 const PublicationErrors: FC<Props> = ({ isOpen, onClose }) => {
   const t = useTranslations("errors");
   const store = usePublicationStore();
   const invalid = useInvalidPublicationIds();
-  const visible = usePublicationIds() ?? [];
 
   function go(id: PublicationId) {
     setFocusedRowId(store, id);
@@ -111,24 +110,17 @@ const PublicationErrors: FC<Props> = ({ isOpen, onClose }) => {
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} label={t("title")}>
-      <div className="p-8 space-y-4 w-full">
-        <ModalHeading
-          heading={t("title")}
-          subheading={t("description", { count: invalid.length })}
-        />
-
-        <ul aria-label={t("title")} className="space-y-2">
-          {invalid.map((id) => (
-            <RowErrors
-              key={id}
-              id={id}
-              position={visible.indexOf(id) + 1}
-              onGo={() => go(id)}
-            />
-          ))}
-        </ul>
-      </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      heading={t("title")}
+      subheading={t("description", { count: invalid.length })}
+    >
+      <ul aria-label={t("title")} className="space-y-2">
+        {invalid.map((id) => (
+          <RowErrors key={id} id={id} onGo={() => go(id)} />
+        ))}
+      </ul>
     </Modal>
   );
 };

@@ -3,6 +3,7 @@
 import type { WorldMap } from "modules/world-map";
 import { useFormatter, useTranslations } from "next-intl";
 import { FC, memo, useMemo, useState } from "react";
+import InsightLegend from "./InsightLegend";
 
 /** A country with its name and its number of publications. */
 type Country = { code: string; name: string; count: number };
@@ -63,7 +64,7 @@ const Outline = memo(function Outline({
       data-active={shade ? active : undefined}
       onMouseEnter={shade ? () => onHover(code) : undefined}
       onMouseLeave={shade ? () => onHover(null) : undefined}
-      className="transition-colors stroke-white stroke-[0.5] fill-[var(--shade,var(--color-gray-200))] data-[active=true]:fill-(--shade-active)"
+      className="transition-colors stroke-white stroke-[0.5] fill-(--shade,var(--color-gray-200)) data-[active=true]:fill-(--shade-active)"
     >
       {title ? <title>{title}</title> : null}
     </path>
@@ -77,7 +78,7 @@ const Outline = memo(function Outline({
  * The shades are fixed bands rather than a scale of the largest count, so the
  * same shade means the same range on every search: one publication, two to
  * nine, ten to 99, and 100 or more (see `BANDS`). Countries with none are
- * grey.
+ * grey. An `InsightLegend` under the map names the bands.
  *
  * Hovering a shaded country darkens it by one shade, shows its name and count,
  * and highlights its entry in the list. Hovering an entry in the list
@@ -128,17 +129,10 @@ const InsightMap: FC<Props> = ({ map, countries }) => {
             />
           ))}
         </svg>
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700">
-          {BANDS.map(({ name }, index) => (
-            <li key={name} className="flex gap-1.5 items-center">
-              <span
-                data-shade={index + 1}
-                className="size-2.5 rounded-sm bg-(--shade)"
-              />
-              {t(`shades.${name}`)}
-            </li>
-          ))}
-        </ul>
+        <InsightLegend
+          series={BANDS.map(({ name }) => t(`shades.${name}`))}
+          shaded
+        />
       </div>
       <ol className="space-y-0.5 max-w-xs text-sm">
         {countries.map(({ code, name, count }) => (

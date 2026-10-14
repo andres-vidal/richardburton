@@ -10,7 +10,7 @@ import {
   useUnsourcedPublicationCount,
 } from "modules/publication/hooks";
 import { type PublicationId } from "modules/publication/model";
-import { receiveIndex, type PublicationIndex } from "modules/publication/store";
+import type { PublicationIndex } from "modules/publication/store";
 import {
   PublicationStoreProvider,
   usePublicationStore,
@@ -18,113 +18,70 @@ import {
 import { update } from "modules/publication/remote";
 import { discardEdit, setSources } from "modules/publication/store";
 import { Link } from "i18n/navigation";
-import { useFormatter, useTranslations } from "next-intl";
-import { FC, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { FC, useState } from "react";
+import QueueListbox from "./QueueListbox";
 
-const optionId = (id: PublicationId) => `sources-queue-option-${id}`;
-
-/** One option in the queue listbox: title + a dot marking whether it's sourced. */
-const QueueOption: FC<{
-  id: PublicationId;
-  active: boolean;
-  onSelect: () => void;
-}> = ({ id, active, onSelect }) => {
+/**
+ * What a publication's option in the queue shows: a dot that is green when the
+ * publication has saved sources, and its title. A sourced publication's option
+ * is named by its title followed by `backfill.sourced`.
+ *
+ * Only saved sources count, so a source that is still a draft does not turn
+ * the dot green.
+ */
+const SourcedTitle: FC<{ id: PublicationId }> = ({ id }) => {
+  const t = useTranslations("backfill");
   const publication = usePublication(id);
-  // Persisted sources only: a drafted source must not turn the dot green (or
-  // decrement the count) until it is actually saved.
   const sourced = useStoredPublicationSources(id).length > 0;
-  const ref = useRef<HTMLLIElement>(null);
-
-  // Keep the selected option in view as arrow keys move through a long queue.
-  useEffect(() => {
-    if (active) ref.current?.scrollIntoView({ block: "nearest" });
-  }, [active]);
 
   return (
-    <li
-      ref={ref}
-      id={optionId(id)}
-      role="option"
-      aria-selected={active}
-      aria-label={
-        sourced ? `${publication?.title} — sourced` : publication?.title
-      }
-      onClick={onSelect}
-      data-active={active}
-      className="flex gap-2 items-center px-3 py-2 text-sm rounded cursor-pointer transition-colors hover:bg-gray-100 data-[active=true]:bg-indigo-100 data-[active=true]:text-indigo-900"
-    >
+    <>
       <span
         aria-hidden
-        className={`w-2 h-2 rounded-full shrink-0 ${sourced ? "bg-green-500" : "bg-gray-300"}`}
+        data-sourced={sourced}
+        className="w-2 h-2 bg-gray-300 rounded-full shrink-0 data-[sourced=true]:bg-green-500"
       />
       <span className="truncate">{publication?.title}</span>
-    </li>
+      {sourced && <span className="sr-only">{t("sourced")}</span>}
+    </>
   );
 };
 
 /**
- * The queue of source-less publications as a single-select listbox: one tab
- * stop, arrow / Home / End move the selection (via `aria-activedescendant`),
- * click jumps directly.
+ * The queue of publications that have no sources, as a `QueueListbox`. The
+ * count beside the heading is the number of publications still without saved
+ * sources, so it drops as sources are saved.
  */
 export const SourcesQueue: FC<{
   ids: PublicationId[];
   activeId: PublicationId | undefined;
   onSelect: (position: number) => void;
 }> = ({ ids, activeId, onSelect }) => {
-  const position = activeId === undefined ? -1 : ids.indexOf(activeId);
-  // Live count of entries still missing sources — shrinks as sources are added.
   const t = useTranslations("backfill");
-  const format = useFormatter();
   const missingCount = useUnsourcedPublicationCount();
 
-  const move = (event: KeyboardEvent, next: number) => {
-    event.preventDefault();
-    onSelect(Math.max(0, Math.min(next, ids.length - 1)));
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
-    const key = event.key;
-    if (key === "ArrowDown") move(event, position + 1);
-    else if (key === "ArrowUp") move(event, position - 1);
-    else if (key === "Home") move(event, 0);
-    else if (key === "End") move(event, ids.length - 1);
-  };
-
   return (
-    <div className="flex flex-col w-72 border-r border-gray-200 shrink-0">
-      <header className="flex gap-2 justify-between items-baseline px-3 py-2 border-b border-gray-200">
-        <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-          {t("missingSources")}
-        </span>
-        <span className="px-1.5 py-0.5 text-xs font-medium text-indigo-700 rounded-full bg-indigo-100 tabular-nums">
-          {format.number(missingCount)}
-        </span>
-      </header>
-      <ul
-        role="listbox"
-        aria-label={t("queue")}
-        tabIndex={0}
-        aria-activedescendant={
-          activeId === undefined ? undefined : optionId(activeId)
-        }
-        onKeyDown={onKeyDown}
-        className="overflow-y-auto flex-1 p-2 space-y-0.5 min-h-0 scrollbar scrollbar-thin scrollbar-thumb-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400"
-      >
-        {ids.map((id, i) => (
-          <QueueOption
-            key={id}
-            id={id}
-            active={id === activeId}
-            onSelect={() => onSelect(i)}
-          />
-        ))}
-      </ul>
-    </div>
+    <QueueListbox
+      heading={t("missingSources")}
+      count={missingCount}
+      label={t("queue")}
+      items={ids}
+      itemKey={(id) => id}
+      renderOption={(id) => <SourcedTitle id={id} />}
+      position={activeId === undefined ? -1 : ids.indexOf(activeId)}
+      onSelect={onSelect}
+    />
   );
 };
 
-/** The detail pane: the selected publication's context + the sources editor. */
+/**
+ * The pane for the publication `id`: its title, translators and the rest of
+ * its record, its place in the queue, and the sources editor. The save button
+ * reads Save on the last publication, which has no next one, and Save & next
+ * otherwise. It is disabled while the publication has no sources or a save
+ * runs, since Skip is the way past a publication without sources.
+ */
 export const BackfillStep: FC<{
   id: PublicationId;
   position: number;
@@ -147,7 +104,9 @@ export const BackfillStep: FC<{
           <div className="flex gap-4 justify-between items-baseline">
             <div className="text-xl">
               {publication.title}{" "}
-              <span className="text-indigo-500">({publication.authors})</span>
+              <span className="text-indigo-500">
+                ({marked.value(publication, "authors")})
+              </span>
             </div>
             <span className="text-sm text-gray-600 shrink-0 tabular-nums">
               {common("progress", { position: position + 1, total })}
@@ -179,14 +138,11 @@ export const BackfillStep: FC<{
           onClick={onSkip}
         />
         <Button
-          // The last publication has no "next" to advance to — the action is
-          // just Save (position clamps, so the wizard stays put either way).
           label={position === total - 1 ? t("save") : t("saveAndNext")}
           width="fit"
           size="medium"
           loading={saving}
-          // Nothing to save if no source was added — Skip moves past instead.
-          disabled={sources.length === 0 || saving}
+          disabled={sources.length === 0}
           onClick={onSave}
         />
       </div>
@@ -196,9 +152,9 @@ export const BackfillStep: FC<{
 
 /**
  * Renders the queue `ids` beside the editor for the publication at `position`,
- * or an "All caught up" message when `ids` is empty. It holds no state, so its
- * empty and populated states can each be rendered and a11y-checked in
- * isolation.
+ * or an "All caught up" message when `ids` is empty. It holds no state. The
+ * editor is keyed by the publication, so each publication gets an editor of
+ * its own.
  *
  * The populated view fills the area below the sticky header and scrolls inside
  * its panes, so the page itself does not get a second scrollbar.
@@ -228,7 +184,6 @@ export const SourcesBackfillView: FC<{
       {currentId !== undefined && (
         <div className="overflow-y-auto flex-1">
           <BackfillStep
-            // Key by id so each publication gets a fresh editor mount.
             key={currentId}
             id={currentId}
             position={position}
@@ -243,12 +198,21 @@ export const SourcesBackfillView: FC<{
   );
 };
 
+/**
+ * The wizard that adds sources to the publications in `queue`, read where the
+ * page is rendered. It keeps the publications in a store of its own, and opens
+ * on the first of them.
+ */
 const SourcesBackfill: FC<{ queue: PublicationIndex }> = ({ queue }) => (
-  <PublicationStoreProvider initialize={(store) => receiveIndex(store, queue)}>
+  <PublicationStoreProvider index={queue}>
     <Backfill queue={queue} />
   </PublicationStoreProvider>
 );
 
+// The body of `SourcesBackfill`. It holds the position in the queue. Save
+// sends the publication's sources with `update` and moves to the next one when
+// the save succeeds. Skip puts the publication back as it was saved and moves
+// on. At the end of the queue, both stay on the last publication.
 const Backfill: FC<{ queue: PublicationIndex }> = ({ queue }) => {
   const store = usePublicationStore();
   const [position, setPosition] = useState(0);

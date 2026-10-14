@@ -19,16 +19,22 @@ against the previous version of that record and sends it **structurally** —
 field keys and raw values, no labels — and the data layer turns that into
 labelled, ordered changes on the way in (`presentChanges`). So this component
 never diffs anything: it renders `entry.changes` as given. The
-[publication modal](?path=/docs/publications-publication-modal--docs) hosts it
-in a collapsed, lazily-fetched "History" section for admins.
+[publication detail](?path=/docs/publications-publication-detail--docs) shows it
+to admins in a collapsed "History" section, with the entries read together with
+the record.
 
-Styling is deliberately quiet here — no card chrome, smaller type, compact
-badges — because inside the modal the log is a supporting detail within an
-already-framed dialog. The standalone
+Styling is quiet here, with no frame around an entry, smaller type and compact
+badges, because the log is a supporting detail of the publication it belongs
+to. The standalone
 [history feed](?path=/docs/publications-publication-history-feed--docs) renders
 the same entries as full cards, where they _are_ the page's subject.
 
 <Canvas of={PublicationHistoryStories.Default} />
+
+## Props
+
+- `entries` — the log, newest first, each entry with the `changes` that
+  `withChanges` in `modules/publication/history` gives it.
 
 ## States
 

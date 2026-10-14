@@ -1,20 +1,28 @@
+import { api } from "app/api";
 import { admits } from "app/api/auth/gate";
 import { appUrl } from "modules/app-url";
-import HTTP from "modules/http";
 import type { User } from "modules/users";
 import { NextRequest, NextResponse } from "next/server";
 
-const http = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
+import { HANDSHAKE, handshakeCookie } from "../../handshake";
 
-// OAuth callback: validate state, exchange the code for the provider id_token,
-// run the admin gate, mint the Phoenix rb-session, and relay it to the browser.
-// Phoenix stays the session authority — the id_token never reaches the client.
+/**
+ * Finishes the OAuth handshake with `provider`. It checks the state against
+ * the handshake cookie, exchanges the code for the provider's id_token, and
+ * signs in to the backend with it. When `admits` lets the user in, it relays
+ * the backend's session cookies and redirects to the address the handshake
+ * kept. Otherwise it redirects to the page `admits` names, without a session.
+ * A failed check or exchange redirects to the error page. The handshake
+ * cookies are deleted whatever the outcome.
+ *
+ * The id_token goes to the backend only, which is the authority on sessions.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> },
 ) {
-  // Imported at request time: `modules/oauth` asserts the OAuth secrets at load,
-  // and App Router evaluates route modules during `next build` (where they're unset).
+  // `modules/oauth` asserts the OAuth secrets when it loads, and `next build`
+  // evaluates route modules without them, so it is imported per request.
   const { PROVIDERS, isProvider } = await import("modules/oauth");
   const { provider } = await params;
 
@@ -22,19 +30,15 @@ export async function GET(
     return new NextResponse(null, { status: 404 });
   }
 
-  // Phoenix Set-Cookie strings to relay to the browser (rb-session), collected
-  // before `finish`.
-  const relayed: string[] = [];
-
-  // Redirects to `location` on `APP_URL` and clears the handshake cookies,
-  // whatever the outcome. `request.url` is not used as the base because behind
-  // a proxy it holds the address the server listens on, such as 0.0.0.0:3000.
-  const finish = (location: string) => {
+  // Redirects to `location` on `APP_URL`, sets `cookies` and deletes the
+  // handshake cookies. `request.url` is not the base because behind a proxy
+  // it holds the address the server listens on, such as 0.0.0.0:3000.
+  const finish = (location: string, cookies: string[] = []) => {
     const response = NextResponse.redirect(new URL(location, appUrl()));
-    for (const name of ["oauth_state", "oauth_verifier", "oauth_next"]) {
-      response.headers.append("Set-Cookie", expire(name));
+    for (const name of Object.values(HANDSHAKE)) {
+      response.headers.append("Set-Cookie", handshakeCookie(name, "", 0));
     }
-    for (const cookie of relayed) {
+    for (const cookie of cookies) {
       response.headers.append("Set-Cookie", cookie);
     }
     return response;
@@ -42,12 +46,9 @@ export async function GET(
 
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
-  const storedState = request.cookies.get("oauth_state")?.value;
-  const verifier = request.cookies.get("oauth_verifier")?.value;
-  const next = safeNext(
-    request,
-    request.cookies.get("oauth_next")?.value ?? "/",
-  );
+  const storedState = request.cookies.get(HANDSHAKE.state)?.value;
+  const verifier = request.cookies.get(HANDSHAKE.verifier)?.value;
+  const next = safeNext(request.cookies.get(HANDSHAKE.next)?.value ?? "/");
 
   if (!code || !state || !storedState || state !== storedState || !verifier) {
     return finish("/auth/error?error=Verification");
@@ -64,42 +65,36 @@ export async function GET(
     return finish("/auth/error?error=Verification");
   }
 
-  const authorization = { headers: { Authorization: `Bearer ${idToken}` } };
-
-  // Exchange the id_token for the app session: POST /sessions upserts the user
-  // — keyed on the address the token carries, not on anything sent from here —
-  // mints the rb-session + csrf-token cookies, and returns the user with the
-  // role, including one an invitation was holding for them. Relay the cookies
-  // only once the gate passes.
+  // POST /sessions finds or creates the user by the address the token
+  // carries, sets the session and CSRF cookies, and returns the user with
+  // their role. A refusal leaves `user` null, which `admits` sends to the
+  // error page.
   let user: User | null = null;
-  let sessionCookies: string[] = [];
+  let cookies: string[] = [];
   try {
-    const response = await http.post<User>("/sessions", {}, authorization);
+    const response = await api.post<User>(
+      "/sessions",
+      {},
+      { headers: { Authorization: `Bearer ${idToken}` } },
+    );
     user = response.data;
-    const setCookie = response.headers["set-cookie"];
-    if (setCookie) {
-      sessionCookies = [setCookie].flat();
-    }
+    cookies = response.headers["set-cookie"] ?? [];
   } catch (e) {
     console.error(e);
   }
 
   const { location, session } = admits(user, next);
-  if (session) relayed.push(...sessionCookies);
-  return finish(location);
+  return finish(location, session ? cookies : []);
 }
 
-// Reduce `next` to a same-origin relative path, to prevent open redirects.
-function safeNext(request: NextRequest, next: string): string {
-  const host = request.headers.get("host");
+// Returns `next` as a path on `APP_URL`, or "/" when it names another site,
+// so the sign-in cannot redirect away from the app.
+function safeNext(next: string): string {
+  const base = new URL(appUrl());
   try {
-    const url = new URL(next, `http://${host}`);
-    return url.host === host ? url.pathname + url.search : "/";
+    const url = new URL(next, base);
+    return url.origin === base.origin ? url.pathname + url.search : "/";
   } catch {
     return "/";
   }
-}
-
-function expire(name: string): string {
-  return `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }

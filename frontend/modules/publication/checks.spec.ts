@@ -4,7 +4,7 @@ import { createStore } from "jotai";
 import * as Y from "yjs";
 
 import type { Store } from "modules/store";
-import { FALLBACK, SETTLE, watchChecks } from "./checks";
+import { FALLBACK, SETTLE, watchChecks, watchEdit } from "./checks";
 import { empty, type Publication, type PublicationId } from "./model";
 import {
   errorFamily,
@@ -271,5 +271,31 @@ describe("refresh", () => {
       ],
     ]);
     expect(measured()).toHaveLength(1);
+  });
+});
+
+describe("watchEdit", () => {
+  test("validates a stored publication once its edits settle, and stops when asked", async () => {
+    const { store } = workspace(false);
+    setAll(store, [entry(5, { title: "Dom Casmurro" })]);
+    const stop = watchEdit(store, 5);
+    const sent = () => sentTo("publications/5/validate");
+
+    setField(store, 5, "title", "Dom");
+    await vi.advanceTimersByTimeAsync(SETTLE - 1);
+    setField(store, 5, "title", "Dom Casm");
+    await vi.advanceTimersByTimeAsync(SETTLE - 1);
+
+    expect(sent()).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(sent()).toEqual([expect.objectContaining({ title: "Dom Casm" })]);
+
+    stop();
+    setField(store, 5, "title", "");
+    await vi.advanceTimersByTimeAsync(SETTLE);
+
+    expect(sent()).toHaveLength(1);
   });
 });

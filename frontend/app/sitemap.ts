@@ -1,20 +1,18 @@
 import { routing } from "i18n/routing";
 import type { MetadataRoute } from "next";
 import { appUrl } from "modules/app-url";
+import { localized } from "./alternates";
 import { readIndex } from "./publications/read";
 
-/** One entry per locale, each naming the others so they read as translations. */
+// Returns one entry per locale for the page at `path`, each with `priority`
+// and the absolute addresses of the page in every locale.
 function entry(path: string, priority: number): MetadataRoute.Sitemap {
-  const base = appUrl();
+  const languages = localized(path, appUrl());
 
   return routing.locales.map((locale) => ({
-    url: `${base}/${locale}${path}`,
+    url: languages[locale],
     priority,
-    alternates: {
-      languages: Object.fromEntries(
-        routing.locales.map((other) => [other, `${base}/${other}${path}`]),
-      ),
-    },
+    alternates: { languages },
   }));
 }
 

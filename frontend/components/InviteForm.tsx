@@ -2,39 +2,36 @@
 
 import { invite } from "modules/access/remote";
 import type { UserRole } from "modules/users";
-import { useRouter } from "i18n/navigation";
-import { FC, SubmitEvent, useState } from "react";
-import Button from "./Button";
 import { useTranslations } from "next-intl";
+import { FC, SubmitEvent, useState } from "react";
+import { useMutation } from "utils/useMutation";
+import Button from "./Button";
 import RoleMenu from "./RoleMenu";
 import TextInput from "./TextInput";
 
 /**
- * Offer a role to an address.
+ * A form that offers a role to an email address. Contributor is the role it
+ * starts with. Submitting invites the address, and empties the field once the
+ * invitation succeeds.
  *
- * Any address: the identity provider mints an account only on a first sign-in,
- * so there is nobody to grant to beforehand and the offer waits on the address
- * instead. Someone already here is simply given the role — the form does not
- * need to know which, and says which happened afterwards.
+ * Any address can be invited. The server gives the role at once to someone who
+ * already has an account, and otherwise records an invitation that their first
+ * sign-in takes up. The notification after it says which happened.
  */
 const InviteForm: FC = () => {
   const t = useTranslations("access");
   const admin = useTranslations("admin");
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("contributor");
-  const [inviting, setInviting] = useState(false);
+  const { pending: inviting, run } = useMutation();
 
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    setInviting(true);
-    const invited = await invite(email.trim(), role);
-    setInviting(false);
-
-    if (invited) {
-      setEmail("");
-      router.refresh();
-    }
+    run(async () => {
+      const invited = await invite(email.trim(), role);
+      if (invited) setEmail("");
+      return invited;
+    });
   }
 
   return (
@@ -65,7 +62,7 @@ const InviteForm: FC = () => {
         width="fit"
         size="field"
         loading={inviting}
-        disabled={inviting || email.trim() === ""}
+        disabled={email.trim() === ""}
       />
     </form>
   );

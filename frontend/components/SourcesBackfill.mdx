@@ -39,11 +39,12 @@ on the right. Reached from the admin panel at `/admin/publications/sources`.
 
 ## Queue
 
-The queue is a single-select **listbox**: one tab stop, arrow / Home / End move
-the selection (via `aria-activedescendant`), and a click jumps straight to a
-publication. A dot marks whether each publication has **saved** sources, and the
-panel header counts the entries still missing sources — both react when a
-save lands, never to an unsaved draft.
+The queue is a [queue listbox](?path=/docs/components-queue-listbox--docs): one
+tab stop, arrow / Home / End move the selection (via `aria-activedescendant`),
+and a click jumps straight to a publication. A dot marks whether each
+publication has **saved** sources, and the panel header counts the entries still
+missing sources. Both change when a save lands, never for an unsaved draft. A
+sourced publication's option is named by its title followed by “— sourced”.
 
 <Canvas of={SourcesBackfillStories.Queue} />
 

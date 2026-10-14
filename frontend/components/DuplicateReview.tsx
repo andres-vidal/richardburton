@@ -16,27 +16,25 @@ import {
 } from "modules/publication/workspace";
 import { Link } from "i18n/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRouter } from "i18n/navigation";
-import {
-  FC,
-  Fragment,
-  KeyboardEvent,
-  ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-
-const optionId = (position: number) => `duplicate-cluster-option-${position}`;
+import { FC, Fragment, ReactNode, useState } from "react";
+import { useMutation } from "utils/useMutation";
+import QueueListbox, { QueueHeading } from "./QueueListbox";
 
 /** What a cluster is called in the queue: the title its records nearly share. */
 const name = (cluster: DuplicateCluster) =>
   cluster.publications[0]?.title ?? "";
 
+/** Returns a key that names a cluster or a decision by its records. */
+const recordsKey = ({ publications }: { publications: Publication[] }) =>
+  publications.map((p) => p.id).join("-");
+
 /**
- * The queue of clusters as a single-select listbox — one tab stop, arrows move
- * the selection, click jumps. The same shape the sources backfill uses, so
- * an admin who has stepped through one knows this one.
+ * The queue of clusters, as a `QueueListbox`. Each option shows the cluster's
+ * title and how many records it has.
+ *
+ * The decisions already made, `distinctions`, are listed under the queue, each
+ * as a button that opens it. The section is absent when there are none. While
+ * a decision is open (`selected` is its position), no cluster is selected.
  */
 export const DuplicateQueue: FC<{
   clusters: DuplicateCluster[];
@@ -54,65 +52,38 @@ export const DuplicateQueue: FC<{
   onSelectRuledApart,
 }) => {
   const t = useTranslations("duplicates");
-  const format = useFormatter();
-
-  const move = (event: KeyboardEvent, next: number) => {
-    event.preventDefault();
-    onSelect(Math.max(0, Math.min(next, clusters.length - 1)));
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
-    const key = event.key;
-    if (key === "ArrowDown") move(event, position + 1);
-    else if (key === "ArrowUp") move(event, position - 1);
-    else if (key === "Home") move(event, 0);
-    else if (key === "End") move(event, clusters.length - 1);
-  };
 
   return (
-    <div className="flex flex-col w-72 border-r border-gray-200 shrink-0">
-      <header className="flex gap-2 justify-between items-baseline px-3 py-2 border-b border-gray-200">
-        <span className="text-xs font-semibold tracking-wide text-gray-600 uppercase">
-          {t("possible")}
-        </span>
-        <span className="px-1.5 py-0.5 text-xs font-medium text-indigo-700 rounded-full bg-indigo-100 tabular-nums">
-          {format.number(clusters.length)}
-        </span>
-      </header>
-      <ul
-        role="listbox"
-        aria-label={t("clusters")}
-        tabIndex={0}
-        aria-activedescendant={optionId(position)}
-        onKeyDown={onKeyDown}
-        className="overflow-y-auto flex-1 p-2 space-y-0.5 min-h-0 scrollbar scrollbar-thin scrollbar-thumb-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400"
-      >
-        {clusters.map((cluster, index) => (
-          <QueueOption
-            key={cluster.publications.map((p) => p.id).join("-")}
-            id={optionId(index)}
-            cluster={cluster}
-            active={selected === null && index === position}
-            onSelect={() => onSelect(index)}
-          />
-        ))}
-      </ul>
+    <QueueListbox
+      heading={t("possible")}
+      count={clusters.length}
+      label={t("clusters")}
+      items={clusters}
+      itemKey={recordsKey}
+      renderOption={(cluster) => (
+        <>
+          <span className="truncate grow">{name(cluster)}</span>
+          <span className="text-xs text-gray-600 shrink-0 tabular-nums">
+            {cluster.publications.length}
+          </span>
+        </>
+      )}
+      position={selected === null ? position : -1}
+      onSelect={onSelect}
+    >
       {distinctions.length > 0 && (
         <div className="flex flex-col border-t border-gray-200 max-h-64 shrink-0">
-          <div className="flex gap-2 justify-between items-baseline px-3 py-2">
-            <span className="text-xs font-semibold tracking-wide text-gray-600 uppercase">
-              {t("ruledApartHeading")}
-            </span>
-            <span className="px-1.5 py-0.5 text-xs font-medium text-gray-700 rounded-full bg-gray-100 tabular-nums">
-              {format.number(distinctions.length)}
-            </span>
-          </div>
+          <QueueHeading
+            heading={t("ruledApartHeading")}
+            count={distinctions.length}
+            quiet
+          />
           <ul
             aria-label={t("ruledApart")}
             className="overflow-y-auto p-2 space-y-0.5 min-h-0 scrollbar scrollbar-thin scrollbar-thumb-indigo-600"
           >
             {distinctions.map((distinction, index) => (
-              <li key={distinction.publications.map((p) => p.id).join("-")}>
+              <li key={recordsKey(distinction)}>
                 <button
                   type="button"
                   onClick={() => onSelectRuledApart(index)}
@@ -126,37 +97,7 @@ export const DuplicateQueue: FC<{
           </ul>
         </div>
       )}
-    </div>
-  );
-};
-
-const QueueOption: FC<{
-  id: string;
-  cluster: DuplicateCluster;
-  active: boolean;
-  onSelect: () => void;
-}> = ({ id, cluster, active, onSelect }) => {
-  const ref = useRef<HTMLLIElement>(null);
-
-  useEffect(() => {
-    if (active) ref.current?.scrollIntoView({ block: "nearest" });
-  }, [active]);
-
-  return (
-    <li
-      ref={ref}
-      id={id}
-      role="option"
-      aria-selected={active}
-      onClick={onSelect}
-      data-active={active}
-      className="flex gap-2 justify-between items-center px-3 py-2 text-sm rounded cursor-pointer transition-colors hover:bg-gray-100 data-[active=true]:bg-indigo-100 data-[active=true]:text-indigo-900"
-    >
-      <span className="truncate">{name(cluster)}</span>
-      <span className="text-xs text-gray-600 shrink-0 tabular-nums">
-        {cluster.publications.length}
-      </span>
-    </li>
+    </QueueListbox>
   );
 };
 
@@ -207,9 +148,10 @@ const Compared: FC<{
 };
 
 /**
- * One record's evidence. `onKeep` is what makes it a choice — without it the
- * card is the same evidence with nothing to decide, which is what a decision
- * already made looks like.
+ * One record as a card: its title, year, translators, original work,
+ * countries, publishers and sources, and a link to its page when it is stored.
+ * With `onKeep`, the card is also a radio button that chooses the record to
+ * keep, and `kept` marks the chosen one.
  *
  * Each field is compared with the same field of `others`, and the words this
  * record has that at least one of them lacks are highlighted. Without `others`,
@@ -367,7 +309,7 @@ export const DuplicateStep: FC<{
           width="fit"
           size="medium"
           loading={busy}
-          disabled={!kept || busy}
+          disabled={!kept}
           onClick={() => kept && onMerge(kept)}
         />
       </div>
@@ -420,7 +362,6 @@ export const RuledApartStep: FC<{
           width="fit"
           size="medium"
           loading={busy}
-          disabled={busy}
           onClick={onReconsider}
         />
       </div>
@@ -428,7 +369,13 @@ export const RuledApartStep: FC<{
   );
 };
 
-/** Presentational shell, so the empty and populated states render in isolation. */
+/**
+ * The duplicate review without state: the queue beside the open question, the
+ * open decision when `selected` is set, or a message when everything is
+ * answered. With no clusters and no decisions it says there is nothing to
+ * reconcile. Each question and decision is keyed by its records, so a new
+ * question starts with a choice of its own.
+ */
 export const DuplicateReviewView: FC<{
   clusters: DuplicateCluster[];
   distinctions: Distinction[];
@@ -479,7 +426,7 @@ export const DuplicateReviewView: FC<{
       <div className="overflow-y-auto flex-1">
         {ruledApart ? (
           <RuledApartStep
-            key={ruledApart.publications.map((p) => p.id).join("-")}
+            key={recordsKey(ruledApart)}
             distinction={ruledApart}
             busy={busy}
             onReconsider={() => onReconsider(ruledApart)}
@@ -491,8 +438,7 @@ export const DuplicateReviewView: FC<{
           </div>
         ) : (
           <DuplicateStep
-            // Key by the cluster's members so each question gets a fresh choice.
-            key={clusters[position].publications.map((p) => p.id).join("-")}
+            key={recordsKey(clusters[position])}
             cluster={clusters[position]}
             position={position}
             total={clusters.length}
@@ -507,6 +453,11 @@ export const DuplicateReviewView: FC<{
   );
 };
 
+/**
+ * The duplicate review: the queue of `clusters` beside the question that is
+ * open, and the decisions already made, `distinctions`. It answers through
+ * `merge`, `distinguish` and `reconsider`, in a publication store of its own.
+ */
 const DuplicateReview: FC<{
   clusters: DuplicateCluster[];
   distinctions: Distinction[];
@@ -516,65 +467,68 @@ const DuplicateReview: FC<{
   </PublicationStoreProvider>
 );
 
+// The body of `DuplicateReview`: it holds the reviewer's place and the clusters
+// answered in this sitting, and disables the answers while one runs.
 const Review: FC<{
   clusters: DuplicateCluster[];
   distinctions: Distinction[];
 }> = ({ clusters, distinctions }) => {
   const store = usePublicationStore();
-  const router = useRouter();
+  const { pending: busy, run } = useMutation();
 
   const [position, setPosition] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
-  const [busy, setBusy] = useState(false);
 
   // An answered cluster is gone when the page is read again; until then the
   // reviewer keeps its place, so answering does not throw them back to the top.
   const [answered, setAnswered] = useState<string[]>([]);
-  const key = (cluster: DuplicateCluster) =>
-    cluster.publications.map((p) => p.id).join("-");
-
-  const remaining = clusters.filter((c) => !answered.includes(key(c)));
+  const remaining = clusters.filter((c) => !answered.includes(recordsKey(c)));
   const current = remaining[Math.min(position, remaining.length - 1)];
 
-  function advance(cluster: DuplicateCluster) {
-    setAnswered((previous) => [...previous, key(cluster)]);
-    router.refresh();
-  }
-
-  async function handleMerge(winner: Publication) {
-    if (!current) return;
-    setBusy(true);
-    const merged = await merge(store, {
-      winner,
-      losers: current.publications.filter((p) => p.id !== winner.id),
+  // Runs `decide`, which answers `cluster`. When it succeeds, the cluster is
+  // marked answered, and `run` reads the page again.
+  function answer(cluster: DuplicateCluster, decide: () => Promise<boolean>) {
+    run(async () => {
+      const decided = await decide();
+      if (decided)
+        setAnswered((previous) => [...previous, recordsKey(cluster)]);
+      return decided;
     });
-    setBusy(false);
-    if (merged) advance(current);
   }
 
-  async function handleDistinguish() {
-    if (!current) return;
-    setBusy(true);
-    const kept = await distinguish(current.publications.map((p) => p.id!));
-    setBusy(false);
-    if (kept) advance(current);
+  function handleMerge(winner: Publication) {
+    if (current)
+      answer(current, () =>
+        merge(store, {
+          winner,
+          losers: current.publications.filter((p) => p.id !== winner.id),
+        }),
+      );
   }
 
-  async function handleReconsider(distinction: Distinction) {
-    setBusy(true);
-    const back = await reconsider(distinction.publications.map((p) => p.id!));
-    setBusy(false);
-    // The pair rejoins the questions, so the queue is read again rather than
-    // patched — the cluster it belongs to may be larger than the pair. What
-    // this sitting has already answered is forgotten with it: the reviewer is
-    // revisiting decisions, and a cluster still on that list would come back
-    // from the server only to be filtered straight out again.
-    if (back) {
-      setAnswered([]);
-      setPosition(0);
-      setSelected(null);
-      router.refresh();
-    }
+  function handleDistinguish() {
+    if (current)
+      answer(current, () =>
+        distinguish(current.publications.map((p) => p.id!)),
+      );
+  }
+
+  // Takes back the ruling `distinction`. When that succeeds, the review opens
+  // the first question and forgets the clusters answered in this sitting, and
+  // `run` reads the queue again. The pair may rejoin a cluster larger than
+  // itself, so the queue is read rather than patched. A cluster left on the
+  // answered list would be filtered out of the queue the server sends back.
+  function handleReconsider(distinction: Distinction) {
+    run(async () => {
+      const back = await reconsider(distinction.publications.map((p) => p.id!));
+
+      if (back) {
+        setAnswered([]);
+        setPosition(0);
+        setSelected(null);
+      }
+      return back;
+    });
   }
 
   function handleSkip() {

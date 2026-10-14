@@ -10,15 +10,18 @@ import {
   expectPublicationCount,
   expectPublicationRow,
   PUBLICATIONS,
-  CSV_HEADER,
+  csv,
   type PublicationInput,
   openDocument,
   uploadCsv,
   moveSelectedRows,
+  selectRow,
 } from "./helpers";
 
-// One row under the header every fixture writes.
-const CSV_ROW = `${CSV_HEADER}\nDom Casmurro (CSV),1899,BR,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,A source\n`;
+/** One publication with one source. */
+const CSV_ROW = csv([
+  `Dom Casmurro (CSV),1899,BR,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,A source`,
+]);
 
 const [FIRST, SOURCED, DUPLICATED] = PUBLICATIONS;
 
@@ -78,7 +81,7 @@ test("an admin bulk-inserts publications with sources from the workspace", async
   await page.getByRole("button", { name: "Duplicate 1" }).click();
   await expect(duplicatedRows).toHaveCount(2);
 
-  await duplicatedRows.nth(1).getByRole("cell").first().click();
+  await selectRow(duplicatedRows.nth(1));
   await moveSelectedRows(page, 1, { new: "Copies" });
   await expect(duplicatedRows).toHaveCount(1);
 
@@ -185,15 +188,8 @@ test("a duplicate of an existing publication is flagged as a conflict", async ({
   await expect(page.getByLabel("1 invalid publication")).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit" })).toBeDisabled();
 
-  // Move the conflicting row to another document. Row-selection clicks must
-  // land on the signal cell (field cells swallow them), and off its center —
-  // the centered error icon opens a hover tooltip that would swallow the click
-  // instead.
-  const duplicate = table.getByRole("row", { name: /Dom Casmurro/ });
-  await duplicate
-    .getByRole("cell")
-    .first()
-    .click({ position: { x: 4, y: 4 } });
+  // Move the conflicting row to another document.
+  await selectRow(table.getByRole("row", { name: /Dom Casmurro/ }));
   await moveSelectedRows(page, 1, { new: "Already stored" });
 
   await expect(page.getByLabel("All publications are valid")).toBeVisible();
@@ -206,15 +202,13 @@ test("a duplicate of an existing publication is flagged as a conflict", async ({
  * and by its name. The third and fourth rows are the same publication. The
  * fifth row is in order.
  */
-const REPEATS_CSV =
-  [
-    CSV_HEADER,
-    `The Devil to Pay in the Backlands,1963,US,Knopf;Knopf,James L. Taylor;Harriet de Onís,Grande Sertão: Veredas,João Guimarães Rosa,`,
-    `The Passion According to G.H.,1988,US;United States,University of Minnesota Press,Ronald W. Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
-    `Epitaph of a Small Winner,1952,US,Noonday Press,William L. Grossman,Memórias Póstumas de Brás Cubas,Machado de Assis,`,
-    `Epitaph of a Small Winner,1952,US,Noonday Press,William L. Grossman,Memórias Póstumas de Brás Cubas,Machado de Assis,`,
-    `Macunaíma,1984,US,Random House,E. A. Goodland,Macunaíma,Mário de Andrade,`,
-  ].join("\n") + "\n";
+const REPEATS_CSV = csv([
+  `The Devil to Pay in the Backlands,1963,US,Knopf;Knopf,James L. Taylor;Harriet de Onís,Grande Sertão: Veredas,João Guimarães Rosa,`,
+  `The Passion According to G.H.,1988,US;United States,University of Minnesota Press,Ronald W. Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
+  `Epitaph of a Small Winner,1952,US,Noonday Press,William L. Grossman,Memórias Póstumas de Brás Cubas,Machado de Assis,`,
+  `Epitaph of a Small Winner,1952,US,Noonday Press,William L. Grossman,Memórias Póstumas de Brás Cubas,Machado de Assis,`,
+  `Macunaíma,1984,US,Random House,E. A. Goodland,Macunaíma,Mário de Andrade,`,
+]);
 
 test("an import that repeats an entry or a whole row is held back until each repeat is gone", async ({
   page,
@@ -276,14 +270,8 @@ test("an import that repeats an entry or a whole row is held back until each rep
   });
 
   // A copy made with Duplicate repeats the row it was copied from, until it is
-  // moved out. Row-selection clicks land on the signal cell, off its center.
-  const select = (row: ReturnType<typeof table.getByRole>) =>
-    row
-      .getByRole("cell")
-      .first()
-      .click({ position: { x: 4, y: 4 } });
-
-  await select(table.getByRole("row", { name: /Macunaíma/ }));
+  // moved out.
+  await selectRow(table.getByRole("row", { name: /Macunaíma/ }));
   await page.getByRole("button", { name: "Duplicate 1" }).click();
   await expect(page.getByLabel("1 invalid publication")).toBeVisible({
     timeout: 30_000,
@@ -291,7 +279,7 @@ test("an import that repeats an entry or a whole row is held back until each rep
 
   const copies = table.getByRole("row", { name: /Macunaíma/ });
   await expect(copies).toHaveCount(2);
-  await select(copies.nth(1));
+  await selectRow(copies.nth(1));
   await moveSelectedRows(page, 1, { new: "Copies" });
   await expect(page.getByLabel("All publications are valid")).toBeVisible({
     timeout: 30_000,
@@ -329,12 +317,8 @@ test("a malformed CSV is rejected with an error and imports nothing", async ({
   await signInAsAdmin(page);
   await openDocument(page);
 
-  // An unterminated quoted field — the csv parser rejects the whole file.
-  await uploadCsv(
-    page,
-    `${CSV_HEADER}\nDom,1899,BR,P,T,O,"unterminated\n`,
-    "broken.csv",
-  );
+  // An unterminated quoted field, for which the parser rejects the whole file.
+  await uploadCsv(page, csv([`Dom,1899,BR,P,T,O,"unterminated`]), "broken.csv");
 
   await expect(
     page.getByText("Could not parse publications from the provided file"),

@@ -1,0 +1,27 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightNameStories from "./InsightName.stories";
+
+<Meta of={InsightNameStories} />
+
+# Insight name
+
+The name of a group on a chart: its label, followed by its detail in grey after
+a middle dot, as in "Dom Casmurro · Machado de Assis".
+
+<Canvas of={InsightNameStories.WithDetail} />
+
+## Props
+
+- `label` — the group's name, such as a work's title or an author.
+- `detail` — optional extra text after the label, such as a work's authors or
+  the translator of an author–translator pair.
+
+The component renders only text and the span around the detail. The element it
+is placed in sets the label's size and colour.
+
+## Without a detail
+
+Without a detail, the name is the label alone.
+
+<Canvas of={InsightNameStories.WithoutDetail} />

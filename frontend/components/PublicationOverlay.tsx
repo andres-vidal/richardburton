@@ -7,14 +7,15 @@ import { FC, Suspense, use } from "react";
 import { Article } from "./Article";
 import CopyLink from "./CopyLink";
 import { Modal } from "./Modal";
+import ModalHeading from "./ModalHeading";
 import PublicationDetail, { PublicationHeading } from "./PublicationDetail";
 
 /**
- * Where the record will be, in the shape it will take.
+ * A placeholder in the shape of the record, shown while the record is read.
  *
- * The dialog is sized by what is in it, and a height the content decides cannot
- * be transitioned — so instead of animating the growth there is little to grow
- * from: the dialog barely moves when the record replaces this.
+ * The dialog is as tall as its content, and that height cannot be animated, so
+ * the placeholder takes about the record's height and the dialog barely moves
+ * when the record replaces it.
  */
 const Loading: FC = () => {
   const t = useTranslations("common");
@@ -49,17 +50,22 @@ const Loading: FC = () => {
   );
 };
 
+/** Says that there is no publication at this address. */
 const Missing: FC = () => {
   const t = useTranslations("publication");
 
   return (
-    <div className="p-8 w-full space-y-2">
-      <h1 className="text-2xl font-normal">{t("notHere")}</h1>
-      <p className="text-gray-700">{t("notHereDetail")}</p>
+    <div className="p-8 w-full">
+      <ModalHeading heading={t("notHere")} subheading={t("notHereDetail")} />
     </div>
   );
 };
 
+/**
+ * The record that `view` resolves to, as an article headed by its title and a
+ * copy link, or `Missing` when it resolves to null. It suspends until `view`
+ * resolves. `onClose` runs once the record is deleted.
+ */
 const Opened: FC<{
   view: Promise<PublicationView | null>;
   onClose: () => void;

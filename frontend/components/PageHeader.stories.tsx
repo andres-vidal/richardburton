@@ -24,7 +24,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Title plus a muted description line. */
+/** A title with a muted description under it. */
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -38,7 +38,7 @@ export const Default: Story = {
   },
 };
 
-/** Title only — the description is optional. */
+/** A title without a description. */
 export const TitleOnly: Story = {
   args: { description: undefined },
   play: async ({ canvasElement }) => {

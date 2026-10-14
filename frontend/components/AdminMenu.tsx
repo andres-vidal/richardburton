@@ -14,8 +14,9 @@ import { useTranslations } from "next-intl";
 import { FC, SVGProps } from "react";
 
 /**
- * The admin actions, as a hub of cards. New admin tools slot in here, each
- * saying the least role that may reach it — the same role its route asks for.
+ * The admin tools: each one's route, icon, the key of its title and
+ * description in the `admin` messages, and the least role that may reach it,
+ * which is the role its route asks for.
  */
 const ACTIONS: {
   href: string;
@@ -67,6 +68,11 @@ const ACTIONS: {
   },
 ];
 
+/**
+ * Renders a card linking to each admin tool the signed-in reader's role may
+ * reach, with its icon, title and description. The icon is hidden from
+ * assistive technology, since the title says the same.
+ */
 const AdminMenu: FC = () => {
   const t = useTranslations("admin");
   const session = useSession();

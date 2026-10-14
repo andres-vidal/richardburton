@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as AdminMenuStories from "./AdminMenu.stories";
 
@@ -6,17 +6,20 @@ import * as AdminMenuStories from "./AdminMenu.stories";
 
 # Admin menu
 
-The admin hub: a card per admin tool. It's linked from the home footer so the
-admin actions live on one page instead of cluttering the footer. Each card is a
-link to its route with an icon, a title and a one-line description.
+Renders a card for each admin tool, linking to its route with an icon, a title
+and a one-line description. The icon is hidden from assistive technology, since
+the title says the same.
 
-## Data source
+<Description of={AdminMenuStories.Default} />
+<Canvas of={AdminMenuStories.Default} />
 
-Takes no props. The tools are a static `ACTIONS` list in the component — add a
-new admin tool by adding an entry (`href`, `Icon`, `title`, `description`,
-`role`) and it slots into the responsive grid. Currently:
+## The tools
 
-- **Add publications** → `/admin/publications/new`
+The menu takes no props. The tools are the `ACTIONS` list in the component, and
+a new tool is added there with its `href`, its `Icon`, the `key` of its
+`…Title` and `…Description` messages in the `admin` namespace, and its `role`:
+
+- **Add publications** → `/admin/publications/documents`
 - **Backfill sources** → `/admin/publications/sources`
 - **Review duplicates** → `/admin/publications/duplicates`
 - **History** → `/admin/publications/history`
@@ -24,16 +27,11 @@ new admin tool by adding an entry (`href`, `Icon`, `title`, `description`,
 - **Names** → `/admin/vocabulary`
 - **Access** → `/admin/users`
 
-The icon repeats what the title already says — it is there to be recognised at a
-glance, on a page the same person returns to daily — so it is hidden from
-assistive technology rather than named twice.
-
-<Canvas of={AdminMenuStories.Default} />
-
 ## Who sees what
 
-Each entry names the least role that may reach it — the same role its route
-asks for — and the menu shows the ones the reader holds. A card that leads
-somewhere the reader would be turned away from is worse than no card.
+Each tool names the least role that may reach it, which is the role its route
+asks for, and the menu shows only the tools the signed-in role reaches, so no
+card leads to a page that would turn the reader away.
 
+<Description of={AdminMenuStories.AsAContributor} />
 <Canvas of={AdminMenuStories.AsAContributor} />

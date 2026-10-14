@@ -451,4 +451,4 @@ export {
   splits,
   splitsBy,
 };
-export type { ChartParams, Description, Form, Preset, Split };
+export type { ChartParams, Description, Form };

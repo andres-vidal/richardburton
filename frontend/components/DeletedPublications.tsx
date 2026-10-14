@@ -21,13 +21,12 @@ import {
 } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
 import type { Store } from "modules/store";
-import { useRouter } from "i18n/navigation";
 import { createStore } from "jotai";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
+import { useMutation } from "utils/useMutation";
 import Button from "./Button";
 import { Modal } from "./Modal";
-import ModalHeading from "./ModalHeading";
 import SectionHeading from "./SectionHeading";
 
 type Restore = (
@@ -35,8 +34,10 @@ type Restore = (
   changes?: Publication,
 ) => Promise<Restoration>;
 
-/** A deleted publication whose restore was refused, and the publication that
- * has its identity. */
+/**
+ * A deleted publication whose restore was refused, and the publication that is
+ * not deleted and has the same identity.
+ */
 type Refused = { deleted: Publication; twin: Publication };
 
 /**
@@ -49,12 +50,14 @@ type Refused = { deleted: Publication; twin: Publication };
  * as its error, so it can be saved only once a change has passed validation.
  * Saving restores the publication with the changes. When the server answers
  * that another publication is identical, that one is shown instead.
+ *
+ * It renders a section and a form as siblings, for a column that spaces them.
  */
 const RestoreWithChanges: FC<
   Refused & { onRestore: Restore; onRestored: () => void; onClose: () => void }
 > = ({ deleted, ...props }) => {
   // The edit is kept in a store of its own, passed explicitly so that it never
-  // joins the store of an enclosing surface.
+  // joins the store of the page around it.
   const [store] = useState(() => {
     const own = createStore();
 
@@ -95,11 +98,7 @@ const Changing: FC<
   }
 
   return (
-    <div className="flex flex-col gap-6 p-8 w-full">
-      <ModalHeading
-        heading={t("identical")}
-        subheading={t("identicalDetail")}
-      />
+    <>
       <section className="space-y-2">
         <SectionHeading>{t("alreadyStored")}</SectionHeading>
         <p className="text-sm text-gray-600">{t("differences")}</p>
@@ -113,7 +112,7 @@ const Changing: FC<
         heading={t("thisOne")}
         saveLabel={t("restoreWithChanges")}
       />
-    </div>
+    </>
   );
 };
 
@@ -139,25 +138,20 @@ const DeletedPublications: FC<{
   const formatDate = useFormatDate();
   const [restoringId, setRestoringId] = useState<PublicationId>();
   const [refused, setRefused] = useState<Refused | null>(null);
-  const router = useRouter();
+  const { pending: busy, run } = useMutation();
 
-  async function handleRestore(deleted: Publication) {
+  // Restores `deleted`, or opens `RestoreWithChanges` when an identical
+  // publication refuses the restore.
+  function handleRestore(deleted: Publication) {
     setRestoringId(deleted.id!);
-    try {
+    run(async () => {
       const result = await onRestore(deleted.id!);
 
-      if (result.outcome === "restored") router.refresh();
       if (result.outcome === "identical") {
         setRefused({ deleted, twin: result.twin });
       }
-    } finally {
-      setRestoringId(undefined);
-    }
-  }
-
-  function handleRestored() {
-    setRefused(null);
-    router.refresh();
+      return result.outcome === "restored";
+    });
   }
 
   return (
@@ -192,8 +186,8 @@ const DeletedPublications: FC<{
                 width="fit"
                 size="medium"
                 Icon={RestoreTrashIcon}
-                loading={restoringId === publication.id}
-                disabled={restoringId !== undefined}
+                loading={busy && restoringId === publication.id}
+                disabled={busy}
                 onClick={() => handleRestore(publication)}
               />
             </li>
@@ -203,7 +197,8 @@ const DeletedPublications: FC<{
       <Modal
         isOpen={refused !== null}
         onClose={() => setRefused(null)}
-        label={restoring("identical")}
+        heading={restoring("identical")}
+        subheading={restoring("identicalDetail")}
       >
         {refused ? (
           <RestoreWithChanges
@@ -211,7 +206,7 @@ const DeletedPublications: FC<{
             deleted={refused.deleted}
             twin={refused.twin}
             onRestore={onRestore}
-            onRestored={handleRestored}
+            onRestored={() => setRefused(null)}
             onClose={() => setRefused(null)}
           />
         ) : null}

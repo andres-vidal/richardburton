@@ -6,6 +6,8 @@ import {
   addPublicationRow,
   submitWorkspace,
   openDocument,
+  notifications,
+  historyEntries,
 } from "./helpers";
 
 test("an admin edits a publication's title and sources in a corpus", async ({
@@ -39,16 +41,10 @@ test("an admin edits a publication's title and sources in a corpus", async ({
   await expect(save).toBeEnabled();
   await save.click();
 
-  // Success toast, and the modal drops back to the read view with both sources.
-  // The confirmation names the record it saved, not just that a save happened.
-  // One assertion, not two: confirmations dismiss themselves after a few
-  // seconds, so a second wait can straddle the dismissal.
-  // A CSS locator, not getByRole: the open dialog aria-hides the rest of the
-  // document, so the portalled stack is out of the accessibility tree while the
-  // modal is up.
-  await expect(
-    page.locator("section[aria-label='Notifications']"),
-  ).toContainText(
+  // The confirmation names the record it saved, and the dialog goes back to
+  // the read view with both sources. The confirmation is checked in one
+  // assertion, since it dismisses itself after a few seconds.
+  await expect(notifications(page)).toContainText(
     // No quote characters in the pattern — the copy wraps the title in curly
     // quotes, which are easy to get wrong in a regex and prove nothing here.
     /Publication updated.*The Hour of the Star \(revised\).*is saved/s,
@@ -112,7 +108,7 @@ test("an admin edits a publication's title and sources in a corpus", async ({
   // Undoing the OLDER update reverts exactly its fields (title, sources) —
   // the later year change survives. Reconcilable undo, not last-write undo.
   await page.goto("/admin/publications/history");
-  const updated = page.locator('li[data-action="updated"]');
+  const updated = historyEntries(page, "updated");
   await expect(updated).toHaveCount(2);
   await updated.last().getByRole("button", { name: "Undo" }).click();
   await expect(page.getByText("Change undone")).toBeVisible();

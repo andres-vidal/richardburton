@@ -17,18 +17,13 @@ import {
   useMatchingCount,
   usePublicationIndexCount,
 } from "modules/publication/hooks";
-import { receiveIndex } from "modules/publication/store";
 import { searchHref, type PublicationId } from "modules/publication/model";
-import {
-  PublicationStoreProvider,
-  usePublicationStore,
-} from "modules/publication/workspace";
+import { PublicationStoreProvider } from "modules/publication/workspace";
 import { useIsAuthenticated } from "modules/session";
-import { Link } from "i18n/navigation";
-import { useRouter } from "i18n/navigation";
+import { Link, useRouter } from "i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 
 type Props = {
   /** The database for the current query, read on the server. */
@@ -38,36 +33,36 @@ type Props = {
 /** Returns the address of the publication `id`'s own page. */
 const rowHref = (id: PublicationId) => `/publications/${id}`;
 
+/**
+ * The front page: the database for the current search, in a table on wide
+ * screens and a list on narrow ones, with the search field above it.
+ *
+ * The page has a publication store of its own, which holds `index` and takes
+ * each new `index` the server renders for a new search.
+ */
 export default function Home({ index }: Props) {
   return (
-    <PublicationStoreProvider
-      initialize={(store) => receiveIndex(store, index)}
-    >
+    <PublicationStoreProvider index={index}>
       <Database index={index} />
     </PublicationStoreProvider>
   );
 }
 
+/**
+ * The front page inside its store. A click on a row opens the publication over
+ * the database, keeping the search.
+ */
 function Database({ index }: Props) {
   const router = useRouter();
   const search = useSearchParams()?.get("search") ?? undefined;
   const t = useTranslations("home");
-  const store = usePublicationStore();
   const isAuthenticated = useIsAuthenticated();
   const count = usePublicationIndexCount() || 0;
   const matching = useMatchingCount();
 
-  const received = useRef(index);
-
-  useEffect(() => {
-    if (received.current === index) return;
-    received.current = index;
-    receiveIndex(store, index);
-  }, [store, index]);
-
   const handleRowClick = useCallback(
     (id: PublicationId) =>
-      router.push(searchHref(search, `/publications/${id}`, { modal: "" })),
+      router.push(searchHref(search, rowHref(id), { modal: "" })),
     [router, search],
   );
 

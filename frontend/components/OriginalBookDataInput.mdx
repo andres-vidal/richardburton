@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as OriginalBookDataInputStories from "./OriginalBookDataInput.stories";
 
@@ -41,9 +41,14 @@ what it is given. A lookup that fails offers nothing rather than interrupting.
 - **Found by its author** — the same search, reached from the other half.
 - **Fills both fields** — picking one writes the title here and the authors
   there.
+- **Picked with Enter** — Enter picks the highlighted book while the menu is
+  open, and only then. Otherwise the key is left to whatever holds the field.
 - **Free text stands** — an unknown book is simply typed.
 
 <Canvas of={OriginalBookDataInputStories.FillsBothFields} />
+
+<Description of={OriginalBookDataInputStories.PickedWithEnter} />
+<Canvas of={OriginalBookDataInputStories.PickedWithEnter} />
 
 ## A lookup outlives its keystroke
 
@@ -52,13 +57,9 @@ already on its way can arrive after a further keystroke, or after a book has
 been chosen. Putting the books back up over a field that has just been filled
 reads as the choice not having been taken.
 
-A counter therefore numbers the lookups. Each one takes the next number and
-keeps it, and on answering may write what the field offers only if its number is
-still the current one. Choosing a book takes a number as well, which leaves
-every lookup still in flight holding a stale one.
-
-A lookup can also outlive the field itself, which is the same write to something
-that is no longer listening. Before writing, a lookup checks that the input is
-still in the document.
+The field looks up books through `useLookup`, which answers only the newest
+lookup and drops the one still pending when the field unmounts. Choosing a book
+cancels the pending lookup, so no lookup started before the choice is answered.
+The input carries `aria-busy` while a lookup is pending.
 
 <Canvas of={OriginalBookDataInputStories.AChoiceSurvivesALookupInFlight} />

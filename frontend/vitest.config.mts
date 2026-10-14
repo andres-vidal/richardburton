@@ -3,17 +3,15 @@ import { playwright } from "@vitest/browser-playwright";
 import react from "@vitejs/plugin-react";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import magicalSvg from "vite-plugin-magical-svg";
-import tsconfigPaths from "vite-tsconfig-paths";
+import svgr from "vite-plugin-svgr";
 import { configDefaults, defineConfig } from "vitest/config";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {
-    // Track-only coverage baseline (no thresholds yet). Scoped to the client
-    // source the suite exercises; the Next.js `app/` shell is covered by the
-    // build/integration path, not unit tests, so it's left out here.
+    // Coverage of the client code the suites exercise, reported without
+    // thresholds. The `app/` routes are left out.
     coverage: {
       provider: "v8",
       // json-summary feeds the PR coverage comment (run-frontend-tests.yml).
@@ -27,15 +25,21 @@ export default defineConfig({
     },
     projects: [
       {
-        // Plain unit/hook/component tests in jsdom.
-        plugins: [tsconfigPaths(), react(), magicalSvg({ target: "react" })],
+        // Unit, hook and component specs in jsdom. Imports resolve as the
+        // app's tsconfig paths say, and an SVG imports as a React component,
+        // as in the app and in Storybook.
+        resolve: { tsconfigPaths: true },
+        plugins: [
+          react(),
+          svgr({ include: "**/*.svg", svgrOptions: { exportType: "default" } }),
+        ],
         test: {
           name: "unit",
           environment: "jsdom",
           globals: true,
           setupFiles: [join(dir, "test/unit.setup.ts")],
           include: ["**/*.spec.{ts,tsx}"],
-          // Playwright specs (frontend/e2e) run under `npm run test:e2e`, not Vitest.
+          // The Playwright specs in e2e/ run under `npm run test:e2e`.
           exclude: [...configDefaults.exclude, "e2e/**"],
           // next-intl ships ESM that imports `next/navigation` without an
           // extension, which Node will not resolve on its own. Inlining it hands
@@ -44,15 +48,14 @@ export default defineConfig({
         },
       },
       {
-        // Every story runs as a test in a real (headless) browser. Storybook's
-        // own Vite config (framework + viteFinal) resolves paths and SVGs for
-        // these, so we deliberately don't add those plugins again here — doing
-        // so double-loads magical-svg and breaks its raw-SVG import.
+        // Every story, run as a test in headless Chromium. Storybook's own
+        // Vite config (.storybook/main.ts) resolves paths and SVGs for these,
+        // so this project adds no plugins of its own.
         plugins: [storybookTest({ configDir: join(dir, ".storybook") })],
         test: {
           name: "storybook",
-          // Test-only tweaks (e.g. disabling framer-motion animations) that must
-          // not leak into interactive Storybook, which never loads this file.
+          // Settings for the tests only, which interactive Storybook never
+          // loads.
           setupFiles: [join(dir, ".storybook/vitest.setup.ts")],
           browser: {
             enabled: true,

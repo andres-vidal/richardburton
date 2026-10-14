@@ -4,11 +4,13 @@ import { Link } from "i18n/navigation";
 import { useTranslations } from "next-intl";
 import { FC } from "react";
 
+/** One step of the path: a link when it has an `href`, plain text otherwise. */
 type Crumb = { label: string; href?: string };
 
 /**
- * Location + back-nav for nested pages (e.g. the admin panel). Ancestors are
- * links; the current page is the plain last crumb.
+ * Renders the path from the home page to the current page as a navigation
+ * landmark. Each crumb with an `href` is a link. The last crumb, which names
+ * the current page, has none, and is marked as the current page.
  */
 const Breadcrumb: FC<{ items: Crumb[] }> = ({ items }) => {
   const t = useTranslations("common");

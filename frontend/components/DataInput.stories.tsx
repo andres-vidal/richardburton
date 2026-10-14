@@ -6,8 +6,9 @@ import { expect, fn, screen, userEvent, within } from "storybook/test";
 
 import DataInput from "./DataInput";
 
-// The dispatcher's `value` is a controlled prop (the app closes the loop via
-// usePublicationField): hold it in state so edits show on screen here too.
+// The field's `value` is a controlled prop, which the app reads back from the
+// store with `usePublicationField`. This wrapper holds it in state instead, so
+// edits show on screen.
 const Controlled: FC<ComponentProps<typeof DataInput>> = ({
   value: initial,
   onChange,
@@ -26,8 +27,6 @@ const Controlled: FC<ComponentProps<typeof DataInput>> = ({
   );
 };
 
-// The cell-editor dispatcher: picks the right Text*DataInput by the column's
-// attribute type and wires edits back into the publication store.
 const meta = {
   title: "Publications/Data input",
   component: DataInput,
@@ -47,7 +46,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** A text column renders a plain, editable text cell. */
+/** A text column renders a text field, and typing edits it. */
 export const Default: Story = {
   beforeEach: () => seed(store),
   args: { colId: "title", value: "Dom Casmurro" },
@@ -60,7 +59,7 @@ export const Default: Story = {
   },
 };
 
-/** A numeric column (year) renders the number cell (a styled text input). */
+/** A number column, the year, renders the number field. */
 export const Number: Story = {
   beforeEach: () => seed(store),
   args: { colId: "year", value: "1953" },
@@ -72,9 +71,8 @@ export const Number: Story = {
 };
 
 /**
- * An error marks the cell invalid (`aria-invalid`). In the workspace table the
- * message itself lives in a tooltip — a message under a cell would reflow the
- * grid — so the tinted cell is the signal and hovering gives the detail.
+ * An error marks the field invalid (`aria-invalid`) and puts the message in a
+ * tooltip. The play test checks that no message is written beside the field.
  */
 export const WithError: Story = {
   beforeEach: () => seed(store),
@@ -86,15 +84,13 @@ export const WithError: Story = {
       "aria-invalid",
       "true",
     );
-    // Not written out beside the field in this mode.
     await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
   },
 };
 
 /**
- * `errorDisplay="inline"` writes the message under the field instead. The edit
- * form uses this: it has the room, and an error nobody hovers is an error
- * nobody reads.
+ * `errorDisplay="inline"` writes the message under the field. The play test
+ * checks that the message is below the field and not over it.
  */
 export const InlineError: Story = {
   beforeEach: () => seed(store),
@@ -109,7 +105,6 @@ export const InlineError: Story = {
 
     const message = canvas.getByRole("alert");
     await expect(message).toHaveTextContent("is required");
-    // Below the field, not floating over it.
     await expect(
       canvas.getByRole("textbox").getBoundingClientRect().bottom,
     ).toBeLessThanOrEqual(message.getBoundingClientRect().top + 1);
@@ -117,38 +112,34 @@ export const InlineError: Story = {
 };
 
 /**
- * A picked option validates at once, without waiting for blur. Countries is the
- * only `enumArray` column, and a combobox keeps focus after a selection — so
- * validating on blur alone left the row looking valid until some *other* field
- * was touched.
+ * Picking an option is an edit like a keystroke. The play test picks a country
+ * and checks that `onChange` received it while the combobox still has focus.
  */
-export const ValidatesOnSelection: Story = {
+export const WritesOnSelection: Story = {
   beforeEach: () => seed(store),
   args: {
     colId: "countries",
     value: [],
-    autoValidated: true,
-    onValidate: fn(),
+    onChange: fn(),
   },
   play: async ({ args, canvasElement }) => {
-    // Typing is what opens the menu — it runs the option lookup behind it.
-    // `screen`, not the canvas: the menu is portalled outside the story.
+    // Typing runs the lookup that opens the menu. The menu is rendered in a
+    // portal outside the story, so it is found through `screen`.
     const input = within(canvasElement).getByRole("combobox");
     await userEvent.type(input, "Brazil");
     await userEvent.click(
       await screen.findByRole("option", { name: "Brazil" }),
     );
 
-    // The selection alone is enough — nothing else has been touched, and the
-    // combobox still holds focus, so no blur has happened.
-    await expect(args.onValidate).toHaveBeenCalled();
+    await expect(input).toHaveFocus();
+    await expect(args.onChange).toHaveBeenCalled();
   },
 };
 
 /**
- * The reserved message slot keeps the field's height constant, so an error
- * appearing cannot shove the fields below it — or, in the edit form's
- * two-column grid, its neighbour.
+ * The inline message slot is reserved, so the field is as tall with a message
+ * as without one. The play test writes the longest message the model produces
+ * into the slot and compares the heights.
  */
 export const ErrorDoesNotShiftLayout: Story = {
   beforeEach: () => seed(store),
@@ -163,7 +154,6 @@ export const ErrorDoesNotShiftLayout: Story = {
     const field = canvas.getByRole("alert").parentElement!;
 
     const quiet = field.offsetHeight;
-    // Every message the model can produce is one line at a form's width.
     canvas.getByRole("alert").textContent =
       "A publication with this data already exists";
 
@@ -171,7 +161,7 @@ export const ErrorDoesNotShiftLayout: Story = {
   },
 };
 
-/** The dispatcher always draws the underlying input as an outlined box. */
+/** The field always draws its input as an outlined box. */
 export const Bordered: Story = {
   beforeEach: () => seed(store),
   args: { colId: "title", value: "Dom Casmurro" },

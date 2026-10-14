@@ -75,8 +75,12 @@ visually with `labelSrOnly`.
 ## States
 
 `loading` disables the button and blocks clicks while an action is in flight. It
-shows a spinner and keeps the button's color (a darker shade) so it reads as
-"busy" — distinct from a plain `disabled` button, which greys out to read as
-"unavailable".
+shows a spinner and keeps the button's colour in a darker shade, so it reads as
+busy. A plain `disabled` button greys out instead, so it reads as unavailable.
 
 <Canvas of={ButtonStories.States} />
+
+`loading` disables the button whatever `disabled` says, so `disabled` only
+needs the caller's own conditions, such as an empty form.
+
+<Canvas of={ButtonStories.LoadingWhileEnabled} />

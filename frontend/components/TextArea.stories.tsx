@@ -23,10 +23,26 @@ const Controlled: FC<ComponentProps<typeof TextArea>> = ({
   );
 };
 
+/** Returns the background colour that the utility class `className` paints. */
+function backgroundOf(className: string): string {
+  const probe = document.createElement("div");
+  probe.className = className;
+  document.body.append(probe);
+  const color = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  return color;
+}
+
+/** Focuses the field in `canvasElement` and returns its background colour. */
+async function focusedBackground(canvasElement: HTMLElement): Promise<string> {
+  const input = within(canvasElement).getByRole("textbox");
+  await userEvent.click(input);
+  return getComputedStyle(input.parentElement!).backgroundColor;
+}
+
 const meta = {
   title: "Components/Text area",
   component: TextArea,
-  tags: ["autodocs"],
   args: { value: "", onChange: fn(), "aria-label": "Description" },
   render: (args) => <Controlled {...args} />,
   // The textarea is borderless + `bg-transparent` (it sits on a colored surface
@@ -92,5 +108,38 @@ export const WithError: Story = {
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox");
     await expect(input).toHaveAttribute("aria-invalid", "true");
+  },
+};
+
+/**
+ * A focused field with an error turns a stronger red than an unfocused one, so
+ * the white text typed into it stays readable.
+ */
+export const FocusedWithError: Story = {
+  args: { value: "", error: "is required" },
+  play: async ({ canvasElement }) => {
+    await expect(await focusedBackground(canvasElement)).toBe(
+      backgroundOf("bg-red-400/80"),
+    );
+  },
+};
+
+/** The labelled variant turns the same stronger red when focused with an error. */
+export const FocusedWithLabelAndError: Story = {
+  args: { label: "Description", value: "", error: "is required" },
+  play: async ({ canvasElement }) => {
+    await expect(await focusedBackground(canvasElement)).toBe(
+      backgroundOf("bg-red-400/80"),
+    );
+  },
+};
+
+/** The labelled variant without an error takes an indigo tint when focused. */
+export const FocusedWithLabel: Story = {
+  args: { label: "Description", value: "" },
+  play: async ({ canvasElement }) => {
+    await expect(await focusedBackground(canvasElement)).toBe(
+      backgroundOf("bg-indigo-500/10"),
+    );
   },
 };

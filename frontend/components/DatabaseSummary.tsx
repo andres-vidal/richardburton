@@ -24,8 +24,8 @@ type Props = {
 /**
  * The line at the top of the database pages. It shows `count` as the number of
  * publications registered, or, when the URL has a search, as the number the
- * search found, and links to the two views of the database. The list view shows the publications, and the insights view shows
- * counts about them.
+ * search found, and links to the two views of the database. The list view
+ * shows the publications, and the insights view shows counts about them.
  *
  * Each link keeps the `search` parameter from the current URL, so switching
  * views keeps the same search.

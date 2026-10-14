@@ -1,7 +1,9 @@
 import written from "messages/en.json";
 
-/** Enough countries to render a field. What a term finds is the server's, and
- * is checked there. */
+/**
+ * Six countries, enough for a story or a spec to fill and search a countries
+ * field. The server's country search has tests of its own.
+ */
 const COUNTRIES = [
   { id: "AU", label: "Australia", numeric: "036" },
   { id: "BR", label: "Brazil", numeric: "076" },

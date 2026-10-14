@@ -8,7 +8,8 @@ import {
   indexTable,
   expectPublicationCount,
   CORPUS_SIZE,
-  CSV_HEADER,
+  copiedLink,
+  csv,
   expectMatchCount,
   PAGED_CSV,
   PAGED_SIZE,
@@ -108,15 +109,13 @@ test("an empty database shows the empty state, and the first import fills it", a
 // virtualization without also tripping the scroll-to-load-more (its own test).
 // Titles carry the index so a far-away row is addressable.
 const BULK_SIZE = 20;
-const BULK_CSV =
-  [
-    CSV_HEADER,
-    ...Array.from(
-      { length: BULK_SIZE },
-      (_, i) =>
-        `Bulk Title ${i},${1900 + i},US,Publisher ${i},Translator ${i},Original ${i},Author ${i},`,
-    ),
-  ].join("\n") + "\n";
+const BULK_CSV = csv(
+  Array.from(
+    { length: BULK_SIZE },
+    (_, i) =>
+      `Bulk Title ${i},${1900 + i},US,Publisher ${i},Translator ${i},Original ${i},Author ${i},`,
+  ),
+);
 
 test("the database arrives with the page, not after it", async ({
   page,
@@ -140,7 +139,7 @@ test("opening a publication does not read the database again", async ({
 }) => {
   await seedCorpus(page);
   await page.goto("/");
-  await page.waitForLoadState("networkidle");
+  await expect(indexTable(page).getByText("Barren Lives")).toBeVisible();
 
   const payloads: string[] = [];
   page.on("response", async (response) => {
@@ -341,8 +340,6 @@ test("a signed-out reader sees publication details read-only, sources included",
   page,
 }) => {
   await seedCorpus(page);
-  // Sign out from the home footer (the admin workspace footer has no session controls).
-  await page.goto("/");
   await signOut(page);
 
   const dialog = await openPublicationModal(page, "The Hour of the Star");
@@ -367,15 +364,7 @@ test("a reader takes a publication's link, and the link stands on its own", asyn
   const dialog = await openPublicationModal(page, "The Hour of the Star");
   await dialog.getByRole("button", { name: "Copy link" }).click();
 
-  // The confirmation carries the address it took, so the test can follow it
-  // without reading the clipboard back.
-  const notifications = page.locator("section[aria-label='Notifications']");
-  await expect(notifications).toContainText(
-    /Link copied[\s\S]*\/publications\/\d+/,
-  );
-  const link = (await notifications.innerText()).match(
-    /\/publications\/\d+/,
-  )![0];
+  const link = await copiedLink(page, /\/publications\/\d+/);
 
   // It is a page, not the index with an overlay: the record is there and the
   // database behind it is not.

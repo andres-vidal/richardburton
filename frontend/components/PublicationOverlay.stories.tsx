@@ -150,9 +150,8 @@ export const Missing: Story = {
   },
 };
 
-/** Opened by a `?publication=1` URL query, showing that publication's details. */
+/** The record as a reader sees it, with its sources. */
 export const Default: Story = {
-  beforeEach: () => setAll(store, [DOM_CASMURRO]),
   parameters: {
     // Full-screen portalled modal — bound it in the docs page.
     docs: { story: { inline: false, height: "30rem" } },
@@ -294,10 +293,8 @@ export const DeleteConfirmation: Story = {
 };
 
 /**
- * A combobox dropdown opened inside the edit modal must stack *above* the modal,
- * not behind it. Regression guard for the z-index bug (the menu was `z-30`,
- * under the modal's `z-50`, so it opened but was hidden by the dialog). Uses the
- * Countries field, which autocompletes from a static list (no backend).
+ * The menu of a combobox in the edit form stacks above the dialog. The play
+ * test opens the Countries menu and compares its z-index with the dialog's.
  */
 export const EditingMenuAboveModal: Story = {
   beforeEach: () => setAll(store, [DOM_CASMURRO]),

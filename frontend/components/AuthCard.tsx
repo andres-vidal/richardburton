@@ -2,12 +2,12 @@ import { useTranslations } from "next-intl";
 import { FC, ReactNode } from "react";
 
 /**
- * A square panel centred on an otherwise empty page: a title, what happened,
- * and the one thing to do about it.
+ * Renders a square panel centred on the page: a title, what happened, and the
+ * one thing to do about it, `children`, at the foot.
  *
- * Given the name its copy goes by, it reads the title and body from the
- * catalogue. The message decides which parts the body has; the card decides how
- * each one reads.
+ * It reads the `title` and `body` messages under the `copy` namespace. The
+ * body is rich text whose `<message>` part renders as a paragraph and whose
+ * optional `<suggestion>` part renders as a smaller one.
  */
 const AuthCard: FC<{
   /** Names the card's copy in the catalogue, whole: `auth.pending`. */

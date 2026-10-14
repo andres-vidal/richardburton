@@ -1,0 +1,51 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as QueueListboxStories from "./QueueListbox.stories";
+
+<Meta of={QueueListboxStories} />
+
+# Queue listbox
+
+A column with a heading, a count beside it, and a single-select list of items
+under them, for a queue that is worked through one item at a time.
+
+<Canvas of={QueueListboxStories.Default} />
+
+## Props
+
+- `heading` — the text above the list.
+- `count` — the number in the pill beside the heading. It need not be the
+  number of items, so a queue can count only the items still to do.
+- `label` — the accessible name of the list.
+- `items`, `itemKey` and `renderOption` — the items, a React key for each, and
+  what each item's option shows.
+- `position` — the position of the selected option, or -1 when none is
+  selected.
+- `onSelect` — called with the position of the option to select. The listbox
+  holds no selection of its own, so the selection moves only when the caller
+  passes the new `position` back.
+- `children` — shown in the column below the list.
+
+The heading is a `QueueHeading`, which the module also exports for a further
+section of the column: a heading with a count in a pill. Its `quiet` prop sets
+the pill in grey, for a count that is not the work still to do.
+
+## Keyboard
+
+<Description of={QueueListboxStories.Keyboard} />
+
+The up and down arrows select the previous and next option, and Home and End
+select the first and last. The selected option scrolls into view, so it stays
+visible in a long list.
+
+<Canvas of={QueueListboxStories.Keyboard} />
+
+## Nothing selected
+
+<Description of={QueueListboxStories.NothingSelected} />
+<Canvas of={QueueListboxStories.NothingSelected} />
+
+## Content below the list
+
+<Description of={QueueListboxStories.WithContentBelow} />
+<Canvas of={QueueListboxStories.WithContentBelow} />

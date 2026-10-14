@@ -1,6 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { seed } from "test/publication-fixtures";
-import { store } from "modules/store";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationSearch from "./PublicationSearch";
@@ -18,7 +16,6 @@ type Story = StoryObj<typeof meta>;
 
 /** The search input renders and is initially empty. */
 export const Default: Story = {
-  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox", {
       name: "Search publications",
@@ -28,10 +25,9 @@ export const Default: Story = {
   },
 };
 
-/** A `?search=` param (e.g. following a matched-word link) is mirrored into the box. */
+/** The box shows the `search` query parameter of the address. */
 export const FromUrlParam: Story = {
   parameters: { nextjs: { navigation: { query: { search: "Machado" } } } },
-  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox", {
       name: "Search publications",
@@ -41,12 +37,10 @@ export const FromUrlParam: Story = {
 };
 
 /**
- * While a search is in flight, the matched line becomes an animated status. The
- * query lives in the URL and the results are read for it, so "in flight" is what
- * has been typed not having reached the URL yet.
+ * While what was typed has not reached the address, the line under the box
+ * says that the search is running.
  */
 export const Searching: Story = {
-  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByRole("textbox"), "mach");
@@ -57,9 +51,8 @@ export const Searching: Story = {
   },
 };
 
-/** Typing into the input updates its value (debounces to the index endpoint). */
+/** Typing shows in the box at once. The address follows after a pause. */
 export const Typing: Story = {
-  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox", {
       name: "Search publications",
@@ -85,7 +78,6 @@ export const Widened: Story = {
       },
     ],
   },
-  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const report = canvasElement.querySelector("#search-report");
@@ -110,7 +102,6 @@ export const Widened: Story = {
  */
 export const TakenAsWritten: Story = {
   parameters: { nextjs: { navigation: { query: { search: "machado" } } } },
-  beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).queryByRole("button", { name: "Show all" }),
@@ -119,8 +110,8 @@ export const TakenAsWritten: Story = {
 };
 
 /**
- * The report comes from the `matched` prop, which is used instead of the
- * publication store. This story does not seed the store.
+ * Each word of the report links to a search for that word alone, relative to
+ * the current page.
  */
 export const GivenMatches: Story = {
   parameters: { nextjs: { navigation: { query: { search: "clarise" } } } },

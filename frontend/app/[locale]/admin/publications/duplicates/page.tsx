@@ -1,39 +1,28 @@
 import { readDistinctions, readDuplicates } from "app/publications/read";
-import Breadcrumb from "components/Breadcrumb";
-import { getTranslations } from "next-intl/server";
+import AdminPage from "components/AdminPage";
 import DuplicateReview from "components/DuplicateReview";
-import Layout from "components/Layout";
-import PageHeader from "components/PageHeader";
+import { getTranslations } from "next-intl/server";
 
 import { admitEditors } from "../../guard";
 
+/**
+ * Renders the review of possible duplicates with `DuplicateReview`: the
+ * clusters of records that may be one publication, and the pairs already
+ * ruled apart.
+ */
 export default async function DuplicateReviewPage() {
   await admitEditors();
 
-  const t = await getTranslations("admin");
-
-  const crumbs = [
-    { label: t("home"), href: "/" },
-    { label: t("admin"), href: "/admin" },
-    { label: t("duplicatesTitle") },
-  ];
-
-  const [{ clusters }, distinctions] = await Promise.all([
+  const [t, { clusters }, distinctions] = await Promise.all([
+    getTranslations("admin"),
     readDuplicates(),
     readDistinctions(),
   ]);
 
   return (
-    <Layout
-      subheader={
-        <>
-          <Breadcrumb items={crumbs} />
-          <PageHeader
-            title={t("duplicatesTitle")}
-            description={t("duplicatesPage")}
-          />
-        </>
-      }
+    <AdminPage
+      title={t("duplicatesTitle")}
+      description={t("duplicatesPage")}
       content={
         <DuplicateReview clusters={clusters} distinctions={distinctions} />
       }

@@ -3,6 +3,7 @@ import {
   addPublicationRow,
   CORPUS_SIZE,
   expectPublicationCount,
+  historyEntries,
   indexTable,
   seedCorpus,
   submitWorkspace,
@@ -208,8 +209,8 @@ test("a decision to keep records apart can be taken back, and a merge takes it b
   // with no undo of its own. The merge forgot the distinction without
   // recording a decision.
   await page.goto("/admin/publications/history");
-  const distinct = page.locator('li[data-action="distinguished"]');
-  const reopened = page.locator('li[data-action="reconsidered"]');
+  const distinct = historyEntries(page, "distinguished");
+  const reopened = historyEntries(page, "reconsidered");
   await expect(distinct).toHaveCount(4);
   await expect(reopened).toHaveCount(4);
   await expect(
@@ -222,11 +223,10 @@ test("a decision to keep records apart can be taken back, and a merge takes it b
 
   // The merge forgot the distinction, so taking the merge apart leaves the
   // question live rather than the stale answer to it.
-  await page
-    .locator('li[data-action="merged"]')
+  await historyEntries(page, "merged")
     .getByRole("button", { name: "Undo" })
     .click();
-  await expect(page.locator('li[data-action="unmerged"]')).toHaveCount(1);
+  await expect(historyEntries(page, "unmerged")).toHaveCount(1);
 
   await page.goto("/admin/publications/duplicates");
   await expect(

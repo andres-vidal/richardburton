@@ -1,18 +1,37 @@
 import { pick } from "lodash";
 import { request } from "app";
-import { AxiosError, AxiosInstance } from "axios";
+import { AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
 import { RESET } from "jotai/utils";
+import { attempt } from "modules/attempt";
+import { ApiError } from "modules/http";
 import type { Store } from "modules/store";
 
-import type { Publication, PublicationHistoryEntry } from "./model";
-import {
+import type {
+  Publication,
   PublicationError,
+  PublicationHistoryEntry,
   PublicationId,
   Resemblance,
   ValidationResult,
-  errorCode,
 } from "./model";
+import {
+  append,
+  createId,
+  errorFamily,
+  isCheckedFamily,
+  lastValidatedFamily,
+  publicationFamily,
+  publicationIdsAtom,
+  RESEMBLANCE_ATTRIBUTES,
+  remember,
+  removePublication,
+  resemblanceSubjectKeyAtom,
+  rowContentKeyFamily,
+  rowSubjectKeyFamily,
+  setErrors,
+  setResemblances,
+} from "./store";
 
 /**
  * One entry of the resemblances response. `position`, `others` and `repeats`
@@ -23,45 +42,30 @@ type ResemblanceEntry = Omit<Resemblance, "others" | "repeats"> & {
   others: number[];
   repeats: number | null;
 };
-import * as Doc from "./doc";
-import {
-  append,
-  contentKey,
-  createId,
-  documentOf,
-  errorFamily,
-  lastValidatedFamily,
-  publicationFamily,
-  publicationIdsAtom,
-  RESEMBLANCE_ATTRIBUTES,
-  remember,
-  removePublication,
-  resemblanceSubjectAtom,
-  rowSubjectFamily,
-  setErrors,
-  setResemblances,
-} from "./store";
+
+/** Whether `error` is a refusal from the server with the code "conflict". */
+const isConflict = (error: unknown): error is ApiError =>
+  error instanceof ApiError && error.code === "conflict";
 
 /**
- * Whether a failed call was a composite-key conflict. `request` unwraps a 409
- * into the thrown string "conflict"; the raw AxiosError shape is also
- * accepted so tests can reject with either.
- */
-function isConflict(error: unknown): boolean {
-  return error === "conflict" || (error as AxiosError).response?.status === 409;
-}
-
-/**
- * Run a server call, surfacing a friendly notification on failure and
- * re-throwing so callers can react (e.g. reset a file input).
+ * Runs a server call. When it fails, `run` notifies the failure and rethrows
+ * the error, so a caller can react to it, as by resetting a file input.
+ *
+ * The notice names the copy for the error's code under `publicationError`, and
+ * a failure without a code is notified with its message.
  */
 async function run<T>(op: (http: AxiosInstance) => Promise<T>): Promise<T> {
   try {
     return await request(op);
   } catch (error) {
-    const code = errorCode(error as PublicationError);
+    const code = error instanceof ApiError ? error.code : undefined;
+
     notify({
-      message: code ? `publicationError.${code}` : String(error),
+      message: code
+        ? `publicationError.${code}`
+        : error instanceof Error
+          ? error.message
+          : String(error),
       level: "warning",
     });
     throw error;
@@ -99,8 +103,13 @@ async function bulk(store: Store): Promise<Publication[]> {
 }
 
 /**
- * Persist edits to a single publication (admin). Returns whether it succeeded;
- * on a conflict or validation error the row keeps its edits so they can be fixed.
+ * Saves the edits to one stored publication, and returns whether the save
+ * succeeded. On a conflict or a validation error, the row keeps its edits so
+ * they can be fixed.
+ *
+ * When the server refuses the edit with field errors, `update` stores them as
+ * the row's errors (`errorFamily`) and notifies nothing. Any other failure is
+ * notified.
  */
 async function update(store: Store, id: PublicationId): Promise<boolean> {
   const publication = store.get(publicationFamily(id));
@@ -121,17 +130,18 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
     });
     return true;
   } catch (error) {
-    const { response } = error as AxiosError<{ errors: PublicationError }>;
-
     if (isConflict(error)) {
       notify({
         message: "publicationError.conflict",
         detail: "notify.conflictDetail",
         level: "warning",
       });
-    } else if (response?.status === 400) {
-      // Field errors belong on the fields; the form shows them in place.
-      store.set(errorFamily(id), response.data?.errors ?? null);
+    } else if (
+      error instanceof ApiError &&
+      error.status === 400 &&
+      error.errors
+    ) {
+      store.set(errorFamily(id), error.errors as PublicationError);
     } else {
       notify({
         message: "notify.saveFailed",
@@ -145,63 +155,63 @@ async function update(store: Store, id: PublicationId): Promise<boolean> {
 }
 
 /**
- * Delete a publication from the database (admin). The server soft-deletes —
- * the record leaves the index and search but stays restorable, and the change
- * lands in the publication history. Returns whether it succeeded.
+ * Deletes a publication, removes it from the store, and returns whether the
+ * delete succeeded. The server keeps the record as deleted, so it can be
+ * restored, and records the delete in the publication's history.
  */
-async function deletePublication(
+function deletePublication(
   store: Store,
   { id, title }: { id: PublicationId; title: string },
 ): Promise<boolean> {
-  try {
-    await request((http) => http.delete(`publications/${id}`));
+  return attempt(
+    async () => {
+      await request((http) => http.delete(`publications/${id}`));
 
-    removePublication(store, id);
-    notify({
-      message: "notify.publicationDeleted",
-      detail: "notify.publicationDeletedDetail",
-      values: { title },
-      level: "success",
-    });
-    return true;
-  } catch {
-    notify({
+      removePublication(store, id);
+      notify({
+        message: "notify.publicationDeleted",
+        detail: "notify.publicationDeletedDetail",
+        values: { title },
+        level: "success",
+      });
+    },
+    {
       message: "notify.deleteFailed",
       detail: "notify.deleteFailedDetail",
       values: { title },
       level: "warning",
-    });
-    return false;
-  }
+    },
+  );
 }
 
 /**
- * Undo one recorded change (admin), naming the entry rather than describing the
- * result: the server decides which action compensates it and what state that
- * produces. A new entry lands in the log — history is never rewritten — so the
- * undo is itself undoable. Returns whether it succeeded.
+ * Undoes the change that the history entry `version` of publication `id`
+ * records, and returns whether the undo succeeded.
+ *
+ * The request names the entry and nothing else. The server decides which
+ * change reverses it, and records that change as a new entry, which can be
+ * undone in turn.
  */
-async function undo(
+function undo(
   id: PublicationId,
   version: PublicationHistoryEntry["version"],
 ): Promise<boolean> {
-  try {
-    await request((http) =>
-      http.post(`publications/${id}/history/${version}/undo`),
-    );
+  return attempt(
+    async () => {
+      await request((http) =>
+        http.post(`publications/${id}/history/${version}/undo`),
+      );
 
-    notify({ message: "notify.changeUndone", level: "success" });
-    return true;
-  } catch (error) {
-    notify({
+      notify({ message: "notify.changeUndone", level: "success" });
+    },
+    (error) => ({
       message: isConflict(error) ? "notify.undoOutpaced" : "notify.undoFailed",
       detail: isConflict(error)
         ? "notify.undoOutpacedDetail"
         : "notify.nothingChanged",
       level: "warning",
-    });
-    return false;
-  }
+    }),
+  );
 }
 
 /**
@@ -218,6 +228,10 @@ type Restoration =
  * Bring a deleted publication back into the database (admin). When `changes`
  * are given, the server applies them to the publication before restoring it.
  *
+ * The server refuses a restore with a conflict when another publication that
+ * is not deleted has the same identity, and names that publication in the
+ * response. The result is then `identical`.
+ *
  * A success and a failure are notified here. An `identical` outcome is not,
  * since the caller offers to restore the publication with changes.
  */
@@ -226,24 +240,7 @@ async function restore(
   changes?: Publication,
 ): Promise<Restoration> {
   try {
-    const { status, data } = await request((http) =>
-      http.post<{ error?: string; publication?: Publication } | "">(
-        `publications/${id}/restore`,
-        changes,
-        // A 409 that names the identical publication is an answer to show,
-        // not an error, so it is read like a success.
-        {
-          validateStatus: (code) => (code >= 200 && code < 300) || code === 409,
-        },
-      ),
-    );
-
-    if (status === 409) {
-      const twin = data ? data.publication : undefined;
-      if (twin) return { outcome: "identical", twin };
-
-      throw (data && data.error) || "conflict";
-    }
+    await request((http) => http.post(`publications/${id}/restore`, changes));
 
     notify({
       message: "notify.publicationRestored",
@@ -252,6 +249,12 @@ async function restore(
     });
     return { outcome: "restored" };
   } catch (error) {
+    const twin = isConflict(error)
+      ? (error.body as { publication?: Publication }).publication
+      : undefined;
+
+    if (twin) return { outcome: "identical", twin };
+
     notify({
       message: isConflict(error)
         ? "notify.restoreOutpaced"
@@ -266,10 +269,8 @@ async function restore(
 }
 
 /**
- * The publications a term finds, for a view that has to look one up while it is
- * open — the merge dialog searching for the duplicates of a record it is
- * showing. A failed search finds nothing rather than interrupting: the dialog
- * says so where the results would be.
+ * Returns the publications a search for `term` finds, or an empty list when
+ * the search fails. A failure is not notified.
  */
 async function search(term: string): Promise<Publication[]> {
   try {
@@ -285,32 +286,33 @@ async function search(term: string): Promise<Publication[]> {
 }
 
 /**
- * Collapse publications into one (admin). The survivor keeps its identity and
- * gains what the others hold; they leave the database recorded as merged.
- * Returns whether it succeeded — a conflict means the merged record would be
- * one that already exists.
+ * Merges `losers` into `winner`, removes the losers from the store, and
+ * returns whether the merge succeeded. The winner keeps its identity and gains
+ * what the losers hold, and the losers are recorded as merged. The server
+ * refuses the merge with a conflict when the merged record would be one that
+ * already exists.
  */
-async function merge(
+function merge(
   store: Store,
   { winner, losers }: { winner: Publication; losers: Publication[] },
 ): Promise<boolean> {
   const ids = losers.map((loser) => loser.id!);
 
-  try {
-    await request((http) =>
-      http.post(`publications/${winner.id}/merge`, { losers: ids }),
-    );
+  return attempt(
+    async () => {
+      await request((http) =>
+        http.post(`publications/${winner.id}/merge`, { losers: ids }),
+      );
 
-    ids.forEach((id) => removePublication(store, id));
-    notify({
-      message: "notify.merged",
-      detail: "notify.mergedDetail",
-      values: { count: ids.length, title: winner.title },
-      level: "success",
-    });
-    return true;
-  } catch (error) {
-    notify({
+      ids.forEach((id) => removePublication(store, id));
+      notify({
+        message: "notify.merged",
+        detail: "notify.mergedDetail",
+        values: { count: ids.length, title: winner.title },
+        level: "success",
+      });
+    },
+    (error) => ({
       message: isConflict(error)
         ? "notify.mergeOutpaced"
         : "notify.mergeFailed",
@@ -318,75 +320,73 @@ async function merge(
         ? "notify.mergeOutpacedDetail"
         : "notify.nothingChanged",
       level: "warning",
-    });
-    return false;
-  }
+    }),
+  );
 }
 
 /**
- * Record that these publications are not the same record twice (admin), so the
- * duplicate review stops offering them. Returns whether it succeeded.
+ * Withdraws the decision that the publications `ids` are different records,
+ * so the duplicate review offers them again. Returns whether it succeeded.
  */
-/**
- * Take back a ruling that records are different, so the review offers them
- * again. The reviewer changed their mind, or merged them since and undid it.
- */
-async function reconsider(ids: PublicationId[]): Promise<boolean> {
-  try {
-    await request((http) =>
-      http.post("publications/duplicates/reconsider", { publications: ids }),
-    );
+function reconsider(ids: PublicationId[]): Promise<boolean> {
+  return attempt(
+    async () => {
+      await request((http) =>
+        http.post("publications/duplicates/reconsider", { publications: ids }),
+      );
 
-    notify({
-      message: "notify.reconsidered",
-      detail: "notify.reconsideredDetail",
-      level: "success",
-    });
-    return true;
-  } catch {
-    notify({
+      notify({
+        message: "notify.reconsidered",
+        detail: "notify.reconsideredDetail",
+        level: "success",
+      });
+    },
+    {
       message: "notify.reconsiderFailed",
       detail: "notify.nothingChanged",
       level: "warning",
-    });
-    return false;
-  }
-}
-
-async function distinguish(ids: PublicationId[]): Promise<boolean> {
-  try {
-    await request((http) =>
-      http.post("publications/duplicates/distinguish", { publications: ids }),
-    );
-
-    notify({
-      message: "notify.distinguished",
-      detail: "notify.distinguishedDetail",
-      level: "success",
-    });
-    return true;
-  } catch {
-    notify({
-      message: "notify.distinguishFailed",
-      detail: "notify.nothingChanged",
-      level: "warning",
-    });
-    return false;
-  }
+    },
+  );
 }
 
 /**
- * Live-validate a single publication's pending edits, excluding it from the
- * conflict check so an in-place edit doesn't collide with itself.
+ * Records that the publications `ids` are different records, so the duplicate
+ * review stops offering them. Returns whether it succeeded.
+ */
+function distinguish(ids: PublicationId[]): Promise<boolean> {
+  return attempt(
+    async () => {
+      await request((http) =>
+        http.post("publications/duplicates/distinguish", { publications: ids }),
+      );
+
+      notify({
+        message: "notify.distinguished",
+        detail: "notify.distinguishedDetail",
+        level: "success",
+      });
+    },
+    {
+      message: "notify.distinguishFailed",
+      detail: "notify.nothingChanged",
+      level: "warning",
+    },
+  );
+}
+
+/**
+ * Validates the edits to one stored publication and stores the result with
+ * `setErrors`. The server leaves the publication itself out of the conflict
+ * check, so an edit does not conflict with the record it changes.
  */
 async function validateUpdate(store: Store, id: PublicationId): Promise<void> {
   const publication = store.get(publicationFamily(id));
-  const fingerprint = contentKey(publication);
+  const content = store.get(rowContentKeyFamily(id));
 
-  // Same dedup as `validate`: this runs on every blur (and on every change for
-  // array fields), so a field the user only tabbed through costs no round-trip.
-  if (fingerprint === store.get(lastValidatedFamily(id))) return;
-  store.set(lastValidatedFamily(id), fingerprint);
+  // An edit undone before it settled leaves the content that was last sent,
+  // which needs no request.
+  if (content === store.get(lastValidatedFamily(id))) return;
+  store.set(lastValidatedFamily(id), content);
 
   return run(async (http) => {
     const { data } = await http.post<ValidationResult>(
@@ -401,9 +401,12 @@ async function validateUpdate(store: Store, id: PublicationId): Promise<void> {
  * Validates the rows `ids` server-side and stores the results with `setErrors`.
  *
  * A row is left out when its content was already validated: when this client
- * has sent that content (`lastValidatedFamily`), or when the store's document
- * holds a result for it. With `force`, every row is sent. A row the store does
- * not hold is left out.
+ * has sent that content (`lastValidatedFamily`), or when the row has a stored
+ * result for it (`isCheckedFamily`). With `force`, every row is sent. A row the
+ * store does not hold is left out.
+ *
+ * The content of each row is compared by its cached key, `rowContentKeyFamily`,
+ * so a call with every row reads each row's content once per edit.
  */
 async function validate(
   store: Store,
@@ -411,23 +414,18 @@ async function validate(
   { force = false }: { force?: boolean } = {},
 ): Promise<void> {
   return run(async (http) => {
-    const { doc } = documentOf(store);
     const pending = ids
-      .map((id) => ({
-        id,
-        publication: store.get(publicationFamily(id)),
-      }))
-      .filter(({ publication }) => publication !== undefined)
-      .map((entry) => ({ ...entry, content: contentKey(entry.publication) }))
+      .filter((id) => store.get(publicationFamily(id)) !== undefined)
+      .map((id) => ({ id, content: store.get(rowContentKeyFamily(id)) }))
       .filter(
         ({ id, content }) =>
           force ||
-          (content !== store.get(lastValidatedFamily(id)) &&
-            content !== Doc.validationOf(doc, id)?.content),
+          (!store.get(isCheckedFamily(id)) &&
+            content !== store.get(lastValidatedFamily(id))),
       )
-      .map(({ id, publication, content }) => {
+      .map(({ id, content }) => {
         store.set(lastValidatedFamily(id), content);
-        return { id, publication };
+        return { id, publication: store.get(publicationFamily(id)) };
       });
 
     if (pending.length > 0) {
@@ -435,16 +433,11 @@ async function validate(
         "publications/validate",
         pending.map(({ publication }) => publication),
       );
-      // Map results back to the rows we actually sent (the filtered set),
-      // not the original id list. Each result is stored for the content
-      // that was sent, not the server's copy of it.
+      // The results are in the order of the rows sent. Each one is stored for
+      // the content that was sent, not for the server's copy of it.
       setErrors(
         store,
-        data.map((entry, i) => ({
-          id: pending[i].id,
-          publication: pending[i].publication,
-          errors: entry.errors,
-        })),
+        data.map((entry, i) => ({ ...pending[i], errors: entry.errors })),
       );
     }
   });
@@ -457,11 +450,15 @@ async function validate(
  * The server does not know the rows' ids, so the response names each row by its
  * position in the request. The server stores nothing, and this function does
  * not change or remove any row.
+ *
+ * Every row in `ids` is sent, even when only one of them changed. The server
+ * finds which of the rows it is sent resemble each other and which repeat an
+ * earlier one, so a change to one row can change the results of the others.
  */
 async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
   return run(async (http) => {
-    const subject = store.get(resemblanceSubjectAtom);
-    const asked = ids.map((id) => store.get(rowSubjectFamily(id)));
+    const subject = store.get(resemblanceSubjectKeyAtom);
+    const asked = ids.map((id) => store.get(rowSubjectKeyFamily(id)));
     const rows = ids.map((id) =>
       pick(store.get(publicationFamily(id)), RESEMBLANCE_ATTRIBUTES),
     );
@@ -476,8 +473,10 @@ async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
     // is dropped. The change has already scheduled a new check
     // (see `watchChecks`).
     const moved =
-      store.get(resemblanceSubjectAtom) !== subject ||
-      ids.some((id, index) => store.get(rowSubjectFamily(id)) !== asked[index]);
+      store.get(resemblanceSubjectKeyAtom) !== subject ||
+      ids.some(
+        (id, index) => store.get(rowSubjectKeyFamily(id)) !== asked[index],
+      );
 
     if (moved) return;
 
@@ -518,8 +517,8 @@ async function upload(store: Store, payload: FormData): Promise<void> {
 }
 
 /**
- * The look-alike check, held in an object and read when a check runs, so it can
- * be replaced with one that does not reach the network, as `Author.REMOTE` is.
+ * The look-alike check, held in an object and read when a check runs, so a
+ * story can replace it with one that does not reach the network.
  */
 const REMOTE = { resemblances };
 

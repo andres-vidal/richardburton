@@ -9,15 +9,22 @@ import {
   usePublicationCount,
 } from "modules/publication/hooks";
 import { useSearchParams } from "next/navigation";
-import { FC, useRef } from "react";
+import { FC } from "react";
 import { useTranslations } from "next-intl";
 import Button from "./Button";
-import { useNotify } from "./Notifications";
+import { notify } from "./Notifications";
 
 const CONTENT_DISPOSITION = "content-disposition";
 
 /** What the file is called when the server does not say. */
 const FALLBACK_FILENAME = "publications.csv";
+
+/**
+ * How long a downloaded file is kept in memory after its link is clicked, in
+ * ms. Some browsers read the file after the click returns, so it is released
+ * later rather than at once.
+ */
+const RELEASE_AFTER_MS = 60_000;
 
 /**
  * Returns the filename in a `Content-Disposition` header, or
@@ -35,9 +42,15 @@ function filenameFrom(disposition: unknown): string {
   return filename?.replace(/"/g, "").trim() || FALLBACK_FILENAME;
 }
 
+/**
+ * A button that downloads the publications of the current search as a CSV
+ * file. The file has the columns that are shown, or every column when none is
+ * hidden. It is saved under the name the server gives it, and the button is
+ * disabled while there are no publications. A failed download raises a
+ * notification.
+ */
 const PublicationDownload: FC = () => {
   const t = useTranslations("download");
-  const notify = useNotify();
   const visibleCount = usePublicationCount();
   const visibleAttributes = useVisibleAttributes();
   const areAllAttributesVisible =
@@ -45,28 +58,28 @@ const PublicationDownload: FC = () => {
 
   const searchParams = useSearchParams();
 
-  const anchor = useRef<HTMLAnchorElement>(null);
-
   const search = searchParams?.get("search") ?? undefined;
 
   const select = areAllAttributesVisible
     ? undefined
     : visibleAttributes.map(snakeCase);
 
+  // Saves the file through a link that is clicked once and not attached to the
+  // page, and releases the file `RELEASE_AFTER_MS` later.
   const download = async () => {
     try {
-      await request(async (http) => {
-        if (!anchor.current) return;
-
-        const { data, headers } = await http.get("files/publications", {
+      const { data, headers } = await request((http) =>
+        http.get("files/publications", {
           params: { search, select },
           responseType: "blob",
-        });
+        }),
+      );
 
-        anchor.current.href = URL.createObjectURL(data);
-        anchor.current.download = filenameFrom(headers[CONTENT_DISPOSITION]);
-        anchor.current.click();
-      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(data);
+      link.download = filenameFrom(headers[CONTENT_DISPOSITION]);
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), RELEASE_AFTER_MS);
     } catch {
       notify({
         message: "notify.downloadFailed",
@@ -77,18 +90,15 @@ const PublicationDownload: FC = () => {
   };
 
   return (
-    <>
-      <Button
-        label={t("csv")}
-        variant="outline"
-        alignment="left"
-        Icon={DownloadIcon}
-        disabled={visibleCount === 0}
-        onClick={download}
-        width="fixed"
-      />
-      <a className="hidden" ref={anchor} />
-    </>
+    <Button
+      label={t("csv")}
+      variant="outline"
+      alignment="left"
+      Icon={DownloadIcon}
+      disabled={visibleCount === 0}
+      onClick={download}
+      width="fixed"
+    />
   );
 };
 

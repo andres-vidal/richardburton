@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as WorkspaceStories from "./PublicationWorkspace.stories";
 
@@ -16,14 +16,17 @@ swaps in editable pieces through that table's extension points.
 Each injected piece overrides one part of the read-only table:
 
 - **`ExtendedContent`** — replaces each read-only cell with a `DataInput` that
-  writes edits back to the store and re-validates.
+  writes edits to the row in the store.
 - **`ExtendedSignalColumn`** — a per-row signal: an error icon when the row is
   invalid, or a warning icon when it resembles a stored record or another row,
   plus the optional row id. It is also the row's **selection handle**
   (`data-selects-row`). The column stays in place when the table scrolls
   sideways, so either icon stays in view.
 - **`ExtendedRow`** — wraps the row in an error `Tooltip` and scrolls it into
-  view when focused.
+  view when focused. The tooltip gives the row new event handlers whenever it
+  renders, so `ExtendedRow` is memoised and renders only when the row's own
+  state changes.
+- **`ExtendedTrailingColumn`** — the sources cell, with the look-alike button.
 - **`ExtraRow`** — the always-present **new-publication** row at the bottom.
 
 Because it shares the table's structure, everything from the read-only view —
@@ -45,15 +48,20 @@ gesture, read by both the row that selects and the listener that clears.
 ## Editing & validation
 
 Cells are seeded from the store and edits flow back through it, so the grid is
-driven entirely by the publication state layer. The **new-publication row**
-commits on `Enter` (or the `+` button): it calls `addNew()` to promote the draft
-to a real row.
+driven entirely by the publication state layer. The **new-publication row** is
+added with `Enter` in any of its fields, or with the `+` button: `addNew()`
+moves the draft into the document. A combobox that uses Enter to pick an option
+marks the key with `preventDefault`, and the row is not added then. With
+nothing typed in the combobox, Enter adds the row.
 
 The cells do not validate their rows. `watchChecks`, which `DocumentProvider`
 starts for the import document, validates each row edited in this browser once
 the edits settle, and stores the result in the document for everyone.
 
 <Canvas of={WorkspaceStories.Default} />
+
+<Description of={WorkspaceStories.EnterThatPicksAnOptionStaysInTheField} />
+<Canvas of={WorkspaceStories.EnterThatPicksAnOptionStaysInTheField} />
 
 ## Errors
 
