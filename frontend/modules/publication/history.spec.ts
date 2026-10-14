@@ -77,6 +77,24 @@ describe("presentChanges", () => {
     expect(kinds).toEqual(["field", "sources"]);
   });
 
+  test("gives the comments before and after, after the sources", () => {
+    expect(
+      presentChanges({
+        fields: {
+          comments: { from: null, to: "**New** note" },
+          title: { from: "A", to: "B" },
+        },
+        sources: { added: ["x"], removed: [], reordered: false },
+      }).map(({ kind, ...change }) =>
+        kind === "comments" ? { kind, ...change } : kind,
+      ),
+    ).toEqual([
+      "field",
+      "sources",
+      { kind: "comments", from: null, to: "**New** note" },
+    ]);
+  });
+
   test("nothing to diff renders nothing", () => {
     expect(presentChanges(null)).toEqual([]);
     expect(presentChanges({ fields: {}, sources: null })).toEqual([]);
@@ -161,13 +179,17 @@ describe("presentAbsorbed", () => {
     ).toEqual([]);
   });
 
-  test("the whole record travels with the entry, sources included", () => {
+  test("the whole record travels with the entry, sources and comments included", () => {
     const [change] = presentAbsorbed(
       absorbing("merged", [
         {
           id: 9,
-          ...snapshot({ sources: ["Sousa, J. Bibliografia, 1955."] }),
+          ...snapshot({
+            sources: ["Sousa, J. Bibliografia, 1955."],
+            comments: "A *rare* copy.",
+          }),
         },
+        { id: 10, ...snapshot() },
       ]),
     );
 
@@ -175,6 +197,10 @@ describe("presentAbsorbed", () => {
       throw new Error("expected an absorbed change");
     expect(change.records[0].sources).toEqual([
       "Sousa, J. Bibliografia, 1955.",
+    ]);
+    expect(change.records.map((record) => record.comments)).toEqual([
+      "A *rare* copy.",
+      null,
     ]);
   });
 });

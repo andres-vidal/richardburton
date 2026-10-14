@@ -5,7 +5,7 @@ import type { PublicationHistoryEntry } from "modules/publication/model";
 import { resetAll } from "modules/publication/store";
 import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
 import { asAdmin } from "test/session";
-import { expect, screen, userEvent, waitFor } from "storybook/test";
+import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationDetail from "./PublicationDetail";
 
@@ -79,6 +79,35 @@ export const Default: Story = {
 };
 
 /**
+ * A record with comments shows them under the sentence, rendered from their
+ * Markdown, with each link opening in a new tab.
+ */
+export const WithComments: Story = {
+  args: {
+    publication: {
+      ...DOM_CASMURRO,
+      comments:
+        "The first English translation. **Out of print** since 1966.\n\n- Reviewed in *The Nation*\n- Scanned at [the Internet Archive](https://archive.org/details/domcasmurro)",
+    },
+  },
+  play: async () => {
+    await expect(screen.getByText("Comments")).toBeVisible();
+    await expect(screen.getByText("Out of print").tagName).toBe("STRONG");
+    await expect(
+      screen.getByRole("link", { name: "the Internet Archive" }),
+    ).toHaveAttribute("target", "_blank");
+  },
+};
+
+/** A record without comments has no comments section. */
+export const WithoutComments: Story = {
+  args: { publication: { ...DOM_CASMURRO, comments: null } },
+  play: async () => {
+    await expect(screen.queryByText("Comments")).toBeNull();
+  },
+};
+
+/**
  * A record nobody has sourced yet says so: for a database whose worth is its
  * provenance, an absent source is worth stating.
  */
@@ -115,9 +144,13 @@ export const AsAdmin: Story = {
 
 /**
  * Editing happens in place, over the record it is about to change — there is no
- * separate screen to navigate to and come back from.
+ * separate screen to navigate to and come back from. The comments open in the
+ * comments editor, which loads with the form, formatted as they are stored.
  */
 export const Editing: Story = {
+  args: {
+    publication: { ...DOM_CASMURRO, comments: "A **first** translation." },
+  },
   decorators: [asAdmin],
   beforeEach: () => resetAll(store),
   play: async () => {
@@ -127,6 +160,12 @@ export const Editing: Story = {
     await waitFor(() =>
       expect(screen.getByLabelText("Title")).toHaveValue("Dom Casmurro"),
     );
+    // The comments editor loads when the form first renders.
+    await expect(
+      within(
+        await screen.findByRole("textbox", { name: "Comments" }),
+      ).getByText("first"),
+    ).toBeVisible();
     await expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 
     // Backing out returns the reader's view untouched.

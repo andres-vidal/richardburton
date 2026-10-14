@@ -6,6 +6,7 @@ import type { PublicationHistoryEntry } from "modules/publication/model";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
+import Comments from "./Comments";
 
 type HistoryEntry = WithChanges<PublicationHistoryEntry>;
 
@@ -66,8 +67,9 @@ const ActionBadge: FC<{
  * and the `plain` variant does neither.
  *
  * What it changed is listed from `entry.changes`: a field's old and new value,
- * the sources added and removed, the records a merge took in or gave back, and
- * the records a duplicate decision was about. An update with no earlier
+ * the sources added and removed, the comments before and after, rendered from
+ * their Markdown, the records a merge took in or gave back, and the records a
+ * duplicate decision was about. An update with no earlier
  * version to compare with says so.
  */
 const Entry: FC<{
@@ -195,6 +197,32 @@ const Entry: FC<{
                   ))}
                 </ul>
               </li>
+            ) : change.kind === "comments" ? (
+              <li key="comments" className="text-xs text-gray-600">
+                {attribute("comments")}:
+                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 mt-0.5">
+                  <span aria-hidden className="text-red-700">
+                    −
+                  </span>
+                  <del className="text-gray-500 no-underline">
+                    {change.from ? (
+                      <Comments markdown={change.from} size="small" />
+                    ) : (
+                      t("noComments")
+                    )}
+                  </del>
+                  <span aria-hidden className="text-emerald-700">
+                    +
+                  </span>
+                  <ins className="no-underline">
+                    {change.to ? (
+                      <Comments markdown={change.to} size="small" />
+                    ) : (
+                      t("noComments")
+                    )}
+                  </ins>
+                </div>
+              </li>
             ) : change.kind === "related" ? (
               <li key="related" className="mt-1 text-xs text-gray-600">
                 {change.direction === "apart"
@@ -239,6 +267,12 @@ const Entry: FC<{
                             {t("sourceLabel", { source })}
                           </li>
                         ))}
+                        {record.comments && (
+                          <li className="text-gray-500">
+                            {attribute("comments")}:
+                            <Comments markdown={record.comments} size="small" />
+                          </li>
+                        )}
                       </ul>
                     </li>
                   ))}

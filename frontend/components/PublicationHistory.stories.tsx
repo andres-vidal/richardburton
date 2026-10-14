@@ -309,3 +309,93 @@ export const Decisions: Story = {
     );
   },
 };
+
+/**
+ * Updates to the comments: the comments before and after each change, rendered
+ * from their Markdown, with "(none)" where there were none. A merge lists the
+ * comments of the record it took in. The play test checks the formatting
+ * survives into the log.
+ */
+export const Comments: Story = {
+  args: {
+    entries: withChanges([
+      {
+        version: 4,
+        undoable: true,
+        action: "merged",
+        actor: "curator@rb.test",
+        timestamp: "2026-10-14T12:00:00",
+        snapshot: {
+          ...SNAPSHOT,
+          comments: "A **first** translation.\n\nFrom the duplicate.",
+        },
+        diff: {
+          fields: {
+            comments: {
+              from: "A **first** translation.",
+              to: "A **first** translation.\n\nFrom the duplicate.",
+            },
+          },
+          sources: null,
+        },
+        others: [
+          {
+            id: 7,
+            ...SNAPSHOT,
+            title: "Dom Casmuro",
+            comments: "From the duplicate.",
+          },
+        ],
+      },
+      {
+        version: 3,
+        undoable: false,
+        action: "updated",
+        actor: "curator@rb.test",
+        timestamp: "2026-10-13T12:00:00",
+        snapshot: { ...SNAPSHOT, comments: "A **first** translation." },
+        diff: {
+          fields: {
+            comments: {
+              from: null,
+              to: "A **first** translation.",
+            },
+          },
+          sources: null,
+        },
+      },
+      {
+        version: 2,
+        undoable: false,
+        action: "updated",
+        actor: "curator@rb.test",
+        timestamp: "2026-10-12T12:00:00",
+        snapshot: SNAPSHOT,
+        diff: {
+          fields: {
+            comments: {
+              from: "See [the scan](https://archive.org/details/x).",
+              to: null,
+            },
+          },
+          sources: null,
+        },
+      },
+    ]),
+  },
+  play: async ({ canvasElement }) => {
+    const [merged, added, removed] = [
+      ...canvasElement.querySelectorAll("li[data-action]"),
+    ] as HTMLElement[];
+
+    await expect(added).toHaveTextContent(
+      "Comments:−(none)+A first translation.",
+    );
+    await expect(added.querySelector("ins strong")).toHaveTextContent("first");
+    await expect(removed.querySelector("del a")).toHaveAttribute(
+      "href",
+      "https://archive.org/details/x",
+    );
+    await expect(merged).toHaveTextContent("Comments:From the duplicate.");
+  },
+};

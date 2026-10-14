@@ -6,6 +6,8 @@ import {
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
+  usePublicationComments,
+  usePublicationCommentsError,
   usePublicationMarking,
   usePublicationSources,
 } from "modules/publication/hooks";
@@ -19,7 +21,12 @@ import {
 } from "modules/publication/model";
 import { watchEdit } from "modules/publication/checks";
 import { deletePublication, update } from "modules/publication/remote";
-import { discardEdit, setSources, remember } from "modules/publication/store";
+import {
+  discardEdit,
+  remember,
+  setComments,
+  setSources,
+} from "modules/publication/store";
 import {
   PublicationStoreProvider,
   usePublicationStore,
@@ -27,6 +34,7 @@ import {
 import { useCountryNaming } from "modules/country-names";
 import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
+import dynamic from "next/dynamic";
 import { useFormatter, useTranslations } from "next-intl";
 import { Link, useRouter } from "i18n/navigation";
 import {
@@ -39,6 +47,7 @@ import {
 } from "react";
 import { useMutation } from "utils/useMutation";
 import Button from "./Button";
+import Comments from "./Comments";
 import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
 import Highlight from "./Highlight";
@@ -48,6 +57,19 @@ import PublicationMerge from "./PublicationMerge";
 import SourcesEditor from "./SourcesEditor";
 import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
+
+/**
+ * The comments editor, loaded the first time the edit form renders. A reader
+ * who never edits does not download the editor's code. Until the editor has
+ * loaded, an empty box about its size holds its place, and the rest of the
+ * form is already usable.
+ */
+const CommentsEditor = dynamic(() => import("./CommentsEditor"), {
+  ssr: false,
+  loading: () => (
+    <div aria-hidden className="h-52 bg-white rounded border border-gray-200" />
+  ),
+});
 
 /** `label`, marked where the search matched, as a link to a search for `value`. */
 const Searchable: FC<{ label: string; value: string }> = ({ value, label }) => (
@@ -198,6 +220,43 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
 };
 
 /**
+ * The publication's comments under their heading, rendered from Markdown, as a
+ * region named for them. It renders nothing for a publication without
+ * comments.
+ */
+const PublicationComments: FC<{ comments: string | null | undefined }> = ({
+  comments,
+}) => {
+  const t = useTranslations("attributes");
+
+  return comments?.trim() ? (
+    <section aria-label={t("comments")} className="space-y-2">
+      <SectionHeading>{t("comments")}</SectionHeading>
+      <Comments markdown={comments} />
+    </section>
+  ) : null;
+};
+
+/**
+ * The comments editor for the publication `id` in the enclosing store, with
+ * the error the comments have. Edits are written to the row with
+ * `setComments`, and saved with the rest of it.
+ */
+const EditComments: FC<{ id: PublicationId }> = ({ id }) => {
+  const store = usePublicationStore();
+  const comments = usePublicationComments(id);
+  const error = usePublicationCommentsError(id);
+
+  return (
+    <CommentsEditor
+      value={comments}
+      error={error}
+      onChange={(markdown) => setComments(store, id, markdown)}
+    />
+  );
+};
+
+/**
  * The record's mutation log, collapsed. The entries arrive with the record, so
  * expanding it costs nothing and shows everything at once.
  */
@@ -293,6 +352,7 @@ const PublicationEditForm: FC<{
         value={sources}
         onChange={(next) => setSources(store, id, next)}
       />
+      <EditComments id={id} />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 justify-end">
         <Button
@@ -331,7 +391,8 @@ type PublicationDetailProps = {
 };
 
 /**
- * A publication as a reader sees it: a sentence placing it and its sources.
+ * A publication as a reader sees it: a sentence placing it, its comments and
+ * its sources.
  * Whoever may edit publications also gets the controls to edit, merge and
  * delete it, and `history`, when given, is shown in a collapsed section. The
  * view keeps its edits in a publication store of its own, or in the enclosing
@@ -407,6 +468,7 @@ const Detail: FC<PublicationDetailProps> = ({
       ) : (
         <>
           <PublicationDescription publication={publication} />
+          <PublicationComments comments={publication.comments} />
           <PublicationSources
             sources={Publication.markedSources(publication)}
           />

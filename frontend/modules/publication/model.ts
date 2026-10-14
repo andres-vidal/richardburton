@@ -11,6 +11,14 @@ type Publication = {
   originalAuthors: string[];
   sources: string[];
   /**
+   * The publication's comments in Markdown (see `modules/comments`), or null
+   * when it has none. A page of the index leaves comments out, so a record read
+   * from one has no `comments` key, and neither has a new row nobody has
+   * commented on. A request without the key keeps the stored comments, and a
+   * null clears them.
+   */
+  comments?: string | null;
+  /**
    * The stored publication's id, or null for a row that is not stored. The
    * server never takes it from a request body.
    */
@@ -35,11 +43,11 @@ type Publication = {
 
 /**
  * The name of an attribute: a field of a publication other than its id, its
- * sources and its search marks.
+ * sources, its comments and its search marks.
  */
 type PublicationKey = keyof Omit<
   Publication,
-  "id" | "sources" | "excerpts" | "marked"
+  "id" | "sources" | "comments" | "excerpts" | "marked"
 >;
 
 /**
@@ -71,9 +79,14 @@ type PublicationListKey = {
 
 /**
  * What is wrong with a row: null when nothing is, the code of an error with the
- * whole row, or the code of an error with each field that has one.
+ * whole row, or the code of an error with each field that has one, the
+ * comments included.
  */
-type PublicationError = null | string | Record<PublicationKey, string>;
+type PublicationError =
+  null | string | (Record<PublicationKey, string> & { comments?: string });
+
+/** A field that can have an error of its own: an attribute or the comments. */
+type ErrorScope = PublicationKey | "comments";
 
 /**
  * What the look-alike check found for a row: the stored records it resembles,
@@ -127,11 +140,15 @@ type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
 
 /**
  * What an entry of the log changed: the old and new value of each field that
- * changed, and the sources added, removed or reordered, or null when the
- * sources did not change.
+ * changed, the comments included, and the sources added, removed or
+ * reordered, or null when the sources did not change.
  */
 type SnapshotDiff = {
-  fields: Partial<Record<PublicationKey, { from: unknown; to: unknown }>>;
+  fields: Partial<
+    Record<PublicationKey, { from: unknown; to: unknown }> & {
+      comments: { from: string | null; to: string | null };
+    }
+  >;
   sources: { added: string[]; removed: string[]; reordered: boolean } | null;
 };
 
@@ -222,7 +239,8 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
 
 /**
  * Returns a publication with no id, an empty text in each text field and an
- * empty list in each list field.
+ * empty list in each list field. It has no `comments` key, which saves as no
+ * comments.
  */
 function empty(): Publication {
   return {
@@ -251,8 +269,12 @@ function idFromText(text: string): PublicationId {
 
 /**
  * What one record would look like with others folded into it: the survivor's
- * own fields, the countries and publishers of all of them, and every source
- * none of the others already gave.
+ * own fields, the countries and publishers of all of them, every source none
+ * of the others already gave, and the survivor's comments followed by each
+ * other record's comments, as further paragraphs. Comments that are empty, or
+ * that repeat earlier ones, are left out. When no record has any, the result
+ * has the survivor's. A record read from a page of the index has no comments
+ * to add.
  *
  * The server merges the records itself and decides the result. This function
  * repeats its rules, so the result can be shown before the merge is asked for.
@@ -263,11 +285,16 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   const union = (attribute: "countries" | "publishers") =>
     Array.from(new Set(all.flatMap((p) => p[attribute]))).sort();
 
+  const comments = Array.from(
+    new Set(all.map((p) => p.comments?.trim() ?? "").filter(Boolean)),
+  );
+
   return {
     ...winner,
     countries: union("countries"),
     publishers: union("publishers"),
     sources: Array.from(new Set(all.flatMap((p) => p.sources))),
+    comments: comments.length > 0 ? comments.join("\n\n") : winner.comments,
   };
 }
 
@@ -504,13 +531,13 @@ function markedSources(publication: Publication): string[] {
  * The sentence for each code is in the `publicationError` messages. This module
  * runs outside React, where there is no locale to write a sentence in.
  */
-function errorCode(error: PublicationError, scope?: PublicationKey): string {
+function errorCode(error: PublicationError, scope?: ErrorScope): string {
   if (!error) {
     return "";
   } else if (!scope) {
     return typeof error === "string" ? error : "";
   } else {
-    return typeof error === "string" ? "" : error[scope];
+    return typeof error === "string" ? "" : (error[scope] ?? "");
   }
 }
 
@@ -576,6 +603,7 @@ export {
 };
 export type {
   Contrast,
+  ErrorScope,
   ContrastedKey,
   DeletedPublicationEntry,
   PublicationValue,

@@ -26,6 +26,7 @@
     "title": "Title",
     "year": "Year",
     "sources": "Sources",
+    "comments": "Comments",
     "publications": "Publications",
     "status": "Status"
   },
@@ -346,6 +347,11 @@
     "gaveBack": "Gave back",
     "untitledRecord": "an untitled record",
     "sourceLabel": "Source: {source}",
+    "commentsEditor": "Edit comments",
+    "addComments": "Add comments",
+    "editComments": "Edit comments: {preview}",
+    "noCommentsPreview": "Comments",
+    "noComments": "(none)",
     "withErrors": "{count, plural, one {1 publication with errors} other {# publications with errors}}",
     "invalidPublications": "{count, plural, one {1 invalid publication} other {# invalid publications}}",
     "hideRowIds": "Hide row numbers",
@@ -510,6 +516,25 @@
     "summary": "Translation of <originalTitle></originalTitle> by <originalAuthors></originalAuthors>, published by <publishers></publishers>",
     "inCountry": "{article, select, the {in the <name></name>} other {in <name></name>}}"
   },
+  "comments": {
+    "hint": "Shown to everyone on the publication's page.",
+    "placeholder": "Notes about this publication",
+    "toolbar": "Formatting",
+    "bold": "Bold",
+    "italic": "Italic",
+    "bulletedList": "Bulleted list",
+    "numberedList": "Numbered list",
+    "link": "Link",
+    "linkDialog": "Link",
+    "linkAddress": "Link address",
+    "linkAddressPlaceholder": "https://… or name@example.com",
+    "linkText": "Link text",
+    "linkTextPlaceholder": "Text to show (optional)",
+    "invalidLink": "Enter a web address or an email address.",
+    "applyLink": "Apply",
+    "removeLink": "Remove link",
+    "cancel": "Cancel"
+  },
   "roles": {
     "reader": "Reader",
     "contributor": "Contributor",
@@ -524,7 +549,8 @@
     "alpha2": "This field should be a valid ISO 3166-1 alpha 2 country code",
     "duplicate": "This field cannot repeat the same entry",
     "repeated": "Another row of this import is the same publication",
-    "invalid": "A publication is not valid, so nothing was inserted"
+    "invalid": "A publication is not valid, so nothing was inserted",
+    "too_long": "This text is too long"
   },
   "moving": {
     "moved": "{count, plural, one {Moved # row} other {Moved # rows}}",

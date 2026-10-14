@@ -196,12 +196,28 @@ const Column: FC<{
   );
 };
 
+/**
+ * A cell added after the attributes of every row. `Cell` renders it, and
+ * `name`, an `attributes` message, names its column for screen readers.
+ */
+type TrailingColumn = {
+  name: "comments" | "sources";
+  Cell: FC<{ rowId: RowId }>;
+};
+
+/** No trailing columns, as one list, so that a row's props keep their identity. */
+const NO_COLUMNS: TrailingColumn[] = [];
+
 type RowProps = Omit<DivProps, "className"> & {
   rowId: RowId;
   Column: typeof Column;
   Content: typeof Content;
   SignalColumn?: typeof SignalColumn;
-  TrailingColumn?: FC<{ rowId: RowId }>;
+  /**
+   * The cells after the attributes, in order. The row is memoised, so a list
+   * that keeps its identity across renders lets a row skip rendering.
+   */
+  TrailingColumns?: TrailingColumn[];
   collapsible?: boolean;
   /**
    * Called with the row's id when the row is clicked. The row is memoised, so a
@@ -213,7 +229,7 @@ type RowProps = Omit<DivProps, "className"> & {
 
 /**
  * Renders one publication's row: the signal cell, a cell per column and the
- * trailing cell. A row that is off-screen renders the same number of empty
+ * trailing cells. A row that is off-screen renders the same number of empty
  * cells instead. The row then stays a valid ARIA row and keeps its height in the
  * grid, without subscribing to the store.
  */
@@ -224,7 +240,7 @@ const Row = memo(
       Column,
       Content,
       SignalColumn,
-      TrailingColumn,
+      TrailingColumns = NO_COLUMNS,
       collapsible,
       onRowClick,
       ...props
@@ -262,14 +278,16 @@ const Row = memo(
                 Content={Content}
               />
             ))}
-            {TrailingColumn && <TrailingColumn rowId={rowId} />}
+            {TrailingColumns.map(({ name, Cell }) => (
+              <Cell key={name} rowId={rowId} />
+            ))}
           </>
         ) : (
           Array.from({
             length:
               (SignalColumn ? 1 : 0) +
               attributes.length +
-              (TrailingColumn ? 1 : 0),
+              TrailingColumns.length,
           }).map((_, i) => <Aria.Cell key={i} />)
         )}
       </Aria.Row>
@@ -315,7 +333,11 @@ interface Props {
   ExtendedColumn?: typeof Column;
   ExtendedContent?: typeof Content;
   ExtendedSignalColumn?: typeof SignalColumn;
-  ExtendedTrailingColumn?: FC<{ rowId: RowId }>;
+  /**
+   * The cells after the attributes of every row, in order. Pass a list that
+   * keeps its identity, so that rows do not re-render with the table.
+   */
+  ExtendedTrailingColumns?: TrailingColumn[];
   ExtraRow?: FC;
   /** Called with a row's id when the row is clicked. Pass a stable function,
    * so that rows do not re-render with the table. */
@@ -338,15 +360,15 @@ interface Props {
  * The table is a CSS grid, not a `<table>`, with ARIA roles that give it a
  * table's semantics. Each column has a maximum width (`COLUMN_MAX_WIDTH`), and
  * the columns align to the left. The `Extended*` props replace the read-only
- * pieces of the table, and `ExtendedSignalColumn` and `ExtendedTrailingColumn`
- * add a cell before and after the attributes of every row.
+ * pieces of the table. `ExtendedSignalColumn` adds a cell before the attributes
+ * of every row, and `ExtendedTrailingColumns` add cells after them.
  */
 const PublicationIndexTable: FC<Props> = ({
   ExtendedRow = Row,
   ExtendedColumn = Column,
   ExtendedContent = Content,
   ExtendedSignalColumn,
-  ExtendedTrailingColumn,
+  ExtendedTrailingColumns = NO_COLUMNS,
   ExtraRow,
   onRowClick,
   rowHref,
@@ -356,7 +378,6 @@ const PublicationIndexTable: FC<Props> = ({
   const t = useTranslations("attributes");
   const ids = usePublicationIds();
   const hasSignal = Boolean(ExtendedSignalColumn);
-  const hasTrailing = Boolean(ExtendedTrailingColumn);
   const visibleAttributes = useColumns(collapsible);
   const gridTemplateColumns = useMemo(
     () =>
@@ -366,11 +387,11 @@ const PublicationIndexTable: FC<Props> = ({
           (col) =>
             `minmax(0, ${COLUMN_MAX_WIDTH[col] ?? DEFAULT_COLUMN_MAX_WIDTH})`,
         ),
-        hasTrailing ? "auto" : null,
+        ...ExtendedTrailingColumns.map(() => "auto"),
       ]
         .filter(Boolean)
         .join(" "),
-    [visibleAttributes, hasSignal, hasTrailing],
+    [visibleAttributes, hasSignal, ExtendedTrailingColumns],
   );
 
   return ids && (ids.length > 0 || ExtraRow) ? (
@@ -390,11 +411,11 @@ const PublicationIndexTable: FC<Props> = ({
           {visibleAttributes.map((key) => (
             <ColumnHeader key={key} colId={key} />
           ))}
-          {ExtendedTrailingColumn && (
-            <Aria.ColumnHeader>
-              <span className="sr-only">{t("sources")}</span>
+          {ExtendedTrailingColumns.map(({ name }) => (
+            <Aria.ColumnHeader key={name}>
+              <span className="sr-only">{t(name)}</span>
             </Aria.ColumnHeader>
-          )}
+          ))}
         </Aria.Row>
         {ids.map((id) => (
           <ExtendedRow
@@ -402,7 +423,7 @@ const PublicationIndexTable: FC<Props> = ({
             rowId={id}
             Column={ExtendedColumn}
             SignalColumn={ExtendedSignalColumn}
-            TrailingColumn={ExtendedTrailingColumn}
+            TrailingColumns={ExtendedTrailingColumns}
             Content={ExtendedContent}
             collapsible={collapsible}
             onRowClick={onRowClick}
@@ -419,4 +440,4 @@ const PublicationIndexTable: FC<Props> = ({
 };
 
 export { Column, Content, PublicationIndexTable, Row, SignalColumn };
-export type { RowId, RowProps };
+export type { RowId, RowProps, TrailingColumn };

@@ -21,6 +21,16 @@ type SourcesChange = {
   reordered: boolean;
 };
 
+/**
+ * The comments before and after the change, each in Markdown, or null where
+ * there were none.
+ */
+type CommentsChange = {
+  kind: "comments";
+  from: string | null;
+  to: string | null;
+};
+
 /** One record a merge took in, or an un-merge gave back, in full. */
 type AbsorbedRecord = {
   /** The record's id, since two records a merge took in can share a title. */
@@ -28,6 +38,8 @@ type AbsorbedRecord = {
   title: string;
   fields: { attribute: PublicationKey; value: string }[];
   sources: string[];
+  /** The record's comments in Markdown, or null when it had none. */
+  comments: string | null;
 };
 
 /**
@@ -54,7 +66,8 @@ type RelatedChange = {
 };
 
 /** One change an entry of the log made. */
-type Change = FieldChange | SourcesChange | AbsorbedChange | RelatedChange;
+type Change =
+  FieldChange | SourcesChange | CommentsChange | AbsorbedChange | RelatedChange;
 
 /** An entry with the changes its act made. */
 type WithChanges<T> = T & { changes: Change[] };
@@ -66,9 +79,9 @@ function keyOf(entry: FullHistoryEntry): string {
 
 /**
  * Returns the changes in the server's `diff`: one `FieldChange` for each field
- * that changed, in the order of `ATTRIBUTES`, with its values as text, and then
- * a `SourcesChange` when the sources changed. Returns an empty list for a null
- * diff.
+ * that changed, in the order of `ATTRIBUTES`, with its values as text, then a
+ * `SourcesChange` when the sources changed, and a `CommentsChange` when the
+ * comments changed. Returns an empty list for a null diff.
  */
 function presentChanges(diff: SnapshotDiff | null): Change[] {
   if (diff === null) return [];
@@ -81,17 +94,31 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
     from: String(diff.fields[key]!.from),
     to: String(diff.fields[key]!.to),
   }));
+  const comments = diff.fields.comments;
 
-  return diff.sources === null
-    ? fields
-    : [...fields, { kind: "sources", ...diff.sources }];
+  return [
+    ...fields,
+    ...(diff.sources === null
+      ? []
+      : [{ kind: "sources" as const, ...diff.sources }]),
+    ...(comments === undefined
+      ? []
+      : [
+          {
+            kind: "comments" as const,
+            from: comments.from ?? null,
+            to: comments.to ?? null,
+          },
+        ]),
+  ];
 }
 
 /**
  * Returns the records a merge took in, or an un-merge gave back, as one
  * `AbsorbedChange`, each record with its title, every other field that has a
- * value, and its sources. The records are the entry's `others`. Returns an
- * empty list for an entry of any other action, or one that names no records.
+ * value, its sources and its comments. The records are the entry's `others`.
+ * Returns an empty list for an entry of any other action, or one that names no
+ * records.
  */
 function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
   const absorbed =
@@ -110,6 +137,7 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
       }))
       .filter(({ value }) => value !== ""),
     sources: publication.sources ?? [],
+    comments: publication.comments ?? null,
   }));
 
   return [

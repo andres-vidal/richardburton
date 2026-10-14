@@ -599,6 +599,22 @@ const publicationSourcesFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
+ * A row's comments in Markdown, including unsaved edits, or null when it has
+ * none or its record was read from a page of the index.
+ */
+const publicationCommentsFamily = atomFamily((id: PublicationId) =>
+  atom<string | null>((get) => get(publicationFamily(id))?.comments ?? null),
+);
+
+/**
+ * The code of what is wrong with a row's comments (see `errorCode`), or an
+ * empty string when nothing is.
+ */
+const commentsErrorCodeFamily = atomFamily((id: PublicationId) =>
+  atom((get) => errorCode(get(rowErrorFamily(id)), "comments")),
+);
+
+/**
  * The matching text of each of a publication's fields, with the matched words
  * wrapped in `[[ ]]`. It is undefined outside a search, and null for any field
  * the search did not match.
@@ -739,6 +755,8 @@ const PUBLICATION_FAMILIES = [
   rowContentKeyFamily,
   isCheckedFamily,
   publicationSourcesFamily,
+  publicationCommentsFamily,
+  commentsErrorCodeFamily,
   publicationExcerptsFamily,
   storedSourcesFamily,
   isValidFamily,
@@ -817,7 +835,7 @@ function step<T>(store: Store, change: (doc: Y.Doc) => T): T {
 }
 
 /** The fields a person can edit. `isEdited` compares only these. */
-const EDITED_FIELDS = [...ATTRIBUTES, "sources"] as const;
+const EDITED_FIELDS = [...ATTRIBUTES, "sources", "comments"] as const;
 
 /**
  * Returns a publication's editable fields as JSON in a fixed order, so that two
@@ -1073,6 +1091,18 @@ function setField<K extends PublicationKey>(
  */
 function setSources(store: Store, id: PublicationId, sources: string[]): void {
   writeRow(store, id, { sources });
+}
+
+/**
+ * Edits a row's comments: Markdown, or null for none. An empty text is written
+ * as null.
+ */
+function setComments(
+  store: Store,
+  id: PublicationId,
+  comments: string | null,
+): void {
+  writeRow(store, id, { comments: comments || null });
 }
 
 /**
@@ -1343,6 +1373,8 @@ export {
   publicationCountAtom,
   publicationIdsAtom,
   publicationSourcesFamily,
+  publicationCommentsFamily,
+  commentsErrorCodeFamily,
   receiveIndex,
   moveOut,
   remove,
@@ -1363,6 +1395,7 @@ export {
   savedFamily,
   setAll,
   setAttributesVisible,
+  setComments,
   setErrors,
   setField,
   setFocusedRowId,

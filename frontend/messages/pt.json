@@ -26,6 +26,7 @@
     "title": "Título",
     "year": "Ano",
     "sources": "Fontes",
+    "comments": "Comentários",
     "publications": "Publicações",
     "status": "Situação"
   },
@@ -346,6 +347,11 @@
     "gaveBack": "Devolveu",
     "untitledRecord": "um registro sem título",
     "sourceLabel": "Fonte: {source}",
+    "commentsEditor": "Editar comentários",
+    "addComments": "Acrescentar comentários",
+    "editComments": "Editar comentários: {preview}",
+    "noCommentsPreview": "Comentários",
+    "noComments": "(nenhum)",
     "withErrors": "{count, plural, one {1 publicação com erros} other {# publicações com erros}}",
     "invalidPublications": "{count, plural, one {1 publicação inválida} other {# publicações inválidas}}",
     "hideRowIds": "Ocultar números das linhas",
@@ -510,6 +516,25 @@
     "summary": "Tradução de <originalTitle></originalTitle>, de <originalAuthors></originalAuthors>, publicada por <publishers></publishers>",
     "inCountry": "{article, select, o {no <name></name>} a {na <name></name>} os {nos <name></name>} as {nas <name></name>} other {em <name></name>}}"
   },
+  "comments": {
+    "hint": "Visível para todos na página da publicação.",
+    "placeholder": "Notas sobre esta publicação",
+    "toolbar": "Formatação",
+    "bold": "Negrito",
+    "italic": "Itálico",
+    "bulletedList": "Lista com marcadores",
+    "numberedList": "Lista numerada",
+    "link": "Link",
+    "linkDialog": "Link",
+    "linkAddress": "Endereço do link",
+    "linkAddressPlaceholder": "https://… ou nome@exemplo.com",
+    "linkText": "Texto do link",
+    "linkTextPlaceholder": "Texto a exibir (opcional)",
+    "invalidLink": "Informe um endereço web ou um e-mail.",
+    "applyLink": "Aplicar",
+    "removeLink": "Remover link",
+    "cancel": "Cancelar"
+  },
   "roles": {
     "reader": "Leitor",
     "contributor": "Colaborador",
@@ -524,7 +549,8 @@
     "alpha2": "Este campo deve ser um código de país ISO 3166-1 alfa 2 válido",
     "duplicate": "Este campo não pode repetir a mesma entrada",
     "repeated": "Outra linha desta importação é a mesma publicação",
-    "invalid": "Uma publicação não é válida, então nada foi inserido"
+    "invalid": "Uma publicação não é válida, então nada foi inserido",
+    "too_long": "Este texto é longo demais"
   },
   "moving": {
     "moved": "{count, plural, one {# linha movida} other {# linhas movidas}}",

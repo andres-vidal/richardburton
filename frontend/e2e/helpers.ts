@@ -360,10 +360,21 @@ const CSV_HEADER =
 
 /**
  * Returns a CSV of `rows` under the suite's header, one line each. A cell that
- * holds a comma is quoted.
+ * holds a comma is quoted. With `comments`, the header ends with a
+ * `comments` column, which each row fills last.
  */
-export function csv(rows: string[]): string {
-  return [CSV_HEADER, ...rows].join("\n") + "\n";
+export function csv(rows: string[], { comments = false } = {}): string {
+  const header = comments ? `${CSV_HEADER},comments` : CSV_HEADER;
+
+  return [header, ...rows].join("\n") + "\n";
+}
+
+/**
+ * Returns `text` as one quoted CSV cell, with each quote in it doubled, so it
+ * may hold commas, quotes and line breaks.
+ */
+export function quoted(text: string): string {
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 /**
