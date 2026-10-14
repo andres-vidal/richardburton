@@ -11,20 +11,22 @@ defmodule RichardBurton.Publication do
 
   Five words carry specific meanings here:
 
-    * **tombstone** — a soft-deleted row. `delete/2` stamps `deleted_at` rather
-      than removing anything, so the row, its sources and its history survive
-      and `restore/2` can return it. Every read path hides tombstoned rows, and
-      the composite-key index is partial so a tombstone never blocks a
-      re-import.
-    * **winner** and **losers** — in a merge, the record that survives and the
-      records collapsed into it. The winner keeps its identity; the losers
-      contribute their countries, publishers and sources, then are tombstoned.
-    * **absorbed** — the state of a record tombstoned by a merge rather than by
-      `delete/2`. It is not in the trash and `restore/2` refuses it with
-      `{:error, :absorbed}`; undoing the merge is what returns it.
-    * **compensate** — the action `undo/3` applies to reverse a recorded entry.
-      Nothing is erased: the compensating action is appended to the log as a new
-      entry, and is itself undoable.
+    * **tombstone** — a soft-deleted row. `delete/2` sets `deleted_at` rather
+      than removing anything, so the row, its sources and its history are kept
+      and `restore/3` can bring it back. Every read leaves tombstones out, and
+      the composite-key index is partial, so a tombstone never blocks
+      importing the same publication again.
+    * **winner** and **losers** — in a merge, the publication that is kept and
+      the publications merged into it. The winner keeps its own fields. The
+      losers add their countries, publishers and sources to it, and are then
+      tombstoned.
+    * **absorbed** — the state of a loser after the merge, as
+      `Publication.History.absorbed/1` defines it. It is not in the trash, and
+      `restore/3` refuses it with `{:error, :absorbed}`. Undoing the merge
+      brings it back.
+    * **compensate** — to apply the action that `undo/3` uses to reverse a
+      recorded entry. The compensating action is recorded as a new entry, which
+      can be undone in turn.
 
   A publication's countries, publishers, translators and original authors are
   sets. The link tables keep no order, and a preload reads each set sorted, by
@@ -82,8 +84,9 @@ defmodule RichardBurton.Publication do
       preload_order: [asc: :name]
     )
 
-    # Owned provenance: replaced wholesale on edit (children carry no client id,
-    # so cast_assoc treats every incoming entry as new), preloaded in order.
+    # The sources the publication cites, preloaded in position order. A source
+    # in the attrs carries no id, so `cast_assoc/3` replaces them all on every
+    # save.
     has_many(:sources, Source,
       on_replace: :delete,
       preload_order: [asc: :position]
@@ -159,6 +162,11 @@ defmodule RichardBurton.Publication do
     Enum.map(ids, &Map.fetch!(by_id, &1))
   end
 
+  @doc """
+  Preloads the countries, publishers, sources and translated book of a
+  publication or a list of them, with the translated book's authors and
+  original book, and the original book's authors.
+  """
   def preload(data) do
     Repo.preload(data, [
       :countries,
@@ -174,16 +182,25 @@ defmodule RichardBurton.Publication do
 
   Returns `{:ok, publication}`, preloaded. Returns `{:error, errors}` when
   `attrs` is invalid, and `{:error, :conflict}` when a stored publication has
-  the same composite key. It is `Publication.Import.insert_all/2` with a batch
-  of one.
+  the same composite key. It is `insert_all/2` with a batch of one.
   """
   def insert(attrs, actor \\ History.system_actor()) do
-    case Import.insert_all([attrs], actor) do
+    case insert_all([attrs], actor) do
       {:ok, [publication]} -> {:ok, publication}
       {:error, {_attrs, errors}} -> {:error, errors}
     end
   end
 
+  @doc """
+  Applies `attrs` to the publication with the id `id` that is not deleted,
+  and records the change with an `updated` history entry by `actor`, in one
+  transaction. A save that changes nothing records no entry.
+
+  Returns `{:ok, publication}`, preloaded. Returns `{:error, :not_found}` when
+  there is no such publication, `{:error, errors}` when `attrs` is invalid,
+  and `{:error, :conflict}` when another publication has the composite key the
+  change would give it.
+  """
   def update(id, attrs, actor \\ History.system_actor()) do
     case get(id, deleted: false) do
       nil ->
@@ -194,7 +211,9 @@ defmodule RichardBurton.Publication do
     end
   end
 
-  # A save that changed nothing leaves the index alone too.
+  # Takes the result of `update_and_record/3`, signals the refresher when the
+  # update changed the publication, and returns `{:ok, publication}` or the
+  # error.
   defp refresh_if_changed({:ok, {updated, true}}) do
     Index.Refresher.refresh()
     {:ok, updated}
@@ -203,16 +222,19 @@ defmodule RichardBurton.Publication do
   defp refresh_if_changed({:ok, {updated, false}}), do: {:ok, updated}
   defp refresh_if_changed(error), do: error
 
-  # Applies an update and records it, in one transaction, returning
-  # `{:error, :conflict}` when the change would collide with the composite key.
+  # Applies `attrs` to `publication` and records the change, in one
+  # transaction. Returns `{:ok, {publication, changed?}}`, where `changed?`
+  # says whether the update changed the publication's snapshot, or
+  # `{:error, :conflict}` when the change would give it another publication's
+  # composite key, or `{:error, errors}` when `attrs` is invalid.
+  #
+  # The snapshots before and after decide whether anything changed, because
+  # `cast_assoc(:sources)` replaces every source, so the changeset always has
+  # changes.
   defp update_and_record(publication, attrs, actor) do
-    # Snapshots are the yardstick, not the changeset: cast_assoc(:sources)
-    # treats every incoming entry as new (children carry no client id), so a
-    # changeset always looks dirty even when the record is untouched.
     publication = preload(publication)
     before = History.snapshot(publication)
 
-    # The update and its history row commit or roll back together.
     Repo.transaction(fn ->
       publication
       |> changeset(attrs)
@@ -229,7 +251,8 @@ defmodule RichardBurton.Publication do
     end)
   end
 
-  # Re-saving a record unchanged is not an event worth logging.
+  # Records an `updated` entry when the snapshot of `updated` differs from
+  # `before`, and returns `{updated, changed?}`.
   defp record_if_changed(updated, before, actor) do
     case History.snapshot(updated) != before do
       true ->
@@ -242,24 +265,28 @@ defmodule RichardBurton.Publication do
   end
 
   @doc """
-  Soft-delete a publication: stamp `deleted_at`, so every read path hides it
-  while its row, sources, and history survive — and `restore/3` can bring
-  it back. The final state rides along in the history snapshot.
+  Tombstones the publication with the id `id`, and records a `deleted` history
+  entry by `actor`, in one transaction. Every read leaves the publication out
+  afterwards, and `restore/3` can bring it back.
+
+  Returns `{:ok, publication}`, or `{:error, :not_found}` when there is no
+  such publication that is not deleted.
   """
   def delete(id, actor \\ History.system_actor()) do
     case get(id, deleted: false) do
       nil -> {:error, :not_found}
-      publication -> stamp_deleted(publication, DateTime.utc_now(:second), :deleted, actor)
+      publication -> stamp_deleted(publication, actor)
     end
   end
 
   @doc """
-  Undo one recorded change, by applying the action that compensates it.
+  Undoes the entry with the version `version` in the history of the
+  publication with the id `id`, by applying the action that compensates it.
+  The compensating action is recorded as a new entry by `actor`.
 
-  Nothing is erased: the log is append-only, so the undo lands as a new entry of
-  its own and is itself undoable. Eligibility is decided here rather than
-  trusted from the caller — the rule (see `History.undoable?/3`) is an invariant
-  of the log, not an affordance of whichever client happens to be asking.
+  Returns the result of that action. Returns `{:error, :not_found}` when there
+  is no such entry, and `{:error, :conflict}` when the entry is not undoable
+  (see `Publication.History.undoable?/3`).
   """
   def undo(id, version, actor \\ History.system_actor()) do
     stream = History.of(id)
@@ -272,22 +299,22 @@ defmodule RichardBurton.Publication do
     end
   end
 
-  # The entry immediately before this one in the stream, which holds the state an
-  # update is reverted to. Nil for the record's first entry.
+  # Returns the entry before `entry` in `stream`, which holds the state an
+  # update is reverted to, or nil for the publication's first entry.
   defp previous_of(stream, entry) do
     Enum.find(stream, &(&1.version < entry.version))
   end
 
-  # The action that reverses a recorded entry: delete compensates a create or a
-  # restore, restore compensates a delete, an update is reverted to the previous
-  # snapshot, and a merge is taken apart by `unmerge/4`.
+  # Applies the action that compensates `entry`: a delete for an import or a
+  # restore, a restore for a delete, the reverted snapshot for an update,
+  # `unmerge/4` for a merge, and the merge again for an un-merge.
   defp compensate(%{action: action, publication_id: id}, _previous, _head, actor)
        when action in ["created", "restored"] do
     delete(id, actor)
   end
 
-  # Undoing a delete restores the record as it was. When another record now has
-  # its composite key, the undo is a plain conflict.
+  # A restore that finds another publication with the composite key returns a
+  # plain conflict.
   defp compensate(%{action: "deleted", publication_id: id}, _previous, _head, actor) do
     case restore(id, actor) do
       {:error, {:conflict, _twin}} -> {:error, :conflict}
@@ -302,21 +329,19 @@ defmodule RichardBurton.Publication do
     |> then(&update(id, &1, actor))
   end
 
-  # Taking a merge apart: the record that survived gives back what it absorbed
-  # and the records that left come back, in one transaction and under one entry
-  # — the same shape as the merge, which is what makes an un-merge undoable in
-  # its turn.
   defp compensate(entry = %{action: "merged"}, previous, head, actor) do
     unmerge(entry, previous, head, actor)
   end
 
-  # And undoing an un-merge is the merge again, by the same route.
   defp compensate(entry = %{action: "unmerged", publication_id: id}, _previous, _head, actor) do
     merge(id, History.absorbed_ids(entry), actor)
   end
 
-  # Takes a merge apart: lifts the tombstones off the absorbed records, reverts
-  # the winner to its pre-merge state, and records the whole thing as one entry.
+  # Undoes the merge `entry`, in one transaction: clears the tombstones of the
+  # publications it absorbed, reverts the winner to its state before the
+  # merge, and records one `unmerged` entry on the winner that names the
+  # publications it gave back. An un-merge has the same shape as a merge, so it
+  # can be undone in turn.
   defp unmerge(entry, previous, head, actor) do
     Repo.transaction(fn ->
       with {:ok, restored} <- restore_absorbed(History.absorbed_ids(entry)),
@@ -335,28 +360,23 @@ defmodule RichardBurton.Publication do
     end)
   end
 
-  # The rows never left, so putting them back is lifting the tombstone. A key
-  # taken by something else in the meantime is the same conflict a restore hits,
-  # which `settle!/0` reports once the whole un-merge is written.
+  # Clears `deleted_at` on the publications with the ids `ids` with one
+  # statement, and returns them, preloaded. Returns `{:error, :not_found}` when
+  # one of them is missing or not deleted. A publication brought back can have
+  # the composite key of another, which `settle!/0` reports once the whole
+  # un-merge is written.
   defp restore_absorbed(ids) do
-    tombstoned =
+    {count, _} =
       Ecto.Query.from(p in Publication, where: p.id in ^ids and not is_nil(p.deleted_at))
-      |> Repo.all()
+      |> Repo.update_all(set: [deleted_at: nil, updated_at: NaiveDateTime.utc_now(:second)])
 
-    if length(tombstoned) == length(ids),
-      do: lift_tombstones(tombstoned),
-      else: {:error, :not_found}
+    if count == length(ids), do: {:ok, with_ids(ids)}, else: {:error, :not_found}
   end
 
-  # Clears `deleted_at` on each record.
-  defp lift_tombstones(publications) do
-    lifted = Enum.map(publications, &(&1 |> tombstone(nil) |> Repo.update!()))
-
-    {:ok, preload(lifted)}
-  end
-
-  # The winner returns to what it held before it absorbed anything — the same
-  # revert an undone update performs, over the fields the merge changed.
+  # Writes the snapshot that undoing the merge `entry` gives the winner: its
+  # current state with the fields the merge changed put back, as an undone
+  # update does. Returns `{:error, :conflict}` when the merge has no previous
+  # entry to revert to.
   defp revert_winner(_entry, nil, _head), do: {:error, :conflict}
 
   defp revert_winner(entry = %{publication_id: id}, previous, head) do
@@ -373,23 +393,22 @@ defmodule RichardBurton.Publication do
   end
 
   @doc """
-  Collapse publications into one.
+  Merges the publications with the ids `loser_ids` into the one with the id
+  `winner_id`, and records the merge with one `merged` entry by `actor` on the
+  winner, in one transaction.
 
-  The winner keeps its identity and everything that names it — title, year, the
-  work it translates, who wrote and translated it. What the losers add is what
-  a record can hold more of: their countries and publishers join the winner's,
-  and their sources are appended to its own. A source already recorded is not
-  recorded twice; elsewhere a publication may list the same line twice, but a
-  merge saying it twice is the merge showing, not the record meaning it.
+  The winner keeps its title, year, translated book and original book. It
+  gains the countries and publishers of the losers, and their sources after its
+  own, leaving out a source it already holds. The losers are then tombstoned,
+  and their distinctions from each other and from the winner are deleted (see
+  `Publication.Duplicates.forget/1`). The entry names the losers, so `undo/3`
+  can undo the whole merge.
 
-  The losers are then soft-deleted, and the whole act is recorded as one entry
-  on the winner naming what it took in — which is what lets it be undone as one
-  act too, by `undo/3`.
-
-  Answers `{:error, :conflict}` when the merged record would collide with a
-  third publication, `{:error, :not_found}` when any of them is not here,
-  `{:error, :self}` when a publication is asked to merge into itself, and
-  `{:error, :no_losers}` when nothing was named to merge in.
+  Returns `{:ok, winner}`, preloaded. Returns `{:error, :conflict}` when the
+  merged publication would have the composite key of another publication,
+  `{:error, :not_found}` when one of the publications is missing or deleted,
+  `{:error, :self}` when `loser_ids` holds `winner_id`, and
+  `{:error, :no_losers}` when `loser_ids` is empty.
   """
   def merge(winner_id, loser_ids, actor \\ History.system_actor())
 
@@ -398,14 +417,14 @@ defmodule RichardBurton.Publication do
   def merge(winner_id, loser_ids, actor) do
     with {:ok, winner, losers} <- assemble(winner_id, loser_ids),
          {:ok, merged} <- merge_and_record(winner, losers, actor) do
-      # One signal per operation, after commit (the new-write-path rule).
       Index.Refresher.refresh()
       {:ok, merged}
     end
   end
 
-  # The winner and losers loaded together, rejecting a merge of a record into
-  # itself. Loser ids are compared as strings because they may arrive either way.
+  # Returns `{:ok, winner, losers}`, preloaded, or `{:error, :self}` when the
+  # losers include the winner. Ids are compared as strings, so an id given as a
+  # string matches the same id given as an integer.
   defp assemble(winner_id, loser_ids) do
     loser_ids = loser_ids |> Enum.map(&to_string/1) |> Enum.uniq()
 
@@ -414,8 +433,9 @@ defmodule RichardBurton.Publication do
       else: gathered([winner_id | loser_ids])
   end
 
-  # Read in one go and put back in the order asked, since the first id names
-  # the winner.
+  # Reads the publications with the ids `ids` that are not deleted, preloaded,
+  # with one query, and returns `{:ok, first, rest}` in the order of `ids`.
+  # Returns `{:error, :not_found}` when one of them is missing.
   defp gathered(ids) do
     by_id =
       Ecto.Query.from(p in Publication, where: p.id in ^ids and is_nil(p.deleted_at))
@@ -433,8 +453,7 @@ defmodule RichardBurton.Publication do
     end
   end
 
-  # Applies a merge and records it as one entry on the winner, in one
-  # transaction, so an interrupted merge leaves neither half behind.
+  # Writes the merge and records it, in one transaction.
   defp merge_and_record(winner, losers, actor) do
     attrs = reconciled(winner, losers)
 
@@ -450,50 +469,40 @@ defmodule RichardBurton.Publication do
     end)
   end
 
-  # One act, one entry: the record that survives holds it, and names the ones
-  # that did not. The losers get no entry of their own — nothing happened *to*
-  # them that the merge does not already say, and an entry each would be a
-  # merge that has to be undone in pieces.
+  # Tombstones the losers, records the one `merged` entry on the winner, and
+  # deletes the distinctions among the merged publications. The losers get no
+  # entry of their own, so the merge is undone as a whole from the winner's
+  # history.
   #
   # The keys are checked once the losers are tombstoned, so the winner may
   # take on a key one of its own losers held.
   defp absorbing(winner, losers, actor) do
-    Enum.each(losers, &absorb/1)
+    ids = Enum.map(losers, & &1.id)
+
+    Ecto.Query.from(p in Publication, where: p.id in ^ids)
+    |> Repo.update_all(
+      set: [deleted_at: DateTime.utc_now(:second), updated_at: NaiveDateTime.utc_now(:second)]
+    )
+
     settle!()
     winner = reloaded(winner)
     History.record(:merged, winner, actor, losers)
-
-    # Saying these are one record answers the same question a distinction did,
-    # and answers it later — so the older answer goes, and taking the merge
-    # apart puts the question back rather than the stale reply to it.
-    Duplicates.forget([winner.id | Enum.map(losers, & &1.id)])
+    Duplicates.forget([winner.id | ids])
 
     winner
   end
 
-  # A loser leaves the database the way a deleted publication does — the row,
-  # its sources and its history all survive. Why it left is on the merge entry,
-  # which is also what brings it back.
-  defp absorb(loser) do
-    loser
-    |> tombstone(DateTime.utc_now(:second))
-    |> Repo.update()
-    |> case do
-      {:ok, _} -> :ok
-      {:error, changeset} -> Repo.rollback(Validation.get_errors(changeset))
-    end
-  end
-
-  # Builds the change that stamps or clears `deleted_at`. Clearing it brings the
-  # record back under the composite key, so the caller settles the keys
-  # afterwards: if the same record was written meanwhile, coming back is a
-  # conflict, not a crash.
+  # Builds the change that sets or clears `deleted_at`. Clearing it brings the
+  # publication back under the composite key, so the caller settles the keys
+  # afterwards, and a publication written with the same key meanwhile is a
+  # conflict.
   defp tombstone(publication, deleted_at) do
     change(publication, deleted_at: deleted_at)
   end
 
-  # What the merged record holds: the winner's own fields, the countries and
-  # publishers of all of them, and every source none of the others already said.
+  # Returns the nested attrs of the merged publication: the winner's fields,
+  # the countries and publishers of all of them, and the sources of all of
+  # them, each listed once.
   defp reconciled(winner, losers) do
     flat = Enum.map([winner | losers], &History.snapshot/1)
     [kept | _] = flat
@@ -501,16 +510,16 @@ defmodule RichardBurton.Publication do
     kept
     |> Map.delete(:id)
     |> Map.merge(%{
-      countries: gathered(flat, :countries),
-      publishers: gathered(flat, :publishers),
+      countries: union_of(flat, :countries),
+      publishers: union_of(flat, :publishers),
       sources: flat |> Enum.flat_map(& &1.sources) |> Enum.uniq()
     })
     |> Codec.nest()
   end
 
-  # One list field across several flat records, as the sorted set of its values.
-  # This is how a merge combines countries and publishers.
-  defp gathered(flat, field) do
+  # Returns the values of the list field `field` across the snapshots `flat`,
+  # each once, sorted.
+  defp union_of(flat, field) do
     flat
     |> Enum.flat_map(&(Map.get(&1, field) || []))
     |> Enum.uniq()
@@ -518,19 +527,20 @@ defmodule RichardBurton.Publication do
   end
 
   @doc """
-  Bring a soft-deleted publication back into the database. When `changes` are
+  Brings back the deleted publication with the id `id`, and records a
+  `restored` history entry by `actor`, in one transaction. When `changes` are
   given, they are applied to the publication first, in the same transaction,
   and recorded as an update before the restore.
 
-  Only one that someone deleted. A record absorbed by a merge is out of the
-  database the same way, but it is not in the trash and does not come back on
-  its own: `{:error, :absorbed}` says to take the merge apart instead.
+  Returns `{:ok, publication}`. Returns `{:error, :not_found}` when there is no
+  such deleted publication, and `{:error, :absorbed}` when the publication is
+  absorbed, which only undoing the merge brings back.
 
   When a publication that is not deleted has the same composite key, which
-  happens when the same record was imported again or a name was corrected to
-  match, the result is `{:error, {:conflict, twin}}`, where `twin` is that
-  publication. Nothing is written then, not even the changes. Changes that do
-  not validate return their errors and write nothing either.
+  happens when the same publication was imported again or a name was
+  corrected to match, the result is `{:error, {:conflict, twin}}`, where
+  `twin` is that publication. Nothing is written then, not even the changes.
+  Changes that do not validate return their errors and write nothing either.
   """
   def restore(id, actor \\ History.system_actor(), changes \\ nil) do
     with {:ok, publication} <- deleted_on_its_own(id) do
@@ -583,34 +593,36 @@ defmodule RichardBurton.Publication do
   # as `publication`, preloaded.
   defp twin(publication) do
     [id] = Identity.publications_with_keys([Codec.flatten(publication)], publication.id)
-    Publication |> Repo.get!(id) |> preload()
+    hd(with_ids([id]))
   end
 
-  # Putting an absorbed record back would recreate the duplicate the merge
-  # collapsed, with the survivor still holding everything it took from it.
+  # Returns `{:ok, publication}` for the deleted publication with the id `id`,
+  # `{:error, :absorbed}` when a merge absorbed it, and `{:error, :not_found}`
+  # when there is no such deleted publication.
   defp deleted_on_its_own(id) do
     publication = get(id, deleted: true)
 
     cond do
       is_nil(publication) -> {:error, :not_found}
-      MapSet.member?(History.absorbed(), publication.id) -> {:error, :absorbed}
+      MapSet.member?(History.absorbed([publication.id]), publication.id) -> {:error, :absorbed}
       true -> {:ok, publication}
     end
   end
 
-  # Sets `deleted_at` and records `action`, in one transaction.
-  defp stamp_deleted(publication, deleted_at, action, actor) do
+  # Tombstones `publication` and records a `deleted` entry by `actor`, in one
+  # transaction, then signals the refresher.
+  defp stamp_deleted(publication, actor) do
     publication = preload(publication)
 
     result =
       Repo.transaction(fn ->
         publication
-        |> tombstone(deleted_at)
+        |> tombstone(DateTime.utc_now(:second))
         |> Repo.update()
         |> case do
           {:ok, _} ->
             settle!()
-            History.record(action, publication, actor)
+            History.record(:deleted, publication, actor)
 
           {:error, changeset} ->
             Repo.rollback(Validation.get_errors(changeset))
@@ -619,7 +631,6 @@ defmodule RichardBurton.Publication do
 
     case result do
       {:ok, _} ->
-        # One signal per operation, after commit (the new-write-path rule).
         Index.Refresher.refresh()
         {:ok, publication}
 
@@ -629,11 +640,9 @@ defmodule RichardBurton.Publication do
   end
 
   @doc """
-  The publications someone deleted, most recently deleted first.
-
-  A record absorbed by a merge is out of the database the same way, but nobody
-  deleted it and there is no putting it back: restoring one would recreate the
-  duplicate the merge collapsed, with the survivor still holding what it took.
+  Returns the publications someone deleted, preloaded, the most recently
+  deleted first. The absorbed publications are left out: nobody deleted them,
+  and only undoing the merge brings them back.
   """
   def all_deleted do
     deleted =
@@ -643,9 +652,7 @@ defmodule RichardBurton.Publication do
       )
       |> Repo.all()
 
-    # A record inside another one is not in the trash: nobody deleted it, and it
-    # comes back by taking the merge apart, not by being restored on its own.
-    absorbed = History.absorbed()
+    absorbed = History.absorbed(Enum.map(deleted, & &1.id))
 
     deleted
     |> Enum.reject(&MapSet.member?(absorbed, &1.id))
@@ -653,11 +660,8 @@ defmodule RichardBurton.Publication do
   end
 
   @doc """
-  One live publication, with its associations, or `nil`.
-
-  A tombstone reads as missing here exactly as it does in the index and the
-  search — a deleted record is gone from every read path, not merely hidden from
-  the list.
+  Returns the publication with the id `id`, preloaded, or `nil` when there is
+  none or it is deleted.
   """
   def find(id) do
     case get(id, deleted: false) do
@@ -666,7 +670,8 @@ defmodule RichardBurton.Publication do
     end
   end
 
-  # One publication by id, either excluding tombstoned rows or only among them.
+  # Returns the publication with the id `id`, among the ones that are not
+  # deleted or among the deleted ones, or nil.
   defp get(id, deleted: false) do
     Repo.one(Ecto.Query.from(p in Publication, where: p.id == ^id and is_nil(p.deleted_at)))
   end
@@ -706,22 +711,14 @@ defmodule RichardBurton.Publication do
 
   @doc """
   Inserts the publications `attrs_list` describes in one transaction, all or
-  none, and records each with a `created` history entry by `actor`. See
-  `Publication.Import.insert_all/2` for what it returns.
+  none, records each with a `created` history entry by `actor`, and signals
+  the refresher once. See `Publication.Import.insert_all/2` for what it
+  returns.
   """
   def insert_all(attrs_list, actor \\ History.system_actor()) do
-    result = Import.insert_all(attrs_list, actor)
-
-    case result do
-      {:ok, _publications} ->
-        # One signal for the whole batch — never per row, so the synchronous
-        # refresh strategies don't rebuild N times.
-        Index.Refresher.refresh()
-        result
-
-      error ->
-        # Rolled back: nothing changed, so the index needs no refresh.
-        error
+    with {:ok, _publications} = result <- Import.insert_all(attrs_list, actor) do
+      Index.Refresher.refresh()
+      result
     end
   end
 end

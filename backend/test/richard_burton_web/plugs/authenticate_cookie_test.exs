@@ -1,7 +1,7 @@
 defmodule RichardBurtonWeb.Plugs.Authenticate.CookieTest do
   @moduledoc """
-  The Cookie plug authenticates admin requests via the app's own `rb-session`
-  cookie (a real DB-backed `Auth.Session`) and assigns `:subject_id`.
+  The Cookie plug authenticates a request by the app's own `rb-session` cookie,
+  which holds a stored `Auth.Session`, and assigns `:subject_id`.
   """
   use RichardBurton.DataCase, async: true
 
@@ -29,7 +29,7 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.CookieTest do
 
     assert conn.halted
     assert conn.status == 401
-    assert conn.resp_body == "Unauthorized"
+    assert Jason.decode!(conn.resp_body) == %{"error" => "unauthorized"}
   end
 
   test "responds 401 when the session token is not valid" do

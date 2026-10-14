@@ -139,9 +139,31 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       document = create(meta.conn)
       expect_auth_authorize_admin()
 
-      assert %{"errors" => _} =
+      assert %{"errors" => %{"name" => "required"}} ==
                meta.conn
                |> patch(document_path(meta.conn, :update, document["id"]), %{"name" => ""})
+               |> json_response(400)
+    end
+
+    test "a rename without a name is refused, naming the field", meta do
+      document = create(meta.conn)
+      expect_auth_authorize_admin()
+
+      assert %{"errors" => %{"name" => "required"}} ==
+               meta.conn
+               |> patch(document_path(meta.conn, :update, document["id"]), %{})
+               |> json_response(400)
+    end
+
+    test "a name longer than 200 characters is refused", meta do
+      document = create(meta.conn)
+      expect_auth_authorize_admin()
+
+      assert %{"errors" => %{"name" => "invalid"}} ==
+               meta.conn
+               |> patch(document_path(meta.conn, :update, document["id"]), %{
+                 "name" => String.duplicate("a", 201)
+               })
                |> json_response(400)
     end
 
@@ -336,6 +358,21 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
       assert Repo.get(Document, document["id"]).rows == 0
     end
 
+    test "an append or a compaction without an update is refused", meta do
+      document = create(meta.conn)
+      expect_auth_authorize_admin(2)
+
+      assert %{"error" => "invalid_update"} =
+               meta.conn
+               |> post(document_path(meta.conn, :append, document["id"]), %{"rows" => 1})
+               |> json_response(400)
+
+      assert %{"error" => "invalid_update"} =
+               meta.conn
+               |> post(document_path(meta.conn, :compact, document["id"]), %{"through" => 1})
+               |> json_response(400)
+    end
+
     test "something that is not base64 is refused", meta do
       document = create(meta.conn)
       expect_auth_authorize_admin()
@@ -348,13 +385,15 @@ defmodule RichardBurtonWeb.DocumentControllerTest do
                |> json_response(400)
     end
 
-    test "a document that does not exist is not found", meta do
-      expect_auth_authorize_admin()
+    test "a document that does not exist, or an id that is not a number, is not found", meta do
+      expect_auth_authorize_admin(2)
 
-      assert %{"error" => "not_found"} =
-               meta.conn
-               |> get(document_path(meta.conn, :updates, 999_999))
-               |> json_response(404)
+      for id <- [999_999, "abc"] do
+        assert %{"error" => "not_found"} ==
+                 meta.conn
+                 |> get(document_path(meta.conn, :updates, id))
+                 |> json_response(404)
+      end
     end
   end
 end

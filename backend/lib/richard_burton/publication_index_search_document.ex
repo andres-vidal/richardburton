@@ -1,6 +1,8 @@
 defmodule RichardBurton.Publication.Index.SearchDocument do
   @moduledoc """
-  Schema for searchable documents
+  A publication's search document: the `tsvector` that a search's free words
+  are matched against, read from the `search_documents` materialized view.
+  Its `id` is the id of the publication in `flat_publications`.
   """
   use Ecto.Schema
 

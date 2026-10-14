@@ -7,6 +7,7 @@ defmodule RichardBurton.DocumentTest do
 
   alias RichardBurton.Document
   alias RichardBurton.Repo
+  alias RichardBurton.Validation
 
   defp document(name \\ "Second pass"), do: document_fixture(name)
 
@@ -42,7 +43,18 @@ defmodule RichardBurton.DocumentTest do
 
     test "a document needs a name, since the name is what tells it from another" do
       assert {:error, changeset} = Document.create(%{"name" => ""})
-      refute changeset.valid?
+      assert %{name: :required} == Validation.get_errors(changeset)
+
+      assert {:error, changeset} = Document.create(%{})
+      assert %{name: :required} == Validation.get_errors(changeset)
+    end
+
+    test "a name longer than 200 characters, or a negative row count, is invalid" do
+      assert {:error, changeset} = Document.create(%{"name" => String.duplicate("a", 201)})
+      assert %{name: :invalid} == Validation.get_errors(changeset)
+
+      assert {:error, changeset} = Document.create(%{"name" => "Second pass", "rows" => -1})
+      assert %{rows: :invalid} == Validation.get_errors(changeset)
     end
   end
 
@@ -177,14 +189,26 @@ defmodule RichardBurton.DocumentTest do
 
   describe "rename/2" do
     test "gives it a different name" do
-      {:ok, renamed} = document("Before") |> Document.rename("After")
+      {:ok, renamed} = document("Before") |> Document.rename(%{"name" => "After"})
 
       assert renamed.name == "After"
     end
 
     test "a name it could not be told apart by is refused" do
-      assert {:error, changeset} = document() |> Document.rename("")
-      refute changeset.valid?
+      assert {:error, changeset} = document() |> Document.rename(%{"name" => ""})
+      assert %{name: :required} == Validation.get_errors(changeset)
+    end
+
+    test "no name is refused rather than read as keeping the old one" do
+      assert {:error, changeset} = document() |> Document.rename(%{"rows" => 3})
+      assert %{name: :required} == Validation.get_errors(changeset)
+    end
+
+    test "renaming it to the name it has changes nothing" do
+      document = document("Same")
+
+      assert {:ok, renamed} = Document.rename(document, %{"name" => "Same"})
+      assert renamed.updated_at == document.updated_at
     end
   end
 
@@ -220,7 +244,7 @@ defmodule RichardBurton.DocumentTest do
       assert applied(another) == [<<2>>]
     end
 
-    test "the row count is the client's word, recorded as given" do
+    test "the row count is recorded as given" do
       document = document()
 
       {:ok, _} = Document.append(document, <<1>>, 428)

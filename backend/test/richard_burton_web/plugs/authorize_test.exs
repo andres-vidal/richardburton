@@ -37,7 +37,7 @@ defmodule RichardBurtonWeb.Plugs.AuthorizeTest do
     refute conn.halted
   end
 
-  test "responds 401 when the subject does not hold it" do
+  test "responds 403 forbidden when the subject does not hold it" do
     expect(RichardBurton.AuthMock, :authorize, fn _, :admin -> :error end)
 
     conn =
@@ -46,15 +46,16 @@ defmodule RichardBurtonWeb.Plugs.AuthorizeTest do
       |> call(:admin)
 
     assert conn.halted
-    assert conn.status == 401
-    assert conn.resp_body == "Unauthorized, not enough privileges"
+    assert conn.status == 403
+    assert Jason.decode!(conn.resp_body) == %{"error" => "forbidden"}
   end
 
-  test "responds 401 (without calling Auth) when no subject is authenticated" do
+  test "responds 403 forbidden (without calling Auth) when no subject is authenticated" do
     conn = call(conn(:get, "/"), :admin)
 
     assert conn.halted
-    assert conn.status == 401
+    assert conn.status == 403
+    assert Jason.decode!(conn.resp_body) == %{"error" => "forbidden"}
   end
 
   test "a route must say which role it wants" do

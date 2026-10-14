@@ -33,8 +33,8 @@ defmodule RichardBurton.Publication.Import do
   Inserts the publications that `attrs_list` describes, and records `actor` as
   the author of each one's `created` history entry.
 
-  Returns `{:ok, publications}` in the order of `attrs_list`, each preloaded
-  with `Publication.preload/1`.
+  Returns `{:ok, publications}` in the order of `attrs_list`, each with the
+  associations `Publication.preload/1` loads.
 
   Returns `{:error, {attrs, errors}}` for the first invalid row, where
   `errors` is what `Validation.get_errors/1` returns for it, before anything is

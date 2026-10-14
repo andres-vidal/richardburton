@@ -2,27 +2,25 @@ defmodule Mix.Tasks.Rb.Invite do
   @shortdoc "Offers a role to an email address from the console"
 
   @moduledoc """
-  Records an invitation without going through the dashboard.
+  Offers a role to an email address, as `RichardBurton.Invitation.invite/2`
+  does, and prints what happened.
 
-  An account is made only for someone who was invited, which leaves a fresh
-  database with nobody who can invite anyone — this is the way in. Invite
-  yourself, sign in with that address, and the role is waiting; from then on the
-  dashboard does this.
-
-  It is the same mechanism the dashboard uses, so the first admin arrives the
-  way everyone else does, and the log says who let them in.
+  An account is made only for someone who was invited, so a new database has
+  nobody who can invite anyone. This task makes the first invitation: invite
+  yourself as an admin, then sign in with that address.
 
       mix rb.invite someone@example.com admin
       mix rb.invite someone@example.com          # contributor
 
-  Mail is attempted and a failure is reported, not fatal — the invitation stands
-  either way, and can be sent again from the dashboard.
+  When the mail cannot be sent, the task says so and the invitation is kept.
+  The address can be used to sign in either way.
   """
 
   use Mix.Task
 
   alias RichardBurton.Invitation
   alias RichardBurton.User
+  alias RichardBurton.Validation
 
   @impl Mix.Task
   def run(args) do
@@ -35,8 +33,7 @@ defmodule Mix.Tasks.Rb.Invite do
     end
   end
 
-  # Writes one invitation from the console, which is how the first administrator
-  # is created on a platform that has none.
+  # Invites `email` as `role`, and prints the outcome or the reason it failed.
   defp invite(email, role) do
     case Invitation.invite(%{"email" => email, "role" => role}) do
       {:ok, {:invited, invitation}} ->
@@ -51,14 +48,19 @@ defmodule Mix.Tasks.Rb.Invite do
       {:ok, {:granted, user}} ->
         Mix.shell().info("#{user.email} already had an account and is now #{user.role}.")
 
-      {:error, :conflict} ->
+      {:error, :pending} ->
         Mix.shell().error("#{email} already has an invitation waiting.")
 
       {:error, :invalid_role} ->
         Mix.shell().error("#{role} is not a role. Try #{Enum.join(User.roles(), ", ")}.")
 
-      {:error, errors} ->
-        Mix.shell().error("Could not invite #{email}: #{inspect(errors)}")
+      {:error, changeset = %Ecto.Changeset{}} ->
+        Mix.shell().error(
+          "Could not invite #{email}: #{inspect(Validation.get_errors(changeset))}"
+        )
+
+      {:error, reason} ->
+        Mix.shell().error("Could not invite #{email}: #{inspect(reason)}")
     end
   end
 end

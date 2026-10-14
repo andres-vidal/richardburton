@@ -1,5 +1,8 @@
 defmodule RichardBurtonWeb.DevSessionControllerTest do
-  @moduledoc "Tests for the dev/test-only credentials provider."
+  @moduledoc """
+  Tests for `RichardBurtonWeb.DevSessionController`, which signs in as a
+  development user without Google.
+  """
   use RichardBurtonWeb.ConnCase
 
   alias RichardBurton.Auth.Session
@@ -12,12 +15,12 @@ defmodule RichardBurtonWeb.DevSessionControllerTest do
       result = json_response(conn, 201)
 
       assert %{"email" => "dev-admin@localhost", "role" => "admin"} = result
-      # The rb-session cookie authenticates as a real user with the admin role.
+      # The rb-session cookie holds a session of a stored admin.
       assert {:ok, %Session{subject_id: subject_id}} =
                Session.verify(conn.resp_cookies["rb-session"].value)
 
       assert %User{role: :admin} = User.get(subject_id)
-      # The readable csrf-token cookie is set too (the frontend echoes it back).
+      # The csrf-token cookie is set too.
       assert conn.resp_cookies["csrf-token"].value
     end
 
@@ -28,8 +31,8 @@ defmodule RichardBurtonWeb.DevSessionControllerTest do
       assert %{"role" => "admin"} = json_response(conn, 201)
     end
 
-    # Signing in as one role must not demote the other, so each gets its own
-    # subject — which is what lets a journey be both in turn.
+    # Each role has its own development user, so signing in as one role does
+    # not change the role of another.
     test "mints a session for the role asked for", %{conn: conn} do
       conn = post(conn, "/api/dev/session", %{"role" => "contributor"})
 

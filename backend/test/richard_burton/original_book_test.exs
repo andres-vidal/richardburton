@@ -66,9 +66,9 @@ defmodule RichardBurton.OriginalBookTest do
     end
 
     test "has no side effects" do
-      assert Enum.empty?(Author.all())
+      assert Enum.empty?(Repo.all(Author))
       changeset(@valid_attrs)
-      assert Enum.empty?(Author.all())
+      assert Enum.empty?(Repo.all(Author))
     end
   end
 

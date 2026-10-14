@@ -1,6 +1,7 @@
 defmodule RichardBurtonWeb.UserControllerTest do
   @moduledoc """
-  Tests for the user controller
+  Tests for `RichardBurtonWeb.UserController`: the signed-in user, the list of
+  users, and the admin writes that change or remove access.
   """
   use RichardBurtonWeb.ConnCase
   import Routes, only: [user_path: 2, user_path: 3]
@@ -26,7 +27,7 @@ defmodule RichardBurtonWeb.UserControllerTest do
 
       conn = get(conn, user_path(conn, :index))
 
-      assert response(conn, 401)
+      assert %{"error" => "forbidden"} == json_response(conn, 403)
     end
   end
 
@@ -86,6 +87,15 @@ defmodule RichardBurtonWeb.UserControllerTest do
 
       assert %{"error" => "not_found"} = json_response(conn, 404)
     end
+
+    test "is not found for an id that is not a number", %{conn: conn} do
+      create_session_user()
+      expect_auth_authorize_admin()
+
+      conn = patch(conn, user_path(conn, :update, "abc"), %{"role" => "reader"})
+
+      assert %{"error" => "not_found"} = json_response(conn, 404)
+    end
   end
 
   describe "DELETE /users/:id" do
@@ -128,7 +138,7 @@ defmodule RichardBurtonWeb.UserControllerTest do
 
   describe "GET /users/me" do
     test "returns the current user for a valid rb-session", %{conn: conn} do
-      {:ok, _} = User.insert(%{"subject_id" => "12345", "email" => "me@example.com"})
+      {:ok, _} = User.insert(%{"subject_id" => session_subject_id(), "email" => "me@example.com"})
 
       conn = get(conn, user_path(conn, :me))
 

@@ -5,28 +5,14 @@ defmodule RichardBurton.InvitationTest do
 
   use RichardBurton.DataCase
 
-  import Mox
+  import Swoosh.TestAssertions
 
   alias Ecto.Adapters.SQL.Sandbox
   alias RichardBurton.Auth.Access
+  alias RichardBurton.FailingMailAdapter
   alias RichardBurton.Invitation
   alias RichardBurton.User
-
-  setup :verify_on_exit!
-
-  defp expect_mail(n \\ 1) do
-    expect(RichardBurton.MailerMock, :send, n, fn email -> {:ok, email} end)
-  end
-
-  # Expects `n` emails, and sends each to the test process as `{:mailed, email}`.
-  defp capture_mail(n \\ 1) do
-    test = self()
-
-    expect(RichardBurton.MailerMock, :send, n, fn email ->
-      send(test, {:mailed, email})
-      {:ok, email}
-    end)
-  end
+  alias RichardBurton.Validation
 
   # Sets `name` back to `value`, or unsets it when `value` is nil.
   defp restore_env(name, nil), do: System.delete_env(name)
@@ -34,18 +20,16 @@ defmodule RichardBurton.InvitationTest do
 
   describe "invite/2 for someone who has never signed in" do
     test "records the offer and mails it" do
-      expect_mail()
-
       assert {:ok, {:invited, invitation}} =
                Invitation.invite(%{"email" => "new@example.com", "role" => "contributor"})
 
       assert invitation.email == "new@example.com"
       assert invitation.role == :contributor
       assert is_nil(invitation.accepted_at)
+      assert_email_sent(to: "new@example.com")
     end
 
     test "names the admin who sent it" do
-      expect_mail()
       admin = user_fixture("admin@example.com", :admin)
 
       {:ok, {:invited, invitation}} =
@@ -54,10 +38,10 @@ defmodule RichardBurton.InvitationTest do
       assert invitation.invited_by_id == admin.id
     end
 
-    # The offer is what grants the role, so it must survive a mail server having
-    # a bad day — the dashboard says it went unsent and can send it again.
+    # The invitation is what grants the role, so it is kept when the mail
+    # cannot be sent, and `resend/1` can send it later.
     test "stands even when the mail cannot be sent" do
-      expect(RichardBurton.MailerMock, :send, fn _ -> {:error, "smtp is down"} end)
+      FailingMailAdapter.install()
 
       assert {:ok, {:unsent, invitation}} =
                Invitation.invite(%{"email" => "new@example.com", "role" => "contributor"})
@@ -66,16 +50,25 @@ defmodule RichardBurton.InvitationTest do
     end
 
     test "refuses an address that is not one" do
-      assert {:error, errors} = Invitation.invite(%{"email" => "not-an-email", "role" => "admin"})
-      assert errors[:email]
+      assert {:error, changeset} =
+               Invitation.invite(%{"email" => "not-an-email", "role" => "admin"})
+
+      assert %{email: :invalid} == Validation.get_errors(changeset)
+    end
+
+    test "refuses a role that is not one, or no role, and records nothing" do
+      assert {:error, :invalid_role} =
+               Invitation.invite(%{"email" => "new@example.com", "role" => "wizard"})
+
+      assert {:error, :invalid_role} = Invitation.invite(%{"email" => "new@example.com"})
+      assert Invitation.all() == []
     end
 
     # One address waits on one offer, whatever case it is written in.
     test "refuses a second pending invitation for the same address" do
-      expect_mail()
       {:ok, _} = Invitation.invite(%{"email" => "new@example.com", "role" => "reader"})
 
-      assert {:error, :conflict} =
+      assert {:error, :pending} =
                Invitation.invite(%{"email" => "NEW@example.com", "role" => "admin"})
     end
   end
@@ -87,17 +80,16 @@ defmodule RichardBurton.InvitationTest do
     end
 
     test "says the same thing in Portuguese, then in English" do
-      capture_mail()
       System.put_env("APP_URL", "https://riburton.example.org")
 
       Invitation.invite(%{"email" => "new@example.com", "role" => "contributor"})
 
-      assert_received {:mailed, email}
-      assert email.to == "new@example.com"
+      assert_received {:email, email}
+      assert email.to == [{"", "new@example.com"}]
       assert email.subject =~ "Convite para a Plataforma Richard & Isabel Burton"
       assert email.subject =~ "Invitation to the Richard & Isabel Burton Platform"
 
-      assert [portuguese, english] = String.split(email.message, "\n---\n")
+      assert [portuguese, english] = String.split(email.text_body, "\n---\n")
       assert portuguese =~ "como colaborador, que pode acrescentar e corrigir publicações"
       assert portuguese =~ "Entre com o Google em https://riburton.example.org"
       assert portuguese =~ "(new@example.com)"
@@ -107,28 +99,25 @@ defmodule RichardBurton.InvitationTest do
     end
 
     test "names the admin who sent it, in both languages" do
-      capture_mail()
       admin = user_fixture("admin@example.com", :admin)
 
       Invitation.invite(%{"email" => "new@example.com", "role" => "admin"}, admin)
 
-      assert_received {:mailed, email}
-      assert email.message =~ "Burton por admin@example.com como administrador"
-      assert email.message =~ "Burton Platform by admin@example.com as an administrator"
+      assert_received {:email, email}
+      assert email.text_body =~ "Burton por admin@example.com como administrador"
+      assert email.text_body =~ "Burton Platform by admin@example.com as an administrator"
     end
 
     test "points at the platform in general when APP_URL is unset or empty" do
-      capture_mail(2)
-
       System.delete_env("APP_URL")
       Invitation.invite(%{"email" => "unset@example.com", "role" => "reader"})
       System.put_env("APP_URL", "")
       Invitation.invite(%{"email" => "empty@example.com", "role" => "reader"})
 
       for _ <- 1..2 do
-        assert_received {:mailed, email}
-        assert email.message =~ "Entre na plataforma com o Google usando este endereço"
-        assert email.message =~ "Sign in to the platform with Google using this address"
+        assert_received {:email, email}
+        assert email.text_body =~ "Entre na plataforma com o Google usando este endereço"
+        assert email.text_body =~ "Sign in to the platform with Google using this address"
       end
     end
   end
@@ -173,8 +162,6 @@ defmodule RichardBurton.InvitationTest do
 
   describe "admit/2" do
     test "makes the account, with the role that was waiting, and closes the offer" do
-      expect_mail()
-
       {:ok, {:invited, invitation}} =
         Invitation.invite(%{"email" => "invited@example.com", "role" => "contributor"})
 
@@ -186,16 +173,15 @@ defmodule RichardBurton.InvitationTest do
     end
 
     test "matches the address whatever its case" do
-      expect_mail()
       {:ok, _} = Invitation.invite(%{"email" => "Invited@Example.com", "role" => "admin"})
 
       assert {:ok, user} = Invitation.admit("sub-1", "invited@example.com")
       assert user.role == :admin
     end
 
-    # Anyone may hold a Google account. If signing in made one here regardless,
-    # who has an account would be decided by whoever tries — and revoking one
-    # would mean nothing, since the next sign-in would make another.
+    # Anyone may hold a Google account. If signing in made an account here for
+    # anyone, revoking an account would mean nothing, since the next sign-in
+    # would make another.
     test "refuses someone who was never invited, and makes no account for them" do
       assert Invitation.admit("sub-stranger", "stranger@example.com") == :not_invited
       assert is_nil(User.get("sub-stranger"))
@@ -208,10 +194,9 @@ defmodule RichardBurton.InvitationTest do
       assert admitted.role == :contributor
     end
 
-    # Redeeming it once is the point: the offer is spent, so it cannot hand the
-    # role back to someone it has since been taken from.
+    # An accepted invitation is not taken up again, so it cannot give the role
+    # back to someone whose role was lowered since.
     test "an invitation already taken up is not taken up twice" do
-      expect_mail()
       {:ok, _} = Invitation.invite(%{"email" => "once@example.com", "role" => "contributor"})
 
       {:ok, user} = Invitation.admit("sub-1", "once@example.com")
@@ -223,11 +208,10 @@ defmodule RichardBurton.InvitationTest do
       assert again.role == :reader
     end
 
-    # An offer can outlive the address having no account: the dev provider and
-    # the seeds make accounts without going through here. The next sign-in
-    # should hand over what was waiting rather than step past it.
+    # The development sign-in and the seeds make accounts without an
+    # invitation, so an address can have both an account and a pending
+    # invitation. The next sign-in takes the invitation up.
     test "honours an offer that was waiting when the account arrived another way" do
-      expect_mail()
       {:ok, _} = Invitation.invite(%{"email" => "here@example.com", "role" => "admin"})
 
       user = user_fixture("here@example.com")
@@ -237,8 +221,6 @@ defmodule RichardBurton.InvitationTest do
     end
 
     test "keeps an existing account's role when the offer waiting for it is lower, and closes the offer" do
-      expect_mail()
-
       {:ok, {:invited, invitation}} =
         Invitation.invite(%{"email" => "here@example.com", "role" => "reader"})
 
@@ -251,7 +233,6 @@ defmodule RichardBurton.InvitationTest do
     end
 
     test "admits the last admin as an admin when the offer waiting for them is lower" do
-      expect_mail()
       {:ok, _} = Invitation.invite(%{"email" => "here@example.com", "role" => "contributor"})
 
       user = user_fixture("here@example.com", :admin)
@@ -301,8 +282,6 @@ defmodule RichardBurton.InvitationTest do
 
   describe "cancel/1 and resend/1" do
     test "a pending invitation can be withdrawn" do
-      expect_mail()
-
       {:ok, {:invited, invitation}} =
         Invitation.invite(%{"email" => "x@example.com", "role" => "reader"})
 
@@ -311,8 +290,6 @@ defmodule RichardBurton.InvitationTest do
     end
 
     test "one already taken up cannot be withdrawn or sent again" do
-      expect_mail()
-
       {:ok, {:invited, invitation}} =
         Invitation.invite(%{"email" => "y@example.com", "role" => "reader"})
 
@@ -320,17 +297,27 @@ defmodule RichardBurton.InvitationTest do
 
       accepted = Invitation.get(invitation.id)
 
-      assert Invitation.cancel(accepted) == {:error, :already_accepted}
-      assert Invitation.resend(accepted) == {:error, :already_accepted}
+      assert Invitation.cancel(accepted) == {:error, :accepted}
+      assert Invitation.resend(accepted) == {:error, :accepted}
     end
 
     test "a pending invitation can be sent again" do
-      expect_mail(2)
-
       {:ok, {:invited, invitation}} =
         Invitation.invite(%{"email" => "z@example.com", "role" => "reader"})
 
       assert {:ok, ^invitation} = Invitation.resend(invitation)
+      assert_email_sent(to: "z@example.com")
+      assert_email_sent(to: "z@example.com")
+    end
+
+    test "says so when the mail cannot be sent again, and keeps the invitation" do
+      {:ok, {:invited, invitation}} =
+        Invitation.invite(%{"email" => "z@example.com", "role" => "reader"})
+
+      FailingMailAdapter.install()
+
+      assert Invitation.resend(invitation) == {:error, :unsent}
+      refute is_nil(Invitation.get(invitation.id))
     end
   end
 

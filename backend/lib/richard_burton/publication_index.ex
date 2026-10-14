@@ -28,10 +28,17 @@ defmodule RichardBurton.Publication.Index do
       `ranking/1` are built from it, and it is the only thing that differs
       between the two ways of reading a term.
 
-  Every word is read once, on its own: it matches as a prefix if the index holds
-  words beginning with it, and by resemblance if it does not. A word that has to
-  fall back therefore does not drag the words beside it along with it, and the
-  query is built and run once rather than twice.
+  Each word is matched on its own: as a prefix when the index holds words
+  beginning with it, and by resemblance when it does not. So a word matched by
+  resemblance does not change how the words beside it match, and the query is
+  run once.
+
+  How each word matched is its **standing** (see
+  `RichardBurton.Publication.Index.Keywords`). `standings/1` looks up the
+  standings of all of a term's words with one query. `search_order/2`,
+  `details/3` and `matching/2` take those standings along with the term, so
+  that several of them can read one lookup. Given the term alone, each of them
+  looks the standings up itself.
 
   Both ways of reading a term match against a `tsvector` whose accents have been
   stripped, so the term has its accents stripped too before it is compared. See
@@ -59,10 +66,15 @@ defmodule RichardBurton.Publication.Index do
   @spec count_header() :: String.t()
   def count_header, do: @count_header
 
+  @doc "Returns `{:ok, publications}`, every publication in the index, whole."
   def all do
     all(select: [])
   end
 
+  @doc """
+  Returns `{:ok, publications}`, every publication in the index, as maps of
+  the fields in `attributes`, or whole when `attributes` is empty.
+  """
   def all(select: attributes) when is_list(attributes) do
     results =
       from(fp in FlatPublication)
@@ -72,19 +84,18 @@ defmodule RichardBurton.Publication.Index do
     {:ok, results}
   end
 
-  # The number of publications in the index.
-  #
-  # Counted from the same rows the index lists, so it lags behind writes by as much
-  # as the search does. That is deliberate: it matches what a client would get by
-  # fetching the full list right now.
-  def count() do
+  @doc """
+  Returns the number of publications in the index. It counts the rows the
+  index lists, so it includes a write only once the refresher has rebuilt the
+  index, as the search does.
+  """
+  def count do
     Repo.aggregate(FlatPublication, :count, :id)
   end
 
   @doc """
-  Publications that have no sources recorded, ordered by id. This is the queue
-  the sources backfill works through, and the order has to be stable so it can be
-  resumed.
+  Returns `{:ok, publications}`, the publications in the index that cite no
+  source, ordered by id, so the order is the same on every call.
   """
   def without_sources do
     results =
@@ -97,33 +108,41 @@ defmodule RichardBurton.Publication.Index do
     {:ok, results}
   end
 
+  @doc "Returns what `search/2` returns for `term`, with whole rows."
   def search(term) do
     search(term, select: [])
   end
 
   @doc """
-  The publications a term matches.
+  Returns the publications a term matches.
 
   The term is split on `:or` (or `:ou`) into alternatives, and a publication
   matches if it satisfies any one of them. Within an alternative, words are
-  combined with AND, so every word has to match. That is why searching a full
-  title returns only that title, while "one title or another" returns both.
+  combined with AND, so every word has to match. So searching a full title
+  returns only that title, while "one title :or another" returns both.
 
-  A single word only has to match one of the indexed words it could be, so a
-  half-typed word matches anything it might still become. The term is tried as
-  typed first; only if that matches nothing is it retried fuzzily, and a word
-  that matches nothing is then dropped rather than emptying the whole result.
+  A word matches the indexed words it begins, so a half-typed word matches
+  every word it might become. A word that begins none matches the indexed
+  words it resembles, and a word that resembles none is dropped rather than
+  emptying the result.
 
-  This returns everything at once, with no paging, for callers that need the
-  whole result — the CSV export downloads the database rather than a page of it.
-  A reader goes through `search_order/1` and `details/2` instead.
+  It returns `{:ok, publications}`, every match at once, in the order
+  `search_order/1` gives, as maps of the fields in `attributes`, or whole
+  when `attributes` is empty. `search_order/1` and `details/2` read the same
+  matches a page at a time.
   """
   def search(term, select: attributes) when is_binary(term) do
-    case answering(term) do
+    case criteria(term, standings(term)) do
       :none -> {:ok, []}
-      {criteria, _ids} -> {:ok, Repo.all(asking(criteria, attributes))}
+      criteria -> {:ok, Repo.all(asking(criteria, attributes))}
     end
   end
+
+  @doc """
+  Returns the standing of each word of `term` that the search looks up, keyed
+  by the word, with one query. See `RichardBurton.Publication.Index.Query.standings/1`.
+  """
+  defdelegate standings(term), to: Query
 
   @doc """
   The ids of every publication a term matches, in the order they should be read,
@@ -134,10 +153,16 @@ defmodule RichardBurton.Publication.Index do
   the search ran. Without that, rows could shift, be skipped or appear twice as
   the database changed between one page and the next.
   """
-  def search_order(term) when is_binary(term) do
-    case answering(term) do
+  def search_order(term) when is_binary(term), do: search_order(term, standings(term))
+
+  @doc """
+  Returns what `search_order/1` returns, reading the standings of the term's
+  words from `standings`, which `standings/1` returned for the term.
+  """
+  def search_order(term, standings) when is_binary(term) do
+    case criteria(term, standings) do
       :none -> :none
-      {_ask, ids} -> ids
+      criteria -> order_ids(criteria)
     end
   end
 
@@ -152,8 +177,8 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  The full rows for the given ids, in that order — one page of an ordering that
-  `search_order/1` or `all_order/0` returned earlier.
+  Returns the full rows for the given ids, in that order: one page of an
+  ordering that `search_order/1` or `all_order/0` returned earlier.
 
   Pass `nil` as the term for a plain listing. Pass the term itself and each row
   comes back with an excerpt of every field that matched it.
@@ -170,24 +195,28 @@ defmodule RichardBurton.Publication.Index do
     |> in_order(ids)
   end
 
-  def details(ids, term) when is_list(ids) and is_binary(term) do
+  def details(ids, term) when is_list(ids) and is_binary(term),
+    do: details(ids, term, standings(term))
+
+  @doc """
+  Returns what `details/2` returns, reading the standings of the term's words
+  from `standings`, which `standings/1` returned for the term. `standings` is
+  not read when the term is `nil`.
+  """
+  def details(ids, nil, _standings), do: details(ids, nil)
+
+  def details(ids, term, standings) when is_list(ids) and is_binary(term) do
     from(fp in FlatPublication, where: fp.id in ^ids)
-    |> Excerpt.select(term)
+    |> Excerpt.select(term, standings)
     |> Repo.all()
     |> in_order(ids)
   end
 
   @doc """
-  The full row for one id, or an empty list when there is none. Gives what
-  `details/2` gives, for a single publication.
+  Returns what `details/2` returns for the one id `id`: a list of its row, or
+  an empty list when the index does not hold it.
   """
-  def detail(id, nil), do: details([id], nil)
-
-  def detail(id, term) when is_binary(term) do
-    from(fp in FlatPublication, where: fp.id == ^id)
-    |> Excerpt.select(term)
-    |> Repo.all()
-  end
+  def detail(id, term), do: details([id], term)
 
   @doc "How many publications a page holds."
   def per_page, do: @per_page
@@ -200,30 +229,30 @@ defmodule RichardBurton.Publication.Index do
   returns no rows, so callers can count over it without a separate check.
   """
   def matching(nil), do: from(fp in FlatPublication)
+  def matching(term) when is_binary(term), do: matching(term, standings(term))
 
-  def matching(term) when is_binary(term) do
-    case criteria(term) do
+  @doc """
+  Returns what `matching/1` returns, reading the standings of the term's words
+  from `standings`, which `standings/1` returned for the term. `standings` is
+  not read when the term is `nil`.
+  """
+  def matching(nil, _standings), do: matching(nil)
+
+  def matching(term, standings) when is_binary(term) do
+    case criteria(term, standings) do
       :none -> from(fp in FlatPublication, where: false)
       criteria -> matched(criteria)
     end
   end
 
-  # The criteria that answer a term and the ids they matched, or `:none` if nothing
-  # in the index matches.
-  defp answering(term) do
-    case criteria(term) do
-      :none -> :none
-      criteria -> {criteria, order_ids(criteria)}
-    end
-  end
-
-  # Parses a term into criteria. Returns `:none` when the term has nothing to
-  # search for, because it is blank or because none of its words matches a word
-  # in the index and it has no operator.
+  # Parses a term into criteria, reading its words' standings from `standings`.
+  # Returns `:none` when the term has nothing to search for, because it is blank
+  # or because none of its words matches a word in the index and it has no
+  # operator.
   #
   # A term with quotes or a word excluded with `-`, and no operator, is passed
   # to Postgres as written. Its words are not widened to similar words.
-  defp criteria(term) do
+  defp criteria(term, standings) do
     alternatives = Term.parse(term)
 
     cond do
@@ -235,7 +264,7 @@ defmodule RichardBurton.Publication.Index do
         {:spelled_out, term}
 
       true ->
-        criteria = Query.criteria(alternatives)
+        criteria = Query.criteria(alternatives, standings)
         if Query.empty?(criteria), do: :none, else: criteria
     end
   end

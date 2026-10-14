@@ -8,51 +8,85 @@ defmodule RichardBurton.Publication.Index.Keywords do
   single word, and trigram similarity between a word and a whole phrase drops
   towards zero as the phrase gets longer.
 
-  `standing_for/1` matches a word in one of two modes:
+  A word's **standing** is how it matched the indexed words, and which ones it
+  matched. It is one of two tuples:
 
-    * `:prefix` — the indexed words that start with the given word. This is
-      tried first, matching the word as typed.
-    * `:fuzzy` — the indexed words that merely resemble it. This is tried when
-      nothing matched as typed.
+    * `{:prefix, words}` — the indexed words that start with the word as typed.
+      A word stands this way when at least one indexed word starts with it.
+    * `{:fuzzy, words}` — the indexed words that resemble the word, most similar
+      first. A word stands this way when no indexed word starts with it, and
+      `words` is empty when none resembles it either.
   """
 
-  import Ecto.Query
-
-  alias RichardBurton.Publication.Index.SearchKeyword
   alias RichardBurton.Repo
 
+  @typedoc "How a word matched the indexed words, as the module doc describes."
+  @type standing :: {:prefix, [String.t()]} | {:fuzzy, [String.t()]}
+
+  # The trigram similarity above which an indexed word resembles a typed one.
   @similarity 0.3
 
-  # Returns the indexed words a single word stands for, in the given mode. The
-  # index holds words with their accents folded away, so the word is folded the
-  # same way before it is compared to them.
-  defp resolve(word, :prefix) do
-    from(w in SearchKeyword, where: ilike(w.word, fragment("unaccent(?)", ^"#{word}%")))
-    |> Repo.all()
-    |> Enum.map(& &1.word)
-  end
-
-  defp resolve(word, :fuzzy) do
-    from(w in SearchKeyword,
-      where: fragment("similarity((?), unaccent(?)) > ?", w.word, ^word, ^@similarity),
-      # Most similar first. All of them are searched on regardless, so this does
-      # not affect which publications match, only the order they come back in.
-      order_by: [desc: fragment("similarity((?), unaccent(?))", w.word, ^word)]
+  # Finds the standing of each word in the array `$1`, with `$2` as the
+  # similarity threshold. Returns one row per distinct word: the word, the
+  # standing's kind, and the indexed words. The index holds words with their
+  # accents folded away, so each word is folded the same way before it is
+  # compared to them.
+  #
+  # Prefix matches keep the order the database returns them in. Fuzzy matches
+  # are ordered most similar first. `%` is `similarity >= the
+  # pg_trgm.similarity_threshold setting`, which the trigram index can answer.
+  # The explicit `similarity > $2` keeps the threshold exclusive.
+  @standings """
+  WITH typed AS (
+    SELECT DISTINCT word FROM unnest($1::text[]) AS t(word)
+  ),
+  prefixed AS (
+    SELECT t.word, array_agg(k.word) AS words
+    FROM typed t
+    JOIN search_keywords k ON k.word ILIKE unaccent(t.word || '%')
+    GROUP BY t.word
+  )
+  SELECT word, 'prefix', words FROM prefixed
+  UNION ALL
+  SELECT
+    t.word,
+    'fuzzy',
+    coalesce(
+      array_agg(k.word ORDER BY similarity(k.word, unaccent(t.word)) DESC)
+        FILTER (WHERE k.word IS NOT NULL),
+      '{}'
     )
-    |> Repo.all()
-    |> Enum.map(& &1.word)
-  end
+  FROM typed t
+  LEFT JOIN search_keywords k
+    ON k.word % unaccent(t.word) AND similarity(k.word, unaccent(t.word)) > $2
+  WHERE t.word NOT IN (SELECT word FROM prefixed)
+  GROUP BY t.word
+  """
 
   @doc """
-  The indexed words a given word matches, and how it matched them: the words it
-  is a prefix of, or the words it resembles if it is a prefix of none.
+  Returns the standing of each of `words`, keyed by the word, looked up with one
+  query. An empty list looks nothing up.
   """
-  def standing_for(word) do
-    case resolve(word, :prefix) do
-      [] -> {:fuzzy, resolve(word, :fuzzy)}
-      prefixed -> {:prefix, prefixed}
-    end
+  @spec standings([String.t()]) :: %{String.t() => standing}
+  def standings([]), do: %{}
+
+  def standings(words) do
+    {:ok, %{rows: rows}} =
+      Repo.transaction(fn ->
+        Repo.query!(
+          "SELECT set_config('pg_trgm.similarity_threshold', $1, true)",
+          [to_string(@similarity)]
+        )
+
+        Repo.query!(@standings, [Enum.uniq(words), @similarity])
+      end)
+
+    Map.new(rows, fn [word, kind, matched] -> {word, {kind(kind), matched}} end)
   end
+
+  # The kind of standing a row of the query names.
+  defp kind("prefix"), do: :prefix
+  defp kind("fuzzy"), do: :fuzzy
 
   @doc """
   Splits a term into the individual words it is made of.

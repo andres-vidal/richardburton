@@ -90,41 +90,50 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   @doc """
-  How alike two records must be to be worth asking about, between 0 and 1.
-
-  Read at run time from `:duplicate_threshold`, so the sensitivity can be tuned
-  against real data — too low floods the reviewer with false clusters, too high
-  misses real duplicates — without changing any code.
+  Returns the trigram similarity, between 0 and 1, above which two values are
+  alike. It is read at run time from the `:duplicate_threshold` setting, so it
+  can be tuned without a change to the code.
   """
   def threshold do
     Application.get_env(:richard_burton, :duplicate_threshold, @default_threshold)
   end
 
   @doc """
-  The clusters worth reviewing, likeliest first.
+  Returns the clusters worth reviewing, the likeliest first. Each cluster has
+  `publications`, its flat publications ordered by title and then id, and
+  `score`, the highest title similarity among its candidate pairs.
 
-  A cluster is a set of records joined by likeness: if A looks like B and B looks
-  like C, all three are one question, because merging them is one act. Pairs
-  already ruled apart are not edges, so ruling one out can split a cluster rather
-  than merely shrinking it.
+  Pairs ruled apart are not candidate pairs, so ruling one apart can split a
+  cluster in two. The clusters are found with a number of queries that does
+  not depend on their number.
   """
   def clusters do
     edges = candidate_pairs()
+    components = connected(edges)
 
-    edges
-    |> connected()
-    |> Enum.map(&%{publications: load(&1), score: best_score(&1, edges)})
+    component_of =
+      for {ids, index} <- Enum.with_index(components), id <- ids, into: %{}, do: {id, index}
+
+    scores =
+      Enum.reduce(edges, %{}, fn edge, scores ->
+        Map.update(scores, component_of[edge.left], edge.score, &max(&1, edge.score))
+      end)
+
+    components
+    |> load_each()
+    |> Enum.with_index(&%{publications: &1, score: Map.fetch!(scores, &2)})
     |> Enum.sort_by(& &1.score, :desc)
   end
 
   @doc """
-  Record that these publications are not the same record twice, so the reviewer
-  is not asked about them again. Every pair among them is ruled apart: the answer
-  is about the cluster the reviewer was shown.
+  Stores a distinction for every pair among the publications with the ids
+  `ids`, so `clusters/0` no longer offers them, and returns `{:ok, count}`,
+  the number of distinctions it stored. A pair ruled apart already is kept as
+  it was. Returns `{:error, :not_enough}` when `ids` holds fewer than two ids.
 
-  When the answer rules apart a pair that was not ruled apart already, each of
-  the publications gets a `"distinguished"` history entry under `actor`, which
-  names the others (see `RichardBurton.Publication.History`).
+  When it stores any distinction, each of the publications gets a
+  `"distinguished"` history entry by `actor`, which names the others (see
+  `RichardBurton.Publication.History`).
   """
   def rule_apart(ids, actor) when is_list(ids) do
     pairs = for a <- ids, b <- ids, a < b, do: {a, b}
@@ -196,23 +205,23 @@ defmodule RichardBurton.Publication.Duplicates do
   end
 
   @doc """
-  The pairs someone has ruled apart, newest first, with the records themselves.
+  Returns the pairs someone ruled apart, the newest first. Each has
+  `publications`, the two flat publications ordered by title and then id,
+  `actor`, who ruled them apart, and `timestamp`, when.
 
-  A decision that cannot be seen cannot be taken back, and this is what a
-  reviewer looks at to find one worth reconsidering.
+  A pair is left out when either publication is no longer in the index,
+  because a merge or a deletion took it out. The pairs are read with two
+  queries, whatever their number.
   """
   def ruled_apart do
-    from(d in Distinction, order_by: [desc: d.id])
-    |> Repo.all()
-    |> Enum.map(
-      &%{
-        publications: load([&1.publication_id, &1.other_publication_id]),
-        actor: &1.actor,
-        timestamp: &1.inserted_at
-      }
-    )
-    # A pair is dropped when either record has left the index, by merge or by
-    # deletion: there is no longer a duplicate to review.
+    distinctions = from(d in Distinction, order_by: [desc: d.id]) |> Repo.all()
+
+    distinctions
+    |> Enum.map(&[&1.publication_id, &1.other_publication_id])
+    |> load_each()
+    |> Enum.zip_with(distinctions, fn publications, distinction ->
+      %{publications: publications, actor: distinction.actor, timestamp: distinction.inserted_at}
+    end)
     |> Enum.filter(&(length(&1.publications) == 2))
   end
 
@@ -521,10 +530,10 @@ defmodule RichardBurton.Publication.Duplicates do
     )
   end
 
-  # A name and a book's title are one value; translators and original authors
-  # are lists. `rb_joined` reads a list as its values with a space between — the
-  # same way the search index reads these columns — and the index on them is
-  # written that way too, so the comparison can use it.
+  # The fields that hold lists: the translators and the original authors.
+  # `rb_joined` reads a list as its values joined with spaces, as the search
+  # index reads these columns, and the trigram index on them is built on the
+  # same expression, so the comparison can use it.
   @lists [:authors, :original_authors]
 
   # Compares one list field of the two sides, `left` and `right`, each read
@@ -587,21 +596,24 @@ defmodule RichardBurton.Publication.Duplicates do
     end
   end
 
-  # A cluster's score: the highest similarity among the edges inside it, which
-  # is what orders the review queue.
-  defp best_score(ids, edges) do
-    members = MapSet.new(ids)
+  # Returns the flat publications with the ids in each of `groups`, in the order
+  # of `groups`, read with one query. Each group's publications are ordered by
+  # title and then id, as the database orders them, so a group is listed the
+  # same way every time. An id that is not in the index is left out.
+  defp load_each(groups) do
+    ids = groups |> Enum.concat() |> Enum.uniq()
 
-    edges
-    |> Enum.filter(&(MapSet.member?(members, &1.left) and MapSet.member?(members, &1.right)))
-    |> Enum.map(& &1.score)
-    |> Enum.max(fn -> 0.0 end)
-  end
+    ranked =
+      from(fp in FlatPublication, where: fp.id in ^ids, order_by: [asc: fp.title, asc: fp.id])
+      |> Repo.all()
+      |> Enum.with_index(&{&1.id, {&2, &1}})
+      |> Map.new()
 
-  # The flat publications for these ids, ordered by title then id so a cluster
-  # is presented the same way every time.
-  defp load(ids) do
-    from(fp in FlatPublication, where: fp.id in ^ids, order_by: [asc: fp.title, asc: fp.id])
-    |> Repo.all()
+    Enum.map(groups, fn group ->
+      group
+      |> Enum.flat_map(&List.wrap(ranked[&1]))
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.map(&elem(&1, 1))
+    end)
   end
 end

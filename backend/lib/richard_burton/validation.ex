@@ -1,6 +1,10 @@
 defmodule RichardBurton.Validation do
   @moduledoc """
-  Utilities for data validation
+  Validations shared by several schemas, and `get_errors/1`, which reduces a
+  changeset's errors to the codes the API returns.
+
+  An error **code** is an atom that names what is wrong with a field, such as
+  `:required` or `:alpha2`, instead of a sentence.
   """
 
   @doc """
@@ -10,9 +14,9 @@ defmodule RichardBurton.Validation do
   turning a data-entry slip into a 500.
 
   Errors are reported under `field` unless `:as` names another key. Nested
-  errors collapse to their innermost map, so an original book's `authors`
-  would otherwise arrive indistinguishable from the translators' — `:as` puts
-  it under the flat name the client knows it by.
+  errors collapse to their innermost map (see `get_errors/1`), so an original
+  book's `authors` would otherwise be reported under the same key as the
+  translators. `:as` reports it under the key the flat publication uses.
   """
   def validate_no_duplicates(changeset, field, key, opts \\ []) do
     values =
@@ -36,29 +40,44 @@ defmodule RichardBurton.Validation do
   defp get_child_value(child = %Ecto.Changeset{}, key), do: Ecto.Changeset.get_field(child, key)
   defp get_child_value(child, key), do: Map.get(child, key)
 
+  @doc """
+  Returns the errors of `changeset` as codes, in a map shaped like the
+  changeset's fields.
+
+  A field with several errors is reported by its first one. A branch whose
+  only error is a unique-constraint violation becomes the single code
+  `:conflict`, and a branch with a single nested map is replaced by that map,
+  so the result names the innermost field that failed. An association with
+  many children is a list with one map per child, empty for a valid child.
+
+  The codes are `:required`, `:array` for a list field given something other
+  than a list, the type of a field that could not be cast to it, such as
+  `:integer`, `:alpha2`, `:duplicate`, `:conflict`, and `:invalid` for any
+  other failed validation.
+  """
   def get_errors(changeset) do
     changeset
     |> Ecto.Changeset.traverse_errors(&get_description/1)
-    |> coalesce_errors
-    |> simplify_errors
+    |> coalesce_errors()
+    |> simplify_errors()
   end
 
-  # An Ecto error rendered as the code the API returns, rather than a sentence.
+  # The code for one Ecto error, from the options Ecto stores with it.
   defp get_description({_msg, opts}), do: opts |> Map.new() |> get_description()
   defp get_description(%{validation: :required}), do: :required
   # A multi-value attribute that did not arrive as a list failed at the
   # container, not at the element type, and says so under one name.
   defp get_description(%{validation: :cast, type: {:array, _element}}), do: :array
-  defp get_description(%{validation: :cast, type: type}), do: type
+  defp get_description(%{validation: :cast, type: type}) when is_atom(type), do: type
   defp get_description(%{validation: :length, kind: :min, count: 1}), do: :required
   defp get_description(%{validation: :assoc}), do: :required
   defp get_description(%{validation: :alpha2}), do: :alpha2
   defp get_description(%{validation: :duplicate}), do: :duplicate
-  defp get_description(%{validation: :email}), do: :invalid
   defp get_description(%{constraint: :unique}), do: :conflict
+  defp get_description(_opts), do: :invalid
 
-  # Collapses a branch whose children all carry the same error into that one
-  # error, so a client is told once rather than per field.
+  # Replaces a branch whose only error is `:conflict` with `:conflict`, and a
+  # branch holding a single nested map with that map, from the root down.
   defp simplify_errors(node) when is_map(node) do
     case node |> Map.values() do
       [:conflict] -> :conflict
@@ -67,11 +86,8 @@ defmodule RichardBurton.Validation do
     end
   end
 
-  defp simplify_errors(atom) when is_atom(atom) do
-    atom
-  end
-
-  # Walks the error tree, simplifying each branch from the leaves up.
+  # Reduces each field's list of codes to its first code, and keeps the
+  # lists of child maps an association with many children has.
   defp coalesce_errors(node) when is_map(node) do
     node |> Enum.map(&coalesce_errors/1) |> Map.new()
   end

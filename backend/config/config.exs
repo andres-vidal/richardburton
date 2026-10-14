@@ -1,10 +1,5 @@
-# This file is responsible for configuring your application
-# and its dependencies with the aid of the Config module.
-#
-# This configuration file is loaded before any dependency and
-# is restricted to this project.
-
-# Configures the app
+# The configuration shared by every environment. The file of the environment,
+# imported at the bottom, overrides it.
 import Config
 
 config :richard_burton,
@@ -15,11 +10,8 @@ config :richard_burton,
 # path. Test and e2e override this with synchronous strategies for determinism.
 config :richard_burton, search_index_refresh: {:debounced, 2_000}
 
-# Configures Postgrex
 config :richard_burton, RichardBurton.Repo,
   timeout: String.to_integer(System.get_env("POSTGREX_TIMEOUT", "15000"))
-
-# Configures the endpoint
 
 config :richard_burton, RichardBurtonWeb.Endpoint,
   url: [host: "localhost"],
@@ -30,14 +22,10 @@ config :richard_burton, RichardBurtonWeb.Endpoint,
   pubsub_server: RichardBurton.PubSub,
   live_view: [signing_salt: "L5BIKL+B"]
 
-# Configures Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
-# Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-# Import environment specific config. This must remain at the bottom
-# of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

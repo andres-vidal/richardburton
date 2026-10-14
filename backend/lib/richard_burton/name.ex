@@ -61,22 +61,27 @@ defmodule RichardBurton.Name do
   end
 
   @doc ~S"""
-  Nests names into the maps a schema with a `name` field casts.
+  Nests a flat publication's list of names into the maps a schema with a
+  `name` field casts. A value that is not a list is returned unchanged, for the
+  changeset to refuse.
 
-  It takes the list of names that the flat publication holds. Splitting a
-  written-down string into names is done by the CSV codec, before a value
-  reaches here.
+  Splitting a written-down string into names is done by the CSV codec, before
+  a value reaches here.
 
   ## Examples
 
     iex> RichardBurton.Name.nest(["Machado de Assis", "Clarice Lispector"])
     [%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}]
+
+    iex> RichardBurton.Name.nest("Machado de Assis")
+    "Machado de Assis"
   """
   def nest(names) when is_list(names), do: Enum.map(names, &%{"name" => get_name(&1)})
+  def nest(names), do: names
 
   @doc ~S"""
-  Flattens records or maps with a name to the names they are. A value that is
-  not a list is returned unchanged.
+  Flattens records or maps with a name to the names they are, as `get_name/1`
+  reads each one. A value that is not a list is returned unchanged.
 
   ## Examples
 
@@ -90,10 +95,13 @@ defmodule RichardBurton.Name do
   def flatten(names), do: names
 
   @doc """
-  Returns the name of a string, a record with a `name` field, or a map with a
-  `"name"` or `:name` key.
+  Returns the name of a record with a `name` field or of a map with a `:name`
+  or `"name"` key, and nil for any other map. Any other value, such as a
+  string, is returned unchanged, so a name that is not a string reaches the
+  changeset and is refused there.
   """
-  def get_name(name) when is_binary(name), do: name
-  def get_name(%{"name" => name}), do: name
   def get_name(%{name: name}), do: name
+  def get_name(%{"name" => name}), do: name
+  def get_name(value) when is_map(value), do: nil
+  def get_name(value), do: value
 end

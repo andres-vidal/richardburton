@@ -10,7 +10,6 @@ defmodule RichardBurtonWeb.ChannelCase do
   using do
     quote do
       import Phoenix.ChannelTest
-      import RichardBurtonWeb.ChannelCase
       import RichardBurton.Fixtures
 
       @endpoint RichardBurtonWeb.Endpoint

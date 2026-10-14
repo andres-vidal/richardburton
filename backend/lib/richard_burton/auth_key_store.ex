@@ -23,8 +23,11 @@ defmodule RichardBurton.Auth.KeyStore do
   @default_refresh_cooldown 60_000
   @default_max_age 3600
 
-  # Client API
-
+  @doc """
+  Starts the key store. The options are `:name` (`RichardBurton.Auth.KeyStore`
+  by default), `:provider`, and `:refresh_cooldown`, the least number of
+  milliseconds between two refreshes caused by unknown `kid`s.
+  """
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
     GenServer.start_link(__MODULE__, opts, name: name)
@@ -40,8 +43,6 @@ defmodule RichardBurton.Auth.KeyStore do
   """
   @spec fetch_key(GenServer.server(), String.t()) :: {:ok, map()} | :error
   def fetch_key(server \\ __MODULE__, kid), do: GenServer.call(server, {:fetch_key, kid})
-
-  # Server
 
   @impl true
   def init(opts) do
@@ -104,18 +105,15 @@ defmodule RichardBurton.Auth.KeyStore do
 
   defp can_refresh?(%{refreshed_at: last, refresh_cooldown: cd}), do: now_ms() - last >= cd
 
-  # Fetches the key set and reschedules the next refresh from its max age. A
-  # failed fetch leaves the cached keys in place rather than emptying them.
+  # Fetches the key set and stores it with its issuer and max age. A failed
+  # fetch leaves the cached keys in place, and still counts as a refresh for
+  # the cooldown.
   defp do_refresh(state) do
     case state.provider.fetch() do
       {:ok, %{issuer: issuer, keys: keys, max_age: max_age}} ->
         %{state | issuer: issuer, keys: keys, max_age: max_age, refreshed_at: now_ms()}
 
-      {:ok, %{issuer: issuer, keys: keys}} ->
-        %{state | issuer: issuer, keys: keys, refreshed_at: now_ms()}
-
       {:error, _reason} ->
-        # Keep the existing (possibly empty) cache; a later request retries.
         %{state | refreshed_at: now_ms()}
     end
   end

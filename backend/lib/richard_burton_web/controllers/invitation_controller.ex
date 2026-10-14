@@ -12,60 +12,52 @@ defmodule RichardBurtonWeb.InvitationController do
   alias RichardBurton.Invitation
   alias RichardBurton.User
 
-  @doc "Every invitation — the ones waiting, and the ones taken up."
+  @doc "Every invitation, pending and accepted."
   def index(conn, _params) do
     json(conn, Invitation.all())
   end
 
   @doc """
-  Offer a role to an address.
+  Offers a role to an address, as `RichardBurton.Invitation.invite/2` does.
 
-  Answers with what happened, because the three outcomes are genuinely
-  different: someone already here was granted the role, someone new has an
-  invitation waiting, or they have one waiting that could not be mailed to them.
+  Responds with the `outcome`, because the three are different: someone who
+  already has an account was granted the role (200, with the `user`), someone
+  new has an invitation waiting (201, `invited`), or the invitation is waiting
+  but could not be mailed (201, `unsent`).
   """
   def create(conn = %{assigns: %{subject_id: subject_id}}, attrs) do
-    case Invitation.invite(attrs, User.get(subject_id)) do
-      {:ok, {:granted, user}} ->
-        conn |> put_status(:ok) |> json(%{outcome: :granted, user: user})
+    with {:ok, outcome} <- Invitation.invite(attrs, User.get(subject_id)) do
+      case outcome do
+        {:granted, user} ->
+          conn |> put_status(:ok) |> json(%{outcome: :granted, user: user})
 
-      {:ok, {:invited, invitation}} ->
-        conn |> put_status(:created) |> json(%{outcome: :invited, invitation: invitation})
-
-      {:ok, {:unsent, invitation}} ->
-        conn |> put_status(:created) |> json(%{outcome: :unsent, invitation: invitation})
-
-      # That address is already waiting on an offer.
-      {:error, :conflict} ->
-        {:error, :pending}
-
-      # Every other error goes to `FallbackController`. Inviting yourself would
-      # change your own role, so it fails with `:self`, like any other change to
-      # your own role.
-      error ->
-        error
+        {sent, invitation} ->
+          conn |> put_status(:created) |> json(%{outcome: sent, invitation: invitation})
+      end
     end
   end
 
-  @doc "Send a pending invitation's mail again."
+  @doc """
+  Mails a pending invitation again. A mail that could not be sent is a 502
+  with `unsent`, and an invitation already accepted a 409 with `accepted`.
+  """
   def resend(conn, %{"id" => id}) do
-    with {:ok, invitation} <- found(Invitation.get(id)) do
-      case Invitation.resend(invitation) do
-        {:ok, sent} -> json(conn, sent)
-        {:error, :already_accepted} -> {:error, :accepted}
-        # The mailer failed to send the mail. Any reason it gives is a 502.
-        {:error, _reason} -> {:error, :bad_gateway, :unsent}
-      end
+    with {:ok, id} <- Params.id(id),
+         {:ok, invitation} <- found(Invitation.get(id)),
+         {:ok, sent} <- Invitation.resend(invitation) do
+      json(conn, sent)
     end
   end
 
-  @doc "Withdraw a pending invitation."
+  @doc """
+  Withdraws a pending invitation. An invitation already accepted is a 409 with
+  `accepted`.
+  """
   def delete(conn, %{"id" => id}) do
-    with {:ok, invitation} <- found(Invitation.get(id)) do
-      case Invitation.cancel(invitation) do
-        {:ok, _cancelled} -> send_resp(conn, :no_content, "")
-        {:error, :already_accepted} -> {:error, :accepted}
-      end
+    with {:ok, id} <- Params.id(id),
+         {:ok, invitation} <- found(Invitation.get(id)),
+         {:ok, _cancelled} <- Invitation.cancel(invitation) do
+      send_resp(conn, :no_content, "")
     end
   end
 end

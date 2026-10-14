@@ -14,7 +14,6 @@ defmodule RichardBurton.TranslatedBook do
   alias RichardBurton.Author
   alias RichardBurton.OriginalBook
   alias RichardBurton.Publication
-  alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
 
   @readable_attributes [:authors, :original_book]
@@ -51,15 +50,5 @@ defmodule RichardBurton.TranslatedBook do
     |> cast_assoc(:original_book, required: true)
     |> validate_length(:authors, min: 1)
     |> validate_no_duplicates(:authors, :name)
-  end
-
-  def all() do
-    TranslatedBook
-    |> Repo.all()
-    |> preload
-  end
-
-  def preload(data) do
-    Repo.preload(data, [:authors, original_book: [:authors]])
   end
 end

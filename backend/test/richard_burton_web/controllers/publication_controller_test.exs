@@ -1,31 +1,36 @@
 defmodule RichardBurtonWeb.PublicationControllerTest do
   @moduledoc """
-  Tests for the Publication controller
+  Tests for `RichardBurtonWeb.PublicationController`: the index and its pages,
+  one publication, the export, validation, the writes, the history and the
+  duplicate review.
   """
-  alias RichardBurton.FlatPublication
   use RichardBurtonWeb.ConnCase
-  # Arity 4 carries a second path segment — the history version an undo names.
+  # Arity 4 takes a second path segment, the history version an undo names.
   import Routes, only: [publication_path: 2, publication_path: 3, publication_path: 4]
 
   alias RichardBurton.Country
+  alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
-  alias RichardBurton.Source
+  alias RichardBurton.Repo
 
-  # Admin mutations resolve the acting user for the history log.
+  # The writes record the signed-in user in the history, so the user must exist.
   setup do
     create_session_user()
     :ok
   end
 
-  @publication_attrs %{
-    "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-    "year" => "1886",
-    "countries" => ["GB"],
-    "publishers" => ["Bickers & Son"],
-    "authors" => ["Isabel Burton"],
-    "original_authors" => ["José de Alencar"],
-    "original_title" => "Iracema"
+  # Isabel Burton's translation of Iracema, published by Bickers & Son in Great
+  # Britain in 1886, as a flat publication with atom keys and the year given
+  # as a string.
+  @iracema %{
+    title: "Iraçéma the Honey-Lips: A Legend of Brazil",
+    year: "1886",
+    countries: ["GB"],
+    publishers: ["Bickers & Son"],
+    authors: ["Isabel Burton"],
+    original_authors: ["José de Alencar"],
+    original_title: "Iracema"
   }
 
   describe "GET /publications when there are no publications" do
@@ -45,15 +50,9 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
   describe "GET /publications (paged)" do
     setup %{conn: conn} do
-      for i <- 1..7 do
-        %{@publication_attrs | "title" => "Paged #{String.pad_leading("#{i}", 2, "0")}"}
-        |> Publication.Codec.nest()
-        |> Publication.insert("importer@example.com")
-      end
-
-      # A direct seed stands in for a bulk insert; the index reads a materialized
-      # view, so signal the refresh the real write path would.
-      Publication.Index.Refresher.refresh()
+      seed_index(
+        for i <- 1..7, do: %{@iracema | title: "Paged #{String.pad_leading("#{i}", 2, "0")}"}
+      )
 
       [conn: conn, per_page: Publication.Index.per_page()]
     end
@@ -87,7 +86,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> json_response(200)
 
       assert Enum.map(body["entries"], & &1["id"]) == rest
-      # The ordering was handed back once; a later stretch is only the rows.
+      # A later page holds the rows alone, without the order.
       refute Map.has_key?(body, "order")
     end
 
@@ -99,6 +98,35 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert body["entries"] == []
       assert body["order"] == []
+    end
+
+    test "a search looks each of its words up once, for the first page and for a later one",
+         meta do
+      search = "Pagd+Isabl+Burton+title:Paged+-autor:Machadoo"
+
+      {body, lookups} =
+        counting_keyword_lookups(fn ->
+          meta.conn
+          |> get("#{publication_path(meta.conn, :index)}?search=#{search}")
+          |> json_response(200)
+        end)
+
+      assert lookups == 1
+      assert length(body["order"]) == 7
+      assert Enum.all?(body["entries"], &(&1["excerpts"]["title"] =~ "[["))
+      assert Enum.any?(body["matched"], &(&1["typed"] == "Pagd"))
+
+      ids_query = body["order"] |> Enum.drop(meta.per_page) |> Enum.map_join("&", &"ids[]=#{&1}")
+
+      {page, lookups} =
+        counting_keyword_lookups(fn ->
+          meta.conn
+          |> get("#{publication_path(meta.conn, :index)}?#{ids_query}&search=#{search}")
+          |> json_response(200)
+        end)
+
+      assert lookups == 1
+      assert length(page["entries"]) == 7 - meta.per_page
     end
 
     test "a blank search asks for the whole database, not for nothing", meta do
@@ -118,12 +146,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
   describe "GET /publications/:id" do
     setup(%{conn: conn}) do
-      {:ok, publication} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert("importer@example.com")
-
-      [conn: conn, publication: publication]
+      [conn: conn, publication: publication_fixture(@iracema)]
     end
 
     test "returns one publication, flat, without authentication", meta do
@@ -135,23 +158,19 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert %{"title" => title, "authors" => authors, "id" => id} =
                json_response(conn, 200)
 
-      assert title == @publication_attrs["title"]
-      assert authors == @publication_attrs["authors"]
+      assert title == @iracema.title
+      assert authors == @iracema.authors
       assert id == meta.publication.id
     end
 
     test "marks the source a search matched, and only that one", meta do
-      {:ok, publication} =
-        @publication_attrs
-        |> Map.put("title", "A Sourced Publication")
-        |> Map.put("sources", [
-          "Caldwell, Helen. Machado de Assis. Berkeley: California, 1970.",
-          "Gledson, John. The Deceptive Realism. Liverpool: Cairns, 1984."
-        ])
-        |> Publication.Codec.nest()
-        |> Publication.insert("importer@example.com")
-
-      Publication.Index.Refresher.refresh()
+      publication =
+        publication_fixture(%{
+          sources: [
+            "Caldwell, Helen. Machado de Assis. Berkeley: California, 1970.",
+            "Gledson, John. The Deceptive Realism. Liverpool: Cairns, 1984."
+          ]
+        })
 
       body =
         meta.conn
@@ -160,15 +179,12 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert [marked, unmatched] = body["marked"]["sources"]
       assert marked =~ "[[Berkeley]]"
-      # The whole source comes back, not a window over it, so a page showing
-      # the provenance list can show each entry in full.
+      # The whole source is marked, not an excerpt of it.
       assert marked =~ "Caldwell, Helen."
       assert unmatched == nil
     end
 
     test "reports the country a search matched, by code", meta do
-      Publication.Index.Refresher.refresh()
-
       body =
         meta.conn
         |> get("#{publication_path(meta.conn, :show, meta.publication.id)}?search=Reino+Unido")
@@ -178,8 +194,6 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
 
     test "reports no countries when the search did not name one", meta do
-      Publication.Index.Refresher.refresh()
-
       body =
         meta.conn
         |> get("#{publication_path(meta.conn, :show, meta.publication.id)}?search=Iracema")
@@ -211,8 +225,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       expect_auth_authorize_admin()
       delete(meta.conn, publication_path(meta.conn, :delete, meta.publication.id))
 
-      # The same answer the index and the search give: gone from every read
-      # path, so a stale link cannot resurrect a record from the trash.
+      # A deleted publication is missing from this read, as it is from the
+      # index and the search.
       conn = get(meta.conn, publication_path(meta.conn, :show, meta.publication.id))
       assert json_response(conn, 404) == %{"error" => "not_found"}
     end
@@ -220,23 +234,15 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
   describe "GET /publications?unsourced" do
     test "returns only publications that have no sources", %{conn: conn} do
-      {:ok, with_refs} =
-        @publication_attrs |> Publication.Codec.nest() |> Publication.insert()
+      with_refs = publication_fixture(@iracema)
 
       {:ok, _} =
         Publication.update(
           with_refs.id,
-          @publication_attrs
-          |> Publication.Codec.nest()
-          |> Map.put("sources", Source.nest(["A source"]))
+          publication_attrs(Map.put(@iracema, :sources, ["A source"]))
         )
 
-      {:ok, _without} =
-        %{@publication_attrs | "title" => "Unsourced Title"}
-        |> Publication.Codec.nest()
-        |> Publication.insert()
-
-      Publication.Index.Refresher.refresh()
+      publication_fixture(%{@iracema | title: "Unsourced Title"})
 
       entries =
         conn
@@ -246,7 +252,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       titles = Enum.map(entries, & &1["title"])
       assert "Unsourced Title" in titles
-      refute @publication_attrs["title"] in titles
+      refute @iracema.title in titles
     end
   end
 
@@ -257,7 +263,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> delete_req_header("rb-csrf-token")
         |> post(publication_path(conn, :create_all), %{"_json" => []})
 
-      assert response(conn, 403)
+      assert %{"error" => "invalid_csrf"} == json_response(conn, 403)
     end
 
     test "rejects a POST whose CSRF token is for a different subject", %{conn: conn} do
@@ -266,7 +272,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> put_req_header("rb-csrf-token", RichardBurton.Auth.Csrf.sign("99999"))
         |> post(publication_path(conn, :create_all), %{"_json" => []})
 
-      assert response(conn, 403)
+      assert %{"error" => "invalid_csrf"} == json_response(conn, 403)
     end
 
     test "rejects a DELETE without a CSRF token", %{conn: conn} do
@@ -275,18 +281,29 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> delete_req_header("rb-csrf-token")
         |> delete(publication_path(conn, :delete, 1))
 
-      assert response(conn, 403)
+      assert %{"error" => "invalid_csrf"} == json_response(conn, 403)
+    end
+  end
+
+  describe "an id that is not a number" do
+    test "is not found by any write", %{conn: conn} do
+      expect_auth_authorize_admin(5)
+
+      for conn <- [
+            put(conn, "/api/publications/abc", @iracema),
+            delete(conn, "/api/publications/abc"),
+            post(conn, "/api/publications/abc/merge", %{"losers" => [1]}),
+            post(conn, "/api/publications/abc/restore"),
+            post(conn, "/api/publications/1/history/abc/undo")
+          ] do
+        assert json_response(conn, 404) == %{"error" => "not_found"}
+      end
     end
   end
 
   describe "DELETE /publications/:id" do
     setup(%{conn: conn}) do
-      {:ok, publication} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
-
-      [conn: conn, publication: publication]
+      [conn: conn, publication: publication_fixture()]
     end
 
     test "soft-deletes the publication and returns 204", meta do
@@ -295,7 +312,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = delete(meta.conn, publication_path(meta.conn, :delete, meta.publication.id))
       assert response(conn, 204)
 
-      # Gone from the index the readers see.
+      # It is gone from the index.
       conn = get(build_conn(), publication_path(conn, :index))
       assert %{"entries" => []} = json_response(conn, 200)
     end
@@ -333,9 +350,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   describe "GET /publications/:id/history" do
     setup(%{conn: conn}) do
       {:ok, publication} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert("importer@example.com")
+        @iracema |> publication_attrs() |> Publication.insert("importer@example.com")
 
       [conn: conn, publication: publication]
     end
@@ -350,7 +365,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "returns the ordered mutation stream with actors and snapshots", meta do
       expect_auth_authorize_admin(2)
 
-      attrs = Map.put(@publication_attrs, "title", "Iracema, revised")
+      attrs = %{@iracema | title: "Iracema, revised"}
 
       conn =
         put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), attrs)
@@ -359,7 +374,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       conn = get(meta.conn, publication_path(meta.conn, :history, meta.publication.id))
 
-      # Newest first, so the viewer renders the response as it arrives.
+      # The entries are newest first.
       assert %{"entries" => [updated, created]} = json_response(conn, 200)
       assert %{"version" => 1, "action" => "created", "actor" => "importer@example.com"} = created
       assert %{"version" => 2, "action" => "updated"} = updated
@@ -372,13 +387,13 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "reports whether each entry can still be undone", meta do
       expect_auth_authorize_admin(2)
 
-      attrs = Map.put(@publication_attrs, "title", "Iracema, revised")
+      attrs = %{@iracema | title: "Iracema, revised"}
       put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), attrs)
 
       conn = get(meta.conn, publication_path(meta.conn, :history, meta.publication.id))
 
-      # The client is told, not left to work it out: the answer depends on the
-      # whole log, which a paginated client would not have.
+      # Whether an entry can be undone depends on the whole history, so the
+      # response says so for each entry.
       assert %{"entries" => [%{"undoable" => true}, %{"undoable" => false}]} =
                json_response(conn, 200)
     end
@@ -386,7 +401,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "returns no entries for an unknown publication", meta do
       expect_auth_authorize_admin()
 
-      conn = get(meta.conn, publication_path(meta.conn, :history, -1))
+      conn = get(meta.conn, publication_path(meta.conn, :history, 999_999))
 
       assert %{"entries" => []} = json_response(conn, 200)
     end
@@ -398,13 +413,11 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     } do
       expect_auth_authorize_admin()
 
-      {:ok, first} =
-        @publication_attrs |> Publication.Codec.nest() |> Publication.insert("a@example.com")
+      {:ok, first} = @iracema |> publication_attrs() |> Publication.insert("a@example.com")
 
       {:ok, _second} =
-        @publication_attrs
-        |> Map.put("title", "Iracema, again")
-        |> Publication.Codec.nest()
+        %{@iracema | title: "Iracema, again"}
+        |> publication_attrs()
         |> Publication.insert("b@example.com")
 
       conn = get(conn, publication_path(conn, :history))
@@ -418,12 +431,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
   describe "POST /publications/:id/history/:version/undo" do
     setup(%{conn: conn}) do
-      {:ok, publication} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert("importer@example.com")
-
-      [conn: conn, publication: publication]
+      [conn: conn, publication: publication_fixture(@iracema)]
     end
 
     defp undo_path(conn, publication, version) do
@@ -433,7 +441,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "undoes a recorded change and records the undo as its own entry", meta do
       expect_auth_authorize_admin(3)
 
-      attrs = Map.put(@publication_attrs, "title", "Iracema, revised")
+      attrs = %{@iracema | title: "Iracema, revised"}
       put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), attrs)
 
       conn = post(meta.conn, undo_path(meta.conn, meta.publication, 2))
@@ -442,22 +450,22 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, publication_path(meta.conn, :history, meta.publication.id))
       assert %{"entries" => entries} = json_response(conn, 200)
 
-      # Three entries, not one: the log grew rather than losing the update.
+      # The undo is a new entry. The update it undid stays in the history.
       assert ["updated", "updated", "created"] = Enum.map(entries, & &1["action"])
-      assert hd(entries)["snapshot"]["title"] == @publication_attrs["title"]
+      assert hd(entries)["snapshot"]["title"] == @iracema.title
       assert hd(entries)["actor"] == session_user_email()
     end
 
     test "refuses an entry that is no longer reconcilable", meta do
       expect_auth_authorize_admin(3)
 
-      first = Map.put(@publication_attrs, "title", "First")
+      first = %{@iracema | title: "First"}
       put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), first)
 
-      second = Map.put(@publication_attrs, "title", "Second")
+      second = %{@iracema | title: "Second"}
       put(meta.conn, publication_path(meta.conn, :update, meta.publication.id), second)
 
-      # Undoing the first retitle would silently discard the second.
+      # Undoing the first title change would discard the second one.
       conn = post(meta.conn, undo_path(meta.conn, meta.publication, 2))
       assert json_response(conn, 409) == %{"error" => "conflict"}
     end
@@ -472,11 +480,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
   describe "POST /publications/:id/restore" do
     setup(%{conn: conn}) do
-      {:ok, publication} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
-
+      publication = publication_fixture(@iracema)
       {:ok, _} = Publication.delete(publication.id)
 
       [conn: conn, publication: publication]
@@ -490,7 +494,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       conn = get(build_conn(), publication_path(conn, :index))
       assert %{"entries" => [entry]} = json_response(conn, 200)
-      assert entry["title"] == @publication_attrs["title"]
+      assert entry["title"] == @iracema.title
     end
 
     test "the trash lists what is currently deleted, and a restore empties it", meta do
@@ -499,7 +503,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, publication_path(meta.conn, :index_deleted))
 
       assert %{"entries" => [entry]} = json_response(conn, 200)
-      assert entry["publication"]["title"] == @publication_attrs["title"]
+      assert entry["publication"]["title"] == @iracema.title
       assert is_binary(entry["deleted_at"])
 
       conn = post(meta.conn, publication_path(meta.conn, :restore, meta.publication.id))
@@ -518,7 +522,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, publication_path(meta.conn, :index_deleted))
       assert %{"entries" => [_only_one]} = json_response(conn, 200)
 
-      # The log, by contrast, keeps every event.
+      # The history keeps both deletions.
       conn = get(meta.conn, publication_path(meta.conn, :history))
       assert %{"entries" => entries} = json_response(conn, 200)
       assert 2 == Enum.count(entries, &(&1["action"] == "deleted"))
@@ -528,10 +532,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
          meta do
       expect_auth_authorize_admin()
 
-      {:ok, twin} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
+      twin = publication_fixture(@iracema)
 
       conn = post(meta.conn, publication_path(meta.conn, :restore, meta.publication.id))
 
@@ -539,28 +540,25 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                json_response(conn, 409)
 
       assert id == twin.id
-      assert title == @publication_attrs["title"]
+      assert title == @iracema.title
     end
 
     test "a restore with changes applies them, so it no longer conflicts", meta do
       expect_auth_authorize_admin()
 
-      {:ok, _twin} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
+      publication_fixture(@iracema)
 
       conn =
         post(
           meta.conn,
           publication_path(meta.conn, :restore, meta.publication.id),
-          %{@publication_attrs | "year" => "1887"}
+          %{@iracema | year: "1887"}
         )
 
       assert response(conn, 204)
 
       assert %Publication{deleted_at: nil, year: 1887} =
-               RichardBurton.Repo.get(Publication, meta.publication.id)
+               Repo.get(Publication, meta.publication.id)
     end
 
     test "restoring a live or unknown publication is not found", meta do
@@ -574,8 +572,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   describe "GET /publications/duplicates" do
     test "offers the records that look like one publication entered twice", meta do
       expect_auth_authorize_admin()
-      insert_publication(@publication_attrs)
-      insert_publication(%{@publication_attrs | "title" => "Iraçéma the Honey-Lips"})
+      publication_fixture(@iracema)
+      publication_fixture(%{@iracema | title: "Iraçéma the Honey-Lips"})
 
       assert %{"entries" => [entry], "threshold" => threshold} =
                meta.conn
@@ -589,7 +587,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
     test "a database with nothing alike in it has nothing to review", meta do
       expect_auth_authorize_admin()
-      insert_publication(@publication_attrs)
+      publication_fixture(@iracema)
 
       assert %{"entries" => []} =
                meta.conn
@@ -601,10 +599,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   describe "POST /publications/duplicates/resemblances" do
     test "reports the stored record a row being imported resembles", meta do
       expect_auth_authorize_admin()
-      stored = insert_publication(@publication_attrs)
+      stored = publication_fixture(@iracema)
 
       rows = [
-        %{@publication_attrs | "title" => "Iracema the Honey-Lips: A Legend of Brazil"}
+        %{@iracema | title: "Iracema the Honey-Lips: A Legend of Brazil"}
       ]
 
       assert %{"entries" => [entry]} =
@@ -622,8 +620,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       expect_auth_authorize_admin()
 
       rows = [
-        @publication_attrs,
-        %{@publication_attrs | "title" => "Iracema the Honey-Lips: A Legend of Brazil"}
+        @iracema,
+        %{@iracema | title: "Iracema the Honey-Lips: A Legend of Brazil"}
       ]
 
       assert %{"entries" => entries} =
@@ -643,7 +641,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert %{"entries" => entries} =
                meta.conn
                |> post(publication_path(meta.conn, :resemblances), %{
-                 "_json" => [@publication_attrs, @publication_attrs]
+                 "_json" => [@iracema, @iracema]
                })
                |> json_response(200)
 
@@ -652,15 +650,15 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
     test "a row unlike anything is not reported at all", meta do
       expect_auth_authorize_admin()
-      insert_publication(@publication_attrs)
+      publication_fixture(@iracema)
 
       rows = [
         %{
-          @publication_attrs
-          | "title" => "Dom Casmurro",
-            "authors" => ["Helen Caldwell"],
-            "original_title" => "Dom Casmurro",
-            "original_authors" => ["Machado de Assis"]
+          @iracema
+          | title: "Dom Casmurro",
+            authors: ["Helen Caldwell"],
+            original_title: "Dom Casmurro",
+            original_authors: ["Machado de Assis"]
         }
       ]
 
@@ -674,10 +672,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   describe "POST /publications/duplicates/distinguish" do
     test "remembers the records ruled apart, so they are not offered again", meta do
       expect_auth_authorize_admin(3)
-      one = insert_publication(@publication_attrs)
-
-      other =
-        insert_publication(%{@publication_attrs | "title" => "Iraçéma the Honey-Lips"})
+      one = publication_fixture(@iracema)
+      other = publication_fixture(%{@iracema | title: "Iraçéma the Honey-Lips"})
 
       conn =
         post(meta.conn, publication_path(meta.conn, :distinguish), %{
@@ -691,7 +687,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                |> get(publication_path(meta.conn, :duplicates))
                |> json_response(200)
 
-      # Saying it again changes nothing, and does not fail.
+      # Ruling the same pair apart again succeeds and changes nothing.
       conn =
         post(meta.conn, publication_path(meta.conn, :distinguish), %{
           "publications" => [other.id, one.id]
@@ -702,7 +698,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
     test "naming fewer than two is nothing to rule apart", meta do
       expect_auth_authorize_admin(2)
-      one = insert_publication(@publication_attrs)
+      one = publication_fixture(@iracema)
 
       conn =
         post(meta.conn, publication_path(meta.conn, :distinguish), %{
@@ -718,8 +714,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "records the decision in both histories, naming the other record, and so does taking it back",
          meta do
       expect_auth_authorize_admin(4)
-      one = insert_publication(@publication_attrs)
-      other = insert_publication(%{@publication_attrs | "title" => "Iraçéma the Honey-Lips"})
+      one = publication_fixture(@iracema)
+      other = publication_fixture(%{@iracema | title: "Iraçéma the Honey-Lips"})
 
       meta.conn
       |> post(publication_path(meta.conn, :distinguish), %{"publications" => [one.id, other.id]})
@@ -756,14 +752,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
   describe "POST /publications/:id/merge" do
     setup do
-      winner = insert_publication(@publication_attrs)
-
-      loser =
-        insert_publication(%{
-          @publication_attrs
-          | "countries" => ["US"],
-            "publishers" => ["Noonday Press"]
-        })
+      winner = publication_fixture(@iracema)
+      loser = publication_fixture(%{@iracema | countries: ["US"], publishers: ["Noonday Press"]})
 
       [winner: winner, loser: loser]
     end
@@ -799,7 +789,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert %{"entries" => [entry | _]} = json_response(conn, 200)
       assert entry["action"] == "merged"
       assert entry["actor"] == session_user_email()
-      # One act, so one thing to undo — and it says what it took in, whole.
+      # The merge is one entry that can be undone, and it holds the whole
+      # publication it took in.
       assert entry["undoable"]
       assert [absorbed] = entry["absorbed"]
       assert absorbed["id"] == meta.loser.id
@@ -843,8 +834,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       })
       |> json_response(200)
 
-      # The trash never offers it, and asking for it directly is refused all
-      # the same — a restore would undo half of the merge.
+      # The absorbed publication is not listed as deleted, and restoring it is
+      # refused, because it comes back only by undoing the merge.
       conn = get(meta.conn, publication_path(meta.conn, :index_deleted))
       assert %{"entries" => []} = json_response(conn, 200)
 
@@ -905,7 +896,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       input = %{
         "_json" => [
-          Map.put(@publication_attrs, "sources", ["First source", "Second source"])
+          Map.put(@iracema, :sources, ["First source", "Second source"])
         ]
       }
 
@@ -915,7 +906,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> json_response(201)
 
       assert [%{"sources" => ["First source", "Second source"]}] = result
-      assert [%{sources: ["First source", "Second source"]}] = FlatPublication.all()
+      assert [%{sources: ["First source", "Second source"]}] = Repo.all(FlatPublication)
     end
 
     test "returns 201 and inserts publications with several countries", meta do
@@ -988,8 +979,9 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         }
       ]
 
-      assert 3 == FlatPublication.all() |> length()
-      assert ["BR", "GB", "US"] == Country.all() |> Enum.map(&Country.get_code/1)
+      assert 3 == Repo.all(FlatPublication) |> length()
+
+      assert ["BR", "GB", "US"] == Country |> Repo.all() |> Enum.map(& &1.code) |> Enum.sort()
 
       assert output ==
                Enum.map(
@@ -1075,8 +1067,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       publishers = ["Bickers & Son", "Noonday Press", "Ronald Massey"]
 
-      assert 3 == FlatPublication.all() |> length()
-      assert publishers == Publisher.all() |> Enum.map(&Publisher.get_name/1)
+      assert 3 == Repo.all(FlatPublication) |> length()
+      assert publishers == Publisher |> Repo.all() |> Enum.map(& &1.name)
 
       assert output ==
                Enum.map(
@@ -1090,7 +1082,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                )
     end
 
-    test "returns 409 when publications are repeated, and returns the first repeated one", meta do
+    test "returns 409 when publications are repeated, and names the first repeated one", meta do
       expect_auth_authorize_admin()
 
       repeated_publication = %{
@@ -1124,7 +1116,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :create_all), input)
         |> json_response(409)
 
-      assert repeated_publication == result
+      assert %{"error" => "conflict", "publication" => repeated_publication} == result
+      assert [] == Repo.all(FlatPublication)
     end
 
     test "returns 400 when a publication is invalid, and returns it with its errors", meta do
@@ -1170,6 +1163,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       input = %{"_json" => publications}
 
       output = %{
+        "error" => "invalid",
         "publication" => invalid_publication,
         "errors" => invalid_publication_errors
       }
@@ -1347,7 +1341,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   end
 
   describe "POST /publications/validate when sending incorrect csv" do
-    test "on invalid escape sequence, returns 400 with invalid_escape_sequence code", meta do
+    test "on invalid escape sequence, returns 400 naming the reason", meta do
       expect_auth_authorize_admin()
       input = uploaded_csv_fixture("test/fixtures/data_incorrect_escape_sequence.csv")
 
@@ -1356,7 +1350,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :validate), input)
         |> json_response(400)
 
-      assert "invalid_escape_sequence" = response
+      assert %{"error" => "invalid_escape_sequence"} == response
     end
   end
 
@@ -1364,12 +1358,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "returns 200 and a csv attachment with all the publications", meta do
       expect_auth_authorize_admin()
 
-      {:ok, _p} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
-
-      Publication.Index.Refresher.refresh()
+      publication_fixture(@iracema)
 
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
@@ -1389,18 +1378,13 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "joins a publication's sources into the sources cell", meta do
       expect_auth_authorize_admin()
 
-      {:ok, publication} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
+      publication = publication_fixture(@iracema)
 
-      # Attach provenance, then export.
+      # Adds sources to the publication, then exports it.
       {:ok, _} =
         Publication.update(
           publication.id,
-          @publication_attrs
-          |> Publication.Codec.nest()
-          |> Map.put("sources", Source.nest(["First source", "Second source"]))
+          publication_attrs(Map.put(@iracema, :sources, ["First source", "Second source"]))
         )
 
       conn = get(meta.conn, publication_path(meta.conn, :export))
@@ -1427,10 +1411,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
          meta do
       expect_auth_authorize_admin()
 
-      {:ok, [_p1, _p2]} =
-        [@publication_attrs, Map.put(@publication_attrs, "title", "bla")]
-        |> Publication.Codec.nest()
-        |> Publication.insert_all()
+      seed_index([@iracema, %{@iracema | title: "bla"}])
 
       search = "Honey"
 
@@ -1456,10 +1437,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "returns 200 and a csv attachment with all the matching publications", meta do
       expect_auth_authorize_admin()
 
-      {:ok, [_p1, _p2]} =
-        [@publication_attrs, Map.put(@publication_attrs, "title", "bla")]
-        |> Publication.Codec.nest()
-        |> Publication.insert_all()
+      seed_index([@iracema, %{@iracema | title: "bla"}])
 
       search = "Honey"
       attributes = [:title, :original_title, :authors]
@@ -1488,12 +1466,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
          meta do
       expect_auth_authorize_admin()
 
-      {:ok, _p} =
-        @publication_attrs
-        |> Publication.Codec.nest()
-        |> Publication.insert()
-
-      Publication.Index.Refresher.refresh()
+      publication_fixture(@iracema)
 
       attributes = [:title, :original_title, :authors]
       select = Enum.map_join(attributes, "&", &"select[]=#{&1}")
@@ -1518,10 +1491,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
   describe "PUT /publications/:id" do
     test "updates a publication and returns the flattened result", meta do
-      publication = insert_publication(@publication_attrs)
+      publication = publication_fixture(@iracema)
       expect_auth_authorize_admin()
 
-      attrs = %{@publication_attrs | "title" => "A New Title"}
+      attrs = %{@iracema | title: "A New Title"}
 
       result =
         meta.conn
@@ -1530,15 +1503,15 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert result["id"] == publication.id
       assert result["title"] == "A New Title"
-      # The change is persisted and visible through the read model.
-      assert ["A New Title"] == FlatPublication.all() |> Enum.map(& &1.title)
+      # The change is stored, and the flat publications show it.
+      assert ["A New Title"] == Repo.all(FlatPublication) |> Enum.map(& &1.title)
     end
 
     test "edits a keyed field, changing the record's identity", meta do
-      publication = insert_publication(@publication_attrs)
+      publication = publication_fixture(@iracema)
       expect_auth_authorize_admin()
 
-      attrs = %{@publication_attrs | "year" => "1999"}
+      attrs = %{@iracema | year: "1999"}
 
       result =
         meta.conn
@@ -1550,10 +1523,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
 
     test "updates the translated book when the original fields change", meta do
-      publication = insert_publication(@publication_attrs)
+      publication = publication_fixture(@iracema)
       expect_auth_authorize_admin()
 
-      attrs = %{@publication_attrs | "original_title" => "Iracema (rev.)"}
+      attrs = %{@iracema | original_title: "Iracema (rev.)"}
 
       result =
         meta.conn
@@ -1564,85 +1537,88 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
 
     test "returns 409 when the edit collides with another publication", meta do
-      a = insert_publication(@publication_attrs)
-      _b = insert_publication(%{@publication_attrs | "title" => "Another Title"})
+      a = publication_fixture(@iracema)
+      _b = publication_fixture(%{@iracema | title: "Another Title"})
       expect_auth_authorize_admin()
 
       # Editing `a` to `b`'s title collides with `b`'s composite key.
-      attrs = %{@publication_attrs | "title" => "Another Title"}
+      attrs = %{@iracema | title: "Another Title"}
 
       conn = put(meta.conn, publication_path(meta.conn, :update, a.id), attrs)
       assert json_response(conn, 409) == %{"error" => "conflict"}
     end
 
     test "re-saving the same data does not conflict with itself", meta do
-      publication = insert_publication(@publication_attrs)
+      publication = publication_fixture(@iracema)
       expect_auth_authorize_admin()
 
       conn =
-        put(meta.conn, publication_path(meta.conn, :update, publication.id), @publication_attrs)
+        put(meta.conn, publication_path(meta.conn, :update, publication.id), @iracema)
 
       assert response(conn, 200)
     end
 
     test "returns 400 for invalid data", meta do
-      publication = insert_publication(@publication_attrs)
+      publication = publication_fixture(@iracema)
       expect_auth_authorize_admin()
 
-      attrs = %{@publication_attrs | "title" => ""}
+      attrs = %{@iracema | title: "", original_authors: []}
 
       conn = put(meta.conn, publication_path(meta.conn, :update, publication.id), attrs)
-      assert response(conn, 400)
+
+      assert json_response(conn, 400) == %{
+               "errors" => %{"title" => "required", "original_authors" => "required"}
+             }
     end
 
     test "returns 404 for a missing publication", meta do
       expect_auth_authorize_admin()
 
-      conn = put(meta.conn, publication_path(meta.conn, :update, 999_999), @publication_attrs)
+      conn = put(meta.conn, publication_path(meta.conn, :update, 999_999), @iracema)
       assert response(conn, 404)
     end
 
     test "sets the publication's sources from the flat payload", meta do
-      publication = insert_publication(@publication_attrs)
+      publication = publication_fixture(@iracema)
       expect_auth_authorize_admin()
 
-      attrs = Map.put(@publication_attrs, "sources", ["First source", "Second source"])
+      attrs = Map.put(@iracema, :sources, ["First source", "Second source"])
 
       result =
         meta.conn
         |> put(publication_path(meta.conn, :update, publication.id), attrs)
         |> json_response(200)
 
-      # The flat string list round-trips: nested into child rows on the way in,
-      # flattened back to an ordered list in the response and the read model.
+      # The sources are stored as rows of their own, and come back as the same
+      # list, in order, in the response and in the flat publications.
       assert result["sources"] == ["First source", "Second source"]
 
-      assert [%{sources: ["First source", "Second source"]}] = FlatPublication.all()
+      assert [%{sources: ["First source", "Second source"]}] = Repo.all(FlatPublication)
     end
   end
 
   describe "POST /publications/:id/validate" do
     test "does not report the row being edited as a conflict", meta do
-      publication = insert_publication(@publication_attrs)
+      publication = publication_fixture(@iracema)
       expect_auth_authorize_admin()
 
       result =
         meta.conn
-        |> post(publication_path(meta.conn, :validate, publication.id), @publication_attrs)
+        |> post(publication_path(meta.conn, :validate, publication.id), @iracema)
         |> json_response(200)
 
       assert result["errors"] == nil
     end
 
     test "reports a conflict against a different publication", meta do
-      _a = insert_publication(@publication_attrs)
-      b = insert_publication(%{@publication_attrs | "title" => "Another Title"})
+      _a = publication_fixture(@iracema)
+      b = publication_fixture(%{@iracema | title: "Another Title"})
       expect_auth_authorize_admin()
 
       # Validating `b` against `a`'s data conflicts with `a`.
       result =
         meta.conn
-        |> post(publication_path(meta.conn, :validate, b.id), @publication_attrs)
+        |> post(publication_path(meta.conn, :validate, b.id), @iracema)
         |> json_response(200)
 
       assert result["errors"] == "conflict"
@@ -1652,17 +1628,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       expect_auth_authorize_admin()
 
       meta.conn
-      |> post("/api/publications/abc/validate", @publication_attrs)
+      |> post("/api/publications/abc/validate", @iracema)
       |> json_response(404)
     end
-  end
-
-  defp insert_publication(attrs) do
-    {:ok, publication} = attrs |> Publication.Codec.nest() |> Publication.insert()
-    # The index and the duplicate report read the materialized flat publications;
-    # a single insert doesn't signal the refresher, so stand in for the caller
-    # that would.
-    Publication.Index.Refresher.refresh()
-    publication
   end
 end

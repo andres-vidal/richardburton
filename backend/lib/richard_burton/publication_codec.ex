@@ -1,10 +1,32 @@
 defmodule RichardBurton.Publication.Codec do
   @moduledoc """
-  Serialization and deserialization utilities for publications
+  Converts publications between their flat and nested shapes, and reads and
+  writes them as CSV.
+
+  The **flat** shape is the one `RichardBurton.FlatPublication` has: `title`,
+  `year`, `countries`, `publishers`, `authors`, `original_title`,
+  `original_authors` and `sources`, side by side, with each list field holding
+  names, codes or source texts.
+
+  The **nested** shape is the one `RichardBurton.Publication.changeset/2`
+  casts. Its list fields hold child maps, such as `%{"name" => name}`, and the
+  translators, the original title and the original authors are inside the
+  translated book:
+
+      %{
+        "title" => title,
+        "year" => year,
+        "countries" => [%{"code" => code}],
+        "publishers" => [%{"name" => name}],
+        "sources" => [%{"content" => text, "position" => 0}],
+        "translated_book" => %{
+          "authors" => [%{"name" => name}],
+          "original_book" => %{"title" => title, "authors" => [%{"name" => name}]}
+        }
+      }
   """
 
   alias RichardBurton.Author
-  alias RichardBurton.Codec
   alias RichardBurton.Country
   alias RichardBurton.Util
   alias RichardBurton.Publication
@@ -12,6 +34,8 @@ defmodule RichardBurton.Publication.Codec do
   alias RichardBurton.Source
   alias RichardBurton.FlatPublication
 
+  # The values a row read from a file holds for the fields its file has no
+  # column for.
   @empty_flat_attrs %{
     "title" => "",
     "year" => "",
@@ -106,34 +130,36 @@ defmodule RichardBurton.Publication.Codec do
     |> Enum.to_list()
   end
 
-  # A row under the names the rest of the application uses, dropping the columns
-  # the table does not know. Header names are matched trimmed and case-folded, so
-  # a stray space or a capital does not lose a column.
-  #
-  # Values are trimmed here rather than where each is read: a title written with
-  # a trailing space is the same title, and left alone it would be a record of
-  # its own.
+  # Returns a row with its columns renamed to the flat fields `@csv_columns`
+  # maps them to, and its values trimmed, leaving out the columns it does not
+  # know. A title written with a trailing space is the same title, so the
+  # values are trimmed here, before anything compares them.
   defp rename_columns(row) do
     row
     |> Map.new(fn {column, value} -> {column_name(column), trimmed(value)} end)
     |> Map.delete(nil)
   end
 
+  # Returns the flat field a header names, matched trimmed and lowercased, or
+  # nil when it names none.
   defp column_name(column) do
     Map.get(@csv_columns, column |> to_string() |> String.trim() |> String.downcase())
   end
 
+  # Returns a string trimmed, and any other value as it is.
   defp trimmed(value) when is_binary(value), do: String.trim(value)
   defp trimmed(value), do: value
 
-  # Each multi-value cell becomes the trimmed, blank-free list the rest of the
-  # application speaks in; a column the file does not carry reads as empty.
+  # Splits each cell of the fields in `@csv_lists` into a list of trimmed
+  # values, leaving out the blank ones. A field the row does not hold becomes
+  # an empty list.
   defp parse_list_cells(row) do
     Enum.reduce(@csv_lists, row, fn {column, {separator, _}}, row ->
       Map.put(row, column, split_cell(Map.get(row, column), separator))
     end)
   end
 
+  # Returns the values of a cell, or an empty list for a missing cell.
   defp split_cell(content, separator) when is_binary(content) do
     content
     |> String.split(separator)
@@ -143,8 +169,9 @@ defmodule RichardBurton.Publication.Codec do
 
   defp split_cell(_absent, _separator), do: []
 
-  # Only a cell that is there is joined: a `select`-limited export leaves some
-  # columns out, and they must not reappear empty.
+  # Joins each list of the fields in `@csv_lists` into one cell. A field the
+  # row does not hold is left out rather than written empty, because an
+  # export of some columns leaves the others out.
   defp join_list_cells(row) do
     Enum.reduce(@csv_lists, row, fn {column, {_, separator}}, row ->
       case Map.get(row, column) do
@@ -155,10 +182,18 @@ defmodule RichardBurton.Publication.Codec do
   end
 
   @doc ~S"""
-  Nest a flat publication — a `FlatPublication` struct, a flat map, or a list of
-  them — into the shape the `Publication` changeset expects: multi-value fields
-  become child maps, and the `translated_book`/`original_book` fields are
-  re-parented under their association.
+  Nests a flat publication into the nested shape. Takes a `FlatPublication`
+  struct, a flat map with atom or string keys, or a list of either.
+
+  A map comes back with string keys. Its list fields hold child maps, and its
+  `authors`, `original_title` and `original_authors` are under
+  `translated_book`. Only the fields the map holds are written: a map without
+  `authors` gets a translated book without `"authors"`, and a map without any
+  of the three gets no translated book. Every other entry keeps its key and
+  value.
+
+  A `FlatPublication` comes back as the `Publication` struct the nested shape
+  casts to.
 
   ## Examples
 
@@ -173,6 +208,9 @@ defmodule RichardBurton.Publication.Codec do
     [%{"name" => "Helen Caldwell"}]
     iex> nested["translated_book"]["original_book"]["title"]
     "Dom Casmurro"
+
+    iex> RichardBurton.Publication.Codec.nest(%{original_title: "Iracema"})
+    %{"translated_book" => %{"original_book" => %{"title" => "Iracema"}}}
   """
   def nest(flat_publication = %FlatPublication{}) do
     attrs =
@@ -188,16 +226,31 @@ defmodule RichardBurton.Publication.Codec do
 
   def nest(flat_publication_like_map) when is_map(flat_publication_like_map) do
     flat_publication_like_map
-    |> Map.new(&(&1 |> Util.stringify_keys() |> nest_entry |> rename_key))
-    |> Codec.nest()
+    |> Util.stringify_keys()
+    |> Enum.reduce(%{}, fn entry, nested ->
+      {key, value} = nest_entry(entry)
+      put_in(nested, path_to(key), value)
+    end)
   end
 
   def nest(flat_publication_like_maps) when is_list(flat_publication_like_maps) do
     Enum.map(flat_publication_like_maps, &nest/1)
   end
 
-  # The entries whose flat value is a joined string the nested shape needs as
-  # child maps; everything else passes through unchanged.
+  # The flat fields that belong to the translated book, and the path of keys to
+  # each in the nested shape. Every other field is at the top of both shapes.
+  @book_paths %{
+    "authors" => ["translated_book", "authors"],
+    "original_title" => ["translated_book", "original_book", "title"],
+    "original_authors" => ["translated_book", "original_book", "authors"]
+  }
+
+  # The path of `Access` keys where `nest/1` writes the flat field `key`. Each
+  # key creates the map it reads from when that map is missing.
+  defp path_to(key), do: @book_paths |> Map.get(key, [key]) |> Enum.map(&Access.key(&1, %{}))
+
+  # The entries whose flat value is a list of names or codes that the nested
+  # shape holds as child maps. Every other entry is returned unchanged.
   defp nest_entry({"authors", value}),
     do: {"authors", Author.nest(value)}
 
@@ -217,11 +270,21 @@ defmodule RichardBurton.Publication.Codec do
     do: {key, value}
 
   @doc ~S"""
-  Flatten a nested publication back to flat, string-keyed fields — the inverse of
-  `nest/1`. Child lists become lists of the names or codes they hold, and the
-  `translated_book` association is lifted back to top-level `authors` /
-  `original_title` / `original_authors`. Accepts a `Publication` struct, a nested
-  map, a list, or a `%{publication:, errors:}` pair.
+  Flattens a nested publication into the flat shape, the inverse of `nest/1`.
+  Takes a `Publication` struct, a nested map with atom or string keys, a list,
+  or a `%{publication:, errors:}` pair.
+
+  A map comes back with string keys. Its list fields hold the names or codes of
+  their child maps. The translated book's `authors`, and its original book's
+  `title` and `authors`, come back as `authors`, `original_title` and
+  `original_authors`. Any other field of the translated book or the original
+  book is left out. When `translated_book` is not a map, such as the error
+  `:required`, it is kept under its own key. Every other entry keeps its key and
+  value, nested maps included.
+
+  A `Publication` struct comes back as a `FlatPublication` struct with the same
+  id. A pair comes back with its publication flattened, and with its errors
+  as `flatten_errors/1` returns them.
 
   ## Examples
 
@@ -236,13 +299,14 @@ defmodule RichardBurton.Publication.Codec do
     ...>   }
     ...> })
     %{"authors" => ["Helen Caldwell"], "original_authors" => ["Machado de Assis"], "original_title" => "Dom Casmurro", "title" => "Dom Casmurro"}
+
+    iex> RichardBurton.Publication.Codec.flatten(%{
+    ...>   translated_book: %{id: 7, original_book: %{title: "Iracema"}}
+    ...> })
+    %{"original_title" => "Iracema"}
   """
   def flatten(publication = %Publication{}) do
-    attrs =
-      publication
-      |> map_from_struct
-      |> Map.delete(:__meta__)
-      |> flatten
+    attrs = publication |> Map.from_struct() |> flatten()
 
     %FlatPublication{}
     |> FlatPublication.changeset(attrs)
@@ -250,13 +314,8 @@ defmodule RichardBurton.Publication.Codec do
     |> Ecto.Changeset.apply_changes()
   end
 
-  def flatten(%{publication: publication, errors: errors})
-      when is_nil(errors) or is_atom(errors) do
-    %{"publication" => flatten(publication), "errors" => errors}
-  end
-
   def flatten(%{publication: publication, errors: errors}) do
-    %{"publication" => flatten(publication), "errors" => flatten(errors)}
+    %{"publication" => flatten(publication), "errors" => flatten_errors(errors)}
   end
 
   def flatten(publication_like_maps) when is_list(publication_like_maps) do
@@ -264,38 +323,82 @@ defmodule RichardBurton.Publication.Codec do
   end
 
   def flatten(publication_like_map) when is_map(publication_like_map) do
-    publication_like_map |> Codec.flatten() |> Map.new(&(&1 |> rename_key |> flatten_entry))
+    publication_like_map
+    |> Util.stringify_keys()
+    |> lift_book()
+    |> Map.new(&flatten_entry/1)
   end
 
-  # The reverse: child structs rendered back as the joined strings the flat shape
-  # carries.
+  @doc """
+  Flattens the errors of a nested publication, as
+  `RichardBurton.Validation.get_errors/1` returns them, into errors by flat
+  field, the shape `RichardBurton.FlatPublication.validate/2` reports. Nil and
+  an atom, such as `:conflict`, are returned as they are.
+
+  A map comes back with string keys, and with the errors of the translated
+  book's fields under the flat names `flatten/1` gives them. The errors of a
+  list of child maps, such as the countries, become one code: the code of the
+  first child that has an error.
+
+  ## Examples
+
+      iex> RichardBurton.Publication.Codec.flatten_errors(%{
+      ...>   countries: [%{}, %{code: :alpha2}],
+      ...>   translated_book: %{original_book: %{title: :required}}
+      ...> })
+      %{"countries" => :alpha2, "original_title" => :required}
+  """
+  def flatten_errors(errors) when is_map(errors) do
+    errors
+    |> Util.stringify_keys()
+    |> lift_book()
+    |> Map.new(fn {field, error} -> {field, error_code(error)} end)
+  end
+
+  def flatten_errors(errors), do: errors
+
+  # Returns the code of a field's errors. A list holds the errors of the field's
+  # children, one map each, and an empty map for a child without errors.
+  defp error_code(children) when is_list(children) do
+    Enum.find_value(children, fn child -> child |> Map.values() |> List.first() end)
+  end
+
+  defp error_code(code), do: code
+
+  # Replaces a `translated_book` map with the flat fields `nest/1` puts inside
+  # it, as `@book_paths` lists them. A field the book does not hold is left out.
+  # A map without a `translated_book` map is returned unchanged.
+  defp lift_book(nested = %{"translated_book" => book}) when is_map(book) do
+    lifted =
+      for {key, path} <- @book_paths, {:ok, value} <- [fetch_in(nested, path)], into: %{} do
+        {key, value}
+      end
+
+    nested |> Map.delete("translated_book") |> Map.merge(lifted)
+  end
+
+  defp lift_book(nested), do: nested
+
+  # Returns `{:ok, value}` for the value at `path` in a nested map, or `:error`
+  # when the path does not reach one. Each map along the path may have atom or
+  # string keys, and may be a struct.
+  defp fetch_in(value, []), do: {:ok, value}
+
+  defp fetch_in(map, [key | path]) when is_map(map) do
+    case map |> Util.stringify_keys() |> Map.fetch(key) do
+      {:ok, value} -> fetch_in(value, path)
+      :error -> :error
+    end
+  end
+
+  defp fetch_in(_value, _path), do: :error
+
+  # The reverse of `nest_entry/1`: child maps or structs as the names or codes
+  # they hold.
   defp flatten_entry({"authors", value}), do: {"authors", Author.flatten(value)}
   defp flatten_entry({"original_authors", value}), do: {"original_authors", Author.flatten(value)}
   defp flatten_entry({"countries", value}), do: {"countries", Country.flatten(value)}
   defp flatten_entry({"publishers", value}), do: {"publishers", Publisher.flatten(value)}
   defp flatten_entry({"sources", value}), do: {"sources", Source.flatten(value)}
   defp flatten_entry({key, value}), do: {key, value}
-
-  # Translates between the flat names a client uses and the nested paths the
-  # schema stores them under. The two directions are separate clauses on the same
-  # function, so each name is written once per direction.
-  defp rename_key({"translated_book_authors", v}), do: {"authors", v}
-  defp rename_key({"translated_book_original_book_title", v}), do: {"original_title", v}
-  defp rename_key({"translated_book_original_book_authors", v}), do: {"original_authors", v}
-
-  defp rename_key({"authors", v}), do: {"translated_book_authors", v}
-  defp rename_key({"original_title", v}), do: {"translated_book_original_book_title", v}
-  defp rename_key({"original_authors", v}), do: {"translated_book_original_book_authors", v}
-
-  defp rename_key({key, value}), do: {key, value}
-
-  # A struct as a plain map, recursively, so a loaded record can be compared and
-  # encoded without its Ecto metadata.
-  defp map_from_struct(struct) when is_struct(struct) do
-    struct
-    |> Map.from_struct()
-    |> Map.new(fn {key, value} -> {key, map_from_struct(value)} end)
-  end
-
-  defp map_from_struct(value), do: value
 end
