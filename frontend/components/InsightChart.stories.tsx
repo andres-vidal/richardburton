@@ -18,7 +18,6 @@ const custom = (fields: Partial<Description>): Description => ({
   by: "year",
   split: null,
   form: "columns",
-  first: false,
   top: null,
   least: null,
   ...fields,
@@ -212,7 +211,7 @@ export const Countries: Story = {
  */
 export const NewWorks: Story = {
   args: {
-    description: custom({ count: "works", first: true }),
+    description: custom({ count: "works" }),
     drawn: CHARTS.worksByYear,
   },
   play: async ({ canvasElement }) => {
@@ -234,7 +233,7 @@ export const NewWorks: Story = {
 /** The running total of works, each counted in the year it first appears. */
 export const RunningTotal: Story = {
   args: {
-    description: custom({ count: "works", form: "running", first: true }),
+    description: custom({ count: "works", form: "running" }),
     drawn: CHARTS.worksByYear,
   },
   play: async ({ canvasElement }) => {

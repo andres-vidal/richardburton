@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  countsFirst,
   cumulative,
   isTime,
   presetOf,
@@ -58,7 +59,9 @@ const NAMED = 3;
 
 /**
  * A chart of `drawn`, in the form `description` names, or a table of its
- * counts when `view` is `"table"`. Each form is drawn by its component:
+ * counts when `view` is `"table"`, in an `InsightSection` with the chart's
+ * title and hint, and `actions` at the end of its title row. Each form is
+ * drawn by its component:
  *
  * - columns and shares over time: `InsightColumns`;
  * - lines, stacked areas and running totals: `InsightLines`;
@@ -77,7 +80,6 @@ const NAMED = 3;
  * or translator as the detail. Under the chart, it says how many groups `top`
  * left out. When there are no groups, it shows a message in the chart's place.
  *
- * `actions` are shown at the end of the chart's title row, whatever the form.
  * The component reads the map's outlines from the nearest `WorldMapProvider`.
  */
 const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
@@ -85,7 +87,8 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
   const naming = useCountryNaming();
   const format = useFormatter();
   const map = useWorldMap();
-  const { count, by, split, form, first } = description;
+  const { count, by, split, form } = description;
+  const first = countsFirst(description);
   const preset = presetOf(description);
 
   const base = split
@@ -189,8 +192,6 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
     columns: () => (
       <InsightColumns
         title={title}
-        hint={hint}
-        actions={actions}
         heading={heading}
         series={series}
         columns={timed}
@@ -199,8 +200,6 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
     lines: () => (
       <InsightLines
         title={title}
-        hint={hint}
-        actions={actions}
         heading={heading}
         series={series}
         points={timed}
@@ -209,8 +208,6 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
     area: () => (
       <InsightLines
         title={title}
-        hint={hint}
-        actions={actions}
         heading={heading}
         series={series}
         points={timed}
@@ -220,8 +217,6 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
     running: () => (
       <InsightLines
         title={title}
-        hint={hint}
-        actions={actions}
         heading={heading}
         series={series}
         points={cumulative(timed)}
@@ -232,8 +227,6 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
       isTime(by) ? (
         <InsightColumns
           title={title}
-          hint={hint}
-          actions={actions}
           heading={heading}
           series={series}
           columns={timed}
@@ -242,8 +235,6 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
       ) : (
         <InsightStacks
           title={title}
-          hint={hint}
-          actions={actions}
           heading={heading}
           series={series}
           rows={rows}
@@ -254,17 +245,12 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
       series.length > 1 ? (
         <InsightStacks
           title={title}
-          hint={hint}
-          actions={actions}
           heading={heading}
           series={series}
           rows={rows}
         />
       ) : (
         <InsightBars
-          title={title}
-          hint={hint}
-          actions={actions}
           bars={rows.map(({ key, label, detail, total }) => ({
             key,
             label,
@@ -276,8 +262,6 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
     heat: () => (
       <InsightHeat
         title={title}
-        hint={hint}
-        actions={actions}
         heading={heading}
         rows={drawn.groups.map((group, index) => ({
           ...rows[index],
@@ -291,9 +275,6 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
     ),
     timeline: () => (
       <InsightTimeline
-        title={title}
-        hint={hint}
-        actions={actions}
         tracks={drawn.groups.map((group, index) => ({
           ...rows[index],
           value: t(`builder.counted.${count}`, { count: group.total }),
@@ -307,9 +288,6 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
     ),
     map: () => (
       <InsightMap
-        title={title}
-        hint={hint}
-        actions={actions}
         map={map}
         countries={drawn.groups.map((group, index) => ({
           code: String(group.key),
@@ -322,12 +300,10 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
 
   return (
     <div className="space-y-2">
-      {drawn.groups.length === 0 ? (
-        <InsightSection title={title} hint={hint} actions={actions}>
+      <InsightSection title={title} hint={hint} actions={actions}>
+        {drawn.groups.length === 0 ? (
           <p className="text-sm text-gray-600">{t("builder.empty")}</p>
-        </InsightSection>
-      ) : view === "table" ? (
-        <InsightSection title={title} hint={hint} actions={actions}>
+        ) : view === "table" ? (
           <InsightTable
             title={title}
             heading={heading}
@@ -335,10 +311,10 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
             rows={form === "running" ? cumulative(rows) : rows}
             shown
           />
-        </InsightSection>
-      ) : (
-        forms[form]()
-      )}
+        ) : (
+          forms[form]()
+        )}
+      </InsightSection>
       {drawn.hidden > 0 ? (
         <p className="text-xs text-gray-600">
           {t("builder.hidden", { count: drawn.hidden })}

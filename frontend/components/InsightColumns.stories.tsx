@@ -1,23 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { decades, years } from "test/charts";
 import { CHARTS } from "test/insights-fixtures";
 import { expect, within } from "storybook/test";
 
 import InsightColumns from "./InsightColumns";
 
 // The publications of each year in the fixtures, by country.
-const YEARS = CHARTS.perYear.groups.map(({ key, counts }) => ({
-  at: key as number,
-  label: String(key),
-  counts,
-}));
-
-// Returns the groups of a chart by decade as columns.
-const decades = (groups: (typeof CHARTS)["byDecade"]["groups"]) =>
-  groups.map(({ key, counts }) => ({
-    at: key as number,
-    label: `${key}s`,
-    counts,
-  }));
+const YEARS = years(CHARTS.perYear.groups);
 
 const meta = {
   title: "Insights/Insight columns",
@@ -40,15 +29,12 @@ type Story = StoryObj<typeof meta>;
  * States, in the United Kingdom and elsewhere. Years with none have no column
  * drawn, and the tallest column reaches the dashed line, labelled with its
  * total. Hovering a column shows its year, its total and its count in each
- * series, and the play test checks the text it shows.
+ * series. The play test reads the table named by the title, and checks the
+ * text that hovering shows.
  */
 export const Years: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-
-    await expect(
-      canvas.getByRole("region", { name: "Publications per year" }),
-    ).toBeInTheDocument();
 
     // The table has a row for each year, after its header row.
     const table = canvas.getByRole("table", { name: "Publications per year" });

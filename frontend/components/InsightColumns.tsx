@@ -1,10 +1,10 @@
 "use client";
 
-import { tickOf, total } from "modules/insights";
+import { total } from "modules/insights";
 import { useFormatter } from "next-intl";
-import { CSSProperties, FC, ReactNode } from "react";
+import { CSSProperties, FC } from "react";
+import InsightAxis from "./InsightAxis";
 import InsightLegend from "./InsightLegend";
-import InsightSection from "./InsightSection";
 import InsightTable from "./InsightTable";
 
 /** One column, a year or a decade. */
@@ -18,11 +18,8 @@ type Column = {
 };
 
 type Props = {
+  /** The caption of the table of counts, which is the title of the chart. */
   title: string;
-  /** What the chart shows, in a tooltip beside the title. */
-  hint?: string;
-  /** Controls shown at the end of the title's row. */
-  actions?: ReactNode;
   /** The heading of the table's first column, such as "Year". */
   heading: string;
   /** The name of each series, in the order they are stacked from the bottom. */
@@ -37,15 +34,12 @@ type Props = {
 };
 
 /**
- * A titled column chart with one column for each year or decade in `columns`.
- * Each column stacks its series from the bottom, and its height is the sum of
- * its counts as a fraction of the largest sum, which is written at the top of
- * the chart. With `shares`, every column is full height, and each series takes
- * its share of the column's sum.
- *
- * Years divisible by 20 are labelled under the chart, and the other decades
- * too on wider screens (see `tickOf`). A label under the first or last column
- * is aligned inwards, so it stays inside the chart.
+ * A column chart with one column for each year or decade in `columns`. Each
+ * column stacks its series from the bottom, and its height is the sum of its
+ * counts as a fraction of the largest sum, which is written at the top of the
+ * chart. With `shares`, every column is full height, and each series takes its
+ * share of the column's sum. The chart is drawn on an `InsightAxis`, which
+ * labels the columns.
  *
  * Hovering a column shows its label, its total, and its count in each series
  * where that count is above 0, with its share when `shares` is set. The chart
@@ -54,8 +48,6 @@ type Props = {
  */
 const InsightColumns: FC<Props> = ({
   title,
-  hint,
-  actions,
   heading,
   series,
   columns,
@@ -69,16 +61,16 @@ const InsightColumns: FC<Props> = ({
     format.number(count / Math.max(1, total(counts)), { style: "percent" });
 
   return (
-    <InsightSection title={title} hint={hint} actions={actions}>
+    <div className="space-y-3">
       {series.length > 1 ? <InsightLegend series={series} /> : null}
-      <div aria-hidden className="pt-5">
-        <div className="relative flex gap-px items-end h-48 border-b border-gray-300">
-          <span className="absolute inset-x-0 top-0 border-t border-dashed border-gray-300" />
-          <span className="absolute left-0 -top-5 text-xs text-gray-600 tabular-nums">
-            {shares
-              ? format.number(1, { style: "percent" })
-              : format.number(most)}
-          </span>
+      <InsightAxis
+        ats={columns.map(({ at }) => at)}
+        top={
+          shares ? format.number(1, { style: "percent" }) : format.number(most)
+        }
+        spaced
+      >
+        <div className="flex gap-px items-end h-full">
           {columns.map(({ at, label, counts }) => (
             <div
               key={at}
@@ -108,19 +100,7 @@ const InsightColumns: FC<Props> = ({
             </div>
           ))}
         </div>
-        <div className="flex gap-px h-5">
-          {columns.map(({ at }) => (
-            <span key={at} className="relative flex-1 min-w-0 group/column">
-              <span
-                data-tick={tickOf(at)}
-                className="hidden absolute top-1 text-xs text-gray-600 tabular-nums data-[tick=major]:block md:data-[tick=minor]:block absolute-center-x group-first/column:left-0 group-first/column:translate-x-0 group-last/column:left-auto group-last/column:right-0 group-last/column:translate-x-0"
-              >
-                {at}
-              </span>
-            </span>
-          ))}
-        </div>
-      </div>
+      </InsightAxis>
       <InsightTable
         title={title}
         heading={heading}
@@ -131,7 +111,7 @@ const InsightColumns: FC<Props> = ({
           counts,
         }))}
       />
-    </InsightSection>
+    </div>
   );
 };
 

@@ -6,25 +6,24 @@ import * as InsightHeatStories from "./InsightHeat.stories";
 
 # Insight heat
 
-A titled table with a row for each group, such as an author, and a column for
-every decade from the earliest cell to the latest, drawn in an
-[Insight section](?path=/docs/insights-insight-section--docs). Each cell shows
-its count and is shaded by it.
+A table with a row for each group, such as an author, and a column for every
+decade from the earliest cell to the latest. Each cell shows its count and is
+shaded by it.
 
 <Canvas of={InsightHeatStories.AuthorsByDecade} />
 
 ## Props
 
-- `title` — the heading of the table, and the accessible name of the section
-  around it and of the table.
-- `hint` — an optional explanation of what the table shows, in an
-  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
-- `actions` — optional controls shown at the end of the title's row, such
-  as a chart's settings.
+- `title` — the table's caption, which is the title of the chart, and so the
+  table's accessible name.
 - `heading` — the heading of the first column, such as "Original author".
 - `rows` — the groups, each with a `key`, a `label`, an optional `detail`, and
   its `cells`. Each cell has `at`, the first year of its decade, its `total`,
   and a `label` that says what it counts.
+
+The columns are every decade between the earliest and the latest cell, as
+`decadesBetween` in `modules/insights` lists them, so a decade no row has a
+count in still has its column.
 
 ## Shades
 

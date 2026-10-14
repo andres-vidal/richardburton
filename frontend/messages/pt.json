@@ -184,12 +184,7 @@
         "country": "dividido por país"
       },
       "formOption": "como {form}",
-      "topOptions": {
-        "10": "10 primeiros",
-        "20": "20 primeiros",
-        "50": "50 primeiros",
-        "all": "Todos"
-      },
+      "topOption": "{top, plural, =0 {Todos} other {# primeiros}}",
       "leastOption": "{least, plural, =0 {Qualquer tamanho} other {Pelo menos #}}"
     }
   },

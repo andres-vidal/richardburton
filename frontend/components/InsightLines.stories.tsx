@@ -1,17 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { cumulative } from "modules/chart";
+import { years } from "test/charts";
 import { CHARTS } from "test/insights-fixtures";
 import { expect, within } from "storybook/test";
 
 import InsightLines from "./InsightLines";
-
-// Returns the groups of a chart by year as points.
-const years = (groups: (typeof CHARTS)["perYear"]["groups"]) =>
-  groups.map(({ key, counts }) => ({
-    at: key as number,
-    label: String(key),
-    counts,
-  }));
 
 const meta = {
   title: "Insights/Insight lines",

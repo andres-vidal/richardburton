@@ -7,7 +7,6 @@ const meta = {
   title: "Insights/Insight bars",
   component: InsightBars,
   args: {
-    title: "Most translated authors",
     bars: [
       { key: "cl", label: "Clarice Lispector", count: 35 },
       { key: "pc", label: "Paulo Coelho", count: 35 },
@@ -31,17 +30,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Names and their counts, in the order given. The largest count has a
- * full-length bar, and the other bars are sized relative to it.
+ * The most translated authors and their counts, in the order given. The
+ * largest count has a full-length bar, and the other bars are sized relative
+ * to it. The play test checks that each item reads its label and count.
  */
 export const Names: Story = {
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const list = canvas.getByRole("list");
+    const list = within(canvasElement).getByRole("list");
 
-    await expect(
-      canvas.getByRole("region", { name: "Most translated authors" }),
-    ).toContainElement(list);
     await expect(within(list).getAllByRole("listitem")[2]).toHaveTextContent(
       "Machado de Assis24",
     );
@@ -54,7 +50,6 @@ export const Names: Story = {
  */
 export const WithNothingCounted: Story = {
   args: {
-    title: "Publications by decade",
     bars: [
       { key: "1880", label: "1880s", count: 3 },
       { key: "1890", label: "1890s", count: 0 },
@@ -76,7 +71,6 @@ export const WithNothingCounted: Story = {
  */
 export const WithDetails: Story = {
   args: {
-    title: "Most frequent author–translator pairs",
     bars: [
       {
         key: "pc",

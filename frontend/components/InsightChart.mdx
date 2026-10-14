@@ -7,7 +7,9 @@ import * as InsightChartStories from "./InsightChart.stories";
 # Insight chart
 
 A chart of the counts `GET /insights` returns, in the form its description
-names, or a table of the same counts.
+names, or a table of the same counts. The component renders either one in an
+[Insight section](?path=/docs/insights-insight-section--docs), headed by the
+chart's title and hint.
 
 <Canvas of={InsightChartStories.PerYear} />
 
@@ -19,8 +21,8 @@ names, or a table of the same counts.
   groups `top` left out.
 - `view` — `"chart"` to draw the chart, or `"table"` to show its counts in an
   [Insight table](?path=/docs/insights-insight-table--docs).
-- `actions` — controls shown at the end of the chart's title row, whatever
-  the form.
+- `actions` — controls shown at the end of the section's title row, whatever
+  the form or view.
 
 ## Forms
 

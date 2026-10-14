@@ -12,6 +12,7 @@ import {
   groups,
   isCut,
   normalize,
+  oneOf,
   presetOf,
   splits,
   splitsBy,
@@ -145,16 +146,12 @@ const ChartBuilder: FC<Props> = ({ description, drawn }) => {
         control="top"
         label={t("labels.top")}
         disabled={!isCut(shown)}
-        value={String(shown.top ?? "all")}
-        options={[
-          ...TOPS.map(
-            (top) => [String(top), t(`topOptions.${top}`)] as [string, string],
-          ),
-          ["all", t("topOptions.all")],
-        ]}
-        onChange={(top) =>
-          change({ top: TOPS.find((each) => String(each) === top) ?? null })
-        }
+        value={String(shown.top ?? 0)}
+        options={[...TOPS, 0].map((top) => [
+          String(top),
+          t("topOption", { top }),
+        ])}
+        onChange={(top) => change({ top: oneOf(TOPS, top) ?? null })}
       />
       <Choice
         control="least"
@@ -165,11 +162,7 @@ const ChartBuilder: FC<Props> = ({ description, drawn }) => {
           String(least),
           t("leastOption", { least }),
         ])}
-        onChange={(least) =>
-          change({
-            least: LEASTS.find((each) => String(each) === least) ?? null,
-          })
-        }
+        onChange={(least) => change({ least: oneOf(LEASTS, least) ?? null })}
       />
       <span role="group" aria-label={t("view")} className="flex gap-1">
         {(["chart", "table"] as const).map((each) => (
@@ -244,7 +237,7 @@ const ChartBuilder: FC<Props> = ({ description, drawn }) => {
               ),
             ]}
             onChange={(split) =>
-              change({ split: SPLITS.find((each) => each === split) ?? null })
+              change({ split: oneOf(SPLITS, split) ?? null })
             }
           />
           <Choice

@@ -78,7 +78,7 @@ export const ChoosingAPreset: Story = {
     await pick(canvasElement, "Preset", "Works translated more than once");
 
     await expect(getRouter().replace).toHaveBeenLastCalledWith(
-      "/insights?count=translations&by=work&form=timeline&first=true&top=10&least=2",
+      "/insights?count=translations&by=work&form=timeline&top=10&least=2",
       { scroll: false },
     );
   },
@@ -155,7 +155,7 @@ export const Map: Story = {
     await pick(canvasElement, "What to count", "Works");
 
     await expect(getRouter().replace).toHaveBeenLastCalledWith(
-      "/insights?count=works&by=year&form=columns&first=true",
+      "/insights?count=works&by=year&form=columns",
       { scroll: false },
     );
   },
@@ -173,7 +173,6 @@ export const OtherCounts: Story = {
       by: "year",
       split: null,
       form: "running",
-      first: true,
       top: null,
       least: null,
     },

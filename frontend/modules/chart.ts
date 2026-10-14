@@ -14,8 +14,8 @@
  * publications take every grouping, split and form, while the other counts
  * are grouped only by the names `GROUPINGS_OF` lists for them, take no split,
  * and are placed in time only at their **first appearance**: the year of
- * their earliest publication. `normalize` keeps a description to these
- * combinations, and to the ones the forms can draw.
+ * their earliest publication (see `countsFirst`). `normalize` keeps a
+ * description to these combinations, and to the ones the forms can draw.
  */
 
 const COUNTS = [
@@ -71,11 +71,6 @@ type Description = {
   /** The series, or null for one series. */
   split: Split | null;
   form: Form;
-  /**
-   * Whether each item is counted at its first appearance only. `normalize`
-   * sets it for every count other than publications that is placed in time.
-   */
-  first: boolean;
   /** How many ranked groups to keep, or null to keep them all. */
   top: number | null;
   /** The fewest items a ranked group needs, or null for any number. */
@@ -165,11 +160,16 @@ const overOf = (form: Form) =>
   form === "timeline" ? "year" : form === "heat" ? "decade" : undefined;
 
 /**
- * Returns whether a description has a time to place a first appearance in:
- * groups by time, or a form that counts each group in steps of time.
+ * Returns whether a description counts each item at its first appearance only:
+ * it counts something other than publications, and places it in time by its
+ * groups or by a form that counts each group in steps of time.
  */
-const isTimed = ({ by, form }: Pick<Description, "by" | "form">) =>
-  isTime(by) || overOf(form) !== undefined;
+const countsFirst = ({
+  count,
+  by,
+  form,
+}: Pick<Description, "count" | "by" | "form">) =>
+  count !== "publications" && (isTime(by) || overOf(form) !== undefined);
 
 /**
  * The groupings each count other than publications is grouped by: a year or a
@@ -208,8 +208,6 @@ const splitsBy = ({ count, by }: Subject, split: Split) =>
  * - A form that cannot draw the grouping and the count becomes their default
  *   form, and shares without a split become the default form too.
  * - A form that draws no series drops the split.
- * - A count other than publications is counted at first appearances whenever
- *   it is placed in time, and no description counts them otherwise.
  * - A description that keeps all its groups drops `top` and `least` (see
  *   `isCut`).
  */
@@ -225,14 +223,12 @@ function normalize(description: Description): Description {
     : defaultForm({ count, by });
   const form =
     chosen === "shares" && !split ? defaultForm({ count, by }) : chosen;
-  const timed = isTimed({ by, form });
 
   return {
     count,
     by,
     split: splits(form) ? split : null,
     form,
-    first: count !== "publications" && timed,
     top: isCut({ by, form }) ? description.top : null,
     least: isCut({ by, form }) ? description.least : null,
   };
@@ -277,7 +273,6 @@ const PRESETS = [
       count: "original_authors",
       by: "decade",
       form: "bars",
-      first: true,
     },
   },
   {
@@ -299,7 +294,6 @@ const PRESETS = [
       count: "translations",
       by: "work",
       form: "timeline",
-      first: true,
       top: 10,
       least: 2,
     },
@@ -321,7 +315,6 @@ const PRESETS = [
   name,
   description: {
     split: null,
-    first: false,
     top: null,
     least: null,
     ...description,
@@ -339,15 +332,7 @@ const presetOf = (description: Description): Preset | undefined =>
   );
 
 /** The query parameters of the insights page that describe the chart. */
-const PARAMS = [
-  "count",
-  "by",
-  "split",
-  "form",
-  "first",
-  "top",
-  "least",
-] as const;
+const PARAMS = ["count", "by", "split", "form", "top", "least"] as const;
 
 /** Returns `value` when it is one of `values`, and undefined otherwise. */
 function oneOf<T extends string | number>(
@@ -383,7 +368,6 @@ function parseDescription(
     by,
     split: oneOf(SPLITS, read("split")) ?? null,
     form: oneOf(FORMS, read("form")) ?? defaultForm({ by, count }),
-    first: read("first") === "true",
     top: oneOf(TOPS, read("top")) ?? null,
     least: oneOf(LEASTS, read("least")) ?? null,
   });
@@ -391,17 +375,16 @@ function parseDescription(
 
 /**
  * Returns the query parameters that describe `description`, leaving out a
- * split, `first`, `top` and `least` when they are not set.
+ * split, `top` and `least` when they are not set.
  */
 function descriptionParams(description: Description): Record<string, string> {
-  const { count, by, split, form, first, top, least } = description;
+  const { count, by, split, form, top, least } = description;
 
   return {
     count,
     by,
     ...(split ? { split } : {}),
     form,
-    ...(first ? { first: "true" } : {}),
     ...(top ? { top: String(top) } : {}),
     ...(least ? { least: String(least) } : {}),
   };
@@ -409,8 +392,9 @@ function descriptionParams(description: Description): Record<string, string> {
 
 /** Returns the parameters of `GET /insights` that ask for `description`. */
 function chartParams(description: Description): ChartParams {
-  const { count, by, split, form, first, top, least } = description;
+  const { count, by, split, form, top, least } = description;
   const over = overOf(form);
+  const first = countsFirst(description);
 
   return {
     count,
@@ -447,26 +431,24 @@ function cumulative<Row extends { counts: number[] }>(rows: Row[]): Row[] {
 
 export {
   COUNTS,
-  FORMS,
   GROUPINGS,
   LEASTS,
   PRESETS,
   SPLITS,
   TOPS,
   chartParams,
+  countsFirst,
   cumulative,
   descriptionParams,
   formsFor,
   groups,
   isCut,
-  isRanked,
   isTime,
-  isTimed,
   normalize,
-  overOf,
+  oneOf,
   parseDescription,
   presetOf,
   splits,
   splitsBy,
 };
-export type { ChartParams, Count, Description, Form, Grouping, Preset, Split };
+export type { ChartParams, Description, Form, Preset, Split };
