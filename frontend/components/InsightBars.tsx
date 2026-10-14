@@ -1,11 +1,13 @@
 import { useFormatter } from "next-intl";
-import { CSSProperties, FC } from "react";
+import { CSSProperties, FC, ReactNode } from "react";
 import InsightSection from "./InsightSection";
 
 type Props = {
   title: string;
   /** What the list shows, in a tooltip beside the title. */
   hint?: string;
+  /** Controls shown at the end of the title's row. */
+  actions?: ReactNode;
   /** The items, in the order they are listed. */
   bars: {
     key: string;
@@ -25,12 +27,12 @@ type Props = {
  * The bars are hidden from assistive technology, which reads the label and the
  * count instead.
  */
-const InsightBars: FC<Props> = ({ title, hint, bars }) => {
+const InsightBars: FC<Props> = ({ title, hint, actions, bars }) => {
   const format = useFormatter();
   const most = Math.max(1, ...bars.map(({ count }) => count));
 
   return (
-    <InsightSection title={title} hint={hint}>
+    <InsightSection title={title} hint={hint} actions={actions}>
       <ol className="space-y-2">
         {bars.map(({ key, label, detail, count }) => (
           <li

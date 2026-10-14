@@ -51,6 +51,16 @@ const OptionContent: FC<{ option: Option | string }> = ({ option }) =>
     <>{option.label}</>
   );
 
+/**
+ * A list of `options` that floats under `children`, its trigger, while
+ * `isOpen`. The arrow keys move `activeIndex` through the list, and Escape or a
+ * click outside closes it. Clicking an option closes the list and calls
+ * `onSelect` with it.
+ *
+ * Pressing on an option does not move focus off the trigger. When the list
+ * closes, its focus manager returns focus to the trigger, which already has
+ * it, so a trigger that opens the list on focus does not open it again.
+ */
 const MenuProvider = <OptionType extends Option | string>({
   children,
   options,
@@ -150,6 +160,7 @@ const MenuProvider = <OptionType extends Option | string>({
                     }}
                     selected={activeIndex === index}
                     {...getItemProps({
+                      onMouseDown: (event) => event.preventDefault(),
                       onClick: () => {
                         setIsOpen(false);
                         onSelect(option);

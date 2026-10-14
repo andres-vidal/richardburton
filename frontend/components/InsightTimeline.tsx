@@ -1,5 +1,5 @@
 import { tickOf } from "modules/insights";
-import { CSSProperties, FC } from "react";
+import { CSSProperties, FC, ReactNode } from "react";
 import InsightSection from "./InsightSection";
 
 /** A dot on a row, at a year. */
@@ -30,6 +30,8 @@ type Props = {
   title: string;
   /** What the chart shows, in a tooltip beside the title. */
   hint?: string;
+  /** Controls shown at the end of the title's row. */
+  actions?: ReactNode;
   tracks: Track[];
 };
 
@@ -47,7 +49,7 @@ const decade = (year: number) => Math.floor(year / 10) * 10;
  * Hovering a dot shows its mark's label. The tracks are hidden from assistive
  * technology, which reads each row's label, value and the labels of its marks.
  */
-const InsightTimeline: FC<Props> = ({ title, hint, tracks }) => {
+const InsightTimeline: FC<Props> = ({ title, hint, actions, tracks }) => {
   const years = tracks.flatMap(({ marks }) => marks.map(({ year }) => year));
   const first = decade(Math.min(...years));
   const last = decade(Math.max(...years)) + 10;
@@ -66,7 +68,7 @@ const InsightTimeline: FC<Props> = ({ title, hint, tracks }) => {
   );
 
   return (
-    <InsightSection title={title} hint={hint}>
+    <InsightSection title={title} hint={hint} actions={actions}>
       <ol className="space-y-3 sm:space-y-2">
         {tracks.map(({ key, label, detail, value, marks }) => (
           <li

@@ -51,3 +51,30 @@ export const WithoutHint: Story = {
     await expect(within(canvasElement).queryByRole("button")).toBeNull();
   },
 };
+
+/**
+ * Actions at the end of the title's row, such as a chart's settings. They are
+ * part of the section, outside its heading, so the section is still named by
+ * its title alone.
+ */
+export const WithActions: Story = {
+  args: {
+    actions: (
+      <button
+        type="button"
+        className="py-1 px-2 text-sm rounded border border-gray-300"
+      >
+        Table
+      </button>
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const section = within(canvasElement).getByRole("region", {
+      name: "Publications by decade",
+    });
+
+    await expect(
+      within(section).getByRole("button", { name: "Table" }),
+    ).toBeInTheDocument();
+  },
+};

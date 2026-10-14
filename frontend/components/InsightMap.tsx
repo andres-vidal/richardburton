@@ -2,7 +2,7 @@
 
 import type { WorldMap } from "modules/world-map";
 import { useFormatter, useTranslations } from "next-intl";
-import { FC, memo, useMemo, useState } from "react";
+import { FC, memo, useMemo, useState, ReactNode } from "react";
 import InsightSection from "./InsightSection";
 
 /** A country with its name and its number of publications. */
@@ -12,6 +12,8 @@ type Props = {
   title: string;
   /** What the map shows, in a tooltip beside the title. */
   hint?: string;
+  /** Controls shown at the end of the title's row. */
+  actions?: ReactNode;
   /** The outlines to draw, from `worldMap`. */
   map: WorldMap;
   /** The countries with publications, in the order they are listed. */
@@ -91,7 +93,7 @@ const Outline = memo(function Outline({
  *
  * The map is hidden from assistive technology, which reads the list.
  */
-const InsightMap: FC<Props> = ({ title, hint, map, countries }) => {
+const InsightMap: FC<Props> = ({ title, hint, actions, map, countries }) => {
   const t = useTranslations("insights");
   const format = useFormatter();
   const [active, setActive] = useState<string | null>(null);
@@ -117,7 +119,7 @@ const InsightMap: FC<Props> = ({ title, hint, map, countries }) => {
   }, [map, countries, format]);
 
   return (
-    <InsightSection title={title} hint={hint}>
+    <InsightSection title={title} hint={hint} actions={actions}>
       <div className="grid gap-6 items-start lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
         <div aria-hidden className="space-y-2">
           <svg

@@ -153,3 +153,53 @@ export const SelectsHighlightedOption: Story = {
     await expect(input).toHaveFocus();
   },
 };
+
+/**
+ * Clicking an option selects it and closes the menu. Focus stays in the input,
+ * so the menu does not open again when its focus manager returns focus on
+ * close. The play test checks that the input shows the option and the menu
+ * stays closed, and that clicking the input again opens it.
+ */
+export const SelectsClickedOption: Story = {
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ args, canvasElement }) => {
+    const input = within(canvasElement).getByRole("combobox");
+
+    await userEvent.click(input);
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Angola" }),
+    );
+
+    await expect(args.onChange).toHaveBeenCalledWith({
+      id: "3",
+      label: "Angola",
+    });
+    await waitFor(() => expect(input).toHaveValue("Angola"));
+    await expect(input).toHaveFocus();
+    await expect(input).toHaveAttribute("aria-expanded", "false");
+    await expect(screen.queryByRole("option")).toBeNull();
+
+    await userEvent.click(input);
+    await expect(
+      await screen.findByRole("option", { name: "Brazil" }),
+    ).toBeInTheDocument();
+  },
+};
+
+/**
+ * A disabled select shows its option but cannot be opened, from the input or
+ * from the chevron.
+ */
+export const Disabled: Story = {
+  args: { value: { id: "1", label: "Brazil" }, disabled: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByRole("combobox")).toBeDisabled();
+    await expect(
+      canvas.getByRole("button", { name: "Show options" }),
+    ).toBeDisabled();
+  },
+};
