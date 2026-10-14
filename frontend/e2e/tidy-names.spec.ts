@@ -55,6 +55,19 @@ test("an admin folds two spellings of a publisher into one", async ({
   await expect(
     page.getByLabel("Name, currently Noonday", { exact: true }),
   ).toBeVisible();
+
+  // The rename is in the history of each of the three publications, under the
+  // admin who made it. It has no undo of its own: the name is changed back
+  // here, in Names.
+  await page.goto("/admin/publications/history");
+  const renamed = page.locator('li[data-action="renamed"]');
+  await expect(renamed).toHaveCount(3);
+  for (const entry of await renamed.all()) {
+    await expect(entry).toContainText("Publishers: Noonday Press → Noonday");
+    await expect(entry).toContainText("by dev-admin@localhost");
+    await expect(entry).toContainText("A name was changed in Names");
+  }
+  await expect(renamed.getByRole("button", { name: "Undo" })).toHaveCount(0);
 });
 
 test("renaming onto a name already taken folds the two together", async ({
@@ -130,6 +143,12 @@ test("renaming onto a name already taken folds the two together", async ({
   // One name is left, with both publications.
   await expect(names(page)).toHaveCount(1);
   await expect(names(page)).toContainText("2 publications");
+
+  // Only the publication that moved to the kept spelling records the change.
+  await page.goto("/admin/publications/history");
+  await expect(page.locator('li[data-action="renamed"]')).toHaveText([
+    /“Iracema”[\s\S]*Publishers: Penguin books → Penguin Books/,
+  ]);
 });
 
 test("a fold can be called off, and nothing moves", async ({ page }) => {

@@ -206,3 +206,106 @@ export const WithoutABaseline: Story = {
     ).toBeInTheDocument();
   },
 };
+
+/**
+ * A name corrected in names management. The entry shows the publisher's old
+ * and new spelling, and says where to change the name again, since it offers
+ * no undo of its own. The play test checks the badge, the change and the note.
+ */
+export const Renamed: Story = {
+  args: {
+    entries: withChanges([
+      {
+        version: 2,
+        undoable: false,
+        action: "renamed",
+        actor: "curator@rb.test",
+        timestamp: "2026-10-13T10:00:00",
+        snapshot: { ...SNAPSHOT, publishers: ["Noonday"] },
+        diff: {
+          fields: { publishers: { from: ["Noonday Press"], to: ["Noonday"] } },
+          sources: null,
+        },
+      },
+      {
+        version: 1,
+        undoable: false,
+        action: "created",
+        actor: "importer@rb.test",
+        timestamp: "2026-07-01T10:00:00",
+        snapshot: SNAPSHOT,
+        diff: null,
+      },
+    ]),
+  },
+  play: async ({ canvasElement }) => {
+    const renamed = canvasElement.querySelector(
+      '[data-action="renamed"]',
+    ) as HTMLElement;
+
+    await expect(renamed).toHaveTextContent("Renamed");
+    await expect(renamed).toHaveTextContent("Noonday Press → Noonday");
+    await expect(renamed).toHaveTextContent(
+      "A name was changed in Names, for every publication that credits it.",
+    );
+  },
+};
+
+/**
+ * A duplicate reviewer's decisions: the publication was ruled not to be a
+ * duplicate of another, and later put back in the review. Each entry names the
+ * other publication by title, year and translators, and offers no undo. The
+ * play test checks both entries.
+ */
+export const Decisions: Story = {
+  args: {
+    entries: withChanges([
+      {
+        version: 3,
+        undoable: false,
+        action: "reconsidered",
+        actor: "curator@rb.test",
+        timestamp: "2026-10-14T10:00:00",
+        snapshot: SNAPSHOT,
+        diff: null,
+        related: [{ id: 7, ...SNAPSHOT, title: "Dom Casmuro", year: 1954 }],
+      },
+      {
+        version: 2,
+        undoable: false,
+        action: "distinguished",
+        actor: "curator@rb.test",
+        timestamp: "2026-10-13T10:00:00",
+        snapshot: SNAPSHOT,
+        diff: null,
+        related: [{ id: 7, ...SNAPSHOT, title: "Dom Casmuro", year: 1954 }],
+      },
+      {
+        version: 1,
+        undoable: false,
+        action: "created",
+        actor: "importer@rb.test",
+        timestamp: "2026-07-01T10:00:00",
+        snapshot: SNAPSHOT,
+        diff: null,
+      },
+    ]),
+  },
+  play: async ({ canvasElement }) => {
+    const distinct = canvasElement.querySelector(
+      '[data-action="distinguished"]',
+    ) as HTMLElement;
+    const reopened = canvasElement.querySelector(
+      '[data-action="reconsidered"]',
+    ) as HTMLElement;
+
+    await expect(distinct).toHaveTextContent("Distinct");
+    await expect(distinct).toHaveTextContent(
+      "Not a duplicate ofDom Casmuro (1954) · Helen Caldwell",
+    );
+    await expect(reopened).toHaveTextContent("Reopened");
+    await expect(reopened).toHaveTextContent(
+      "Back in the duplicate review withDom Casmuro (1954)",
+    );
+  },
+};

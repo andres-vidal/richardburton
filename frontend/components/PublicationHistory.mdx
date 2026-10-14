@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as PublicationHistoryStories from "./PublicationHistory.stories";
 
@@ -7,7 +7,8 @@ import * as PublicationHistoryStories from "./PublicationHistory.stories";
 # Publication history
 
 A publication's mutation log, newest first: each entry names the action
-(created / updated / deleted / restored / merged), the acting user, and the date, and
+(created / updated / deleted / restored / merged / unmerged / renamed /
+distinct / reopened), the acting user, and the date, and
 **updates state exactly what changed**: scalar fields as `old → new`, and
 sources as the precise entries added (+) and removed (−) — or a reorder, when
 the same entries merely moved.
@@ -46,3 +47,26 @@ the same entries as full cards, where they _are_ the page's subject.
   point, and the entries already recorded without one say so.
 
 <Canvas of={PublicationHistoryStories.WithoutABaseline} />
+
+## Renamed
+
+A renamed entry records a name corrected in
+[names management](?path=/docs/admin-names--docs), on each
+publication that credits the name. It shows the change like an update, but it
+has no undo: the name changed for every publication at once, so it is changed
+back in names management, and the entry says so.
+
+<Description of={PublicationHistoryStories.Renamed} />
+
+<Canvas of={PublicationHistoryStories.Renamed} />
+
+## Duplicate decisions
+
+When a duplicate reviewer rules publications apart, each of them records a
+distinct entry naming the others, by title, year and translators. Putting them
+back in the review records a reopened entry the same way. A decision changes no
+field and has no undo here: it is taken back in the duplicate review.
+
+<Description of={PublicationHistoryStories.Decisions} />
+
+<Canvas of={PublicationHistoryStories.Decisions} />

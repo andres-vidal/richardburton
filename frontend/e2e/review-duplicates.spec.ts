@@ -204,9 +204,24 @@ test("a decision to keep records apart can be taken back, and a merge takes it b
     .click();
   await expect(page.getByText(/Merged 1 publication/)).toBeVisible();
 
+  // Each decision is in the history of both records, naming the other one,
+  // with no undo of its own. The merge forgot the distinction without
+  // recording a decision.
+  await page.goto("/admin/publications/history");
+  const distinct = page.locator('li[data-action="distinguished"]');
+  const reopened = page.locator('li[data-action="reconsidered"]');
+  await expect(distinct).toHaveCount(4);
+  await expect(reopened).toHaveCount(4);
+  await expect(
+    distinct.filter({ hasText: "“Dom Casmuro”" }).first(),
+  ).toContainText(/Not a duplicate of\s*Dom Casmurro \(1953\)/);
+  await expect(
+    reopened.filter({ hasText: "“Dom Casmurro”" }).first(),
+  ).toContainText(/Back in the duplicate review with\s*Dom Casmuro/);
+  await expect(distinct.getByRole("button", { name: "Undo" })).toHaveCount(0);
+
   // The merge forgot the distinction, so taking the merge apart leaves the
   // question live rather than the stale answer to it.
-  await page.goto("/admin/publications/history");
   await page
     .locator('li[data-action="merged"]')
     .getByRole("button", { name: "Undo" })

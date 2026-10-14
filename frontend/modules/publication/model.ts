@@ -103,6 +103,9 @@ const HISTORY_ACTIONS = [
   "restored",
   "merged",
   "unmerged",
+  "renamed",
+  "distinguished",
+  "reconsidered",
 ] as const;
 
 type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
@@ -139,6 +142,12 @@ type PublicationHistoryEntry = {
    * Absent on entries that change one record only.
    */
   absorbed?: AbsorbedPublication[] | null;
+  /**
+   * The other publications a duplicate reviewer's decision is about: those
+   * ruled not to be the same record (`distinguished`), or put back among the
+   * possible duplicates (`reconsidered`). Absent on other entries.
+   */
+  related?: AbsorbedPublication[] | null;
 };
 
 // The database-wide feed tags each entry with the publication it belongs to.

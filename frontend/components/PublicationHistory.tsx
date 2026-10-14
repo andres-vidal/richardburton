@@ -49,6 +49,9 @@ const ActionBadge: FC<{
       group-data-[action=restored]:bg-emerald-100 group-data-[action=restored]:text-emerald-700
       group-data-[action=merged]:bg-sky-100 group-data-[action=merged]:text-sky-700
       group-data-[action=unmerged]:bg-sky-100 group-data-[action=unmerged]:text-sky-700
+      group-data-[action=renamed]:bg-violet-100 group-data-[action=renamed]:text-violet-700
+      group-data-[action=distinguished]:bg-teal-100 group-data-[action=distinguished]:text-teal-700
+      group-data-[action=reconsidered]:bg-gray-100 group-data-[action=reconsidered]:text-gray-700
     "
     >
       {t(action)}
@@ -148,6 +151,14 @@ const Entry: FC<{
           starts.
         </p>
       )}
+      {entry.action === "renamed" ? (
+        <p
+          data-variant={variant}
+          className="mt-2 text-xs text-gray-500 data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
+        >
+          {t("renamedNote")}
+        </p>
+      ) : null}
       {entry.changes.length > 0 && (
         <ul
           data-variant={variant}
@@ -172,6 +183,27 @@ const Entry: FC<{
                   {change.added.map((source) => (
                     <li key={`+ ${source}`} className="text-emerald-700">
                       + {source}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ) : change.kind === "related" ? (
+              <li key="related" className="mt-1 text-xs text-gray-600">
+                {change.direction === "apart"
+                  ? t("notDuplicateOf")
+                  : t("reviewAgainWith")}
+                <ul className="mt-1 space-y-0.5">
+                  {change.records.map((record) => (
+                    <li
+                      key={record.id}
+                      className="pl-2 border-l-2 border-teal-200"
+                    >
+                      <span className="font-medium text-gray-700">
+                        {record.title || t("untitledRecord")}
+                      </span>{" "}
+                      <span className="text-gray-500">
+                        ({record.year}) · {record.authors}
+                      </span>
                     </li>
                   ))}
                 </ul>

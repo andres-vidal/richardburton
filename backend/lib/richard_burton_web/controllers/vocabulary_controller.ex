@@ -35,7 +35,8 @@ defmodule RichardBurtonWeb.VocabularyController do
 
   @doc """
   Renames a name, and responds with `outcome` set to `"renamed"` or
-  `"merged"`. See `RichardBurton.Vocabulary.rename/4`.
+  `"merged"`. See `RichardBurton.Vocabulary.rename/5`. The publications the
+  rename changes get a history entry under the signed-in user.
 
   Folding into a name that is already taken requires `"fold" => true`. Without
   it, nothing is written and the response is 409 with `error: "would_fold"`,
@@ -45,7 +46,7 @@ defmodule RichardBurtonWeb.VocabularyController do
   `publications` involved.
   """
   def update(conn, params = %{"kind" => kind, "id" => id, "name" => name}) do
-    case Vocabulary.rename(kind, id, name, params["fold"] == true) do
+    case Vocabulary.rename(kind, id, name, params["fold"] == true, actor(conn)) do
       {:ok, outcome} ->
         json(conn, %{outcome: outcome})
 

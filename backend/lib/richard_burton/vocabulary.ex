@@ -13,7 +13,7 @@ defmodule RichardBurton.Vocabulary do
 
   ## Renaming and folding
 
-  `rename/4` is the only function that changes a name. There is no separate
+  `rename/5` is the only function that changes a name. There is no separate
   merge. Names are unique within a kind, so a rename has one of two outcomes:
 
     * `:renamed` means the new name is free, and the record takes it.
@@ -21,7 +21,7 @@ defmodule RichardBurton.Vocabulary do
       The renamed record is *folded* into the keeper: its links move to the
       keeper and the record is deleted.
 
-  A fold cannot be undone, so `rename/4` folds only when its `folding?`
+  A fold cannot be undone, so `rename/5` folds only when its `folding?`
   argument is true.
 
   ## Books that become one
@@ -32,7 +32,7 @@ defmodule RichardBurton.Vocabulary do
   publication's key. An author's name is part of the key of each original
   book they wrote and each translated book they translated.
 
-  When a rename gives a book the same key as an older book, `rename/4` folds
+  When a rename gives a book the same key as an older book, `rename/5` folds
   the newer book into the older one, in the same transaction: the newer book's
   translations, or its publications, move to the older book, and the newer
   book is deleted. When two original books are folded and each has a
@@ -47,7 +47,7 @@ defmodule RichardBurton.Vocabulary do
   only in the spelling of a name. The composite key applies to the
   publications that are not deleted, so the database cannot store both.
 
-  In that case `rename/4` rolls back and returns
+  In that case `rename/5` rolls back and returns
   `{:error, {:would_collide, publications}}`, listing the two publications. It
   does not merge them. Merging publications is done by
   `RichardBurton.Publication.merge/3`, which takes the publication to keep and
@@ -56,6 +56,15 @@ defmodule RichardBurton.Vocabulary do
   Deleted publications follow the rename as well, so a restored publication
   matches its names. They are never reported as a collision, because the
   composite key does not cover them.
+
+  ## History
+
+  A rename records a `"renamed"` entry in the history of each publication that
+  credits the renamed name and is not deleted, under the user who renamed it,
+  in the same transaction (see `RichardBurton.Publication.History`). A
+  publication whose snapshot the rename leaves unchanged gets no entry. A
+  deleted publication gets none either: its history ends with its deletion,
+  and restoring it records it with its current names.
 
   ## Checking names before they are entered
 
@@ -77,6 +86,7 @@ defmodule RichardBurton.Vocabulary do
   alias RichardBurton.Identity
   alias RichardBurton.OriginalBook
   alias RichardBurton.Publication
+  alias RichardBurton.Publication.History
   alias RichardBurton.Publication.Index.Refresher
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
@@ -328,20 +338,28 @@ defmodule RichardBurton.Vocabulary do
   sorted by title and year. A rename onto a free name needs no flag, because
   renaming back undoes it.
 
+  The publications the rename changes get a `"renamed"` history entry, under
+  `actor` (see the module doc).
+
   The other errors are `{:error, {:would_collide, publications}}` (see the
   module doc), `{:error, :blank}`, `{:error, :not_found}` and
   `{:error, :no_such_kind}`.
   """
-  def rename(kind, id, name, folding? \\ false) when is_binary(name) do
+  def rename(kind, id, name, folding? \\ false, actor \\ History.system_actor())
+      when is_binary(name) do
     with {:ok, schema} <- kind_of(kind),
          {:ok, name} <- named(name),
          {:ok, record} <- fetch(schema, id),
          :ok <- permitted(schema, record, name, folding?) do
       Repo.transaction(fn ->
+        credited = schema |> crediting(record) |> Enum.map(& &1.id)
+        before = snapshots(credited)
+
         outcome = write(schema, record, name)
         fold_books(schema, name)
         refuse_collision()
         settle!()
+        record_renames(credited, before, actor)
 
         outcome
       end)
@@ -398,6 +416,21 @@ defmodule RichardBurton.Vocabulary do
       where: pp.publisher_id == ^id,
       select: pp.publication_id
     )
+  end
+
+  # Returns a map from each of the publications with these ids to its history
+  # snapshot.
+  defp snapshots(ids) do
+    ids |> Publication.with_ids() |> Map.new(&{&1.id, History.snapshot(&1)})
+  end
+
+  # Records a `"renamed"` entry for each of the publications with these ids
+  # whose snapshot differs from the one in `before`.
+  defp record_renames(ids, before, actor) do
+    ids
+    |> Publication.with_ids()
+    |> Enum.filter(&(History.snapshot(&1) != Map.fetch!(before, &1.id)))
+    |> then(&History.record_all(:renamed, &1, actor))
   end
 
   defp counted(schema, record) do

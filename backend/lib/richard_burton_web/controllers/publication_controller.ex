@@ -13,7 +13,6 @@ defmodule RichardBurtonWeb.PublicationController do
 
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
-  alias RichardBurton.User
 
   # A later page of a search or listing that has already started: the reader has
   # scrolled, and is asking for the next stretch of the ordering the first
@@ -217,7 +216,7 @@ defmodule RichardBurtonWeb.PublicationController do
   # Put a pair back among the questions. Naming fewer than two says nothing
   # there is to take back.
   def reconsider(conn, %{"publications" => ids = [_, _ | _]}) do
-    {:ok, _count} = Publication.Duplicates.reconsider(ids)
+    {:ok, _count} = Publication.Duplicates.reconsider(ids, actor(conn))
     send_resp(conn, :no_content, "")
   end
 
@@ -325,7 +324,8 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   # One history entry as the client reads it, including the records a merge
-  # absorbed and whether the entry is still undoable.
+  # absorbed, the publications a decision is about, and whether the entry is
+  # still undoable.
   defp serialize_history(entry) do
     %{
       publication_id: entry.publication_id,
@@ -338,14 +338,10 @@ defmodule RichardBurtonWeb.PublicationController do
       # The records this entry took in, or gave back — what makes a merge one
       # thing in the log rather than a change to each of them.
       absorbed: Publication.History.absorbed_records(entry),
+      # The other publications a duplicate decision is about.
+      related: Publication.History.related_records(entry),
       timestamp: entry.inserted_at
     }
-  end
-
-  # Admin mutations are recorded in the publication history under the acting
-  # user's email; subject_id is assigned by the authentication plug.
-  defp actor(conn) do
-    User.get(conn.assigns.subject_id).email
   end
 
   def validate(conn, %{"csv" => %Plug.Upload{path: path}}) do

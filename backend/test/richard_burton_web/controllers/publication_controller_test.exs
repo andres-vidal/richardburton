@@ -702,6 +702,44 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = post(meta.conn, publication_path(meta.conn, :distinguish), %{})
       assert json_response(conn, 400) == %{"error" => "not_enough"}
     end
+
+    test "records the decision in both histories, naming the other record, and so does taking it back",
+         meta do
+      expect_auth_authorize_admin(4)
+      one = insert_publication(@publication_attrs)
+      other = insert_publication(%{@publication_attrs | "title" => "Iraçéma the Honey-Lips"})
+
+      meta.conn
+      |> post(publication_path(meta.conn, :distinguish), %{"publications" => [one.id, other.id]})
+      |> response(204)
+
+      assert %{"entries" => [decision | _]} =
+               meta.conn
+               |> get(publication_path(meta.conn, :history, one.id))
+               |> json_response(200)
+
+      assert %{
+               "action" => "distinguished",
+               "actor" => actor,
+               "undoable" => false,
+               "related" => [%{"id" => other_id, "title" => "Iraçéma the Honey-Lips"}]
+             } = decision
+
+      assert {actor, other_id} == {session_user_email(), other.id}
+
+      meta.conn
+      |> post(publication_path(meta.conn, :reconsider), %{"publications" => [one.id, other.id]})
+      |> response(204)
+
+      one_id = one.id
+
+      assert %{
+               "entries" => [%{"action" => "reconsidered", "related" => [%{"id" => ^one_id}]} | _]
+             } =
+               meta.conn
+               |> get(publication_path(meta.conn, :history, other.id))
+               |> json_response(200)
+    end
   end
 
   describe "POST /publications/:id/merge" do

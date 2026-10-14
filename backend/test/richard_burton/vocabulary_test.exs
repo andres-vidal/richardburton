@@ -12,6 +12,7 @@ defmodule RichardBurton.VocabularyTest do
   alias RichardBurton.Author
   alias RichardBurton.OriginalBook
   alias RichardBurton.Publication
+  alias RichardBurton.Publication.History
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
@@ -218,7 +219,7 @@ defmodule RichardBurton.VocabularyTest do
     end
   end
 
-  describe "rename/3 correcting a spelling" do
+  describe "rename/5 correcting a spelling" do
     test "the name changes and the publication's fingerprint follows" do
       publication = insert()
       before = fingerprints(publication)
@@ -277,7 +278,7 @@ defmodule RichardBurton.VocabularyTest do
     end
   end
 
-  describe "rename/3 onto a name already taken" do
+  describe "rename/5 onto a name already taken" do
     test "two spellings of an original author fold their books, and the translations of each" do
       # The same translation catalogued twice, the original author spelt two
       # ways, in two printings.
@@ -391,7 +392,7 @@ defmodule RichardBurton.VocabularyTest do
     end
   end
 
-  describe "rename/3 onto a name already taken, unasked" do
+  describe "rename/5 onto a name already taken, unasked" do
     test "nothing is written, and it says who holds the name" do
       insert()
       insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
@@ -484,7 +485,7 @@ defmodule RichardBurton.VocabularyTest do
     end
   end
 
-  describe "rename/3 when it uncovers a duplicate" do
+  describe "rename/5 when it uncovers a duplicate" do
     test "it is refused, and says which publications clashed" do
       # The same publication is entered twice, and the two copies differ only
       # in the spelling of the publisher.
@@ -534,7 +535,7 @@ defmodule RichardBurton.VocabularyTest do
     end
   end
 
-  describe "rename/3 and deleted publications" do
+  describe "rename/5 and deleted publications" do
     test "a deleted copy of a publication does not stop the rename" do
       # The composite key applies only to publications that are not deleted,
       # so a deleted copy cannot clash with the publication it copies.
@@ -586,7 +587,116 @@ defmodule RichardBurton.VocabularyTest do
     end
   end
 
-  describe "rename/3 refusals" do
+  describe "rename/5 and the history" do
+    # Returns the latest history entry of a publication.
+    defp latest(publication), do: publication.id |> History.of() |> hd()
+
+    test "each publication crediting the name records the change, under the user who made it" do
+      first = insert()
+      second = insert(%{"title" => "Epitaph of a Small Winner"})
+      other = insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Bickers & Son"}]})
+
+      assert {:ok, :renamed} =
+               Vocabulary.rename(
+                 "publishers",
+                 id_of(Publisher, "Noonday Press"),
+                 "Noonday",
+                 false,
+                 "editor@example.com"
+               )
+
+      for publication <- [first, second] do
+        entry = latest(publication)
+
+        assert %{action: "renamed", actor: "editor@example.com", version: 2} = entry
+
+        assert entry.diff.fields == %{
+                 "publishers" => %{from: ["Noonday Press"], to: ["Noonday"]}
+               }
+      end
+
+      # A publication that does not credit the name is untouched.
+      assert %{action: "created"} = latest(other)
+    end
+
+    test "a fold records the change on the publications of the folded spelling only" do
+      kept = insert()
+
+      folded =
+        insert(%{
+          "title" => "Iracema",
+          "translated_book" => %{"authors" => [%{"name" => "helen caldwell"}]}
+        })
+
+      assert {:ok, :merged} =
+               Vocabulary.rename(
+                 "authors",
+                 id_of(Author, "helen caldwell"),
+                 "Helen Caldwell",
+                 true,
+                 "editor@example.com"
+               )
+
+      assert %{action: "renamed"} = entry = latest(folded)
+
+      assert entry.diff.fields == %{
+               "authors" => %{from: ["helen caldwell"], to: ["Helen Caldwell"]}
+             }
+
+      assert %{action: "created"} = latest(kept)
+    end
+
+    test "a rename is not undone from a publication's history" do
+      publication = insert()
+      {:ok, _} = Publication.update(publication.id, %{"title" => "Dom Casmurro (1953)"})
+
+      {:ok, :renamed} =
+        Vocabulary.rename("publishers", id_of(Publisher, "Noonday Press"), "Noonday")
+
+      [renamed, updated, _created] = History.of(publication.id)
+
+      # Renaming again is how a rename is taken back. The earlier edit of the
+      # title can still be undone, since the rename did not touch the title.
+      assert {renamed.action, renamed.undoable} == {"renamed", false}
+      assert {updated.action, updated.undoable} == {"updated", true}
+      assert Publication.undo(publication.id, renamed.version) == {:error, :conflict}
+    end
+
+    test "a rename refused as a collision records nothing" do
+      kept = insert()
+      copy = insert(%{"publishers" => [%{"name" => "Noonday press"}]})
+
+      assert {:error, {:would_collide, _}} =
+               Vocabulary.rename(
+                 "publishers",
+                 id_of(Publisher, "Noonday press"),
+                 "Noonday Press",
+                 true
+               )
+
+      assert %{action: "created"} = latest(kept)
+      assert %{action: "created"} = latest(copy)
+    end
+
+    test "a deleted publication gets no entry, and a rename to the same name records nothing" do
+      deleted = insert()
+      {:ok, _} = Publication.delete(deleted.id)
+      live = insert(%{"title" => "Epitaph of a Small Winner"})
+
+      {:ok, :renamed} =
+        Vocabulary.rename("publishers", id_of(Publisher, "Noonday Press"), "Noonday Press")
+
+      assert %{action: "created"} = latest(live)
+
+      {:ok, :renamed} =
+        Vocabulary.rename("publishers", id_of(Publisher, "Noonday Press"), "Noonday")
+
+      assert %{action: "deleted"} = latest(deleted)
+      assert %{action: "renamed"} = latest(live)
+    end
+  end
+
+  describe "rename/5 refusals" do
     test "a name that is not there" do
       assert {:error, :not_found} = Vocabulary.rename("publishers", 999_999, "Anything")
     end

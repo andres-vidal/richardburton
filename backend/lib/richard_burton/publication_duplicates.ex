@@ -55,6 +55,8 @@ defmodule RichardBurton.Publication.Duplicates do
 
   alias RichardBurton.Country
   alias RichardBurton.FlatPublication
+  alias RichardBurton.Publication
+  alias RichardBurton.Publication.History
   alias RichardBurton.Repo
 
   @default_threshold 0.55
@@ -119,6 +121,10 @@ defmodule RichardBurton.Publication.Duplicates do
   Record that these publications are not the same record twice, so the reviewer
   is not asked about them again. Every pair among them is ruled apart: the answer
   is about the cluster the reviewer was shown.
+
+  When the answer rules apart a pair that was not ruled apart already, each of
+  the publications gets a `"distinguished"` history entry under `actor`, which
+  names the others (see `RichardBurton.Publication.History`).
   """
   def rule_apart(ids, actor) when is_list(ids) do
     pairs = for a <- ids, b <- ids, a < b, do: {a, b}
@@ -138,16 +144,29 @@ defmodule RichardBurton.Publication.Duplicates do
         {:error, :not_enough}
 
       entries ->
-        # A pair already ruled apart stays as it was recorded, by whoever said so
-        # first.
-        {count, _} =
-          Repo.insert_all(Distinction, entries,
-            on_conflict: :nothing,
-            conflict_target: [:publication_id, :other_publication_id]
-          )
-
-        {:ok, count}
+        Repo.transaction(fn -> remember(entries, ids, actor) end)
     end
+  end
+
+  # Stores the distinctions and returns how many it stored. When any is new, it
+  # records the decision about the publications with these ids. A pair already
+  # ruled apart stays as it was recorded, by whoever said so first.
+  defp remember(entries, ids, actor) do
+    {count, _} =
+      Repo.insert_all(Distinction, entries,
+        on_conflict: :nothing,
+        conflict_target: [:publication_id, :other_publication_id]
+      )
+
+    if count > 0, do: record(:distinguished, ids, actor)
+
+    count
+  end
+
+  # Records a decision about the publications with these ids in the history of
+  # each of them.
+  defp record(decision, ids, actor) do
+    History.record_decision(decision, Publication.with_ids(ids), actor)
   end
 
   @doc """
@@ -156,10 +175,28 @@ defmodule RichardBurton.Publication.Duplicates do
 
   Every pair among the ids is deleted, mirroring how `rule_apart/2` records
   them: the decision covered the cluster, so reversing it does too.
+
+  When a distinction is deleted, each of the publications gets a
+  `"reconsidered"` history entry under `actor`, which names the others.
   """
-  def reconsider(ids) when is_list(ids) do
+  def reconsider(ids, actor) when is_list(ids) do
+    Repo.transaction(fn ->
+      count = forget(ids)
+
+      if count > 0, do: record(:reconsidered, ids, actor)
+
+      count
+    end)
+  end
+
+  @doc """
+  Deletes the distinctions among these publications and returns how many it
+  deleted. It records no history entry, so it suits a change that records its
+  own, such as a merge, which answers the question the distinctions answered.
+  """
+  def forget(ids) when is_list(ids) do
     {count, _} = Repo.delete_all(among(ids))
-    {:ok, count}
+    count
   end
 
   @doc """
