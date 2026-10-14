@@ -1,12 +1,19 @@
 defmodule RichardBurtonWeb do
   @moduledoc """
-  The definitions shared by the web interface's controllers and router, used
-  as:
+  The entrypoint for defining your web interface, such
+  as controllers, channels and so on.
+
+  This can be used in your application as:
 
       use RichardBurtonWeb, :controller
 
-  Each definition holds only `use`, `import` and `alias` lines. Helper
-  functions live in their own modules and are imported or aliased here.
+  The definitions below will be executed for every controller,
+  router, etc, so keep them short and clean, focused
+  on imports, uses and aliases.
+
+  Do NOT define functions inside the quoted expressions
+  below. Instead, define any helper function in modules
+  and import those modules here.
   """
 
   @doc """
@@ -38,8 +45,15 @@ defmodule RichardBurtonWeb do
     end
   end
 
+  @doc "Returns the definition of a channel."
+  def channel do
+    quote do
+      use Phoenix.Channel
+    end
+  end
+
   @doc """
-  Returns the definition named by `which`, such as `:controller`.
+  When used, dispatch to the appropriate controller/router/channel.
   """
   defmacro __using__(which) when is_atom(which) do
     apply(__MODULE__, which, [])

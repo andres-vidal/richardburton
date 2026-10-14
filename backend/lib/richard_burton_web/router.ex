@@ -146,6 +146,9 @@ defmodule RichardBurtonWeb.Router do
   # The development routes: the LiveDashboard, the mail that
   # `Swoosh.Adapters.Local` kept instead of sending it, and
   # `RichardBurtonWeb.DevSessionController`, which signs in without Google.
+  #
+  # If you want to use the LiveDashboard in production, you should put
+  # it behind authentication and allow only admins to access it.
   if Mix.env() in [:dev, :test, :e2e] do
     import Phoenix.LiveDashboard.Router
 
