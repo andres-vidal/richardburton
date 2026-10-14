@@ -92,16 +92,35 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   @doc """
-  Responds with the publication `id`, flattened into the shape the index lists.
-  With a `search`, the publication holds the excerpts and marks of that search,
-  as in the index. A deleted publication is a 404.
+  Responds with the publication `id`, flattened into the shape the index lists,
+  with its `kind` and `follows`. With a `search`, the publication holds the
+  excerpts and marks of that search, as in the index. A deleted publication is
+  a 404.
+
+  `kind` is `"first_translation"`, `"retranslation"` or `"reissue"`, and
+  `follows` is the publication a retranslation or a reissue follows, with its
+  `id`, `title`, `year` and `authors`, its translators. `follows` is nil for a
+  first translation. `Publication.Kind` defines both.
   """
   def show(conn, params = %{"id" => id}) do
     with {:ok, id} <- Params.id(id),
          {:ok, publication} <- found(Publication.find(id)) do
-      flat = Publication.Codec.flatten(publication)
-      json(conn, excerpted(flat, params["search"]))
+      flat = publication |> Publication.Codec.flatten() |> excerpted(params["search"])
+      json(conn, Map.merge(FlatPublication.readable(flat), kind(publication)))
     end
+  end
+
+  # Returns the `kind` and `follows` that `show/2` responds with for
+  # `publication`.
+  defp kind(publication) do
+    %{kind: kind, follows: follows} = Publication.Kind.of(publication)
+
+    %{
+      kind: kind,
+      follows:
+        follows &&
+          follows |> Publication.Codec.flatten() |> Map.take([:id, :title, :year, :authors])
+    }
   end
 
   # Returns `flat` with the excerpts and marks of `search`, read from the

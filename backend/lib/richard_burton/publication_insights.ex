@@ -8,7 +8,8 @@ defmodule RichardBurton.Publication.Insights do
   so they agree with the index. A write is included in both only after
   `RichardBurton.Publication.Index.Refresher` refreshes the index.
 
-  Terms used here and in `RichardBurton.Publication.Chart`:
+  Terms used here, in `RichardBurton.Publication.Chart` and in
+  `RichardBurton.Publication.Kind`:
 
     * **work** — an original book, identified by its original title and
       original authors.

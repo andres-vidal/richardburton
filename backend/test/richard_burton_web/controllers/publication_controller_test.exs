@@ -68,6 +68,18 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert Enum.map(body["entries"], & &1["id"]) == Enum.take(body["order"], meta.per_page)
     end
 
+    test "lists the rows without the kind that one publication's read holds", meta do
+      body =
+        meta.conn
+        |> get(publication_path(meta.conn, :index))
+        |> json_response(200)
+
+      refute Enum.any?(
+               body["entries"],
+               &(Map.has_key?(&1, "kind") or Map.has_key?(&1, "follows"))
+             )
+    end
+
     test "a later stretch is fetched by id, just the rows, in the order asked", meta do
       order =
         meta.conn
@@ -207,6 +219,48 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> json_response(200)
 
       assert body["marked"] == nil
+    end
+
+    test "says that a work's only publication is its first translation", meta do
+      body =
+        meta.conn
+        |> get(publication_path(meta.conn, :show, meta.publication.id))
+        |> json_response(200)
+
+      assert body["kind"] == "first_translation"
+      assert body["follows"] == nil
+    end
+
+    test "names the publication a reissue or a retranslation follows", meta do
+      caldwell = publication_fixture()
+
+      reissue =
+        publication_fixture(%{year: 1966, publishers: ["University of California Press"]})
+
+      gledson =
+        publication_fixture(%{
+          year: 1997,
+          authors: ["John Gledson"],
+          publishers: ["Oxford University Press"]
+        })
+
+      first = %{
+        "id" => caldwell.id,
+        "title" => "Dom Casmurro",
+        "year" => 1953,
+        "authors" => ["Helen Caldwell"]
+      }
+
+      for {publication, kind} <- [{reissue, "reissue"}, {gledson, "retranslation"}] do
+        body =
+          meta.conn
+          |> get(publication_path(meta.conn, :show, publication.id))
+          |> json_response(200)
+
+        assert body["title"] == "Dom Casmurro"
+        assert body["kind"] == kind
+        assert body["follows"] == first
+      end
     end
 
     test "returns 404 for a publication that never existed", meta do

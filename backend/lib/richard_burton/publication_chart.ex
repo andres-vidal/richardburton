@@ -38,19 +38,17 @@ defmodule RichardBurton.Publication.Chart do
       groups of any size.
 
   Groups by year or decade are listed by time, and groups by kind in the order
-  of `@kinds`. They cannot take `top` or `least`. Every other group is ranked,
-  with the most items first. Groups with as many items are sorted by their
-  number of publications, most first, and then by their names.
+  of `RichardBurton.Publication.Kind.all/0`. They cannot take `top` or `least`.
+  Every other group is ranked, with the most items first. Groups with as many
+  items are sorted by their number of publications, most first, and then by
+  their names.
 
   Terms used here:
 
-    * **kind** — a publication is a `"reissue"` when an earlier publication of
-      its translation exists. Otherwise it is the first publication of its
-      translation, which is a `"first_translation"` when its translation is the
-      work's earliest, and a `"retranslation"` when the work had an earlier
-      translation. Publications are ordered by year, and by id within a year,
-      over the whole index, so a search does not turn a reissue into a first
-      translation.
+    * **kind** — whether a publication is a first translation, a
+      retranslation or a reissue, as `RichardBurton.Publication.Kind` defines
+      them. Kinds are judged over the whole index, so a search does not turn a
+      reissue into a first translation.
     * **leading countries** — the two countries with the most publications
       among those counted. Countries with the same count are sorted by code.
   """
@@ -62,11 +60,9 @@ defmodule RichardBurton.Publication.Chart do
 
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
+  alias RichardBurton.Publication.Kind
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
-
-  # The kinds of publication, in the order their groups and series are listed.
-  @kinds ["first_translation", "retranslation", "reissue"]
 
   # The number of leading countries.
   @leading 2
@@ -252,7 +248,7 @@ defmodule RichardBurton.Publication.Chart do
 
   # Returns the series `draw/2` documents.
   defp series(nil, _leading), do: [nil]
-  defp series(:kind, _leading), do: @kinds
+  defp series(:kind, _leading), do: Kind.all()
   defp series(:country, leading), do: leading ++ [nil]
 
   # Returns a query for the rows to count, from `held`, the rows of the
@@ -458,47 +454,17 @@ defmodule RichardBurton.Publication.Chart do
     end
   end
 
-  # Joins each publication's kind as `:kind`, unless it is joined already.
+  # Joins each publication's kind as `:kind`, unless it is joined already. The
+  # kind is judged over the whole index. See the module doc.
   defp with_kind(query) do
     if has_named_binding?(query, :kind) do
       query
     else
-      join(query, :inner, [publication: fp], k in subquery(kinds()), on: k.id == fp.id, as: :kind)
-    end
-  end
-
-  # A query for every publication in the index with its kind. See the module
-  # doc.
-  #
-  # `edition` numbers the publications of a translation, and `first` is the
-  # translation of the work's earliest publication.
-  defp kinds do
-    ranked =
-      from(fp in FlatPublication, as: :publication)
-      |> with_book()
-      |> windows([publication: fp, link: p, book: tb],
-        translation: [partition_by: p.translated_book_id, order_by: [fp.year, fp.id]],
-        work: [partition_by: tb.original_book_id, order_by: [fp.year, fp.id]]
+      join(query, :inner, [publication: fp], k in subquery(Kind.ranked(FlatPublication)),
+        on: k.id == fp.id,
+        as: :kind
       )
-      |> select([publication: fp, link: p], %{
-        id: fp.id,
-        translation: p.translated_book_id,
-        edition: over(row_number(), :translation),
-        first: over(first_value(p.translated_book_id), :work)
-      })
-
-    from(r in subquery(ranked),
-      select: %{
-        id: r.id,
-        kind:
-          fragment(
-            "CASE WHEN ? > 1 THEN 'reissue' WHEN ? = ? THEN 'first_translation' ELSE 'retranslation' END",
-            r.edition,
-            r.translation,
-            r.first
-          )
-      }
-    )
+    end
   end
 
   # Adds `step`.
@@ -603,7 +569,7 @@ defmodule RichardBurton.Publication.Chart do
 
   defp filled(groups, :kind) do
     keyed = Map.new(groups, &{&1.key, &1})
-    Enum.map(@kinds, &Map.get(keyed, [&1], %{key: [&1], total: 0}))
+    Enum.map(Kind.all(), &Map.get(keyed, [&1], %{key: [&1], total: 0}))
   end
 
   defp filled(groups, _by), do: groups

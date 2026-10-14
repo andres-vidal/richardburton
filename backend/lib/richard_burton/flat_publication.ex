@@ -40,6 +40,8 @@ defmodule RichardBurton.FlatPublication do
   # null outside a search.
   @readable_attributes [:id, :excerpts, :marked | @writable_attributes]
 
+  @type t :: %__MODULE__{}
+
   @derive {Jason.Encoder, only: @readable_attributes}
   schema "flat_publications" do
     field(:title, :string)
@@ -54,6 +56,14 @@ defmodule RichardBurton.FlatPublication do
     field(:excerpts, :map, virtual: true)
     field(:marked, :map, virtual: true)
   end
+
+  @doc """
+  Returns the fields of `flat_publication` that its JSON encoding holds, as a
+  map with atom keys.
+  """
+  @spec readable(t) :: map
+  def readable(flat_publication = %FlatPublication{}),
+    do: Map.take(flat_publication, @readable_attributes)
 
   @doc false
   def changeset(flat_publication, attrs) do
