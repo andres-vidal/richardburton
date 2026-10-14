@@ -138,8 +138,8 @@ export const WritesOnSelection: Story = {
 
 /**
  * The inline message slot is reserved, so the field is as tall with a message
- * as without one. The play test writes the longest message the model produces
- * into the slot and compares the heights.
+ * as without one. The play test writes the longest field error the app has,
+ * which takes two lines at this width, into the slot and compares the heights.
  */
 export const ErrorDoesNotShiftLayout: Story = {
   beforeEach: () => seed(store),
@@ -155,7 +155,7 @@ export const ErrorDoesNotShiftLayout: Story = {
 
     const quiet = field.offsetHeight;
     canvas.getByRole("alert").textContent =
-      "A publication with this data already exists";
+      "This field should be a valid ISO 3166-1 alpha 2 country code";
 
     await expect(field.offsetHeight).toBe(quiet);
   },
