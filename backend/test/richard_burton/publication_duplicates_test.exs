@@ -6,6 +6,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Duplicates
+  alias RichardBurton.Publication.History
   alias RichardBurton.Util
 
   @base %{
@@ -201,7 +202,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
   end
 
-  describe "reconsider/1" do
+  describe "reconsider/2" do
     test "puts the pair back among the questions" do
       a = insert(%{})
       b = insert(%{"title" => "Dom Casmuro"})
@@ -209,7 +210,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
       {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
       assert [] == Duplicates.clusters()
 
-      assert {:ok, 1} = Duplicates.reconsider([a.id, b.id])
+      assert {:ok, 1} = Duplicates.reconsider([a.id, b.id], "admin@example.com")
       assert [_] = Duplicates.clusters()
     end
 
@@ -222,14 +223,95 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
       {:ok, 3} = Duplicates.rule_apart([a.id, b.id, c.id], "admin@example.com")
 
-      assert {:ok, 3} = Duplicates.reconsider([a.id, b.id, c.id])
+      assert {:ok, 3} = Duplicates.reconsider([a.id, b.id, c.id], "admin@example.com")
     end
 
     test "taking back what was never decided is not an error" do
       a = insert(%{})
       b = insert(%{"title" => "Dom Casmuro"})
 
-      assert {:ok, 0} = Duplicates.reconsider([a.id, b.id])
+      assert {:ok, 0} = Duplicates.reconsider([a.id, b.id], "admin@example.com")
+    end
+  end
+
+  describe "decisions in the history" do
+    # Returns the actions of a publication's history, newest first.
+    defp actions(publication), do: publication.id |> History.of() |> Enum.map(& &1.action)
+
+    # Returns the ids of the publications the latest entry of a publication's
+    # history is related to.
+    defp related(publication) do
+      publication.id |> History.of() |> hd() |> History.related_records() |> Enum.map(& &1["id"])
+    end
+
+    test "ruling apart records it on each publication, naming the others, under who said so" do
+      [a, b, c] = [
+        insert(%{}),
+        insert(%{"title" => "Dom Casmuro"}),
+        insert(%{"title" => "Dom C"})
+      ]
+
+      {:ok, 3} = Duplicates.rule_apart([a.id, b.id, c.id], "reviewer@example.com")
+
+      for publication <- [a, b, c] do
+        assert [%{action: "distinguished", actor: "reviewer@example.com", diff: nil} | _] =
+                 History.of(publication.id)
+      end
+
+      assert related(a) == [b.id, c.id]
+      assert related(b) == [a.id, c.id]
+    end
+
+    test "saying the same thing twice records it once" do
+      a = insert(%{})
+      b = insert(%{"title" => "Dom Casmuro"})
+
+      {:ok, 1} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
+      {:ok, 0} = Duplicates.rule_apart([b.id, a.id], "someone.else@example.com")
+
+      assert actions(a) == ["distinguished", "created"]
+    end
+
+    test "taking a decision back records it on each publication, and taking back nothing records nothing" do
+      a = insert(%{})
+      b = insert(%{"title" => "Dom Casmuro"})
+
+      {:ok, 0} = Duplicates.reconsider([a.id, b.id], "admin@example.com")
+      assert actions(a) == ["created"]
+
+      {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
+      {:ok, 1} = Duplicates.reconsider([a.id, b.id], "reviewer@example.com")
+
+      assert [%{action: "reconsidered", actor: "reviewer@example.com"} | _] = History.of(b.id)
+      assert actions(a) == ["reconsidered", "distinguished", "created"]
+      assert related(a) == [b.id]
+    end
+
+    test "a decision is not undone from the history, and does not hold back the entry before it" do
+      a = insert(%{})
+      b = insert(%{"title" => "Dom Casmuro"})
+      {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
+
+      [decision, created] = History.of(a.id)
+
+      assert {decision.action, decision.undoable} == {"distinguished", false}
+      assert {created.action, created.undoable} == {"created", true}
+      assert Publication.undo(a.id, decision.version) == {:error, :conflict}
+
+      # Undoing the import deletes the publication, as it did before the decision.
+      assert {:ok, _} = Publication.undo(a.id, created.version)
+      assert Publication.find(a.id) == nil
+    end
+
+    test "a merge clears the distinctions among the merged records without recording a decision" do
+      a = insert(%{})
+      b = insert(%{"title" => "Dom Casmuro"})
+      {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
+
+      {:ok, _} = Publication.merge(a.id, [b.id], "admin@example.com")
+
+      assert actions(a) == ["merged", "distinguished", "created"]
+      assert Duplicates.ruled_apart() == []
     end
   end
 

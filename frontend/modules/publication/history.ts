@@ -40,7 +40,19 @@ type AbsorbedChange = {
   records: AbsorbedRecord[];
 };
 
-type Change = FieldChange | SourcesChange | AbsorbedChange;
+/**
+ * The other publications a duplicate reviewer's decision is about, each named
+ * by its title, year and translators. `apart` is a decision that they are not
+ * the same record, and `again` one that puts them back among the possible
+ * duplicates.
+ */
+type RelatedChange = {
+  kind: "related";
+  direction: "apart" | "again";
+  records: { id: number; title: string; year: number; authors: string }[];
+};
+
+type Change = FieldChange | SourcesChange | AbsorbedChange | RelatedChange;
 
 /** An entry carrying the changes its action made — what the views render. */
 type WithChanges<T> = T & { changes: Change[] };
@@ -112,6 +124,29 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
 }
 
 /**
+ * The other publications a decision is about, named by title, year and
+ * translators. An entry that is not a decision has none.
+ */
+function presentRelated(entry: PublicationHistoryEntry): Change[] {
+  const related = entry.related ?? [];
+
+  return related.length === 0
+    ? []
+    : [
+        {
+          kind: "related",
+          direction: entry.action === "distinguished" ? "apart" : "again",
+          records: related.map(({ id, title, year, authors }) => ({
+            id,
+            title,
+            year,
+            authors: authors.join(", "),
+          })),
+        },
+      ];
+}
+
+/**
  * Each entry paired with its rendered changes — resolved once, when the log is
  * fetched, so no view recomputes a diff while painting.
  */
@@ -120,9 +155,13 @@ function withChanges<T extends PublicationHistoryEntry>(
 ): WithChanges<T>[] {
   return entries.map((entry) => ({
     ...entry,
-    changes: [...presentChanges(entry.diff), ...presentAbsorbed(entry)],
+    changes: [
+      ...presentChanges(entry.diff),
+      ...presentAbsorbed(entry),
+      ...presentRelated(entry),
+    ],
   }));
 }
 
-export { keyOf, presentAbsorbed, presentChanges, withChanges };
+export { keyOf, presentAbsorbed, presentChanges, presentRelated, withChanges };
 export type { Change, WithChanges };

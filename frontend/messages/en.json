@@ -384,7 +384,10 @@
     "namesDescription": "Translators, authors and publishers — correct a spelling, or fold duplicates together.",
     "redo": "Redo",
     "undoHint": "Walk back your last change (Ctrl+Z, or ⌘Z on a Mac). Edits made by others are left alone.",
-    "redoHint": "Put back the change you walked back (Ctrl+Shift+Z or Ctrl+Y, or ⇧⌘Z on a Mac)."
+    "redoHint": "Put back the change you walked back (Ctrl+Shift+Z or Ctrl+Y, or ⇧⌘Z on a Mac).",
+    "renamedNote": "A name was changed in Names, for every publication that credits it. Change it there again to take it back.",
+    "notDuplicateOf": "Not a duplicate of",
+    "reviewAgainWith": "Back in the duplicate review with"
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
@@ -630,7 +633,10 @@
     "deleted": "Deleted",
     "restored": "Restored",
     "merged": "Merged",
-    "unmerged": "Unmerged"
+    "unmerged": "Unmerged",
+    "renamed": "Renamed",
+    "distinguished": "Distinct",
+    "reconsidered": "Reopened"
   },
   "validation": {
     "required": "Required",

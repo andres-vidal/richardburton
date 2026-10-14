@@ -268,7 +268,7 @@ defmodule RichardBurton.Publication do
     cond do
       is_nil(entry) -> {:error, :not_found}
       not entry.undoable -> {:error, :conflict}
-      true -> compensate(entry, previous_of(stream, entry), List.first(stream), actor)
+      true -> compensate(entry, previous_of(stream, entry), History.head(stream), actor)
     end
   end
 
@@ -466,7 +466,7 @@ defmodule RichardBurton.Publication do
     # Saying these are one record answers the same question a distinction did,
     # and answers it later — so the older answer goes, and taking the merge
     # apart puts the question back rather than the stale reply to it.
-    Duplicates.reconsider([winner.id | Enum.map(losers, & &1.id)])
+    Duplicates.forget([winner.id | Enum.map(losers, & &1.id)])
 
     winner
   end

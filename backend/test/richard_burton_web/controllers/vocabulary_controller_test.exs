@@ -24,6 +24,11 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     }
   }
 
+  setup do
+    create_session_user()
+    :ok
+  end
+
   defp insert(attrs \\ %{}) do
     {:ok, publication} = Publication.insert(RichardBurton.Util.deep_merge_maps(@base, attrs))
     publication
@@ -84,8 +89,9 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
   end
 
   describe "PATCH /vocabulary/:kind/:id" do
-    test "correcting a spelling says it renamed", meta do
-      insert()
+    test "correcting a spelling says it renamed, and records it under the signed-in user",
+         meta do
+      publication = insert()
       expect_auth_authorize_admin()
 
       assert %{"outcome" => "renamed"} =
@@ -95,6 +101,9 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
                  %{"name" => "Noonday"}
                )
                |> json_response(200)
+
+      assert [%{action: "renamed", actor: actor} | _] = Publication.History.of(publication.id)
+      assert actor == session_user_email()
     end
 
     test "renaming onto a name already taken is refused until it is asked for", meta do

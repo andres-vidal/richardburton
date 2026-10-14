@@ -23,6 +23,7 @@ defmodule RichardBurtonWeb do
 
       import Plug.Conn
       import RichardBurtonWeb.FallbackController, only: [found: 1]
+      import RichardBurtonWeb.Actor, only: [actor: 1]
       alias RichardBurtonWeb.Router.Helpers, as: Routes
 
       action_fallback(RichardBurtonWeb.FallbackController)

@@ -1,5 +1,11 @@
 import type { FullHistoryEntry, SnapshotDiff } from "./model";
-import { keyOf, presentAbsorbed, presentChanges, withChanges } from "./history";
+import {
+  keyOf,
+  presentAbsorbed,
+  presentChanges,
+  presentRelated,
+  withChanges,
+} from "./history";
 
 function snapshot(
   fields: Partial<FullHistoryEntry["snapshot"]> = {},
@@ -167,5 +173,48 @@ describe("presentAbsorbed", () => {
     expect(change.records[0].sources).toEqual([
       "Sousa, J. Bibliografia, 1955.",
     ]);
+  });
+});
+
+describe("presentRelated", () => {
+  test("names the other publications of a decision by title, year and translators", () => {
+    const decision = {
+      ...entry(1, 2, "distinguished"),
+      related: [
+        {
+          id: 7,
+          ...snapshot({
+            title: "Dom Casmuro",
+            year: 1954,
+            authors: ["Helen Caldwell", "John Gledson"],
+          }),
+        },
+      ],
+    };
+
+    expect(presentRelated(decision)).toEqual([
+      {
+        kind: "related",
+        direction: "apart",
+        records: [
+          {
+            id: 7,
+            title: "Dom Casmuro",
+            year: 1954,
+            authors: "Helen Caldwell, John Gledson",
+          },
+        ],
+      },
+    ]);
+  });
+
+  test("a reconsidered decision puts them back, and other entries name nothing", () => {
+    const reopened = {
+      ...entry(1, 3, "reconsidered"),
+      related: [{ id: 7, ...snapshot() }],
+    };
+
+    expect(presentRelated(reopened)[0]).toMatchObject({ direction: "again" });
+    expect(presentRelated(entry(1, 1, "created"))).toEqual([]);
   });
 });

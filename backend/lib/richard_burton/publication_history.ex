@@ -8,8 +8,23 @@ defmodule RichardBurton.Publication.History do
   Immutability is enforced by the database — a guard trigger rejects UPDATE and
   DELETE on the table (see the soft-delete migration) — and completeness by
   chokepoint: every mutation flows through the `Publication` context functions,
-  which call `record/3` inside the mutating transaction, so a change and its
-  history row commit or roll back together.
+  or through `RichardBurton.Vocabulary.rename/5` for a change of name, and each
+  records its entries inside the mutating transaction, so a change and its
+  history rows commit or roll back together.
+
+  A `"renamed"` entry records a change of name made in names management, on
+  each publication that credits the name. It is diffed like an update, but it
+  cannot be undone from the publication's history: renaming the name again
+  takes it back for every publication at once.
+
+  A *decision* is a duplicate reviewer's answer about publications that look
+  alike, recorded by `RichardBurton.Publication.Duplicates`. A
+  `"distinguished"` entry records that the publications are not the same
+  record twice, and a `"reconsidered"` entry that the answer was taken back.
+  Each publication the decision is about gets an entry, which names the others
+  in `related`. A decision changes no field, so its entry has no diff. It is
+  not undone from the history, and it does not stand in the way of undoing the
+  entries before it: `head/1` and `undoable?/3` skip decisions.
   """
 
   use Ecto.Schema
@@ -21,7 +36,14 @@ defmodule RichardBurton.Publication.History do
   alias RichardBurton.Publication.History
   alias RichardBurton.Repo
 
-  @actions ["created", "updated", "deleted", "restored", "merged", "unmerged"]
+  # The actions of the duplicate reviewer's decisions. See the module doc.
+  @decisions ["distinguished", "reconsidered"]
+
+  @actions ["created", "updated", "deleted", "restored", "merged", "unmerged", "renamed"] ++
+             @decisions
+
+  # The actions as the atoms that `record/4` and `record_all/3` take.
+  @action_atoms Enum.map(@actions, &String.to_atom/1)
 
   # Mutations outside a request (seeds, mix tasks) are attributed to "system".
   @system_actor "system"
@@ -52,6 +74,10 @@ defmodule RichardBurton.Publication.History do
     # record that survives holds the entry, and names the ones that did not.
     field(:absorbed, :map)
 
+    # The other publications a decision is about: each one's id against the
+    # state it was in when the decision was made. Nil on every other entry.
+    field(:related, :map)
+
     # What this version changed relative to the previous one.
     field(:diff, :map, virtual: true)
     # Whether this version can still be undone
@@ -63,7 +89,7 @@ defmodule RichardBurton.Publication.History do
   @doc false
   def changeset(history, attrs) do
     history
-    |> cast(attrs, [:publication_id, :version, :action, :snapshot, :actor, :absorbed])
+    |> cast(attrs, [:publication_id, :version, :action, :snapshot, :actor, :absorbed, :related])
     |> validate_required([:publication_id, :version, :action, :snapshot, :actor])
     |> validate_inclusion(:action, @actions)
     |> unique_constraint([:publication_id, :version])
@@ -80,10 +106,58 @@ defmodule RichardBurton.Publication.History do
   turns any residual race into a loud error instead of silent corruption.
   """
   def record(action, publication = %Publication{}, actor, absorbed \\ [])
-      when action in [:created, :updated, :deleted, :restored, :merged, :unmerged] do
+      when action in @action_atoms do
     %History{}
-    |> changeset(entry(action, publication, actor, next_version(publication.id), absorbed))
+    |> changeset(
+      entry(action, publication, actor, next_version(publication.id), absorbed: absorbed)
+    )
     |> Repo.insert!()
+  end
+
+  @doc """
+  Appends a history row that records `action` for each of `publications`,
+  inside the caller's transaction. It reads the publications' current versions
+  with one query and inserts the rows with one insert per chunk, so recording
+  a change that reaches many publications takes a fixed number of queries.
+  """
+  def record_all(action, publications, actor) when action in @action_atoms do
+    append(publications, &entry(action, &1, actor, &2))
+  end
+
+  @doc """
+  Appends a decision's row for each of `publications`, inside the caller's
+  transaction, as `record_all/3` does. `action` is `:distinguished` or
+  `:reconsidered`, and each row names the other publications in `related`.
+  """
+  def record_decision(action, publications, actor)
+      when action in [:distinguished, :reconsidered] do
+    append(publications, fn publication, version ->
+      others = Enum.reject(publications, &(&1.id == publication.id))
+      entry(action, publication, actor, version, related: others)
+    end)
+  end
+
+  # Inserts the row `build` returns for each of `publications`, given the
+  # publication and its next version. It reads the current versions with one
+  # query and inserts the rows with one insert per chunk.
+  defp append([], _build), do: []
+
+  defp append(publications, build) do
+    ids = Enum.map(publications, & &1.id)
+
+    versions =
+      from(h in History,
+        where: h.publication_id in ^ids,
+        group_by: h.publication_id,
+        select: {h.publication_id, max(h.version)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    Repo.insert_in_chunks(
+      History,
+      Enum.map(publications, &build.(&1, Map.get(versions, &1.id, 0) + 1))
+    )
   end
 
   @doc """
@@ -96,23 +170,26 @@ defmodule RichardBurton.Publication.History do
   end
 
   # Returns the fields of the history row that records `action` on
-  # `publication` as its `version`.
-  defp entry(action, publication, actor, version, absorbed \\ []) do
+  # `publication` as its `version`. `others` may name the publications the
+  # entry `absorbed`, or the ones it is `related` to.
+  defp entry(action, publication, actor, version, others \\ []) do
     %{
       publication_id: publication.id,
       version: version,
       action: to_string(action),
       snapshot: snapshot(publication),
       actor: actor,
-      absorbed: absorbed_snapshots(absorbed)
+      absorbed: snapshots_by_id(Keyword.get(others, :absorbed, [])),
+      related: snapshots_by_id(Keyword.get(others, :related, []))
     }
   end
 
-  # The records an entry took in or gave back, against the state they were in.
-  # Keyed by id, since that is what putting one back needs to name.
-  defp absorbed_snapshots([]), do: nil
+  # The other publications an entry names, against the state they were in.
+  # Keyed by id, since that is what putting one back needs to name. Nil when
+  # there are none.
+  defp snapshots_by_id([]), do: nil
 
-  defp absorbed_snapshots(publications),
+  defp snapshots_by_id(publications),
     do: Map.new(publications, &{to_string(&1.id), snapshot(&1)})
 
   @doc "The ids of the publications an entry took in, or gave back."
@@ -127,10 +204,20 @@ defmodule RichardBurton.Publication.History do
   Each one carries its own id and none of the fingerprints: those are the
   server's bookkeeping, not part of the record being shown.
   """
-  def absorbed_records(%History{absorbed: nil}), do: []
+  def absorbed_records(%History{absorbed: absorbed}), do: records(absorbed)
 
-  def absorbed_records(%History{absorbed: absorbed}) do
-    absorbed
+  @doc """
+  The other publications a decision is about, ordered by id, in the same form
+  as `absorbed_records/1`.
+  """
+  def related_records(%History{related: related}), do: records(related)
+
+  # Returns the snapshots of a map of them by id, ordered by id, each with its
+  # own id and none of the fingerprints, which are the server's bookkeeping.
+  defp records(nil), do: []
+
+  defp records(by_id) do
+    by_id
     |> Map.values()
     |> Enum.map(&Map.drop(&1, @derived -- ["id"]))
     |> Enum.sort_by(& &1["id"])
@@ -191,7 +278,7 @@ defmodule RichardBurton.Publication.History do
       end)
       |> Map.new()
 
-    heads = Map.new(streams, fn {id, [head | _]} -> {id, head} end)
+    heads = Map.new(streams, fn {id, stream} -> {id, head(stream)} end)
     absorbed = absorbed()
 
     Enum.map(entries, fn entry ->
@@ -205,6 +292,13 @@ defmodule RichardBurton.Publication.History do
       %{entry | diff: diff(previous, entry), undoable: undoable}
     end)
   end
+
+  @doc """
+  Returns the latest entry of a publication's stream, given newest first, that
+  is not a decision. A decision changes no field, so the entries before it are
+  undone as if it were not there.
+  """
+  def head(stream), do: Enum.find(stream, &(&1.action not in @decisions)) || hd(stream)
 
   @doc """
   The publications that are inside another record right now.
@@ -254,10 +348,16 @@ defmodule RichardBurton.Publication.History do
       each is one act over several records, so compensating it means taking the
       whole thing back: the record that survived gives up what it absorbed, and
       the records that left come back. What followed an older one was written
-      against the merged record.
+      against the merged record;
+    - never a rename, which changed a name for every publication that credits
+      it. Renaming the name again in names management takes it back;
+    - never a decision, which is taken back in the duplicate review.
+
+  `head` is the stream's latest entry that is not a decision (see `head/1`).
   """
   def undoable?(entry, previous, head) do
     cond do
+      entry.action in ["renamed" | @decisions] -> false
       entry.version == head.version -> true
       entry.action != "updated" -> false
       head.action == "deleted" -> false
@@ -310,9 +410,10 @@ defmodule RichardBurton.Publication.History do
   # A merge and an un-merge change the surviving record's own fields as surely
   # as an edit does, so they are diffed the same way — what it gained, against
   # what it gave back. Together with the records the entry names, that is the
-  # whole of what the act did to the data.
+  # whole of what the act did to the data. A rename changes the fields that
+  # hold the name, and is diffed the same way too.
   defp diff(previous, entry = %History{action: action})
-       when action in ["updated", "merged", "unmerged"],
+       when action in ["updated", "merged", "unmerged", "renamed"],
        do: compare(previous, entry)
 
   defp diff(_previous, _entry), do: nil
