@@ -4,10 +4,14 @@
 @source "../components";
 @source "../app";
 
-/* Colours and fonts added to Tailwind's theme. */
+/*
+ * Additions to Tailwind's theme: a colour, and the browser's default
+ * sans-serif typeface as the pages' font, in place of Tailwind's system font
+ * stack.
+ */
 @theme {
   --color-gray-active: #f8fafb;
-  --font-montserrat: "Montserrat", sans-serif;
+  --font-sans: sans-serif;
 }
 
 /* Variants for state an element marks with a data attribute set to "true". */
@@ -38,15 +42,8 @@
   }
 }
 
-@font-face {
-  font-family: "Montserrat";
-  src: url("./fonts/Montserrat-VariableFont_wght.ttf") format("truetype");
-  font-weight: 100 900;
-  font-display: swap;
-}
-
 body {
-  @apply min-h-screen overflow-x-clip font-light text-gray-900 bg-gray-100 font-montserrat;
+  @apply min-h-screen overflow-x-clip font-light text-gray-900 bg-gray-100;
 }
 
 /* The height of Layout's sticky header, which Layout sets as the header
