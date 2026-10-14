@@ -18,8 +18,6 @@ const meta = {
   title: "Insights/Insight map",
   component: InsightMap,
   args: {
-    title: "Publications by country",
-    hint: "Each country is shaded by the number of publications published there.",
     map: worldMap(NUMERIC_CODES),
     countries: CHARTS.countriesOfPublication.groups
       .slice(0, 4)

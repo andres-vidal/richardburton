@@ -1,16 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { decades } from "test/charts";
 import { CHARTS } from "test/insights-fixtures";
 import { expect, within } from "storybook/test";
 
 import InsightStacks from "./InsightStacks";
-
-// Returns the groups of a chart by decade as rows.
-const decades = (groups: (typeof CHARTS)["byDecade"]["groups"]) =>
-  groups.map(({ key, counts }) => ({
-    key: String(key),
-    label: `${key}s`,
-    counts,
-  }));
 
 // Returns the row of the list whose label is `label`.
 const row = (canvasElement: HTMLElement, label: string) =>

@@ -380,3 +380,12 @@ export async function seedCorpus(page: Page) {
 
   await submitWorkspace(page, CORPUS_SIZE);
 }
+
+/**
+ * Opens the menu labelled `label`, such as a `Select` or a role menu, and
+ * picks its option named `option`.
+ */
+export async function chooseOption(page: Page, label: string, option: string) {
+  await page.getByLabel(label, { exact: true }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}

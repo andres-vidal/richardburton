@@ -1,14 +1,7 @@
-import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
-import { signInAsAdmin, signInAsContributor } from "./helpers";
+import { chooseOption, signInAsAdmin, signInAsContributor } from "./helpers";
 
 const ACCESS_PAGE = "/admin/users";
-
-/** Roles are picked from the app's menu, not a platform select. */
-async function pickRole(page: Page, label: string, role: string) {
-  await page.getByRole("combobox", { name: label }).click();
-  await page.getByRole("option", { name: role, exact: true }).click();
-}
 
 test("an admin invites someone, changes what they may do, and revokes it", async ({
   page,
@@ -23,7 +16,7 @@ test("an admin invites someone, changes what they may do, and revokes it", async
   // provider mints their account, and only on that first sign-in — so the offer
   // waits on the address.
   await page.getByLabel("Email address").fill("newcomer@example.com");
-  await pickRole(page, "Role to invite as", "Contributor");
+  await chooseOption(page, "Role to invite as", "Contributor");
   await page.getByRole("button", { name: "Invite" }).click();
 
   const invitations = page.getByRole("listitem").filter({
@@ -45,7 +38,7 @@ test("an admin invites someone, changes what they may do, and revokes it", async
   });
   await expect(contributor).toBeVisible();
 
-  await pickRole(page, "Role for dev-contributor@localhost", "Reader");
+  await chooseOption(page, "Role for dev-contributor@localhost", "Reader");
   await expect(page.getByText("Role changed")).toBeVisible();
   await expect(
     page.getByRole("combobox", { name: "Role for dev-contributor@localhost" }),
@@ -76,7 +69,7 @@ test("an admin cannot change or revoke their own access", async ({ page }) => {
   // Nor by the back way in: inviting your own address is a change of your own
   // role, and meets the same refusal.
   await page.getByLabel("Email address").fill("dev-admin@localhost");
-  await pickRole(page, "Role to invite as", "Reader");
+  await chooseOption(page, "Role to invite as", "Reader");
   await page.getByRole("button", { name: "Invite" }).click();
 
   await expect(page.getByText("Could not invite")).toBeVisible();

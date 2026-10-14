@@ -1,6 +1,5 @@
-import { tickOf } from "modules/insights";
-import { CSSProperties, FC, ReactNode } from "react";
-import InsightSection from "./InsightSection";
+import { decadesBetween, tickOf } from "modules/insights";
+import { CSSProperties, FC } from "react";
 
 /** A dot on a row, at a year. */
 type Mark = {
@@ -26,33 +25,26 @@ type Track = {
   marks: Mark[];
 };
 
-type Props = {
-  title: string;
-  /** What the chart shows, in a tooltip beside the title. */
-  hint?: string;
-  /** Controls shown at the end of the title's row. */
-  actions?: ReactNode;
-  tracks: Track[];
-};
-
-// Returns the first year of the decade a year falls in.
-const decade = (year: number) => Math.floor(year / 10) * 10;
+type Props = { tracks: Track[] };
 
 /**
- * A titled list of rows on one axis of years. Each row shows its label and
- * value, and a track with a dot at the year of each mark, joined by a line
- * from the first mark to the last. The axis runs from the decade of the
- * earliest mark to the end of the decade of the latest, and its decades are
- * written under the rows (see `tickOf`). The labels at either end are aligned
- * inwards, so they stay inside the axis.
+ * A list of rows on one axis of years. Each row shows its label and value,
+ * and a track with a dot at the year of each mark, joined by a line from the
+ * first mark to the last. The axis runs from the decade of the earliest mark
+ * to the end of the decade of the latest, and its decades are written under
+ * the rows (see `tickOf`). The labels at either end are aligned inwards, so
+ * they stay inside the axis.
  *
  * Hovering a dot shows its mark's label. The tracks are hidden from assistive
  * technology, which reads each row's label, value and the labels of its marks.
  */
-const InsightTimeline: FC<Props> = ({ title, hint, actions, tracks }) => {
+const InsightTimeline: FC<Props> = ({ tracks }) => {
   const years = tracks.flatMap(({ marks }) => marks.map(({ year }) => year));
-  const first = decade(Math.min(...years));
-  const last = decade(Math.max(...years)) + 10;
+  // Every decade the marks fall in, and the decade after them, whose first year
+  // ends the axis.
+  const decades = decadesBetween(Math.min(...years), Math.max(...years) + 10);
+  const first = decades[0];
+  const last = decades[decades.length - 1];
   const at = (year: number) => (year - first) / (last - first);
 
   const heaviest = Math.max(
@@ -62,13 +54,8 @@ const InsightTimeline: FC<Props> = ({ title, hint, actions, tracks }) => {
   const weigh = (weight?: number) =>
     weight === undefined ? 1 / 3 : weight / heaviest;
 
-  const decades = Array.from(
-    { length: (last - first) / 10 + 1 },
-    (_, index) => first + index * 10,
-  );
-
   return (
-    <InsightSection title={title} hint={hint} actions={actions}>
+    <div className="space-y-3">
       <ol className="space-y-3 sm:space-y-2">
         {tracks.map(({ key, label, detail, value, marks }) => (
           <li
@@ -134,7 +121,7 @@ const InsightTimeline: FC<Props> = ({ title, hint, actions, tracks }) => {
           ))}
         </span>
       </div>
-    </InsightSection>
+    </div>
   );
 };
 

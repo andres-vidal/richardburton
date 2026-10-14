@@ -184,12 +184,7 @@
         "country": "split by country"
       },
       "formOption": "as {form}",
-      "topOptions": {
-        "10": "Top 10",
-        "20": "Top 20",
-        "50": "Top 50",
-        "all": "All"
-      },
+      "topOption": "{top, plural, =0 {All} other {Top #}}",
       "leastOption": "{least, plural, =0 {Any size} other {At least #}}"
     }
   },

@@ -1,0 +1,42 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightAxisStories from "./InsightAxis.stories";
+
+<Meta of={InsightAxisStories} />
+
+# Insight axis
+
+The axes of a chart over years or decades. The component renders a box for the
+plot, with a dashed line along its top edge and the value at the top written
+above it, and labels the years under the box.
+
+<Canvas of={InsightAxisStories.Years} />
+
+## Props
+
+- `ats` — the year of each slot under the plot, or the first year of its
+  decade, in order.
+- `top` — the text at the top of the plot, such as the largest count drawn.
+- `spaced` — whether the slots are one pixel apart, rather than side by side.
+- `children` — the plot. The box is `h-48` tall, as wide as the axis, and
+  positioned, so a plot can fill it with `absolute inset-0`.
+
+## Labels
+
+Each year has an equal slot under the plot, and its label is centred in its
+slot. Years divisible by 20 are always labelled, and the other decades only on
+screens at least as wide as the `md` breakpoint, where there is room for them.
+`tickOf` in `modules/insights` decides which. A label in the first or last slot
+is aligned inwards, so it stays inside the chart.
+
+## Spaced slots
+
+<Description of={InsightAxisStories.Spaced} />
+
+<Canvas of={InsightAxisStories.Spaced} />
+
+## Accessibility
+
+The axes and the plot have `aria-hidden`. A chart drawn on the axis needs its
+counts in another form for assistive technology, such as an
+[Insight table](?path=/docs/insights-insight-table--docs).

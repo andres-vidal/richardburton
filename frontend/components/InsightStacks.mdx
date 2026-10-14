@@ -6,22 +6,18 @@ import * as InsightStacksStories from "./InsightStacks.stories";
 
 # Insight stacks
 
-A titled list of stacked bars, one for each entry, such as each decade. Each
-row shows its label and total above a grey track, and a bar on the track stacks
-the row's series from the left. A bar's length is the sum of the row's counts
-as a fraction of the largest sum, so a row with no counts, such as a decade with
-no publications, shows only the track.
+A list of stacked bars, one for each entry, such as each decade. Each row shows
+its label and total above a grey track, and a bar on the track stacks the row's
+series from the left. A bar's length is the sum of the row's counts as a
+fraction of the largest sum, so a row with no counts, such as a decade with no
+publications, shows only the track.
 
 <Canvas of={InsightStacksStories.Decades} />
 
 ## Props
 
-- `title` — the heading of the chart, and the accessible name of the section
-  around it and of its table.
-- `hint` — an optional explanation of what the chart shows, in an
-  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
-- `actions` — optional controls shown at the end of the title's row, such
-  as a chart's settings.
+- `title` — the caption of the table of counts, which is the title of the
+  chart, and so the table's accessible name.
 - `heading` — the heading of the table's first column, such as "Decade".
 - `series` — the name of each series, in the order they are stacked from the
   left. They are listed in an [Insight legend](?path=/docs/insights-insight-legend--docs).
@@ -42,6 +38,6 @@ set. The play test of the first story checks the text it shows for the 1960s.
 
 ## Accessibility
 
-The bars have `aria-hidden`. The section holds an
+The bars have `aria-hidden`. The component also renders an
 [Insight table](?path=/docs/insights-insight-table--docs) of the same counts,
-which assistive technology reads instead.
+visually hidden, which assistive technology reads instead.

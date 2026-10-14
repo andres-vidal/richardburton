@@ -2,18 +2,12 @@
 
 import type { WorldMap } from "modules/world-map";
 import { useFormatter, useTranslations } from "next-intl";
-import { FC, memo, useMemo, useState, ReactNode } from "react";
-import InsightSection from "./InsightSection";
+import { FC, memo, useMemo, useState } from "react";
 
 /** A country with its name and its number of publications. */
 type Country = { code: string; name: string; count: number };
 
 type Props = {
-  title: string;
-  /** What the map shows, in a tooltip beside the title. */
-  hint?: string;
-  /** Controls shown at the end of the title's row. */
-  actions?: ReactNode;
   /** The outlines to draw, from `worldMap`. */
   map: WorldMap;
   /** The countries with publications, in the order they are listed. */
@@ -77,8 +71,8 @@ const Outline = memo(function Outline({
 });
 
 /**
- * A titled world map with each country shaded by its number of publications,
- * and a list of the countries with their counts beside it.
+ * A world map with each country shaded by its number of publications, and a
+ * list of the countries with their counts beside it.
  *
  * The shades are fixed bands rather than a scale of the largest count, so the
  * same shade means the same range on every search: one publication, two to
@@ -93,7 +87,7 @@ const Outline = memo(function Outline({
  *
  * The map is hidden from assistive technology, which reads the list.
  */
-const InsightMap: FC<Props> = ({ title, hint, actions, map, countries }) => {
+const InsightMap: FC<Props> = ({ map, countries }) => {
   const t = useTranslations("insights");
   const format = useFormatter();
   const [active, setActive] = useState<string | null>(null);
@@ -119,52 +113,50 @@ const InsightMap: FC<Props> = ({ title, hint, actions, map, countries }) => {
   }, [map, countries, format]);
 
   return (
-    <InsightSection title={title} hint={hint} actions={actions}>
-      <div className="grid gap-6 items-start lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
-        <div aria-hidden className="space-y-2">
-          <svg
-            viewBox={`0 0 ${map.width} ${map.height}`}
-            className="w-full h-auto"
-          >
-            {outlines.map(({ key, ...outline }) => (
-              <Outline
-                key={key}
-                {...outline}
-                active={outline.code !== null && outline.code === active}
-                onHover={setActive}
+    <div className="grid gap-6 items-start lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
+      <div aria-hidden className="space-y-2">
+        <svg
+          viewBox={`0 0 ${map.width} ${map.height}`}
+          className="w-full h-auto"
+        >
+          {outlines.map(({ key, ...outline }) => (
+            <Outline
+              key={key}
+              {...outline}
+              active={outline.code !== null && outline.code === active}
+              onHover={setActive}
+            />
+          ))}
+        </svg>
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700">
+          {BANDS.map(({ name }, index) => (
+            <li key={name} className="flex gap-1.5 items-center">
+              <span
+                data-shade={index + 1}
+                className="size-2.5 rounded-sm bg-(--shade)"
               />
-            ))}
-          </svg>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700">
-            {BANDS.map(({ name }, index) => (
-              <li key={name} className="flex gap-1.5 items-center">
-                <span
-                  data-shade={index + 1}
-                  className="size-2.5 rounded-sm bg-(--shade)"
-                />
-                {t(`shades.${name}`)}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <ol className="space-y-0.5 max-w-xs text-sm">
-          {countries.map(({ code, name, count }) => (
-            <li
-              key={code}
-              data-active={code === active}
-              onMouseEnter={() => setActive(code)}
-              onMouseLeave={() => setActive(null)}
-              className="flex gap-3 justify-between py-0.5 px-2 -mx-2 rounded transition-colors data-[active=true]:bg-indigo-100"
-            >
-              <span className="text-gray-900">{name}</span>
-              <span className="text-gray-700 tabular-nums">
-                {format.number(count)}
-              </span>
+              {t(`shades.${name}`)}
             </li>
           ))}
-        </ol>
+        </ul>
       </div>
-    </InsightSection>
+      <ol className="space-y-0.5 max-w-xs text-sm">
+        {countries.map(({ code, name, count }) => (
+          <li
+            key={code}
+            data-active={code === active}
+            onMouseEnter={() => setActive(code)}
+            onMouseLeave={() => setActive(null)}
+            className="flex gap-3 justify-between py-0.5 px-2 -mx-2 rounded transition-colors data-[active=true]:bg-indigo-100"
+          >
+            <span className="text-gray-900">{name}</span>
+            <span className="text-gray-700 tabular-nums">
+              {format.number(count)}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 };
 

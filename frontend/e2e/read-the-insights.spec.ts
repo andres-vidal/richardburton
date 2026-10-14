@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 import {
+  chooseOption,
   CORPUS_SIZE,
   CORPUS_UNSOURCED,
   CSV_HEADER,
@@ -40,18 +41,8 @@ function tabled(page: Page, heading: string) {
 
 /** Chooses the preset named `name`, and waits for its chart. */
 async function choosePreset(page: Page, name: string) {
-  await choose(page, "Preset", name);
+  await chooseOption(page, "Preset", name);
   await expect(page.getByRole("region", { name })).toBeVisible();
-}
-
-/**
- * Opens the chart builder's control named `label` and picks `option`. A
- * control is named by its accessible label, since its options name
- * themselves on screen.
- */
-async function choose(page: Page, label: string, option: string) {
-  await page.getByLabel(label, { exact: true }).click();
-  await page.getByRole("option", { name: option, exact: true }).click();
 }
 
 /**
@@ -274,7 +265,7 @@ test("a work translated again is counted as a retranslation, and a translation p
 
   // The same timeline on the Portuguese page, opened from its address.
   await page.goto(
-    "/pt/insights?count=translations&by=work&form=timeline&first=true&top=10&least=2",
+    "/pt/insights?count=translations&by=work&form=timeline&top=10&least=2",
   );
   await expect(page.getByLabel("Modelo", { exact: true })).toHaveValue(
     "Obras traduzidas mais de uma vez",
@@ -301,8 +292,8 @@ test("a reader builds a chart of their own, narrows it with a search, and shares
   // Caldwell, William Grossman, Clotilde Wilson and John Gledson. A count
   // other than publications takes no split, and is not grouped by country,
   // which belongs to a publication.
-  await choose(page, "What to count", "Translators");
-  await choose(page, "Group by", "by original author");
+  await chooseOption(page, "What to count", "Translators");
+  await chooseOption(page, "Group by", "by original author");
   await expect(page).toHaveURL(
     /count=translators&by=original_author&form=bars$/,
   );
@@ -333,8 +324,8 @@ test("a reader builds a chart of their own, narrows it with a search, and shares
   // A timeline places each translator at the first year they translated the
   // author, so Caldwell's reissue of 1966 is not a dot of its own. Keeping
   // only authors with at least two translators leaves Machado de Assis alone.
-  await choose(page, "Show as", "as timeline");
-  await expect(page).toHaveURL(/form=timeline&first=true/);
+  await chooseOption(page, "Show as", "as timeline");
+  await expect(page).toHaveURL(/form=timeline/);
   const firsts = "Translators by original author, first appearances only";
   const machado = counted(page, firsts).filter({
     hasText: /^Machado de Assis/,
@@ -349,7 +340,7 @@ test("a reader builds a chart of their own, narrows it with a search, and shares
     "where it first appears in the database",
   );
 
-  await choose(page, "Fewest items per group", "At least 2");
+  await chooseOption(page, "Fewest items per group", "At least 2");
   await expect(counted(page, firsts)).toHaveCount(1);
 
   // The copied link opens the same chart in a new tab.
@@ -360,7 +351,7 @@ test("a reader builds a chart of their own, narrows it with a search, and shares
   const link = (await notifications.innerText()).match(
     /\/en\/insights\?\S+/,
   )![0];
-  expect(link).toContain("first=true&least=2");
+  expect(link).toContain("form=timeline&least=2");
 
   const shared = await context.newPage();
   await shared.goto(link);
@@ -385,16 +376,16 @@ test("a reader builds a chart of their own, narrows it with a search, and shares
 
   // The running total of translators by decade ends at the number of
   // translators in the database.
-  await choose(page, "Group by", "by decade");
-  await choose(page, "Show as", "as running total");
+  await chooseOption(page, "Group by", "by decade");
+  await chooseOption(page, "Show as", "as running total");
   await expect(
     tabled(page, "Translators by decade, running total").last(),
   ).toHaveText("1990s8");
 
   // A heat table of publications by original author, by decade.
-  await choose(page, "What to count", "Publications");
-  await choose(page, "Group by", "by original author");
-  await choose(page, "Show as", "as heat table by decade");
+  await chooseOption(page, "What to count", "Publications");
+  await chooseOption(page, "Group by", "by original author");
+  await chooseOption(page, "Show as", "as heat table by decade");
   const heat = page.getByRole("table", {
     name: "Publications by original author",
   });

@@ -81,5 +81,22 @@ const total = (counts: number[]) =>
 const tickOf = (year: number) =>
   year % 20 === 0 ? "major" : year % 10 === 0 ? "minor" : undefined;
 
-export { tickOf, total };
+// Returns the first year of the decade that `year` falls in.
+const decadeOf = (year: number) => Math.floor(year / 10) * 10;
+
+/**
+ * Returns the first year of every decade from the decade of `first` to the
+ * decade of `last`, both included. Returns an empty list when `last` falls in
+ * an earlier decade than `first`.
+ */
+const decadesBetween = (first: number, last: number) => {
+  const from = decadeOf(first);
+
+  return Array.from(
+    { length: Math.max(0, (decadeOf(last) - from) / 10 + 1) },
+    (_, index) => from + index * 10,
+  );
+};
+
+export { decadesBetween, tickOf, total };
 export type { Drawn, Group, Insights, Key, Step };

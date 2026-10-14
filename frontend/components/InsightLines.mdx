@@ -6,20 +6,15 @@ import * as InsightLinesStories from "./InsightLines.stories";
 
 # Insight lines
 
-A titled line chart over years or decades, drawn in an
-[Insight section](?path=/docs/insights-insight-section--docs), with one line
-for each series. The largest value drawn is written at the top of the chart.
+A line chart over years or decades, with one line for each series. The largest
+value drawn is written at the top of the chart.
 
 <Canvas of={InsightLinesStories.Lines} />
 
 ## Props
 
-- `title` — the heading of the chart, and the accessible name of the section
-  around it and of its table.
-- `hint` — an optional explanation of what the chart shows, in an
-  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
-- `actions` — optional controls shown at the end of the title's row, such
-  as a chart's settings.
+- `title` — the caption of the table of counts, which is the title of the
+  chart, and so the table's accessible name.
 - `heading` — the heading of the table's first column, such as "Year".
 - `series` — the name of each series. With more than one, they are listed in an
   [Insight legend](?path=/docs/insights-insight-legend--docs).
@@ -28,8 +23,10 @@ for each series. The largest value drawn is written at the top of the chart.
 - `stacked` — whether the series are stacked as areas rather than drawn as
   lines.
 
-The axis is labelled like the columns chart: years divisible by 20, and the
-other decades on wider screens.
+The chart is drawn on an
+[Insight axis](?path=/docs/insights-insight-axis--docs), which labels the
+points the same way as the columns chart: years divisible by 20, and the other
+decades on wider screens.
 
 ## Stacked areas
 
@@ -54,6 +51,6 @@ the point's label, its total and its count in each series.
 
 ## Accessibility
 
-The drawing has `aria-hidden`. The section holds an
+The drawing has `aria-hidden`. The component also renders an
 [Insight table](?path=/docs/insights-insight-table--docs) of the same counts,
-which assistive technology reads instead.
+visually hidden, which assistive technology reads instead.
