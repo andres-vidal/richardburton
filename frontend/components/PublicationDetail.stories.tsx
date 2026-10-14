@@ -3,7 +3,11 @@ import { store } from "modules/store";
 import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { resetAll } from "modules/publication/store";
-import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
+import {
+  FIRST_DOM_CASMURRO,
+  LOOK_ALIKE_RECORD,
+  RETRANSLATED_DOM_CASMURRO,
+} from "test/publication-fixtures";
 import { asAdmin } from "test/session";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
@@ -45,7 +49,7 @@ const LOG: PublicationHistoryEntry[] = [
 const meta = {
   title: "Publications/Publication detail",
   component: PublicationDetail,
-  args: { publication: DOM_CASMURRO },
+  args: { publication: DOM_CASMURRO, kind: "first_translation", follows: null },
   decorators: [
     (Story) => (
       <div className="p-8 max-w-2xl bg-white">
@@ -59,9 +63,15 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** What a reader sees: the record as a sentence, and its sources. */
+/**
+ * What a reader sees: the record as a sentence, and its sources. A first
+ * translation has no line about its kind.
+ */
 export const Default: Story = {
   play: async () => {
+    await expect(screen.queryByText("Retranslation")).not.toBeInTheDocument();
+    await expect(screen.queryByText("Reissue")).not.toBeInTheDocument();
+
     // Every field a reader might want to pivot on is a search link.
     await expect(
       screen.getByRole("link", { name: "Machado de Assis" }),
@@ -75,6 +85,39 @@ export const Default: Story = {
     await expect(
       screen.getByText("Gledson, John. Deceptive Realism, 1984."),
     ).toBeInTheDocument();
+  },
+};
+
+/**
+ * A retranslation opens with a line that says so, above the description, and
+ * links to the work's first translation. The edit form replaces the line while
+ * it is open.
+ */
+export const Retranslation: Story = {
+  args: {
+    publication: RETRANSLATED_DOM_CASMURRO,
+    kind: "retranslation",
+    follows: FIRST_DOM_CASMURRO,
+  },
+  decorators: [asAdmin],
+  beforeEach: () => resetAll(store),
+  play: async () => {
+    const line = screen.getByText(/The work was first translated by/);
+
+    await expect(line).toHaveTextContent(
+      "The work was first translated by Helen Caldwell as Dom Casmurro (1953).",
+    );
+    await expect(
+      screen.getByRole("link", { name: "Dom Casmurro (1953)" }),
+    ).toHaveAttribute("href", "/en/publications/7");
+    await expect(
+      line.compareDocumentPosition(screen.getByText(/is a translation of/)),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await waitFor(() =>
+      expect(screen.queryByText("Retranslation")).not.toBeInTheDocument(),
+    );
   },
 };
 

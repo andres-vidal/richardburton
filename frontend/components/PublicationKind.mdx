@@ -1,0 +1,53 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationKindStories from "./PublicationKind.stories";
+
+<Meta of={PublicationKindStories} />
+
+# Publication kind
+
+One line that says a publication is a retranslation or a reissue. It shows a
+badge that names the kind, an [info hint](?path=/docs/components-info-hint--docs)
+that defines the kinds, and a sentence that links to the earlier publication
+this one follows. It renders nothing for a first translation.
+
+The server decides the kind of a publication and the publication it follows,
+and `GET /publications/:id` returns both with the publication. Within a work,
+the earliest publication of the earliest translation is the first translation.
+The first publication of any later translation of the work is a retranslation,
+and any later publication of a translation is a reissue. The hint shows the
+same definitions as the insights charts.
+
+<Description of={PublicationKindStories.Retranslation} />
+
+<Canvas of={PublicationKindStories.Retranslation} />
+
+## Props
+
+- `kind` — `"first_translation"`, `"retranslation"` or `"reissue"`.
+- `follows` — the publication this one follows, with its id, title, year and
+  translators, or `null` for a first translation.
+
+## Reissue
+
+<Description of={PublicationKindStories.Reissue} />
+
+<Canvas of={PublicationKindStories.Reissue} />
+
+## The definitions
+
+<Description of={PublicationKindStories.Explained} />
+
+<Canvas of={PublicationKindStories.Explained} />
+
+## Several translators
+
+<Description of={PublicationKindStories.SeveralTranslators} />
+
+<Canvas of={PublicationKindStories.SeveralTranslators} />
+
+## First translation
+
+<Description of={PublicationKindStories.FirstTranslation} />
+
+<Canvas of={PublicationKindStories.FirstTranslation} />

@@ -508,7 +508,14 @@
     "deleteMessage": "“{title}” ({year}) será removida da base de dados, do índice e dos resultados de busca.",
     "notHereDetail": "Ela foi removida da base de dados, ou o link nomeia um registro que nunca existiu.",
     "summary": "Tradução de <originalTitle></originalTitle>, de <originalAuthors></originalAuthors>, publicada por <publishers></publishers>",
-    "inCountry": "{article, select, o {no <name></name>} a {na <name></name>} os {nos <name></name>} as {nas <name></name>} other {em <name></name>}}"
+    "inCountry": "{article, select, o {no <name></name>} a {na <name></name>} os {nos <name></name>} as {nas <name></name>} other {em <name></name>}}",
+    "kind": {
+      "retranslation": "Retradução",
+      "reissue": "Reedição",
+      "about": "{kind, select, retranslation {Sobre retraduções} other {Sobre reedições}}",
+      "retranslationOf": "A obra foi traduzida pela primeira vez por {translators} como <link>{title} ({year})</link>.",
+      "reissueOf": "Esta tradução foi publicada pela primeira vez como <link>{title} ({year})</link>."
+    }
   },
   "roles": {
     "reader": "Leitor",

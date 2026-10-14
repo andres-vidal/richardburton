@@ -1,12 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import type { PublicationView } from "app/publications/read";
 import { FC, useState } from "react";
 import { store } from "modules/store";
 import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { setAll } from "modules/publication/store";
-import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
+import {
+  FIRST_DOM_CASMURRO,
+  LOOK_ALIKE_RECORD,
+  REISSUED_DOM_CASMURRO,
+} from "test/publication-fixtures";
 import { asAdmin } from "test/session";
-import { expect, screen, userEvent, waitFor } from "storybook/test";
+import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationOverlay from "./PublicationOverlay";
 
@@ -45,12 +50,15 @@ const LOG: PublicationHistoryEntry[] = [
 ];
 
 // The record the URL names, read on the server and handed over unawaited. A
-// story stands in for that read with a promise of its own.
-const READER_VIEW = Promise.resolve({ publication: PUBLICATION });
-const ADMIN_VIEW = Promise.resolve({
+// story stands in for that read with a promise of its own. The record is the
+// first translation of its work.
+const READ: PublicationView = {
   publication: PUBLICATION,
-  history: withChanges(LOG),
-});
+  kind: "first_translation",
+  follows: null,
+};
+const READER_VIEW = Promise.resolve(READ);
+const ADMIN_VIEW = Promise.resolve({ ...READ, history: withChanges(LOG) });
 
 /**
  * The overlay with a read slow enough to see it open before the record lands.
@@ -59,8 +67,8 @@ const ADMIN_VIEW = Promise.resolve({
 const StreamingOverlay: FC = () => {
   const [view] = useState(
     () =>
-      new Promise<{ publication: typeof PUBLICATION }>((resolve) =>
-        setTimeout(() => resolve({ publication: PUBLICATION }), 600),
+      new Promise<PublicationView>((resolve) =>
+        setTimeout(() => resolve(READ), 600),
       ),
   );
 
@@ -166,6 +174,36 @@ export const Default: Story = {
     await expect(
       screen.getByText(/Introduction to Dom Casmurro/),
     ).toBeInTheDocument();
+  },
+};
+
+/**
+ * A reissue says so under its title, and links to the first publication of its
+ * translation.
+ */
+export const Reissue: Story = {
+  args: {
+    view: Promise.resolve({
+      publication: REISSUED_DOM_CASMURRO,
+      kind: "reissue",
+      follows: FIRST_DOM_CASMURRO,
+    }),
+  },
+  parameters: {
+    docs: { story: { inline: false, height: "30rem" } },
+  },
+  play: async () => {
+    const dialog = await screen.findByRole("dialog");
+
+    await waitFor(() =>
+      expect(within(dialog).getByText("Reissue")).toBeVisible(),
+    );
+    await expect(dialog).toHaveTextContent(
+      "This translation was first published as Dom Casmurro (1953).",
+    );
+    await expect(
+      screen.getByRole("link", { name: "Dom Casmurro (1953)" }),
+    ).toHaveAttribute("href", "/en/publications/7");
   },
 };
 
@@ -337,6 +375,7 @@ export const EditingMenuAboveModal: Story = {
 export const LongHeading: Story = {
   args: {
     view: Promise.resolve({
+      ...READ,
       publication: {
         ...PUBLICATION,
         title:

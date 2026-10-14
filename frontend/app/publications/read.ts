@@ -3,24 +3,33 @@ import { getSession } from "app/session";
 import { TOTAL_COUNT_HEADER } from "modules/api";
 import { withChanges, type WithChanges } from "modules/publication/history";
 import type {
+  FollowedPublication,
   Matched,
   Publication,
   PublicationHistoryEntry,
   PublicationId,
+  PublicationKind,
 } from "modules/publication/model";
 import type { PublicationIndex } from "modules/publication/store";
 import { User } from "modules/users";
 import { cache } from "react";
 
 /**
- * One publication with what its reader may see of it: the record, and for a
- * user who can edit publications, the record's history.
+ * One publication with what its reader may see of it: the record, its kind and
+ * the publication it follows, and for a user who can edit publications, the
+ * record's history.
  */
 export type PublicationView = {
   publication: Publication;
+  kind: PublicationKind;
+  /** The publication this one follows, or null for a first translation. */
+  follows: FollowedPublication | null;
   /** The record's history, present only for a user who can edit publications. */
   history?: WithChanges<PublicationHistoryEntry>[];
 };
+
+/** A publication as `GET /publications/:id` returns it. */
+type PublicationRead = Publication & Pick<PublicationView, "kind" | "follows">;
 
 /**
  * Reads a publication as the signed-in user, or returns `null` when the backend
@@ -32,28 +41,34 @@ export const readPublication = cache(
   async (id: string, search?: string): Promise<PublicationView | null> => {
     const session = await getSession();
     const readRecord = () =>
-      getOrNull<Publication>(`/publications/${id}`, { search });
+      getOrNull<PublicationRead>(`/publications/${id}`, { search });
 
     if (!User.canEditPublications(session)) {
-      const publication = await readRecord();
-      return publication && { publication };
+      const read = await readRecord();
+      return read && viewOf(read);
     }
 
-    const [publication, history] = await Promise.all([
+    const [read, history] = await Promise.all([
       readRecord(),
       getOrNull<{ entries: PublicationHistoryEntry[] }>(
         `/publications/${id}/history`,
       ),
     ]);
 
-    return (
-      publication && {
-        publication,
-        history: withChanges(history?.entries ?? []),
-      }
-    );
+    return read && viewOf(read, withChanges(history?.entries ?? []));
   },
 );
+
+// Returns the view of `read`: the record without `kind` and `follows`, those
+// two beside it, and `history` when it is given.
+function viewOf(
+  { kind, follows, ...publication }: PublicationRead,
+  history?: WithChanges<PublicationHistoryEntry>[],
+): PublicationView {
+  return history
+    ? { publication, kind, follows, history }
+    : { publication, kind, follows };
+}
 
 export type { PublicationIndex };
 
