@@ -19,6 +19,5 @@ jobs:
             backend/_build
           key: mix-format-${{ runner.os }}-${{ hashFiles('backend/.tool-versions', 'backend/mix.lock') }}
           restore-keys: mix-format-${{ runner.os }}-
-      - run: echo -e "import Config\nconfig :richard_burton, []" >> config/dev.local.exs
       - run: mix deps.get
       - run: mix format --check-formatted

@@ -149,7 +149,7 @@ Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
 ### Backend secrets
 
-To configure backend secrets in development mode, you should create a file named `dev.local.exs` in `backend/config` and add the relevant configuration for `google_*` and `smtp_*`. These variables are the same as those described in the [environment variables](#environment-variables) section, although downcased. `phx_consumer_id` is already predefined in `config/dev.exs`, but it can be overrided by defining a value in `dev.local.exs`.
+To configure backend secrets in development, create `backend/config/dev.local.exs` and set the `google_*` and `smtp_*` settings in it. They are the [environment variables](#environment-variables) in lowercase, and an environment variable that is set takes precedence over its setting. The file is optional: without it the backend still runs, and the mail it sends stays on this machine, in the mailbox at `http://localhost:4000/dev/mailbox`. `phx_consumer_url` is already set in `config/dev.exs`, and `dev.local.exs` can override it.
 
 The configuration file must follow this format:
 
