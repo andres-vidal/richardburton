@@ -12,7 +12,6 @@ defmodule RichardBurton.Auth.Google do
 
   alias RichardBurton.Auth.Claims
   alias RichardBurton.Auth.KeyStore
-  alias RichardBurton.User
 
   @doc """
   Verifies the signature of `token` with the key `key_store` holds for its
@@ -35,19 +34,6 @@ defmodule RichardBurton.Auth.Google do
   rescue
     # A malformed token (bad header, unusable key, etc.) is just an auth failure.
     _ -> :error
-  end
-
-  @doc """
-  Returns `:ok` when the account with `subject_id` holds `role` or one that
-  outranks it, and `:error` otherwise or when there is no such account.
-  """
-  @impl true
-  @spec authorize(subject_id :: String.t(), role :: atom()) :: :ok | :error
-  def authorize(subject_id, role) do
-    case User.get(subject_id) do
-      %{role: held} -> if User.at_least?(held, role), do: :ok, else: :error
-      _ -> :error
-    end
   end
 
   # The signing algorithm is taken from the trusted JWKS key (not the token

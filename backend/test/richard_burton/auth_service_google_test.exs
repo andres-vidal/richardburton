@@ -5,13 +5,11 @@ defmodule RichardBurton.Auth.GoogleTest do
   `verify/1` accepts an injectable key store (a module exposing `fetch_key/1` and
   `issuer/0`), so signature verification with a real RS256 key and claim
   validation are both exercised here with a stub store, without reaching
-  Google. The `authorize/2` and early `verify/1` failure paths need no store.
+  Google. The early `verify/1` failure paths need no store.
   """
-  use RichardBurton.DataCase, async: false
+  use ExUnit.Case, async: false
 
   alias RichardBurton.Auth.Google
-  alias RichardBurton.User
-  alias RichardBurton.Repo
 
   @issuer "https://accounts.google.com"
   @audience "client-123.apps.googleusercontent.com"
@@ -52,24 +50,6 @@ defmodule RichardBurton.Auth.GoogleTest do
       },
       overrides
     )
-  end
-
-  describe "authorize/2" do
-    test "authorizes a subject whose stored role matches" do
-      Repo.insert!(%User{subject_id: "admin-1", email: "admin@example.com", role: :admin})
-
-      assert Google.authorize("admin-1", :admin) == :ok
-    end
-
-    test "rejects a subject whose stored role does not match" do
-      Repo.insert!(%User{subject_id: "reader-1", email: "reader@example.com", role: :reader})
-
-      assert Google.authorize("reader-1", :admin) == :error
-    end
-
-    test "rejects an unknown subject" do
-      assert Google.authorize("ghost", :admin) == :error
-    end
   end
 
   describe "verify/1 (failure paths, real key store)" do

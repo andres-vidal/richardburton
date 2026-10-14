@@ -14,7 +14,7 @@ defmodule RichardBurtonWeb.Plugs.Authorize do
   """
   @behaviour Plug
 
-  alias RichardBurton.Auth
+  alias RichardBurton.User
 
   import RichardBurtonWeb.Refusal
 
@@ -23,7 +23,7 @@ defmodule RichardBurtonWeb.Plugs.Authorize do
 
   @impl true
   def call(conn = %{assigns: %{subject_id: subject_id}}, role) do
-    case Auth.authorize(subject_id, role) do
+    case User.authorize(subject_id, role) do
       :ok -> conn
       :error -> refuse(conn, :forbidden, :forbidden)
     end

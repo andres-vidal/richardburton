@@ -6,10 +6,18 @@ defmodule RichardBurtonWeb.ConnCase do
   Each test gets a `conn` signed in as the **session user**: it carries an
   `rb-session` cookie for a real session of that user's subject, the matching
   `rb-csrf-token` header, and an `Authorization: Bearer` header for the routes
-  that take a provider token. The session user's row is not inserted;
-  `create_session_user/0` inserts it. The role checks go through
-  `RichardBurton.AuthMock`, which the `expect_auth_*` helpers program.
-  `Phoenix.ConnTest.build_conn/0` gives a connection without any of this.
+  that take a provider token. `Phoenix.ConnTest.build_conn/0` gives a
+  connection without any of this.
+
+  The session user's row is inserted only for a test tagged with a `:role`,
+  such as `@tag role: :admin`, or `@describetag` or `@moduletag` for a group of
+  tests. The row holds that role, and the test's context holds the row under
+  `:session_user`. Without the tag, `:session_user` is nil and the role checks
+  refuse the session user.
+
+  The provider-token and reCAPTCHA checks go through `RichardBurton.AuthMock`
+  and `RichardBurton.Auth.RecaptchaMock`, which the `expect_auth_*` helpers
+  program.
   """
 
   use ExUnit.CaseTemplate
@@ -33,7 +41,7 @@ defmodule RichardBurtonWeb.ConnCase do
 
   setup tags do
     RichardBurton.DataCase.setup_sandbox(tags)
-    {:ok, conn: signed_in_conn()}
+    {:ok, conn: signed_in_conn(), session_user: tags[:role] && insert_session_user(tags[:role])}
   end
 
   setup :verify_on_exit!
@@ -63,15 +71,13 @@ defmodule RichardBurtonWeb.ConnCase do
   @doc "Returns the email of the session user."
   def session_user_email, do: @session_user_email
 
-  @doc "Inserts the session user, with the reader role, and returns it."
-  def create_session_user do
-    {:ok, user} =
-      RichardBurton.User.insert(%{
-        subject_id: @session_subject_id,
-        email: @session_user_email
-      })
-
-    user
+  # Inserts the session user with `role`, and returns it.
+  defp insert_session_user(role) do
+    RichardBurton.Repo.insert!(%RichardBurton.User{
+      subject_id: @session_subject_id,
+      email: @session_user_email,
+      role: role
+    })
   end
 
   @doc """
@@ -82,22 +88,6 @@ defmodule RichardBurtonWeb.ConnCase do
     expect(RichardBurton.AuthMock, :verify, n, fn _ ->
       {:ok, %{subject_id: @session_subject_id, email: email}}
     end)
-  end
-
-  @doc """
-  Expects `n` role checks, each of which admits the role the route asks for,
-  contributor or admin.
-  """
-  def expect_auth_authorize_admin(n \\ 1) do
-    expect(RichardBurton.AuthMock, :authorize, n, fn _, role
-                                                     when role in [:contributor, :admin] ->
-      :ok
-    end)
-  end
-
-  @doc "Expects `n` role checks for `role`, each of which refuses it."
-  def refuse_auth_authorize(role, n \\ 1) do
-    expect(RichardBurton.AuthMock, :authorize, n, fn _, ^role -> :error end)
   end
 
   @doc "Expects `n` reCAPTCHA checks, each of which passes."

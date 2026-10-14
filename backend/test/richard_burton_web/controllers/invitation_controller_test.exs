@@ -10,11 +10,10 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
   alias RichardBurton.Invitation
   alias RichardBurton.User
 
+  @moduletag role: :admin
+
   describe "POST /invitations" do
     test "offers a role to someone who has never signed in", %{conn: conn} do
-      create_session_user()
-      expect_auth_authorize_admin()
-
       conn =
         post(conn, invitation_path(conn, :create), %{
           "email" => "new@example.com",
@@ -28,9 +27,7 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     end
 
     test "grants it outright to someone already here", %{conn: conn} do
-      create_session_user()
       {:ok, _} = User.insert(%{"subject_id" => "sub-here", "email" => "here@example.com"})
-      expect_auth_authorize_admin()
 
       conn =
         post(conn, invitation_path(conn, :create), %{
@@ -46,8 +43,6 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     # fails does not lose it. The outcome says so, and the invitation can be
     # mailed again.
     test "says so when the invitation stands but could not be mailed", %{conn: conn} do
-      create_session_user()
-      expect_auth_authorize_admin()
       FailingMailAdapter.install()
 
       conn =
@@ -61,10 +56,7 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
 
     # Inviting yourself is a way of changing your own role, so it is refused
     # the same way as `User.set_role/3` refuses it.
-    test "refuses an admin their own address", %{conn: conn} do
-      me = create_session_user()
-      expect_auth_authorize_admin()
-
+    test "refuses an admin their own address", %{conn: conn, session_user: me} do
       conn =
         post(conn, invitation_path(conn, :create), %{
           "email" => session_user_email(),
@@ -78,9 +70,7 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     test "refuses a role that is not one, whether or not the address has an account", %{
       conn: conn
     } do
-      create_session_user()
       user_fixture("here@example.com")
-      expect_auth_authorize_admin(2)
 
       for email <- ["here@example.com", "new@example.com"] do
         response =
@@ -93,9 +83,6 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     end
 
     test "refuses a second pending invitation for the same address", %{conn: conn} do
-      create_session_user()
-      expect_auth_authorize_admin(2)
-
       attrs = %{"email" => "new@example.com", "role" => "reader"}
       post(conn, invitation_path(conn, :create), attrs)
       conn = post(conn, invitation_path(conn, :create), attrs)
@@ -104,18 +91,14 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     end
 
     test "refuses an address that is not one", %{conn: conn} do
-      create_session_user()
-      expect_auth_authorize_admin()
-
       conn =
         post(conn, invitation_path(conn, :create), %{"email" => "nope", "role" => "reader"})
 
       assert %{"errors" => %{"email" => "invalid"}} == json_response(conn, 400)
     end
 
+    @tag role: :contributor
     test "is refused to anyone who is not an admin", %{conn: conn} do
-      refuse_auth_authorize(:admin)
-
       conn =
         post(conn, invitation_path(conn, :create), %{"email" => "a@b.com", "role" => "admin"})
 
@@ -125,8 +108,6 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
 
   describe "GET /invitations" do
     test "lists what is waiting and what was taken up", %{conn: conn} do
-      create_session_user()
-      expect_auth_authorize_admin()
       {:ok, _} = Invitation.invite(%{"email" => "new@example.com", "role" => "reader"})
 
       conn = get(conn, invitation_path(conn, :index))
@@ -139,9 +120,6 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     setup [:pending_invitation]
 
     test "withdraws a pending invitation", %{conn: conn, invitation: invitation} do
-      create_session_user()
-      expect_auth_authorize_admin()
-
       conn = delete(conn, invitation_path(conn, :delete, invitation.id))
 
       assert response(conn, 204)
@@ -152,8 +130,6 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
       conn: conn,
       invitation: invitation
     } do
-      create_session_user()
-      expect_auth_authorize_admin(2)
       {:ok, _} = Invitation.admit("sub-x", "x@example.com")
 
       assert %{"error" => "accepted"} ==
@@ -166,9 +142,6 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     test "is not found for an unknown invitation, or an id that is not a number", %{
       conn: conn
     } do
-      create_session_user()
-      expect_auth_authorize_admin(2)
-
       for id <- [0, "abc"] do
         assert %{"error" => "not_found"} ==
                  conn |> delete(invitation_path(conn, :delete, id)) |> json_response(404)
@@ -180,9 +153,6 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     setup [:pending_invitation]
 
     test "sends a pending invitation again", %{conn: conn, invitation: invitation} do
-      create_session_user()
-      expect_auth_authorize_admin()
-
       conn = post(conn, invitation_path(conn, :resend, invitation.id))
 
       assert %{"email" => "x@example.com"} = json_response(conn, 200)
@@ -190,8 +160,6 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     end
 
     test "answers 502 unsent when the mail cannot be sent", %{conn: conn, invitation: invitation} do
-      create_session_user()
-      expect_auth_authorize_admin()
       FailingMailAdapter.install()
 
       conn = post(conn, invitation_path(conn, :resend, invitation.id))
@@ -201,9 +169,6 @@ defmodule RichardBurtonWeb.InvitationControllerTest do
     end
 
     test "is not found for an unknown invitation", %{conn: conn} do
-      create_session_user()
-      expect_auth_authorize_admin()
-
       conn = post(conn, invitation_path(conn, :resend, 0))
 
       assert %{"error" => "not_found"} = json_response(conn, 404)

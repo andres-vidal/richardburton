@@ -11,17 +11,13 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
 
-  setup do
-    create_session_user()
-    :ok
-  end
+  @moduletag role: :admin
 
   defp id_of(name), do: Repo.get_by!(Publisher, name: name).id
 
   describe "GET /vocabulary/:kind" do
     test "lists the names with how many publications each is on", meta do
       publication_fixture(%{publishers: ["Noonday Press"]})
-      expect_auth_authorize_admin()
 
       assert %{"entries" => entries, "kinds" => kinds} =
                meta.conn
@@ -33,8 +29,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     end
 
     test "a kind nobody has heard of is not found", meta do
-      expect_auth_authorize_admin()
-
       assert %{"error" => "not_found"} =
                meta.conn
                |> get(vocabulary_path(meta.conn, :index, "sandwiches"))
@@ -45,7 +39,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
   describe "POST /vocabulary/:kind/resemblances" do
     test "answers which names are held and which look like misspellings", meta do
       publication_fixture(%{publishers: ["Noonday Press"]})
-      expect_auth_authorize_admin()
 
       assert %{"entries" => entries} =
                meta.conn
@@ -62,8 +55,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     end
 
     test "404s on a kind it does not keep", meta do
-      expect_auth_authorize_admin()
-
       assert meta.conn
              |> post(vocabulary_path(meta.conn, :resemblances, "countries"), names: ["Brazil"])
              |> json_response(404)
@@ -74,7 +65,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     test "correcting a spelling says it renamed, and records it under the signed-in user",
          meta do
       publication = publication_fixture(%{publishers: ["Noonday Press"]})
-      expect_auth_authorize_admin()
 
       assert %{"outcome" => "renamed"} =
                meta.conn
@@ -92,8 +82,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
       publication_fixture(%{publishers: ["Noonday Press"]})
       publication_fixture(%{title: "Iracema", year: 1953, publishers: ["Noonday press"]})
 
-      expect_auth_authorize_admin()
-
       assert %{"error" => "would_fold", "into" => into, "publications" => publications} =
                meta.conn
                |> patch(
@@ -110,8 +98,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
       publication_fixture(%{publishers: ["Noonday Press"]})
       publication_fixture(%{title: "Iracema", publishers: ["Noonday press"]})
 
-      expect_auth_authorize_admin()
-
       assert %{"outcome" => "merged"} =
                meta.conn
                |> patch(
@@ -124,8 +110,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     test "a rename that would give two publications one identity is refused", meta do
       publication_fixture(%{publishers: ["Noonday Press"]})
       publication_fixture(%{publishers: ["Noonday press"]})
-
-      expect_auth_authorize_admin()
 
       assert %{"error" => "would_collide", "publications" => publications} =
                meta.conn
@@ -141,7 +125,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
 
     test "a blank name is refused", meta do
       publication_fixture(%{publishers: ["Noonday Press"]})
-      expect_auth_authorize_admin()
 
       assert %{"error" => "blank"} =
                meta.conn
@@ -153,8 +136,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     end
 
     test "an id that is not a number is not found", meta do
-      expect_auth_authorize_admin()
-
       assert %{"error" => "not_found"} =
                meta.conn
                |> patch(vocabulary_path(meta.conn, :update, "publishers", "abc"), %{
@@ -164,8 +145,6 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     end
 
     test "a name that is not there", meta do
-      expect_auth_authorize_admin()
-
       assert %{"error" => "not_found"} =
                meta.conn
                |> patch(vocabulary_path(meta.conn, :update, "publishers", 999_999), %{
