@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { PRESETS } from "modules/chart";
 import { INSIGHTS, NOTHING } from "test/insights-fixtures";
 import { worldMap } from "modules/world-map";
 import { WorldMapProvider } from "modules/world-map-provider";
@@ -10,7 +11,7 @@ import Insights, { InsightsHeading } from "./Insights";
 const meta = {
   title: "Insights/Insights",
   component: Insights,
-  args: { insights: INSIGHTS },
+  args: { insights: INSIGHTS, description: PRESETS[0].description },
   decorators: [
     (Story) => (
       <WorldMapProvider map={worldMap(NUMERIC_CODES)}>
@@ -26,64 +27,26 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Counts for the whole database: the figures, the publications per year and
- * per decade, the names with the most publications, the authors first
- * translated in each decade, the leading author–translator pairs, the works
- * translated more than once, and the countries.
+ * Counts for the whole database: the figures, and the chart builder on its
+ * first preset, the publications per year.
  */
 export const Everything: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    for (const name of [
-      "Publications per year",
-      "Publications by decade",
-      "Most translated authors",
-      "Authors first translated, by decade",
-      "Translators with the most publications",
-      "Most frequent author–translator pairs",
-      "Works translated more than once",
-      "Publishers with the most publications",
-      "Publications by country",
-    ]) {
-      await expect(canvas.getByRole("region", { name })).toBeInTheDocument();
-    }
-
-    // The response has country codes, and the list shows country names.
     await expect(
-      within(
-        canvas.getByRole("region", { name: "Publications by country" }),
-      ).getAllByRole("listitem")[0],
-    ).toHaveTextContent("United States260");
-
-    // The year chart is split by the response's two leading countries, named,
-    // and everything else.
+      canvas.getByRole("region", { name: "In figures" }),
+    ).toBeInTheDocument();
     await expect(
-      within(
-        canvas.getByRole("table", { name: "Publications per year" }),
-      ).getAllByRole("columnheader"),
-    ).toHaveLength(5);
+      canvas.getByRole("region", { name: "What the chart shows" }),
+    ).toBeInTheDocument();
     await expect(
-      within(
-        canvas.getByRole("region", { name: "Publications per year" }),
-      ).getAllByRole("listitem")[1],
-    ).toHaveTextContent("United Kingdom");
+      canvas.getByRole("region", { name: "Publications per year" }),
+    ).toBeInTheDocument();
   },
 };
 
-/** When no work has more than one translation, that list is left out. */
-export const NoWorkTranslatedTwice: Story = {
-  args: { insights: { ...INSIGHTS, retranslated: [] } },
-  play: async ({ canvasElement }) => {
-    await expect(
-      within(canvasElement).queryByRole("region", {
-        name: "Works translated more than once",
-      }),
-    ).toBeNull();
-  },
-};
-
-/** When a search matches nothing, a message replaces the figures and lists. */
+/** When a search matches nothing, a message replaces the figures and the chart. */
 export const NothingMatched: Story = {
   args: { insights: NOTHING },
   parameters: { nextjs: { navigation: { query: { search: "zzyzx" } } } },
@@ -95,12 +58,14 @@ export const NothingMatched: Story = {
         "No publications match this search, so there is nothing to count.",
       ),
     ).toBeInTheDocument();
-    await expect(canvas.queryByRole("list")).toBeNull();
+    await expect(
+      canvas.queryByRole("region", { name: "What the chart shows" }),
+    ).toBeNull();
   },
 };
 
 /**
- * The page's subheader: the number of publications counted, the links to the
+ * The page's heading: the number of publications counted, the links to the
  * two views, and the search box with its report of the words it matched.
  */
 export const Heading: Story = {
@@ -118,7 +83,7 @@ export const Heading: Story = {
     },
   },
   parameters: { nextjs: { navigation: { query: { search: "clarise" } } } },
-  render: (args) => <InsightsHeading {...args} />,
+  render: ({ insights }) => <InsightsHeading insights={insights} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 

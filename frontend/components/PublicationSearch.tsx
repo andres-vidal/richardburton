@@ -86,7 +86,8 @@ type Props = {
 
 /**
  * The search box over the publications. Typing replaces the `search` query
- * parameter after `SEARCH_DELAY_MS`, and below the box it reports `matched`,
+ * parameter after `SEARCH_DELAY_MS`, and keeps the other query parameters,
+ * such as the chart on the insights page. Below the box it reports `matched`,
  * the words the search was widened to.
  *
  * When the box loses focus, a search still waiting out the delay is sent at
@@ -125,10 +126,12 @@ const PublicationSearch: FC<Props> = ({ matched }) => {
 
     if (window.location.pathname !== address) return;
 
+    const params = new URLSearchParams(window.location.search);
+    if (value) params.set("search", value);
+    else params.delete("search");
+
     startTransition(() => {
-      router.replace(
-        value ? `${pathname}?search=${encodeURIComponent(value)}` : pathname,
-      );
+      router.replace(params.size ? `${pathname}?${params}` : pathname);
     });
   }, SEARCH_DELAY_MS);
 

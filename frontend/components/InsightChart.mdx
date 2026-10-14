@@ -1,0 +1,113 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightChartStories from "./InsightChart.stories";
+
+<Meta of={InsightChartStories} />
+
+# Insight chart
+
+A chart of the counts `GET /insights` returns, in the form its description
+names, or a table of the same counts.
+
+<Canvas of={InsightChartStories.PerYear} />
+
+## Props
+
+- `description` — the chart, as the page's address describes it (see
+  `modules/chart`).
+- `drawn` — its counts: the series, the groups with their counts, and how many
+  groups `top` left out.
+- `view` — `"chart"` to draw the chart, or `"table"` to show its counts in an
+  [Insight table](?path=/docs/insights-insight-table--docs).
+- `actions` — controls shown at the end of the chart's title row, whatever
+  the form.
+
+## Forms
+
+Each form is drawn by its own component:
+
+- columns, and shares over time —
+  [Insight columns](?path=/docs/insights-insight-columns--docs);
+- lines, stacked areas and running totals —
+  [Insight lines](?path=/docs/insights-insight-lines--docs);
+- bars — [Insight bars](?path=/docs/insights-insight-bars--docs) for one series,
+  and [Insight stacks](?path=/docs/insights-insight-stacks--docs) for several,
+  which also draws shares of groups that are not years or decades;
+- heat tables — [Insight heat](?path=/docs/insights-insight-heat--docs);
+- timelines — [Insight timeline](?path=/docs/insights-insight-timeline--docs);
+- maps — [Insight map](?path=/docs/insights-insight-map--docs).
+
+## Names
+
+The component names each group from its key. Years are written as numbers and
+decades as "1950s". Kinds are named in the reader's language and countries by
+their names. A work shows its authors as the detail, and a pair of an original
+author and a translator shows the translator. The series are the kinds, the
+leading countries and "Elsewhere", or the name of what is counted when there is
+one series.
+
+## Titles and hints
+
+A preset has its own title and hint, which say what question it answers. These
+are the charts of the presets.
+
+<Description of={InsightChartStories.ByDecade} />
+
+<Canvas of={InsightChartStories.ByDecade} />
+
+<Description of={InsightChartStories.LeadingAuthors} />
+
+<Canvas of={InsightChartStories.LeadingAuthors} />
+
+<Description of={InsightChartStories.Debuts} />
+
+<Canvas of={InsightChartStories.Debuts} />
+
+<Description of={InsightChartStories.LeadingTranslators} />
+
+<Canvas of={InsightChartStories.LeadingTranslators} />
+
+<Description of={InsightChartStories.Pairs} />
+
+<Canvas of={InsightChartStories.Pairs} />
+
+<Description of={InsightChartStories.Retranslated} />
+
+<Canvas of={InsightChartStories.Retranslated} />
+
+<Description of={InsightChartStories.LeadingPublishers} />
+
+<Canvas of={InsightChartStories.LeadingPublishers} />
+
+<Description of={InsightChartStories.Countries} />
+
+<Canvas of={InsightChartStories.Countries} />
+
+Any other chart has a title that names what it counts, by what, and split by
+what, with "running total", "shares" or "first appearances only" after it when
+they apply. Its hint says what the count counts, what the kinds are when kinds
+are involved, and what a first appearance is when the chart counts them.
+
+<Description of={InsightChartStories.NewWorks} />
+
+<Canvas of={InsightChartStories.NewWorks} />
+
+<Description of={InsightChartStories.RunningTotal} />
+
+<Canvas of={InsightChartStories.RunningTotal} />
+
+<Description of={InsightChartStories.Heat} />
+
+<Canvas of={InsightChartStories.Heat} />
+
+## The table view
+
+<Description of={InsightChartStories.Table} />
+
+<Canvas of={InsightChartStories.Table} />
+
+## No groups
+
+<Description of={InsightChartStories.Empty} />
+
+<Canvas of={InsightChartStories.Empty} />

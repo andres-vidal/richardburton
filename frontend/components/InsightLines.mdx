@@ -1,0 +1,59 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as InsightLinesStories from "./InsightLines.stories";
+
+<Meta of={InsightLinesStories} />
+
+# Insight lines
+
+A titled line chart over years or decades, drawn in an
+[Insight section](?path=/docs/insights-insight-section--docs), with one line
+for each series. The largest value drawn is written at the top of the chart.
+
+<Canvas of={InsightLinesStories.Lines} />
+
+## Props
+
+- `title` — the heading of the chart, and the accessible name of the section
+  around it and of its table.
+- `hint` — an optional explanation of what the chart shows, in an
+  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
+- `actions` — optional controls shown at the end of the title's row, such
+  as a chart's settings.
+- `heading` — the heading of the table's first column, such as "Year".
+- `series` — the name of each series. With more than one, they are listed in an
+  [Insight legend](?path=/docs/insights-insight-legend--docs).
+- `points` — every year or decade to draw, in order, with the same fields as
+  the columns of [Insight columns](?path=/docs/insights-insight-columns--docs).
+- `stacked` — whether the series are stacked as areas rather than drawn as
+  lines.
+
+The axis is labelled like the columns chart: years divisible by 20, and the
+other decades on wider screens.
+
+## Stacked areas
+
+<Description of={InsightLinesStories.StackedArea} />
+
+<Canvas of={InsightLinesStories.StackedArea} />
+
+## A running total
+
+The chart draws the counts it is given, so a running total is drawn from
+counts that `cumulative` in `modules/chart` has added up.
+
+<Description of={InsightLinesStories.RunningTotal} />
+
+<Canvas of={InsightLinesStories.RunningTotal} />
+
+## Hover
+
+Each point has a column the full height of the chart. Hovering it draws a
+vertical line through the point and a dot where it meets each series, and shows
+the point's label, its total and its count in each series.
+
+## Accessibility
+
+The drawing has `aria-hidden`. The section holds an
+[Insight table](?path=/docs/insights-insight-table--docs) of the same counts,
+which assistive technology reads instead.

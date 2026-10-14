@@ -41,3 +41,40 @@ export const Counts: Story = {
     ]);
   },
 };
+
+/**
+ * The same table on screen, as the chart builder's table view shows it. The
+ * play test checks that its rows are read the same way.
+ */
+export const Shown: Story = {
+  args: { shown: true },
+  play: async ({ canvasElement }) => {
+    const table = within(canvasElement).getByRole("table", {
+      name: "Publications by decade",
+    });
+
+    await expect(table.closest("[data-shown]")).toHaveAttribute(
+      "data-shown",
+      "true",
+    );
+    await expect(within(table).getAllByRole("row")).toHaveLength(3);
+  },
+};
+
+/** A chart with one series has only the total column. */
+export const OneSeries: Story = {
+  args: {
+    series: ["Publications"],
+    rows: [
+      { key: "1950", label: "1950s", counts: [15] },
+      { key: "1960", label: "1960s", counts: [21] },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement)
+        .getAllByRole("row")
+        .map((row) => row.textContent),
+    ).toEqual(["DecadeTotal", "1950s15", "1960s21"]);
+  },
+};

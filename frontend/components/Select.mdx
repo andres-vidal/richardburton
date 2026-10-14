@@ -21,12 +21,13 @@ shows that option's label.
   the caller.
 - `error` — marks the field invalid (`aria-invalid`) and colours it.
 - `bordered` — outlined style, applied to the input and its dropdown alike.
+- `disabled` — disables the input and the chevron, so the menu cannot open.
 
 ## When it asks for options
 
-**When the menu opens, not when the field mounts.** Focusing the input (or
-clicking the chevron) loads the unfiltered list; typing asks for the filtered
-one. This matters where these are dense: a grid of them would otherwise ask for
+**When the menu opens, not when the field mounts.** Focusing the input,
+clicking it, or clicking the chevron loads the unfiltered list; typing asks for
+the filtered one. This matters where these are dense: a grid of them would otherwise ask for
 every list on screen as it rendered, before anyone had looked at a single field.
 Nothing is fetched for a field a reader never visits.
 
@@ -47,6 +48,15 @@ focus-return reopened an emptied menu over the fresh selection.
 
 <Canvas of={SelectStories.SelectsHighlightedOption} />
 
+## Pointer
+
+Clicking an option selects it and closes the menu. Pressing on an option does
+not take focus from the input, so the menu stays closed when its focus manager
+returns focus to the input. Clicking the input again opens the menu, since an
+input that already has focus gets no focus event.
+
+<Canvas of={SelectStories.SelectsClickedOption} />
+
 ## States
 
 - **Default** — empty, closed.
@@ -54,3 +64,4 @@ focus-return reopened an emptied menu over the fresh selection.
 - **Filter and select** — typing runs the lookup.
 - **Clears filter on close** — the query does not outlive the menu.
 - **With error** — invalid, with the message.
+- **Disabled** — shows its option, and cannot be opened.

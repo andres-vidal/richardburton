@@ -1,0 +1,114 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ChartBuilderStories from "./ChartBuilder.stories";
+
+<Meta of={ChartBuilderStories} />
+
+# Chart builder
+
+The chart builder of the insights page: a toolbar of the controls that say what
+a chart shows, and right under it the chart itself, drawn by an
+[Insight chart](?path=/docs/insights-insight-chart--docs), with the controls
+that refine it in its title row.
+
+<Canvas of={ChartBuilderStories.Controls} />
+
+## Props
+
+- `description` — the chart the page's address describes, as
+  `parseDescription` in `modules/chart` reads it.
+- `drawn` — its counts, from `GET /insights`.
+
+## The toolbar
+
+The toolbar has five [Selects](?path=/docs/components-select--docs): the
+preset, what to count, by what, split by what, and in which form. Their options
+name themselves, such as "by decade" or "as columns", so the toolbar needs no
+labels on screen, and each Select has its name as its accessible label.
+
+The presets are the questions the insights page answers by default:
+publications per year and per decade, the most translated authors, the authors
+first translated in each decade, the leading translators, author–translator
+pairs and publishers, the works translated more than once, and the countries of
+publication. The preset Select shows the preset the chart is, or "Custom" when
+it is none, and choosing a preset sets every control to its chart.
+
+<Description of={ChartBuilderStories.ChoosingAPreset} />
+
+<Canvas of={ChartBuilderStories.ChoosingAPreset} />
+
+On screens from the `md` breakpoint, the toolbar stays pinned under the page's
+header while the chart scrolls under it.
+
+## What each count can be grouped by
+
+A year, a decade, a country and a kind belong to a publication. So publications
+take every grouping, split and form, and the other counts are limited:
+
+| Count            | Placed in time      | Grouped by                             |
+| ---------------- | ------------------- | -------------------------------------- |
+| Works            | at their first year | original author, translator, publisher |
+| Translations     | at their first year | work, original author, translator      |
+| Original authors | at their first year | translator, publisher                  |
+| Translators      | at their first year | original author, work                  |
+| Publishers       | at their first year | —                                      |
+
+An item's first year is the year of its earliest publication in the database,
+so these counts are counted at first appearances whenever they are placed in
+time, in a time grouping, a timeline or a heat table. They take no split, so
+shares are not offered for them either. Changing the count to one the grouping
+does not fit groups it by year.
+
+<Description of={ChartBuilderStories.OwnGroupings} />
+
+<Canvas of={ChartBuilderStories.OwnGroupings} />
+
+<Description of={ChartBuilderStories.OtherCounts} />
+
+<Canvas of={ChartBuilderStories.OtherCounts} />
+
+A form is offered only for the groupings and counts it can draw, so the map is
+offered only for publications by country.
+
+## The chart's title row
+
+The title row has how many groups to keep and how many items each needs. They
+apply to ranked groups, except on a map, which shows every country, and they are
+disabled otherwise, so they keep their places.
+
+<Description of={ChartBuilderStories.RankedGroups} />
+
+<Canvas of={ChartBuilderStories.RankedGroups} />
+
+<Description of={ChartBuilderStories.Map} />
+
+<Canvas of={ChartBuilderStories.Map} />
+
+<Description of={ChartBuilderStories.UnrankedGroups} />
+
+<Canvas of={ChartBuilderStories.UnrankedGroups} />
+
+Every control is always shown, at a fixed width, and is disabled when it does
+not apply, so changing one control does not move the others.
+
+## The address
+
+Every change goes through `normalize` and is written to the page's address in a
+transition, keeping the search. The page reads the new chart on the server. The
+controls show the new choice at once, and the current chart stays on screen,
+dimmed, until the new one arrives. The play tests check the address each change
+writes.
+
+<Description of={ChartBuilderStories.KeepingTheSearch} />
+
+<Canvas of={ChartBuilderStories.KeepingTheSearch} />
+
+## Chart or table
+
+At the end of the title row, buttons switch between the chart and a table of
+its counts, and a [Copy link](?path=/docs/components-copy-link--docs) button
+copies the address of the chart.
+
+<Description of={ChartBuilderStories.TableView} />
+
+<Canvas of={ChartBuilderStories.TableView} />

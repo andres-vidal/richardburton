@@ -1,8 +1,23 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { INSIGHTS } from "test/insights-fixtures";
+import { CHARTS } from "test/insights-fixtures";
 import { expect, within } from "storybook/test";
 
 import InsightStacks from "./InsightStacks";
+
+// Returns the groups of a chart by decade as rows.
+const decades = (groups: (typeof CHARTS)["byDecade"]["groups"]) =>
+  groups.map(({ key, counts }) => ({
+    key: String(key),
+    label: `${key}s`,
+    counts,
+  }));
+
+// Returns the row of the list whose label is `label`.
+const row = (canvasElement: HTMLElement, label: string) =>
+  within(canvasElement)
+    .getAllByText(label)
+    .map((each) => each.closest("li"))
+    .find(Boolean) as HTMLElement;
 
 const meta = {
   title: "Insights/Insight stacks",
@@ -11,13 +26,7 @@ const meta = {
     title: "Publications by decade",
     heading: "Decade",
     series: ["First translations", "Retranslations", "Reissues"],
-    rows: INSIGHTS.decades.map(
-      ({ decade, firstTranslations, retranslations, reissues }) => ({
-        key: String(decade),
-        label: `${decade}s`,
-        counts: [firstTranslations, retranslations, reissues],
-      }),
-    ),
+    rows: decades(CHARTS.byDecade.groups),
   },
   decorators: [
     (Story) => (
@@ -47,14 +56,24 @@ export const Decades: Story = {
 
     await expect(
       within(table).getByRole("row", { name: /^1960s/ }),
-    ).toHaveTextContent("1960s162321");
+    ).toHaveTextContent("1960s161421");
 
     // What hovering the row for the 1960s shows.
-    const row = within(canvasElement)
-      .getAllByText("1960s")
-      .map((label) => label.closest("li"))
-      .find(Boolean) as HTMLElement;
+    await expect(
+      within(row(canvasElement, "1960s")).getByText("Retranslations 1"),
+    ).toBeInTheDocument();
+  },
+};
 
-    await expect(within(row).getByText("Retranslations 2")).toBeInTheDocument();
+/**
+ * The share of each kind in every decade. Every bar fills its track, and
+ * hovering a row shows each kind's count and share.
+ */
+export const Shares: Story = {
+  args: { shares: true },
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(row(canvasElement, "1960s")).getByText("Reissues 4 · 19%"),
+    ).toBeInTheDocument();
   },
 };

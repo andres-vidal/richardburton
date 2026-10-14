@@ -1,36 +1,42 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { INSIGHTS } from "test/insights-fixtures";
+import { CHARTS } from "test/insights-fixtures";
 import { expect, within } from "storybook/test";
 
 import InsightTimeline, { type Track } from "./InsightTimeline";
 
 // The leading translators of the fixtures, with a dot for each year they
 // published in, sized by the publications that year.
-const TRANSLATORS: Track[] = INSIGHTS.translators.map(
-  ({ name, count, years }) => ({
-    key: name,
-    label: name,
-    value: String(count),
-    marks: years.map(({ year, count }) => ({
-      year,
-      weight: count,
-      label: `${year} · ${count} ${count === 1 ? "publication" : "publications"}`,
+const TRANSLATORS: Track[] = CHARTS.leadingTranslators.groups.map(
+  ({ key, total, steps = [] }) => ({
+    key: String(key),
+    label: String(key),
+    value: String(total),
+    marks: steps.map(({ at, total }) => ({
+      year: at,
+      weight: total,
+      label: `${at} · ${total} ${total === 1 ? "publication" : "publications"}`,
     })),
   }),
 );
 
 // The retranslated works of the fixtures, with a dot for each translation.
-const WORKS: Track[] = INSIGHTS.retranslated.map(
-  ({ title, authors, translations, timeline }) => ({
-    key: title,
-    label: title,
-    detail: authors.join(", "),
-    value: `${translations} translations`,
-    marks: timeline.map(({ year, translators }) => ({
-      year,
-      label: `${year} · ${translators.join(", ")}`,
-    })),
-  }),
+const WORKS: Track[] = CHARTS.retranslated.groups.map(
+  ({ key, total, steps = [] }) => {
+    const { title, authors } = key as { title: string; authors: string[] };
+
+    return {
+      key: title,
+      label: title,
+      detail: authors.join(", "),
+      value: `${total} translations`,
+      marks: steps.flatMap(({ at, items }) =>
+        items.map((translators) => ({
+          year: at,
+          label: `${at} · ${translators.join(", ")}`,
+        })),
+      ),
+    };
+  },
 );
 
 const meta = {
@@ -57,8 +63,8 @@ export const Weighted: Story = {
     const items = within(canvasElement).getAllByRole("listitem");
 
     // Each row reads its label and value, and the labels of its dots.
-    await expect(items[0]).toHaveTextContent(/^Alison Entrekin25/);
-    await expect(items[0]).toHaveTextContent("2012 · 8 publications");
+    await expect(items[0]).toHaveTextContent(/^Clifford E. Landers25/);
+    await expect(items[0]).toHaveTextContent("1997 · 3 publications");
   },
 };
 

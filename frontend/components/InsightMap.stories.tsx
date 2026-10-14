@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { INSIGHTS } from "test/insights-fixtures";
+import { CHARTS } from "test/insights-fixtures";
 import { worldMap } from "modules/world-map";
 import { NUMERIC_CODES } from "test/messages";
 import { expect, userEvent, waitFor, within } from "storybook/test";
@@ -21,11 +21,13 @@ const meta = {
     title: "Publications by country",
     hint: "Each country is shaded by the number of publications published there.",
     map: worldMap(NUMERIC_CODES),
-    countries: INSIGHTS.countries.map(({ code, count }) => ({
-      code,
-      name: NAMES[code] ?? code,
-      count,
-    })),
+    countries: CHARTS.countriesOfPublication.groups
+      .slice(0, 4)
+      .map(({ key, total }) => ({
+        code: String(key),
+        name: NAMES[String(key)] ?? String(key),
+        count: total,
+      })),
   },
   parameters: { layout: "padded" },
 } satisfies Meta<typeof InsightMap>;
@@ -35,7 +37,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * The countries of the fixtures, shaded by band: the United States and the
+ * The four leading countries of the fixtures, shaded by band: the United States and the
  * United Kingdom with over 100 publications, Canada with ten to 99, and
  * Australia with two to nine. The list beside the map has every country with
  * its count.
@@ -47,8 +49,8 @@ export const Countries: Story = {
     await expect(
       canvas.getAllByRole("listitem").map((item) => item.textContent),
     ).toEqual([
-      "United States260",
-      "United Kingdom142",
+      "United States259",
+      "United Kingdom143",
       "Canada11",
       "Australia5",
     ]);
@@ -94,7 +96,7 @@ export const HoverLinksMapAndList: Story = {
         canvas
           .getAllByRole("listitem")
           .find((item) => item.dataset.active === "true"),
-      ).toHaveTextContent("United States260"),
+      ).toHaveTextContent("United States259"),
     );
 
     await userEvent.hover(canada);

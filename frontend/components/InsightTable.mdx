@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as InsightTableStories from "./InsightTable.stories";
 
@@ -6,12 +6,13 @@ import * as InsightTableStories from "./InsightTable.stories";
 
 # Insight table
 
-A visually hidden table of the counts a chart draws. A chart that hides its
-drawing from assistive technology renders this table beside it, so a screen
-reader reads the same counts as rows and columns.
+A table of the counts a chart draws. A chart that hides its drawing from
+assistive technology renders this table beside it, visually hidden, so a screen
+reader reads the same counts as rows and columns. With `shown`, the table is on
+screen, and can stand in place of the chart.
 
-The table is hidden with `sr-only`, so the canvas below is blank. Its play test
-reads the table by its rows.
+The table is hidden with `sr-only` unless `shown` is set, so the canvas below is
+blank. Its play test reads the table by its rows.
 
 <Canvas of={InsightTableStories.Counts} />
 
@@ -20,6 +21,21 @@ reads the table by its rows.
 - `title` — the caption, which is the title of the chart. It is also the
   table's accessible name.
 - `heading` — the heading of the first column, such as "Year" or "Decade".
-- `series` — the name of each series, one column each.
-- `rows` — one row for each entry, with its `label` and its `counts` in the
-  order of `series`. The last column is the row's total.
+- `series` — the name of each series, one column each. A table with one series
+  has no series columns, only the total.
+- `rows` — one row for each entry, with its `label`, an optional `detail`, and
+  its `counts` in the order of `series`. The last column is the sum of its
+  counts.
+- `shown` — whether the table is on screen.
+
+## On screen
+
+<Description of={InsightTableStories.Shown} />
+
+<Canvas of={InsightTableStories.Shown} />
+
+## One series
+
+<Description of={InsightTableStories.OneSeries} />
+
+<Canvas of={InsightTableStories.OneSeries} />

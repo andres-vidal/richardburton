@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as InsightStacksStories from "./InsightStacks.stories";
 
@@ -8,9 +8,9 @@ import * as InsightStacksStories from "./InsightStacks.stories";
 
 A titled list of stacked bars, one for each entry, such as each decade. Each
 row shows its label and total above a grey track, and a bar on the track stacks
-the row's series from the left. A bar's length is the row's total as a fraction
-of the largest total, so a row with a total of 0, such as a decade with no
-publications, shows only the track.
+the row's series from the left. A bar's length is the sum of the row's counts
+as a fraction of the largest sum, so a row with no counts, such as a decade with
+no publications, shows only the track.
 
 <Canvas of={InsightStacksStories.Decades} />
 
@@ -20,16 +20,25 @@ publications, shows only the track.
   around it and of its table.
 - `hint` — an optional explanation of what the chart shows, in an
   [Info hint](?path=/docs/components-info-hint--docs) beside the title.
+- `actions` — optional controls shown at the end of the title's row, such
+  as a chart's settings.
 - `heading` — the heading of the table's first column, such as "Decade".
 - `series` — the name of each series, in the order they are stacked from the
   left. They are listed in an [Insight legend](?path=/docs/insights-insight-legend--docs).
-- `rows` — the entries, each with a `key`, a `label` and its `counts` in the
-  order of `series`.
+- `rows` — the entries, each with a `key`, a `label`, an optional `detail`, and
+  its `counts` in the order of `series`.
+- `shares` — whether each bar shows the share of each series in its row.
+
+## Shares
+
+<Description of={InsightStacksStories.Shares} />
+
+<Canvas of={InsightStacksStories.Shares} />
 
 ## Hover
 
-Hovering a row shows its count in each series. The play test of the first
-story checks the text it shows for the 1960s.
+Hovering a row shows its count in each series, with its share when `shares` is
+set. The play test of the first story checks the text it shows for the 1960s.
 
 ## Accessibility
 

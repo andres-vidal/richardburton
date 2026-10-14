@@ -1,14 +1,23 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { INSIGHTS } from "test/insights-fixtures";
+import { CHARTS } from "test/insights-fixtures";
 import { expect, within } from "storybook/test";
 
 import InsightColumns from "./InsightColumns";
 
 // The publications of each year in the fixtures, by country.
-const YEARS = INSIGHTS.annual.years.map(({ year, counts, elsewhere }) => ({
-  year,
-  counts: [...counts, elsewhere],
+const YEARS = CHARTS.perYear.groups.map(({ key, counts }) => ({
+  at: key as number,
+  label: String(key),
+  counts,
 }));
+
+// Returns the groups of a chart by decade as columns.
+const decades = (groups: (typeof CHARTS)["byDecade"]["groups"]) =>
+  groups.map(({ key, counts }) => ({
+    at: key as number,
+    label: `${key}s`,
+    counts,
+  }));
 
 const meta = {
   title: "Insights/Insight columns",
@@ -17,7 +26,7 @@ const meta = {
     title: "Publications per year",
     heading: "Year",
     series: ["United States", "United Kingdom", "Elsewhere"],
-    years: YEARS,
+    columns: YEARS,
   },
   parameters: { layout: "padded" },
 } satisfies Meta<typeof InsightColumns>;
@@ -61,17 +70,64 @@ export const Years: Story = {
 export const OneDecade: Story = {
   args: {
     series: ["United States", "Elsewhere"],
-    years: [
-      { year: 1960, counts: [2, 0] },
-      { year: 1961, counts: [0, 0] },
-      { year: 1962, counts: [1, 1] },
-      { year: 1963, counts: [3, 0] },
-      { year: 1964, counts: [0, 1] },
-      { year: 1965, counts: [1, 0] },
-      { year: 1966, counts: [2, 2] },
-      { year: 1967, counts: [0, 0] },
-      { year: 1968, counts: [1, 0] },
-      { year: 1969, counts: [0, 1] },
-    ],
+    columns: [
+      [2, 0],
+      [0, 0],
+      [1, 1],
+      [3, 0],
+      [0, 1],
+      [1, 0],
+      [2, 2],
+      [0, 0],
+      [1, 0],
+      [0, 1],
+    ].map((counts, index) => ({
+      at: 1960 + index,
+      label: String(1960 + index),
+      counts,
+    })),
+  },
+};
+
+/**
+ * One series, with no legend: the original authors first translated in each
+ * decade. The table has only the total column.
+ */
+export const OneSeries: Story = {
+  args: {
+    title: "Original authors by decade, first appearances only",
+    heading: "Decade",
+    series: ["Original authors"],
+    columns: decades(CHARTS.debuts.groups),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.queryByRole("list")).toBeNull();
+    await expect(
+      within(canvas.getByRole("table")).getAllByRole("columnheader"),
+    ).toHaveLength(2);
+  },
+};
+
+/**
+ * The share of each kind in every decade. Each column is full height, and
+ * hovering one shows each kind's count and share. The play test checks the
+ * shares of the 1960s.
+ */
+export const Shares: Story = {
+  args: {
+    title: "Publications by decade and kind of publication, shares",
+    heading: "Decade",
+    series: ["First translations", "Retranslations", "Reissues"],
+    columns: decades(CHARTS.byDecade.groups),
+    shares: true,
+  },
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).getByText("1960s · 21"),
+    ).toHaveTextContent(
+      "1960s · 21First translations 16 · 76%Retranslations 1 · 5%Reissues 4 · 19%",
+    );
   },
 };

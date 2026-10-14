@@ -8,6 +8,7 @@ import {
   forwardRef,
   HTMLProps,
   KeyboardEvent,
+  MouseEvent,
   useRef,
   useState,
 } from "react";
@@ -37,6 +38,7 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
     onBlur,
     onFocus,
     onKeyDown,
+    onClick,
     getOptions,
     ...props
   },
@@ -57,11 +59,25 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
     getOptions("").then(setOptions);
   }
 
-  function handleFocus(event: FocusEvent<HTMLInputElement>) {
+  /** Opens the menu on the unfiltered list. */
+  function open() {
     setSearch("");
     setIsOpen(true);
     loadOptions();
+  }
+
+  function handleFocus(event: FocusEvent<HTMLInputElement>) {
+    open();
     onFocus?.(event);
+  }
+
+  /**
+   * Opens a closed menu. An input that keeps focus after an option was picked
+   * gets no focus event when it is clicked again, so the click opens it.
+   */
+  function handleClick(event: MouseEvent<HTMLInputElement>) {
+    if (!isOpen) open();
+    onClick?.(event);
   }
 
   async function handleInputChange(v: string) {
@@ -135,6 +151,7 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
         onChange={handleInputChange}
         onBlur={handleBlur}
         onFocus={handleFocus}
+        onClick={handleClick}
         onKeyDown={handleKeyDown}
         value={inputValue}
         error={error}
@@ -144,6 +161,7 @@ export default forwardRef<HTMLInputElement, Props>(function Select(
             type="button"
             aria-label={isOpen ? t("hideOptions") : t("showOptions")}
             tabIndex={-1}
+            disabled={props.disabled}
             className={`
               flex items-center justify-center h-5 aspect-square transition-transform rounded-full
               outline-none focus:bg-indigo-500 focus:text-white

@@ -74,18 +74,15 @@
     "sourced": "Citam uma fonte",
     "sourcedOf": "{sourced} de {publications}",
     "perYear": "Publicações por ano",
-    "year": "Ano",
     "elsewhere": "Outros países",
     "total": "Total",
     "byDecade": "Publicações por década",
     "decade": "Década de {decade, number, ::group-off}",
-    "decadeHeading": "Década",
     "firstTranslations": "Primeiras traduções",
     "retranslations": "Retraduções",
     "reissues": "Reedições",
     "debuts": "Autores traduzidos pela primeira vez, por década",
     "pairs": "Pares de autor e tradutor mais frequentes",
-    "publicationCount": "{count, plural, one {# publicação} other {# publicações}}",
     "leadingAuthors": "Autores mais traduzidos",
     "leadingTranslators": "Tradutores com mais publicações",
     "leadingPublishers": "Editoras com mais publicações",
@@ -97,8 +94,104 @@
       "most": "100 ou mais"
     },
     "retranslated": "Obras traduzidas mais de uma vez",
-    "translations": "{count, plural, one {# tradução} other {# traduções}}",
-    "nothing": "Nenhuma publicação corresponde a esta busca, então não há nada a contar."
+    "nothing": "Nenhuma publicação corresponde a esta busca, então não há nada a contar.",
+    "builder": {
+      "label": "O que o gráfico mostra",
+      "view": "Visualização",
+      "chart": "Gráfico",
+      "table": "Tabela",
+      "headings": {
+        "publications": "Publicações",
+        "works": "Obras",
+        "translations": "Traduções",
+        "original_authors": "Autores originais",
+        "translators": "Tradutores",
+        "publishers": "Editoras"
+      },
+      "groupings": {
+        "year": "ano",
+        "decade": "década",
+        "kind": "tipo de publicação",
+        "country": "país",
+        "original_author": "autor original",
+        "translator": "tradutor",
+        "publisher": "editora",
+        "work": "obra",
+        "pair": "autor e tradutor"
+      },
+      "groupingHeadings": {
+        "year": "Ano",
+        "decade": "Década",
+        "kind": "Tipo",
+        "country": "País",
+        "original_author": "Autor original",
+        "translator": "Tradutor",
+        "publisher": "Editora",
+        "work": "Obra",
+        "pair": "Autor e tradutor"
+      },
+      "splits": {
+        "kind": "tipo de publicação",
+        "country": "países principais"
+      },
+      "forms": {
+        "columns": "colunas",
+        "lines": "linhas",
+        "area": "área empilhada",
+        "running": "total acumulado",
+        "shares": "proporções",
+        "bars": "barras",
+        "heat": "tabela de calor por década",
+        "timeline": "linha do tempo",
+        "map": "mapa"
+      },
+      "counted": {
+        "publications": "{count, plural, one {# publicação} other {# publicações}}",
+        "works": "{count, plural, one {# obra} other {# obras}}",
+        "translations": "{count, plural, one {# tradução} other {# traduções}}",
+        "original_authors": "{count, plural, one {# autor original} other {# autores originais}}",
+        "translators": "{count, plural, one {# tradutor} other {# tradutores}}",
+        "publishers": "{count, plural, one {# editora} other {# editoras}}"
+      },
+      "title": "{count} por {by}",
+      "splitTitle": "{count} por {by} e {split}",
+      "firstTitle": "{title}, só primeiras aparições",
+      "runningTitle": "{title}, total acumulado",
+      "sharesTitle": "{title}, proporções",
+      "hidden": "{count, plural, one {Mais # não aparece.} other {Mais # não aparecem.}}",
+      "hints": {
+        "translations": "Um texto traduzido de uma obra pelos seus tradutores. Todas as suas edições contam como uma tradução.",
+        "pairs": "Um autor original e um tradutor, contados pelo que compartilham.",
+        "first": "Cada um é contado uma vez, onde aparece pela primeira vez na base de dados.",
+        "running": "Cada passo soma sua contagem às dos passos anteriores.",
+        "shares": "Cada série como proporção do seu grupo."
+      },
+      "empty": "Nada a mostrar com estas opções.",
+      "custom": "Personalizado",
+      "labels": {
+        "preset": "Modelo",
+        "count": "O que contar",
+        "by": "Agrupar por",
+        "split": "Dividir por",
+        "form": "Mostrar como",
+        "top": "Quantos grupos",
+        "least": "Mínimo de itens por grupo"
+      },
+      "byOption": "por {by}",
+      "splitOptions": {
+        "none": "sem divisão",
+        "kind": "dividido por tipo",
+        "country": "dividido por país"
+      },
+      "formOption": "como {form}",
+      "topOptions": {
+        "10": "10 primeiros",
+        "20": "20 primeiros",
+        "50": "50 primeiros",
+        "all": "Todos"
+      },
+      "leastOption": "{least, plural, =0 {Qualquer tamanho} other {Pelo menos #}}"
+    }
   },
   "search": {
     "placeholder": "Pesquise dados sobre a literatura brasileira em tradução",

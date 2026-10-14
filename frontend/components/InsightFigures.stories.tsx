@@ -35,9 +35,9 @@ export const Figures: Story = {
     await expect(values.map((value) => value.textContent)).toEqual([
       "428",
       "323",
-      "160",
-      "161",
-      "174",
+      "158",
+      "159",
+      "176",
       "10",
       "1886–2026",
       "3 of 428",
