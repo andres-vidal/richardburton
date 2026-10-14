@@ -1,4 +1,4 @@
-import { get, getWithHeaders } from "app/api";
+import { get, getOrNull, getWithHeaders } from "app/api";
 import { getSession } from "app/session";
 import { TOTAL_COUNT_HEADER } from "modules/api";
 import { withChanges, type WithChanges } from "modules/publication/history";
@@ -24,26 +24,35 @@ export type PublicationView = {
 };
 
 /**
- * Read a publication as the signed-in user, or `null` when there is nothing to
- * show — the record never existed, or has been deleted. Callers decide what that
- * means: a page answers 404, an overlay says the link is stale.
+ * Read a publication as the signed-in user, or `null` when the backend answers
+ * 404 because the record never existed or has been deleted. Any other failure
+ * is thrown. For a user who can edit publications, the record's history is read
+ * at the same time as the record.
  */
 export const readPublication = cache(
   async (id: string, search?: string): Promise<PublicationView | null> => {
-    const [publication, session] = await Promise.all([
-      get<Publication>(`/publications/${id}`, { search }).catch(() => null),
-      getSession(),
+    const session = await getSession();
+    const readRecord = () =>
+      getOrNull<Publication>(`/publications/${id}`, { search });
+
+    if (!User.canEditPublications(session)) {
+      const publication = await readRecord();
+      return publication && { publication };
+    }
+
+    const [publication, history] = await Promise.all([
+      readRecord(),
+      getOrNull<{ entries: PublicationHistoryEntry[] }>(
+        `/publications/${id}/history`,
+      ),
     ]);
 
-    if (!publication) return null;
-
-    if (!User.canEditPublications(session)) return { publication };
-
-    const { entries } = await get<{ entries: PublicationHistoryEntry[] }>(
-      `/publications/${id}/history`,
+    return (
+      publication && {
+        publication,
+        history: withChanges(history?.entries ?? []),
+      }
     );
-
-    return { publication, history: withChanges(entries) };
   },
 );
 

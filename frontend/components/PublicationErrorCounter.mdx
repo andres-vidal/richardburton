@@ -8,8 +8,8 @@ import * as ErrorCounterStories from "./PublicationErrorCounter.stories";
 
 The validation summary for the review toolbar: it tells the user how many of the
 loaded publications still have errors. When there are invalid rows it renders a
-red count button; clicking it jumps focus to the next invalid row
-(`focusNextInvalid`) so the user can work through the problems one at a time.
+red count button. Clicking the button opens a modal that lists every invalid row
+and what is wrong with it.
 
 ## Data source
 
@@ -30,8 +30,8 @@ seed(store, [{ title: "", errors: fieldErrors({ title: "required" }) }]);
 ## States
 
 - **Has errors** — the sample above: a red danger button showing the invalid
-  count ("1"), tooltipped "1 publication with errors". Clicking it focuses the
-  next invalid row.
+  count ("1"), tooltipped "1 publication with errors". Clicking it opens the
+  list of errors.
 - **All valid** — no errors among the loaded rows: instead of a red "0" it shows
   a reassuring green check with the status "All publications are valid".
 - **Empty** — nothing loaded (count is 0): the counter renders nothing at all.

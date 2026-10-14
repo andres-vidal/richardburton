@@ -8,25 +8,24 @@ interface Props {
   content: ReactNode;
   aside?: ReactNode;
   asideHeading?: ReactNode;
-  noSeparator?: boolean;
 }
 
+/**
+ * Renders a page's article: a heading that sticks to the top with a border
+ * under it, then the `content`, with the `aside` beside it when there is one.
+ */
 const Article: FC<Props> = ({
   content,
   heading,
   subheading,
   aside,
   asideHeading,
-  noSeparator,
 }) => {
   return (
     <article className="flex relative flex-col gap-5 p-8 w-full min-h-full overflow-clip">
       <Logo className="absolute z-0 lg:w-screen h-screen lg:h-auto text-indigo-700 pointer-events-none opacity-20 left-[-70%] sm:left-[-52%] -top-44 sm:-top-96 aspect-square" />
 
-      <div
-        data-separator={!noSeparator}
-        className="flex sticky top-0 z-40 gap-5 -mx-8 -mt-8 px-8 pt-8 pb-2 border-gray-200 backdrop-blur-xl bg-white/70 data-[separator=true]:border-b"
-      >
+      <div className="flex sticky top-0 z-40 gap-5 -mx-8 -mt-8 px-8 pt-8 pb-2 border-b border-gray-200 backdrop-blur-xl bg-white/70">
         <div
           data-aside={Boolean(aside)}
           className="space-y-1 w-full data-[aside=true]:sm:w-7/12"

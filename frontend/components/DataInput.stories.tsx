@@ -102,7 +102,6 @@ export const InlineError: Story = {
     colId: "title",
     value: "",
     error: "is required",
-    bordered: true,
     errorDisplay: "inline",
   },
   play: async ({ canvasElement }) => {
@@ -130,7 +129,6 @@ export const ValidatesOnSelection: Story = {
     value: [],
     autoValidated: true,
     onValidate: fn(),
-    bordered: true,
   },
   play: async ({ args, canvasElement }) => {
     // Typing is what opens the menu — it runs the option lookup behind it.
@@ -158,7 +156,6 @@ export const ErrorDoesNotShiftLayout: Story = {
     colId: "title",
     value: "",
     error: "",
-    bordered: true,
     errorDisplay: "inline",
   },
   play: async ({ canvasElement }) => {
@@ -174,13 +171,10 @@ export const ErrorDoesNotShiftLayout: Story = {
   },
 };
 
-/**
- * `bordered` — the outlined variant used by the edit form. The dispatcher
- * forwards it to the underlying input, which draws a visible box.
- */
+/** The dispatcher always draws the underlying input as an outlined box. */
 export const Bordered: Story = {
   beforeEach: () => seed(store),
-  args: { colId: "title", value: "Dom Casmurro", bordered: true },
+  args: { colId: "title", value: "Dom Casmurro" },
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole("textbox");
     const box = input.closest("[data-bordered='true']")!;

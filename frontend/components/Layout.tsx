@@ -12,11 +12,9 @@ import { ContactModal, CONTACT_MODAL_KEY } from "./ContactModal";
 import { LearnMoreModal, LEARN_MORE_MODAL_KEY } from "./LearnMoreModal";
 
 type Props = {
-  title?: string;
   footer?: ReactNode;
   content: ReactNode;
   subheader?: ReactNode;
-  leftAside?: ReactNode;
   /**
    * How the page is laid out across the viewport. `full` fills it, which is
    * what the index and the bulk workspace need from their tables. `aligned`
@@ -28,13 +26,14 @@ type Props = {
   measure?: "full" | "aligned";
 };
 
-// `title` is set per-route via the App Router `metadata` export, not here — the
-// prop is kept so existing callers still typecheck during the migration.
+/**
+ * Renders the app shell: a sticky header with the banner and the `subheader`,
+ * the `content` in the page's `<main>`, and an optional sticky `footer`.
+ */
 const Layout: FC<Props> = ({
   footer,
   content,
   subheader,
-  leftAside,
   measure = "full",
 }) => {
   const t = useTranslations("layout");
@@ -103,7 +102,6 @@ const Layout: FC<Props> = ({
         </div>
       </header>
       <div className="flex flex-col grow gap-2 md:flex-row">
-        {leftAside && <aside className="px-1 md:px-8">{leftAside}</aside>}
         <main
           data-measure={measure}
           className="relative grow pb-4 px-1 md:px-8 data-[measure=aligned]:w-full data-[measure=aligned]:max-w-5xl"

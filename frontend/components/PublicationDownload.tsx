@@ -20,12 +20,11 @@ const CONTENT_DISPOSITION = "content-disposition";
 const FALLBACK_FILENAME = "publications.csv";
 
 /**
- * The name the server gave the file, or a sensible one.
+ * Returns the filename in a `Content-Disposition` header, or
+ * `FALLBACK_FILENAME` when the header is missing or cannot be parsed.
  *
- * A header that is missing or unparseable is not a failed download — the bytes
- * are already here — so it must not throw. It used to: the match was asserted
- * non-null, so a header this could not read took the whole download down with
- * it, before the click that saves the file.
+ * It never throws, because the file has already been downloaded when the
+ * header is read, and an unreadable header should not stop it being saved.
  */
 function filenameFrom(disposition: unknown): string {
   const filename =

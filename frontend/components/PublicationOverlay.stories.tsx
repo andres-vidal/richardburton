@@ -1,35 +1,18 @@
-import type { Decorator, Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { FC, useState } from "react";
 import { store } from "modules/store";
 import { withChanges } from "modules/publication/history";
-import {
-  Publication,
-  type PublicationHistoryEntry,
-} from "modules/publication/model";
+import type { PublicationHistoryEntry } from "modules/publication/model";
 import { setAll } from "modules/publication/store";
-import { SessionProvider } from "modules/session";
+import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
+import { asAdmin } from "test/session";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
 import PublicationOverlay from "./PublicationOverlay";
 
-const ADMIN = { email: "admin@rb.test", role: "admin" as const };
-
-const asAdmin: Decorator = (Story) => (
-  <SessionProvider session={ADMIN}>
-    <Story />
-  </SessionProvider>
-);
-
 const PUBLICATION = {
-  ...Publication.empty(),
+  ...LOOK_ALIKE_RECORD,
   id: 1,
-  title: "Dom Casmurro",
-  authors: ["Helen Caldwell"],
-  originalTitle: "Dom Casmurro",
-  originalAuthors: ["Machado de Assis"],
-  year: "1953",
-  countries: ["US"],
-  publishers: ["Noonday Press"],
   sources: [
     "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
   ],

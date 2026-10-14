@@ -7,6 +7,7 @@ import {
   errorCode,
   marking,
   merged,
+  searchHref,
 } from "./model";
 import type { Publication } from "./model";
 import { Country } from "modules/country";
@@ -428,5 +429,33 @@ describe("contrast", () => {
       values: [[{ text: "Dom Casmurro", differs: false }]],
       lacking: false,
     });
+  });
+});
+
+describe("searchHref", () => {
+  test("links to the index with the term encoded", () => {
+    expect(searchHref("Machado de Assis")).toBe("/?search=Machado+de+Assis");
+    expect(searchHref("author:Lispector & co")).toBe(
+      "/?search=author%3ALispector+%26+co",
+    );
+  });
+
+  test("links to the path alone when there is no term", () => {
+    expect(searchHref(undefined)).toBe("/");
+    expect(searchHref(null, "/insights")).toBe("/insights");
+    expect(searchHref("")).toBe("/");
+  });
+
+  test("gives only the query string for an empty path", () => {
+    expect(searchHref("clarke", "")).toBe("?search=clarke");
+  });
+
+  test("puts other parameters before the term", () => {
+    expect(searchHref("Iracema", "/publications/1", { modal: "" })).toBe(
+      "/publications/1?modal=&search=Iracema",
+    );
+    expect(searchHref(undefined, "/publications/1", { modal: "" })).toBe(
+      "/publications/1?modal=",
+    );
   });
 });

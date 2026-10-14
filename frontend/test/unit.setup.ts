@@ -1,7 +1,4 @@
-import { Author } from "modules/author";
-import { Country } from "modules/country";
-import { OriginalBook } from "modules/original-book";
-import { Publisher } from "modules/publisher";
+import { stubSearches } from "./search-stubs";
 
 /**
  * Stubs `REMOTE.search` for authors, publishers, original books and countries,
@@ -15,7 +12,4 @@ import { Publisher } from "modules/publisher";
  * A spec that needs results stubs `search` itself, and afterwards restores this
  * stub rather than the real call.
  */
-Author.REMOTE.search = async () => [];
-Publisher.REMOTE.search = async () => [];
-OriginalBook.REMOTE.search = async () => [];
-Country.REMOTE.search = async () => [];
+stubSearches();

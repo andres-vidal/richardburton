@@ -71,8 +71,6 @@ type Props = Omit<HTMLProps<HTMLInputElement>, "onChange" | "ref"> & {
   /** What to run when `autoValidated` fires. Defaults to the bulk validate; the
    * edit form passes the id-aware one. */
   onValidate?: () => void;
-  fill?: boolean;
-  bordered?: boolean;
   /**
    * How a field's error reaches the reader. The workspace table has no room
    * for a message under a cell — it would reflow the grid — so there the
@@ -101,7 +99,7 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   const type = Publication.ATTRIBUTE_TYPES[props.colId];
   // `type` is only known at runtime, so the value shape the table pairs with it
   // cannot be carried through the lookup. This is the one place that is asserted.
-  const Component = COMPONENTS_PER_TYPE[type] as FC<Props>;
+  const Component = COMPONENTS_PER_TYPE[type] as FC<Props & Box>;
   const placeholder = t(colId);
 
   const store = usePublicationStore();
@@ -163,17 +161,25 @@ const DataInput = forwardRef<HTMLElement, Props>(function DataInput(
   );
 });
 
+/**
+ * How the component for an attribute draws its box: `fill` stretches it to its
+ * parent's height, and `bordered` outlines it. `DataInput` always sets both.
+ */
+type Box = { fill?: boolean; bordered?: boolean };
+
 /** What a component for a single-value attribute receives. */
-type ScalarProps = Omit<Props, "value" | "onChange"> & {
-  value: string;
-  onChange?: (value: string) => void;
-};
+type ScalarProps = Omit<Props, "value" | "onChange"> &
+  Box & {
+    value: string;
+    onChange?: (value: string) => void;
+  };
 
 /** What a component for a multi-value attribute receives. */
-type ListProps = Omit<Props, "value" | "onChange"> & {
-  value: string[];
-  onChange?: (value: string[]) => void;
-};
+type ListProps = Omit<Props, "value" | "onChange"> &
+  Box & {
+    value: string[];
+    onChange?: (value: string[]) => void;
+  };
 
 export type {
   Props as DataInputProps,

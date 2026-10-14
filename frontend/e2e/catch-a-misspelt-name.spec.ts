@@ -5,6 +5,7 @@ import {
   indexTable,
   openDocument,
   CSV_HEADER,
+  uploadCsv,
 } from "./helpers";
 
 /**
@@ -26,11 +27,7 @@ test("the workspace names the spellings a batch would add, and corrects them in 
   await seedCorpus(page);
 
   await openDocument(page);
-  await page.locator("#upload-csv").setInputFiles({
-    name: "second-batch.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(SECOND_BATCH),
-  });
+  await uploadCsv(page, SECOND_BATCH, "second-batch.csv");
 
   await expect(
     indexTable(page).getByRole("row", { name: /Esau and Jacob/ }),
@@ -89,16 +86,14 @@ test("a batch of names the database already holds raises nothing", async ({
   await seedCorpus(page);
 
   await openDocument(page);
-  await page.locator("#upload-csv").setInputFiles({
-    name: "same-names.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(
-      [
-        CSV_HEADER,
-        `Esau and Jacob,1965,US,Noonday Press,Helen Caldwell,Esaú e Jacó,Machado de Assis,`,
-      ].join("\n") + "\n",
-    ),
-  });
+  await uploadCsv(
+    page,
+    [
+      CSV_HEADER,
+      `Esau and Jacob,1965,US,Noonday Press,Helen Caldwell,Esaú e Jacó,Machado de Assis,`,
+    ].join("\n") + "\n",
+    "same-names.csv",
+  );
 
   await expect(
     indexTable(page).getByRole("row", { name: /Esau and Jacob/ }),
@@ -121,11 +116,7 @@ test("the names view marks which of the names it holds may be the same name twic
 
   // Submit the misspelt batch, so the database has both spellings.
   await openDocument(page);
-  await page.locator("#upload-csv").setInputFiles({
-    name: "second-batch.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(SECOND_BATCH),
-  });
+  await uploadCsv(page, SECOND_BATCH, "second-batch.csv");
 
   await expect(
     indexTable(page).getByRole("row", { name: /Esau and Jacob/ }),

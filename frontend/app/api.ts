@@ -1,3 +1,4 @@
+import axios from "axios";
 import { SESSION_COOKIE } from "modules/api";
 import HTTP from "modules/http";
 import { cookies } from "next/headers";
@@ -7,11 +8,9 @@ const api = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
 /**
  * Read from the backend inside a server component, as the signed-in user.
  *
- * The browser's `rb-session` is httpOnly, so a server render has to forward it
- * explicitly — the same move `getSession` makes, and the reason a page can be
- * rendered on the server at all without losing who is asking. Admin endpoints
- * answer 401 without it, which surfaces as a thrown error and so as the route's
- * error boundary rather than a page that renders empty and lies.
+ * The browser's `rb-session` cookie is httpOnly, so `get` forwards it to the
+ * backend explicitly. Admin endpoints answer 401 without it, and `get` throws
+ * that error, so the route's error boundary renders instead of an empty page.
  *
  * Responses come back camelCased, since this is the same client the browser
  * uses.
@@ -21,6 +20,24 @@ export async function get<T>(
   params?: Record<string, unknown>,
 ): Promise<T> {
   return (await getWithHeaders<T>(path, params)).data;
+}
+
+/**
+ * Returns what `get` returns, or `null` when the backend answers 404. It throws
+ * any other error.
+ */
+export async function getOrNull<T>(
+  path: string,
+  params?: Record<string, unknown>,
+): Promise<T | null> {
+  try {
+    return await get<T>(path, params);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**

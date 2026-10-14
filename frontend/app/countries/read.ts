@@ -13,13 +13,33 @@ type NamedCountry = {
 };
 
 /**
+ * The country list read for each locale, kept for the life of the server
+ * process because the list does not change while it runs.
+ */
+const fetched = new Map<string, Promise<NamedCountry[]>>();
+
+/**
+ * Returns the country list for `locale`, asking the backend only the first
+ * time. A read that fails is removed from `fetched`, so the next call asks
+ * again.
+ */
+function fetchCountries(locale: string): Promise<NamedCountry[]> {
+  const known = fetched.get(locale);
+  if (known) return known;
+
+  const read = get<NamedCountry[]>("/countries", { locale });
+  fetched.set(locale, read);
+  read.catch(() => fetched.delete(locale));
+
+  return read;
+}
+
+/**
  * Every country the server knows, named in `locale`. A backend that cannot be
  * reached answers with none.
  */
-const readCountries = cache(async (locale: string) =>
-  get<NamedCountry[]>("/countries", { locale }).catch(
-    () => [] as NamedCountry[],
-  ),
+const readCountries = cache((locale: string) =>
+  fetchCountries(locale).catch(() => [] as NamedCountry[]),
 );
 
 /**

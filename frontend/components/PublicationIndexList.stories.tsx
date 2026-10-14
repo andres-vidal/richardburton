@@ -9,7 +9,7 @@ import { PublicationIndexList } from "./PublicationIndexList";
 const meta = {
   title: "Publications/Index list",
   component: PublicationIndexList,
-  args: { onItemClick: () => () => {} },
+  args: { onItemClick: () => {} },
   parameters: { layout: "padded" },
 } satisfies Meta<typeof PublicationIndexList>;
 

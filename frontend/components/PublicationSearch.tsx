@@ -1,6 +1,6 @@
 "use client";
 
-import type { Matched } from "modules/publication/model";
+import { searchHref, type Matched } from "modules/publication/model";
 import { Link } from "i18n/navigation";
 import { usePathname, useRouter } from "i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -36,7 +36,7 @@ const SearchMatch: FC<Matched> = ({ field, typed, words }) => {
       {words.map((word, index) => (
         <span key={word}>
           <Link
-            href={`?search=${encodeURIComponent(searchFor(field, word))}`}
+            href={searchHref(searchFor(field, word), "")}
             className="text-indigo-600 underline hover:bg-indigo-300"
           >
             {word}

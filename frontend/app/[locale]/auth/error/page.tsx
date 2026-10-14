@@ -1,9 +1,8 @@
 import AuthCard from "components/AuthCard";
 import Layout from "components/Layout";
 import SignInButton from "components/SignInButton";
-import { SESSION_COOKIE } from "modules/api";
+import { getSession } from "app/session";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { redirect } from "i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -16,11 +15,8 @@ export default async function AuthErrorPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  // An authenticated user has no reason to be on the error page — redirect home
-  // server-side (no flash, no client effect). Check the rb-session cookie's
-  // presence rather than importing the server auth instance, which would run its
-  // boot-time invariants during `next build`, where the secrets aren't set.
-  if ((await cookies()).get(SESSION_COOKIE)) {
+  // A signed-in user is sent to the home page.
+  if (await getSession()) {
     redirect({ href: "/", locale: await getLocale() });
   }
 

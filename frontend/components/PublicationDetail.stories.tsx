@@ -1,33 +1,16 @@
-import type { Decorator, Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { withChanges } from "modules/publication/history";
-import { empty, type PublicationHistoryEntry } from "modules/publication/model";
+import type { PublicationHistoryEntry } from "modules/publication/model";
 import { resetAll } from "modules/publication/store";
-import { SessionProvider } from "modules/session";
+import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
+import { asAdmin } from "test/session";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
 import PublicationDetail from "./PublicationDetail";
 
-const ADMIN = { email: "admin@rb.test", role: "admin" as const };
-
-/** Admin affordances are role-gated inside the view, so a story asks for them
- * by signing in rather than by passing a prop. */
-const asAdmin: Decorator = (Story) => (
-  <SessionProvider session={ADMIN}>
-    <Story />
-  </SessionProvider>
-);
-
 const DOM_CASMURRO = {
-  ...empty(),
-  id: 7,
-  title: "Dom Casmurro",
-  authors: ["Helen Caldwell"],
-  originalTitle: "Dom Casmurro",
-  originalAuthors: ["Machado de Assis"],
-  year: "1953",
-  countries: ["US"],
-  publishers: ["Noonday Press"],
+  ...LOOK_ALIKE_RECORD,
   sources: [
     "Caldwell, Helen. Introduction, 1953.",
     "Gledson, John. Deceptive Realism, 1984.",
@@ -82,7 +65,7 @@ export const Default: Story = {
     // Every field a reader might want to pivot on is a search link.
     await expect(
       screen.getByRole("link", { name: "Machado de Assis" }),
-    ).toHaveAttribute("href", "/en?search=Machado de Assis");
+    ).toHaveAttribute("href", "/en?search=Machado+de+Assis");
 
     // Countries render their label but search by the stored code.
     await expect(
@@ -186,7 +169,7 @@ export const SearchLinks: Story = {
   play: async () => {
     await expect(
       screen.getByRole("link", { name: "Helen Caldwell" }),
-    ).toHaveAttribute("href", "/en?search=Helen Caldwell");
+    ).toHaveAttribute("href", "/en?search=Helen+Caldwell");
   },
 };
 

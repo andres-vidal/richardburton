@@ -18,8 +18,8 @@ on the right. Reached from the admin panel at `/admin/publications/sources`.
   save state, and wires Save / Skip. The wizard opens on the first record rather
   than on a spinner; there is no fetch on mount.
 - **`SourcesBackfillView`** — the presentational shell. It takes the queue as
-  an `ids` prop so its **loading** (`undefined`), **empty** (`[]`), and
-  **populated** states can each be rendered and a11y-checked in isolation.
+  an `ids` prop so its **empty** (`[]`) and **populated** states can each be
+  rendered and a11y-checked in isolation.
 - **`SourcesQueue`** — the queue listbox (see below).
 - **`BackfillStep`** — the detail pane: the selected publication's identifying
   context, the shared `SourcesEditor`, and the Skip / Save & next actions.
@@ -32,12 +32,7 @@ on the right. Reached from the admin panel at `/admin/publications/sources`.
   publication selected. Fully interactive: click through the queue, edit
   sources, and Skip / Save advance the position (persistence is the one
   part stubbed out).
-- **Loading** — the shell's own empty-handed state (`ids: undefined`). The
-  wizard does not reach it in the app, since the queue arrives with the page, but
-  the shell still has to render it correctly.
 - **Empty** — nothing left to source ("All caught up").
-
-<Canvas of={SourcesBackfillStories.Loading} />
 
 <Description of={SourcesBackfillStories.Empty} />
 <Canvas of={SourcesBackfillStories.Empty} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { Link } from "i18n/navigation";
+import { searchHref } from "modules/publication/model";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { FC } from "react";
@@ -33,7 +34,6 @@ const DatabaseSummary: FC<Props> = ({ count, view }) => {
   const t = useTranslations("views");
   const home = useTranslations("home");
   const search = useSearchParams()?.get("search");
-  const query = search ? `?search=${encodeURIComponent(search)}` : "";
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-indigo-700">
@@ -49,7 +49,7 @@ const DatabaseSummary: FC<Props> = ({ count, view }) => {
           {(Object.keys(VIEWS) as View[]).map((each) => (
             <li key={each}>
               <Link
-                href={`${VIEWS[each]}${query}`}
+                href={searchHref(search, VIEWS[each])}
                 aria-current={each === view ? "page" : undefined}
                 className="block px-2 py-0.5 rounded transition-colors hover:bg-indigo-100 focus-ring aria-[current=page]:text-white aria-[current=page]:bg-indigo-600"
               >

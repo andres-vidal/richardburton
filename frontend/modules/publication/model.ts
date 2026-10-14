@@ -541,6 +541,25 @@ function autocomplete(
   }
 }
 
+/**
+ * Returns a link to `path` that searches the publications for `term`. The link
+ * carries `params` first and `term` as the `search` parameter after them, all
+ * URL-encoded. It is `path` alone when there is no term and no other parameter.
+ * An empty `path` gives only the query string, which a link resolves against
+ * the current page.
+ */
+function searchHref(
+  term: string | null | undefined,
+  path = "/",
+  params: Record<string, string> = {},
+): string {
+  const query = new URLSearchParams(params);
+  if (term) query.set("search", term);
+
+  const string = query.toString();
+  return string ? `${path}?${string}` : path;
+}
+
 // Model namespace — constants + pure helpers. Same `Publication.X` shape the
 // components already use (a type and a value can share the name in TS).
 const Publication = {
@@ -571,6 +590,7 @@ export {
   marking,
   merged,
   Publication,
+  searchHref,
 };
 export type {
   AbsorbedPublication,

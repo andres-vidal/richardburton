@@ -644,15 +644,6 @@ const fieldValueFamily = cellFamily(({ id, key }) =>
   atom((get) => get(publicationFamily(id))?.[key]),
 );
 
-/**
- * A single cell's saved value, as the server last returned it, ignoring
- * unsaved edits. The read-only index reads this, because an editor open over
- * the index edits the same rows.
- */
-const storedFieldValueFamily = cellFamily(({ id, key }) =>
-  atom((get) => get(savedFamily(id))?.[key]),
-);
-
 const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
   atom((get) => errorCode(get(rowErrorFamily(id)), key)),
 );
@@ -686,11 +677,7 @@ const PUBLICATION_FAMILIES = [
   rowNumberFamily,
 ];
 
-const CELL_FAMILIES = [
-  fieldValueFamily,
-  storedFieldValueFamily,
-  fieldErrorCodeFamily,
-];
+const CELL_FAMILIES = [fieldValueFamily, fieldErrorCodeFamily];
 
 /**
  * A page of the database: the rows, what the search matched, and how many
@@ -1233,22 +1220,6 @@ function resetAttributes(store: Store): void {
   ATTRIBUTES.forEach((key) => store.set(attributeVisibleFamily(key), RESET));
 }
 
-/** Focus the next invalid row after the currently focused one (wrapping). */
-function focusNextInvalid(store: Store): void {
-  const ids = store.get(publicationIdsAtom);
-  if (!ids) return;
-
-  const isInvalid = (id: PublicationId) => store.get(rowErrorFamily(id));
-  const focusedId = store.get(focusedRowIdAtom);
-  // Walk by list position (ids are no longer monotonic once rows are keyed by
-  // server id), then wrap to the first invalid row.
-  const start = focusedId === undefined ? -1 : ids.indexOf(focusedId);
-  const nextInvalidId =
-    ids.slice(start + 1).find(isInvalid) ?? ids.find(isInvalid);
-
-  store.set(focusedRowIdAtom, nextInvalidId);
-}
-
 export {
   RESEMBLANCE_ATTRIBUTES,
   addNew,
@@ -1270,7 +1241,6 @@ export {
   fieldErrorCodeFamily,
   fieldValueFamily,
   focusedRowIdAtom,
-  focusNextInvalid,
   forget,
   hiddenAttributesAtom,
   hydrate,
@@ -1315,7 +1285,6 @@ export {
   setFocusedRowId,
   setResemblances,
   setSources,
-  storedFieldValueFamily,
   storedSourcesFamily,
   totalIndexCountAtom,
   unsourcedCountAtom,

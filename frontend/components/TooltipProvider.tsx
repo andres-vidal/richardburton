@@ -28,32 +28,27 @@ import { mergeRefs } from "react-merge-refs";
 // Adapted from https://floating-ui.com/docs/tooltip
 
 type TooltipOptions = {
-  initialOpen?: boolean;
   placement?: Placement;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  portalRoot?: "main";
   boundary?: "main";
   absoluteCenter?: boolean;
 };
 
+/**
+ * Returns the floating-ui state and prop getters for a tooltip that opens while
+ * its reference is hovered or focused. The tooltip closes when the pointer
+ * leaves, when the reference loses focus, and on Escape or a click outside.
+ * With `boundary: "main"`, the tooltip flips and shifts to stay inside the
+ * page's `<main>` element.
+ */
 function useTooltip(options: TooltipOptions = {}) {
-  const {
-    initialOpen = false,
-    placement = "top",
-    open: controlledOpen,
-    onOpenChange: setControlledOpen,
-  } = options;
+  const { placement = "top" } = options;
 
   const boundary =
     options.boundary === "main"
       ? document.getElementsByTagName("main")[0]
       : undefined;
 
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(initialOpen);
-
-  const open = controlledOpen ?? uncontrolledOpen;
-  const setOpen = setControlledOpen ?? setUncontrolledOpen;
+  const [open, setOpen] = useState(false);
 
   const data = useFloating({
     placement,
@@ -67,8 +62,8 @@ function useTooltip(options: TooltipOptions = {}) {
   const context = data.context;
 
   const interactions = useInteractions([
-    useHover(context, { move: false, enabled: controlledOpen == null }),
-    useFocus(context, { enabled: controlledOpen == null }),
+    useHover(context, { move: false }),
+    useFocus(context),
     useDismiss(context),
     useRole(context, { role: "tooltip" }),
   ]);

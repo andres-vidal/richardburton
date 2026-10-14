@@ -15,6 +15,7 @@ import {
   type PublicationId,
   type PublicationKey,
   type PublicationListKey,
+  searchHref,
 } from "modules/publication/model";
 import {
   deletePublication,
@@ -52,7 +53,7 @@ import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
 
 const Searchable: FC<{ label: string; value: string }> = ({ value, label }) => (
-  <Link href={`/?search=${value}`} className="anchor">
+  <Link href={searchHref(value)} className="anchor">
     <Highlight>{label}</Highlight>
   </Link>
 );
@@ -226,7 +227,6 @@ const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
         value={value}
         error={error}
         aria-label={t(attribute)}
-        bordered
         autoValidated
         // A form has room to say what is wrong, in place.
         errorDisplay="inline"

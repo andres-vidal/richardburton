@@ -157,7 +157,6 @@ const ExtendedRow: FC<RowProps> = (props) => {
       message={error}
       placement="top-start"
       boundary="main"
-      portalRoot="main"
       absoluteCenter
     >
       <Row {...props} ref={ref} />
@@ -243,17 +242,20 @@ const PublicationWorkspace: FC = () => {
   // Only a click on the row's handle selects it. The row hears every click in
   // it, including the ones that land in a field — those belong to the field, and
   // selecting on them would fight the person typing.
-  const toggleSelection = (id: PublicationId) => (event: MouseEvent) => {
-    if (!isSelectionGesture(event.target)) return;
+  const toggleSelection = useCallback(
+    (id: PublicationId, event: MouseEvent) => {
+      if (!isSelectionGesture(event.target)) return;
 
-    select(store, {
-      id,
-      type: "publication",
-      shiftKey: event.shiftKey,
-      metaKey: event.metaKey,
-      orderedIds: ids,
-    });
-  };
+      select(store, {
+        id,
+        type: "publication",
+        shiftKey: event.shiftKey,
+        metaKey: event.metaKey,
+        orderedIds: ids,
+      });
+    },
+    [store, ids],
+  );
 
   return (
     <>

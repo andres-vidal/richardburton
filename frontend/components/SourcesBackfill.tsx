@@ -195,11 +195,16 @@ export const BackfillStep: FC<{
 };
 
 /**
- * Presentational shell — takes the queue as a prop so its loading, empty, and
- * populated states can each be rendered (and a11y-checked) in isolation.
+ * Renders the queue `ids` beside the editor for the publication at `position`,
+ * or an "All caught up" message when `ids` is empty. It holds no state, so its
+ * empty and populated states can each be rendered and a11y-checked in
+ * isolation.
+ *
+ * The populated view fills the area below the sticky header and scrolls inside
+ * its panes, so the page itself does not get a second scrollbar.
  */
 export const SourcesBackfillView: FC<{
-  ids: PublicationId[] | undefined;
+  ids: PublicationId[];
   position: number;
   saving: boolean;
   onSelect: (position: number) => void;
@@ -207,12 +212,9 @@ export const SourcesBackfillView: FC<{
   onSkip: () => void;
 }> = ({ ids, position, saving, onSelect, onSave, onSkip }) => {
   const t = useTranslations("backfill");
-  const currentId = ids?.[position];
-  const empty = ids !== undefined && ids.length === 0;
+  const currentId = ids[position];
 
-  return ids === undefined ? (
-    <p className="py-8 text-center text-gray-600">{t("finding")}</p>
-  ) : empty ? (
+  return ids.length === 0 ? (
     <div className="flex flex-col gap-4 items-center py-16 text-center">
       <h1 className="text-2xl font-normal">{t("allCaughtUp")}</h1>
       <p className="text-gray-600">{t("allCaughtUpDetail")}</p>
@@ -221,8 +223,6 @@ export const SourcesBackfillView: FC<{
       </Link>
     </div>
   ) : (
-    // Fill the area below the sticky header and scroll inside the panes — so the
-    // page itself doesn't scroll here, avoiding a second scrollbar.
     <div className="flex overflow-hidden my-4 rounded-lg border border-gray-200 h-[calc(100dvh-15.5rem)]">
       <SourcesQueue ids={ids} activeId={currentId} onSelect={onSelect} />
       {currentId !== undefined && (
@@ -262,12 +262,12 @@ const Backfill: FC<{ queue: PublicationIndex }> = ({ queue }) => {
     setSaving(true);
     const saved = await update(store, currentId);
     setSaving(false);
-    if (saved) setPosition((p) => Math.min(p + 1, (ids?.length ?? 1) - 1));
+    if (saved) setPosition((p) => Math.min(p + 1, ids.length - 1));
   }
 
   function handleSkip() {
     if (currentId !== undefined) discardEdit(store, currentId);
-    setPosition((p) => Math.min(p + 1, (ids?.length ?? 1) - 1));
+    setPosition((p) => Math.min(p + 1, ids.length - 1));
   }
 
   return (

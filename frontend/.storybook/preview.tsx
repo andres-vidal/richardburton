@@ -4,35 +4,25 @@ import { routing } from "i18n/routing";
 import { NextIntlClientProvider } from "next-intl";
 import { PublicationStoreProvider } from "modules/publication/workspace";
 import { store } from "modules/store";
-import { Author } from "modules/author";
-import { Country } from "modules/country";
-import { OriginalBook } from "modules/original-book";
-import { Publisher } from "modules/publisher";
 import { REMOTE as PublicationRemote } from "modules/publication/remote";
 import { COUNTRIES, messages } from "test/messages";
+import { stubSearches } from "test/search-stubs";
 
 import "../styles/globals.css";
 import "./preview.css";
 
-// There is no server here, so the field is answered from the few countries the
-// stories are given.
-Country.REMOTE.search = async (term) =>
-  COUNTRIES.filter((country) =>
-    country.label.toLowerCase().includes(term.toLowerCase()),
-  );
-
 /**
- * Every other field answers with nothing, so no story can reach the network.
+ * There is no server here, so the country field is answered from the few
+ * countries the stories are given, and every other field answers with nothing.
+ * No story can reach the network.
  *
  * The fields debounce, so a story can end with a request still to be made. A
  * story that stubs one of these puts back a stub rather than the real call.
  */
-Author.REMOTE.search = async () => [];
+stubSearches(COUNTRIES);
 
 // The workspace checks its rows for look-alikes after every edit.
 PublicationRemote.resemblances = async () => {};
-Publisher.REMOTE.search = async () => [];
-OriginalBook.REMOTE.search = async () => [];
 
 const preview: Preview = {
   decorators: [

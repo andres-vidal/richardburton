@@ -25,8 +25,8 @@ import { seedIndex } from "test/publication-fixtures";
 seedIndex(store); // load the sample publications before the story renders
 ```
 
-The only prop is `onItemClick(id)` — a curried click handler, invoked per row so
-a parent can route to (or select) the tapped publication.
+`onItemClick(id, event)` is called with the id of the tapped publication, so a
+parent can route to (or select) it.
 
 <Canvas of={IndexListStories.Default} />
 

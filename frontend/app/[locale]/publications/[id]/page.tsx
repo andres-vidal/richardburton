@@ -5,6 +5,7 @@ import PublicationDetail, {
   PublicationHeading,
 } from "components/PublicationDetail";
 import PublicationOverlay from "components/PublicationOverlay";
+import { searchHref } from "modules/publication/model";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -78,7 +79,7 @@ export default async function PublicationPage({
         <Home index={index} />
         <PublicationOverlay
           view={Promise.resolve(view)}
-          closeTo={query.search ? `/?search=${query.search}` : "/"}
+          closeTo={searchHref(query.search)}
         />
       </>
     );

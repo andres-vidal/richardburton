@@ -18,7 +18,7 @@ import {
   usePublicationIndexCount,
 } from "modules/publication/hooks";
 import { receiveIndex } from "modules/publication/store";
-import type { PublicationId } from "modules/publication/model";
+import { searchHref, type PublicationId } from "modules/publication/model";
 import {
   PublicationStoreProvider,
   usePublicationStore,
@@ -28,12 +28,15 @@ import { Link } from "i18n/navigation";
 import { useRouter } from "i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 type Props = {
   /** The database for the current query, read on the server. */
   index: PublicationIndex;
 };
+
+/** Returns the address of the publication `id`'s own page. */
+const rowHref = (id: PublicationId) => `/publications/${id}`;
 
 export default function Home({ index }: Props) {
   return (
@@ -62,14 +65,11 @@ function Database({ index }: Props) {
     receiveIndex(store, index);
   }, [store, index]);
 
-  function handleRowClick(id: PublicationId) {
-    const query = new URLSearchParams({ modal: "" });
-    if (search) query.set("search", search);
-
-    return () => router.push(`/publications/${id}?${query}`);
-  }
-
-  const rowHref = (id: PublicationId) => `/publications/${id}`;
+  const handleRowClick = useCallback(
+    (id: PublicationId) =>
+      router.push(searchHref(search, `/publications/${id}`, { modal: "" })),
+    [router, search],
+  );
 
   return (
     <Layout

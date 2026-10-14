@@ -22,7 +22,6 @@ import {
   publicationFamily,
   publicationIdsAtom,
   savedFamily,
-  storedFieldValueFamily,
   storedSourcesFamily,
   matchingCountAtom,
   totalIndexCountAtom,
@@ -84,15 +83,6 @@ function usePublicationField<K extends PublicationKey>(
   key: K,
 ) {
   return useAtomValue(fieldValueFamily({ id, key })) as Publication[K];
-}
-
-/** A single cell's saved value, ignoring unsaved edits. Each cell has its own
- * subscription. */
-function usePublicationStoredField<K extends PublicationKey>(
-  id: PublicationId,
-  key: K,
-) {
-  return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
 }
 
 /**
@@ -268,7 +258,6 @@ export {
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationMarking,
-  usePublicationStoredField,
   useStoredPublicationSources,
   useUnsourcedPublicationCount,
   usePublicationResemblance,

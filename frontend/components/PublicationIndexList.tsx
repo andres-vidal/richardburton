@@ -77,7 +77,8 @@ const PublicationItem: FC<{ id: PublicationId }> = ({ id }) => {
 };
 
 interface Props {
-  onItemClick: (id: PublicationId) => (event: MouseEvent) => void;
+  /** Called with the id of the publication that was clicked. */
+  onItemClick: (id: PublicationId, event: MouseEvent) => void;
   /** Where each record lives, so the list is a set of links and not a dead end. */
   itemHref?: (id: PublicationId) => string;
 }
@@ -88,7 +89,7 @@ const PublicationIndexList: FC<Props> = ({ onItemClick, itemHref }) => {
   return ids && ids.length > 0 ? (
     <ol className="space-y-4">
       {ids.map((id) => (
-        <li key={id} onClick={onItemClick(id)}>
+        <li key={id} onClick={(event) => onItemClick(id, event)}>
           {itemHref ? (
             <Link
               href={itemHref(id)}
