@@ -99,19 +99,12 @@ defmodule RichardBurton.Publication.History do
   def system_actor, do: @system_actor
 
   @doc """
-  Append one history row for a mutation, inside the caller's transaction.
-
-  Concurrent mutations of the same publication serialize on its row lock, so
-  the max-version read is stable; the unique index on (publication_id, version)
-  turns any residual race into a loud error instead of silent corruption.
+  Appends one history row for a mutation, inside the caller's transaction.
+  `absorbed` names the publications a merge took in, or an un-merge gave back.
   """
   def record(action, publication = %Publication{}, actor, absorbed \\ [])
       when action in @action_atoms do
-    %History{}
-    |> changeset(
-      entry(action, publication, actor, next_version(publication.id), absorbed: absorbed)
-    )
-    |> Repo.insert!()
+    append([publication], &entry(action, &1, actor, &2, absorbed: absorbed))
   end
 
   @doc """
@@ -140,6 +133,11 @@ defmodule RichardBurton.Publication.History do
   # Inserts the row `build` returns for each of `publications`, given the
   # publication and its next version. It reads the current versions with one
   # query and inserts the rows with one insert per chunk.
+  #
+  # Concurrent mutations of the same publication serialize on its row lock, so
+  # the versions read here are stable. The unique index on (publication_id,
+  # version) turns any remaining race into an error rather than two rows with
+  # one version.
   defp append([], _build), do: []
 
   defp append(publications, build) do
@@ -491,14 +489,4 @@ defmodule RichardBurton.Publication.History do
   # Returns `names` sorted, or nil when there are none.
   defp sorted(names) when is_list(names), do: Enum.sort(names)
   defp sorted(nil), do: nil
-
-  # The next version for a record's stream, counting from its current maximum so
-  # versions stay contiguous per publication rather than global.
-  defp next_version(publication_id) do
-    max =
-      from(h in History, where: h.publication_id == ^publication_id, select: max(h.version))
-      |> Repo.one()
-
-    (max || 0) + 1
-  end
 end

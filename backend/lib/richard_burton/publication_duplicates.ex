@@ -158,15 +158,17 @@ defmodule RichardBurton.Publication.Duplicates do
         conflict_target: [:publication_id, :other_publication_id]
       )
 
-    if count > 0, do: record(:distinguished, ids, actor)
-
-    count
+    record(count, :distinguished, ids, actor)
   end
 
-  # Records a decision about the publications with these ids in the history of
-  # each of them.
-  defp record(decision, ids, actor) do
+  # Returns `count`, the number of distinctions a decision stored or deleted.
+  # When it is not zero, it also records the decision about the publications
+  # with these ids in the history of each of them.
+  defp record(0, _decision, _ids, _actor), do: 0
+
+  defp record(count, decision, ids, actor) do
     History.record_decision(decision, Publication.with_ids(ids), actor)
+    count
   end
 
   @doc """
@@ -180,13 +182,7 @@ defmodule RichardBurton.Publication.Duplicates do
   `"reconsidered"` history entry under `actor`, which names the others.
   """
   def reconsider(ids, actor) when is_list(ids) do
-    Repo.transaction(fn ->
-      count = forget(ids)
-
-      if count > 0, do: record(:reconsidered, ids, actor)
-
-      count
-    end)
+    Repo.transaction(fn -> ids |> forget() |> record(:reconsidered, ids, actor) end)
   end
 
   @doc """
