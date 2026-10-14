@@ -334,7 +334,7 @@ defmodule RichardBurton.Publication do
   end
 
   defp compensate(entry = %{action: "unmerged", publication_id: id}, _previous, _head, actor) do
-    merge(id, History.absorbed_ids(entry), actor)
+    merge(id, History.other_ids(entry), actor)
   end
 
   # Undoes the merge `entry`, in one transaction: clears the tombstones of the
@@ -344,7 +344,7 @@ defmodule RichardBurton.Publication do
   # can be undone in turn.
   defp unmerge(entry, previous, head, actor) do
     Repo.transaction(fn ->
-      with {:ok, restored} <- restore_absorbed(History.absorbed_ids(entry)),
+      with {:ok, restored} <- restore_absorbed(History.other_ids(entry)),
            {:ok, winner} <- revert_winner(entry, previous, head) do
         settle!()
         winner = reloaded(winner)

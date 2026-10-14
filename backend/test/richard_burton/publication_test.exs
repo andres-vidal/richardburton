@@ -680,7 +680,7 @@ defmodule RichardBurton.PublicationTest do
       assert [entry | _] = History.of(winner.id)
       assert entry.action == "merged"
       assert entry.actor == "someone@example.com"
-      assert History.absorbed_ids(entry) == [loser.id]
+      assert History.other_ids(entry) == [loser.id]
     end
 
     test "a loser's own log gains nothing, and offers no undo while it is held" do
@@ -734,7 +734,7 @@ defmodule RichardBurton.PublicationTest do
       # And the un-merge is one entry, naming what it gave back.
       assert [undone | _] = History.of(winner.id)
       assert undone.action == "unmerged"
-      assert History.absorbed_ids(undone) == [loser.id]
+      assert History.other_ids(undone) == [loser.id]
     end
 
     test "an un-merge is itself undoable, which merges them again" do
@@ -834,7 +834,7 @@ defmodule RichardBurton.PublicationTest do
       assert live == merged.id
 
       [merge | _] = History.of(winner.id)
-      assert Enum.sort(History.absorbed_ids(merge)) == Enum.sort([loser.id, another.id])
+      assert Enum.sort(History.other_ids(merge)) == Enum.sort([loser.id, another.id])
 
       assert {:ok, _} = Publication.undo(winner.id, merge.version)
 

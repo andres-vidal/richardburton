@@ -16,18 +16,22 @@ defmodule RichardBurton.Publication.History do
     * **stream** — the entries of one publication, newest first.
     * **head** — the latest entry of a stream that is not a decision. See
       `head/1`.
+    * **others** — the other publications an entry is about, each with its
+      snapshot when the entry was recorded. The entry's action says how they
+      are involved: a merge absorbed them, an un-merge gave them back, or a
+      decision is about them. An entry of any other action has none.
     * **absorbed** — the state of a publication held inside another by a
       merge. A `"merged"` entry is on the publication that survived the merge,
-      and names the publications it absorbed in its `absorbed` field. An
-      `"unmerged"` entry names the ones it gave back. See `absorbed/1`.
+      and names the publications it absorbed in its `others`. An `"unmerged"`
+      entry names the ones it gave back. See `absorbed/1`.
     * **decision** — a duplicate reviewer's answer about publications that look
       alike, recorded by `RichardBurton.Publication.Duplicates`. A
       `"distinguished"` entry records that the publications are not the same
       record twice, and a `"reconsidered"` entry that the answer was taken
       back. Each publication the decision is about gets an entry, which names
-      the others in its `related` field. A decision changes no field, so its
-      entry has no diff. It is not undone from the history, and `head/1` and
-      `undoable?/3` skip it, so it does not stop the entries before it from
+      the other publications in its `others`. A decision changes no field, so
+      its entry has no diff. It is not undone from the history, and `head/1`
+      and `undoable?/3` skip it, so it does not stop the entries before it from
       being undone.
 
   A `"renamed"` entry records a change of name made in names management, on
@@ -78,14 +82,10 @@ defmodule RichardBurton.Publication.History do
     field(:snapshot, :map)
     field(:actor, :string)
 
-    # The publications a merge absorbed, or an un-merge gave back, as a map
-    # from each one's id to its snapshot at the time. Nil on every other
-    # entry.
-    field(:absorbed, :map)
-
-    # The other publications a decision is about, as a map from each one's id
-    # to its snapshot at the time. Nil on every other entry.
-    field(:related, :map)
+    # The other publications this entry is about, as a map from each one's id
+    # to its snapshot at the time: the ones a merge absorbed, an un-merge gave
+    # back, or a decision is about. Nil on every other entry.
+    field(:others, :map)
 
     # What this entry changed in its publication, against the entry before it
     # in the stream.
@@ -100,7 +100,7 @@ defmodule RichardBurton.Publication.History do
   @doc false
   def changeset(history, attrs) do
     history
-    |> cast(attrs, [:publication_id, :version, :action, :snapshot, :actor, :absorbed, :related])
+    |> cast(attrs, [:publication_id, :version, :action, :snapshot, :actor, :others])
     |> validate_required([:publication_id, :version, :action, :snapshot, :actor])
     |> validate_inclusion(:action, @actions)
     |> unique_constraint([:publication_id, :version])
@@ -111,12 +111,12 @@ defmodule RichardBurton.Publication.History do
 
   @doc """
   Appends the entry that records `action` on `publication`, inside the
-  caller's transaction. `absorbed` names the publications a merge absorbed, or
+  caller's transaction. `others` names the publications a merge absorbed, or
   an un-merge gave back.
   """
-  def record(action, publication = %Publication{}, actor, absorbed \\ [])
+  def record(action, publication = %Publication{}, actor, others \\ [])
       when action in @action_atoms do
-    append([publication], &entry(action, &1, actor, &2, absorbed: absorbed))
+    append([publication], &entry(action, &1, actor, &2, others))
   end
 
   @doc """
@@ -132,13 +132,13 @@ defmodule RichardBurton.Publication.History do
   @doc """
   Appends a decision's entry for each of `publications`, inside the caller's
   transaction, as `record_all/3` does. `action` is `:distinguished` or
-  `:reconsidered`, and each entry names the other publications in `related`.
+  `:reconsidered`, and each entry names the other publications in `others`.
   """
   def record_decision(action, publications, actor)
       when action in [:distinguished, :reconsidered] do
     append(publications, fn publication, version ->
       others = Enum.reject(publications, &(&1.id == publication.id))
-      entry(action, publication, actor, version, related: others)
+      entry(action, publication, actor, version, others)
     end)
   end
 
@@ -180,8 +180,7 @@ defmodule RichardBurton.Publication.History do
   end
 
   # Returns the fields of the entry that records `action` on `publication` as
-  # its `version`. `others` may name the publications the entry `absorbed`, or
-  # the ones it is `related` to.
+  # its `version`, with `others` as the other publications it is about.
   defp entry(action, publication, actor, version, others \\ []) do
     %{
       publication_id: publication.id,
@@ -189,8 +188,7 @@ defmodule RichardBurton.Publication.History do
       action: to_string(action),
       snapshot: snapshot(publication),
       actor: actor,
-      absorbed: snapshots_by_id(Keyword.get(others, :absorbed, [])),
-      related: snapshots_by_id(Keyword.get(others, :related, []))
+      others: snapshots_by_id(others)
     }
   end
 
@@ -201,31 +199,20 @@ defmodule RichardBurton.Publication.History do
   defp snapshots_by_id(publications),
     do: Map.new(publications, &{to_string(&1.id), snapshot(&1)})
 
-  @doc "Returns the ids of the publications an entry absorbed or gave back."
-  def absorbed_ids(%History{absorbed: nil}), do: []
+  @doc "Returns the ids of the other publications an entry is about."
+  def other_ids(%History{others: nil}), do: []
 
-  def absorbed_ids(%History{absorbed: absorbed}),
-    do: absorbed |> Map.keys() |> Enum.map(&String.to_integer/1)
-
-  @doc """
-  Returns the snapshots of the publications an entry absorbed or gave back,
-  ordered by id. Each snapshot keeps its `"id"` and leaves out the
-  fingerprints.
-  """
-  def absorbed_records(%History{absorbed: absorbed}), do: records(absorbed)
+  def other_ids(%History{others: others}),
+    do: others |> Map.keys() |> Enum.map(&String.to_integer/1)
 
   @doc """
-  Returns the snapshots of the other publications a decision is about, in the
-  form `absorbed_records/1` returns.
+  Returns the snapshots of the other publications an entry is about, ordered
+  by id. Each snapshot keeps its `"id"` and leaves out the fingerprints.
   """
-  def related_records(%History{related: related}), do: records(related)
+  def other_records(%History{others: nil}), do: []
 
-  # Returns the snapshots of a map of them by id, ordered by id, each with its
-  # `"id"` and without the fingerprints.
-  defp records(nil), do: []
-
-  defp records(by_id) do
-    by_id
+  def other_records(%History{others: others}) do
+    others
     |> Map.values()
     |> Enum.map(&Map.drop(&1, @derived -- ["id"]))
     |> Enum.sort_by(& &1["id"])
@@ -324,10 +311,10 @@ defmodule RichardBurton.Publication.History do
   Returns the ids among `ids` of the publications that are absorbed now.
 
   A publication is absorbed when the latest `"merged"` or `"unmerged"` entry
-  that names it in `absorbed` is a `"merged"` one. That entry is in the stream
+  that names it in `others` is a `"merged"` one. That entry is in the stream
   of the publication that survived the merge, not in the absorbed
-  publication's own stream. The query reads only the ids that `absorbed`
-  holds, and at most one entry for each of `ids`.
+  publication's own stream. The query reads only the ids that `others` holds,
+  and at most one entry for each of `ids`.
   """
   @spec absorbed([pos_integer()]) :: MapSet.t(pos_integer())
   def absorbed(ids) do
@@ -335,7 +322,7 @@ defmodule RichardBurton.Publication.History do
 
     latest =
       from(h in History,
-        inner_lateral_join: k in fragment("SELECT jsonb_object_keys(?) AS id", h.absorbed),
+        inner_lateral_join: k in fragment("SELECT jsonb_object_keys(?) AS id", h.others),
         on: true,
         where: h.action in ["merged", "unmerged"],
         where: k.id in type(^keys, {:array, :string}),
@@ -357,10 +344,10 @@ defmodule RichardBurton.Publication.History do
     |> Enum.reverse()
     |> Enum.reduce(MapSet.new(), fn
       entry = %History{action: "merged"}, held ->
-        MapSet.union(held, MapSet.new(absorbed_ids(entry)))
+        MapSet.union(held, MapSet.new(other_ids(entry)))
 
       entry = %History{action: "unmerged"}, held ->
-        MapSet.difference(held, MapSet.new(absorbed_ids(entry)))
+        MapSet.difference(held, MapSet.new(other_ids(entry)))
 
       _entry, held ->
         held

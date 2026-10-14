@@ -730,7 +730,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                "action" => "distinguished",
                "actor" => actor,
                "undoable" => false,
-               "related" => [%{"id" => other_id, "title" => "Iraçéma the Honey-Lips"}]
+               "others" => [%{"id" => other_id, "title" => "Iraçéma the Honey-Lips"}]
              } = decision
 
       assert {actor, other_id} == {session_user_email(), other.id}
@@ -742,7 +742,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       one_id = one.id
 
       assert %{
-               "entries" => [%{"action" => "reconsidered", "related" => [%{"id" => ^one_id}]} | _]
+               "entries" => [%{"action" => "reconsidered", "others" => [%{"id" => ^one_id}]} | _]
              } =
                meta.conn
                |> get(publication_path(meta.conn, :history, other.id))
@@ -792,7 +792,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       # The merge is one entry that can be undone, and it holds the whole
       # publication it took in.
       assert entry["undoable"]
-      assert [absorbed] = entry["absorbed"]
+      assert [absorbed] = entry["others"]
       assert absorbed["id"] == meta.loser.id
       assert absorbed["title"] == meta.loser.title
       refute Map.has_key?(absorbed, "countries_fingerprint")

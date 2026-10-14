@@ -142,11 +142,11 @@ type SnapshotDiff = {
 type PublicationSnapshot = Omit<Publication, "id" | "year"> & { year: number };
 
 /**
- * A publication a merge took in, or an un-merge gave back. Identified, unlike
- * a snapshot: an entry names several of these at once, and two records that
- * were merged may well share a title.
+ * A publication an entry of the log names besides its own, as it stood when
+ * the entry was recorded. Identified, unlike a snapshot: an entry names several
+ * of these at once, and two records that were merged may well share a title.
  */
-type AbsorbedPublication = PublicationSnapshot & { id: number };
+type OtherPublication = PublicationSnapshot & { id: number };
 
 /**
  * One entry of a publication's log: the act, who did it and when, the record as
@@ -161,16 +161,13 @@ type PublicationHistoryEntry = {
   diff: SnapshotDiff | null;
   undoable: boolean;
   /**
-   * The publications this entry took in, for a merge, or gave back, for an
-   * un-merge. Absent on entries that change one record only.
+   * The other publications this entry is about. The action says how: a merge
+   * took them in (`merged`), an un-merge gave them back (`unmerged`), or a
+   * duplicate reviewer's decision ruled them not to be the same record
+   * (`distinguished`) or put them back among the possible duplicates
+   * (`reconsidered`). Empty or absent on entries of any other action.
    */
-  absorbed?: AbsorbedPublication[] | null;
-  /**
-   * The other publications a duplicate reviewer's decision is about: those
-   * ruled not to be the same record (`distinguished`), or put back among the
-   * possible duplicates (`reconsidered`). Absent on other entries.
-   */
-  related?: AbsorbedPublication[] | null;
+  others?: OtherPublication[] | null;
 };
 
 /** An entry of the log of the whole database, with its publication's id. */
