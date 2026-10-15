@@ -1,9 +1,11 @@
 "use client";
 
+import { Key } from "app";
 import Button from "components/Button";
 import ConfirmationModal from "components/ConfirmationModal";
 import TextInput from "components/TextInput";
 import { notify } from "components/Notifications";
+import OtherSpellings, { type Spelling } from "components/OtherSpellings";
 import { rename, type Kind, type Listed, type Name } from "modules/vocabulary";
 import { Link, useRouter } from "i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -48,7 +50,7 @@ const Entry: FC<{
   // Writes the other spelling into the field and focuses it, without renaming.
   // The rename is sent only when the person commits the field, because a fold
   // cannot be undone.
-  function propose(other: Name) {
+  function propose(other: Spelling) {
     setValue(other.name);
     field.current?.focus();
   }
@@ -83,8 +85,8 @@ const Entry: FC<{
             disabled={saving}
             onBlur={commit}
             onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-              if (event.key === "Escape") setValue(name.name);
+              if (event.key === Key.ENTER) event.currentTarget.blur();
+              if (event.key === Key.ESCAPE) setValue(name.name);
             }}
           />
         </span>
@@ -94,22 +96,11 @@ const Entry: FC<{
       </div>
 
       {near.length > 0 && (
-        <p className="flex flex-wrap gap-1.5 items-baseline pt-2 text-xs text-amber-900">
-          {t("alsoSpelt")}
-          {near.map((other) => (
-            <button
-              key={other.id}
-              type="button"
-              className="py-0.5 px-2 bg-white rounded-full border border-amber-300 hover:bg-amber-100"
-              onClick={() => propose(other)}
-            >
-              {other.name}{" "}
-              <span className="text-amber-700 tabular-nums">
-                {t("onPublications", { count: other.publications })}
-              </span>
-            </button>
-          ))}
-        </p>
+        <OtherSpellings
+          label={t("alsoSpelt")}
+          spellings={near}
+          onPick={propose}
+        />
       )}
     </li>
   );

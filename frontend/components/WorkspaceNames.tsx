@@ -4,13 +4,14 @@ import SpellcheckIcon from "assets/spellcheck.svg";
 import { useBatchNames } from "modules/publication/hooks";
 import type { BatchName, NameKind } from "modules/publication/store";
 import { batchNamesAtom, replaceName } from "modules/publication/store";
-import { validate } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { resemblances, type Resemblance } from "modules/vocabulary";
 import { useTranslations } from "next-intl";
 import { FC, useEffect, useState } from "react";
 import Button from "./Button";
 import { Modal, useModal } from "./Modal";
+import OtherSpellings from "./OtherSpellings";
+import SectionHeading from "./SectionHeading";
 
 const KINDS: NameKind[] = ["authors", "publishers"];
 
@@ -35,6 +36,11 @@ type Entry = BatchName & Resemblance;
 /** True when the database lacks the name but has a name that resembles it. */
 const isDoubtful = (entry: Entry) => !entry.held && entry.resembles.length > 0;
 
+/**
+ * One name of the batch: the name, how many rows carry it, and its state,
+ * which is "doubtful", "held" or "new". A doubtful name also offers the stored
+ * names it resembles, and picking one calls `onAdopt` with that spelling.
+ */
 const Name: FC<{
   entry: Entry;
   onAdopt: (entry: Entry, spelling: string) => void;
@@ -61,23 +67,12 @@ const Name: FC<{
         </span>
       </div>
 
-      {isDoubtful(entry) && (
-        <p className="flex flex-wrap gap-1.5 items-baseline pt-2 text-xs text-amber-900">
-          {t("didYouMean")}
-          {entry.resembles.map((other) => (
-            <button
-              key={other.id}
-              type="button"
-              className="py-0.5 px-2 bg-white rounded-full border border-amber-300 hover:bg-amber-100"
-              onClick={() => onAdopt(entry, other.name)}
-            >
-              {other.name}{" "}
-              <span className="text-amber-700 tabular-nums">
-                {t("onPublications", { count: other.publications })}
-              </span>
-            </button>
-          ))}
-        </p>
+      {state === "doubtful" && (
+        <OtherSpellings
+          label={t("didYouMean")}
+          spellings={entry.resembles}
+          onPick={(other) => onAdopt(entry, other.name)}
+        />
       )}
     </li>
   );
@@ -89,7 +84,8 @@ const Name: FC<{
  * the database already has.
  *
  * A second spelling of a name creates a second record. Correcting it in the
- * batch is simpler than folding the two records after the insert.
+ * batch is simpler than folding the two records after the insert. Picking an
+ * offered spelling writes it into every row that has the name, as one edit.
  *
  * The names are sent to `ask` once they have stayed unchanged for half a
  * second, so typing a name does not send every prefix of it.
@@ -97,9 +93,7 @@ const Name: FC<{
 const WorkspaceNames: FC<{
   /** Checks names against the database. Defaults to `resemblances`. */
   ask?: typeof resemblances;
-  /** Validates the corrected rows again. Defaults to `validate`. */
-  recheck?: typeof validate;
-}> = ({ ask = resemblances, recheck = validate }) => {
+}> = ({ ask = resemblances }) => {
   const t = useTranslations("workspaceNames");
   const store = usePublicationStore();
   const batch = useBatchNames();
@@ -144,6 +138,7 @@ const WorkspaceNames: FC<{
     };
   }, [asked, anyNames, ask, store]);
 
+  // Returns the names of `kind`, each with the server's answer for it.
   const entries = (kind: NameKind): Entry[] => {
     const said = new Map((answers?.[kind] ?? []).map((one) => [one.name, one]));
 
@@ -154,13 +149,9 @@ const WorkspaceNames: FC<{
     }));
   };
 
-  const all = KINDS.flatMap(entries);
+  const byKind = KINDS.map((kind) => ({ kind, entries: entries(kind) }));
+  const all = byKind.flatMap(({ entries }) => entries);
   const doubtful = all.filter(isDoubtful);
-
-  function handleAdopt(kind: NameKind, entry: Entry, spelling: string) {
-    replaceName(store, kind, entry.rows, entry.name, spelling);
-    recheck(store, entry.rows);
-  }
 
   return all.length === 0 ? null : (
     <>
@@ -174,38 +165,36 @@ const WorkspaceNames: FC<{
             ? t("doubtfulCount", { count: doubtful.length })
             : t("count", { count: all.length })
         }
-        onClick={() => open()}
+        onClick={open}
       />
 
-      <Modal isOpen={isOpen} onClose={close} label={t("title")}>
-        <div className="p-6 space-y-4 max-w-2xl">
-          <div>
-            <h1 className="text-xl">{t("title")}</h1>
-            <p className="text-sm text-gray-600">{t("description")}</p>
-          </div>
+      <Modal
+        isOpen={isOpen}
+        onClose={close}
+        heading={t("title")}
+        subheading={t("description")}
+      >
+        {byKind.map(({ kind, entries }) => (
+          <section key={kind} className="space-y-2">
+            <SectionHeading>{t(kind)}</SectionHeading>
 
-          {KINDS.map((kind) => (
-            <section key={kind} className="space-y-1">
-              <h2 className="text-sm font-medium text-gray-700">{t(kind)}</h2>
-
-              {entries(kind).length === 0 ? (
-                <p className="text-sm text-gray-600">{t("noneOfThisKind")}</p>
-              ) : (
-                <ul aria-label={t(kind)} className="space-y-1">
-                  {entries(kind).map((entry) => (
-                    <Name
-                      key={entry.name}
-                      entry={entry}
-                      onAdopt={(one, spelling) =>
-                        handleAdopt(kind, one, spelling)
-                      }
-                    />
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))}
-        </div>
+            {entries.length === 0 ? (
+              <p className="text-sm text-gray-600">{t("noneOfThisKind")}</p>
+            ) : (
+              <ul aria-label={t(kind)} className="space-y-1">
+                {entries.map((entry) => (
+                  <Name
+                    key={entry.name}
+                    entry={entry}
+                    onAdopt={(one, spelling) =>
+                      replaceName(store, kind, one.rows, one.name, spelling)
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        ))}
       </Modal>
     </>
   );

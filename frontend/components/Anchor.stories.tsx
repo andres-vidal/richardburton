@@ -7,8 +7,8 @@ const meta = {
   title: "Components/Anchor",
   component: Anchor,
   args: { href: "/publications", children: "Browse publications" },
-  // Anchor sets no color of its own (its underline uses `bg-current`); it's only
-  // used in the indigo header, so show it there — white text, hover-grow underline.
+  // Anchor takes the colour of the text around it, so the stories set white
+  // text on indigo.
   decorators: [
     (Story) => (
       <div className="inline-flex rounded bg-indigo-600 px-6 py-3 text-white">
@@ -23,7 +23,10 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** An internal link with an animated underline. */
+/**
+ * A link within the app. The play test checks that the path gets the current
+ * locale.
+ */
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -33,7 +36,10 @@ export const Default: Story = {
   },
 };
 
-/** An external link (href starting with http) renders a plain anchor. */
+/**
+ * An `href` starting with `http` renders a plain `<a>`. The play test checks
+ * that the address is left as it is.
+ */
 export const External: Story = {
   args: { href: "https://example.com", children: "Visit example" },
   play: async ({ canvasElement }) => {
@@ -56,7 +62,7 @@ export const AsAnAction: Story = {
   },
 };
 
-/** An href plus a query string appends the query. */
+/** A `query` is appended to the `href`. The play test checks the address. */
 export const WithQuery: Story = {
   args: { href: "/publications", query: "search=Machado", children: "Search" },
   play: async ({ canvasElement }) => {
@@ -66,5 +72,18 @@ export const WithQuery: Story = {
       "href",
       "/en/publications?search=Machado",
     );
+  },
+};
+
+/**
+ * A link with only a `query` stays on the current page. The play test checks
+ * that the address is only the query.
+ */
+export const QueryOnly: Story = {
+  args: { href: undefined, query: "learn-more=true", children: "Learn More" },
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).getByRole("link", { name: "Learn More" }),
+    ).toHaveAttribute("href", expect.stringContaining("?learn-more=true"));
   },
 };

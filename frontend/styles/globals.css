@@ -1,16 +1,16 @@
 @import "tailwindcss" source(none);
 
-/* Template files to scan for classes (was `content` in tailwind.config.js). */
+/* The files Tailwind scans for class names. */
 @source "../components";
 @source "../app";
 
-/* Theme extensions (was `theme.extend`). */
+/* Colours and fonts added to Tailwind's theme. */
 @theme {
   --color-gray-active: #f8fafb;
   --font-montserrat: "Montserrat", sans-serif;
 }
 
-/* Data-attribute state variants (was the `addVariant` plugin). */
+/* Variants for state an element marks with a data attribute set to "true". */
 @custom-variant selected (&[data-selected="true"]);
 @custom-variant focused (&[data-focused="true"]);
 @custom-variant error (&[data-error="true"]);
@@ -19,18 +19,14 @@
 @custom-variant peer-error (.peer[data-error="true"] ~ &);
 @custom-variant loading (&[data-loading="true"]);
 
-/* Scrollbar utilities (was the `tailwind-scrollbar` plugin). */
+/* The `scrollbar-*` utilities, styled with the scrollbar pseudo-elements. */
 @plugin "tailwind-scrollbar" {
   preferredstrategy: pseudoelements;
 }
 
 /*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
+  Gives a border gray-200 when no utility sets its colour, in place of
+  Tailwind's default, `currentcolor`.
 */
 @layer base {
   *,
@@ -47,21 +43,18 @@
   src: url("./fonts/Montserrat-VariableFont_wght.ttf") format("ttf");
 }
 
-#__next {
-  @apply h-screen text-gray-700;
-}
-
 body {
   @apply min-h-screen overflow-x-clip font-light text-gray-900 bg-gray-100 font-montserrat;
 }
 
-/* Published by Layout's header measure ref; the table's column headers pin just
-   below it (`top: var(--app-header-h)`). Defaults to 0 so the table works without
-   a Layout (e.g. Storybook). */
+/* The height of Layout's sticky header, which Layout sets as the header
+   resizes. Content pinned under the header, such as the index table's column
+   headers, sets `top` to it. It is 0 on a page without a Layout. */
 :root {
   --app-header-h: 0px;
 }
 
+/* A link inside text. */
 .anchor {
   @apply font-normal text-indigo-600 underline visited:text-indigo-700;
 }
@@ -70,8 +63,8 @@ body {
   Presence colours, one rule per index returned by `colourOf` in
   modules/publication/presence.tsx. `COLOURS` there must match the number of
   rules here. An element sets the index in `data-colour`, or in
-  `data-focused-by` on a cell that another person has focused. The rule sets `--presence` to the
-  colour and `--presence-tint` to a pale shade of it.
+  `data-focused-by` on a cell that another person has focused. The rule sets
+  `--presence` to the colour and `--presence-tint` to a pale shade of it.
 */
 @layer base {
   [data-colour="0"],
@@ -133,20 +126,14 @@ body {
   }
 }
 
+/* A ring around a focused control, shown for keyboard focus only. */
 @utility focus-ring {
   @apply outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white;
 }
 
+/* Centres an absolutely positioned element horizontally on its container. */
 @utility absolute-center-x {
   @apply left-1/2 -translate-x-1/2;
-}
-
-@utility absolute-center-y {
-  @apply top-1/2 -translate-y-1/2;
-}
-
-@utility absolute-center {
-  @apply left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2;
 }
 
 /* The colour of a chart series, chosen by the element's data-series
@@ -172,6 +159,7 @@ body {
   @apply hidden absolute bottom-full z-10 py-1 px-2 mb-1 text-xs text-white whitespace-nowrap bg-gray-900 rounded pointer-events-none group-hover:block;
 }
 
+/* A background of thin diagonal grey stripes. */
 @utility bg-stripes-diagonal {
   @apply bg-[repeating-linear-gradient(45deg,#e1e1e1_0,#e1e1e1_1px,transparent_0,transparent_50%)] bg-size-[10px_10px];
 }

@@ -546,11 +546,7 @@ function undoManager(doc: Y.Doc): Y.UndoManager {
 }
 
 export {
-  CHECKED,
-  LOCAL,
-  MOVED,
   checkedSubject,
-  isEdit,
   isLocal,
   measuredKeys,
   measuredOf,
@@ -569,7 +565,6 @@ export {
   moveOut,
   rowCount,
   observe,
-  publicationOf,
   putRow,
   readRow,
   removeRow,
@@ -580,4 +575,4 @@ export {
   undoManager,
   write,
 };
-export type { Measured, Order, Rows, Validation };
+export type { Measured, Validation };

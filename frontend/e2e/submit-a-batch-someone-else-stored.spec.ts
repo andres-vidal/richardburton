@@ -1,7 +1,8 @@
 import { test, expect } from "./fixtures";
 import {
-  CSV_HEADER,
   IMPORT_CSV,
+  IMPORT_ROWS,
+  csv,
   expectPublicationCount,
   indexTable,
   openDocument,
@@ -13,11 +14,7 @@ import {
 } from "./helpers";
 
 /** Dom Casmurro, as `IMPORT_CSV` lists it. */
-const DOM_CASMURRO_CSV =
-  [
-    CSV_HEADER,
-    `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
-  ].join("\n") + "\n";
+const DOM_CASMURRO_CSV = csv(IMPORT_ROWS.slice(0, 1));
 
 test("a submit refused because someone else stored a row keeps every row, and marks the one in conflict", async ({
   page,

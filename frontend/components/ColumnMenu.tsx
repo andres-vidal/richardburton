@@ -26,15 +26,18 @@ import {
   setAttributesVisible,
 } from "modules/publication/store";
 import { FC, useState } from "react";
+import Button from "./Button";
 
-// Only these columns can be hidden; the titles always stay.
+// The columns that can be hidden. The titles always show.
 const TOGGLEABLE_ATTRIBUTES = Publication.ATTRIBUTES.filter(
   (key) => Publication.ATTRIBUTE_IS_TOGGLEABLE[key],
 );
 
-// A checkbox-style row: pressed = the column is shown. Rendered as a toggle button
-// (`aria-pressed`) so the popover stays a plain focusable group, no menu keyboard
-// model to implement — Tab moves between rows, the checkbox square is decorative.
+/**
+ * A toggle button that shows or hides the column `colId`. It is pressed while
+ * the column shows, and draws a checked box then. A toggle button rather than
+ * a menu item keeps the popover a group that Tab moves through.
+ */
 const ColumnToggle: FC<{ colId: PublicationKey }> = ({ colId }) => {
   const t = useTranslations("attributes");
   const store = usePublicationStore();
@@ -44,15 +47,11 @@ const ColumnToggle: FC<{ colId: PublicationKey }> = ({ colId }) => {
       type="button"
       aria-pressed={visible}
       onClick={() => setAttributesVisible(store, [colId], !visible)}
-      className="flex gap-2 items-center px-2 py-1.5 text-xs text-left text-gray-700 rounded cursor-pointer hover:text-indigo-700 hover:bg-indigo-100"
+      className="flex gap-2 items-center px-2 py-1.5 text-xs text-left text-gray-700 rounded cursor-pointer group hover:text-indigo-700 hover:bg-indigo-100"
     >
       <span
         aria-hidden
-        className={`flex justify-center items-center w-4 h-4 rounded border transition-colors ${
-          visible
-            ? "text-white bg-indigo-600 border-indigo-600"
-            : "border-gray-300"
-        }`}
+        className="flex justify-center items-center w-4 h-4 rounded border border-gray-300 transition-colors group-aria-pressed:text-white group-aria-pressed:bg-indigo-600 group-aria-pressed:border-indigo-600"
       >
         {visible && <CheckIcon className="w-3 h-3" />}
       </span>
@@ -61,9 +60,11 @@ const ColumnToggle: FC<{ colId: PublicationKey }> = ({ colId }) => {
   );
 };
 
-// The "Columns" control: a button that opens a popover to show/hide the toggleable
-// columns. Replaces the in-place collapse-to-strip UI — hidden columns simply don't
-// render, so there's no `grid-template-columns` animation to lag on large lists.
+/**
+ * The "Columns" button, which opens a popover with a toggle for each column
+ * that can be hidden, and a button that shows them all. While a column is
+ * hidden, the button counts the columns shown.
+ */
 const ColumnMenu: FC = () => {
   const t = useTranslations("columns");
 
@@ -90,30 +91,33 @@ const ColumnMenu: FC = () => {
 
   return (
     <>
-      <button
+      <Button
         ref={refs.setReference}
         {...getReferenceProps()}
-        type="button"
+        label={t("label")}
         aria-haspopup="true"
         aria-expanded={isOpen}
-        className="flex gap-2 items-center px-3 py-2.5 text-sm text-gray-700 whitespace-nowrap bg-white rounded border border-gray-300 transition-colors focus-ring hover:bg-gray-100 aria-expanded:bg-gray-100"
-      >
-        {t("label")}
-        {hiddenCount > 0 && (
-          <span className="px-1.5 py-0.5 text-xs font-medium text-indigo-700 rounded-full bg-indigo-100 tabular-nums">
-            {t("shown", {
-              shown: totalCount - hiddenCount,
-              total: totalCount,
-            })}
-          </span>
-        )}
-        <ChevronDownIcon
-          aria-hidden
-          className={`w-4 h-4 text-gray-400 transition-transform ${
-            isOpen ? "rotate-180" : ""
-          }`}
-        />
-      </button>
+        variant="outline"
+        width="fit"
+        size="medium"
+        right={
+          <>
+            {hiddenCount > 0 && (
+              <span className="px-1.5 py-0.5 text-xs font-medium text-indigo-700 rounded-full bg-indigo-100 tabular-nums">
+                {t("shown", {
+                  shown: totalCount - hiddenCount,
+                  total: totalCount,
+                })}
+              </span>
+            )}
+            <ChevronDownIcon
+              aria-hidden
+              data-open={isOpen}
+              className="w-4 h-4 text-gray-400 transition-transform data-[open=true]:rotate-180"
+            />
+          </>
+        }
+      />
       <FloatingPortal>
         {isOpen && (
           <FloatingFocusManager context={context} modal={false}>

@@ -14,7 +14,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** What a section is called, quiet enough to stay out of the content's way. */
+/** A section heading. The play test checks that it is an `h2`. */
 export const Default: Story = {
   play: async () => {
     await expect(

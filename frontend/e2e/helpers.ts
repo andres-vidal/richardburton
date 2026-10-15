@@ -1,30 +1,39 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 /**
- * Sign in via the dev-only credentials provider (no Google), a role that may edit
- * publications. The provider mints a subject per role, so signing in as
- * one does not demote the other.
+ * Signs in as `role` with the development sign-in, which needs no Google
+ * account, and waits for the index the sign-in lands on. The backend keeps one
+ * account per role, so signing in as one role does not change the other's.
  */
 async function signInAs(page: Page, role: "Administrator" | "Contributor") {
   await page.goto("/auth/sign-in");
   await page.getByRole("button", { name: role, exact: true }).click();
-  // The route handler redirects to "/"; the footer then shows authed controls.
-  // Generous timeout: this is the suite's longest cross-stack chain (two server
-  // hops + a full SSR reload), and the busiest tail-latency spot on CI.
+  // The longest chain in the suite: two server requests and a full page load,
+  // and the slowest step on CI.
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible({
     timeout: 30_000,
   });
 }
 
+/** Signs in as an admin, who may do everything. */
 export const signInAsAdmin = (page: Page) => signInAs(page, "Administrator");
 
 /**
- * Everything an admin can do with the database, and nothing to do with who
- * else may.
+ * Signs in as a contributor, who may do everything an admin does with the
+ * database, but may not decide who has access.
  */
 export const signInAsContributor = (page: Page) =>
   signInAs(page, "Contributor");
 
+/** Signs out from the banner, and waits for the sign-in button to return. */
+export async function signOut(page: Page) {
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(
+    page.getByRole("button", { name: "Sign in with Google" }),
+  ).toBeVisible();
+}
+
+/** A publication as a journey types it, each field as the page shows it. */
 export type PublicationInput = {
   title: string;
   originalTitle: string;
@@ -35,10 +44,12 @@ export type PublicationInput = {
   publisher: string;
 };
 
-/** Commit free text into a multiselect. Comma (not Enter) makes it a pill:
- * comma always commits the raw typed text, while Enter prefers the highlighted
- * autocomplete option — whose debounced fetch can race the keystrokes and
- * commit a stale suggestion from a previous fill. */
+/**
+ * Types `value` into the multiselect with `placeholder` in `scope`, and
+ * commits it as a pill with a comma. A comma commits the typed text, while
+ * Enter commits the highlighted suggestion, which may still be one for an
+ * earlier value.
+ */
 export async function commitMulti(
   scope: Locator,
   placeholder: string,
@@ -51,9 +62,10 @@ export async function commitMulti(
 }
 
 /**
- * Pick an option from an enum multiselect (e.g. Countries). Enum fields have no
- * raw-text commit — the stored value is the option object — so let the async
- * autocomplete settle (it highlights the match) before Enter commits it.
+ * Types `name` into the option field with `placeholder` in `scope`, such as
+ * Countries, and picks the first match with Enter once the field's lookup has
+ * answered, when `aria-busy` is false again. An option field takes no typed
+ * text, only an option.
  */
 export async function selectEnumOption(
   scope: Locator,
@@ -63,15 +75,17 @@ export async function selectEnumOption(
   const input = scope.getByPlaceholder(placeholder, { exact: true });
   await input.click();
   await input.pressSequentially(name);
-  await scope.page().waitForTimeout(500);
+  await expect(input).toHaveAttribute("aria-busy", "false");
   await input.press("Enter");
 }
 
-/** The workspace's draft row — the one carrying the "Add publication" button.
- * Committed rows keep their inputs (and placeholders), so filling must scope
- * here to stay unambiguous once the grid holds several rows. CSS-based (not
- * getByRole) on purpose: it keeps resolving mid-fill no matter what an open
- * popup's focus manager does to the a11y tree. */
+/**
+ * The open document's row for a new publication, the one with the "Add
+ * publication" button. The other rows have the same placeholders, so a
+ * journey that types a new publication scopes to this row. It is found by CSS
+ * rather than by role, so it is still found while a popup's focus manager
+ * hides the rest of the page from the accessibility tree.
+ */
 export function draftRow(page: Page) {
   return page
     .locator('[role="row"]')
@@ -79,9 +93,9 @@ export function draftRow(page: Page) {
 }
 
 /**
- * Fill the workspace draft row (fields are keyed by placeholder — the grid has no
- * <label>s) and materialize it into the working set. Assumes a workspace document
- * is already open.
+ * Types `pub` into the open document's row for a new publication, field by
+ * field, and adds it to the document. The fields are found by placeholder,
+ * since the table has no labels.
  */
 export async function addPublicationRow(page: Page, pub: PublicationInput) {
   const row = draftRow(page);
@@ -96,12 +110,13 @@ export async function addPublicationRow(page: Page, pub: PublicationInput) {
   await selectEnumOption(row, "Countries", pub.country);
   await commitMulti(row, "Publishers", pub.publisher);
 
-  // Materialize the draft into the working set (async server validation runs).
   await row.getByRole("button", { name: "Add publication" }).click();
 }
 
-/** Submit the working set and wait for the success toast. Timeouts are generous
- * so large batches (validation + one bulk insert) fit even on slow CI runners. */
+/**
+ * Submits the open document, and waits until it says `count` publications
+ * were inserted. The waits are long enough for a large batch on CI.
+ */
 export async function submitWorkspace(page: Page, count: number) {
   const submit = page.getByRole("button", { name: "Submit" });
   await expect(submit).toBeEnabled({ timeout: 30_000 });
@@ -114,9 +129,8 @@ export async function submitWorkspace(page: Page, count: number) {
 }
 
 /**
- * Attach sources to a committed workspace row through its "Sources" cell:
- * open the row's sources modal, add each source, close, and check the count
- * the button reports.
+ * Adds `sources` to the open document's row named `rowName` in its sources
+ * dialog, closes the dialog, and checks that the row's button counts them.
  */
 export async function addRowSources(
   page: Page,
@@ -137,46 +151,36 @@ export async function addRowSources(
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
 
-  // The cell button now reports the count — the edits ride the bulk insert.
   await expect(
     row.getByRole("button", { name: `Edit sources (${sources.length})` }),
   ).toBeVisible();
 }
 
-/** Sign out from the footer; the signed-out controls return. */
-export async function signOut(page: Page) {
-  await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(
-    page.getByRole("button", { name: "Sign in with Google" }),
-  ).toBeVisible();
-}
-
-/** The index footer's running total — the UI's source of truth for "how many". */
+/** Waits until the index says it holds `n` publications. */
 export async function expectPublicationCount(page: Page, n: number) {
   await expect(
     page.getByText(new RegExp(`^${n} publications registered so far$`)),
   ).toBeVisible();
 }
 
-/** What the same line says once a search has narrowed the database. */
+/** Waits until the index says a search found `n` publications. */
 export async function expectMatchCount(page: Page, n: number) {
   const said = n === 0 ? "No publications found" : `${n} publications found`;
 
   await expect(page.getByText(new RegExp(`^${said}$`))).toBeVisible();
 }
 
-/** The desktop index table (scope every index assertion here — a mobile copy of
- * every row also lives in the DOM). */
+/**
+ * The table of the index or of an open document. Assertions on rows scope to
+ * it, since the index's list for small screens holds every row too.
+ */
 export function indexTable(page: Page) {
   return page.getByRole("table", { name: "Publications" });
 }
 
 /**
- * Assert a publication's full content rendered in the index: every field of its
- * row, not just its presence. Exact matches so sibling fields can't stand in
- * for each other (e.g. a title matching for its own original title). The
- * country holds the display label (that's what the enum stores by
- * construction), which is also what the index renders.
+ * Waits until the index shows every field of `pub` in its row. Each field is
+ * matched exactly, so a title cannot pass for its original title.
  */
 export async function expectPublicationRow(page: Page, pub: PublicationInput) {
   const row = indexTable(page)
@@ -198,7 +202,10 @@ export async function expectPublicationRow(page: Page, pub: PublicationInput) {
   }
 }
 
-/** Open a publication's detail modal by clicking its row in the index. */
+/**
+ * Opens the publication titled `title` from its row in the index, and returns
+ * its dialog once it is visible.
+ */
 export async function openPublicationModal(page: Page, title: string) {
   await indexTable(page)
     .getByRole("row")
@@ -210,88 +217,87 @@ export async function openPublicationModal(page: Page, title: string) {
   return dialog;
 }
 
-/** Distinct publications for workspace journeys. Country values must match an
- * option label (the enum field has no raw-text commit); "Brazil" throughout,
- * since the country isn't what these tests exercise. */
-export const PUBLICATIONS: PublicationInput[] = [
-  {
-    title: "Iracema (E2E)",
-    originalTitle: "Iracema",
-    year: "1886",
-    authors: "Isabel Burton",
-    originalAuthors: "José de Alencar",
-    country: "Brazil",
-    publisher: "Bickers & Son",
-  },
-  {
-    title: "Dom Casmurro (E2E)",
-    originalTitle: "Dom Casmurro",
-    year: "1953",
-    authors: "Helen Caldwell",
-    originalAuthors: "Machado de Assis",
-    country: "Brazil",
-    publisher: "Noonday Press",
-  },
-  {
-    title: "Barren Lives (E2E)",
-    originalTitle: "Vidas Secas",
-    year: "1965",
-    authors: "Ralph Dimmick",
-    originalAuthors: "Graciliano Ramos",
-    country: "Brazil",
-    publisher: "University of Texas Press",
-  },
-];
-
-// A realistic corpus seeded in one shot via CSV bulk-import (8 columns in codec
-// A header names the columns, so their order is the file's own; a cell holding
-// a comma is quoted. Three works share an author (Machado de Assis) so search
-// narrows to several rows, and three rows carry a source while four do not, so
-// the backfill wizard sees a real queue.
-const CORPUS_ROWS = [
-  `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
-  `Epitaph of a Small Winner,1952,US,Noonday Press,William Grossman,Memórias Póstumas,Machado de Assis,`,
-  `Philosopher or Dog?,1954,US,Noonday Press,Clotilde Wilson,Quincas Borba,Machado de Assis,"Caldwell, Helen. Machado de Assis."`,
-  `Iraçéma the Honey-Lips,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,"Burton, Isabel. Preface, 1886."`,
-  `"Gabriela, Clove and Cinnamon",1962,US,Knopf,James Taylor,"Gabriela, Cravo e Canela",Jorge Amado,`,
-  `The Hour of the Star,1986,GB,Carcanet,Giovanni Pontiero,A Hora da Estrela,Clarice Lispector,"Pontiero, Giovanni. Afterword."`,
-  `Barren Lives,1965,US,University of Texas Press,Ralph Dimmick,Vidas Secas,Graciliano Ramos,`,
-];
-
-/** The header every fixture in this suite writes. */
-export const CSV_HEADER =
-  "title,year,countries,publishers,authors,original_title,original_authors,sources";
-
-export const CORPUS_CSV = [CSV_HEADER, ...CORPUS_ROWS].join("\n") + "\n";
-export const CORPUS_SIZE = CORPUS_ROWS.length; // 7
-export const CORPUS_UNSOURCED = 4; // rows with an empty sources column
-
-/** A page holds 20 under `:e2e` (see config/e2e.exs), so this is two of them
- * and a bit: enough to have a first page, a last one, and a boundary between. */
-export const PAGED_SIZE = 25;
-
-/** A corpus that outgrows a page. Each row is its own work, so no two collide
- * on the composite key, and the titles sort predictably for the assertions. */
-export const PAGED_CSV =
-  [
-    CSV_HEADER,
-    ...Array.from(
-      { length: PAGED_SIZE },
-      (_, i) =>
-        `Paged Work ${String(i).padStart(2, "0")},19${10 + i},US,Paged Press,Paged Translator ${i},Original ${String(i).padStart(2, "0")},Paged Author ${i},`,
-    ),
-  ].join("\n") + "\n";
+/**
+ * The stack of notifications. It is found by CSS rather than by role, because
+ * an open dialog hides the rest of the page, the stack included, from the
+ * accessibility tree.
+ */
+export function notifications(page: Page) {
+  return page.locator("section[aria-label='Notifications']");
+}
 
 /**
- * The CSV header and two rows, Dom Casmurro and Iracema. The document journeys
- * upload it to have rows to work with.
+ * Waits for the notification that a link was copied, and returns the part of
+ * the address it names that `address` matches. The test follows the link
+ * without reading the clipboard.
  */
-export const IMPORT_CSV =
-  [
-    CSV_HEADER,
-    `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
-    `Iracema,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,`,
-  ].join("\n") + "\n";
+export async function copiedLink(page: Page, address: RegExp) {
+  await expect(notifications(page)).toContainText(
+    new RegExp(`Link copied[\\s\\S]*${address.source}`),
+  );
+
+  return (await notifications(page).innerText()).match(address)![0];
+}
+
+/** The entries of a history feed in `scope` that record `action`. */
+export function historyEntries(scope: Page | Locator, action: string) {
+  return scope.locator(`li[data-action="${action}"]`);
+}
+
+/**
+ * The entries of the list of import documents. The list is found by its name,
+ * because the breadcrumb on the same page is a list too.
+ */
+export function documentEntries(page: Page) {
+  return page
+    .getByRole("list", { name: "Import documents" })
+    .getByRole("listitem");
+}
+
+/**
+ * Starts an import document called `name` and waits for its page to open.
+ *
+ * New rows are entered in a document, so a journey that enters rows calls this
+ * first. A test that starts several documents, or looks one up in the list,
+ * passes a name of its own.
+ */
+export async function openDocument(page: Page, name = "E2E batch") {
+  await page.goto("/admin/publications/documents");
+  await page.getByLabel("Name").fill(name);
+  await page.getByRole("button", { name: "Start a document" }).click();
+  await expect(page).toHaveURL(/\/admin\/publications\/documents\/\d+$/);
+}
+
+/** Uploads `csv` through the upload control, as a file called `name`. */
+export async function uploadCsv(page: Page, csv: string, name = "import.csv") {
+  await page.locator("#upload-csv").setInputFiles({
+    name,
+    mimeType: "text/csv",
+    buffer: Buffer.from(csv),
+  });
+}
+
+/**
+ * Selects the open document's `row` by clicking its leading cell, off its
+ * centre, where an error icon would open a tooltip. With `add`, Cmd is held,
+ * so the row is added to the rows already selected.
+ */
+export async function selectRow(row: Locator, { add = false } = {}) {
+  await row
+    .getByRole("cell")
+    .first()
+    .click({ position: { x: 4, y: 4 }, modifiers: add ? ["Meta"] : [] });
+}
+
+/** Selects the open document's rows whose names match `titles`. */
+export async function selectRows(page: Page, titles: string[]) {
+  for (const [index, title] of titles.entries()) {
+    await selectRow(
+      indexTable(page).getByRole("row", { name: new RegExp(title) }),
+      { add: index > 0 },
+    );
+  }
+}
 
 /**
  * Moves the rows selected in the open document to another import document: a
@@ -331,54 +337,12 @@ export async function moveSelectedRows(
   await expect(moved).not.toBeVisible();
 }
 
-/**
- * Selects the rows titled `titles` by their leading cells, with Cmd held after
- * the first, and off their centers, where an error icon would open a tooltip.
- */
-export async function selectRows(page: Page, titles: string[]) {
-  for (const [index, title] of titles.entries()) {
-    await indexTable(page)
-      .getByRole("row", { name: new RegExp(title) })
-      .getByRole("cell")
-      .first()
-      .click({
-        position: { x: 4, y: 4 },
-        modifiers: index === 0 ? [] : ["Meta"],
-      });
-  }
-}
+/** Confirms the fold that a rename in Names asks about. */
+export async function agreeToFold(page: Page) {
+  const asking = page.getByRole("dialog", { name: "Fold these two together?" });
+  await expect(asking).toBeVisible();
 
-/** Uploads `csv` through the upload control, as a file called `name`. */
-export async function uploadCsv(page: Page, csv: string, name = "import.csv") {
-  await page.locator("#upload-csv").setInputFiles({
-    name,
-    mimeType: "text/csv",
-    buffer: Buffer.from(csv),
-  });
-}
-
-/**
- * Starts an import document called `name` and waits for its page to open.
- *
- * New rows are entered in a document, so a journey that enters rows calls this
- * first. A test that starts several documents, or looks one up in the list,
- * passes a name of its own.
- */
-export async function openDocument(page: Page, name = "E2E batch") {
-  await page.goto("/admin/publications/documents");
-  await page.getByLabel("Name").fill(name);
-  await page.getByRole("button", { name: "Start a document" }).click();
-  await expect(page).toHaveURL(/\/admin\/publications\/documents\/\d+$/);
-}
-
-/** Seed the corpus by bulk-importing it through the admin CSV upload + submit. */
-export async function seedCorpus(page: Page) {
-  await signInAsAdmin(page);
-  await openDocument(page, "Corpus");
-
-  await uploadCsv(page, CORPUS_CSV, "corpus.csv");
-
-  await submitWorkspace(page, CORPUS_SIZE);
+  await asking.getByRole("button", { name: "Fold them" }).click();
 }
 
 /**
@@ -389,3 +353,120 @@ export async function chooseOption(page: Page, label: string, option: string) {
   await page.getByLabel(label, { exact: true }).click();
   await page.getByRole("option", { name: option, exact: true }).click();
 }
+
+/** The header of every CSV the suite uploads. */
+const CSV_HEADER =
+  "title,year,countries,publishers,authors,original_title,original_authors,sources";
+
+/**
+ * Returns a CSV of `rows` under the suite's header, one line each. A cell that
+ * holds a comma is quoted.
+ */
+export function csv(rows: string[]): string {
+  return [CSV_HEADER, ...rows].join("\n") + "\n";
+}
+
+/**
+ * Three publications for the journeys that type rows. A country is typed as
+ * the option's label, since the field takes only an option. It is Brazil
+ * throughout, since no journey that uses these is about the country.
+ */
+export const PUBLICATIONS: PublicationInput[] = [
+  {
+    title: "Iracema (E2E)",
+    originalTitle: "Iracema",
+    year: "1886",
+    authors: "Isabel Burton",
+    originalAuthors: "José de Alencar",
+    country: "Brazil",
+    publisher: "Bickers & Son",
+  },
+  {
+    title: "Dom Casmurro (E2E)",
+    originalTitle: "Dom Casmurro",
+    year: "1953",
+    authors: "Helen Caldwell",
+    originalAuthors: "Machado de Assis",
+    country: "Brazil",
+    publisher: "Noonday Press",
+  },
+  {
+    title: "Barren Lives (E2E)",
+    originalTitle: "Vidas Secas",
+    year: "1965",
+    authors: "Ralph Dimmick",
+    originalAuthors: "Graciliano Ramos",
+    country: "Brazil",
+    publisher: "University of Texas Press",
+  },
+];
+
+// The corpus: seven publications, imported with one upload. Three works share
+// an author, Machado de Assis, so a search for him narrows to several rows.
+// Three rows cite a source and four do not, so the sources backfill has a
+// queue.
+const CORPUS_ROWS = [
+  `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+  `Epitaph of a Small Winner,1952,US,Noonday Press,William Grossman,Memórias Póstumas,Machado de Assis,`,
+  `Philosopher or Dog?,1954,US,Noonday Press,Clotilde Wilson,Quincas Borba,Machado de Assis,"Caldwell, Helen. Machado de Assis."`,
+  `Iraçéma the Honey-Lips,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,"Burton, Isabel. Preface, 1886."`,
+  `"Gabriela, Clove and Cinnamon",1962,US,Knopf,James Taylor,"Gabriela, Cravo e Canela",Jorge Amado,`,
+  `The Hour of the Star,1986,GB,Carcanet,Giovanni Pontiero,A Hora da Estrela,Clarice Lispector,"Pontiero, Giovanni. Afterword."`,
+  `Barren Lives,1965,US,University of Texas Press,Ralph Dimmick,Vidas Secas,Graciliano Ramos,`,
+];
+
+/** How many publications the corpus holds. */
+export const CORPUS_SIZE = CORPUS_ROWS.length;
+
+/** How many of the corpus's publications cite no source. */
+export const CORPUS_UNSOURCED = 4;
+
+/** The corpus's Iracema, field by field as the index shows it. */
+export const CORPUS_IRACEMA: PublicationInput = {
+  title: "Iraçéma the Honey-Lips",
+  originalTitle: "Iracema",
+  year: "1886",
+  authors: "Isabel Burton",
+  originalAuthors: "José de Alencar",
+  country: "United Kingdom",
+  publisher: "Bickers & Son",
+};
+
+/** Signs in as an admin and imports the corpus through an import document. */
+export async function seedCorpus(page: Page) {
+  await signInAsAdmin(page);
+  await openDocument(page, "Corpus");
+
+  await uploadCsv(page, csv(CORPUS_ROWS), "corpus.csv");
+
+  await submitWorkspace(page, CORPUS_SIZE);
+}
+
+/**
+ * How many publications `PAGED_CSV` holds. The index's page holds 20 under
+ * `:e2e` (see backend/config/e2e.exs), so this is a first page, a last page,
+ * and a boundary between them.
+ */
+export const PAGED_SIZE = 25;
+
+/**
+ * A corpus of `PAGED_SIZE` publications, more than a page. Each is a work of
+ * its own, so no two share a composite key, and the titles sort in the order
+ * they are numbered.
+ */
+export const PAGED_CSV = csv(
+  Array.from(
+    { length: PAGED_SIZE },
+    (_, i) =>
+      `Paged Work ${String(i).padStart(2, "0")},19${10 + i},US,Paged Press,Paged Translator ${i},Original ${String(i).padStart(2, "0")},Paged Author ${i},`,
+  ),
+);
+
+/** Two rows, Dom Casmurro and Iracema, that the document journeys upload. */
+export const IMPORT_ROWS = [
+  `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+  `Iracema,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,`,
+];
+
+/** `IMPORT_ROWS` as a CSV. */
+export const IMPORT_CSV = csv(IMPORT_ROWS);

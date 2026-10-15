@@ -14,7 +14,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Shows the role held; opening it offers the others. */
+/** The button shows the name of the role `value`. */
 export const Default: Story = {
   play: async () => {
     await expect(
@@ -23,7 +23,7 @@ export const Default: Story = {
   },
 };
 
-/** The roles, least privileged first, in the app's own menu. */
+/** Opened, the menu offers every role, least privileged first. */
 export const Open: Story = {
   parameters: {
     // Floating UI's focus guards (tabindex=0 + aria-hidden) trip axe's
@@ -43,7 +43,7 @@ export const Open: Story = {
   },
 };
 
-/** Choosing another role reports it, and the trigger takes its name. */
+/** Choosing another role calls `onChange` with it. */
 export const ChoosingAnotherRole: Story = {
   parameters: {
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
@@ -58,7 +58,7 @@ export const ChoosingAnotherRole: Story = {
   },
 };
 
-/** Choosing the role already held changes nothing, so nothing is reported. */
+/** Choosing the role already shown does not call `onChange`. */
 export const ChoosingTheSameRole: Story = {
   parameters: {
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
@@ -73,7 +73,7 @@ export const ChoosingTheSameRole: Story = {
   },
 };
 
-/** A row that cannot be changed — your own, or one mid-flight — offers nothing. */
+/** Disabled, the button cannot be pressed. */
 export const Disabled: Story = {
   args: { disabled: true },
   play: async () => {

@@ -1,15 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
+import Button from "./Button";
 import Tooltip from "./Tooltip";
 
 const meta = {
   title: "Components/Tooltip",
   component: Tooltip,
-  tags: ["autodocs"],
   args: {
     message: "Something needs your attention",
-    children: <button className="px-3 py-1 rounded border">Hover me</button>,
+    children: <Button label="Hover me" variant="outline" width="fit" />,
   },
   decorators: [
     (Story) => (
@@ -25,7 +25,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** A styled tooltip built on `TooltipProvider` — the `message` appears on hover. */
+/** Hovering the child shows `message` in a tooltip. */
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -78,8 +78,8 @@ export const Info: Story = {
 };
 
 /**
- * Positioning (offset + placement): the tooltip is placed above the trigger
- * ("top") with the configured 5px offset. Verified by geometry, not pixels.
+ * By default the tooltip sits above its child, 5px away. The play test checks
+ * the positions of the two.
  */
 export const PlacedAboveTheTrigger: Story = {
   // Pin the trigger mid-viewport so "top" placement has room above and does not
@@ -109,8 +109,8 @@ export const PlacedAboveTheTrigger: Story = {
 };
 
 /**
- * Flip: pinned at the top of the viewport there is no room above, so floating-ui
- * flips the tooltip below the trigger.
+ * At the top of the viewport there is no room above the child, so the tooltip
+ * flips below it. The play test checks the positions of the two.
  */
 export const FlipsBelowNearViewportTop: Story = {
   decorators: [
@@ -138,8 +138,8 @@ export const FlipsBelowNearViewportTop: Story = {
 };
 
 /**
- * Shift: centered on a trigger at the right edge the tooltip would overflow, so
- * floating-ui shifts it back within the viewport.
+ * Centred on a child at the right edge, the tooltip would overflow the
+ * viewport, so it shifts back into view. The play test checks its edges.
  */
 export const ShiftsIntoViewNearRightEdge: Story = {
   decorators: [
@@ -166,8 +166,8 @@ export const ShiftsIntoViewNearRightEdge: Story = {
 };
 
 /**
- * The `placement` prop is honored: `placement="bottom"` puts the tooltip below
- * the trigger (with room below, no flip).
+ * `placement="bottom"` puts the tooltip below its child. The play test checks
+ * the positions of the two.
  */
 export const PlacedBelowWhenRequested: Story = {
   args: { placement: "bottom" },
@@ -195,16 +195,18 @@ export const PlacedBelowWhenRequested: Story = {
   },
 };
 
-/** An empty `message` renders the child alone — no tooltip wrapper. */
+/**
+ * With an empty `message`, the child renders alone. The play test hovers it
+ * and checks that no tooltip appears.
+ */
 export const NoMessage: Story = {
   args: { message: "" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const trigger = canvas.getByRole("button", { name: "Hover me" });
 
-    // With no message, hovering reveals nothing.
     await userEvent.hover(trigger);
-    await expect(trigger).toBeInTheDocument();
+    await expect(screen.queryByRole("tooltip")).toBeNull();
   },
 };
 

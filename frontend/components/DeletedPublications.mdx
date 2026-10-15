@@ -39,7 +39,9 @@ the changes as they are made.
 ## States
 
 - **Default** — tombstones with one-click restore.
-- **Restoring** — the in-flight row's button is busy; the others stay usable.
+- **Restoring** — the in-flight row's button shows that it is busy, and every
+  row's button is disabled until the restore finishes. A successful restore
+  reads the list again from the server.
 - **When an identical one exists** — the dialog that offers to restore with
   changes.
 - **Empty** — an empty trash says so.

@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as InvitationListStories from "./InvitationList.stories";
 
@@ -6,8 +6,9 @@ import * as InvitationListStories from "./InvitationList.stories";
 
 # Invitations
 
-The offers of a role, waiting and taken up. Beside
-[People](?path=/docs/access-people--docs) on the access page.
+Lists the invitations, each an offer of a role to an address, waiting and taken
+up. The people who already have access are in
+[People](?path=/docs/access-people--docs).
 
 ## Why an invitation exists at all
 
@@ -15,9 +16,9 @@ An admin cannot grant a role to someone who has never signed in: the identity
 provider mints the account, and only on that first sign-in. So the offer waits
 on the address instead, and signing in with it redeems the offer.
 
-That is also why no confirmation link is sent. The provider vouching for the
-address _is_ the confirmation — a link mailed to the same address would prove
-nothing the sign-in has not already proved.
+For the same reason no confirmation link is sent. The provider vouches for the
+address at sign-in, and a link mailed to the same address would prove nothing
+more.
 
 Someone who already has an account is given the role outright, and no invitation
 is recorded; there is nothing left to wait for.
@@ -36,8 +37,11 @@ offer; the address can be invited again afterwards.
 
 ## When the mail fails
 
-The offer is recorded before the mail is sent, so a mail server having a bad day
-cannot cost someone their role — the invitation stands and is reported as
-unsent, and **Send again** retries it.
+The offer is recorded before the mail is sent, so a failed mail does not cost
+someone their role. The invitation stands and is reported as unsent, and
+**Send again** retries it.
 
+## Empty
+
+<Description of={InvitationListStories.Empty} />
 <Canvas of={InvitationListStories.Empty} />

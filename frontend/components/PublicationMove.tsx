@@ -20,8 +20,8 @@ import { useTranslations } from "next-intl";
 import { FC, FormEvent, useState } from "react";
 import Button from "./Button";
 import ButtonLink from "./ButtonLink";
-import { Modal } from "./Modal";
-import { useNotify } from "./Notifications";
+import { Modal, useModal } from "./Modal";
+import { notify } from "./Notifications";
 import TextInput from "./TextInput";
 
 /** Where the rows go: a new document, or the document with that id. */
@@ -59,10 +59,9 @@ const PublicationMove: FC<{
   const admin = useTranslations("admin");
   const documents = useTranslations("documents");
   const store = usePublicationStore();
-  const notify = useNotify();
   const selected = useSelectionSize();
+  const dialog = useModal();
 
-  const [isOpen, setOpen] = useState(false);
   const [ids, setIds] = useState<PublicationId[]>([]);
   const [page, setPage] = useState<DocumentPage>({ entries: [], more: false });
   const [reading, setReading] = useState(false);
@@ -104,12 +103,12 @@ const PublicationMove: FC<{
     setChoice("new");
     setName("");
     setPage({ entries: [], more: false });
-    setOpen(true);
+    dialog.open();
     read();
   }
 
   function close() {
-    if (!moving) setOpen(false);
+    if (!moving) dialog.close();
   }
 
   // Returns the document to move into, creating it first when it is new. A
@@ -162,47 +161,35 @@ const PublicationMove: FC<{
         />
       ) : null}
       <Modal
-        isOpen={isOpen}
+        isOpen={dialog.isOpen}
         onClose={close}
-        label={
+        heading={
           moved
             ? t("moved", { count: ids.length })
             : t("heading", { count: ids.length })
         }
+        subheading={
+          moved ? t("movedDetail", { name: moved.name }) : t("description")
+        }
       >
         {moved ? (
-          <div className="flex flex-col gap-5 p-8 w-full">
-            <h1 className="text-2xl font-normal">
-              {t("moved", { count: ids.length })}
-            </h1>
-            <p className="text-gray-700">
-              {t("movedDetail", { name: moved.name })}
-            </p>
-            <div className="flex gap-3 justify-end">
-              <ButtonLink
-                label={t("openTarget", { name: moved.name })}
-                href={`/admin/publications/documents/${moved.id}`}
-                variant="outline-primary"
-                size="medium"
-                newTab
-              />
-              <Button
-                label={t("done")}
-                width="fit"
-                size="medium"
-                onClick={close}
-              />
-            </div>
+          <div className="flex gap-3 justify-end">
+            <ButtonLink
+              label={t("openTarget", { name: moved.name })}
+              href={`/admin/publications/documents/${moved.id}`}
+              variant="outline-primary"
+              size="medium"
+              newTab
+            />
+            <Button
+              label={t("done")}
+              width="fit"
+              size="medium"
+              onClick={close}
+            />
           </div>
         ) : (
-          <form
-            className="flex flex-col gap-5 p-8 w-full"
-            onSubmit={moveSelected}
-          >
-            <h1 className="text-2xl font-normal">
-              {t("heading", { count: ids.length })}
-            </h1>
-            <p className="text-gray-700">{t("description")}</p>
+          <form className="flex flex-col gap-5" onSubmit={moveSelected}>
             <fieldset className="flex flex-col gap-3">
               <legend className="sr-only">{t("target")}</legend>
               <label className="flex gap-3 items-center">
@@ -263,7 +250,7 @@ const PublicationMove: FC<{
                 width="fit"
                 size="medium"
                 loading={moving}
-                disabled={!canMove || moving}
+                disabled={!canMove}
               />
             </div>
           </form>

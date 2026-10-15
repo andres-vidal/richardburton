@@ -8,9 +8,8 @@ import * as WorkspaceNamesStories from "./WorkspaceNames.stories";
 
 Lists the translators, original authors and publishers that a batch of rows
 would enter, and marks the ones that may be misspellings of names the database
-already has. It sits in the footer of an import document's workspace, opened
-from [Add publications](/admin/publications/documents), beside the row and
-error counts.
+already has. It is a button and a dialog in the footer of an import document's
+workspace.
 
 Each name is a record shared by every publication that credits it. So
 "Alfred A.Knopf", entered once, creates a second Knopf record, separate from
@@ -21,6 +20,14 @@ Correcting the spelling here is simpler than fixing it afterwards. Before the
 insert it is a change to a field. After the insert it needs a fold on
 [Names](?path=/docs/admin-names--docs), and publications are already linked to
 the wrong spelling.
+
+## Props
+
+- `ask(kind, names)` — checks names of one kind against the database, and
+  returns whether each is held and the stored names it resembles. It defaults
+  to `resemblances` in `modules/vocabulary`.
+
+The names themselves come from the rows in the enclosing publication store.
 
 ## The footer count
 
@@ -55,9 +62,11 @@ the whole batch was typed.
 
 ## Using the suggested spelling
 
-Each offered spelling shows how many publications already use it. Clicking one
-writes it into every row that had the other spelling, and asks the server to
-validate those rows again. One click corrects the name in all the rows.
+Each offered spelling shows how many publications already use it, through
+[other spellings](?path=/docs/admin-other-spellings--docs). Clicking one
+writes it into every row that had the other spelling, as one edit that one
+undo takes back. The import document's checks then validate those rows again,
+as they do after any edit. One click corrects the name in all the rows.
 
 <Canvas of={WorkspaceNamesStories.TakingTheOfferedSpelling} />
 

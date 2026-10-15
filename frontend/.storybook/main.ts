@@ -9,27 +9,21 @@ const config: StorybookConfig = {
   ],
   framework: {
     name: "@storybook/nextjs-vite",
-    options: {
-      // Don't let the next-image plugin claim `*.svg`; magical-svg (viteFinal)
-      // renders them as React components instead, matching the app's @svgr.
-      image: { excludeFiles: ["**/*.svg"] },
-    },
+    // The next/image plugin leaves `*.svg` to vite-plugin-svgr, added in
+    // `viteFinal`.
+    options: { image: { excludeFiles: ["**/*.svg"] } },
   },
   staticDirs: ["../public"],
   core: { disableTelemetry: true },
+  // Resolves imports as the app's tsconfig paths say, and imports an SVG as a
+  // React component, its default export, as the app's @svgr loader does.
   viteFinal: async (viteConfig) => {
-    // Resolve the app's absolute imports (tsconfig baseUrl/paths) and render
-    // `assets/*.svg` as React components (magical-svg, like vitest.config).
-    // next-image is told to skip `.svg` via the framework options above, so the
-    // two don't collide.
-    const { default: tsconfigPaths } = await import("vite-tsconfig-paths");
     const { default: svgr } = await import("vite-plugin-svgr");
-    viteConfig.plugins = viteConfig.plugins ?? [];
-    viteConfig.plugins.push(
-      tsconfigPaths(),
-      // Same as the app's @svgr: default export is a plain function component.
+    viteConfig.resolve = { ...viteConfig.resolve, tsconfigPaths: true };
+    viteConfig.plugins = [
+      ...(viteConfig.plugins ?? []),
       svgr({ include: "**/*.svg", svgrOptions: { exportType: "default" } }),
-    );
+    ];
     return viteConfig;
   },
 };

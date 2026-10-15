@@ -1,0 +1,73 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as MenuProviderStories from "./MenuProvider.stories";
+import * as MenuStories from "./Menu.stories";
+import * as MenuItemStories from "./MenuItem.stories";
+
+<Meta of={MenuProviderStories} />
+
+# Menu provider
+
+A list of options that floats under its child, the trigger, in a portal while
+`isOpen`. The arrow keys move a highlight through the options while focus stays
+on the trigger, and <kbd>Esc</kbd> or a press outside closes the list. Clicking
+an option closes the list and calls `onSelect` with it.
+
+The provider does not open the list itself: its caller keeps `isOpen` and the
+highlighted `activeIndex`, and opens the list from its trigger, such as on a
+click or on typing.
+
+<Description of={MenuProviderStories.Default} />
+<Canvas of={MenuProviderStories.Default} />
+
+## Props
+
+- `children` — the trigger, which must take a ref. Pairing it with the list
+  gives it the `combobox` role.
+- `options` — strings, or `{ id, label, description? }` objects. A
+  `description` is a quieter second line under the label, for options whose
+  labels alone do not tell them apart.
+- `isOpen` and `setIsOpen` — whether the list is shown.
+- `activeIndex` and `setActiveIndex` — the highlighted option.
+- `onSelect` — called with the option clicked.
+- `bordered` — draws the list outlined, to match a bordered input.
+- `emptyMessage` — shown in place of the list when there are no options.
+
+<Description of={MenuProviderStories.HighlightsWithArrowKeys} />
+<Canvas of={MenuProviderStories.HighlightsWithArrowKeys} />
+
+<Description of={MenuProviderStories.Bordered} />
+<Canvas of={MenuProviderStories.Bordered} />
+
+## Closing
+
+<Description of={MenuProviderStories.DismissesOnEscape} />
+<Canvas of={MenuProviderStories.DismissesOnEscape} />
+
+<Description of={MenuProviderStories.DismissesOnOutsideClick} />
+<Canvas of={MenuProviderStories.DismissesOnOutsideClick} />
+
+Pressing on an option does not move focus off the trigger. When the list closes,
+focus returns to the trigger, which already has it, so a trigger that opens the
+list on focus does not open it again.
+
+## Menu and MenuItem
+
+`Menu` and `MenuItem` are the parts the provider renders the list with, and are
+documented here rather than on pages of their own.
+
+`Menu` is the scrollable list, an `<ol>` with the `listbox` role. Its props are
+those of an `<ol>` other than `className`, plus `bordered`.
+
+<Description of={MenuStories.Default} />
+<Canvas of={MenuStories.Default} />
+
+<Description of={MenuStories.Bordered} />
+<Canvas of={MenuStories.Bordered} />
+
+`MenuItem` is one option, an `<li>` with the `option` role. It does not take
+focus. `selected` highlights it and sets `aria-selected`, and its other props
+are those of an `<li>` other than `className`.
+
+<Description of={MenuItemStories.Selected} />
+<Canvas of={MenuItemStories.Selected} />

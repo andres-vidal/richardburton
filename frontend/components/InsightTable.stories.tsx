@@ -43,8 +43,8 @@ export const Counts: Story = {
 };
 
 /**
- * The same table on screen, as the chart builder's table view shows it. The
- * play test checks that its rows are read the same way.
+ * The same table on screen, with `shown`. The play test checks that its rows
+ * are read the same way.
  */
 export const Shown: Story = {
   args: { shown: true },

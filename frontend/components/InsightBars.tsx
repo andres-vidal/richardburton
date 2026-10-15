@@ -1,5 +1,6 @@
 import { useFormatter } from "next-intl";
 import { CSSProperties, FC } from "react";
+import InsightName from "./InsightName";
 
 type Props = {
   /** The items, in the order they are listed. */
@@ -33,8 +34,7 @@ const InsightBars: FC<Props> = ({ bars }) => {
           className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-baseline text-sm"
         >
           <span className="text-gray-900 break-words">
-            {label}
-            {detail && <span className="text-gray-600"> · {detail}</span>}
+            <InsightName label={label} detail={detail} />
           </span>
           <span className="text-gray-700 tabular-nums">
             {format.number(count)}

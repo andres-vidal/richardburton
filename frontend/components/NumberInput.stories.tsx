@@ -4,8 +4,7 @@ import { expect, fn, userEvent, within } from "storybook/test";
 
 import NumberInput from "./NumberInput";
 
-// NumberInput is controlled, so hold `value` in state — otherwise typing and the
-// ▲/▼ buttons fire onChange but the displayed number never moves.
+/** Keeps `value` in state, so typing and the buttons change the number shown. */
 const Controlled: FC<{
   value?: number;
   error?: string;
@@ -35,7 +34,6 @@ const Controlled: FC<{
 const meta = {
   title: "Components/Number input",
   component: NumberInput,
-  tags: ["autodocs"],
   args: { value: undefined, onChange: fn() },
   render: (args) => (
     <Controlled
@@ -54,7 +52,10 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Type a digit, then nudge it with the ▲/▼ buttons — the value updates live. */
+/**
+ * Typing a number, then stepping it up and down. The play test checks the
+ * number after each step and the value passed to `onChange`.
+ */
 export const Default: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
@@ -75,7 +76,10 @@ export const Default: Story = {
   },
 };
 
-/** Bounded by `min`/`max`; incrementing past the max clamps and holds. */
+/**
+ * Bounded by `min` and `max`. The play test steps up from the maximum and
+ * checks that the number stays there.
+ */
 export const Clamped: Story = {
   args: { value: 5, min: 0, max: 5 },
   play: async ({ canvasElement }) => {
@@ -88,7 +92,7 @@ export const Clamped: Story = {
   },
 };
 
-/** Error state — the field is marked invalid via `aria-invalid`. */
+/** With an `error`, the field is marked invalid with `aria-invalid`. */
 export const WithError: Story = {
   args: { error: "is required" },
   play: async ({ canvasElement }) => {
@@ -99,7 +103,7 @@ export const WithError: Story = {
   },
 };
 
-/** `bordered` — the outlined variant (edit form), a visible box with `text-sm`. */
+/** `bordered` draws a visible box around the field. */
 export const Bordered: Story = {
   args: { value: 1953, bordered: true },
   play: async ({ canvasElement }) => {

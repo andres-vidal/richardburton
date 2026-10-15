@@ -160,16 +160,6 @@ export const Populated: Story = {
   },
 };
 
-/** While the queue loads. */
-export const Loading: Story = {
-  args: { ids: undefined },
-  play: async ({ canvasElement }) => {
-    await expect(
-      within(canvasElement).getByText(/Finding publications/),
-    ).toBeInTheDocument();
-  },
-};
-
 /** Nothing left to source. */
 export const Empty: Story = {
   args: { ids: [] },

@@ -28,8 +28,8 @@ asked for by id and appended to what is already loaded.
   arrives.
 - Only one page is fetched at a time — a scroll that lingers at the foot does
   not ask for the same stretch twice.
-- A page is no longer a place: the address carries only the search, so returning
-  to a row means scrolling back to it rather than linking a page number.
+- The address carries only the search, not a page, so returning to a row means
+  scrolling back to it.
 
 The fetch-and-append itself is covered by the E2E suite, against a real server;
 these stories show only the two visual states.

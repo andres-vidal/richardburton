@@ -1,5 +1,5 @@
 import { act, fireEvent, renderHook } from "@testing-library/react";
-import { render } from "test/render";
+import { render, screen, within } from "test/render";
 import { Key } from "app";
 import React from "react";
 import { Modal, useModal, useURLQueryModal } from "./Modal";
@@ -48,51 +48,78 @@ vi.mock("next/navigation", () => ({
 beforeEach(() => nav.reset());
 
 describe("Modal", () => {
-  it("renders a modal", () => {
-    render(<Modal isOpen={true} onClose={vi.fn()} />);
-    expect(document.querySelector("[aria-modal=true]")).toBeTruthy();
+  it("renders a dialog named by its label", () => {
+    render(<Modal isOpen onClose={vi.fn()} label="Test dialog" />);
+
+    expect(
+      screen
+        .getByRole("dialog", { name: "Test dialog" })
+        .getAttribute("aria-modal"),
+    ).toBe("true");
   });
 
-  it("names the dialog with its label", () => {
-    render(<Modal isOpen={true} onClose={vi.fn()} label="Test dialog" />);
+  it("renders its heading as the dialog's h1 and is named by it", () => {
+    render(
+      <Modal isOpen onClose={vi.fn()} heading="Merge" subheading="Two records">
+        <p>Body</p>
+      </Modal>,
+    );
 
-    const modal = document.querySelector("[aria-modal=true]")!;
+    const dialog = screen.getByRole("dialog", { name: "Merge" });
 
-    expect(modal.getAttribute("aria-label")).toBe("Test dialog");
+    expect(
+      within(dialog).getByRole("heading", { level: 1, name: "Merge" }),
+    ).toBeTruthy();
+    expect(within(dialog).getByText("Two records")).toBeTruthy();
+    expect(within(dialog).getByText("Body")).toBeTruthy();
+  });
+
+  it("is named by its label rather than its heading when given both", () => {
+    render(
+      <Modal
+        isOpen
+        onClose={vi.fn()}
+        heading="Contact Us"
+        label="Contact us"
+      />,
+    );
+
+    expect(screen.getByRole("dialog", { name: "Contact us" })).toBeTruthy();
   });
 
   it("closes when the backdrop is moused down", () => {
     const onClose = vi.fn();
-    render(<Modal isOpen={true} onClose={onClose} />);
+    render(<Modal isOpen onClose={onClose} label="Test dialog" />);
 
-    // The backdrop is the dialog's parent; mousing it down (outside the dialog)
-    // closes the modal.
-    const backdrop =
-      document.querySelector("[aria-modal=true]")!.parentElement!;
-    fireEvent.mouseDown(backdrop);
+    // The backdrop is the dialog's parent, outside the dialog itself.
+    fireEvent.mouseDown(screen.getByRole("dialog").parentElement!);
 
     expect(onClose).toHaveBeenCalled();
   });
 
   it("closes when the escape key is pressed", () => {
     const onClose = vi.fn();
-    render(<Modal isOpen={true} onClose={onClose} />);
+    render(<Modal isOpen onClose={onClose} label="Test dialog" />);
 
     fireEvent.keyDown(document, { key: Key.ESCAPE });
 
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("renders a dialog", () => {
-    render(<Modal isOpen={true} onClose={vi.fn()} />);
-    expect(document.querySelector("[role=dialog]")).toBeTruthy();
+  it("closes from the named button of its small-screen bar", () => {
+    const onClose = vi.fn();
+    render(<Modal isOpen onClose={onClose} label="Test dialog" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("does not close when the dialog is clicked", () => {
     const onClose = vi.fn();
-    render(<Modal isOpen={true} onClose={onClose} />);
+    render(<Modal isOpen onClose={onClose} label="Test dialog" />);
 
-    fireEvent.click(document.querySelector("[role=dialog]")!);
+    fireEvent.click(screen.getByRole("dialog"));
 
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -197,23 +224,6 @@ describe("useURLQueryModal", () => {
     expect(result.current.isOpen).toBe(true);
   });
 
-  test("the open function sets the value", () => {
-    const { result } = renderHook(() => useURLQueryModal("modal"));
-
-    act(() => result.current.open("value"));
-
-    expect(result.current.value).toBe("value");
-  });
-
-  test("the open function is idempotent relative to the value", () => {
-    const { result } = renderHook(() => useURLQueryModal("modal"));
-
-    act(() => result.current.open("value"));
-    act(() => result.current.open("value"));
-
-    expect(result.current.value).toBe("value");
-  });
-
   it("returns a close function", () => {
     const { result } = renderHook(() => useURLQueryModal("modal"));
     expect(result.current.close).toBeDefined();
@@ -228,7 +238,7 @@ describe("useURLQueryModal", () => {
     expect(result.current.isOpen).toBe(false);
   });
 
-  test("the close function is idempotent realtive to isOpen", () => {
+  test("the close function is idempotent relative to isOpen", () => {
     const { result } = renderHook(() => useURLQueryModal("modal"));
 
     act(() => result.current.open());
@@ -238,22 +248,14 @@ describe("useURLQueryModal", () => {
     expect(result.current.isOpen).toBe(false);
   });
 
-  test("the close function sets the value to undefined", () => {
+  test("opening and closing keep the rest of the query", () => {
+    nav.replace("?search=iracema");
     const { result } = renderHook(() => useURLQueryModal("modal"));
 
-    act(() => result.current.open("value"));
+    act(() => result.current.open());
+    expect(nav.get().toString()).toBe("search=iracema&modal=true");
+
     act(() => result.current.close());
-
-    expect(result.current.value).toBeUndefined();
-  });
-
-  test("the close function is idempotent relative to the value", () => {
-    const { result } = renderHook(() => useURLQueryModal("modal"));
-
-    act(() => result.current.open("value"));
-    act(() => result.current.close());
-    act(() => result.current.close());
-
-    expect(result.current.value).toBeUndefined();
+    expect(nav.get().toString()).toBe("search=iracema");
   });
 });

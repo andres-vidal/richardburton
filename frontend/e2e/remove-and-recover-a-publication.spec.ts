@@ -3,25 +3,16 @@ import {
   addPublicationRow,
   expectPublicationCount,
   expectPublicationRow,
+  historyEntries,
   indexTable,
+  notifications,
   openPublicationModal,
   seedCorpus,
   submitWorkspace,
+  CORPUS_IRACEMA as IRACEMA,
   CORPUS_SIZE,
   openDocument,
 } from "./helpers";
-
-// The record the journey deletes and later re-imports. Field-for-field the same
-// publication the corpus CSV seeds (GB renders as its display label).
-const IRACEMA = {
-  title: "Iraçéma the Honey-Lips",
-  originalTitle: "Iracema",
-  year: "1886",
-  authors: "Isabel Burton",
-  originalAuthors: "José de Alencar",
-  country: "United Kingdom",
-  publisher: "Bickers & Son",
-};
 
 test("an admin deletes a publication; it leaves the index and search, and the same record can be imported again", async ({
   page,
@@ -60,9 +51,9 @@ test("an admin deletes a publication; it leaves the index and search, and the sa
 
   // The confirmation names what left and where to get it back — asserted in one
   // wait, since it dismisses itself after a few seconds.
-  await expect(
-    page.locator("section[aria-label='Notifications']"),
-  ).toContainText(/Publication deleted.*Restore it from Deleted publications/s);
+  await expect(notifications(page)).toContainText(
+    /Publication deleted.*Restore it from Deleted publications/s,
+  );
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expectPublicationCount(page, CORPUS_SIZE - 1);
   await expect(
@@ -172,9 +163,9 @@ test("an admin deletes a publication; it leaves the index and search, and the sa
   // The feed keeps every event, each attributed: two deletes, two restores,
   // and the edit the second restore was made with.
   await page.goto("/admin/publications/history");
-  await expect(page.locator('li[data-action="restored"]')).toHaveCount(2);
-  await expect(page.locator('li[data-action="deleted"]')).toHaveCount(2);
-  await expect(page.locator('li[data-action="updated"]')).toHaveCount(1);
+  await expect(historyEntries(page, "restored")).toHaveCount(2);
+  await expect(historyEntries(page, "deleted")).toHaveCount(2);
+  await expect(historyEntries(page, "updated")).toHaveCount(1);
   await expect(page.getByText(`“${IRACEMA.title}”`).first()).toBeVisible();
   await expect(page.getByText("by dev-admin@localhost").first()).toBeVisible();
 });

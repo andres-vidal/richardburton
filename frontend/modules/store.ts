@@ -1,15 +1,14 @@
 import { createStore } from "jotai";
 
 /**
- * A Jotai store — the handle the imperative actions and the remote layer write
- * through. Named so they can take one as an argument instead of reaching for a
- * module-level singleton: which store a call belongs to is then part of the call.
+ * A Jotai store. The actions and the remote layer take the store they write as
+ * an argument, rather than writing a module-level store.
  */
 export type Store = ReturnType<typeof createStore>;
 
 /**
- * The app-global store, for state that is genuinely app-wide (notifications).
- * Publication state lives in its own store, provided per workspace — see
+ * The store for state that belongs to the whole app, such as notifications.
+ * Publication state is in a store of each surface's own; see
  * `PublicationStoreProvider`.
  */
 export const store: Store = createStore();

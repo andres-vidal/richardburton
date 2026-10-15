@@ -6,7 +6,6 @@ import MenuItem from "./MenuItem";
 const meta = {
   title: "Components/MenuItem",
   component: MenuItem,
-  tags: ["autodocs"],
   args: { selected: false, children: "Dom Casmurro", onClick: fn() },
   parameters: { layout: "centered" },
   // Render the option inside a listbox so it is a valid `role="option"` in the
@@ -28,7 +27,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** A single option — clicking it fires `onClick`. */
+/** An option. The play test clicks it and checks that `onClick` is called. */
 export const Default: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
@@ -39,7 +38,7 @@ export const Default: Story = {
   },
 };
 
-/** `selected` highlights the item — the active option in a keyboard-navigated menu. */
+/** `selected` highlights the option, as the one the arrow keys have reached. */
 export const Selected: Story = {
   args: { selected: true },
   play: async ({ canvasElement }) => {

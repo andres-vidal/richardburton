@@ -1,0 +1,17 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationDeselectStories from "./PublicationDeselect.stories";
+
+<Meta of={PublicationDeselectStories} />
+
+# Publication deselect
+
+A button in the import workspace's footer, shown while rows are selected. It
+clears the selection, and its label counts the selected rows ("Deselect 2").
+
+## Props
+
+None. It reads the size of the selection from `modules/selection`, and clears
+the selection of the enclosing publication store.
+
+<Canvas of={PublicationDeselectStories.TwoRowsSelected} />

@@ -1,18 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { CHARTS } from "test/insights-fixtures";
 import { worldMap } from "modules/world-map";
-import { NUMERIC_CODES } from "test/messages";
+import { NUMERIC_CODES, messages } from "test/messages";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import InsightMap from "./InsightMap";
-
-const NAMES: Record<string, string> = {
-  US: "United States",
-  GB: "United Kingdom",
-  CA: "Canada",
-  AU: "Australia",
-  BR: "Brazil",
-};
 
 const meta = {
   title: "Insights/Insight map",
@@ -23,7 +15,7 @@ const meta = {
       .slice(0, 4)
       .map(({ key, total }) => ({
         code: String(key),
-        name: NAMES[String(key)] ?? String(key),
+        name: messages.countryNames[String(key)],
         count: total,
       })),
   },
@@ -35,10 +27,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * The four leading countries of the fixtures, shaded by band: the United States and the
- * United Kingdom with over 100 publications, Canada with ten to 99, and
- * Australia with two to nine. The list beside the map has every country with
- * its count.
+ * The four leading countries of the fixtures, shaded by band: the United
+ * States and the United Kingdom with over 100 publications, Canada with ten to
+ * 99, and Australia with two to nine. The list beside the map has every country
+ * with its count.
  */
 export const Countries: Story = {
   play: async ({ canvasElement }) => {

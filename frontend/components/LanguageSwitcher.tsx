@@ -11,14 +11,12 @@ import { FC, useTransition } from "react";
 /** The flag each language is offered under. `pt` is Brazilian Portuguese. */
 const FLAGS = { pt: BrazilFlag, en: BritishFlag };
 
-/** One box for both flags, cropped to fill, so the control keeps its size. */
-const FLAG_SIZE = "w-5 h-3.5 rounded-xs";
-
 /**
- * Offers the interface in the language it is not currently in.
+ * Renders a flag button for each language the interface is not currently in.
+ * Its accessible name says which language it switches to. Pressing it replaces
+ * the address with the same page and query under that language's prefix.
  *
- * The locale is in the address, so switching navigates to the same page under
- * the other prefix, query string and all.
+ * Both flags are drawn in the same box, so the button keeps its size.
  */
 const LanguageSwitcher: FC = () => {
   const t = useTranslations("language");
@@ -49,7 +47,7 @@ const LanguageSwitcher: FC = () => {
               }
               className="block rounded-xs opacity-80 transition-opacity focus-ring hover:opacity-100"
             >
-              <Flag className={FLAG_SIZE} />
+              <Flag className="w-5 h-3.5 rounded-xs" />
             </button>
           );
         })}

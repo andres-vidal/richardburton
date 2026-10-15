@@ -5,7 +5,7 @@ import { FC } from "react";
 import Button from "./Button";
 import TextInput from "./TextInput";
 
-/** A small icon control for a row action (reorder / remove). */
+/** A small button with a symbol, for moving or removing one source. */
 const RowButton: FC<{
   label: string;
   onClick: () => void;
@@ -24,17 +24,17 @@ const RowButton: FC<{
 );
 
 /**
- * Editor for a publication's ordered, free-text provenance list. The value is
- * the whole list — add/remove/reorder produce a new array through `onChange`, so
- * there is no per-row local state (the reorder is a plain array swap, not a
- * drag-measured layout).
+ * Edits a publication's sources, an ordered list of free text. `value` is the
+ * whole list, and adding, editing, removing or moving an entry passes a new
+ * list to `onChange`. The component keeps no state of its own. Moving an entry
+ * swaps it with its neighbour.
  */
 const SourcesEditor: FC<{
   value: string[];
   onChange: (sources: string[]) => void;
-  label?: string;
-}> = ({ value, onChange, label = "Sources" }) => {
+}> = ({ value, onChange }) => {
   const t = useTranslations("admin");
+  const attribute = useTranslations("attributes");
   const setAt = (index: number, content: string) =>
     onChange(value.map((entry, i) => (i === index ? content : entry)));
 
@@ -53,7 +53,7 @@ const SourcesEditor: FC<{
   return (
     <section className="flex flex-col gap-2">
       <div className="flex flex-col gap-0.5">
-        <span className="text-sm text-gray-600">{label}</span>
+        <span className="text-sm text-gray-600">{attribute("sources")}</span>
         <span className="text-xs text-gray-500">{t("sourcesHint")}</span>
       </div>
 
@@ -62,8 +62,8 @@ const SourcesEditor: FC<{
       ) : (
         <ul className="flex flex-col gap-2">
           {value.map((content, index) => (
-            // Index keys: rows have no identity of their own — the value is the
-            // list, and a reorder is a content swap on stable positions.
+            // An entry has no identity of its own, so it is keyed by its
+            // position, and moving an entry swaps the contents of two positions.
             <li key={index} className="flex gap-1 items-center">
               <TextInput
                 bordered

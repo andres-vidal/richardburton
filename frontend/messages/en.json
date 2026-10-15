@@ -321,7 +321,6 @@
     "home": "Home",
     "admin": "Admin",
     "adminTitle": "Admin tools",
-    "newPage": "Prepare new publications in an import document, then insert them into the database.",
     "historyPage": "Every change to the database — who did what, and when. Any change still reconcilable with the current state can be undone.",
     "sourcesPage": "Add sources to publications that are missing them.",
     "deletedPage": "Records removed from the database. Restoring brings one back exactly as it was.",
@@ -369,7 +368,6 @@
     "remove": "Remove {count}",
     "removeHint": "Removes the selected rows for everyone in this document. Undo brings them back.",
     "move": "Move {count}",
-    "resetOverridden": "{count, plural, one {Reset # overridden} other {Reset # overridden}}",
     "byActor": "{actor, select, system {by the system} other {by {actor}}}",
     "byActorOn": "{actor, select, system {by the system} other {by {actor}}} · {date}",
     "deletedOn": "Deleted {date}",
@@ -382,7 +380,9 @@
     "redoHint": "Put back the change you walked back (Ctrl+Shift+Z or Ctrl+Y, or ⇧⌘Z on a Mac).",
     "renamedNote": "A name was changed in Names, for every publication that credits it. Change it there again to take it back.",
     "notDuplicateOf": "Not a duplicate of",
-    "reviewAgainWith": "Back in the duplicate review with"
+    "reviewAgainWith": "Back in the duplicate review with",
+    "noBaseline": "Nothing earlier to compare with — this is where the record's log starts.",
+    "reordered": "reordered"
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
@@ -460,12 +460,12 @@
     "save": "Save",
     "saveAndNext": "Save & next",
     "missingSources": "Missing sources",
-    "finding": "Finding publications without sources…",
     "allCaughtUp": "All caught up",
     "allCaughtUpDetail": "Every publication already has sources.",
     "backToIndex": "Back to the index",
     "line": "{originalTitle} — {originalAuthors} · {year} · {countries} · {publishers}",
-    "skip": "Skip"
+    "skip": "Skip",
+    "sourced": "— sourced"
   },
   "access": {
     "roleToInvite": "Role to invite as",
@@ -479,14 +479,15 @@
     "breadcrumb": "Breadcrumb",
     "increase": "Increase",
     "decrease": "Decrease",
-    "sources": "Sources",
     "moreNotifications": "{count, plural, one {1 more notification} other {# more notifications}}",
     "noMatches": "No matches",
     "addAnother": "Add another",
     "hideOptions": "Hide options",
     "showOptions": "Show options",
     "remove": "Remove {label}",
-    "progress": "{position} / {total}"
+    "progress": "{position} / {total}",
+    "loadingMore": "Loading more…",
+    "close": "Close"
   },
   "publication": {
     "details": "Publication details",
@@ -518,8 +519,6 @@
     "conflict": "A publication with this data already exists",
     "required": "This field is required and cannot be blank",
     "integer": "This field should be an integer",
-    "incorrect_row_length": "Expected a different number of columns in csv",
-    "invalid_format": "Could not parse publications from the provided file",
     "invalid_escape_sequence": "Could not parse publications from the provided file",
     "stray_escape_character": "Could not parse publications from the provided file",
     "alpha2": "This field should be a valid ISO 3166-1 alpha 2 country code",
@@ -597,7 +596,8 @@
     "resendFailed": "Could not send the invitation",
     "resendFailedDetail": "Check that mail is working and try again.",
     "refusalSelf": "Another admin has to do this one for you.",
-    "refusalLastAdmin": "This is the only admin left. Make someone else an admin first."
+    "refusalLastAdmin": "This is the only admin left. Make someone else an admin first.",
+    "inserted": "{count, plural, one {# publication inserted successfully} other {# publications inserted successfully}}"
   },
   "merge": {
     "label": "Merge publications",
@@ -671,7 +671,6 @@
     "count": "{count, plural, one {# name} other {# names}}",
     "doubtfulCount": "{count, plural, one {# name may be misspelt} other {# names may be misspelt}}",
     "onRows": "{count, plural, one {# row} other {# rows}}",
-    "onPublications": "{count, plural, =0 {unused} one {# publication} other {# publications}}",
     "didYouMean": "Already here as",
     "doubtful": "may be misspelt",
     "held": "already here",
@@ -699,7 +698,6 @@
     "nameLabel": "Name",
     "namePlaceholder": "e.g. Jorge Amado retranslations",
     "start": "Start a document",
-    "loading": "Reading the documents…",
     "none": "No documents yet. Start one above.",
     "rows": "{count, plural, =0 {Empty} one {# row} other {# rows}}",
     "hereNow": "Also here",

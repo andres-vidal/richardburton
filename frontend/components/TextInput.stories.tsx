@@ -6,8 +6,8 @@ import { expect, fn, userEvent, within } from "storybook/test";
 
 import TextInput from "./TextInput";
 
-// TextInput is controlled: hold `value` in state so typing shows on screen —
-// otherwise onChange fires but the field never moves.
+// TextInput is controlled. This wrapper holds `value` in state, so typing
+// shows on screen.
 const Controlled: FC<ComponentProps<typeof TextInput>> = ({
   value: initial,
   onChange,
@@ -52,12 +52,13 @@ function backgroundsBehind(el: HTMLElement): string[] {
 }
 
 /**
- * WCAG contrast ratio between an element's text and what is painted behind it.
+ * Returns the WCAG contrast ratio between an element's text and what is
+ * painted behind it.
  *
- * Storybook's a11y addon can't cover this: axe abstains here — "background color
- * could not be determined due to a background gradient" — and reports
- * *incomplete*, which `a11y: { test: "error" }` does not fail on. Compositing the
- * stack ourselves turns that into a definite number.
+ * The a11y addon does not measure this here. Axe cannot determine a background
+ * painted under a gradient, so it reports the check as incomplete, and
+ * `a11y: { test: "error" }` does not fail on that. Compositing the stack here
+ * gives a definite number.
  */
 function textContrast(el: HTMLElement): number {
   const behind = backgroundsBehind(el);
@@ -69,12 +70,10 @@ function textContrast(el: HTMLElement): number {
 const meta = {
   title: "Components/Text input",
   component: TextInput,
-  tags: ["autodocs"],
   args: { value: "", onChange: fn(), "aria-label": "Title" },
   render: (args) => <Controlled {...args} />,
-  // The input is borderless + `bg-transparent` (it sits on a colored surface in
-  // the app). Show it inside a dashed auxiliary container so the demo area is
-  // clear without the frame masquerading as the input's own chrome.
+  // The borderless input sits on a coloured surface in the app. The dashed
+  // frame marks out the story's area, and is not part of the field.
   decorators: [
     (Story) => (
       <div className="flex items-center justify-center w-72 aspect-square overflow-auto rounded-lg border border-dashed border-gray-300 p-8 bg-stripes-diagonal">
@@ -136,11 +135,7 @@ export const WithError: Story = {
   },
 };
 
-/**
- * `bordered` — the outlined variant for standalone forms (e.g. the edit modal):
- * a visible box with `text-sm`. The default borderless look is what the dense
- * table cells rely on.
- */
+/** `bordered` outlines the field, for a form. The play test checks the border. */
 export const Bordered: Story = {
   args: { bordered: true, value: "Dom Casmurro", "aria-label": "Title" },
   play: async ({ canvasElement }) => {
@@ -151,9 +146,8 @@ export const Bordered: Story = {
 };
 
 /**
- * Errored + focused, **bordered** (outlined form) variant: the text must stay
- * dark and readable. The subtle variant's white-on-red treatment would be
- * white-on-white here — regression guard for that.
+ * A bordered field with an error, focused. The play test checks that the text
+ * keeps a contrast of at least 4.5 against the field.
  */
 export const ErrorFocusedBordered: Story = {
   args: {
@@ -166,15 +160,13 @@ export const ErrorFocusedBordered: Story = {
     const input = within(canvasElement).getByRole("textbox");
     await userEvent.click(input);
     await expect(input).toHaveFocus();
-    // The subtle variant's white-on-red treatment would be white-on-white here.
     await expect(textContrast(input)).toBeGreaterThanOrEqual(4.5);
   },
 };
 
 /**
- * Errored + focused, **subtle** (dense table) variant: fills red with white
- * text — a strong error signal. Guards the stray-comma bug that had voided the
- * red focus fill (leaving white text on the near-white focus background).
+ * A borderless field with an error, focused. It fills red. The play test
+ * checks that the text keeps a contrast of at least 4.5 against the fill.
  */
 export const ErrorFocusedSubtle: Story = {
   args: { error: "must be a number", value: "nineteen" },
@@ -182,7 +174,6 @@ export const ErrorFocusedSubtle: Story = {
     const input = within(canvasElement).getByRole("textbox");
     await userEvent.click(input);
     await expect(input).toHaveFocus();
-    // The bug left the text unreadable on the near-white focus background.
     await expect(textContrast(input)).toBeGreaterThanOrEqual(4.5);
   },
 };

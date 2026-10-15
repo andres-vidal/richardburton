@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  ChangeEvent,
-  forwardRef,
-  HTMLProps,
-  ReactNode,
-  Ref,
-  useId,
-} from "react";
+import { ChangeEvent, forwardRef, HTMLProps, useId } from "react";
 
 type Props = Omit<
   HTMLProps<HTMLTextAreaElement>,
@@ -16,17 +9,16 @@ type Props = Omit<
   value: string;
   error?: string;
   onChange?: (value: string) => void;
-  left?: ReactNode;
-  right?: ReactNode;
-  inputRef?: Ref<HTMLTextAreaElement>;
   label?: string;
-  /** Stretch to fill the parent's height (e.g. a table cell). Defaults to
-   * fitting the content. */
-  fill?: boolean;
 };
 
+/**
+ * A multi-line text field that shows `value` and passes each edit to
+ * `onChange`. `label` floats above the field in place of the placeholder, and
+ * `error` marks the field invalid and tints it red.
+ */
 export default forwardRef<HTMLDivElement, Props>(function TextArea(
-  { value, error, left, right, inputRef, onChange, label, fill, ...props },
+  { value, error, onChange, label, ...props },
   ref,
 ) {
   const labelId = useId();
@@ -39,23 +31,18 @@ export default forwardRef<HTMLDivElement, Props>(function TextArea(
   return (
     <div
       ref={ref}
-      data-fill={Boolean(fill)}
       data-labeled={Boolean(label)}
       className={`
         relative group bg-white
-        w-full gap-1 inline-flex items-center rounded scrollbar scrollbar-none
-        error-within:shadow-sm focus-within:error-within:bg-red-400/80, error-within:bg-red-300/40
+        w-full h-fit gap-1 inline-flex items-center rounded scrollbar scrollbar-none
+        error-within:shadow-sm focus-within:error-within:bg-red-400/80 error-within:bg-red-300/40
         has-disabled:opacity-60 has-disabled:cursor-not-allowed
-        data-[fill=true]:h-full
-        data-[fill=false]:h-fit
         data-[labeled=true]:mt-2 data-[labeled=true]:px-2 data-[labeled=true]:py-2 data-[labeled=true]:bg-gray-active data-[labeled=true]:shadow-sm data-[labeled=true]:focus-within:bg-indigo-500/10
         data-[labeled=false]:text-xs data-[labeled=false]:p-1 data-[labeled=false]:overflow-x-scroll data-[labeled=false]:focus-within:bg-gray-active data-[labeled=false]:focus-within:shadow-sm
       `}
     >
-      {left}
       <textarea
         {...props}
-        ref={inputRef}
         value={value}
         className="px-1 w-full bg-transparent outline-none min-h-40 peer shrink grow placeholder:text-xs error:focus:text-white error:placeholder-white disabled:cursor-not-allowed"
         onChange={handleChange}
@@ -78,7 +65,6 @@ export default forwardRef<HTMLDivElement, Props>(function TextArea(
           )}
         </label>
       )}
-      {right}
     </div>
   );
 });

@@ -13,10 +13,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/**
- * One shortcut per role. What an admin can reach and what a contributor can is
- * the difference worth being able to look at without a Google handshake.
- */
+/** A button per role. The play test checks that every role has one. */
 export const Default: Story = {
   play: async () => {
     for (const role of ["Reader", "Contributor", "Administrator"]) {

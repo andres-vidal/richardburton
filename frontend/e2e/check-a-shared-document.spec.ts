@@ -1,11 +1,12 @@
 import { test, expect } from "./fixtures";
 import {
-  CSV_HEADER,
+  csv,
   IMPORT_CSV,
   indexTable,
   moveSelectedRows,
   openDocument,
   seedCorpus,
+  selectRows,
   signInAsAdmin,
   uploadCsv,
 } from "./helpers";
@@ -77,10 +78,9 @@ test("a row edited into a look-alike of a stored record is flagged for everyone"
   // another year, so it is another printing and resembles nothing.
   await uploadCsv(
     page,
-    [
-      CSV_HEADER,
+    csv([
       `Epitaph of a Small Winner,1967,US,Noonday Press,William Grossman,Memórias Póstumas,Machado de Assis,`,
-    ].join("\n") + "\n",
+    ]),
     "printing.csv",
   );
   const mine = indexTable(page);
@@ -137,7 +137,6 @@ test("a row moved out takes its error with it, and is checked again in the docum
       `Macunaíma,1984,US,,E. A. Goodland,Macunaíma,Mário de Andrade,\n`,
     "batch.csv",
   );
-  const mine = indexTable(page);
   await expect(page.getByLabel("1 invalid publication")).toBeVisible({
     timeout: 30_000,
   });
@@ -160,11 +159,7 @@ test("a row moved out takes its error with it, and is checked again in the docum
   await expect(batch.getByRole("button", { name: "Submit" })).toBeDisabled();
 
   // The admin moves Macunaíma into the colleague's document.
-  await mine
-    .getByRole("row", { name: /Macunaíma/ })
-    .getByRole("cell")
-    .first()
-    .click({ position: { x: 4, y: 4 } });
+  await selectRows(page, ["Macunaíma"]);
   await moveSelectedRows(page, 1, { existing: "Held back" });
 
   // The row's error leaves the batch with the row, so the batch is valid for

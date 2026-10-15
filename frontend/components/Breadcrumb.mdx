@@ -6,9 +6,9 @@ import * as BreadcrumbStories from "./Breadcrumb.stories";
 
 # Breadcrumb
 
-Location and back-navigation for nested pages such as the admin panel. It renders
-the path to the current page as a trail of crumbs — ancestors are links back up
-the hierarchy, and the current page is the plain last crumb.
+Renders the path from the home page to the current page as a trail of crumbs.
+The crumbs before the last are links back up the path, and the last one names
+the current page as plain text.
 
 ## Props
 
@@ -30,7 +30,7 @@ link; omit it on the **last** crumb so the current page reads as plain text.
 
 ## Accessibility
 
-- Wrapped in `<nav aria-label="Breadcrumb">` around an ordered list, so assistive
-  tech announces it as the breadcrumb landmark in its natural sequence.
+- It is a `<nav>` named "Breadcrumb" around an ordered list, so assistive
+  technology announces it as a navigation landmark with its crumbs in order.
 - The current page carries `aria-current="page"` and is not a link.
 - The `/` separators are decorative (`aria-hidden`), so they are not read out.

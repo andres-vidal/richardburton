@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as InsightLegendStories from "./InsightLegend.stories";
 
@@ -6,22 +6,36 @@ import * as InsightLegendStories from "./InsightLegend.stories";
 
 # Insight legend
 
-The legend of a chart with up to three series. Each series is listed with a
-swatch of its colour, in the order the chart stacks them.
+The legend of a chart. Each entry is listed with a swatch of its colour, in
+order.
 
 <Canvas of={InsightLegendStories.ThreeSeries} />
 
 ## Props
 
-- `series` — the name of each series. The first takes the main colour, the
-  second a colour that stands out from it, and the third a muted one.
+- `series` — the name of each entry. Without `shaded`, the first takes the main
+  colour, the second a colour that stands out from it, and the third a muted
+  one.
+- `shaded` — whether the entries are bands of shades, from the lightest, rather
+  than series.
 
 ## Colours
 
-The colours come from the `bg-series` utility in `styles/globals.css`, which
-picks a fill from the element's `data-series` attribute. The charts use the
-same utility, so a series has the same colour in the legend and in the chart.
+The colours of the series come from the `bg-series` utility in
+`styles/globals.css`, which picks a fill from the element's `data-series`
+attribute. The charts use the same utility, so a series has the same colour in
+the legend and in the chart.
 
 A chart with fewer series uses the first colours.
 
 <Canvas of={InsightLegendStories.TwoSeries} />
+
+## Shades
+
+With `shaded`, each swatch has `data-shade` instead, from 1 for the first band
+to 4 for the last, and takes the band's colour from the `data-shade` rules in
+`styles/globals.css`. Shaded charts set the same attribute on their marks.
+
+<Description of={InsightLegendStories.Shaded} />
+
+<Canvas of={InsightLegendStories.Shaded} />

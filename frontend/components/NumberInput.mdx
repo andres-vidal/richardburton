@@ -1,0 +1,35 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as NumberInputStories from "./NumberInput.stories";
+
+<Meta of={NumberInputStories} />
+
+# Number input
+
+A [text input](?path=/docs/components-text-input--docs) for a whole number, with
+two small buttons that step it up and down by one. The up and down arrow keys
+step it too.
+
+<Description of={NumberInputStories.Default} />
+<Canvas of={NumberInputStories.Default} />
+
+## Props
+
+- `value` — the number shown, or nothing for an empty field.
+- `onChange` — called with the new number. Typing calls it with the number the
+  text starts with, and text that does not start with a number is ignored.
+  Stepping an empty field starts from 0.
+- `min` and `max` — every value passed to `onChange` is clamped between them.
+- `error` — marks the field invalid.
+- `bordered` — draws a visible box, as on a form.
+
+Any other prop of an `<input>`, such as `aria-label`, passes through.
+
+<Description of={NumberInputStories.Clamped} />
+<Canvas of={NumberInputStories.Clamped} />
+
+<Description of={NumberInputStories.WithError} />
+<Canvas of={NumberInputStories.WithError} />
+
+<Description of={NumberInputStories.Bordered} />
+<Canvas of={NumberInputStories.Bordered} />

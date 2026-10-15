@@ -1,0 +1,18 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as LanguageSwitcherStories from "./LanguageSwitcher.stories";
+
+<Meta of={LanguageSwitcherStories} />
+
+# Language switcher
+
+A flag button for each language the interface is not currently in: the
+Brazilian flag for Portuguese and the British flag for English. It takes no
+props.
+
+The locale is part of the address, so pressing a flag replaces the address with
+the same page and query under that language's prefix. The button's accessible
+name says which language it switches to, and its tooltip names the language.
+
+<Description of={LanguageSwitcherStories.Default} />
+<Canvas of={LanguageSwitcherStories.Default} />

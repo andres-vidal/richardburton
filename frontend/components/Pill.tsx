@@ -7,6 +7,10 @@ type Props = {
   onRemove: () => void;
 };
 
+/**
+ * Renders `label` in an outlined tag with a small button that calls
+ * `onRemove`. The button's accessible name says what it removes.
+ */
 const Pill: FC<Props> = ({ label, onRemove }) => {
   const t = useTranslations("common");
 

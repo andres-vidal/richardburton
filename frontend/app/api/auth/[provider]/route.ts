@@ -1,14 +1,20 @@
 import { generateCodeVerifier, generateState } from "arctic";
 import { NextRequest, NextResponse } from "next/server";
 
-// Starts the OAuth handshake: create state + PKCE verifier, stash them (and the
-// post-login destination) in short-lived cookies, and redirect to the provider.
+import { HANDSHAKE, handshakeCookie } from "../handshake";
+
+/**
+ * Starts the OAuth handshake with `provider`: creates the state and the PKCE
+ * verifier, keeps them and the `?next` address in the handshake cookies, and
+ * redirects to the provider. Answers 404 for a provider that is not
+ * configured.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> },
 ) {
-  // Imported at request time: `modules/oauth` asserts the OAuth secrets at load,
-  // and App Router evaluates route modules during `next build` (where they're unset).
+  // `modules/oauth` asserts the OAuth secrets when it loads, and `next build`
+  // evaluates route modules without them, so it is imported per request.
   const { PROVIDERS, isProvider } = await import("modules/oauth");
   const { provider } = await params;
 
@@ -18,24 +24,20 @@ export async function GET(
 
   const { client, scopes } = PROVIDERS[provider];
   const state = generateState();
-  const codeVerifier = generateCodeVerifier();
-  const url = client.createAuthorizationURL(state, codeVerifier, scopes);
-
+  const verifier = generateCodeVerifier();
   const next = request.nextUrl.searchParams.get("next") ?? "/";
 
-  const response = NextResponse.redirect(url);
-  response.headers.append("Set-Cookie", tempCookie("oauth_state", state));
+  const response = NextResponse.redirect(
+    client.createAuthorizationURL(state, verifier, scopes),
+  );
   response.headers.append(
     "Set-Cookie",
-    tempCookie("oauth_verifier", codeVerifier),
+    handshakeCookie(HANDSHAKE.state, state),
   );
-  response.headers.append("Set-Cookie", tempCookie("oauth_next", next));
+  response.headers.append(
+    "Set-Cookie",
+    handshakeCookie(HANDSHAKE.verifier, verifier),
+  );
+  response.headers.append("Set-Cookie", handshakeCookie(HANDSHAKE.next, next));
   return response;
-}
-
-function tempCookie(name: string, value: string): string {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  // httpOnly, SameSite=Lax so it survives the top-level GET redirect back from
-  // the provider; 10-minute lifetime for the handshake.
-  return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
 }

@@ -6,16 +6,16 @@ import { Article } from "./Article";
 const meta = {
   title: "Components/Article",
   component: Article,
-  tags: ["autodocs"],
   args: {
     heading: "Machado de Assis",
     content: <p>A collection of translated works.</p>,
   },
-  // Drag the bottom-right corner to resize and watch the layout reflow.
+  // A resizable box, so the layout can be seen above and below the `sm`
+  // breakpoint.
   decorators: [
     (Story) => (
       <div
-        className="resize overflow-auto rounded border border-dashed border-gray-300"
+        className="overflow-auto rounded border border-gray-300 border-dashed resize"
         style={{ width: 720, height: 480, minWidth: 320, minHeight: 240 }}
       >
         <Story />
@@ -29,12 +29,12 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** The base layout: a heading and its content section. */
+/** A heading and its content. The play test checks that both are rendered. */
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      canvas.getByRole("heading", { name: "Machado de Assis" }),
+      canvas.getByRole("heading", { level: 1, name: "Machado de Assis" }),
     ).toBeInTheDocument();
     await expect(
       canvas.getByText("A collection of translated works."),
@@ -42,11 +42,38 @@ export const Default: Story = {
   },
 };
 
-/** With an aside, the content and aside share the row. */
+/**
+ * A line under the heading, pinned with it. The play test checks that it is
+ * rendered.
+ */
+export const WithASubheading: Story = {
+  args: {
+    heading: "How to search",
+    subheading: "Accents may be omitted, and minor misspellings are tolerated.",
+  },
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).getByText(/Accents may be omitted/),
+    ).toBeVisible();
+  },
+};
+
+/**
+ * An aside beside the content, with its heading in the pinned bar. The play
+ * test checks that the aside and its heading are rendered.
+ */
 export const WithAside: Story = {
-  args: { aside: <nav>Related links</nav> },
+  args: {
+    aside: <p>Isabel Burton translated Iracema in 1886.</p>,
+    asideHeading: <h2>About the Burtons</h2>,
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Related links")).toBeInTheDocument();
+    await expect(canvas.getByRole("complementary")).toHaveTextContent(
+      "Isabel Burton translated Iracema in 1886.",
+    );
+    await expect(
+      canvas.getAllByRole("heading", { name: "About the Burtons" }).length,
+    ).toBeGreaterThan(0);
   },
 };

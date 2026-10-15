@@ -11,22 +11,24 @@ import {
 } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { FC, useCallback } from "react";
 import useOnVisible from "utils/useOnVisible";
 
 /**
- * Grows the list as the reader nears the foot of it. The first response hands
- * back the whole ordering — the ids of every match, in reading order — and the
- * first page of them in full. Each further page is fetched here when a sentinel
- * below the last row scrolls into view: the next stretch of that frozen
- * ordering, asked for by id and appended to what is already loaded.
+ * Grows the list as the reader nears the foot of it. The first response holds
+ * the whole ordering, the ids of every match in reading order, and the first
+ * page of them in full. When a sentinel below the last row comes within 800px
+ * of the viewport, this reads the next stretch of that ordering by id and
+ * appends it to the store. It renders the sentinel while there is more to read,
+ * with a spinner while a stretch is being read, and nothing once every row is
+ * loaded.
  *
  * Because the ordering is fixed, paging cannot drift as the database changes
- * underneath; and a page is no longer a place — the reader scrolls rather than
- * steps — so the address carries only the search, and returning to a row means
- * scrolling back to it.
+ * underneath. The address carries only the search, not a page.
  */
 const PublicationScroll: FC = () => {
+  const t = useTranslations("common");
   const store = usePublicationStore();
   const search = useSearchParams()?.get("search") ?? undefined;
 
@@ -79,7 +81,7 @@ const PublicationScroll: FC = () => {
       {loading && (
         <>
           <span className="w-4 h-4 border-2 rounded-full border-gray-300 border-t-indigo-500 animate-spin" />
-          Loading more…
+          {t("loadingMore")}
         </>
       )}
     </div>

@@ -10,6 +10,11 @@ import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { FC } from "react";
 
+/**
+ * A full-screen overlay that says a request is being processed, rendered in a
+ * portal. It is a modal dialog named by that message and marked busy, and it
+ * takes focus, so nothing under it can be used until it is removed.
+ */
 const AppLoader: FC = () => {
   const t = useTranslations("common");
   const { context, refs } = useFloating();
@@ -36,7 +41,7 @@ const AppLoader: FC = () => {
           >
             <LogoOutlinedAnimated aria-hidden className="h-full" />
 
-            <div className="absolute z-50 px-2 py-1 text-center text-indigo-900 bg-gray-200 rounded-full absoluce-center-y">
+            <div className="absolute z-50 px-2 py-1 text-center text-indigo-900 bg-gray-200 rounded-full absolute-center-y">
               {t("processing")}
             </div>
           </motion.div>

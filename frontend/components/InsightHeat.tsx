@@ -3,6 +3,7 @@
 import { decadesBetween } from "modules/insights";
 import { useFormatter, useTranslations } from "next-intl";
 import { FC } from "react";
+import InsightName from "./InsightName";
 
 /** A decade within a row, with what the row counts in it. */
 type Cell = {
@@ -92,10 +93,7 @@ const InsightHeat: FC<Props> = ({ title, heading, rows }) => {
                   scope="row"
                   className="py-1 pr-3 max-w-56 text-sm font-normal text-left text-gray-900"
                 >
-                  {label}
-                  {detail ? (
-                    <span className="text-gray-600"> · {detail}</span>
-                  ) : null}
+                  <InsightName label={label} detail={detail} />
                 </th>
                 {decades.map((decade) => {
                   const cell = at.get(decade);
@@ -121,4 +119,3 @@ const InsightHeat: FC<Props> = ({ title, heading, rows }) => {
 };
 
 export default InsightHeat;
-export type { HeatRow };

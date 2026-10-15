@@ -1,12 +1,16 @@
 import { test, expect } from "./fixtures";
+import type { Page } from "@playwright/test";
 import {
+  agreeToFold,
+  csv,
+  historyEntries,
   signInAsAdmin,
   seedCorpus,
   indexTable,
   openDocument,
-  CSV_HEADER,
+  submitWorkspace,
+  uploadCsv,
 } from "./helpers";
-import type { Page } from "@playwright/test";
 
 /**
  * The items of the publishers list. The list is found by name because the
@@ -21,13 +25,11 @@ const names = (page: Page) =>
  */
 const alert = (page: Page) => page.getByRole("main").getByRole("alert");
 
-/** Confirms the fold in the confirmation dialog. */
-async function agreeToFold(page: Page) {
-  const asking = page.getByRole("dialog", { name: "Fold these two together?" });
-  await expect(asking).toBeVisible();
-
-  await asking.getByRole("button", { name: "Fold them" }).click();
-}
+/** Two publications, each with a different spelling of one publisher. */
+const SPELLINGS_CSV = csv([
+  `Dom Casmurro,1953,US,Penguin Books,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+  `Iracema,1886,GB,Penguin books,Isabel Burton,Iracema,José de Alencar,`,
+]);
 
 test("an admin folds two spellings of a publisher into one", async ({
   page,
@@ -60,7 +62,7 @@ test("an admin folds two spellings of a publisher into one", async ({
   // admin who made it. It has no undo of its own: the name is changed back
   // here, in Names.
   await page.goto("/admin/publications/history");
-  const renamed = page.locator('li[data-action="renamed"]');
+  const renamed = historyEntries(page, "renamed");
   await expect(renamed).toHaveCount(3);
   for (const entry of await renamed.all()) {
     await expect(entry).toContainText("Publishers: Noonday Press → Noonday");
@@ -75,29 +77,12 @@ test("renaming onto a name already taken folds the two together", async ({
 }) => {
   await signInAsAdmin(page);
 
-  // Two publications, each with a different spelling of the same publisher.
   await openDocument(page);
-  await page.locator("#upload-csv").setInputFiles({
-    name: "spellings.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(
-      [
-        CSV_HEADER,
-        `Dom Casmurro,1953,US,Penguin Books,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
-        `Iracema,1886,GB,Penguin books,Isabel Burton,Iracema,José de Alencar,`,
-      ].join("\n") + "\n",
-    ),
-  });
+  await uploadCsv(page, SPELLINGS_CSV, "spellings.csv");
   await expect(
     indexTable(page).getByRole("row", { name: /Dom Casmurro/ }),
   ).toBeVisible();
-
-  const submit = page.getByRole("button", { name: "Submit" });
-  await expect(submit).toBeEnabled({ timeout: 30_000 });
-  await submit.click();
-  await expect(
-    page.getByText("2 publications inserted successfully"),
-  ).toBeVisible({ timeout: 30_000 });
+  await submitWorkspace(page, 2);
 
   await page.goto("/admin/vocabulary");
   await page.getByLabel("Find").fill("Penguin");
@@ -146,7 +131,7 @@ test("renaming onto a name already taken folds the two together", async ({
 
   // Only the publication that moved to the kept spelling records the change.
   await page.goto("/admin/publications/history");
-  await expect(page.locator('li[data-action="renamed"]')).toHaveText([
+  await expect(historyEntries(page, "renamed")).toHaveText([
     /“Iracema”[\s\S]*Publishers: Penguin books → Penguin Books/,
   ]);
 });
@@ -155,24 +140,8 @@ test("a fold can be called off, and nothing moves", async ({ page }) => {
   await signInAsAdmin(page);
 
   await openDocument(page);
-  await page.locator("#upload-csv").setInputFiles({
-    name: "spellings.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(
-      [
-        CSV_HEADER,
-        `Dom Casmurro,1953,US,Penguin Books,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
-        `Iracema,1886,GB,Penguin books,Isabel Burton,Iracema,José de Alencar,`,
-      ].join("\n") + "\n",
-    ),
-  });
-
-  const submit = page.getByRole("button", { name: "Submit" });
-  await expect(submit).toBeEnabled({ timeout: 30_000 });
-  await submit.click();
-  await expect(
-    page.getByText("2 publications inserted successfully"),
-  ).toBeVisible({ timeout: 30_000 });
+  await uploadCsv(page, SPELLINGS_CSV, "spellings.csv");
+  await submitWorkspace(page, 2);
 
   await page.goto("/admin/vocabulary");
   await page.getByLabel("Find").fill("Penguin");
@@ -206,24 +175,15 @@ test("a rename that would leave two publications identical is refused", async ({
   // The same publication twice, differing only in the spelling of the
   // publisher.
   await openDocument(page);
-  await page.locator("#upload-csv").setInputFiles({
-    name: "hidden.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(
-      [
-        CSV_HEADER,
-        `Dom Casmurro,1953,US,Penguin Books,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
-        `Dom Casmurro,1953,US,Penguin books,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
-      ].join("\n") + "\n",
-    ),
-  });
-
-  const submit = page.getByRole("button", { name: "Submit" });
-  await expect(submit).toBeEnabled({ timeout: 30_000 });
-  await submit.click();
-  await expect(
-    page.getByText("2 publications inserted successfully"),
-  ).toBeVisible({ timeout: 30_000 });
+  await uploadCsv(
+    page,
+    csv([
+      `Dom Casmurro,1953,US,Penguin Books,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+      `Dom Casmurro,1953,US,Penguin books,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+    ]),
+    "hidden.csv",
+  );
+  await submitWorkspace(page, 2);
 
   await page.goto("/admin/vocabulary");
   await page.getByLabel("Find").fill("Penguin");

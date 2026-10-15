@@ -241,8 +241,9 @@ export const Answering: Story = {
 };
 
 /**
- * A decision already made, and the way out of it. The section is collapsed —
- * it is the exception, not the work — and opening it offers each pair back.
+ * A decision already made, listed under the queue. The play test opens it,
+ * checks that it shows the records with nothing to choose and only their years
+ * highlighted, and reconsiders it.
  */
 export const RuledApart: Story = {
   args: { distinctions: RULED_APART },

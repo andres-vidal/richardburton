@@ -2,22 +2,12 @@ import { test, expect } from "./fixtures";
 import {
   expectPublicationCount,
   expectPublicationRow,
+  historyEntries,
   indexTable,
   seedCorpus,
+  CORPUS_IRACEMA as IRACEMA,
   CORPUS_SIZE,
 } from "./helpers";
-
-// The record this journey imports, un-imports, and brings back. Field-for-field
-// the same publication the corpus CSV seeds (GB renders as its display label).
-const IRACEMA = {
-  title: "Iraçéma the Honey-Lips",
-  originalTitle: "Iracema",
-  year: "1886",
-  authors: "Isabel Burton",
-  originalAuthors: "José de Alencar",
-  country: "United Kingdom",
-  publisher: "Bickers & Son",
-};
 
 test("an admin undoes an import from the history feed, then undoes the undo", async ({
   page,
@@ -27,16 +17,12 @@ test("an admin undoes an import from the history feed, then undoes the undo", as
   // Scoped by action *and* title: after the round trip below, three entries in
   // the feed name this same record.
   const entryFor = (action: string) =>
-    page
-      .locator(`li[data-action="${action}"]`)
-      .filter({ hasText: IRACEMA.title });
+    historyEntries(page, action).filter({ hasText: IRACEMA.title });
 
   await page.goto("/admin/publications/history");
 
   // A fresh import is its record's latest entry, so every one is undoable.
-  await expect(page.locator('li[data-action="created"]')).toHaveCount(
-    CORPUS_SIZE,
-  );
+  await expect(historyEntries(page, "created")).toHaveCount(CORPUS_SIZE);
 
   // Undoing an import deletes the record — the compensating action, chosen by
   // the server from the entry alone.

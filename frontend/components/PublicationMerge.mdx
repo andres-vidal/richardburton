@@ -31,8 +31,16 @@ publication the caller is showing has changed.
 />
 ```
 
-`find` says how candidates are looked up, and defaults to searching the
-database. A caller that already knows the duplicates passes its own.
+## Props
+
+- `publication` — the record the others are merged into.
+- `isOpen` and `onClose` — whether the dialog is open, and what closes it.
+  Closing clears the search and the picks.
+- `onMerged` — called once the merge has happened.
+- `find` — looks up candidates for a term. It defaults to searching the
+  database. The dialog calls it through `useLookup`, which waits for typing to
+  pause, passes the term in lower case, and lets only the newest search fill
+  the list.
 
 ## Why it previews
 

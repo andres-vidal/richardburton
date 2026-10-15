@@ -27,7 +27,6 @@ import { FC, useState } from "react";
 import { useMutation } from "utils/useMutation";
 import Button from "./Button";
 import { Modal } from "./Modal";
-import ModalHeading from "./ModalHeading";
 import SectionHeading from "./SectionHeading";
 
 type Restore = (
@@ -51,6 +50,8 @@ type Refused = { deleted: Publication; twin: Publication };
  * as its error, so it can be saved only once a change has passed validation.
  * Saving restores the publication with the changes. When the server answers
  * that another publication is identical, that one is shown instead.
+ *
+ * It renders a section and a form as siblings, for a column that spaces them.
  */
 const RestoreWithChanges: FC<
   Refused & { onRestore: Restore; onRestored: () => void; onClose: () => void }
@@ -97,11 +98,7 @@ const Changing: FC<
   }
 
   return (
-    <div className="flex flex-col gap-6 p-8 w-full">
-      <ModalHeading
-        heading={t("identical")}
-        subheading={t("identicalDetail")}
-      />
+    <>
       <section className="space-y-2">
         <SectionHeading>{t("alreadyStored")}</SectionHeading>
         <p className="text-sm text-gray-600">{t("differences")}</p>
@@ -115,7 +112,7 @@ const Changing: FC<
         heading={t("thisOne")}
         saveLabel={t("restoreWithChanges")}
       />
-    </div>
+    </>
   );
 };
 
@@ -200,7 +197,8 @@ const DeletedPublications: FC<{
       <Modal
         isOpen={refused !== null}
         onClose={() => setRefused(null)}
-        label={restoring("identical")}
+        heading={restoring("identical")}
+        subheading={restoring("identicalDetail")}
       >
         {refused ? (
           <RestoreWithChanges

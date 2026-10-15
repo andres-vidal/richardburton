@@ -4,11 +4,12 @@ import {
   indexTable,
   draftRow,
   commitMulti,
+  csv,
   selectEnumOption,
-  CSV_HEADER,
   openDocument,
   uploadCsv,
   moveSelectedRows,
+  selectRows,
 } from "./helpers";
 
 /**
@@ -22,15 +23,13 @@ import {
  * corpus's `Dom Casmurro`, with its own year and publisher, so it resembles
  * nothing either.
  */
-const IMPORT_CSV =
-  [
-    CSV_HEADER,
-    `Dom Casmuro,1953,US,Noonday Press,Helen Caldwel,Dom Casmurro,Machado de Assis,`,
-    `The Devil to Pay in the Backlands,1963,US,Knopf,James L. Taylor,Grande Sertão: Veredas,João Guimarães Rosa,`,
-    `The Devil to Pay in the Backland,1963,US,Knopf,James L Taylor,Grande Sertao Veredas,João Guimarães Rosa,`,
-    `The Passion According to G.H.,1988,US,Minnesota,Ronald Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
-    `Dom Casmurro,1966,US,University of California Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
-  ].join("\n") + "\n";
+const LOOK_ALIKES_CSV = csv([
+  `Dom Casmuro,1953,US,Noonday Press,Helen Caldwel,Dom Casmurro,Machado de Assis,`,
+  `The Devil to Pay in the Backlands,1963,US,Knopf,James L. Taylor,Grande Sertão: Veredas,João Guimarães Rosa,`,
+  `The Devil to Pay in the Backland,1963,US,Knopf,James L Taylor,Grande Sertao Veredas,João Guimarães Rosa,`,
+  `The Passion According to G.H.,1988,US,Minnesota,Ronald Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
+  `Dom Casmurro,1966,US,University of California Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+]);
 
 test("a row keeps its look-alike while the rest of it is filled in", async ({
   page,
@@ -87,7 +86,7 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await seedCorpus(page);
 
   await openDocument(page);
-  await uploadCsv(page, IMPORT_CSV, "second-pass.csv");
+  await uploadCsv(page, LOOK_ALIKES_CSV, "second-pass.csv");
 
   const table = indexTable(page);
   await expect(table.getByRole("row", { name: /Dom Casmuro/ })).toBeVisible();
@@ -208,18 +207,8 @@ test("an admin catches look-alikes before importing them", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(review).not.toBeVisible();
 
-  // Move the first and second rows to another document, by selecting them with
-  // their leading cells and pressing Move.
-  await table
-    .getByRole("row", { name: /Dom Casmuro/ })
-    .getByRole("cell")
-    .first()
-    .click();
-  await table
-    .getByRole("row", { name: /The Devil to Pay in the Backlands/ })
-    .getByRole("cell")
-    .first()
-    .click({ modifiers: ["Meta"] });
+  // Move the first and second rows to another document.
+  await selectRows(page, ["Dom Casmuro", "The Devil to Pay in the Backlands"]);
   await expect(page.getByRole("button", { name: "Deselect 2" })).toBeVisible();
   await moveSelectedRows(page, 2, { new: "To look into" });
 

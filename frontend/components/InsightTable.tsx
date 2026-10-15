@@ -3,6 +3,7 @@
 import { total } from "modules/insights";
 import { useFormatter, useTranslations } from "next-intl";
 import { FC } from "react";
+import InsightName from "./InsightName";
 
 /** One row of the table, such as a year or a decade. */
 type Row = {
@@ -85,10 +86,7 @@ const InsightTable: FC<Props> = ({
                 scope="row"
                 className="py-1.5 pr-4 font-normal text-left text-gray-900"
               >
-                {label}
-                {detail ? (
-                  <span className="text-gray-600"> · {detail}</span>
-                ) : null}
+                <InsightName label={label} detail={detail} />
               </th>
               {many
                 ? counts.map((count, index) => (

@@ -51,7 +51,7 @@ export const Default: Story = {
   },
 };
 
-/** Nobody has been invited yet — say so rather than showing an empty list. */
+/** With no invitations, the list says so. */
 export const Empty: Story = {
   args: { invitations: [] },
   play: async () => {

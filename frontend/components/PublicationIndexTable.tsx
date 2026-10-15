@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  useHiddenAttributes,
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationIds,
+  useVisibleAttributes,
 } from "modules/publication/hooks";
 import {
   Publication,
@@ -20,6 +20,7 @@ import {
   ReactNode,
   createContext,
   forwardRef,
+  memo,
   useContext,
   useMemo,
   useRef,
@@ -36,11 +37,11 @@ type RowId = PublicationId;
 type ColId = PublicationKey;
 
 /**
- * Where a row's record lives, for tables whose rows are pages.
+ * Returns the address of a row's record, or is null when the rows have no
+ * address of their own.
  *
- * Given this, the title cell becomes an anchor — a row that only navigates on
- * click is a dead end to a crawler. The workspace leaves it unset, its rows
- * being drafts with no address.
+ * With an address, the title cell is a link to it, so a crawler can follow the
+ * row as well as a click can.
  */
 const RowHref = createContext<((id: RowId) => string) | null>(null);
 
@@ -48,10 +49,9 @@ type DivProps = Omit<HTMLProps<HTMLDivElement>, "ref"> & {
   [dataAttribute: `data-${string}`]: string | number | boolean | undefined;
 };
 
-// Thin wrappers that render a plain div carrying the ARIA role which restores the
-// table semantics the CSS grid would otherwise lose — so the markup reads as
-// `<Aria.Row>` / `<Aria.Cell>` rather than `<div role="row">`. Every prop (ref,
-// className, data-*, …) is forwarded to the div.
+// Returns a component that renders a div with the ARIA `role`, which gives the
+// CSS grid the semantics of a table. Every prop, the ref included, is passed to
+// the div.
 const roleDiv = (role: AriaRole) => {
   const Component = forwardRef<HTMLDivElement, DivProps>((props, ref) => (
     <div {...props} ref={ref} role={role} />
@@ -67,11 +67,10 @@ const Aria = {
   ColumnHeader: roleDiv("columnheader"),
 };
 
-// Max width per column. The table left-aligns and each column caps here instead of
-// stretching to fill — so hiding columns leaves the rest a sensible width rather than
-// ballooning. `minmax(0, …)` still lets them shrink to share the width when every
-// column is shown; the maxes are generous enough to fit the titles and values, and
-// only the longest outliers truncate.
+// The widest each column grows. The table aligns its columns to the left
+// rather than stretching them, so hiding columns leaves the others at a
+// readable width. A column can still shrink below its maximum to share the
+// width when every column is shown.
 const COLUMN_MAX_WIDTH: Partial<Record<ColId, string>> = {
   year: "5.5rem",
   originalTitle: "20rem",
@@ -79,30 +78,17 @@ const COLUMN_MAX_WIDTH: Partial<Record<ColId, string>> = {
 };
 const DEFAULT_COLUMN_MAX_WIDTH = "14rem";
 
-// The columns a table renders: all of them, minus the ones hidden through the
-// column menu. Non-collapsible tables (the editing workspace) always show every
-// column. Reading the store here means toggling a column re-renders the header and
-// every row — adding or removing that column's cells — with no in-place collapse.
-const useVisibleAttributes = (collapsible: boolean | undefined): ColId[] => {
-  const hidden = useHiddenAttributes();
-  return useMemo(
-    () =>
-      collapsible === false
-        ? Publication.ATTRIBUTES
-        : Publication.ATTRIBUTES.filter((key) => !hidden.includes(key)),
-    [collapsible, hidden],
-  );
+// Returns the columns a table renders: every attribute when `collapsible` is
+// false, and otherwise the attributes the column menu leaves visible. Toggling a
+// column re-renders the header and every row, which add or remove that column's
+// cells.
+const useColumns = (collapsible: boolean | undefined): ColId[] => {
+  const visible = useVisibleAttributes();
+  return collapsible === false ? Publication.ATTRIBUTES : visible;
 };
 
-// Rendered as a CSS grid (not a <table>) whose `grid-template-columns` caps each
-// visible column at a max width and left-aligns them (see `COLUMN_MAX_WIDTH`); the
-// ARIA roles above restore the table semantics the divs would otherwise lose.
-
-// A plain column label. `toggleable` is accepted (the workspace still passes it)
-// but unused — showing/hiding is driven by the column menu, not per-header buttons.
-const ColumnHeader: FC<{ colId: ColId; toggleable?: boolean }> = ({
-  colId,
-}) => {
+/** The header cell of a column: the attribute's name. */
+const ColumnHeader: FC<{ colId: ColId }> = ({ colId }) => {
   const t = useTranslations("attributes");
   const label = t(colId);
   return (
@@ -127,12 +113,15 @@ const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
   ) : null;
 };
 
+/**
+ * The saved value of one cell, with the words the search matched marked. An
+ * unsaved edit does not show here. The title links to the row's record when
+ * `RowHref` gives an address, and shows the matching source under it.
+ */
 const Content: FC<{
   rowId: RowId;
   colId: ColId;
 }> = ({ rowId, colId }) => {
-  // Read-only surface: the *stored* value. An editing surface injects its own
-  // Content, which reads the edited value — see PublicationWorkspace.
   const marked = usePublicationMarkedField(rowId, colId);
   const href = useContext(RowHref);
   const isTitle = colId === "title";
@@ -183,8 +172,8 @@ const Column: FC<{
   selected = false,
   focusedBy = null,
 }) => {
-  // `truncate` sets overflow:hidden, which zeroes the grid item's auto min-width so
-  // the fixed-width track never expands to fit the content.
+  // `truncate` hides the overflow, which lets the cell be narrower than its
+  // content, so the column's grid track keeps its width.
   return (
     <Aria.Cell
       className="
@@ -207,81 +196,86 @@ const Column: FC<{
   );
 };
 
-type RowProps = DivProps & {
+type RowProps = Omit<DivProps, "className"> & {
   rowId: RowId;
   Column: typeof Column;
   Content: typeof Content;
   SignalColumn?: typeof SignalColumn;
   TrailingColumn?: FC<{ rowId: RowId }>;
   collapsible?: boolean;
-  onClick?: (event: MouseEvent) => void;
+  /**
+   * Called with the row's id when the row is clicked. The row is memoised, so a
+   * handler that keeps its identity across renders lets a row skip rendering
+   * when only the table around it does.
+   */
+  onRowClick?: (id: RowId, event: MouseEvent) => void;
 };
 
-const Row = forwardRef<HTMLDivElement, RowProps>(function Row(
-  {
-    rowId,
-    Column,
-    Content,
-    SignalColumn,
-    TrailingColumn,
-    collapsible,
-    className = "",
-    onClick,
-    ...props
-  },
-  ref,
-) {
-  const clickable = Boolean(onClick);
+/**
+ * Renders one publication's row: the signal cell, a cell per column and the
+ * trailing cell. A row that is off-screen renders the same number of empty
+ * cells instead. The row then stays a valid ARIA row and keeps its height in the
+ * grid, without subscribing to the store.
+ */
+const Row = memo(
+  forwardRef<HTMLDivElement, RowProps>(function Row(
+    {
+      rowId,
+      Column,
+      Content,
+      SignalColumn,
+      TrailingColumn,
+      collapsible,
+      onRowClick,
+      ...props
+    },
+    ref,
+  ) {
+    const clickable = Boolean(onRowClick);
 
-  const innerRef = useRef<HTMLDivElement>(null);
+    const innerRef = useRef<HTMLDivElement>(null);
 
-  const compositeRef = useMemo(
-    () => mergeRefs([ref, innerRef]),
-    [ref, innerRef],
-  );
+    const compositeRef = useMemo(
+      () => mergeRefs([ref, innerRef]),
+      [ref, innerRef],
+    );
 
-  const visible = useVisible(innerRef);
-  const attributes = useVisibleAttributes(collapsible);
+    const visible = useVisible(innerRef);
+    const attributes = useColumns(collapsible);
 
-  return (
-    <Aria.Row
-      ref={compositeRef}
-      data-clickable={clickable}
-      className={`
-        ${className}
-        grid col-span-full grid-cols-subgrid min-h-9 group
-        data-[clickable=true]:cursor-pointer
-      `}
-      onClick={onClick}
-      {...props}
-    >
-      {visible ? (
-        <>
-          {SignalColumn && <SignalColumn rowId={rowId} />}
-          {attributes.map((attribute) => (
-            <Column
-              key={attribute}
-              colId={attribute}
-              rowId={rowId}
-              Content={Content}
-            />
-          ))}
-          {TrailingColumn && <TrailingColumn rowId={rowId} />}
-        </>
-      ) : (
-        // Off-screen rows keep their cell structure — so the row stays a valid ARIA
-        // row and reserves its grid height — without subscribing to the store (that's
-        // the point of the virtualization).
-        Array.from({
-          length:
-            (SignalColumn ? 1 : 0) +
-            attributes.length +
-            (TrailingColumn ? 1 : 0),
-        }).map((_, i) => <Aria.Cell key={i} />)
-      )}
-    </Aria.Row>
-  );
-});
+    return (
+      <Aria.Row
+        ref={compositeRef}
+        data-clickable={clickable}
+        className="grid col-span-full grid-cols-subgrid min-h-9 group data-[clickable=true]:cursor-pointer"
+        onClick={onRowClick && ((event) => onRowClick(rowId, event))}
+        {...props}
+      >
+        {visible ? (
+          <>
+            {SignalColumn && <SignalColumn rowId={rowId} />}
+            {attributes.map((attribute) => (
+              <Column
+                key={attribute}
+                colId={attribute}
+                rowId={rowId}
+                Content={Content}
+              />
+            ))}
+            {TrailingColumn && <TrailingColumn rowId={rowId} />}
+          </>
+        ) : (
+          Array.from({
+            length:
+              (SignalColumn ? 1 : 0) +
+              attributes.length +
+              (TrailingColumn ? 1 : 0),
+          }).map((_, i) => <Aria.Cell key={i} />)
+        )}
+      </Aria.Row>
+    );
+  }),
+);
 
 /**
  * The row's leading cell: its signal (invalid, focused) and its handle. Where a
@@ -319,24 +313,37 @@ const SignalColumn: FC<{
 interface Props {
   ExtendedRow?: FC<RowProps>;
   ExtendedColumn?: typeof Column;
-  ExtendedColumnHeader?: typeof ColumnHeader;
   ExtendedContent?: typeof Content;
   ExtendedSignalColumn?: typeof SignalColumn;
   ExtendedTrailingColumn?: FC<{ rowId: RowId }>;
   ExtraRow?: FC;
-  onRowClick?: (id: RowId) => (event: MouseEvent) => void;
+  /** Called with a row's id when the row is clicked. Pass a stable function,
+   * so that rows do not re-render with the table. */
+  onRowClick?: (id: RowId, event: MouseEvent) => void;
   /** Where each row's record lives, when it has an address of its own. */
   rowHref?: (id: RowId) => string;
   /** Whether the *text* in the table can be selected. Off while rows are
    * selected, so dragging across them does not highlight their content. */
   selectable?: boolean;
+  /** Whether the column menu can hide columns. With false, every column shows. */
   collapsible?: boolean;
 }
 
+/**
+ * The publications of the enclosing store as a table: a header row, a row per
+ * publication, and `ExtraRow` at the end. It shows `EmptySearchResults` when
+ * the store holds no publications and there is no `ExtraRow`, and a skeleton
+ * while the publications have not loaded.
+ *
+ * The table is a CSS grid, not a `<table>`, with ARIA roles that give it a
+ * table's semantics. Each column has a maximum width (`COLUMN_MAX_WIDTH`), and
+ * the columns align to the left. The `Extended*` props replace the read-only
+ * pieces of the table, and `ExtendedSignalColumn` and `ExtendedTrailingColumn`
+ * add a cell before and after the attributes of every row.
+ */
 const PublicationIndexTable: FC<Props> = ({
   ExtendedRow = Row,
   ExtendedColumn = Column,
-  ExtendedColumnHeader = ColumnHeader,
   ExtendedContent = Content,
   ExtendedSignalColumn,
   ExtendedTrailingColumn,
@@ -350,7 +357,7 @@ const PublicationIndexTable: FC<Props> = ({
   const ids = usePublicationIds();
   const hasSignal = Boolean(ExtendedSignalColumn);
   const hasTrailing = Boolean(ExtendedTrailingColumn);
-  const visibleAttributes = useVisibleAttributes(collapsible);
+  const visibleAttributes = useColumns(collapsible);
   const gridTemplateColumns = useMemo(
     () =>
       [
@@ -381,7 +388,7 @@ const PublicationIndexTable: FC<Props> = ({
             </Aria.ColumnHeader>
           )}
           {visibleAttributes.map((key) => (
-            <ExtendedColumnHeader key={key} colId={key} />
+            <ColumnHeader key={key} colId={key} />
           ))}
           {ExtendedTrailingColumn && (
             <Aria.ColumnHeader>
@@ -398,7 +405,7 @@ const PublicationIndexTable: FC<Props> = ({
             TrailingColumn={ExtendedTrailingColumn}
             Content={ExtendedContent}
             collapsible={collapsible}
-            onClick={onRowClick?.(id)}
+            onRowClick={onRowClick}
           />
         ))}
         {ExtraRow && <ExtraRow />}
@@ -411,12 +418,5 @@ const PublicationIndexTable: FC<Props> = ({
   );
 };
 
-export {
-  Column,
-  ColumnHeader,
-  Content,
-  PublicationIndexTable,
-  Row,
-  SignalColumn,
-};
-export type { ColId, RowId, RowProps };
+export { Column, Content, PublicationIndexTable, Row, SignalColumn };
+export type { RowId, RowProps };

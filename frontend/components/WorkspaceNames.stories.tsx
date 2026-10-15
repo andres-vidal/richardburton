@@ -51,9 +51,6 @@ const meta = {
   component: WorkspaceNames,
   args: {
     ask: fn(async (kind: Kind) => ANSWERS[kind]),
-    // Stubbed because a corrected row is validated again, and Storybook has no
-    // server.
-    recheck: fn(async () => undefined),
   },
   beforeEach: () => seed(store, BATCH),
   parameters: { layout: "centered" },

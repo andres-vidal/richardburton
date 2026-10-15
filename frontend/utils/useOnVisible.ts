@@ -1,21 +1,24 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /**
- * Run `onVisible` whenever the attached element scrolls into view (within
- * `rootMargin`). Returns a callback ref to put on that element.
+ * Runs `onVisible` whenever the attached element enters the viewport extended
+ * by `rootMargin`. Returns a callback ref to put on that element.
  *
- * The observer is wired in the ref callback, so it attaches the moment the
- * element mounts and re-attaches if it remounts — a sentinel that only appears
- * while there is more to load is observed as soon as it does. The latest
- * `onVisible` is read through a ref, so the observer is built once per element
- * rather than rebuilt on every render.
+ * The observer is attached in the ref callback, so it starts observing the
+ * moment the element mounts, and again whenever it remounts. An element that
+ * appears only while there is more to load is therefore observed as soon as it
+ * appears. The observer calls the `onVisible` of the latest render, so it is
+ * built once per element rather than on every render.
  */
 export default function useOnVisible<T extends HTMLElement>(
   onVisible: () => void,
   rootMargin = "0px",
 ): (node: T | null) => void {
   const callback = useRef(onVisible);
-  callback.current = onVisible;
+
+  useEffect(() => {
+    callback.current = onVisible;
+  });
 
   const observer = useRef<IntersectionObserver | null>(null);
 

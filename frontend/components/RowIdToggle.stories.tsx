@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
-import { resetAll } from "modules/publication/store";
+import { areRowIdsVisibleAtom, resetAll } from "modules/publication/store";
 import { seed } from "test/publication-fixtures";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import RowIdToggle from "./RowIdToggle";
 
@@ -16,13 +16,25 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** With publications loaded, the toggle shows the row-number control. */
+/**
+ * With rows in the workspace, the toggle shows. The play test checks that a
+ * click shows the row numbers and a second click hides them.
+ */
 export const Default: Story = {
-  beforeEach: () => seed(store),
+  beforeEach: () => {
+    seed(store);
+    store.set(areRowIdsVisibleAtom, false);
+  },
   play: async ({ canvasElement }) => {
-    await expect(
-      within(canvasElement).getByRole("button", { name: "Row Ids" }),
-    ).toBeInTheDocument();
+    const toggle = within(canvasElement).getByRole("button", {
+      name: "Row Ids",
+    });
+
+    await userEvent.click(toggle);
+    await waitFor(() => expect(store.get(areRowIdsVisibleAtom)).toBe(true));
+
+    await userEvent.click(toggle);
+    await waitFor(() => expect(store.get(areRowIdsVisibleAtom)).toBe(false));
   },
 };
 

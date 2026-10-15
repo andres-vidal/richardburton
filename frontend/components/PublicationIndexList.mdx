@@ -25,10 +25,32 @@ import { seedIndex } from "test/publication-fixtures";
 seedIndex(store); // load the sample publications before the story renders
 ```
 
-The only prop is `onItemClick(id)` — a curried click handler, invoked per row so
-a parent can route to (or select) the tapped publication.
+`onItemClick(id, event)` is called with the id of the tapped publication, so a
+parent can route to (or select) it.
 
 <Canvas of={IndexListStories.Default} />
+
+## Drawing entries near the viewport
+
+The list is not virtualised: it holds an `<li>` for every loaded id. An entry
+draws its publication once it comes within 800px of the viewport, and keeps it
+drawn from then on. Until then the entry is an empty box of about an entry's
+height, so the scroll height is close to the final one and the list does not
+draw every loaded publication at once.
+
+Because an entry is never emptied again, its height changes only once, usually
+before it scrolls into view. Entries above the viewport do not resize while the
+list is read. Entries are memoised, so loading another page draws only the new
+ones.
+
+<Canvas of={IndexListStories.DrawsAsItIsScrolled} />
+
+An entry under `display: none` never comes into view. A list that a breakpoint
+hides therefore draws no publications, and costs one empty `<li>` per loaded
+id. The server renders
+every entry empty as well, so the first render in the browser matches it.
+
+<Canvas of={IndexListStories.Hidden} />
 
 ## States
 

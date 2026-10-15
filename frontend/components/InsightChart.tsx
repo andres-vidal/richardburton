@@ -139,6 +139,8 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
         : t(`builder.headings.${count}`),
   );
 
+  // Returns a group's key as a string that is unique in the chart, its label,
+  // and for a work or a pair, the detail written after the label.
   const nameOf = (key: Key): { key: string; label: string; detail?: string } =>
     typeof key === "number"
       ? {
@@ -176,16 +178,16 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
         : t(`builder.counted.${count}`, { count: total })
     }`;
 
+  // Each group with its name, which replaces the group's key.
   const rows = drawn.groups.map((group) => ({
+    ...group,
     ...nameOf(group.key),
-    counts: group.counts,
-    total: group.total,
   }));
 
+  // Each group as a year or a decade, for the forms over time.
   const timed = drawn.groups.map((group, index) => ({
+    ...rows[index],
     at: group.key as number,
-    label: rows[index].label,
-    counts: group.counts,
   }));
 
   const forms: Record<Form, () => ReactNode> = {
@@ -250,22 +252,15 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
           rows={rows}
         />
       ) : (
-        <InsightBars
-          bars={rows.map(({ key, label, detail, total }) => ({
-            key,
-            label,
-            detail,
-            count: total,
-          }))}
-        />
+        <InsightBars bars={rows.map((row) => ({ ...row, count: row.total }))} />
       ),
     heat: () => (
       <InsightHeat
         title={title}
         heading={heading}
-        rows={drawn.groups.map((group, index) => ({
-          ...rows[index],
-          cells: (group.steps ?? []).map((step) => ({
+        rows={rows.map((row) => ({
+          ...row,
+          cells: (row.steps ?? []).map((step) => ({
             at: step.at,
             total: step.total,
             label: describe(t("decade", { decade: step.at }), step),
@@ -275,10 +270,10 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
     ),
     timeline: () => (
       <InsightTimeline
-        tracks={drawn.groups.map((group, index) => ({
-          ...rows[index],
-          value: t(`builder.counted.${count}`, { count: group.total }),
-          marks: (group.steps ?? []).map((step) => ({
+        tracks={rows.map((row) => ({
+          ...row,
+          value: t(`builder.counted.${count}`, { count: row.total }),
+          marks: (row.steps ?? []).map((step) => ({
             year: step.at,
             weight: step.total,
             label: describe(String(step.at), step),
@@ -289,10 +284,10 @@ const InsightChart: FC<Props> = ({ description, drawn, view, actions }) => {
     map: () => (
       <InsightMap
         map={map}
-        countries={drawn.groups.map((group, index) => ({
-          code: String(group.key),
-          name: rows[index].label,
-          count: group.total,
+        countries={rows.map(({ key, label, total }) => ({
+          code: key,
+          name: label,
+          count: total,
         }))}
       />
     ),

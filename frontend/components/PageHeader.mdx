@@ -6,9 +6,9 @@ import * as PageHeaderStories from "./PageHeader.stories";
 
 # Page header
 
-The heading for a page: a left-aligned title (`<h1>`) with an optional muted
-description, aligned with the breadcrumb above it. Use it in a page's `Layout`
-subheader to say what the page is — it replaces the old centered "strike" heading.
+The heading of a page: a left-aligned title, the page's `<h1>`, with an
+optional muted description under it. It goes in a `Layout` subheader, under the
+breadcrumb, and lines up with it.
 
 ## Props
 
@@ -20,8 +20,7 @@ subheader to say what the page is — it replaces the old centered "strike" head
 
 ## States
 
-- **Default** — title with a description.
-- **Title only** — the description is optional; omit it when the title says
-  enough.
+- **Default** — a title with a description.
+- **Title only** — without a description, when the title says enough.
 
 <Canvas of={PageHeaderStories.TitleOnly} />

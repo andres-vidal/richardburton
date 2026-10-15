@@ -1,0 +1,52 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+
+import * as TextAreaStories from "./TextArea.stories";
+
+<Meta of={TextAreaStories} />
+
+# Text area
+
+A multi-line text field. It is controlled: it shows `value` and passes each
+edit to `onChange` as a string.
+
+<Canvas of={TextAreaStories.Default} />
+
+## Props
+
+- `value` and `onChange` — the text, and the function that receives each edit.
+- `label` — a label that floats above the field once it holds text or focus.
+  Without one, the field shows its `placeholder` instead.
+- `error` — marks the field invalid (`aria-invalid`), tints it red, and adds
+  the message to the label.
+- `disabled` — greys the field out and stops it from taking input.
+
+## Label
+
+The labelled field sits on a grey surface, which takes an indigo tint while the
+field has focus.
+
+<Canvas of={TextAreaStories.FocusedWithLabel} />
+
+## Error
+
+A field with an error is tinted a light red. While it has focus it turns a
+stronger red, and the text typed into it turns white, which keeps the text
+readable. The labelled field does the same, and its label turns red and holds
+the message.
+
+<Canvas of={TextAreaStories.WithError} />
+
+The focused field takes the stronger red with or without a label.
+
+<Canvas of={TextAreaStories.FocusedWithError} />
+
+## States
+
+- **Default** — empty.
+- **With value** — holding text.
+- **With label** — the floating label.
+- **Disabled** — greyed out and read-only.
+- **With error**, **Focused with error**, and **Focused with label and error** —
+  the red tints.
+
+<Canvas of={TextAreaStories.Disabled} />

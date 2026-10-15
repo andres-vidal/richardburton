@@ -250,4 +250,4 @@ function sync(
 }
 
 export { RETRY_MS, SETTLE_MS, sync };
-export type { Sync, SyncState };
+export type { SyncState };

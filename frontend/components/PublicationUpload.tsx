@@ -4,7 +4,7 @@ import UploadIcon from "assets/upload.svg";
 import { usePublicationStore } from "modules/publication/workspace";
 import { upload } from "modules/publication/remote";
 import { useTranslations } from "next-intl";
-import { ChangeEvent, FC, useRef, useState } from "react";
+import { ChangeEvent, FC, useRef } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";
 
@@ -20,23 +20,22 @@ const PublicationUpload: FC = () => {
   const t = useTranslations("admin");
   const store = usePublicationStore();
 
-  const [key, setKey] = useState(1);
   const input = useRef<HTMLInputElement>(null);
 
+  // Uploads the chosen file, then empties the input, so the same file can be
+  // chosen again: after a failed upload to retry it, or after an undo to add it
+  // once more. `upload` notifies a failure itself, so a failure is not handled
+  // again here.
   const handleChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      const [file] = event.target.files;
-      const payload = new FormData();
-      payload.append("csv", file);
+    const chosen = event.currentTarget;
+    const file = chosen.files?.[0];
+    if (!file) return;
 
-      try {
-        await upload(store, payload);
-      } finally {
-        // Reset the input, so the same file can be chosen again: after a
-        // failed upload to retry it, or after an undo to add it once more.
-        setKey((key) => -key);
-      }
-    }
+    const payload = new FormData();
+    payload.append("csv", file);
+
+    await upload(store, payload).catch(() => {});
+    chosen.value = "";
   };
 
   return (
@@ -53,7 +52,6 @@ const PublicationUpload: FC = () => {
       </Tooltip>
       <input
         ref={input}
-        key={key}
         type="file"
         id="upload-csv"
         className="hidden"

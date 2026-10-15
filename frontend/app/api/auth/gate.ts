@@ -1,15 +1,15 @@
 import { User } from "modules/users";
 
 /**
- * Where a sign-in lands, and whether the session goes with it.
+ * Returns where a sign-in of `user` lands, and whether the session cookies go
+ * with it:
  *
- * Three outcomes: someone who may edit publications gets the session and the
- * page they asked for; someone with an account but only a reader's role is sent
- * to the pending page without one; someone with no account at all is sent to
- * the error page, since nobody invited them.
- *
- * Both the Google callback and the dev provider decide here, so the one the
- * E2E suite signs in through cannot admit more than the real handshake does.
+ * - a user who may edit publications gets the session, and lands on
+ *   `destination`;
+ * - a user with only the reader's role lands on the pending page, without a
+ *   session;
+ * - no user, because the backend refused the account, lands on the error page
+ *   with `AccessDenied`, without a session.
  */
 function admits(
   user: User | null | undefined,

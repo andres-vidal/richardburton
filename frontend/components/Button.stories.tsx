@@ -202,9 +202,25 @@ export const States: Story = {
     const canvas = within(canvasElement);
     const loading = canvas.getByRole("button", { name: "Loading" });
 
-    // Loading is disabled and swallows clicks.
     await expect(loading).toBeDisabled();
+    await expect(loading).toHaveAttribute("aria-busy", "true");
     await userEvent.click(loading);
+    await expect(args.onClick).not.toHaveBeenCalled();
+  },
+};
+
+/**
+ * `loading` disables the button even when `disabled` is false, so a caller
+ * passes only the conditions of its own in `disabled`. The play test checks
+ * that the button cannot be clicked.
+ */
+export const LoadingWhileEnabled: Story = {
+  args: { width: "fit", label: "Save", loading: true, disabled: false },
+  play: async ({ args, canvasElement }) => {
+    const button = within(canvasElement).getByRole("button", { name: "Save" });
+
+    await expect(button).toBeDisabled();
+    await userEvent.click(button);
     await expect(args.onClick).not.toHaveBeenCalled();
   },
 };

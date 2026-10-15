@@ -6,25 +6,32 @@ import * as ConfirmationModalStories from "./ConfirmationModal.stories";
 
 # Confirmation modal
 
-A guard in front of a destructive action. It names what is about to happen
-(`title`), spells out the consequence (`message`), and waits for an explicit
-choice: the confirm button uses the danger variant, and cancelling — via the
-button, the overlay, or <kbd>Esc</kbd> — backs out without consequence.
+A dialog that asks for confirmation before a destructive action. It shows the
+`title` as its heading, says what is about to happen in the `message`, and waits
+for a choice. The confirm button uses the danger variant. Cancelling with the
+button, a press on the overlay or <kbd>Esc</kbd> changes nothing.
 
-Built on [`Modal`](?path=/docs/components-modal--docs); the dialog's accessible
-name is the `title`, so tests and screen readers address it directly.
+It is a [Modal](?path=/docs/components-modal--docs) with the `title` as its
+`heading`, so the dialog's accessible name is the `title`.
 
+<Description of={ConfirmationModalStories.Default} />
 <Canvas of={ConfirmationModalStories.Default} />
 
-## Usage
+## Props
 
-Controlled by the caller: pair it with `useModal()` and flip `loading` while
-the confirmed action is in flight — the confirm button shows a spinner and
-disables itself, while Cancel stays available.
+- `isOpen` — whether the dialog is shown. The caller owns this state, usually
+  through `useModal()`.
+- `title` — the heading, which also names the dialog.
+- `message` — what is about to happen and what it affects.
+- `children` — more detail, shown below the message.
+- `confirmLabel` — the label of the confirm button, naming the action, such as
+  "Delete".
+- `loading` — shows the confirm button as loading while the action is in
+  flight.
+- `onConfirm` and `onCancel` — called on the reader's choice.
 
-Used by the
-[publication modal](?path=/docs/publications-publication-modal--docs)'s
-server-side delete.
+<Description of={ConfirmationModalStories.Cancelled} />
+<Canvas of={ConfirmationModalStories.Cancelled} />
 
 ## States
 

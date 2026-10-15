@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as DownloadStories from "./PublicationDownload.stories";
 
@@ -17,11 +17,12 @@ The button is **state-driven**: it takes no props. It reads the row count
 attributes (`useVisibleAttributes`) to build the export's `select` — omitted
 when every column is shown, otherwise the snake-cased visible columns. It also
 pulls the current `search` from the router query so the export respects the
-active filter. Clicking issues a GET for the file blob and triggers a hidden
-anchor to save it, under the name the server gave in `content-disposition` —
-falling back to `publications.csv` if that header is missing or unreadable,
-since a file that arrived is not a failed download. Only a request that failed
-raises a notification. In stories the store is seeded through the shared
+active filter. Clicking issues a GET for the file and saves it through a link
+that is not attached to the page, under the name the server gave in
+`content-disposition`, or `publications.csv` when that header is missing or
+unreadable, since a file that arrived is not a failed download. Only a request
+that failed raises a notification. The file is released from memory a minute
+after it is saved. In stories the store is seeded through the shared
 fixtures:
 
 ```tsx
@@ -30,6 +31,7 @@ import { seed } from "test/publication-fixtures";
 seed(store); // load the sample publications before the story renders
 ```
 
+<Description of={DownloadStories.Default} />
 <Canvas of={DownloadStories.Default} />
 
 ## States

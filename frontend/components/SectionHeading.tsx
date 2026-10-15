@@ -1,14 +1,15 @@
 import { FC } from "react";
 
-/** The class list itself, for headings that are not an `h2` — a `summary` that
- * opens a section, say. */
+/**
+ * The classes of a section heading, for a heading that cannot be an `h2`, such
+ * as the `summary` of a collapsible section.
+ */
 const SECTION_HEADING =
   "text-sm font-medium tracking-wide text-gray-600 uppercase";
 
 /**
- * What a section of a page or a dialog is called: quiet, small and set apart
- * from the content under it, so a page of sections reads as one thing rather
- * than several competing for the eye.
+ * Renders the name of a section of a page or a dialog as an `h2` in small,
+ * grey capitals, so it stays quieter than the content under it.
  */
 const SectionHeading: FC<{ children: string }> = ({ children }) => (
   <h2 className={SECTION_HEADING}>{children}</h2>

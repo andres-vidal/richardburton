@@ -1,0 +1,19 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PillStories from "./Pill.stories";
+
+<Meta of={PillStories} />
+
+# Pill
+
+A value shown as an outlined tag, with a small button that removes it, such as
+one of several values picked in a field.
+
+<Description of={PillStories.Default} />
+<Canvas of={PillStories.Default} />
+
+## Props
+
+- `label` — the text of the tag.
+- `onRemove` — called when the button is pressed. The button's accessible name
+  is "Remove" followed by the label.

@@ -4,6 +4,7 @@ import { total } from "modules/insights";
 import { useFormatter } from "next-intl";
 import { CSSProperties, FC } from "react";
 import InsightLegend from "./InsightLegend";
+import InsightName from "./InsightName";
 import InsightTable, { type Row } from "./InsightTable";
 
 type Props = {
@@ -43,6 +44,8 @@ const InsightStacks: FC<Props> = ({
 }) => {
   const format = useFormatter();
   const most = Math.max(1, ...rows.map(({ counts }) => total(counts)));
+  // Returns the count that fills the track of a row with `counts`: the largest
+  // sum, or with `shares`, the row's own sum.
   const scale = (counts: number[]) =>
     shares ? Math.max(1, total(counts)) : most;
 
@@ -56,10 +59,7 @@ const InsightStacks: FC<Props> = ({
             className="group relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-baseline text-sm"
           >
             <span className="text-gray-900 break-words">
-              {label}
-              {detail ? (
-                <span className="text-gray-600"> · {detail}</span>
-              ) : null}
+              <InsightName label={label} detail={detail} />
             </span>
             <span className="text-gray-700 tabular-nums">
               {format.number(total(counts))}

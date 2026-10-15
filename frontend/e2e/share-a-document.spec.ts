@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
 import {
+  documentEntries,
   signInAsAdmin,
   signInAsContributor,
   indexTable,
@@ -43,10 +44,7 @@ test("an import document is reached from the menu and kept on the server", async
   await colleague.goto("/admin/publications/documents");
 
   await expect(
-    colleague
-      .getByRole("list", { name: "Import documents" })
-      .getByRole("listitem")
-      .filter({ hasText: "Second pass" }),
+    documentEntries(colleague).filter({ hasText: "Second pass" }),
   ).toContainText("2 rows");
 
   await colleague.goto(address);

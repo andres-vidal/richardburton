@@ -15,9 +15,10 @@ import Tooltip from "./Tooltip";
  *
  * Anyone who may edit publications can open any document, so this list shows
  * who has the document open now, not who is allowed to. The list comes from
- * Phoenix Presence on the document channel. The server tracks each connection under the email of its
- * signed-in user, so a client cannot choose the name it is listed under. A
- * person leaves the list when their tab closes, and the list is not stored.
+ * Phoenix Presence on the document channel. The server tracks each connection
+ * under the email of its signed-in user, so a client cannot choose the name it
+ * is listed under. A person leaves the list when their tab closes, and the list
+ * is not stored. Hovering a person's initial shows their email.
  */
 const DocumentPresence: FC = () => {
   const t = useTranslations("documents");

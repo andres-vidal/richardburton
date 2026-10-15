@@ -2,13 +2,13 @@ import { debounce, DebounceSettings, type DebouncedFunc } from "lodash";
 import { useEffect, useMemo, useRef } from "react";
 
 /**
- * Debounce a callback, and run whichever one the latest render supplied.
+ * Returns a debounced version of `factory` that calls the `factory` of the
+ * latest render.
  *
- * The debounced wrapper is made once, so a caller that hands over a fresh
- * function each render — anything typed into, which re-renders as it goes —
- * still shares one timer instead of buying each call its own. It is lodash's
- * debounced function, so `flush` runs a pending call at once and `cancel`
- * drops it.
+ * The debounced function is made once per `delay`, so a component that passes
+ * a new function on each render, as one that re-renders while it is typed into
+ * does, still has one timer. It is lodash's debounced function, so `flush`
+ * runs a pending call at once and `cancel` drops it.
  */
 function useDebounce<F extends (...args: never[]) => unknown>(
   factory: F,

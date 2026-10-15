@@ -1,12 +1,12 @@
 import { FC } from "react";
 
 /**
- * The heading for a page: a left-aligned title with an optional muted description,
- * aligned with the breadcrumb above it. Lives in a page's `Layout` subheader and
- * names the page — replacing the old centered "strike" heading.
+ * Renders a page's `title` as its `h1`, left-aligned, with an optional muted
+ * `description` under it.
  *
- * It renders a `div`, not a `header`, because it sits inside the `header` that
- * `Layout` renders. A nested `header` would be read as a second banner landmark.
+ * It renders a `div`, not a `header`, because it goes inside the `header` that
+ * `Layout` renders, where a nested `header` would read as a second banner
+ * landmark.
  */
 const PageHeader: FC<{ title: string; description?: string }> = ({
   title,

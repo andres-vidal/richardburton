@@ -32,16 +32,21 @@ confirmation gates stand in the way. **One at a time:** while a request is in
 flight the pressed row spins and every other Undo goes disabled, so a refused
 click looks refused.
 
-**Filters** — action chips and a title/user text filter — narrow what is
-_shown_, never what diffs or undoability are computed against. They are view
+**Filters**, a toggle button per action and a text that matches the title or
+the user, narrow what is _shown_, never what diffs or undoability are computed
+against. They are view
 state, not navigation: what is _currently_ deleted lives on its own
 [Deleted publications](?path=/docs/publications-deleted-publications--docs)
 page, because a log of deletion _events_ answers a different question than the
 set of records presently in the trash.
 
-Data comes from the admin-scoped `GET /publications/history`; the component is
-presentational — entries, the undo handler, and the in-flight key arrive as
-props.
+## Props
+
+- `entries` — the log, newest first, read where the page is rendered from the
+  admin-only `GET /publications/history`.
+- `onUndo(entry)` — undoes an entry and returns whether it succeeded. It
+  defaults to `undo` in `modules/publication/remote`. After a success the page
+  is read again, so the new entry and the new undoable flags appear.
 
 <Canvas of={PublicationHistoryFeedStories.Default} />
 

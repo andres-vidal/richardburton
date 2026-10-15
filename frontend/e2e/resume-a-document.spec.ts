@@ -3,6 +3,7 @@ import {
   signInAsAdmin,
   indexTable,
   openDocument,
+  submitWorkspace,
   uploadCsv,
   IMPORT_CSV,
 } from "./helpers";
@@ -49,13 +50,7 @@ test("a document resumed from disk still submits", async ({ page }) => {
 
   // Submit reads the rows from the store and posts them as JSON, so restored
   // rows submit the same way as rows entered in this session.
-  const submit = page.getByRole("button", { name: "Submit" });
-  await expect(submit).toBeEnabled({ timeout: 30_000 });
-  await submit.click();
-
-  await expect(
-    page.getByText("2 publications inserted successfully"),
-  ).toBeVisible({ timeout: 30_000 });
+  await submitWorkspace(page, 2);
 });
 
 test("a document resumes with the backend unavailable", async ({ page }) => {
@@ -137,25 +132,27 @@ test("a resumed document can be submitted while its rows are checked again", asy
   const submit = page.getByRole("button", { name: "Submit" });
   await expect(submit).toBeEnabled({ timeout: 30_000 });
 
-  // From here on, every validation answers 8 seconds late.
+  // From here on, every validation is held until `release` is called.
+  let release = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   await page.route("**/publications/validate", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 8_000));
+    await released;
     await route.continue();
   });
 
   await page.reload();
   await expect(table.getByRole("row", { name: /Iracema/ })).toBeVisible();
-  await expect(submit).toBeEnabled({ timeout: 4_000 });
+  await expect(submit).toBeEnabled();
 
   const title = table.getByRole("textbox", { name: "Title" }).first();
   await title.fill("Dom Casmurro (revised)");
   await title.blur();
 
   await expect(submit).toBeDisabled();
-  await expect(submit).toBeEnabled({ timeout: 30_000 });
 
-  await submit.click();
-  await expect(
-    page.getByText("2 publications inserted successfully"),
-  ).toBeVisible({ timeout: 30_000 });
+  // Once the checks answer, the edited row is valid again.
+  release();
+  await submitWorkspace(page, 2);
 });

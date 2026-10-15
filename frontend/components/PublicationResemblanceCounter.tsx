@@ -1,11 +1,10 @@
 "use client";
 
 import WarningIcon from "assets/warning.svg";
-import { toString } from "lodash";
 import { useResemblingPublicationCount } from "modules/publication/hooks";
 import { openReview } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { FC } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";
@@ -23,6 +22,7 @@ import Tooltip from "./Tooltip";
  */
 const PublicationResemblanceCounter: FC = () => {
   const t = useTranslations("resemblances");
+  const format = useFormatter();
   const store = usePublicationStore();
   const count = useResemblingPublicationCount();
 
@@ -33,7 +33,7 @@ const PublicationResemblanceCounter: FC = () => {
         width="fit"
         alignment="left"
         Icon={WarningIcon}
-        label={toString(count)}
+        label={format.number(count)}
         aria-label={t("found", { count })}
         onClick={() => openReview(store)}
       />

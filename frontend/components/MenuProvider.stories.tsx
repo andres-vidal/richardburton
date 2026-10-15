@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
+import Button from "./Button";
 import MenuProvider, { MenuOption } from "./MenuProvider";
 
 const options: MenuOption[] = [
@@ -11,8 +12,8 @@ const options: MenuOption[] = [
 ];
 
 /**
- * MenuProvider is fully controlled — open state, active index, and selection all
- * live in the parent. This harness wires them up so the menu is interactive.
+ * Keeps the open state, the highlighted option and the picked option, which
+ * `MenuProvider` leaves to its caller, and shows the picked option's label.
  */
 const Harness = ({ bordered }: { bordered?: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,13 +31,13 @@ const Harness = ({ bordered }: { bordered?: boolean }) => {
         onSelect={(option) => setSelected(option.label)}
         bordered={bordered}
       >
-        <button
+        <Button
+          label="Open menu"
           aria-label="Open menu"
-          className="px-3 py-1 rounded border"
-          onClick={() => setIsOpen((prev) => !prev)}
-        >
-          Open menu
-        </button>
+          variant="outline"
+          width="fit"
+          onClick={() => setIsOpen(!isOpen)}
+        />
       </MenuProvider>
       <span data-testid="selection">{selected ?? "none"}</span>
     </div>
@@ -46,11 +47,9 @@ const Harness = ({ bordered }: { bordered?: boolean }) => {
 const meta = {
   title: "Components/MenuProvider",
   component: MenuProvider,
-  tags: ["autodocs"],
-  // Fully-controlled component — the stories drive it through the Harness below,
-  // so these args just satisfy the (all-required) prop types.
+  // The stories render the harness, so these args only satisfy the props.
   args: {
-    children: <button>Open menu</button>,
+    children: <Button label="Open menu" />,
     options,
     isOpen: false,
     activeIndex: null,
@@ -71,13 +70,17 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Clicking the trigger opens the portalled option list; picking one fires `onSelect`. */
+/**
+ * Clicking the trigger opens the list in a portal, and picking an option calls
+ * `onSelect` with it. The play test picks one and checks the selection.
+ */
 export const Default: Story = {
   render: () => <Harness />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // floating-ui rewrites the trigger's accessible name, so match by text.
-    await userEvent.click(await canvas.findByText("Open menu"));
+    await userEvent.click(
+      await canvas.findByRole("combobox", { name: "Open menu" }),
+    );
 
     // Options render in a FloatingPortal, outside the canvas.
     const option = await waitFor(() => screen.getByText("Memórias Póstumas"));
@@ -100,7 +103,7 @@ export const HighlightsWithArrowKeys: Story = {
   render: () => <Harness />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const trigger = await canvas.findByText("Open menu");
+    const trigger = await canvas.findByRole("combobox", { name: "Open menu" });
     await userEvent.click(trigger);
     await screen.findByRole("listbox");
 
@@ -124,15 +127,14 @@ export const HighlightsWithArrowKeys: Story = {
   },
 };
 
-/**
- * `bordered` — the outlined dropdown style is forwarded to `Menu` so the
- * option list matches a bordered input (visible border, `text-sm`).
- */
+/** `bordered` draws the list outlined, to match a bordered input. */
 export const Bordered: Story = {
   render: () => <Harness bordered />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByText("Open menu"));
+    await userEvent.click(
+      await canvas.findByRole("combobox", { name: "Open menu" }),
+    );
     const listbox = await screen.findByRole("listbox");
     await expect(getComputedStyle(listbox).borderTopWidth).toBe("1px");
   },
@@ -143,7 +145,9 @@ export const DismissesOnEscape: Story = {
   render: () => <Harness />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByText("Open menu"));
+    await userEvent.click(
+      await canvas.findByRole("combobox", { name: "Open menu" }),
+    );
     await screen.findByRole("listbox");
 
     await userEvent.keyboard("{Escape}");
@@ -158,7 +162,9 @@ export const DismissesOnOutsideClick: Story = {
   render: () => <Harness />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByText("Open menu"));
+    await userEvent.click(
+      await canvas.findByRole("combobox", { name: "Open menu" }),
+    );
     await screen.findByRole("listbox");
 
     await userEvent.click(document.body);

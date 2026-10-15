@@ -1,5 +1,6 @@
 import { decadesBetween, tickOf } from "modules/insights";
 import { CSSProperties, FC } from "react";
+import InsightName from "./InsightName";
 
 /** A dot on a row, at a year. */
 type Mark = {
@@ -45,12 +46,15 @@ const InsightTimeline: FC<Props> = ({ tracks }) => {
   const decades = decadesBetween(Math.min(...years), Math.max(...years) + 10);
   const first = decades[0];
   const last = decades[decades.length - 1];
+  // Returns where `year` falls on the axis, from 0 at its start to 1 at its end.
   const at = (year: number) => (year - first) / (last - first);
 
   const heaviest = Math.max(
     1,
     ...tracks.flatMap(({ marks }) => marks.map(({ weight }) => weight ?? 0)),
   );
+  // Returns the size of a dot of `weight`, from 0 to 1, relative to the
+  // heaviest dot in the chart.
   const weigh = (weight?: number) =>
     weight === undefined ? 1 / 3 : weight / heaviest;
 
@@ -64,8 +68,7 @@ const InsightTimeline: FC<Props> = ({ tracks }) => {
           >
             <span className="flex gap-3 justify-between min-w-0">
               <span className="text-gray-900 break-words">
-                {label}
-                {detail && <span className="text-gray-600"> · {detail}</span>}
+                <InsightName label={label} detail={detail} />
               </span>
               <span className="text-gray-700 tabular-nums whitespace-nowrap">
                 {value}

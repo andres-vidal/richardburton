@@ -5,11 +5,12 @@ import { formats } from "./formats";
 import { routing } from "./routing";
 
 /**
- * The messages a server render reads, for whichever locale the URL names.
+ * Returns the locale the URL names, falling back to the default, with its
+ * messages and formats.
  *
- * `messages/<locale>.json`, plus `countryNames` and `countryArticles` fetched
- * from the backend — so they are not in the message files. The server owns
- * country names because a search matches on the very names it answers with.
+ * The messages are `messages/<locale>.json` plus the `countryNames` and
+ * `countryArticles` catalogues read from the backend. Country names come from
+ * the backend because a search matches the names the backend holds.
  */
 export default getRequestConfig(async ({ requestLocale }) => {
   const requested = await requestLocale;
