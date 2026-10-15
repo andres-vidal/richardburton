@@ -1,7 +1,8 @@
 /**
  * The cookie and header names the frontend and the Phoenix backend share. Each
  * value must match the backend's exactly: see `RichardBurton.Auth.Session`,
- * `RichardBurton.Auth.Csrf` and `RichardBurton.Publication.Index`.
+ * `RichardBurtonWeb.SignInCookies`, `RichardBurton.Auth.Csrf` and
+ * `RichardBurton.Publication.Index`.
  *
  * The module imports nothing, so code that runs anywhere can read it.
  */

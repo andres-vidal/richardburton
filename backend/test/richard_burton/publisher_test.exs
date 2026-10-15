@@ -1,10 +1,11 @@
 defmodule RichardBurton.PublisherTest do
   @moduledoc """
-  Tests for the Publisher schema
+  Tests for the Publisher schema, and for searching publishers by name with
+  `RichardBurton.Name.search/2`.
   """
   use RichardBurton.DataCase
-  doctest RichardBurton.Publisher
 
+  alias RichardBurton.Name
   alias RichardBurton.Publisher
   alias RichardBurton.Validation
   alias RichardBurton.Util
@@ -32,6 +33,13 @@ defmodule RichardBurton.PublisherTest do
   defp insert(attrs) do
     %Publisher{} |> Publisher.changeset(attrs) |> Repo.insert()
   end
+
+  # Returns the sorted names of the publishers `Name.search` finds for `term`,
+  # in both passes or in the one `pass` names.
+  defp found(term), do: Publisher |> Name.search(term) |> names()
+  defp found(term, pass), do: Publisher |> Name.search(term, pass) |> names()
+
+  defp names(publishers), do: publishers |> Enum.map(& &1.name) |> Enum.sort()
 
   def search_fixture(_) do
     @publishers
@@ -67,74 +75,47 @@ defmodule RichardBurton.PublisherTest do
     end
   end
 
-  describe "search/2 when second argument is :prefix" do
+  describe "searching by prefix" do
     setup [:search_fixture]
 
-    test "retrieves publishers by full name" do
-      term = "University Press of Kentucky"
-
-      for %Publisher{name: name} <- Publisher.search(term, :prefix) do
-        assert name == term
-      end
+    test "finds a publisher by full name" do
+      assert found("University Press of Kentucky", :prefix) == ["University Press of Kentucky"]
     end
 
-    test "retrieves publishers by prefix" do
-      term = "U"
-
-      for %Publisher{name: name} <- Publisher.search(term, :prefix) do
-        assert name in ["UMass Dartmouth", "University Press of Kentucky"]
-      end
+    test "finds every publisher whose name starts with the term" do
+      assert found("U", :prefix) == ["UMass Dartmouth", "University Press of Kentucky"]
     end
   end
 
-  describe "search/2 when second argument is :fuzzy" do
+  describe "searching by similarity" do
     setup [:search_fixture]
 
-    test "retrieves publishers by full name" do
-      term = "University Press of Kentucky"
-
-      for %Publisher{name: name} <- Publisher.search(term, :fuzzy) do
-        assert name == term
-      end
+    test "finds a publisher by full name" do
+      assert found("University Press of Kentucky", :fuzzy) == ["University Press of Kentucky"]
     end
 
-    test "retrieves publishers by similarity" do
-      for %Publisher{name: name} <- Publisher.search("Universiti Press of Kentucky", :fuzzy) do
-        assert name == "University Press of Kentucky"
-      end
-
-      for %Publisher{name: name} <- Publisher.search("Tan", :fuzzy) do
-        assert name in ["Random House", "Bantam Books"]
-      end
-
-      for %Publisher{name: name} <- Publisher.search("Dutan", :fuzzy) do
-        assert name in ["Dutton"]
-      end
+    test "finds a publisher by a misspelling of its name" do
+      assert found("Universiti Press of Kentucky", :fuzzy) == ["University Press of Kentucky"]
+      assert found("Random Hause", :fuzzy) == ["Random House"]
+      assert found("Duton", :fuzzy) == ["Dutton"]
     end
   end
 
-  describe "search/1" do
+  describe "searching in both passes" do
     setup [:search_fixture]
 
     test "searches by prefix first" do
-      for %Publisher{name: name} <- Publisher.search("Ran") do
-        assert name == "Random House"
-      end
+      assert found("Ran") == ["Random House"]
     end
 
-    test "searches by similarity if prefix search renders no results" do
-      term = "Rant"
-
-      assert [] == Publisher.search(term, :prefix)
-
-      for %Publisher{name: name} <- Publisher.search(term) do
-        assert name in ["Random House", "Bantam Books"]
-      end
+    test "searches by similarity when no name starts with the term" do
+      assert found("Randon House", :prefix) == []
+      assert found("Randon House") == ["Random House"]
     end
   end
 
   describe "flatten/1" do
-    test "with a list of maps with string keys, returns a list of maps with name key" do
+    test "with a list of maps with string keys, returns their names" do
       publishers = [
         %{"name" => "Noonday Press"},
         %{"name" => "Bickers & Son"}
@@ -143,7 +124,7 @@ defmodule RichardBurton.PublisherTest do
       assert ["Noonday Press", "Bickers & Son"] = Publisher.flatten(publishers)
     end
 
-    test "with a list of maps with atom keys, returns a list of maps with name key" do
+    test "with a list of maps with atom keys, returns their names" do
       publishers = [
         %{name: "Noonday Press"},
         %{name: "Bickers & Son"}
@@ -152,7 +133,7 @@ defmodule RichardBurton.PublisherTest do
       assert ["Noonday Press", "Bickers & Son"] = Publisher.flatten(publishers)
     end
 
-    test "with a list of Publisher structs, returns a list of maps with name key" do
+    test "with a list of Publisher structs, returns their names" do
       publishers = [
         %Publisher{name: "Noonday Press"},
         %Publisher{name: "Bickers & Son"}

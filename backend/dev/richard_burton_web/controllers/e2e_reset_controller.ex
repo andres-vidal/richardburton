@@ -1,18 +1,29 @@
 defmodule RichardBurtonWeb.E2EResetController do
   @moduledoc """
-  Resets the database between Playwright tests: truncates every table, restarts
-  identity sequences, and refreshes the search index. Mounted only in the :e2e
-  environment (see the router). Each worker owns its own database, so a reset
-  only clears that worker's data — this is what keeps parallel workers isolated.
+  Empties the database between end-to-end tests: it truncates every table but
+  the migration ledger, restarts the identity sequences, and refreshes the
+  search index.
+
+  Each end-to-end worker has a database of its own, so a reset empties only
+  the database of the worker that asks for it.
   """
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.Publication.Index.Refresher
   alias RichardBurton.Repo
 
-  # Never truncate the migration ledger.
+  # The tables a reset keeps.
   @preserved ["schema_migrations"]
 
+  @doc """
+  Truncates every table but `schema_migrations`, refreshes the search index,
+  and responds with a 204.
+
+  `TRUNCATE` does not empty the materialized views the index reads, so the
+  reset refreshes them the way a write does. In the e2e environment the
+  refresh finishes before `Refresher.refresh/0` returns, so the next request
+  reads an empty index.
+  """
   def create(conn, _params) do
     tables =
       Repo.query!(
@@ -23,10 +34,6 @@ defmodule RichardBurtonWeb.E2EResetController do
 
     quoted = Enum.map_join(tables, ", ", &~s("#{&1}"))
     Repo.query!("TRUNCATE TABLE #{quoted} RESTART IDENTITY CASCADE")
-
-    # TRUNCATE does not clear the materialized views the index reads, so they
-    # are rebuilt the way the write paths rebuild them. In :e2e the rebuild runs
-    # before `refresh/0` returns, so the next request reads an empty index.
     Refresher.refresh()
 
     send_resp(conn, :no_content, "")

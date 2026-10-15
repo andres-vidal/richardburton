@@ -43,6 +43,23 @@ defmodule RichardBurton.Auth.Recaptcha.GoogleTest do
     assert Google.verify("stale-token") == {:error, ["timeout-or-duplicate"]}
   end
 
+  test "returns no error codes when Google rejects the token without any", %{bypass: bypass} do
+    respond(bypass, 200, ~s({"success": false}))
+
+    assert Google.verify("stale-token") == {:error, []}
+  end
+
+  test "sends the secret and the token form-encoded", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/verify", fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+      assert URI.decode_query(body) == %{"secret" => "test-secret", "response" => "a&b=c"}
+      Plug.Conn.resp(conn, 200, ~s({"success": true}))
+    end)
+
+    assert Google.verify("a&b=c") == :ok
+  end
+
   test "returns a decode error for a non-JSON response", %{bypass: bypass} do
     respond(bypass, 200, "not json")
 

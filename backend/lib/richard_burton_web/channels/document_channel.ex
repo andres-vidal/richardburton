@@ -108,10 +108,8 @@ defmodule RichardBurtonWeb.DocumentChannel do
 
   @doc """
   Broadcasts an `update`, `awareness` or `sync` message to the other
-  connections on the document, and ignores any other event.
-
-  `broadcast_from!` skips the sender, so the sender does not receive its own
-  change and apply it a second time.
+  connections on the document, but not back to the sender, and ignores any
+  other event.
   """
   @impl true
   def handle_in("update", payload = %{"update" => _}, socket) do
@@ -119,19 +117,16 @@ defmodule RichardBurtonWeb.DocumentChannel do
     {:noreply, socket}
   end
 
-  @impl true
   def handle_in("awareness", payload = %{"awareness" => _}, socket) do
     broadcast_from!(socket, "awareness", payload)
     {:noreply, socket}
   end
 
-  @impl true
   def handle_in("sync", payload = %{"state" => _}, socket) do
     broadcast_from!(socket, "sync", payload)
     {:noreply, socket}
   end
 
-  @impl true
   def handle_in(_event, _payload, socket), do: {:noreply, socket}
 
   # Calls `DocumentSocket.allowed?/2` with the socket's `subject_id` and

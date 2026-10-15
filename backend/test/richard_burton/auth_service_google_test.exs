@@ -3,8 +3,8 @@ defmodule RichardBurton.Auth.GoogleTest do
   Google identity-provider implementation of the `RichardBurton.Auth` behaviour.
 
   `verify/1` accepts an injectable key store (a module exposing `fetch_key/1` and
-  `issuer/0`), so the full pipeline — signature verification with a real RS256 key
-  plus claim validation — is exercised here with a stub store, without reaching
+  `issuer/0`), so signature verification with a real RS256 key and claim
+  validation are both exercised here with a stub store, without reaching
   Google. The `authorize/2` and early `verify/1` failure paths need no store.
   """
   use RichardBurton.DataCase, async: false

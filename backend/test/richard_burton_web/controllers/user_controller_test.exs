@@ -138,7 +138,7 @@ defmodule RichardBurtonWeb.UserControllerTest do
 
   describe "GET /users/me" do
     test "returns the current user for a valid rb-session", %{conn: conn} do
-      {:ok, _} = User.insert(%{"subject_id" => "12345", "email" => "me@example.com"})
+      {:ok, _} = User.insert(%{"subject_id" => session_subject_id(), "email" => "me@example.com"})
 
       conn = get(conn, user_path(conn, :me))
 

@@ -1,48 +1,38 @@
 defmodule RichardBurtonWeb.DevSessionController do
   @moduledoc """
-  Dev/test-only credentials provider. Mints an `rb-session` (plus the readable
-  `csrf-token`) without the Google OAuth handshake, so the admin UI can be
-  exercised locally.
+  Signs in without Google, as a development user with the role the request
+  asks for, and sets the cookies of `RichardBurtonWeb.SignInCookies`.
 
-  A role can be asked for — `%{"role" => "contributor"}` — so the surfaces an
-  admin sees and a contributor does not can be exercised as each.
+  Each role has its own development user, `dev-<role>@localhost`, so that
+  signing in as one role does not change the role of another.
 
-  Kept out of production two ways: this file lives outside `lib/`, on a compile
-  path only added for `:dev`, `:test` and `:e2e` (see `elixirc_paths` in
-  `mix.exs`), so the
-  module is not compiled into a prod release at all; and the route is wired only
-  when `Mix.env() in [:dev, :test, :e2e]` (see the router).
+  The module is compiled only in the `:dev`, `:test` and `:e2e` environments,
+  whose compile paths include `dev/` (see `elixirc_paths` in `mix.exs`), and
+  the router mounts its route only in those environments.
   """
   use RichardBurtonWeb, :controller
 
-  alias RichardBurton.Auth.Csrf
-  alias RichardBurton.Auth.Session
   alias RichardBurton.Repo
   alias RichardBurton.User
+  alias RichardBurtonWeb.SignInCookies
 
-  @doc "Upserts the dev user for the asked-for role and sets its session cookies."
+  @doc """
+  Inserts or updates the development user for the `role` parameter, signs in
+  as them and responds with the user. A missing or unknown role is read as
+  `admin`.
+  """
   def create(conn, params) do
     role = role_from(params)
     user = upsert(role)
-    {:ok, token} = Session.create(subject_id(role))
 
     conn
-    |> put_resp_cookie(Session.cookie_name(), token,
-      http_only: true,
-      same_site: "Lax",
-      secure: false,
-      max_age: Session.max_age()
-    )
-    |> put_resp_cookie("csrf-token", Csrf.sign(subject_id(role)),
-      http_only: false,
-      same_site: "Lax",
-      secure: false,
-      max_age: Session.max_age()
-    )
+    |> SignInCookies.put(subject_id(role))
     |> put_status(:created)
     |> json(user)
   end
 
+  # Returns the role the `role` parameter names, or `:admin` when it names
+  # none.
   defp role_from(params) do
     case User.cast_role(params["role"]) do
       {:ok, role} -> role
@@ -50,12 +40,16 @@ defmodule RichardBurtonWeb.DevSessionController do
     end
   end
 
-  # A subject per role, so signing in as one does not demote the other.
+  # Returns the subject id of the development user for `role`.
   defp subject_id(role), do: "dev-#{role}"
+
+  # Returns the email of the development user for `role`.
   defp email(role), do: "dev-#{role}@localhost"
 
-  # The role is asked for, so neither `User.changeset` (which forces `:reader`)
-  # nor `User.set_role` (which guards the last admin) applies here.
+  # Inserts the development user for `role`, or gives the stored one that role
+  # again, and returns the user. It writes the role directly, because
+  # `User.changeset/2` always gives a new user the reader role and
+  # `User.set_role/3` refuses to demote the last admin.
   defp upsert(role) do
     case User.get(subject_id(role)) do
       nil ->

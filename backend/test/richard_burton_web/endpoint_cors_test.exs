@@ -1,10 +1,9 @@
 defmodule RichardBurtonWeb.EndpointCorsTest do
   @moduledoc """
-  Guards the CORS contract for the app's custom headers. The frontend attaches
-  the rb-csrf-token header (double-submit CSRF) once a csrf-token cookie exists,
-  and reads the rb-total-count header off the index response. If CORSPlug doesn't
-  allow/expose these, every browser request breaks after sign-in even though curl
-  works fine.
+  Tests the CORS headers for the app's own headers: a preflight allows the
+  `rb-csrf-token` request header, and the index response exposes the
+  `rb-total-count` header. A browser on another origin sends a custom request
+  header, and reads a custom response header, only when CORS names it.
   """
   use RichardBurtonWeb.ConnCase, async: false
 

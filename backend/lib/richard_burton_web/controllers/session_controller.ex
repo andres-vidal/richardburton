@@ -1,85 +1,53 @@
 defmodule RichardBurtonWeb.SessionController do
   @moduledoc """
-  Exchanges a verified identity-provider token for the app's own session cookie.
+  Signs in with an identity-provider token, and signs out.
 
-  The `Authenticate` plug has already verified the incoming provider token and
-  assigned the identity it vouches for; this action upserts the user and sets
-  the `rb-session` cookie so subsequent requests authenticate without forwarding
-  the provider token.
-
-  The account is keyed on the assigned subject and email — never on the request
-  body, which the caller controls and which an invitation would otherwise let
-  them turn into a role.
+  Signing in admits the person the `Authenticate.Bearer` plug assigned, through
+  `RichardBurton.Invitation.admit/2`, and sets the cookies of
+  `RichardBurtonWeb.SignInCookies`. The account is looked up by the assigned
+  subject and email, never by the request body, because the body is chosen by
+  the caller and the email decides which invitation, and so which role, is
+  taken up.
   """
   use RichardBurtonWeb, :controller
 
-  alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
   alias RichardBurton.Invitation
+  alias RichardBurtonWeb.SignInCookies
 
-  def create(conn = %{assigns: %{subject_id: subject_id, email: email}}, _attrs) do
+  @doc """
+  Admits the assigned identity, sets the sign-in cookies and responds with the
+  user. An address that nobody invited is a 403 with `not_invited`, and a
+  request without an assigned identity is a 401 with `unauthorized`.
+  """
+  def create(conn = %{assigns: %{subject_id: subject_id, email: email}}, _params) do
     case Invitation.admit(subject_id, email) do
-      {:ok, user} ->
-        conn |> put_session_cookie(subject_id) |> put_status(:ok) |> json(user)
-
-      :not_invited ->
-        conn |> put_status(:forbidden) |> json(%{error: :not_invited})
-
-      {:error, _} ->
-        conn |> put_status(:bad_request) |> json(nil)
+      {:ok, user} -> conn |> SignInCookies.put(subject_id) |> json(user)
+      :not_invited -> {:error, :forbidden, :not_invited}
+      error -> error
     end
   end
 
-  def create(conn, _attrs) do
-    conn |> put_status(:unauthorized) |> json("Unauthorized")
-  end
+  def create(_conn, _params), do: {:error, :unauthorized, :unauthorized}
 
   @doc """
-  Clears the `rb-session` cookie so the browser is signed out. The cookie is
-  http-only, so only a server response can expire it; no auth is required since
-  clearing one's own cookie is harmless.
+  Revokes the session in the `rb-session` cookie, when there is one, and
+  deletes the sign-in cookies. `Session.revoke/1` announces the change of
+  access, so the document channels joined under the session close.
+
+  It needs no authentication, because it only ends the session the request
+  itself carries.
   """
   def delete(conn, _params) do
     conn = fetch_cookies(conn)
 
-    # `Session.revoke/1` broadcasts the change of access, and the document
-    # channels opened under this session close. See `RichardBurton.Auth.Access`.
     case conn.cookies[Session.cookie_name()] do
       nil -> :ok
       token -> Session.revoke(token)
     end
 
     conn
-    |> delete_resp_cookie(Session.cookie_name(), same_site: "Lax", secure: secure_cookie?())
-    |> delete_resp_cookie("csrf-token",
-      same_site: "Lax",
-      secure: secure_cookie?(),
-      http_only: false
-    )
+    |> SignInCookies.delete()
     |> send_resp(:no_content, "")
   end
-
-  # Sets the httpOnly `rb-session` cookie plus the readable `csrf-token` cookie
-  # the browser echoes back in the `rb-csrf-token` header (see Auth.Csrf).
-  defp put_session_cookie(conn, subject_id) do
-    {:ok, token} = Session.create(subject_id)
-
-    conn
-    |> put_resp_cookie(Session.cookie_name(), token,
-      http_only: true,
-      same_site: "Lax",
-      secure: secure_cookie?(),
-      max_age: Session.max_age()
-    )
-    |> put_resp_cookie("csrf-token", Csrf.sign(subject_id),
-      http_only: false,
-      same_site: "Lax",
-      secure: secure_cookie?(),
-      max_age: Session.max_age()
-    )
-  end
-
-  # The session cookie is secure unless configured otherwise, which only local
-  # development over plain HTTP needs.
-  defp secure_cookie?, do: Application.get_env(:richard_burton, :phx_session_tls, true)
 end

@@ -1,14 +1,14 @@
 defmodule RichardBurtonWeb.Endpoint do
   @moduledoc """
-  The HTTP entry point: the socket, the static and parsing plugs, and the
-  session the `rb-session` cookie is carried in.
+  The HTTP entry point: the sockets, and the plugs every request goes through
+  before the router, such as request parsing and CORS.
   """
 
   use Phoenix.Endpoint, otp_app: :richard_burton
 
-  # The session will be stored in the cookie and signed,
-  # this means its contents can be read but not tampered with.
-  # Set :encryption_salt if you would also like to encrypt it.
+  # The Plug session, a signed cookie that the LiveDashboard and its socket
+  # use. The app's own sign-in does not use it (see
+  # `RichardBurtonWeb.SignInCookies`).
   @session_options [
     store: :cookie,
     key: "_richard_burton_key",
@@ -36,19 +36,7 @@ defmodule RichardBurtonWeb.Endpoint do
     auth_token: true
   )
 
-  # Serve at "/" the static files from "priv/static" directory.
-  #
-  # You should set gzip to true if you are running phx.digest
-  # when deploying your static files in production.
-  plug(Plug.Static,
-    at: "/",
-    from: :richard_burton,
-    gzip: false,
-    only: ~w(assets fonts images favicon.ico robots.txt)
-  )
-
-  # Code reloading can be explicitly enabled under the
-  # :code_reloader configuration of your endpoint.
+  # Code reloading is on when the endpoint's `:code_reloader` setting is true.
   if code_reloading? do
     plug(Phoenix.CodeReloader)
     plug(Phoenix.Ecto.CheckRepoStatus, otp_app: :richard_burton)
@@ -68,7 +56,6 @@ defmodule RichardBurtonWeb.Endpoint do
     json_decoder: Phoenix.json_library()
   )
 
-  plug(Plug.MethodOverride)
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
 
@@ -76,8 +63,8 @@ defmodule RichardBurtonWeb.Endpoint do
     origin: &RichardBurton.Application.origin/0,
     credentials: Application.compile_env(:richard_burton, :phx_cors_credentials, false),
     expose: ["content-disposition", RichardBurton.Publication.Index.count_header()],
-    # CORSPlug's default allow-headers list, plus our custom rb-csrf-token so the
-    # double-submit header survives the preflight once a csrf-token cookie exists.
+    # The default headers of CORSPlug, and the CSRF token header that
+    # `RichardBurtonWeb.Plugs.VerifyCsrf` reads.
     headers: [
       "Authorization",
       "Content-Type",
