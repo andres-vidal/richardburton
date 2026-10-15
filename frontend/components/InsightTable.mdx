@@ -6,10 +6,9 @@ import * as InsightTableStories from "./InsightTable.stories";
 
 # Insight table
 
-A table of the counts a chart draws. A chart that hides its drawing from
-assistive technology renders this table beside it, visually hidden, so a screen
-reader reads the same counts as rows and columns. With `shown`, the table is on
-screen, and can stand in place of the chart.
+A table of the counts a chart draws. Unless `shown` is set, the table is
+visually hidden but still read by assistive technology, so it can stand in for
+a drawing that is hidden from it. With `shown`, the table is on screen.
 
 The table is hidden with `sr-only` unless `shown` is set, so the canvas below is
 blank. Its play test reads the table by its rows.

@@ -1,15 +1,16 @@
 "use client";
 
 import CopyIcon from "assets/copy.svg";
-import { notify } from "components/Notifications";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
+import { notify } from "./Notifications";
 import Tooltip from "./Tooltip";
 
 /**
- * Copy a link to the current record, absolute so it can be sent to someone
- * else. For places where the address is not on screen — inside an overlay, the
- * URL bar still shows the page underneath.
+ * An icon button that copies `href` to the clipboard as an absolute URL, so it
+ * can be sent to someone else. Its accessible name and tooltip say "Copy link",
+ * and "Copied" for two seconds after a copy. A notification shows the URL that
+ * was copied, or says that the browser refused the clipboard.
  */
 const CopyLink: FC<{ href: string }> = ({ href }) => {
   const t = useTranslations("link");

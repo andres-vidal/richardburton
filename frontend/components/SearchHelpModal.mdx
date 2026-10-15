@@ -28,21 +28,21 @@ is discoverable from the input itself.
 
 ## In Portuguese
 
-Every operator accepts a Portuguese name, documented rather than left to be
-discovered.
+Every operator also accepts a Portuguese name, and the last group lists them.
 
 <Canvas of={SearchHelpStories.InPortuguese} />
 
 ## How it opens
 
-From the URL (`?search-help`), like the platform's other modals, and from a
-link beside the search box. Opening it preserves the current search, so the
-query being refined stays on screen.
+The modal is open while the URL has a `search-help` query parameter, so a link
+can open it. `SEARCH_HELP_MODAL_KEY` is the name of that parameter. Opening it
+keeps the rest of the query, so the search being refined stays behind it.
+Without the parameter, nothing is rendered.
 
 <Canvas of={SearchHelpStories.Closed} />
 
 ## Scope
 
-Each row gives a query and what it matches. Nothing here describes the
-implementation — no indexes, ranking or tsquery syntax. This copy has to change
+Each row gives a query and what it matches. Nothing here describes how the
+search works, such as indexes, ranking or tsquery syntax. The copy has to change
 whenever an operator does.

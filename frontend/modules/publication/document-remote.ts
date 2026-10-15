@@ -86,6 +86,7 @@ async function list({
   });
 }
 
+/** Creates an empty document named `name`. */
 async function create(name: string): Promise<DocumentSummary> {
   return request(async (http) => {
     const { data } = await http.post<DocumentSummary>("documents", { name });
@@ -94,7 +95,7 @@ async function create(name: string): Promise<DocumentSummary> {
   });
 }
 
-/** Give a document a different name. */
+/** Gives a document a different name. */
 async function rename(id: number, name: string): Promise<DocumentSummary> {
   return request(async (http) => {
     const { data } = await http.patch<DocumentSummary>(`documents/${id}`, {
@@ -200,4 +201,4 @@ export {
   unarchive,
   updates,
 };
-export type { Cursor, DocumentPage, DocumentSummary, Held };
+export type { DocumentPage, DocumentSummary };

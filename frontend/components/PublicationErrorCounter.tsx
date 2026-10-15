@@ -2,43 +2,41 @@
 
 import CheckIcon from "assets/check.svg";
 import ErrorCircleIcon from "assets/error-circle.svg";
-import { toString } from "lodash";
 import {
   useValidPublicationCount,
   usePublicationCount,
 } from "modules/publication/hooks";
-import { useTranslations } from "next-intl";
-import { FC, useState } from "react";
+import { useFormatter, useTranslations } from "next-intl";
+import { FC } from "react";
 import Button from "./Button";
+import { useModal } from "./Modal";
 import PublicationErrors from "./PublicationErrors";
 import Tooltip from "./Tooltip";
 
+/**
+ * Renders how many loaded publications have errors, as a red button that opens
+ * the list of errors. It renders a green check when every loaded publication is
+ * valid, and nothing when no publications are loaded.
+ */
 const PublicationErrorCounter: FC = () => {
   const t = useTranslations("admin");
-  const [isOpen, setOpen] = useState(false);
+  const format = useFormatter();
+  const errors = useModal();
   const publicationCount = usePublicationCount();
   const validPublicationCount = useValidPublicationCount();
   const invalidPublicationCount = publicationCount - validPublicationCount;
 
-  // Nothing loaded yet — nothing to report.
-  if (publicationCount === 0) return null;
-
-  // All valid — a green check reassures instead of showing a red "0".
-  if (invalidPublicationCount === 0) {
-    return (
-      <Tooltip variant="info" message={t("allValid")}>
-        <span
-          role="status"
-          aria-label={t("allValid")}
-          className="flex items-center rounded bg-green-600 px-2 py-1.5 text-white shadow-sm"
-        >
-          <CheckIcon className="w-4 h-4" />
-        </span>
-      </Tooltip>
-    );
-  }
-
-  return (
+  return publicationCount === 0 ? null : invalidPublicationCount === 0 ? (
+    <Tooltip variant="info" message={t("allValid")}>
+      <span
+        role="status"
+        aria-label={t("allValid")}
+        className="flex items-center rounded bg-green-600 px-2 py-1.5 text-white shadow-sm"
+      >
+        <CheckIcon className="w-4 h-4" />
+      </span>
+    </Tooltip>
+  ) : (
     <>
       <Tooltip
         variant="error"
@@ -49,15 +47,15 @@ const PublicationErrorCounter: FC = () => {
           width="fit"
           alignment="left"
           Icon={ErrorCircleIcon}
-          label={toString(invalidPublicationCount)}
+          label={format.number(invalidPublicationCount)}
           aria-label={t("invalidPublications", {
             count: invalidPublicationCount,
           })}
-          onClick={() => setOpen(true)}
+          onClick={errors.open}
         />
       </Tooltip>
 
-      <PublicationErrors isOpen={isOpen} onClose={() => setOpen(false)} />
+      <PublicationErrors isOpen={errors.isOpen} onClose={errors.close} />
     </>
   );
 };

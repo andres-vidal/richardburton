@@ -144,7 +144,8 @@ const Question: FC<{
  * `Modal` renders its content only while it is open, so `Queue` mounts when the
  * review opens. It copies `resemblingIdsAtom` then and keeps that list until
  * the review closes. If it read the live list, an edit made while the review is
- * open could change the list and move the current position.
+ * open could change the list and move the current position. Each row's
+ * question is keyed by the row, so it starts afresh.
  */
 const Queue: FC<{ startAt?: PublicationId }> = ({ startAt }) => {
   const store = usePublicationStore();
@@ -161,7 +162,6 @@ const Queue: FC<{ startAt?: PublicationId }> = ({ startAt }) => {
   return current === undefined ? null : (
     <div className="overflow-y-auto flex-1">
       <Question
-        // Keyed by the row id, so `Question` remounts for each row.
         key={current}
         id={current}
         position={position}
@@ -179,6 +179,10 @@ const Queue: FC<{ startAt?: PublicationId }> = ({ startAt }) => {
   );
 };
 
+/**
+ * A dialog that steps through the rows of the enclosing store that resemble
+ * something, one at a time, starting on `startAt` when it is one of them.
+ */
 const PublicationResemblances: FC<Props> = ({ isOpen, startAt, onClose }) => {
   const t = useTranslations("resemblances");
 

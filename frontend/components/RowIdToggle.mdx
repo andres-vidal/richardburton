@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as RowIdToggleStories from "./RowIdToggle.stories";
 
@@ -23,6 +23,7 @@ import { seed } from "test/publication-fixtures";
 seed(store); // load the sample publications before the story renders
 ```
 
+<Description of={RowIdToggleStories.Default} />
 <Canvas of={RowIdToggleStories.Default} />
 
 ## States

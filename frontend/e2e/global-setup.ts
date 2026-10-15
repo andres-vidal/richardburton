@@ -1,17 +1,17 @@
 import { execFileSync } from "node:child_process";
+import { MIX_PATH, WORKERS } from "./stack";
 
-// Ensure each worker's e2e database exists and is migrated before Playwright boots
-// the stacks. Idempotent: ecto.create is tolerated if the database already exists.
+/**
+ * Creates and migrates each worker's database before Playwright starts the
+ * stacks. A database that already exists is migrated as it is.
+ */
 export default function globalSetup() {
-  const workers = Number(process.env.E2E_WORKERS ?? "1");
-  const asdf = `${process.env.HOME}/.asdf/shims`;
-
-  for (let i = 0; i < workers; i++) {
+  for (let i = 0; i < WORKERS; i++) {
     const env = {
       ...process.env,
       MIX_ENV: "e2e",
       E2E_WORKER: String(i),
-      PATH: `${asdf}:${process.env.PATH}`,
+      PATH: MIX_PATH,
     };
     const opts = { cwd: "../backend", env } as const;
 
@@ -21,7 +21,7 @@ export default function globalSetup() {
         stdio: "pipe",
       });
     } catch {
-      // Already exists — fine.
+      // The database exists already.
     }
     execFileSync("mix", ["ecto.migrate", "--quiet"], {
       ...opts,

@@ -1,0 +1,29 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ToggleStories from "./Toggle.stories";
+
+<Meta of={ToggleStories} />
+
+# Toggle
+
+A left-aligned [Button](?path=/docs/components-button--docs) that switches
+something on or off. Checked, it is the primary variant with a check mark.
+Unchecked, it is the outline variant with no icon. `aria-pressed` gives the
+state to assistive technology.
+
+<Description of={ToggleStories.Default} />
+<Canvas of={ToggleStories.Default} />
+
+## Props
+
+- `label` — the button's label and accessible name.
+- `checked` — whether it is on. The caller owns it and flips it in `onClick`.
+- `onClick` — called on a click.
+- `CheckedIcon` and `UncheckedIcon` — the icon for each state, a check mark and
+  none by default. Give both the same icon for an icon-only toggle, with
+  `labelSrOnly`.
+
+Every other prop of `Button`, such as `width` or `labelSrOnly`, passes through.
+
+<Description of={ToggleStories.Checked} />
+<Canvas of={ToggleStories.Checked} />

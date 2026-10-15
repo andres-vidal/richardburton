@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as CounterStories from "./PublicationCounter.stories";
 
@@ -6,10 +6,9 @@ import * as CounterStories from "./PublicationCounter.stories";
 
 # Publication counter
 
-A small pill button that reports how many publications are currently in view — a
-sparkle icon next to the count, with a tooltip like "3 new publications". It sits
-in the review toolbar as an at-a-glance total of the rows the user is about to
-submit.
+A small button that reports how many rows the import workspace holds: a sparkle
+icon next to the count, with a tooltip like "3 new publications". It sits in the
+workspace's footer as a total of the rows that would be submitted.
 
 ## Data source
 
@@ -24,6 +23,7 @@ import { seed } from "test/publication-fixtures";
 seed(store); // load the sample publications before the story renders
 ```
 
+<Description of={CounterStories.Default} />
 <Canvas of={CounterStories.Default} />
 
 ## States

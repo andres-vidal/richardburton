@@ -4,31 +4,28 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
+import { backendPort, frontendPort } from "./stack";
 
-const backendPort = (i: number) => 4100 + i;
-const frontendPort = (i: number) => 3100 + i;
-
-/** The backend base URL for the current worker (own database + port). */
-export const backendUrl = (parallelIndex: number) =>
-  `http://localhost:${backendPort(parallelIndex)}`;
-
-// Each test runs against its worker's stack, and that worker's database is reset
-// before every test — the DB-per-worker isolation contract.
+/**
+ * Playwright's `test`, run against the stack of the test's worker, with that
+ * worker's database reset before every test.
+ */
 export const test = base.extend<{
   reset: void;
   colleagueContext: BrowserContext;
   colleague: Page;
 }>({
-  // Point navigation at this worker's frontend.
+  // Navigation goes to this worker's frontend.
   baseURL: async ({}, use, testInfo) => {
     await use(`http://localhost:${frontendPort(testInfo.parallelIndex)}`);
   },
 
-  // Auto-run before every test: truncate + reseed this worker's database.
+  // Runs before every test: resets this worker's database with
+  // POST /test/reset.
   reset: [
     async ({ request }, use, testInfo) => {
       const res = await request.post(
-        `${backendUrl(testInfo.parallelIndex)}/test/reset`,
+        `http://localhost:${backendPort(testInfo.parallelIndex)}/test/reset`,
       );
       if (res.status() !== 204) {
         throw new Error(`/test/reset returned ${res.status()}`);

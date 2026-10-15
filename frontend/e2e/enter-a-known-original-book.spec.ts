@@ -9,6 +9,7 @@ import {
   selectEnumOption,
   submitWorkspace,
   CORPUS_SIZE,
+  indexTable,
   openDocument,
 } from "./helpers";
 
@@ -23,35 +24,37 @@ const SECOND_TRANSLATION = {
   publisher: "Bloomsbury",
 };
 
-test("entering a translation of a book already in the database completes it from one field", async ({
+test("a translation of a book already in the database is typed from the keyboard, completed from one field", async ({
   page,
 }) => {
   await seedCorpus(page);
   await openDocument(page);
 
+  const table = indexTable(page);
   const row = draftRow(page);
   const originalTitle = row.getByPlaceholder("Original Title", { exact: true });
 
   // Typing part of the author finds the book: either half of it will do.
   await originalTitle.fill("Machado");
-  const byAuthor = page.getByRole("option", {
-    name: "Dom Casmurro Machado de Assis",
-  });
-  await expect(byAuthor).toBeVisible();
+  await expect(
+    page.getByRole("option", { name: "Dom Casmurro Machado de Assis" }),
+  ).toBeVisible();
 
   // The corpus holds three works by that author, and each is offered whole.
   await expect(page.getByRole("option")).toHaveCount(3);
 
-  // Typing the title narrows to the one book, and picking it fills both halves.
+  // Typing the title narrows to the one book, and Enter picks it, which fills
+  // both halves. Enter picks the book rather than adding the row, which is
+  // still the draft: the table holds its header and the draft row only.
   await originalTitle.fill("Dom Cas");
-  await page
-    .getByRole("option", { name: "Dom Casmurro Machado de Assis" })
-    .click();
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await originalTitle.press("Enter");
 
   await expect(originalTitle).toHaveValue("Dom Casmurro");
   await expect(
     row.getByText("Machado de Assis", { exact: true }),
   ).toBeVisible();
+  await expect(table.getByRole("row")).toHaveCount(2);
 
   // The rest of the row is this translation's own.
   await row
@@ -60,12 +63,32 @@ test("entering a translation of a book already in the database completes it from
   await row
     .getByPlaceholder("Year", { exact: true })
     .fill(SECOND_TRANSLATION.year);
-
   await commitMulti(row, "Translators", SECOND_TRANSLATION.authors);
+
+  // A country is picked from the countries the database knows. A name that is
+  // no country is not taken, and Enter on it adds neither it nor the row.
+  const countries = row.getByPlaceholder("Countries", { exact: true });
+  await countries.click();
+  await countries.pressSequentially("Atlantis");
+  await expect(countries).toHaveAttribute("aria-busy", "false");
+  await countries.press("Enter");
+  await expect(
+    row.getByRole("button", { name: "Remove Atlantis" }),
+  ).toHaveCount(0);
+  await expect(table.getByRole("row")).toHaveCount(2);
+
+  await countries.fill("");
   await selectEnumOption(row, "Countries", SECOND_TRANSLATION.country);
   await commitMulti(row, "Publishers", SECOND_TRANSLATION.publisher);
 
-  await row.getByRole("button", { name: "Add publication" }).click();
+  // The comma committed the publisher and left the field empty, and focused.
+  // Enter in it now adds the row.
+  await page.keyboard.press("Enter");
+  await expect(
+    table.getByRole("row", { name: /Dom Casmurro \(Gledson\)/ }),
+  ).toBeVisible();
+  await expect(originalTitle).toHaveValue("");
+
   await submitWorkspace(page, 1);
 
   // Both translations are in the database, spelling the original the same way.
@@ -81,7 +104,7 @@ test("entering a translation of a book already in the database completes it from
   const search = page.getByRole("textbox", { name: "Search publications" });
   await search.fill("Dom Casmurro");
   await expect(
-    page.getByRole("row").filter({ hasText: "Gledson" }),
+    indexTable(page).getByRole("row").filter({ hasText: "Gledson" }),
   ).toHaveCount(1);
   await search.clear();
 
@@ -91,7 +114,9 @@ test("entering a translation of a book already in the database completes it from
   ).toBeVisible();
 });
 
-test("a book nobody has entered yet is simply typed", async ({ page }) => {
+test("a book nobody has entered yet is simply typed, and Enter adds the row as it is", async ({
+  page,
+}) => {
   await seedCorpus(page);
   await openDocument(page);
 
@@ -101,6 +126,16 @@ test("a book nobody has entered yet is simply typed", async ({ page }) => {
   await originalTitle.fill("Uma Obra Inédita");
 
   // Nothing to offer, and the field keeps what it was given.
+  await expect(originalTitle).toHaveAttribute("aria-busy", "false");
   await expect(page.getByRole("option")).toHaveCount(0);
   await expect(originalTitle).toHaveValue("Uma Obra Inédita");
+
+  // With no book to pick, Enter adds the row. A row with only its original
+  // title is not a whole publication yet, so it is marked invalid.
+  await originalTitle.press("Enter");
+  await expect(
+    indexTable(page).getByRole("row", { name: /Uma Obra Inédita/ }),
+  ).toBeVisible();
+  await expect(page.getByLabel("1 invalid publication")).toBeVisible();
+  await expect(originalTitle).toHaveValue("");
 });

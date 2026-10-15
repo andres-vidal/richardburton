@@ -13,17 +13,14 @@ happened, and the one thing to do about it.
 
 ## Props
 
-- `copy` — names the card's copy in the catalogue, whole: `auth.pending`. The
-  card reads `title` and `body` from there rather than being handed them, so
-  the wording of a page lives with the rest of the wording.
+- `copy` — the namespace of the card's messages, such as `auth.pending`. The
+  card reads its `title` and `body` from there.
 - `children` — what to do next, at the foot. Optional.
 
 ## What the body may say
 
-The body is rich text, and the message decides which parts it has: a
-`<message>` saying what happened, and an optional `<suggestion>` saying what to
-do about it. The card decides how each one reads — the suggestion is the
-smaller, quieter line.
+The body is rich text with a `<message>` part saying what happened, and an
+optional `<suggestion>` part saying what to do about it, set smaller.
 
 <Canvas of={AuthCardStories.WithASuggestion} />
 
@@ -33,8 +30,8 @@ A body with nothing to suggest is the one line, and nothing under it.
 
 ## Not only for signing in
 
-The 404 is the same shape, so it is the same card under a different name in the
-catalogue.
+A page that is not there has the same shape, so it is the same card with
+different messages.
 
 <Canvas of={AuthCardStories.APageThatIsNotThere} />
 

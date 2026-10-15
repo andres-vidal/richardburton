@@ -1,12 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { expect, userEvent, within } from "storybook/test";
+import { publicationIdsAtom } from "modules/publication/store";
+import { getSelection, select } from "modules/selection";
+import { store } from "modules/store";
+import { seed } from "test/publication-fixtures";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import PublicationDeselect from "./PublicationDeselect";
 
 const meta = {
-  title: "Components/Publication Deselect",
+  title: "Publications/Publication deselect",
   component: PublicationDeselect,
-  tags: ["autodocs"],
   parameters: { layout: "centered" },
 } satisfies Meta<typeof PublicationDeselect>;
 
@@ -14,15 +17,23 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Shows the current selection size and clears it when clicked. */
-export const Default: Story = {
+/**
+ * Two rows are selected, so the button reads "Deselect 2". The play test
+ * clicks it and checks that the selection is empty.
+ */
+export const TwoRowsSelected: Story = {
+  beforeEach: () => {
+    seed(store);
+    const [first, second] = store.get(publicationIdsAtom) ?? [];
+
+    select(store, { id: first, type: "publication" });
+    select(store, { id: second, type: "publication", metaKey: true });
+  },
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    // With nothing selected the button reads "Deselect 0".
-    const button = canvas.getByRole("button", { name: /Deselect 0/ });
-    await expect(button).toBeInTheDocument();
-    // Clicking clears the selection — a safe no-op when already empty.
-    await userEvent.click(button);
-    await expect(button).toBeInTheDocument();
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: "Deselect 2" }),
+    );
+
+    await waitFor(() => expect(getSelection(store).size).toBe(0));
   },
 };

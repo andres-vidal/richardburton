@@ -1,0 +1,17 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as AppLoaderStories from "./AppLoader.stories";
+
+<Meta of={AppLoaderStories} />
+
+# App loader
+
+A full-screen overlay that says a request is being processed, with the app's
+logo drawing itself in a circle. It renders in a portal and takes no props, so
+it is shown by rendering it and removed by no longer rendering it.
+
+It is a modal dialog named by its message and marked `aria-busy`, and it takes
+focus, so nothing under it can be used while it is shown.
+
+<Description of={AppLoaderStories.Default} />
+<Canvas of={AppLoaderStories.Default} />

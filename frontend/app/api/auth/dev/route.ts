@@ -1,15 +1,17 @@
+import { api } from "app/api";
 import { admits } from "app/api/auth/gate";
-import HTTP from "modules/http";
 import { User } from "modules/users";
 import { NextRequest, NextResponse } from "next/server";
 
-const http = HTTP.client({ baseURL: process.env.NEXT_INTERNAL_API_URL });
-
-// Dev-only credentials provider: asks the backend to mint an rb-session (no
-// Google OAuth) and relays its Set-Cookie to the browser, exactly like the OAuth
-// callback — including where it sends each role afterwards, so what is exercised
-// here is what a real sign-in does. `?role=` picks which role to sign in as.
-// Guarded to development on both ends — 404 otherwise.
+/**
+ * Signs in without Google, in development only, and answers 404 otherwise.
+ * It asks the backend for a session as the `?role` it names, an admin by
+ * default, and then redirects and relays the session cookies as the OAuth
+ * callback does, through `admits`. A failed request redirects to the error
+ * page.
+ *
+ * The backend offers its side of this in development only too.
+ */
 export async function GET(request: NextRequest) {
   if (process.env.NODE_ENV !== "development") {
     return new NextResponse(null, { status: 404 });
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   let backend;
   try {
-    backend = await http.post<User>("/dev/session", { role });
+    backend = await api.post<User>("/dev/session", { role });
   } catch (e) {
     console.error(e);
     return NextResponse.redirect(
@@ -31,7 +33,7 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(new URL(location, request.url));
 
   if (session) {
-    for (const cookie of [backend.headers["set-cookie"] ?? []].flat()) {
+    for (const cookie of backend.headers["set-cookie"] ?? []) {
       response.headers.append("Set-Cookie", cookie);
     }
   }

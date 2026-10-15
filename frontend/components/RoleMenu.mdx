@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as RoleMenuStories from "./RoleMenu.stories";
 
@@ -6,41 +6,49 @@ import * as RoleMenuStories from "./RoleMenu.stories";
 
 # Role menu
 
-Picks a role. Used by [Invite someone](?path=/docs/access-invite-someone--docs)
-for the role to offer, and by [People](?path=/docs/access-people--docs) once per
-row for the role someone holds.
+A button showing a role's name that opens a menu of every role, least
+privileged first. It is the app's own menu, `MenuProvider`, rather than the
+platform's `<select>`, so it looks and behaves like the app's other menus.
 
-It is the app's own menu — `MenuProvider`, the same one behind the column menu
-and the comboboxes — rather than the platform's `<select>`, so the access page
-looks and behaves like the rest of the app.
+<Description of={RoleMenuStories.Default} />
 
 <Canvas of={RoleMenuStories.Default} />
 
-## What it is made of
+## Props
+
+- `value` — the role shown.
+- `label` — the accessible name, which says whose role it is or what it is for.
+- `disabled` — disables the button.
+- `onChange` — called with a role other than `value` when one is picked.
+
+## How it is built
 
 `MenuProvider` supplies the listbox, keyboard navigation and dismissal, but not
-what opens it — its interactions are `useRole`, `useDismiss` and
-`useListNavigation`, with no `useClick`. So the trigger owns `isOpen` and says
-so on click, exactly as `Select` does.
+what opens it, so the button keeps `isOpen` and toggles it on click, as
+`Select` does.
 
-Pairing a trigger with a listbox gives the trigger the **`combobox`** role, which
-is what to query it by — not `button`.
+A button paired with a listbox takes the **`combobox`** role, so query it by
+`combobox`, not `button`.
 
-Each option carries the role as its id and the role's name as its label, so what
-is picked stays the stored value while what is read is "Administrator", not
-`admin`.
+Each option has the role as its id and the role's name as its label, so
+`onChange` gets the stored value, such as `admin`, while the reader sees
+"Administrator".
+
+<Description of={RoleMenuStories.Open} />
 
 <Canvas of={RoleMenuStories.Open} />
 
-## Choosing what is already chosen
+## Choosing a role
 
-Reports nothing. Picking the role someone already holds is not a change, and
-firing one would mean a request, a notification and a re-render for nothing.
+<Description of={RoleMenuStories.ChoosingAnotherRole} />
+<Canvas of={RoleMenuStories.ChoosingAnotherRole} />
+
+Picking the role already shown is not a change, so it calls nothing.
 
 <Canvas of={RoleMenuStories.ChoosingTheSameRole} />
 
 ## Disabled
 
-Your own row, and any row with a request in flight.
+<Description of={RoleMenuStories.Disabled} />
 
 <Canvas of={RoleMenuStories.Disabled} />

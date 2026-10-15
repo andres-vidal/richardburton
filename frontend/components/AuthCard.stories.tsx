@@ -4,8 +4,8 @@ import { expect, fn, screen, userEvent } from "storybook/test";
 import AuthCard from "./AuthCard";
 import Button from "./Button";
 
-// The card is named rather than written out, so a story names one of the cards
-// the app actually shows.
+// The card reads its messages from the catalogue, so each story names the
+// messages of a card the app shows.
 const meta = {
   title: "Auth/Auth card",
   component: AuthCard,
@@ -52,10 +52,7 @@ export const WithoutASuggestion: Story = {
   },
 };
 
-/**
- * The card is not only for sign-in: the 404 is the same shape, since it is also
- * a title, what happened, and the one way on from it.
- */
+/** The card with the messages of a page that is not there. */
 export const APageThatIsNotThere: Story = {
   args: { copy: "notFound", children: undefined },
   play: async () => {

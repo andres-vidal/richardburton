@@ -26,10 +26,11 @@ const UNDO_DISABLED = Symbol("undo disabled");
 
 type UndoHandler = (() => Promise<void>) | typeof UNDO_DISABLED;
 
-// A fixed-width, soft-tinted pill per action (the app's badge idiom), so the
-// action column aligns and every subject starts at the same x. Colour comes
-// from the ancestor's data-action and size from its own data-variant — two
-// independent attributes, per the project's styling convention.
+/**
+ * The name of an entry's action as a tinted badge of fixed width, so the
+ * subjects of the entries line up. The colour comes from the `data-action` of
+ * the entry around it, and the size from `variant`.
+ */
 const ActionBadge: FC<{
   action: PublicationHistoryEntry["action"];
   variant: Variant;
@@ -59,15 +60,22 @@ const ActionBadge: FC<{
   );
 };
 
+/**
+ * One entry of a publication's log: its action, who made it and when, and what
+ * it changed. The `card` variant names the publication and frames the entry,
+ * and the `plain` variant does neither.
+ *
+ * What it changed is listed from `entry.changes`: a field's old and new value,
+ * the sources added and removed, the records a merge took in or gave back, and
+ * the records a duplicate decision was about. An update with no earlier
+ * version to compare with says so.
+ */
 const Entry: FC<{
   entry: HistoryEntry;
   /**
-   * Undo this entry — offered only where the view has somewhere to send it, so
-   * the modal's read-only log passes nothing and renders no control. Whether
-   * the *entry* admits an undo is `entry.undoable`, which the server decides;
-   * both must hold. `UNDO_DISABLED` is the third case: it belongs here but is
-   * barred for now. Resolve it when the list has settled — the row spins until
-   * then.
+   * Undoes this entry. The entry shows an Undo button only when this is given
+   * and `entry.undoable` is true. `UNDO_DISABLED` shows the button disabled.
+   * The button spins until the promise settles.
    */
   onUndo?: UndoHandler;
   variant?: Variant;
@@ -147,8 +155,7 @@ const Entry: FC<{
           data-variant={variant}
           className="mt-2 text-xs text-gray-500 italic data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
         >
-          Nothing earlier to compare with — this is where the record&apos;s log
-          starts.
+          {t("noBaseline")}
         </p>
       )}
       {entry.action === "renamed" ? (
@@ -173,7 +180,8 @@ const Entry: FC<{
               </li>
             ) : change.kind === "sources" ? (
               <li key="sources" className="text-xs text-gray-600">
-                Sources:{change.reordered ? " reordered" : null}
+                {attribute("sources")}:
+                {change.reordered ? ` ${t("reordered")}` : null}
                 <ul className="space-y-0.5">
                   {change.removed.map((source) => (
                     <li key={`− ${source}`} className="text-red-700">
@@ -245,11 +253,9 @@ const Entry: FC<{
 };
 
 /**
- * A publication's mutation log, newest first: who did what, when, and — for
- * updates — which fields changed. Rendered plain (no card chrome, smaller
- * type): inside the publication modal this is a supporting detail, not the
- * page's subject. Records created before the history log have no entries; that
- * absence is stated rather than hidden.
+ * A publication's log, newest first: who did what, when, and what each change
+ * was. The entries use the `plain` variant, with no frame and smaller type. A
+ * log with no entries says that the record predates the log.
  */
 const PublicationHistory: FC<{ entries: HistoryEntry[] }> = ({ entries }) => {
   const t = useTranslations("admin");

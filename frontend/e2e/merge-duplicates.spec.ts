@@ -7,13 +7,15 @@ import {
   seedCorpus,
   submitWorkspace,
   CORPUS_SIZE,
+  historyEntries,
+  notifications,
   openDocument,
 } from "./helpers";
 
 // The record the corpus seeds, and the two the journey enters beside it: the
 // same translation, entered again by people who each knew a different part of
-// it. One adds a country, a publisher and a source; the other adds only a
-// source. Together they are what a merge is for.
+// it. Each adds a country and a publisher the stored record lacks. Together
+// they are what a merge is for.
 const CANONICAL = "Dom Casmurro";
 
 const BRITISH_PRINTING = {
@@ -26,7 +28,7 @@ const BRITISH_PRINTING = {
   publisher: "W. H. Allen",
 };
 
-const SOURCED_COPY = {
+const BRAZILIAN_PRINTING = {
   title: CANONICAL,
   originalTitle: "Dom Casmurro",
   year: "1953",
@@ -41,11 +43,10 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
 }) => {
   await seedCorpus(page);
 
-  // Two more records of the book the corpus already holds, each with a source
-  // of its own so the merge has provenance to reconcile.
+  // Two more records of the translation the corpus already holds.
   await openDocument(page);
   await addPublicationRow(page, BRITISH_PRINTING);
-  await addPublicationRow(page, SOURCED_COPY);
+  await addPublicationRow(page, BRAZILIAN_PRINTING);
   await submitWorkspace(page, 2);
 
   await page.goto("/");
@@ -103,9 +104,7 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
   await merge.getByRole("button", { name: "Add" }).first().click();
   await merge.getByRole("button", { name: "Merge 2 publications" }).click();
 
-  await expect(
-    page.locator("section[aria-label='Notifications']"),
-  ).toContainText(/Merged 2 publications/);
+  await expect(notifications(page)).toContainText(/Merged 2 publications/);
 
   // One record where there were three, and it holds every country and
   // publisher the three of them named.
@@ -132,7 +131,7 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
 
   // The record's own log carries the merge, on the record that survived it.
   await merged.getByText("History").click();
-  const mergeEntry = merged.locator('li[data-action="merged"]').first();
+  const mergeEntry = historyEntries(merged, "merged").first();
   await expect(mergeEntry).toBeVisible();
   await expect(mergeEntry).toContainText("Took in");
   await page.keyboard.press("Escape");
@@ -153,7 +152,7 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
   // The feed carries the merge as one entry, however many records it took in,
   // and says which they were.
   await page.goto("/admin/publications/history");
-  const mergedEntries = page.locator('li[data-action="merged"]');
+  const mergedEntries = historyEntries(page, "merged");
   await expect(mergedEntries).toHaveCount(1);
   await expect(mergedEntries.first()).toContainText(CANONICAL);
   await expect(mergedEntries.first()).toContainText("Took in");
@@ -170,9 +169,9 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
   await page.goto("/admin/publications/history");
   await mergedEntries.first().getByRole("button", { name: "Undo" }).click();
 
-  await expect(
-    page.locator('li[data-action="unmerged"]').first(),
-  ).toContainText("Gave back");
+  await expect(historyEntries(page, "unmerged").first()).toContainText(
+    "Gave back",
+  );
 
   // The records that left are in the database again, and the survivor has
   // given up what it had absorbed.

@@ -4,20 +4,18 @@ import type { Metadata } from "next";
 import { Link } from "i18n/navigation";
 import { getTranslations } from "next-intl/server";
 
+/** Returns the page's title. */
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("auth"))("pendingPageTitle") };
 }
 
 /**
- * Where someone lands when the sign-in worked and there is nothing yet to do
- * with it.
+ * The page a sign-in lands on when the account exists but has only the
+ * reader's role, which gives no access beyond what a visitor has. It says the
+ * account is ready, that an admin can give it a role, and links to the index.
  *
- * An account exists, but with a reader's role, which grants nothing signing out
- * would not. "Access denied" would be wrong twice over: nothing was denied, and
- * asking is a way forward.
- *
- * The page names nobody — the session cookie is relayed only once the gate
- * passes, so there is no session to read yet.
+ * It names nobody. The sign-in sets the session cookie only for a user who may
+ * edit publications, so this page has no session to read.
  */
 export default async function AccessPendingPage() {
   const t = await getTranslations("auth");

@@ -10,6 +10,8 @@ import useLookup from "utils/useLookup";
 import Button from "./Button";
 import Highlight from "./Highlight";
 import { Modal } from "./Modal";
+import ModalHeading from "./ModalHeading";
+import { SEARCH_INPUT_CLASS_NAME } from "./PublicationSearch";
 import SectionHeading from "./SectionHeading";
 
 type Props = {
@@ -230,26 +232,24 @@ const PublicationMerge: FC<Props> = ({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} label={t("label")}>
       <div className="flex flex-col gap-5 p-8 w-full h-full sm:h-[70vh]">
-        <div className="space-y-1 shrink-0">
-          <h1 className="text-2xl font-normal">{t("heading")}</h1>
-          <p className="text-sm text-gray-500">
-            {t("subheading", {
-              title: publication.title,
-              year: publication.year,
-            })}
-          </p>
-        </div>
+        <ModalHeading
+          heading={t("heading")}
+          subheading={t("subheading", {
+            title: publication.title,
+            year: publication.year,
+          })}
+        />
 
         <section className="space-y-2 shrink-0">
           <SectionHeading>{t("find")}</SectionHeading>
           <input
-            className="w-full py-2 px-3 bg-white rounded border border-gray-300 transition-colors outline-none placeholder:text-sm focus:bg-gray-100 hover:bg-gray-100 shrink-0"
+            className={SEARCH_INPUT_CLASS_NAME}
             placeholder={t("searchPlaceholder")}
             aria-label={t("searchLabel")}
             value={term}
             onChange={handleTerm}
           />
-          <div aria-live="polite" className="shrink-0">
+          <div aria-live="polite">
             {searching ? (
               <p className="text-xs text-gray-500">{t("searching")}</p>
             ) : (
@@ -326,7 +326,7 @@ const PublicationMerge: FC<Props> = ({
             width="fit"
             size="medium"
             loading={merging}
-            disabled={chosen.length === 0 || merging}
+            disabled={chosen.length === 0}
             onClick={handleMerge}
           />
         </div>

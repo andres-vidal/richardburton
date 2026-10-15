@@ -13,13 +13,11 @@ const meta = {
   title: "Layout/Modal heading",
   component: ModalHeading,
   args: { heading: "What is wrong with these rows" },
-  // The heading spans its dialog's padding, so a story has to give it the
-  // padding and a box short enough to scroll in.
+  // The heading spans the padding around it, so the decorator gives it a `p-8`
+  // box short enough to scroll, focusable so the keyboard can scroll it.
   decorators: [
     (Story) => (
       <div
-        // A region that scrolls has to be reachable by keyboard, which is what
-        // the real dialog does around this too.
         tabIndex={0}
         className="overflow-y-auto p-8 w-96 h-64 bg-white rounded"
       >

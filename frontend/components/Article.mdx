@@ -1,0 +1,37 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ArticleStories from "./Article.stories";
+
+<Meta of={ArticleStories} />
+
+# Article
+
+Renders a long-form article with its own `p-8` padding: a heading in a bar
+pinned to the top while the content scrolls, then the content, with an aside
+beside it when there is one. The app's logo sits faintly behind the text. It
+fills a [Modal](?path=/docs/components-modal--docs) that has no `heading` of its
+own.
+
+<Description of={ArticleStories.Default} />
+<Canvas of={ArticleStories.Default} />
+
+## Props
+
+- `heading` — the article's `h1`, in the pinned bar. It can hold controls beside
+  the text, such as a copy-link button.
+- `subheading` — a line under the heading, pinned with it.
+- `content` — the article's text.
+- `aside` — a column beside the content from the `sm` breakpoint up, and under
+  it below.
+- `asideHeading` — the aside's heading. From the `sm` breakpoint up it sits in
+  the pinned bar above the aside, and below it heads the aside itself.
+
+<Description of={ArticleStories.WithASubheading} />
+<Canvas of={ArticleStories.WithASubheading} />
+
+## With an aside
+
+The content takes seven twelfths of the width and the aside the rest. Drag the
+box's corner below the `sm` breakpoint to see the aside move under the content.
+
+<Canvas of={ArticleStories.WithAside} />

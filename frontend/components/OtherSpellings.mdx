@@ -1,0 +1,26 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as OtherSpellingsStories from "./OtherSpellings.stories";
+
+<Meta of={OtherSpellingsStories} />
+
+# Other spellings
+
+A line under a name that offers the stored names it resembles: a label, then a
+button for each spelling with the number of publications that credit it. The
+count shows which spelling is more common, which is usually the one to keep.
+
+<Canvas of={OtherSpellingsStories.Default} />
+
+## Props
+
+- `label` — the text before the buttons, such as "Already here as".
+- `spellings` — the names offered, each with its `id`, `name` and
+  `publications` count.
+- `onPick` — called with the spelling whose button was pressed. The line
+  changes nothing itself: the caller decides what picking a spelling does.
+
+## States
+
+<Description of={OtherSpellingsStories.Unused} />
+<Canvas of={OtherSpellingsStories.Unused} />

@@ -16,18 +16,9 @@ import {
 } from "modules/publication/workspace";
 import { Link } from "i18n/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  FC,
-  Fragment,
-  KeyboardEvent,
-  ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { FC, Fragment, ReactNode, useState } from "react";
 import { useMutation } from "utils/useMutation";
-
-const optionId = (position: number) => `duplicate-cluster-option-${position}`;
+import QueueListbox, { QueueHeading } from "./QueueListbox";
 
 /** What a cluster is called in the queue: the title its records nearly share. */
 const name = (cluster: DuplicateCluster) =>
@@ -38,9 +29,12 @@ const recordsKey = ({ publications }: { publications: Publication[] }) =>
   publications.map((p) => p.id).join("-");
 
 /**
- * The queue of clusters as a single-select listbox — one tab stop, arrows move
- * the selection, click jumps. The same shape the sources backfill uses, so
- * an admin who has stepped through one knows this one.
+ * The queue of clusters, as a `QueueListbox`. Each option shows the cluster's
+ * title and how many records it has.
+ *
+ * The decisions already made, `distinctions`, are listed under the queue, each
+ * as a button that opens it. The section is absent when there are none. While
+ * a decision is open (`selected` is its position), no cluster is selected.
  */
 export const DuplicateQueue: FC<{
   clusters: DuplicateCluster[];
@@ -58,65 +52,38 @@ export const DuplicateQueue: FC<{
   onSelectRuledApart,
 }) => {
   const t = useTranslations("duplicates");
-  const format = useFormatter();
-
-  const move = (event: KeyboardEvent, next: number) => {
-    event.preventDefault();
-    onSelect(Math.max(0, Math.min(next, clusters.length - 1)));
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
-    const key = event.key;
-    if (key === "ArrowDown") move(event, position + 1);
-    else if (key === "ArrowUp") move(event, position - 1);
-    else if (key === "Home") move(event, 0);
-    else if (key === "End") move(event, clusters.length - 1);
-  };
 
   return (
-    <div className="flex flex-col w-72 border-r border-gray-200 shrink-0">
-      <header className="flex gap-2 justify-between items-baseline px-3 py-2 border-b border-gray-200">
-        <span className="text-xs font-semibold tracking-wide text-gray-600 uppercase">
-          {t("possible")}
-        </span>
-        <span className="px-1.5 py-0.5 text-xs font-medium text-indigo-700 rounded-full bg-indigo-100 tabular-nums">
-          {format.number(clusters.length)}
-        </span>
-      </header>
-      <ul
-        role="listbox"
-        aria-label={t("clusters")}
-        tabIndex={0}
-        aria-activedescendant={optionId(position)}
-        onKeyDown={onKeyDown}
-        className="overflow-y-auto flex-1 p-2 space-y-0.5 min-h-0 scrollbar scrollbar-thin scrollbar-thumb-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400"
-      >
-        {clusters.map((cluster, index) => (
-          <QueueOption
-            key={cluster.publications.map((p) => p.id).join("-")}
-            id={optionId(index)}
-            cluster={cluster}
-            active={selected === null && index === position}
-            onSelect={() => onSelect(index)}
-          />
-        ))}
-      </ul>
+    <QueueListbox
+      heading={t("possible")}
+      count={clusters.length}
+      label={t("clusters")}
+      items={clusters}
+      itemKey={recordsKey}
+      renderOption={(cluster) => (
+        <>
+          <span className="truncate grow">{name(cluster)}</span>
+          <span className="text-xs text-gray-600 shrink-0 tabular-nums">
+            {cluster.publications.length}
+          </span>
+        </>
+      )}
+      position={selected === null ? position : -1}
+      onSelect={onSelect}
+    >
       {distinctions.length > 0 && (
         <div className="flex flex-col border-t border-gray-200 max-h-64 shrink-0">
-          <div className="flex gap-2 justify-between items-baseline px-3 py-2">
-            <span className="text-xs font-semibold tracking-wide text-gray-600 uppercase">
-              {t("ruledApartHeading")}
-            </span>
-            <span className="px-1.5 py-0.5 text-xs font-medium text-gray-700 rounded-full bg-gray-100 tabular-nums">
-              {format.number(distinctions.length)}
-            </span>
-          </div>
+          <QueueHeading
+            heading={t("ruledApartHeading")}
+            count={distinctions.length}
+            quiet
+          />
           <ul
             aria-label={t("ruledApart")}
             className="overflow-y-auto p-2 space-y-0.5 min-h-0 scrollbar scrollbar-thin scrollbar-thumb-indigo-600"
           >
             {distinctions.map((distinction, index) => (
-              <li key={distinction.publications.map((p) => p.id).join("-")}>
+              <li key={recordsKey(distinction)}>
                 <button
                   type="button"
                   onClick={() => onSelectRuledApart(index)}
@@ -130,37 +97,7 @@ export const DuplicateQueue: FC<{
           </ul>
         </div>
       )}
-    </div>
-  );
-};
-
-const QueueOption: FC<{
-  id: string;
-  cluster: DuplicateCluster;
-  active: boolean;
-  onSelect: () => void;
-}> = ({ id, cluster, active, onSelect }) => {
-  const ref = useRef<HTMLLIElement>(null);
-
-  useEffect(() => {
-    if (active) ref.current?.scrollIntoView({ block: "nearest" });
-  }, [active]);
-
-  return (
-    <li
-      ref={ref}
-      id={id}
-      role="option"
-      aria-selected={active}
-      onClick={onSelect}
-      data-active={active}
-      className="flex gap-2 justify-between items-center px-3 py-2 text-sm rounded cursor-pointer transition-colors hover:bg-gray-100 data-[active=true]:bg-indigo-100 data-[active=true]:text-indigo-900"
-    >
-      <span className="truncate">{name(cluster)}</span>
-      <span className="text-xs text-gray-600 shrink-0 tabular-nums">
-        {cluster.publications.length}
-      </span>
-    </li>
+    </QueueListbox>
   );
 };
 
@@ -372,7 +309,7 @@ export const DuplicateStep: FC<{
           width="fit"
           size="medium"
           loading={busy}
-          disabled={!kept || busy}
+          disabled={!kept}
           onClick={() => kept && onMerge(kept)}
         />
       </div>
@@ -425,7 +362,6 @@ export const RuledApartStep: FC<{
           width="fit"
           size="medium"
           loading={busy}
-          disabled={busy}
           onClick={onReconsider}
         />
       </div>

@@ -7,10 +7,9 @@ import { useTranslations } from "next-intl";
 type NotificationLevel = "error" | "warning" | "info" | "success";
 
 /**
- * Whether a level reports something going wrong. Failures interrupt the reader
- * and wait to be dismissed; confirmations announce politely and clear
- * themselves. Both the card (which picks its aria role) and the container
- * (which decides what times out) read this, so the two can never disagree.
+ * Returns whether `level` reports a failure, which is true of `error` and
+ * `warning`. A failure interrupts the reader and waits to be dismissed, and a
+ * confirmation is announced politely and clears itself.
  */
 function isFailure(level: NotificationLevel): boolean {
   return level === "error" || level === "warning";
@@ -27,10 +26,10 @@ type Props = {
 };
 
 /**
- * A single message. Purely presentational: it knows nothing about where it
- * sits, how long it lives, or what raised it — `Notifications` owns all of
- * that. The level shows as a coloured edge rather than an icon, in the same
- * semantic palette the publication history uses for its actions.
+ * Renders one notification card: `message`, `detail` under it, and a dismiss
+ * button when `onDismiss` is given. Its level shows as a coloured left edge,
+ * and sets its role, `alert` for a failure and `status` otherwise. It does not
+ * place itself or time itself out.
  */
 const Notification: FC<Props> = ({ level, message, detail, onDismiss }) => {
   const t = useTranslations("notification");

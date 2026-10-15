@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as NotificationsStories from "./Notifications.stories";
 
@@ -11,37 +11,39 @@ page, capped, with confirmations timing out and failures waiting. The cards
 themselves are [`Notification`](?path=/docs/components-notification--docs) —
 this component owns only placement, stacking and lifetime.
 
-Mount `<Notifications />` once per page; anything can then raise one through
-`notify` — including code outside React, since it writes straight to the app
-store rather than through a hook.
+Mount `<Notifications />` once per page. Any code can then raise a notification
+with `notify`, including code outside React, since it writes to the app store.
+A notification names its text by keys in the message catalogue, with the
+`values` its messages take, and `Notifications` writes the text in the page's
+language. A key with no message is shown as its last part.
 
 ```ts
 notify({
-  level: "success",
-  message: "Publication deleted",
-  detail:
-    "“Dom Casmurro” is out of the database. Restore it from Deleted publications.",
+  level: "warning",
+  message: "link.failed",
+  detail: "link.failedDetail",
+  values: { url: "https://example.com/publications/7" },
 });
 ```
+
+<Description of={NotificationsStories.Default} />
 
 <Canvas of={NotificationsStories.Default} />
 
 ## Lifetime
 
-Confirmations (`success`, `info`) clear themselves after a few seconds.
-Failures (`warning`, `error`) do not: they wait to be dismissed, because they
-usually need acting on and a message that disappears before it is read is no
-message at all. Which levels count as failures is decided once, by
-`isFailure` in `Notification` — the card reads it to pick its aria role and the
-container reads it to decide what times out, so the two cannot disagree.
+Confirmations (`success`, `info`) clear themselves after four seconds.
+Failures (`warning`, `error`) stay until they are dismissed, because they
+usually need acting on. `isFailure` in `Notification` decides which levels are
+failures, for the card's aria role and for what times out alike.
 
 <Canvas of={NotificationsStories.FailuresWaitToBeDismissed} />
 
 ## Stacking
 
-Up to five show at once; beyond that the remainder is summarised as a count
-rather than burying the page. Navigating to another route clears them — a
-message about the page you left rarely makes sense on the page you arrived at.
+Up to five show at once. Beyond that, four show and the rest are summarised as a
+count. Moving to another page clears them, since they are about the page that
+raised them.
 
 <Canvas of={NotificationsStories.StacksAndSummarises} />
 

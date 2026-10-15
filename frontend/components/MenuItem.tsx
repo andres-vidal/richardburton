@@ -6,16 +6,20 @@ type Props = Omit<
   DetailedHTMLProps<LiHTMLAttributes<HTMLLIElement>, HTMLLIElement>,
   "className"
 > & {
+  /** Highlights the option, as the one the arrow keys have reached. */
   selected: boolean;
 };
 
+/**
+ * Renders one option of a `Menu`, with the `option` role and `aria-selected`.
+ * It does not take focus, since the arrow keys move a highlight through the
+ * options while focus stays on the menu's trigger. Any props of an `<li>`
+ * other than `className`, such as `onClick`, pass through.
+ */
 export default forwardRef<HTMLLIElement, Props>(function MenuItem(
   { selected, children, ...props },
   ref,
 ) {
-  // A listbox option: keyboard navigation is virtual (the input keeps focus and
-  // tracks the active index), so the item itself is not focusable — it carries
-  // `role="option"` + `aria-selected` and handles pointer clicks via `...props`.
   return (
     <li
       {...props}

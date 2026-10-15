@@ -6,19 +6,24 @@ type Props = Omit<
   DetailedHTMLProps<OlHTMLAttributes<HTMLOListElement>, HTMLOListElement>,
   "className"
 > & {
-  /** Outlined style to match a `bordered` TextInput; defaults to the subtle
-   * dense style used in the workspace table. */
+  /**
+   * Draws the list outlined on white, to match a `bordered` `TextInput`.
+   * Without it the list is the small, borderless style of dense tables.
+   */
   bordered?: boolean;
 };
 
+/**
+ * Renders a scrollable list of options with the `listbox` role, for
+ * `MenuItem`s. Any props of an `<ol>` other than `className` pass through,
+ * so a caller can replace the role or add the attributes of a combobox.
+ */
 export default forwardRef<HTMLOListElement, Props>(function Menu(
   { bordered = false, ...props },
   ref,
 ) {
   return (
     <ol
-      // Default listbox role for standalone use; MenuProvider passes the same
-      // role (plus the combobox wiring) through `...props` when it owns the menu.
       role="listbox"
       data-bordered={bordered}
       className={`

@@ -52,7 +52,7 @@ export const Accented: Story = {
   },
 };
 
-/** The caller can ask for a different mark, as the sources line does. */
+/** `className` replaces the classes of every mark. */
 export const Restyled: Story = {
   args: {
     children: "Austin: University of [[Texas]] Press, 1963.",

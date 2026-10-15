@@ -1,0 +1,26 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ListSkeletonStories from "./ListSkeleton.stories";
+
+<Meta of={ListSkeletonStories} />
+
+# List skeleton
+
+Grey bars that pulse in place of a list while it loads. Past the eighth, the
+bars fade towards the end of the list.
+
+<Description of={ListSkeletonStories.Default} />
+<Canvas of={ListSkeletonStories.Default} />
+
+## Props
+
+- `rows` — how many bars to draw.
+
+## Accessibility
+
+The wrapper has the `status` role and is named "Loading", so assistive
+technology announces that the list is loading. The bars are decorative and are
+hidden from it.
+
+<Description of={ListSkeletonStories.Many} />
+<Canvas of={ListSkeletonStories.Many} />

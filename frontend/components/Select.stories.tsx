@@ -50,7 +50,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Combobox input backed by an async `getOptions` lookup. */
+/** An empty combobox, its options looked up by `getOptions`. */
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     await expect(
@@ -86,9 +86,9 @@ export const FilterAndSelect: Story = {
 };
 
 /**
- * Closing the menu clears the typed filter: the input reverts to the selected
- * option's label. There's no local mirror holding the stale query — it's reset
- * from `isOpen` during render.
+ * Closing the menu drops the typed text, and the input shows the selected
+ * option's label again. The play test types, presses Escape and checks the
+ * label.
  */
 export const ClearsFilterOnClose: Story = {
   args: { value: { id: "1", label: "Brazil" } },
@@ -144,10 +144,8 @@ export const SelectsHighlightedOption: Story = {
       id: "2",
       label: "Portugal",
     });
-    // Regression guard (combobox pattern): the pick sticks in the input, the
-    // menu stays closed, and focus remains in the input. Blurring on Enter used
-    // to bounce focus through the menu's focus-return, re-firing handleFocus and
-    // reopening an emptied menu over the fresh selection.
+    // The pick stays in the input, the menu stays closed, and focus stays in
+    // the input.
     await waitFor(() => expect(input).toHaveValue("Portugal"));
     await expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     await expect(input).toHaveFocus();

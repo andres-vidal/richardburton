@@ -12,7 +12,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** An address and a role. Contributor is the common case, so it leads. */
+/** An empty address and the role it starts with, Contributor. */
 export const Default: Story = {
   play: async () => {
     await expect(screen.getByLabelText("Email address")).toHaveValue("");
@@ -22,7 +22,7 @@ export const Default: Story = {
   },
 };
 
-/** The roles come from the app's own menu, not the platform's select. */
+/** The roles, offered in a `RoleMenu`. */
 export const RoleMenuOpen: Story = {
   parameters: {
     // Floating UI's focus guards (tabindex=0 + aria-hidden) trip axe's
@@ -44,14 +44,14 @@ export const RoleMenuOpen: Story = {
   },
 };
 
-/** Nothing to send until an address is given. */
+/** With no address typed, the Invite button is disabled. */
 export const NothingTyped: Story = {
   play: async () => {
     await expect(screen.getByRole("button", { name: "Invite" })).toBeDisabled();
   },
 };
 
-/** Typing an address arms the button. */
+/** Typing an address enables the Invite button. */
 export const AddressTyped: Story = {
   play: async () => {
     await userEvent.type(

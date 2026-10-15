@@ -27,14 +27,17 @@ import {
 
 type SeedEntry = Partial<Publication> & { errors?: PublicationError };
 
-/** Build a field-level error map (the backend only returns the invalid fields). */
+/**
+ * Returns `errors` as a row's field errors, which name only the invalid
+ * fields, as the backend's do.
+ */
 function fieldErrors(
   errors: Partial<Record<PublicationKey, string>>,
 ): PublicationError {
   return errors as Record<PublicationKey, string>;
 }
 
-/** A few real English translations of Brazilian literature, for stories/tests. */
+/** Three real English translations of Brazilian books. */
 const SAMPLE_PUBLICATIONS: Partial<Publication>[] = [
   {
     originalTitle: "Dom Casmurro",
@@ -66,8 +69,8 @@ const SAMPLE_PUBLICATIONS: Partial<Publication>[] = [
 ];
 
 /**
- * Cycle the samples into `count` publications with light variation — for stories
- * that showcase overflow (a scrolling viewport) and the row virtualization.
+ * Returns `count` publications made from the samples in turn, each with its
+ * number in the title and its own year, for stories with more rows than fit.
  */
 function sampleManyPublications(count: number): Partial<Publication>[] {
   return Array.from({ length: count }, (_, i) => {
@@ -80,25 +83,17 @@ function sampleManyPublications(count: number): Partial<Publication>[] {
   });
 }
 
-/**
- * Empty a store, and clear any selection or hidden columns left by a previous
- * story.
- */
+// Empties `store`, and clears the selection and the hidden columns a previous
+// story left. `resetAll` keeps the hidden columns, so they are reset apart.
 function clear(store: Store): void {
   resetAll(store);
   clearSelection(store);
-  // Column visibility survives resetAll (it's a UI preference in the app), so
-  // reset it here too — otherwise a column hidden in one story stays hidden.
   resetAttributes(store);
 }
 
 /**
- * Reset a store and seed it with the given publications (defaults to samples),
- * as the rows of an import workspace. Each entry may carry an `errors` value to
- * render an invalid row.
- *
- * Takes the store so a story can seed the one it is about to hand its provider,
- * rather than a shared singleton.
+ * Empties `store` and fills it with `entries`, the samples by default, as the
+ * rows of an import workspace. An entry's `errors` makes its row invalid.
  */
 function seed(store: Store, entries: SeedEntry[] = SAMPLE_PUBLICATIONS): void {
   clear(store);
@@ -113,10 +108,9 @@ function seed(store: Store, entries: SeedEntry[] = SAMPLE_PUBLICATIONS): void {
 }
 
 /**
- * Reset a store and seed it with the given publications (defaults to samples)
- * as saved publications, through `hydrate`. Use it for the read-only index,
- * which reads the saved copy of each row. Each publication gets a server id,
- * counting from one.
+ * Empties `store` and fills it with `entries`, the samples by default, as
+ * saved publications, through `hydrate`, for the read-only index. Each gets a
+ * server id, counting from one.
  */
 function seedIndex(
   store: Store,
@@ -134,8 +128,9 @@ function seedIndex(
 }
 
 /**
- * Build the awareness and presence of a shared document for a story to render
- * inside. `others` lists the other people in it and the cell each has focused.
+ * Returns the awareness and presence of a shared document for a story to
+ * render inside. `others` lists the other people in it and the cell each has
+ * focused.
  *
  * Each person gets their own connection, as if in their own tab. Presence
  * lists that connection under the person's email, and the person's focused
@@ -253,7 +248,6 @@ function seedLookAlikes(store: Store): void {
 }
 
 export {
-  SAMPLE_PUBLICATIONS,
   aDocumentWith,
   fieldErrors,
   sampleManyPublications,
@@ -261,6 +255,5 @@ export {
   seedIndex,
   LOOK_ALIKE_IDS,
   LOOK_ALIKE_RECORD,
-  LOOK_ALIKE_ROWS,
   seedLookAlikes,
 };

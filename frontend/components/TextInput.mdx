@@ -1,0 +1,61 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as TextInputStories from "./TextInput.stories";
+
+<Meta of={TextInputStories} />
+
+# Text input
+
+A single-line text field. It is controlled: it shows `value` and passes each
+edit to `onChange` as a string.
+
+<Canvas of={TextInputStories.Default} />
+
+## Props
+
+- `value` and `onChange` — the text, and the function that receives each edit.
+- `label` — a label that floats above the field once it holds text or focus.
+  Without one, the field shows its `placeholder` instead.
+- `error` — marks the input invalid (`aria-invalid`) and tints the field red.
+  A labelled field also adds the message to the label.
+- `bordered` — outlines the field and sets it in `text-sm`, for a form. Without
+  it the field is borderless and small, for a dense table cell.
+- `fill` — stretches the field to its parent's height.
+- `left` and `right` — content inside the field, before and after the input,
+  such as the chips of a `Multicombobox`.
+- `inputRef` — receives the input element. The component's `ref` receives the
+  field around it.
+
+Every other prop, such as `aria-label`, `disabled` or `onKeyDown`, goes to the
+input element.
+
+## Variants
+
+A labelled field sits on a grey surface, and its label floats above the text.
+
+<Canvas of={TextInputStories.WithLabel} />
+
+<Description of={TextInputStories.Bordered} />
+<Canvas of={TextInputStories.Bordered} />
+
+## Errors
+
+A borderless field with an error is tinted red, and turns a stronger red while
+it has focus. A bordered field draws a red border instead and keeps its white
+background. In both, the text keeps enough contrast to be read.
+
+<Canvas of={TextInputStories.WithError} />
+
+<Description of={TextInputStories.ErrorFocusedSubtle} />
+<Canvas of={TextInputStories.ErrorFocusedSubtle} />
+
+<Description of={TextInputStories.ErrorFocusedBordered} />
+<Canvas of={TextInputStories.ErrorFocusedBordered} />
+
+## States
+
+- **Default** — empty.
+- **With value** — holding text.
+- **Disabled** — greyed out, and takes no input.
+
+<Canvas of={TextInputStories.Disabled} />

@@ -1,13 +1,14 @@
-import { routing } from "i18n/routing";
 import Insights, { InsightsHeading } from "components/Insights";
 import Layout from "components/Layout";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
+import { alternates } from "app/alternates";
 import { readInsights } from "app/insights/read";
 import { chartParams, parseDescription } from "modules/chart";
 
+/** Returns the page's title, its description and its address in every locale. */
 export async function generateMetadata({
   params,
 }: {
@@ -19,12 +20,7 @@ export async function generateMetadata({
   return {
     title: t("title"),
     description: t("description"),
-    alternates: {
-      canonical: `/${locale}/insights`,
-      languages: Object.fromEntries(
-        routing.locales.map((other) => [other, `/${other}/insights`]),
-      ),
-    },
+    alternates: alternates("/insights", locale),
   };
 }
 

@@ -14,8 +14,6 @@ describe("filenameFrom", () => {
   });
 
   test("falls back when the header is missing", () => {
-    // What the header reads as when it is absent — and what it read as for every
-    // download while the client looked for it under the wrong name.
     expect(filenameFrom(undefined)).toBe(FALLBACK_FILENAME);
   });
 

@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as SelectStories from "./Select.stories";
 
@@ -10,6 +10,7 @@ A single-value combobox: an input that filters an async list and a dropdown that
 offers what it found. Picking one emits it through `onChange`; the input then
 shows that option's label.
 
+<Description of={SelectStories.Default} />
 <Canvas of={SelectStories.Default} />
 
 ## Props
@@ -26,10 +27,9 @@ shows that option's label.
 ## When it asks for options
 
 **When the menu opens, not when the field mounts.** Focusing the input,
-clicking it, or clicking the chevron loads the unfiltered list; typing asks for
-the filtered one. This matters where these are dense: a grid of them would otherwise ask for
-every list on screen as it rendered, before anyone had looked at a single field.
-Nothing is fetched for a field a reader never visits.
+clicking it, or clicking the chevron loads every option, and typing asks for the
+options that match. A page with many of these fields fetches nothing for a field
+the reader never visits.
 
 ## Filtering
 
@@ -41,10 +41,9 @@ during render rather than mirrored in an effect.
 
 ## Keyboard
 
-Typing highlights the first match; **Enter** or **→** selects the highlighted
-option and closes the menu, keeping focus in the input — the combobox pattern.
-Blurring on selection bounced focus through the menu's focus manager, whose
-focus-return reopened an emptied menu over the fresh selection.
+Typing highlights the first match. **Enter** or **→** selects the highlighted
+option and closes the menu, and focus stays in the input, as the combobox
+pattern has it.
 
 <Canvas of={SelectStories.SelectsHighlightedOption} />
 

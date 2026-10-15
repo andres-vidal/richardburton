@@ -1,6 +1,6 @@
 "use client";
 
-import type { Matched } from "modules/publication/model";
+import { searchHref, type Matched } from "modules/publication/model";
 import { Link } from "i18n/navigation";
 import { usePathname, useRouter } from "i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -15,9 +15,20 @@ import { useURLQueryModal } from "./Modal";
 import { SEARCH_HELP_MODAL_KEY } from "./SearchHelpModal";
 
 /**
- * A word written as the term that would find it on its own: scoped to the field
- * it was asked of, so following it narrows the same way rather than widening to
- * every field.
+ * The classes of a search box over publications. The box is as tall as a
+ * `Button` of `size="medium"`, so the two line up side by side.
+ */
+const SEARCH_INPUT_CLASS_NAME =
+  "w-full py-1.5 px-3 bg-white border border-gray-300 rounded outline-none transition-colors placeholder:text-sm focus:bg-gray-100 hover:bg-gray-100";
+
+/** The classes of a control under the search box that reads as a link. */
+const LINK_BUTTON_CLASS_NAME =
+  "text-gray-600 whitespace-nowrap rounded underline shrink-0 hover:text-indigo-600 focus-ring";
+
+/**
+ * Returns a word written as the term that would find it on its own: scoped to
+ * the field it was asked of, so following it narrows the same way rather than
+ * widening to every field.
  */
 function searchFor(field: string | null, word: string): string {
   return field ? `${field}:${word}` : word;
@@ -34,7 +45,7 @@ const SearchMatch: FC<Matched> = ({ field, typed, words }) => {
       {words.map((word, index) => (
         <span key={word}>
           <Link
-            href={`?search=${encodeURIComponent(searchFor(field, word))}`}
+            href={searchHref(searchFor(field, word), "")}
             className="text-indigo-600 underline hover:bg-indigo-300"
           >
             {word}
@@ -146,7 +157,7 @@ const PublicationSearch: FC<Props> = ({ matched }) => {
   return (
     <section className="space-y-3">
       <input
-        className="w-full py-2 px-3 bg-white border border-gray-300 rounded outline-none transition-colors placeholder:text-sm focus:bg-gray-100 hover:bg-gray-100"
+        className={SEARCH_INPUT_CLASS_NAME}
         placeholder={t("placeholder")}
         aria-label={t("ariaLabel")}
         value={search}
@@ -160,27 +171,23 @@ const PublicationSearch: FC<Props> = ({ matched }) => {
           data-expanded={expanded}
           className="space-x-1 min-w-0 grow data-[expanded=false]:truncate"
         >
-          {isLoading ? (
-            <SearchProgress />
-          ) : (
-            <SearchMatches matched={matched ?? []} />
-          )}
+          {isLoading ? <SearchProgress /> : <SearchMatches matched={matched} />}
         </div>
-        {matched && matched.length > 0 && (
+        {matched.length > 0 && (
           <button
             type="button"
             aria-expanded={expanded}
             aria-controls="search-report"
             onClick={() => setExpanded(!expanded)}
-            className="text-gray-600 whitespace-nowrap rounded underline shrink-0 hover:text-indigo-600 focus-ring"
+            className={LINK_BUTTON_CLASS_NAME}
           >
             {expanded ? t("showLess") : t("showAll")}
           </button>
         )}
         <button
           type="button"
-          onClick={() => openHelp()}
-          className="text-gray-600 whitespace-nowrap rounded underline shrink-0 hover:text-indigo-600 focus-ring"
+          onClick={openHelp}
+          className={LINK_BUTTON_CLASS_NAME}
         >
           {t("howTo")}
         </button>
@@ -190,3 +197,4 @@ const PublicationSearch: FC<Props> = ({ matched }) => {
 };
 
 export default PublicationSearch;
+export { SEARCH_INPUT_CLASS_NAME };

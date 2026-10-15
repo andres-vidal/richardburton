@@ -7,6 +7,10 @@ import { FC } from "react";
 import Button from "./Button";
 import Tooltip from "./Tooltip";
 
+/**
+ * A button that shows how many rows the workspace holds, with a tooltip that
+ * reads them as new publications. It renders nothing while there are no rows.
+ */
 const PublicationCounter: FC = () => {
   const t = useTranslations("admin");
   const format = useFormatter();

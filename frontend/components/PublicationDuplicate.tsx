@@ -12,6 +12,11 @@ import {
 } from "modules/selection";
 import Button from "./Button";
 
+/**
+ * A button that copies the selected rows, each copy right after its row, and
+ * clears the selection. Its label counts the selected rows ("Duplicate 2").
+ * The copies are one edit, so one undo removes them all.
+ */
 const PublicationDuplicate: FC = () => {
   const t = useTranslations("admin");
   const selectionSize = useSelectionSize();

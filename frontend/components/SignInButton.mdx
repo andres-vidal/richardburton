@@ -1,0 +1,25 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as SignInButtonStories from "./SignInButton.stories";
+
+<Meta of={SignInButtonStories} />
+
+# Sign in button
+
+An outline [Button](?path=/docs/components-button--docs) with the Google logo
+that starts signing in with Google. It loads the `/api/auth/google` route
+handler as a whole page, because the handler answers with a redirect to Google
+that the client router cannot follow.
+
+<Description of={SignInButtonStories.Default} />
+<Canvas of={SignInButtonStories.Default} />
+
+## Props
+
+- `label` — replaces the plain offer to sign in, for a page that says why it
+  asks.
+- `centered` — centres the icon and label in the button instead of aligning
+  them left.
+
+<Description of={SignInButtonStories.WithALabel} />
+<Canvas of={SignInButtonStories.WithALabel} />

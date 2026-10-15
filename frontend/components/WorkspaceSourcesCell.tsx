@@ -8,9 +8,9 @@ import {
 import { usePublicationStore } from "modules/publication/workspace";
 import { openReview, setSources } from "modules/publication/store";
 import { useTranslations } from "next-intl";
-import { FC, MouseEvent, useState } from "react";
+import { FC, MouseEvent } from "react";
 import Button from "./Button";
-import { Modal } from "./Modal";
+import { Modal, useModal } from "./Modal";
 import type { RowId } from "./PublicationIndexTable";
 import SourcesEditor from "./SourcesEditor";
 import Tooltip from "./Tooltip";
@@ -24,7 +24,9 @@ import Tooltip from "./Tooltip";
  * the row resembles, and the number of other rows of the import it resembles.
  *
  * It is styled as a button so that it is not confused with the warning icon in
- * the row's leading cell. That icon only marks the row.
+ * the row's leading cell. That icon only marks the row. The icon is passed to
+ * `Button` as an element rather than a component, so it keeps its amber colour
+ * instead of taking the colour of the button's variant.
  *
  * It is at the end of the row, not in the leading cell, because the leading
  * cell is the row's selection handle and a button there would take clicks meant
@@ -54,8 +56,6 @@ const RowResemblance: FC<{ rowId: RowId }> = ({ rowId }) => {
         variant="outline"
         width="fit"
         size="small"
-        // Passed as an element, not a component, so it keeps its amber colour.
-        // `Button` gives a component icon the colour of its variant.
         Icon={<WarningIcon className="size-4 text-amber-500" />}
         label={t("lookAlike")}
         aria-label={message}
@@ -70,14 +70,15 @@ const RowResemblance: FC<{ rowId: RowId }> = ({ rowId }) => {
 };
 
 /**
- * The trailing "sources" cell for a workspace row. Sources is a list, not a
- * scalar cell, so it lives outside the attribute grid: a button shows the count
- * and opens the list editor in a modal. Edits are written to the row with
- * `setSources`, and the bulk insert saves them with the rest of the row.
+ * The cell at the end of a workspace row: a button with the row's source count,
+ * which opens the sources editor in a dialog, and the row's look-alike button.
+ * Sources are a list rather than one value, so they are edited outside the
+ * attribute grid. Edits are written to the row with `setSources`, and the bulk
+ * insert saves them with the rest of the row. A click on either button does
+ * not reach the row, so it does not select the row.
  *
- * The row-state props mirror the attribute cells so the cell shares the row's
- * hover / error / selected background. The workspace supplies them for committed
- * rows and leaves them at their defaults for the plain draft row.
+ * `invalid`, `selected` and `focused` give the cell the background the
+ * row's other cells have in those states. They default to false.
  */
 const WorkspaceSourcesCell: FC<{
   rowId: RowId;
@@ -86,17 +87,14 @@ const WorkspaceSourcesCell: FC<{
   focused?: boolean;
 }> = ({ rowId, invalid = false, selected = false, focused = false }) => {
   const t = useTranslations("admin");
-  const sources = usePublicationSources(rowId);
-  const [open, setOpen] = useState(false);
-  const count = sources.length;
-
-  // The cell sits inside the row's onClick (which selects the row); opening the
-  // editor must not also select.
   const store = usePublicationStore();
+  const sources = usePublicationSources(rowId);
+  const editor = useModal();
+  const count = sources.length;
 
   const openEditor = (event: MouseEvent) => {
     event.stopPropagation();
-    setOpen(true);
+    editor.open();
   };
 
   return (
@@ -119,17 +117,14 @@ const WorkspaceSourcesCell: FC<{
       <RowResemblance rowId={rowId} />
 
       <Modal
-        isOpen={open}
-        onClose={() => setOpen(false)}
-        label={t("sourcesEditor")}
+        isOpen={editor.isOpen}
+        onClose={editor.close}
+        heading={t("sourcesEditor")}
       >
-        <div className="p-8 space-y-4 w-full">
-          <h1 className="text-xl font-normal">{t("sourcesEditor")}</h1>
-          <SourcesEditor
-            value={sources}
-            onChange={(next) => setSources(store, rowId, next)}
-          />
-        </div>
+        <SourcesEditor
+          value={sources}
+          onChange={(next) => setSources(store, rowId, next)}
+        />
       </Modal>
     </div>
   );

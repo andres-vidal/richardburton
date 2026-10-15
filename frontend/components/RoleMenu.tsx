@@ -8,18 +8,17 @@ import Button from "./Button";
 import MenuProvider from "./MenuProvider";
 
 /**
- * Pick a role, from a list short enough and fixed enough that there is nothing
- * to search — which is why this is `MenuProvider` and not `Select`, whose whole
- * surface is a typeahead over options fetched per keystroke. It carries the
- * chevron the app's other menus carry, so it reads as one of them.
+ * A button showing the name of the role `value` that opens a menu of every
+ * role, least privileged first. Picking a role other than `value` calls
+ * `onChange` with it. Picking `value` again calls nothing.
  *
- * The trigger owns whether the menu is open — `MenuProvider` handles the
- * listbox, keyboard navigation and dismissal, but not what opens it, so a
- * button says so itself.
+ * The roles are few and fixed, so the menu is a `MenuProvider` list with no
+ * search, unlike `Select`. `MenuProvider` does not open the list, so the
+ * button keeps the open state and toggles it on click.
  */
 const RoleMenu: FC<{
   value: UserRole;
-  /** Accessible name — several of these sit on a page, one per person. */
+  /** The accessible name, which says whose role it is or what it is for. */
   label: string;
   disabled?: boolean;
   onChange: (role: UserRole) => void;

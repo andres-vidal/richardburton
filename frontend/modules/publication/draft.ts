@@ -51,6 +51,8 @@ function keepDraft(store: Store, name: string): () => void {
   });
 }
 
+// Writes the draft saved under `name` into the draft row, when one is saved
+// and can be read.
 function restore(store: Store, name: string): void {
   try {
     const held = localStorage.getItem(key(name));

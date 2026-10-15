@@ -2,12 +2,13 @@ import { Suspense } from "react";
 import Home from "./Home";
 import { readIndex } from "app/publications/read";
 
-// Server Component shell — the interactive index lives in the client `Home`,
-// Suspense-wrapped because it reads `useSearchParams()` (App Router requires the
-// boundary so static rendering can bail to the client cleanly).
-//
-// The database is read here, for the query in the address, so the rows arrive
-// with the page. A publication shown *over* it is its own route — see app/@modal.
+/**
+ * The index page. It reads the first page of the database for the `search` in
+ * the address, so the rows arrive with the page, and renders them with `Home`.
+ *
+ * `Home` reads `useSearchParams()`, which needs a `Suspense` boundary above it.
+ * A publication opened over the index is the `@modal` slot's route.
+ */
 export default async function Page({
   searchParams,
 }: {

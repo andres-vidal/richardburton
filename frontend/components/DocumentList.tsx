@@ -285,7 +285,7 @@ const DocumentList: FC<{
           width="fit"
           size="field"
           loading={starting}
-          disabled={!name.trim() || starting}
+          disabled={!name.trim()}
         />
       </form>
 

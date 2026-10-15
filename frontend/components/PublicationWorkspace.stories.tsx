@@ -2,7 +2,14 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { fieldErrors, seed } from "test/publication-fixtures";
 import { areRowIdsVisibleAtom } from "modules/publication/store";
-import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test";
+import {
+  expect,
+  fireEvent,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from "storybook/test";
 
 import PublicationWorkspace from "./PublicationWorkspace";
 
@@ -23,7 +30,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** The editable review table — an inline input per cell, plus the "new row". */
+/** The editable table: a field in every cell, and the draft row at the end. */
 export const Default: Story = {
   beforeEach: () => seed(store),
   play: async ({ canvasElement }) => {
@@ -34,10 +41,8 @@ export const Default: Story = {
 };
 
 /**
- * The new-publication row is an editing surface too, so typing into it must
- * stick. It renders through the *base* `Column` (not the workspace's extended
- * one), so a table that reads stored values by default would leave this row
- * permanently empty — seeded rows would keep working and hide it.
+ * The draft row shows what is typed into it. It renders through the table's
+ * own `Column`, so the play test checks that cell holds a field.
  */
 export const NewRowAcceptsInput: Story = {
   beforeEach: () => seed(store, []),
@@ -50,7 +55,7 @@ export const NewRowAcceptsInput: Story = {
   },
 };
 
-/** Field-level validation errors — the title and year cells are flagged. */
+/** A row with errors on its title and year marks those two fields invalid. */
 export const WithInvalidRow: Story = {
   beforeEach: () =>
     seed(store, [
@@ -62,8 +67,6 @@ export const WithInvalidRow: Story = {
       },
     ]),
   play: async ({ canvasElement }) => {
-    // The flagged fields mark their inputs invalid (red cell + aria-invalid);
-    // the valid row and the new row don't.
     await waitFor(() =>
       expect(
         canvasElement.querySelectorAll('[aria-invalid="true"]').length,
@@ -159,9 +162,8 @@ export const TypingDoesNotSelect: Story = {
 };
 
 /**
- * Editing a cell round-trips through the store: the cell input has no local
- * mirror, so what you type only shows up if `setField` writes it and the
- * value flows back through `usePublicationField`.
+ * A cell holds no copy of its value: typing writes to the row with
+ * `setField`, and the field reads the row back. The play test retypes a title.
  */
 export const EditCell: Story = {
   beforeEach: () =>
@@ -170,8 +172,7 @@ export const EditCell: Story = {
     ]),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // findBy*: the row virtualizes on an IntersectionObserver, so its input
-    // isn't in the DOM until the row is scrolled into view / observed visible.
+    // A row renders its fields once it is in view, so the field is awaited.
     const title = await canvas.findByDisplayValue("Dom Casmurro");
 
     await userEvent.clear(title);
@@ -208,5 +209,47 @@ export const RowNumbers: Story = {
     ).map((cell) => cell.textContent?.trim());
 
     await expect(numbers).toEqual(["1", "2", "3"]);
+  },
+};
+
+/** Enter in a field of the draft row adds the row to the table. */
+export const EnterAddsTheRow: Story = {
+  beforeEach: () => seed(store, []),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.type(
+      await canvas.findByPlaceholderText("Title"),
+      "Dom Casmurro{Enter}",
+    );
+
+    // The header, the added row and a new, empty draft row.
+    await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(3));
+  },
+};
+
+/**
+ * Enter that picks an option in a combobox of the draft row belongs to the
+ * combobox, and does not add the row. The play test picks a country with Enter,
+ * and then adds the row with Enter in the emptied field.
+ */
+export const EnterThatPicksAnOptionStaysInTheField: Story = {
+  beforeEach: () => seed(store, []),
+  parameters: {
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const countries = await canvas.findByPlaceholderText("Countries");
+
+    await userEvent.type(countries, "Brazil");
+    await screen.findByRole("option", { name: "Brazil" });
+    await userEvent.keyboard("{Enter}");
+
+    await expect(await canvas.findByText("Brazil")).toBeInTheDocument();
+    await expect(canvas.getAllByRole("row")).toHaveLength(2);
+
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(3));
   },
 };

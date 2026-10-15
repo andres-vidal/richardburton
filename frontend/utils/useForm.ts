@@ -8,6 +8,9 @@ import {
 import { useTranslations } from "next-intl";
 import { z } from "zod";
 
+// Returns the default value of each field of `schema` that has one, and the
+// schema with those defaults removed, so a field left empty is reported as
+// missing rather than filled in.
 function stripDefaults<T extends z.ZodObject<z.ZodRawShape>>(
   schema: T,
 ): [z.infer<T>, T] {
@@ -29,15 +32,15 @@ function stripDefaults<T extends z.ZodObject<z.ZodRawShape>>(
   return [defaults as z.infer<T>, z.object(s) as unknown as T] as const;
 }
 
-/**
- * Why a value was rejected, in words, for the rejections a form makes.
- *
- * A schema says what it accepts; this says how a refusal reads. No schema
- * carries copy, and every form refuses in the same words. A rejection with
- * nothing written for it keeps zod's own.
- */
+/** The options of `safeParse` that write the message of each rejection. */
 type Refusal = Parameters<z.ZodType["safeParse"]>[1];
 
+/**
+ * Returns the options that write a rejection's message with `t`, which reads
+ * the `validation` messages: `required` for a missing or empty value, and
+ * `email` for a malformed address. Any other rejection keeps zod's message.
+ * The schemas carry no text, so every form words a rejection the same way.
+ */
 function refusalIn(t: (key: string) => string): Refusal {
   return {
     error: (issue) => {
@@ -56,6 +59,9 @@ interface ValidateOptions {
   all: boolean;
 }
 
+// Returns each field's parsed value, or its input when it does not parse, and
+// the message of each field that does not parse. With `all` false, only the
+// fields present in `input` are checked.
 function validate<T extends z.ZodObject<z.ZodRawShape>>(
   schema: T,
   input: Partial<z.infer<T>>,
@@ -88,14 +94,23 @@ function validate<T extends z.ZodObject<z.ZodRawShape>>(
   ];
 }
 
+/** The props `useForm` returns for one input. */
 interface InputProps {
   value: string;
   onChange: (value: string) => void;
   onBlur: () => void;
   error?: string;
 }
+
+/** The options of `useForm`. */
 interface Options<T> {
+  /** Disables every input. */
   disabled?: boolean;
+  /**
+   * Called with the values when the form is submitted and every value is
+   * valid. `setErrors` sets the message of each field, for a refusal the
+   * server gives.
+   */
   onSubmit?: (
     values: T,
     misc: {
@@ -104,6 +119,14 @@ interface Options<T> {
   ) => void;
 }
 
+/**
+ * Holds the values of a form whose fields `schema` describes, and returns the
+ * props for each input and for the form.
+ *
+ * An input reports its error once it has been changed and then left, or after
+ * a submit. A submit checks every field and calls `onSubmit` only when they
+ * are all valid.
+ */
 export function useForm<T extends z.ZodObject<z.ZodRawShape>>(
   schema: T,
   options?: Options<z.infer<T>>,
@@ -154,7 +177,7 @@ export function useForm<T extends z.ZodObject<z.ZodRawShape>>(
       ...acc,
       [key]: {
         disabled,
-        value: input[key] ?? defaults[key],
+        value: input[key] ?? "",
         error: errors[key],
         onChange: handleChange(key),
         onBlur: handleBlur(key),

@@ -1,0 +1,30 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as LearnMoreModalStories from "./LearnMoreModal.stories";
+
+<Meta of={LearnMoreModalStories} />
+
+# Learn more modal
+
+A modal about the platform and about Richard and Isabel Burton, as an
+[Article](?path=/docs/components-article--docs): what the platform is, who
+registered it, who develops it and what it holds, with an aside about the
+Burtons and their translation of _Iracema_.
+
+<Description of={LearnMoreModalStories.Default} />
+<Canvas of={LearnMoreModalStories.Default} />
+
+## Props
+
+`LearnMoreModal` takes no props. It is open while the URL has a `learn-more`
+query parameter, such as `?learn-more=true`, so a link can open it.
+`LEARN_MORE_MODAL_KEY` is the name of that parameter.
+
+## Links
+
+The copy is rich text. A link to another site opens in a new tab that gets no
+access to this one. The link that searches the database for the Burtons' books
+stays in the app and closes the modal.
+
+<Description of={LearnMoreModalStories.Closed} />
+<Canvas of={LearnMoreModalStories.Closed} />

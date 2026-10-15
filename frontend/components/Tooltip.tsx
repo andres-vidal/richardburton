@@ -1,9 +1,8 @@
-import { FC } from "react";
-import TooltipProvider, { TooltipProps } from "./TooltipProvider";
-
 import ErrorIcon from "assets/error.svg";
 import InfoCircleIcon from "assets/info-circle.svg";
 import WarningIcon from "assets/warning.svg";
+import { FC } from "react";
+import TooltipProvider, { TooltipProps } from "./TooltipProvider";
 
 type Props = Omit<TooltipProps, "content"> & {
   message: string;
@@ -11,9 +10,10 @@ type Props = Omit<TooltipProps, "content"> & {
 };
 
 /**
- * A styled tooltip on its child, built on `TooltipProvider`, that shows
- * `message` with the icon of its `variant`. The message wraps at 20rem, so a
- * long one stays readable. Nothing is shown when `message` is empty.
+ * Shows `message` in a tooltip on its child, with the colours and icon of its
+ * `variant`, while the child is hovered or focused. The message wraps at 20rem.
+ * When `message` is empty, the child renders alone. Placement and boundary
+ * props pass through to `TooltipProvider`.
  */
 const Tooltip: FC<Props> = ({ children, message, variant, ...props }) => {
   const content = (
@@ -27,7 +27,7 @@ const Tooltip: FC<Props> = ({ children, message, variant, ...props }) => {
       `}
     >
       <span
-        role="presentation"
+        aria-hidden
         className={`
           self-start
           group-data-[variant=info]:text-indigo-700

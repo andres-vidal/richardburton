@@ -4,10 +4,6 @@ import SpinnerIcon from "assets/spinner.svg";
 import { isFunction } from "lodash";
 import { FC, forwardRef, HTMLProps, ReactNode } from "react";
 
-const Spinner: FC<{ className: string }> = ({ className }) => (
-  <SpinnerIcon className={`animate-spin ${className}`} aria-hidden />
-);
-
 /**
  * The classes of a button, shared with `ButtonLink` so that a link styled as a
  * button looks the same. They read the `data-variant`, `data-size`,
@@ -34,27 +30,41 @@ const BUTTON_CLASS_NAME = `
 type Props = Omit<HTMLProps<HTMLButtonElement>, "size"> & {
   label: string;
   variant?: "primary" | "secondary" | "outline" | "outline-primary" | "danger";
-  Icon?: FC<{ className: string }> | ReactNode;
-  /** Rendered after the label — a chevron on a menu trigger, say. */
+  /** Rendered before the label, hidden from assistive technology. */
+  Icon?: FC<{ className: string; "aria-hidden"?: boolean }> | ReactNode;
+  /** Rendered after the label, such as the chevron of a menu trigger. */
   right?: ReactNode;
   alignment?: "center" | "left";
   width?: "full" | "fixed" | "fit";
   /**
-   * `small` suits dense surfaces (toolbars, table rows); `medium` suits forms.
-   * `field` is the height of a bordered `TextInput`, for a button standing in
-   * a row of inputs — a control that is a field's neighbour has to be a field's
-   * size, or the row reads as broken.
+   * `small` suits dense surfaces such as toolbars and table rows, and `medium`
+   * suits forms. `field` is the height of a bordered `TextInput`, for a button
+   * that stands in a row of inputs.
    */
   size?: "small" | "field" | "medium";
   labelSrOnly?: boolean;
   type?: "button" | "submit" | "reset";
+  /**
+   * Replaces the icon with a spinner and disables the button, whatever
+   * `disabled` says, while keeping the colour of its variant.
+   */
   loading?: boolean;
 };
 
+/**
+ * The app's button. `label` is always its accessible name, shown, or read by
+ * screen readers only when `labelSrOnly` is set. The look comes from
+ * `variant`, `size`, `width` and `alignment`, which the element carries as
+ * `data-*` attributes for `BUTTON_CLASS_NAME` to read.
+ *
+ * The icon's offset is a `data-icon-offset` token. A centred button wider than
+ * its content pulls the icon into its padding (`hang`), so the label reads as
+ * centred. A left-aligned or fitted button pulls it in a little (`nudge`). An
+ * icon-only button keeps the icon in the middle (`none`).
+ */
 const Button = forwardRef<HTMLButtonElement, Props>(function Button(
   {
     label,
-    onClick,
     variant = "primary",
     Icon,
     right,
@@ -63,20 +73,14 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
     size = "small",
     type = "button",
     labelSrOnly,
-    loading,
+    loading = false,
+    disabled,
     ...props
   },
   ref,
 ) {
-  if (loading) {
-    Icon = Spinner;
-  }
+  const ShownIcon = loading ? SpinnerIcon : Icon;
 
-  // Resolve the icon's horizontal offset to a data-attribute so the rule lives in
-  // Tailwind variants below, not an interpolated className. "hang": a centered
-  // button with room pulls the icon into the padding so the label reads centered;
-  // "nudge": fit/left just tightens it a hair; "none": an icon-only button
-  // (sr-only label) keeps the icon centered.
   const iconOffset = labelSrOnly
     ? "none"
     : alignment === "center" && width !== "fit"
@@ -85,9 +89,9 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
 
   return (
     <button
-      disabled={loading}
       {...props}
       ref={ref}
+      disabled={loading || disabled}
       data-variant={variant}
       data-width={width}
       data-alignment={alignment}
@@ -95,21 +99,22 @@ const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       data-size={size}
       className={BUTTON_CLASS_NAME}
       aria-busy={loading}
-      data-loading={Boolean(loading)}
-      onClick={onClick}
+      data-loading={loading}
       type={type}
     >
-      {Icon && isFunction(Icon) ? (
-        <Icon
+      {ShownIcon && isFunction(ShownIcon) ? (
+        <ShownIcon
+          aria-hidden
           className={`
             size-4 group-disabled:text-gray-300
+            group-data-[loading=true]:animate-spin
             group-data-[variant=outline]:text-indigo-700
             group-data-[icon-offset=nudge]:-ml-0.5
             group-data-[icon-offset=hang]:-ml-4
           `}
         />
       ) : (
-        Icon
+        ShownIcon
       )}
 
       <span

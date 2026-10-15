@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { FC } from "react";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
-import Notifications, { useNotify } from "./Notifications";
+import Button from "./Button";
+import Notifications, { notify } from "./Notifications";
 
 const LEVELS = [
   { level: "success", label: "Success", message: "Publication deleted" },
@@ -11,39 +12,36 @@ const LEVELS = [
   { level: "error", label: "Error", message: "Could not reach the server" },
 ] as const;
 
-// The container is driven imperatively, so the story needs real triggers. What
-// a single card looks like belongs to Notification's own stories; these are
-// about placement, stacking and lifetime.
-const NotificationsDemo: FC = () => {
-  const notify = useNotify();
-
-  return (
-    <div className="flex flex-col gap-6 items-center p-6">
-      <div className="flex flex-wrap gap-2 justify-center">
-        {LEVELS.map(({ level, label, message }) => (
-          <button
-            key={level}
-            className="px-3 py-1 text-sm text-indigo-600 rounded border border-indigo-600 focus-ring hover:bg-indigo-50"
-            onClick={() => notify({ level, message })}
-          >
-            Show {label}
-          </button>
-        ))}
-        <button
-          className="px-3 py-1 text-sm text-indigo-600 rounded border border-indigo-600 focus-ring hover:bg-indigo-50"
-          onClick={() =>
-            [1, 2, 3, 4, 5, 6, 7].forEach((n) =>
-              notify({ level: "warning", message: `Failure ${n}` }),
-            )
-          }
-        >
-          Show seven
-        </button>
-      </div>
-      <Notifications />
+/**
+ * Buttons that raise a notification of each level, or seven failures at once,
+ * above the stack. The look of a single card is in `Notification`'s stories.
+ */
+const NotificationsDemo: FC = () => (
+  <div className="flex flex-col gap-6 items-center p-6">
+    <div className="flex flex-wrap gap-2 justify-center">
+      {LEVELS.map(({ level, label, message }) => (
+        <Button
+          key={level}
+          label={`Show ${label}`}
+          variant="outline-primary"
+          width="fit"
+          onClick={() => notify({ level, message })}
+        />
+      ))}
+      <Button
+        label="Show seven"
+        variant="outline-primary"
+        width="fit"
+        onClick={() =>
+          [1, 2, 3, 4, 5, 6, 7].forEach((n) =>
+            notify({ level: "warning", message: `Failure ${n}` }),
+          )
+        }
+      />
     </div>
-  );
-};
+    <Notifications />
+  </div>
+);
 
 const meta = {
   title: "Components/Notifications",
@@ -61,7 +59,10 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Raised from anywhere, rendered top-center in a portal. */
+/**
+ * A notification raised with `notify` shows near the top of the page, in a
+ * portal. The play test raises one and finds it in the notifications region.
+ */
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.click(
@@ -79,9 +80,8 @@ export const Default: Story = {
 };
 
 /**
- * A confirmation clears itself after a few seconds. A failure does not: it
- * waits to be dismissed, because a message that vanishes before it is read is
- * no message at all.
+ * A confirmation disappears after four seconds, and a failure stays until it
+ * is dismissed. The play test raises both, waits, and dismisses the failure.
  */
 export const FailuresWaitToBeDismissed: Story = {
   play: async ({ canvasElement }) => {
@@ -120,7 +120,10 @@ export const FailuresWaitToBeDismissed: Story = {
   },
 };
 
-/** Beyond five, the remainder is summarised rather than burying the page. */
+/**
+ * Beyond five notifications, four show and the rest are summarised as a count.
+ * The play test raises seven.
+ */
 export const StacksAndSummarises: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.click(

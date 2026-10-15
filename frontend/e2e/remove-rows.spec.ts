@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import {
-  CSV_HEADER,
+  csv,
   expectPublicationCount,
   indexTable,
   openDocument,
@@ -12,14 +12,12 @@ import {
 } from "./helpers";
 
 /** A batch of four new publications. */
-const BATCH_CSV =
-  [
-    CSV_HEADER,
-    `The Devil to Pay in the Backlands,1963,US,Knopf,James L. Taylor,Grande Sertão: Veredas,João Guimarães Rosa,`,
-    `Macunaíma,1984,US,Random House,E. A. Goodland,Macunaíma,Mário de Andrade,`,
-    `The Hour of the Star,1986,US,Carcanet,Giovanni Pontiero,A Hora da Estrela,Clarice Lispector,`,
-    `The Passion According to G.H.,1988,US,University of Minnesota Press,Ronald W. Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
-  ].join("\n") + "\n";
+const BATCH_CSV = csv([
+  `The Devil to Pay in the Backlands,1963,US,Knopf,James L. Taylor,Grande Sertão: Veredas,João Guimarães Rosa,`,
+  `Macunaíma,1984,US,Random House,E. A. Goodland,Macunaíma,Mário de Andrade,`,
+  `The Hour of the Star,1986,US,Carcanet,Giovanni Pontiero,A Hora da Estrela,Clarice Lispector,`,
+  `The Passion According to G.H.,1988,US,University of Minnesota Press,Ronald W. Sousa,A Paixão Segundo G.H.,Clarice Lispector,`,
+]);
 
 test("rows removed from a shared document disappear for everyone, Undo brings them back, and the rest is imported", async ({
   page,

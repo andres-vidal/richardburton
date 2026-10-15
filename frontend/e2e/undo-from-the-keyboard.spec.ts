@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import {
-  CSV_HEADER,
+  csv,
   expectPublicationCount,
   indexTable,
   openDocument,
@@ -11,14 +11,12 @@ import {
 } from "./helpers";
 
 /** A batch of four new publications. */
-const BATCH_CSV =
-  [
-    CSV_HEADER,
-    `Captains of the Sands,1988,US,Avon Books,Gregory Rabassa,Capitães da Areia,Jorge Amado,`,
-    `The Alienist,2012,US,Melville House,William L. Grossman,O Alienista,Machado de Assis,`,
-    `Family Ties,1972,US,University of Texas Press,Giovanni Pontiero,Laços de Família,Clarice Lispector,`,
-    `São Bernardo,1975,GB,Peter Owen,R. L. Scott-Buccleuch,São Bernardo,Graciliano Ramos,`,
-  ].join("\n") + "\n";
+const BATCH_CSV = csv([
+  `Captains of the Sands,1988,US,Avon Books,Gregory Rabassa,Capitães da Areia,Jorge Amado,`,
+  `The Alienist,2012,US,Melville House,William L. Grossman,O Alienista,Machado de Assis,`,
+  `Family Ties,1972,US,University of Texas Press,Giovanni Pontiero,Laços de Família,Clarice Lispector,`,
+  `São Bernardo,1975,GB,Peter Owen,R. L. Scott-Buccleuch,São Bernardo,Graciliano Ramos,`,
+]);
 
 test("Ctrl+Z and Ctrl+Shift+Z undo and redo a removal, and a text field keeps the keys for its own text", async ({
   page,

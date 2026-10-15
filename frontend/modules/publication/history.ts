@@ -5,6 +5,7 @@ import type {
 } from "./model";
 import { type PublicationKey, Publication } from "./model";
 
+/** A field whose value changed, with the old and the new value as text. */
 type FieldChange = {
   kind: "field";
   attribute: PublicationKey;
@@ -12,6 +13,7 @@ type FieldChange = {
   to: string;
 };
 
+/** The sources added and removed, and whether the rest were reordered. */
 type SourcesChange = {
   kind: "sources";
   added: string[];
@@ -21,7 +23,7 @@ type SourcesChange = {
 
 /** One record a merge took in, or an un-merge gave back, in full. */
 type AbsorbedRecord = {
-  /** The record's own id — two records a merge took in may well share a title. */
+  /** The record's id, since two records a merge took in can share a title. */
   id: number;
   title: string;
   fields: { attribute: PublicationKey; value: string }[];
@@ -29,10 +31,9 @@ type AbsorbedRecord = {
 };
 
 /**
- * The records that changed hands. A merge is one act over several
- * publications, and the entry's diff can only speak for the one that survived
- * it — this is the other side: everything the records that left were holding,
- * which is what a reader needs to judge what the merge did to the data.
+ * The records a merge took in (`in`), or an un-merge gave back (`back`), each
+ * with every field it held. The entry's diff covers only the record that
+ * remains, so these hold what the other records held.
  */
 type AbsorbedChange = {
   kind: "absorbed";
@@ -52,25 +53,22 @@ type RelatedChange = {
   records: { id: number; title: string; year: number; authors: string }[];
 };
 
+/** One change an entry of the log made. */
 type Change = FieldChange | SourcesChange | AbsorbedChange | RelatedChange;
 
-/** An entry carrying the changes its action made — what the views render. */
+/** An entry with the changes its act made. */
 type WithChanges<T> = T & { changes: Change[] };
 
-/** Stable identity of an entry within the log. */
+/** Returns a key that identifies an entry within the log of the database. */
 function keyOf(entry: FullHistoryEntry): string {
   return `${entry.publicationId}:${entry.version}`;
 }
 
 /**
- * Turn the server's structural diff into something renderable: field keys
- * become labels, raw values become strings, and the whole thing takes the
- * database's own attribute order rather than whatever order the payload
- * happened to arrive in. Sources come last, as the one change that is a list
- * rather than a value.
- *
- * This is the seam the wire format buys us — the server says *what* changed, and
- * every decision about how it reads is made here, once, on the way in.
+ * Returns the changes in the server's `diff`: one `FieldChange` for each field
+ * that changed, in the order of `ATTRIBUTES`, with its values as text, and then
+ * a `SourcesChange` when the sources changed. Returns an empty list for a null
+ * diff.
  */
 function presentChanges(diff: SnapshotDiff | null): Change[] {
   if (diff === null) return [];
@@ -90,13 +88,9 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
 }
 
 /**
- * The records an entry took in or gave back, spelled out in full.
- *
- * A merge's own diff says what the surviving record gained; it cannot say what
- * the records that left were holding, and they are no longer anywhere to be
- * looked up. So the entry carries them, and this renders each one whole — every
- * field it had, and its sources — so the log answers what happened to the data
- * rather than only what happened to the survivor.
+ * Returns the records an entry took in or gave back as one `AbsorbedChange`,
+ * each record with its title, every other field that has a value, and its
+ * sources. Returns an empty list for an entry that took in no records.
  */
 function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
   const absorbed = entry.absorbed ?? [];
@@ -124,8 +118,9 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
 }
 
 /**
- * The other publications a decision is about, named by title, year and
- * translators. An entry that is not a decision has none.
+ * Returns the other publications a duplicate decision is about as one
+ * `RelatedChange`, each named by its title, year and translators. Returns an
+ * empty list for an entry that names no other publications.
  */
 function presentRelated(entry: PublicationHistoryEntry): Change[] {
   const related = entry.related ?? [];
@@ -147,8 +142,8 @@ function presentRelated(entry: PublicationHistoryEntry): Change[] {
 }
 
 /**
- * Each entry paired with its rendered changes — resolved once, when the log is
- * fetched, so no view recomputes a diff while painting.
+ * Returns each entry with its changes. It is meant to run once, where the log
+ * is read, so no component computes the changes while it renders.
  */
 function withChanges<T extends PublicationHistoryEntry>(
   entries: T[],
@@ -164,4 +159,4 @@ function withChanges<T extends PublicationHistoryEntry>(
 }
 
 export { keyOf, presentAbsorbed, presentChanges, presentRelated, withChanges };
-export type { Change, WithChanges };
+export type { WithChanges };

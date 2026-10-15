@@ -1234,18 +1234,16 @@ const CHARTS = {
  * per year.
  */
 const INSIGHTS: Insights = {
-  ...{
-    publications: 428,
-    years: { first: 1886, last: 2026 },
-    totals: {
-      works: 323,
-      originalAuthors: 158,
-      translators: 159,
-      publishers: 176,
-      countries: 10,
-    },
-    sourced: 3,
+  publications: 428,
+  years: { first: 1886, last: 2026 },
+  totals: {
+    works: 323,
+    originalAuthors: 158,
+    translators: 159,
+    publishers: 176,
+    countries: 10,
   },
+  sourced: 3,
   chart: CHARTS.perYear,
   matched: null,
 };

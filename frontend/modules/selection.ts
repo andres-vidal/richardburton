@@ -1,13 +1,14 @@
-// Ported from `react-selection-manager` to `jotai`.
-
-import { isElement } from "lodash";
-
 import { atom, useAtomValue } from "jotai";
 import { atomFamily } from "jotai-family";
 import type { Store } from "modules/store";
 
+/** The key of something that can be selected. */
 type SelectableId = string | number;
 
+/**
+ * A click that asks to select `id`, of the kind `type`, with the modifier keys
+ * held and the order of the rows it can extend a range along.
+ */
 type SelectionEvent = {
   id: SelectableId;
   type: string;
@@ -16,25 +17,29 @@ type SelectionEvent = {
   orderedIds?: SelectableId[];
 };
 
+/**
+ * What is selected, the kind of thing it is, and the pivot: the row a
+ * Shift-click extends a range from. Selecting a thing of another kind starts
+ * the selection again.
+ */
 type SelectionState = {
   selection: Set<SelectableId>;
-  // The entity kind the current selection belongs to — selecting a different
-  // kind restarts the selection. `pivot` is the anchor for shift-range selects.
   type: string | null;
   pivot: SelectableId | null;
 };
 
+/** Returns a state with nothing selected. */
 const empty = (): SelectionState => ({
   selection: new Set(),
   type: null,
   pivot: null,
 });
 
-// Base state atom — `select` replaces it wholesale on each click.
+/** The selection of the store. `select` replaces it on each click. */
 const selectionStateAtom = atom<SelectionState>(empty());
 
-// Derived reads — each yields a primitive/stable slice, so a subscriber only
-// re-renders when its own slice changes (a row on its own selected-ness).
+// The derived atoms each read one part of the state, so a row re-renders only
+// when whether it is selected changes.
 const selectionAtom = atom((get) => get(selectionStateAtom).selection);
 const selectionSizeAtom = atom((get) => get(selectionStateAtom).selection.size);
 const isSelectionEmptyAtom = atom(
@@ -44,9 +49,9 @@ const isSelectedFamily = atomFamily((id: SelectableId) =>
   atom((get) => get(selectionStateAtom).selection.has(id)),
 );
 
-// The ported react-selection-manager click semantics, as a pure reducer: plain
-// click selects only the clicked row; cmd/ctrl toggles it; shift extends a
-// contiguous range from the pivot along `orderedIds` (the current row order).
+// Returns the state after `event`. A plain click selects only the clicked row.
+// A click with Cmd or Ctrl adds or removes the row. A click with Shift selects
+// the rows from the pivot to the clicked row along `orderedIds`.
 function reduce(state: SelectionState, event: SelectionEvent): SelectionState {
   const { id, type, metaKey, shiftKey, orderedIds } = event;
 
@@ -121,46 +126,48 @@ function reduce(state: SelectionState, event: SelectionEvent): SelectionState {
  * The marker for a row's **selection handle**: a click on it, or on anything
  * inside it, asks for that row to be selected.
  *
- * Deliberately separate from the flag that governs *text* selection, and
- * deliberately absent from cells that hold a field — a click that lands in an
- * input is there to type, not to select. Both the row that selects and the
- * listener that clears read this one marker, so the two can never disagree about
- * what counts as a selection.
+ * It is separate from the attribute that allows text selection, and cells that
+ * hold a field do not carry it, because a click in an input is for typing. The
+ * row that selects and the listener that clears the selection both read this
+ * selector, so they agree on what counts as a selection click.
  */
 const SELECTION_HANDLE = '[data-selects-row="true"]';
 
-/** Whether a click asks for a row to be selected. */
+/** Returns whether a click on `target` asks for a row to be selected. */
 export function isSelectionGesture(target: EventTarget | null): boolean {
-  return (
-    isElement(target) && Boolean((target as Element).closest(SELECTION_HANDLE))
-  );
+  return target instanceof Element && target.closest(SELECTION_HANDLE) !== null;
 }
 
-// --- Actions (write the store they are given, like modules/publication) -----
+// --- Actions (each writes the store it is given) ----------------------------
 
+/** Applies a click to the store's selection. */
 export function select(store: Store, event: SelectionEvent): void {
   store.set(selectionStateAtom, reduce(store.get(selectionStateAtom), event));
 }
 
+/** Selects nothing. */
 export function clearSelection(store: Store): void {
   store.set(selectionStateAtom, empty());
 }
 
-/** Imperative, non-reactive read of the current selection. */
+/** Returns the store's selection, without subscribing to it. */
 export function getSelection(store: Store): Set<SelectableId> {
   return store.get(selectionAtom);
 }
 
-// --- Reads (thin useAtomValue hooks, like modules/publication) --------------
+// --- Reads ------------------------------------------------------------------
 
+/** Whether `id` is selected. */
 export function useIsSelected(id: SelectableId): boolean {
   return useAtomValue(isSelectedFamily(id));
 }
 
+/** Whether nothing is selected. */
 export function useIsSelectionEmpty(): boolean {
   return useAtomValue(isSelectionEmptyAtom);
 }
 
+/** How many things are selected. */
 export function useSelectionSize(): number {
   return useAtomValue(selectionSizeAtom);
 }
