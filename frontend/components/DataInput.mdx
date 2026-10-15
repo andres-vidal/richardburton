@@ -6,32 +6,55 @@ import * as DataInputStories from "./DataInput.stories";
 
 # Data input
 
-The editable table cell used across the publication workspace. It is a
-**dispatcher**: given a cell's `rowId` and `colId`, it looks up the column's
-attribute type (`text`, `number`, `array`, `enum`, `enumArray`, or `book`) and
-renders the matching concrete editor — one of the `Text*DataInput` variants
-below, or the
+The field that edits one attribute of one publication row. Given the row's
+`rowId` and the attribute's `colId`, it looks up the attribute's type (`text`,
+`number`, `array`, `enumArray` or `book`) and renders the field for that type:
+a `TextInput` for `text`, one of the `Text*DataInput` fields below, or the
 [original book field](?path=/docs/publications-original-book-data-input--docs),
-which is the only `book` column and fills its neighbour as well as itself.
+which is the only `book` field and fills the original authors as well as
+itself.
 
-## Data flow
-
-`DataInput` keeps the live edit in local state but treats the incoming `value`
-as the source of truth: an effect re-syncs when the store's value changes. On
-every edit it calls `setField(rowId, colId, value)` to write the change
-back into the publication store, then re-emits through `onChange`. For `array`
-and `enum` columns it also revalidates the row; the other types validate on
-blur. Any `error` prop marks the cell invalid.
+Each field receives the input's own props and the value in the shape its type
+holds: one string, or a list of them. Only two fields receive more. The
+`array` field receives `lookup`, the name search that suggests its entries,
+which is `publishers` for the publishers column and `authors` for the others.
+The `book` field receives `rowId`, because picking a book also writes that
+row's original authors.
 
 <Canvas of={DataInputStories.Default} />
 
+## Props
+
+- `rowId` and `colId` — the row and the attribute the field edits.
+- `value` and `error` — the attribute's value, and the error to show for it.
+- `onChange` — called with each edit, after the edit is written to the row.
+- `errorDisplay` — where the error is written. See below.
+
+The props of an input, such as `aria-label` or `onKeyDown`, are passed to the
+input.
+
+## Data flow
+
+The incoming `value` is the source of truth. On every edit `DataInput` calls
+`setField(store, rowId, colId, value)` to write the change to the row in the
+enclosing publication store, then passes it to `onChange`. Focus in the field
+reports the cell as the person's position in the document.
+
+The field does not validate the row. The store that holds the row does: in an
+import document `watchChecks` validates the rows that were edited, and in the
+edit form of a stored publication `watchEdit` does. Picking an option or adding
+a chip is written to the row at once, like a keystroke, while the combobox
+keeps focus.
+
+<Canvas of={DataInputStories.WritesOnSelection} />
+
 ## Where errors appear
 
-`errorDisplay` decides, because the two callers need opposite things. In the
-bulk workspace (`"tooltip"`, the default) there is no room under a cell — a
-message would reflow the grid — so the tinted cell carries the signal and the
-tooltip carries the detail. In the edit form (`"inline"`) the message is written
-under the field, where it can be read without hovering and announced as an
-alert.
+`errorDisplay` decides. With `"tooltip"`, the default, the field is tinted and
+the message is in a tooltip, which takes no room around the field, so a grid of
+fields does not reflow. With `"inline"` the message is written under the field,
+where it can be read without hovering and is announced as an alert. The slot
+for it is always reserved, so a message appearing does not move the fields
+around it.
 
 <Canvas of={DataInputStories.InlineError} />

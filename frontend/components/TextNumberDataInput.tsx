@@ -1,33 +1,24 @@
 "use client";
 
 import { parseInt, toString } from "lodash";
-import { FC, forwardRef } from "react";
-import { ScalarDataInputProps } from "./DataInput";
+import { FC } from "react";
+import { DataInputFieldProps } from "./DataInput";
 import NumberInput from "./NumberInput";
 
-export default forwardRef<HTMLInputElement, ScalarDataInputProps>(
-  function TextNumberDataInput(
-    {
-      rowId: _rowId,
-      colId: _colId,
-      autoValidated: _autoValidated,
-      value,
-      onChange,
-      ...props
-    },
-    ref,
-  ) {
-    function handleChange(value: number) {
-      onChange?.(toString(value));
-    }
+/**
+ * A field for an attribute that holds a whole number as a string. It shows the
+ * value as a number and passes each edit to `onChange` as a string.
+ */
+const TextNumberDataInput: FC<DataInputFieldProps<string>> = ({
+  value,
+  onChange,
+  ...props
+}) => (
+  <NumberInput
+    {...props}
+    value={value ? parseInt(value) : undefined}
+    onChange={(next) => onChange?.(toString(next))}
+  />
+);
 
-    return (
-      <NumberInput
-        {...props}
-        ref={ref}
-        value={value ? parseInt(value) : undefined}
-        onChange={handleChange}
-      />
-    );
-  },
-) as FC<ScalarDataInputProps>;
+export default TextNumberDataInput;

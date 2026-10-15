@@ -1,28 +1,36 @@
-import Breadcrumb from "components/Breadcrumb";
-import Layout from "components/Layout";
-import PageHeader from "components/PageHeader";
+import AdminPage from "components/AdminPage";
 import VocabularyList from "components/VocabularyList";
+import type { Kind } from "modules/vocabulary";
 import { getTranslations } from "next-intl/server";
 
-export default async function VocabularyPage() {
-  const t = await getTranslations("vocabulary");
-  const admin = await getTranslations("admin");
+import { readNames } from "app/vocabulary/read";
+import { admitEditors } from "../guard";
 
-  const crumbs = [
-    { label: admin("home"), href: "/" },
-    { label: admin("admin"), href: "/admin" },
-    { label: t("title") },
-  ];
+/**
+ * Renders the names page with the publishers' names, or with `?kind=authors`
+ * the names of translators and original authors. The names are read here, on
+ * the server, and `VocabularyList` lists them for renaming.
+ */
+export default async function VocabularyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string }>;
+}) {
+  await admitEditors();
+
+  const kind: Kind =
+    (await searchParams).kind === "authors" ? "authors" : "publishers";
+
+  const [t, names] = await Promise.all([
+    getTranslations("vocabulary"),
+    readNames(kind),
+  ]);
 
   return (
-    <Layout
-      subheader={
-        <>
-          <Breadcrumb items={crumbs} />
-          <PageHeader title={t("title")} description={t("description")} />
-        </>
-      }
-      content={<VocabularyList />}
+    <AdminPage
+      title={t("title")}
+      description={t("description")}
+      content={<VocabularyList kind={kind} names={names} />}
     />
   );
 }

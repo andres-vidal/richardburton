@@ -21,10 +21,10 @@ import {
 } from "modules/publication/store";
 import { PublicationStoreProvider } from "modules/publication/workspace";
 import type { Store } from "modules/store";
-import { useRouter } from "i18n/navigation";
 import { createStore } from "jotai";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
+import { useMutation } from "utils/useMutation";
 import Button from "./Button";
 import { Modal } from "./Modal";
 import ModalHeading from "./ModalHeading";
@@ -35,8 +35,10 @@ type Restore = (
   changes?: Publication,
 ) => Promise<Restoration>;
 
-/** A deleted publication whose restore was refused, and the publication that
- * has its identity. */
+/**
+ * A deleted publication whose restore was refused, and the publication that is
+ * not deleted and has the same identity.
+ */
 type Refused = { deleted: Publication; twin: Publication };
 
 /**
@@ -54,7 +56,7 @@ const RestoreWithChanges: FC<
   Refused & { onRestore: Restore; onRestored: () => void; onClose: () => void }
 > = ({ deleted, ...props }) => {
   // The edit is kept in a store of its own, passed explicitly so that it never
-  // joins the store of an enclosing surface.
+  // joins the store of the page around it.
   const [store] = useState(() => {
     const own = createStore();
 
@@ -139,25 +141,20 @@ const DeletedPublications: FC<{
   const formatDate = useFormatDate();
   const [restoringId, setRestoringId] = useState<PublicationId>();
   const [refused, setRefused] = useState<Refused | null>(null);
-  const router = useRouter();
+  const { pending: busy, run } = useMutation();
 
-  async function handleRestore(deleted: Publication) {
+  // Restores `deleted`, or opens `RestoreWithChanges` when an identical
+  // publication refuses the restore.
+  function handleRestore(deleted: Publication) {
     setRestoringId(deleted.id!);
-    try {
+    run(async () => {
       const result = await onRestore(deleted.id!);
 
-      if (result.outcome === "restored") router.refresh();
       if (result.outcome === "identical") {
         setRefused({ deleted, twin: result.twin });
       }
-    } finally {
-      setRestoringId(undefined);
-    }
-  }
-
-  function handleRestored() {
-    setRefused(null);
-    router.refresh();
+      return result.outcome === "restored";
+    });
   }
 
   return (
@@ -192,8 +189,8 @@ const DeletedPublications: FC<{
                 width="fit"
                 size="medium"
                 Icon={RestoreTrashIcon}
-                loading={restoringId === publication.id}
-                disabled={restoringId !== undefined}
+                loading={busy && restoringId === publication.id}
+                disabled={busy}
                 onClick={() => handleRestore(publication)}
               />
             </li>
@@ -211,7 +208,7 @@ const DeletedPublications: FC<{
             deleted={refused.deleted}
             twin={refused.twin}
             onRestore={onRestore}
-            onRestored={handleRestored}
+            onRestored={() => setRefused(null)}
             onClose={() => setRefused(null)}
           />
         ) : null}

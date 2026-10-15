@@ -3,14 +3,11 @@ import { fireEvent, render, screen } from "test/render";
 import { messages } from "test/messages";
 import TextEnumArrayDataInput from "./TextEnumArrayDataInput";
 
-// The enum-array cell editor (countries) stores raw ids (e.g. "BR,US") but shows
-// each as the country's name, and emits the raw ids re-joined on change. These
-// specs drive the non-network paths — render and pill removal — so they never
-// trigger the autocomplete network call.
+// The enum-array cell editor (countries) stores codes such as ["BR", "US"] but
+// shows each as the country's name, and emits the codes on change. These specs
+// cover rendering and pill removal.
 describe("TextEnumArrayDataInput", () => {
   const props = {
-    rowId: 1,
-    colId: "countries",
     error: "",
     "aria-label": "Countries",
   } as const;

@@ -15,21 +15,20 @@ import type {
   Resemblance,
   ValidationResult,
 } from "./model";
-import * as Doc from "./doc";
 import {
   append,
-  contentKey,
   createId,
-  documentOf,
   errorFamily,
+  isCheckedFamily,
   lastValidatedFamily,
   publicationFamily,
   publicationIdsAtom,
   RESEMBLANCE_ATTRIBUTES,
   remember,
   removePublication,
-  resemblanceSubjectAtom,
-  rowSubjectFamily,
+  resemblanceSubjectKeyAtom,
+  rowContentKeyFamily,
+  rowSubjectKeyFamily,
   setErrors,
   setResemblances,
 } from "./store";
@@ -382,12 +381,12 @@ function distinguish(ids: PublicationId[]): Promise<boolean> {
  */
 async function validateUpdate(store: Store, id: PublicationId): Promise<void> {
   const publication = store.get(publicationFamily(id));
-  const fingerprint = contentKey(publication);
+  const content = store.get(rowContentKeyFamily(id));
 
-  // Same dedup as `validate`: this runs on every blur (and on every change for
-  // array fields), so a field the user only tabbed through costs no round-trip.
-  if (fingerprint === store.get(lastValidatedFamily(id))) return;
-  store.set(lastValidatedFamily(id), fingerprint);
+  // An edit undone before it settled leaves the content that was last sent,
+  // which needs no request.
+  if (content === store.get(lastValidatedFamily(id))) return;
+  store.set(lastValidatedFamily(id), content);
 
   return run(async (http) => {
     const { data } = await http.post<ValidationResult>(
@@ -402,9 +401,12 @@ async function validateUpdate(store: Store, id: PublicationId): Promise<void> {
  * Validates the rows `ids` server-side and stores the results with `setErrors`.
  *
  * A row is left out when its content was already validated: when this client
- * has sent that content (`lastValidatedFamily`), or when the store's document
- * holds a result for it. With `force`, every row is sent. A row the store does
- * not hold is left out.
+ * has sent that content (`lastValidatedFamily`), or when the row has a stored
+ * result for it (`isCheckedFamily`). With `force`, every row is sent. A row the
+ * store does not hold is left out.
+ *
+ * The content of each row is compared by its cached key, `rowContentKeyFamily`,
+ * so a call with every row reads each row's content once per edit.
  */
 async function validate(
   store: Store,
@@ -412,23 +414,18 @@ async function validate(
   { force = false }: { force?: boolean } = {},
 ): Promise<void> {
   return run(async (http) => {
-    const { doc } = documentOf(store);
     const pending = ids
-      .map((id) => ({
-        id,
-        publication: store.get(publicationFamily(id)),
-      }))
-      .filter(({ publication }) => publication !== undefined)
-      .map((entry) => ({ ...entry, content: contentKey(entry.publication) }))
+      .filter((id) => store.get(publicationFamily(id)) !== undefined)
+      .map((id) => ({ id, content: store.get(rowContentKeyFamily(id)) }))
       .filter(
         ({ id, content }) =>
           force ||
-          (content !== store.get(lastValidatedFamily(id)) &&
-            content !== Doc.validationOf(doc, id)?.content),
+          (!store.get(isCheckedFamily(id)) &&
+            content !== store.get(lastValidatedFamily(id))),
       )
-      .map(({ id, publication, content }) => {
+      .map(({ id, content }) => {
         store.set(lastValidatedFamily(id), content);
-        return { id, publication };
+        return { id, publication: store.get(publicationFamily(id)) };
       });
 
     if (pending.length > 0) {
@@ -436,16 +433,11 @@ async function validate(
         "publications/validate",
         pending.map(({ publication }) => publication),
       );
-      // Map results back to the rows we actually sent (the filtered set),
-      // not the original id list. Each result is stored for the content
-      // that was sent, not the server's copy of it.
+      // The results are in the order of the rows sent. Each one is stored for
+      // the content that was sent, not for the server's copy of it.
       setErrors(
         store,
-        data.map((entry, i) => ({
-          id: pending[i].id,
-          publication: pending[i].publication,
-          errors: entry.errors,
-        })),
+        data.map((entry, i) => ({ ...pending[i], errors: entry.errors })),
       );
     }
   });
@@ -458,11 +450,15 @@ async function validate(
  * The server does not know the rows' ids, so the response names each row by its
  * position in the request. The server stores nothing, and this function does
  * not change or remove any row.
+ *
+ * Every row in `ids` is sent, even when only one of them changed. The server
+ * finds which of the rows it is sent resemble each other and which repeat an
+ * earlier one, so a change to one row can change the results of the others.
  */
 async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
   return run(async (http) => {
-    const subject = store.get(resemblanceSubjectAtom);
-    const asked = ids.map((id) => store.get(rowSubjectFamily(id)));
+    const subject = store.get(resemblanceSubjectKeyAtom);
+    const asked = ids.map((id) => store.get(rowSubjectKeyFamily(id)));
     const rows = ids.map((id) =>
       pick(store.get(publicationFamily(id)), RESEMBLANCE_ATTRIBUTES),
     );
@@ -477,8 +473,10 @@ async function resemblances(store: Store, ids: PublicationId[]): Promise<void> {
     // is dropped. The change has already scheduled a new check
     // (see `watchChecks`).
     const moved =
-      store.get(resemblanceSubjectAtom) !== subject ||
-      ids.some((id, index) => store.get(rowSubjectFamily(id)) !== asked[index]);
+      store.get(resemblanceSubjectKeyAtom) !== subject ||
+      ids.some(
+        (id, index) => store.get(rowSubjectKeyFamily(id)) !== asked[index],
+      );
 
     if (moved) return;
 
@@ -519,8 +517,8 @@ async function upload(store: Store, payload: FormData): Promise<void> {
 }
 
 /**
- * The look-alike check, held in an object and read when a check runs, so it can
- * be replaced with one that does not reach the network, as `Author.REMOTE` is.
+ * The look-alike check, held in an object and read when a check runs, so a
+ * story can replace it with one that does not reach the network.
  */
 const REMOTE = { resemblances };
 

@@ -8,9 +8,8 @@ type Name = {
   /** How many publications credit this name. */
   publications: number;
   /**
-   * The ids of the other names of the same kind that this name resembles.
-   * Each id is also in the list that `list` returns. Empty when the name
-   * resembles no other name.
+   * The ids of the other names of the same kind that this name resembles, or
+   * an empty list when it resembles no other name.
    */
   resembles: number[];
 };
@@ -37,14 +36,6 @@ type Resemblance = {
   held: boolean;
   resembles: Omit<Name, "resembles">[];
 };
-
-async function list(kind: Kind): Promise<Name[]> {
-  return request(async (http) => {
-    const { data } = await http.get<{ entries: Name[] }>(`vocabulary/${kind}`);
-
-    return data.entries;
-  });
-}
 
 /**
  * Renames a name. When another name of the same kind already has the new name,
@@ -116,5 +107,5 @@ async function resemblances(
   });
 }
 
-export { list, rename, resemblances };
-export type { Kind, Listed, Name, Outcome, Resemblance };
+export { rename, resemblances };
+export type { Kind, Listed, Name, Resemblance };

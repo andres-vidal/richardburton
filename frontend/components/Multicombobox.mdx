@@ -1,0 +1,82 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as MulticomboboxStories from "./Multicombobox.stories";
+
+<Meta of={MulticomboboxStories} />
+
+# Multicombobox
+
+A text field that holds a list of entries, each shown as a removable chip.
+Typing offers the options that match what was typed, and the field adds an
+option, or, when it accepts free text, the typed text itself.
+
+<Canvas of={MulticomboboxStories.Default} />
+
+## Props
+
+- `value` — the entries, as strings or as `{ id, label }` items. Two entries are
+  the same when their trimmed text, or their `id`, is the same.
+- `onChange` — called with the whole list after an entry is added or removed.
+- `getOptions(search)` — returns the options for a term. The field calls it
+  through `useLookup`, which waits for typing to pause and passes the term in
+  lower case.
+- `placeholder` — shown while the list is empty. Once it holds an entry, the
+  field asks for another one instead.
+- `freeText` — whether typed text can be added when no option is highlighted.
+  A field of names sets it. A field of countries does not, so only a country
+  that was found can be added.
+- `emptyMessage` — the text of the menu when a search matches nothing.
+- `error` — marks the input invalid (`aria-invalid`) and tints the field.
+- `bordered` — the outlined style, applied to the field and its menu alike.
+
+Every other prop, such as `aria-label` or `onKeyDown`, goes to the
+`TextInput` the field is built on.
+
+## Adding and removing entries
+
+Enter or ArrowRight adds the highlighted option, or, with `freeText`, the
+typed text when no option is highlighted. With `freeText`, a comma adds the
+typed text, unless a quote is open: a name that contains a comma is written in
+quotes, and the quotes come off when it is added. Adding an entry empties the
+field and closes the menu. Backspace in an empty field removes the last entry.
+
+A key the field acts on is `preventDefault`ed before `onKeyDown` runs, so the
+form or the row around the field can tell a key the field used from one it left
+alone. With nothing typed, Enter is left to the surrounding form.
+
+<Canvas of={MulticomboboxStories.InsideAForm} />
+
+<Description of={MulticomboboxStories.ACommaClosesTheMenu} />
+<Canvas of={MulticomboboxStories.ACommaClosesTheMenu} />
+
+## Looking up options
+
+`useLookup` answers only the newest lookup, so options for an older term never
+replace the ones for what is typed now. The input carries `aria-busy` from a
+keystroke until the options for it arrive.
+
+<Canvas of={MulticomboboxStories.BusyWhileLookingUp} />
+
+Adding an entry, by any of the keys above or by clicking an option, cancels the
+lookup that is still pending, so no menu opens over the emptied field.
+
+<Canvas of={MulticomboboxStories.AnEntryDropsThePendingLookup} />
+
+## Options as items
+
+An option can be an `{ id, label }` item rather than a string, as countries are.
+The chip shows the label, and an option already chosen is left out of the menu.
+
+<Canvas of={MulticomboboxStories.ObjectItems} />
+
+<Description of={MulticomboboxStories.OnlyOptionsWithoutFreeText} />
+<Canvas of={MulticomboboxStories.OnlyOptionsWithoutFreeText} />
+
+## States
+
+- **Default** — adding entries by typing, and removing one with Backspace.
+- **Bordered** — the outlined variant, with a matching menu.
+- **With error** — the input is marked invalid.
+- **No matches** — the menu says so instead of opening empty.
+
+<Canvas of={MulticomboboxStories.NoMatches} />

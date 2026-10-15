@@ -4,35 +4,36 @@ import { revoke, setRole } from "modules/access/remote";
 import { useSession } from "modules/session";
 import { useFormatDate } from "modules/dates";
 import type { UserRecord, UserRole } from "modules/users";
-import { useRouter } from "i18n/navigation";
 import { useTranslations } from "next-intl";
-import { FC, useState } from "react";
+import { FC } from "react";
+import { useMutation } from "utils/useMutation";
 import Button from "./Button";
 import ConfirmationModal from "./ConfirmationModal";
 import { useModal } from "./Modal";
 import RoleMenu from "./RoleMenu";
 
+/**
+ * One person's row: their address, role and join date, a menu to change the
+ * role, and a button to revoke access after a confirmation. Both controls are
+ * disabled while a change runs, and on the reader's own row.
+ */
 const Entry: FC<{ user: UserRecord }> = ({ user }) => {
   const t = useTranslations("admin");
   const formatDate = useFormatDate();
-  const router = useRouter();
   const confirmation = useModal();
-  const [working, setWorking] = useState(false);
+  const { pending: working, run } = useMutation();
   const isSelf = user.email === useSession()?.email;
 
-  async function change(role: UserRole) {
-    setWorking(true);
-    const changed = await setRole(user, role);
-    setWorking(false);
-    if (changed) router.refresh();
+  function change(role: UserRole) {
+    run(() => setRole(user, role));
   }
 
-  async function remove() {
-    setWorking(true);
-    const revoked = await revoke(user);
-    setWorking(false);
-    confirmation.close();
-    if (revoked) router.refresh();
+  function remove() {
+    run(async () => {
+      const revoked = await revoke(user);
+      confirmation.close();
+      return revoked;
+    });
   }
 
   return (
@@ -65,7 +66,7 @@ const Entry: FC<{ user: UserRecord }> = ({ user }) => {
         width="fit"
         size="field"
         loading={working}
-        disabled={working || isSelf}
+        disabled={isSelf}
         onClick={() => confirmation.open()}
       />
 
@@ -83,12 +84,11 @@ const Entry: FC<{ user: UserRecord }> = ({ user }) => {
 };
 
 /**
- * Everyone with access, and what they may do.
+ * Lists everyone with access, each with what their role allows.
  *
- * Your own row is shown but cannot be changed from here: another admin can
- * demote or remove you, and having to ask is the point — it is the difference
- * between a considered decision and a slip that locks you out. The server
- * refuses it too; this only saves the round trip.
+ * The reader's own row is shown, but its role and access cannot be changed
+ * from it, so a slip cannot lock the reader out. Another admin can change them.
+ * The server refuses the change too.
  */
 const AccessList: FC<{ users: UserRecord[] }> = ({ users }) => (
   <ul className="flex flex-col gap-2">

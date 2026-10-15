@@ -4,7 +4,6 @@ import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
 import { isEqual } from "lodash";
 import type { Store } from "modules/store";
-import hash from "object-hash";
 import * as Y from "yjs";
 import * as Doc from "./doc";
 import {
@@ -39,6 +38,32 @@ const DRAFT_ID: PublicationId = "draft";
  */
 function createId(): PublicationId {
   return uuid();
+}
+
+/**
+ * Returns a short key for `text`: its 53-bit cyrb53 hash, written in base 36.
+ *
+ * Two different texts get the same key with negligible probability, so a key
+ * stored with a check result stands for the text the check read. The hash is
+ * not cryptographic. It is computed in one pass over the text, which keeps it
+ * cheap enough to run on every edit of every row.
+ */
+function digest(text: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+
+  for (let at = 0; at < text.length; at += 1) {
+    const code = text.charCodeAt(at);
+    h1 = Math.imul(h1 ^ code, 2654435761);
+    h2 = Math.imul(h2 ^ code, 1597334677);
+  }
+
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
 /**
@@ -166,36 +191,53 @@ function openWorkspace(store: Store, doc: Y.Doc): () => void {
 
 // --- Base atoms -------------------------------------------------------------
 
+/**
+ * How many publications the database holds, as the index last reported, or
+ * null before any report.
+ */
 const totalIndexCountAtom = atom<number | null>(null);
 
 /**
  * The ordering a query answered with: the ids of every match, in the order they
- * are to be read. Frozen when the query is first answered, so scrolling through
- * it cannot drift as the database changes underneath — a record inserted or
- * removed afterwards does not shift which rows a later page draws.
+ * are to be read. It is fixed when the query is first answered, so a record
+ * inserted or removed afterwards does not shift which rows a later page holds.
  */
 const orderAtom = atom<PublicationId[]>([]);
 
-/** How many publications answered the current query — the length of its
- * ordering, across every page. */
+/**
+ * How many publications answered the current query, across every page: the
+ * length of its ordering.
+ */
 const matchingCountAtom = atom((get) => get(orderAtom).length);
 
 /** How many a page holds, as the server counts them. */
 const perPageAtom = atom<number>(0);
 
-/** How far into the ordering the reader has drawn, by position — advanced a
- * page's worth at a time, whatever number of rows actually came back, so a
- * record removed since the ordering froze is stepped over rather than retried. */
+/**
+ * How many positions of the ordering have been fetched. It advances by a
+ * page's worth at a time, whatever number of rows came back, so a record
+ * removed since the ordering was frozen is skipped rather than asked for again.
+ */
 const drawnCountAtom = atom<number>(0);
 
-/** Whether a further page is being fetched — one flight at a time, so a scroll
- * that lingers at the foot does not ask for the same page twice. */
+/**
+ * Whether a further page is being fetched. Only one page is fetched at a time,
+ * so a scroll that stays at the bottom does not ask for the same page twice.
+ */
 const isLoadingMoreAtom = atom<boolean>(false);
 
+/**
+ * The keys of the rows in the list, in reading order, as the store's document
+ * holds them. It is undefined until the working set has loaded.
+ */
 const publicationIdsAtom = atomWithReset<PublicationId[] | undefined>(
   undefined,
 );
+
+/** Whether each row shows its number in the list. */
 const areRowIdsVisibleAtom = atom(false);
+
+/** The key of the row that holds the focus, or undefined when none does. */
 const focusedRowIdAtom = atomWithReset<PublicationId | undefined>(undefined);
 
 // --- Per-publication families ----------------------------------------------
@@ -235,6 +277,11 @@ const errorFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<PublicationError>(null),
 );
 
+/**
+ * The content key (see `contentKey`) of the content this client last sent for
+ * validation for each row, or undefined when it has sent none. A row whose
+ * content has this key is not sent again.
+ */
 const lastValidatedFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<string | undefined>(undefined),
 );
@@ -262,6 +309,7 @@ const measuredResemblanceFamily = atomFamily((_id: PublicationId) =>
   atomWithReset<{ at: string; value: Resemblance } | null>(null),
 );
 
+/** Whether each attribute's column is shown. */
 const attributeVisibleFamily = atomFamily((key: PublicationKey) =>
   atomWithReset<boolean>(DEFAULT_ATTRIBUTE_VISIBILITY[key]),
 );
@@ -309,6 +357,7 @@ const writeMeasuredAtom = atom(
 
 // --- Derived atoms ----------------------------------------------------------
 
+/** The rows nothing is wrong with, in the order they are shown. */
 const validIdsAtom = atom((get) =>
   get(publicationIdsAtom)?.filter((id) => !get(rowErrorFamily(id))),
 );
@@ -340,13 +389,16 @@ const rowOrderAtom = atom((get) => {
 const rowNumberFamily = atomFamily((id: PublicationId) =>
   atom<number>((get) => get(rowOrderAtom).get(id) ?? 0),
 );
+
+/** The number of rows nothing is wrong with. */
 const validCountAtom = atom((get) => get(validIdsAtom)?.length || 0);
 
-// The rows that resemble something, in the order they are shown.
+/** The rows that resemble something, in the order they are shown. */
 const resemblingIdsAtom = atom((get) =>
   get(publicationIdsAtom)?.filter((id) => get(resemblanceFamily(id))),
 );
 
+/** The number of rows that resemble something. */
 const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
 
 /**
@@ -354,9 +406,9 @@ const resemblingCountAtom = atom((get) => get(resemblingIdsAtom)?.length || 0);
  * `startAt`, or at the start of the queue when `startAt` is not given. It is
  * null when the review is closed.
  *
- * It is kept in the store because two controls open the review: the
- * resemblance counter and the look-alike button on each row. `resetAll` resets
- * it, which closes the review when the working set is cleared.
+ * It is kept in the store rather than in a component, so that more than one
+ * control can open the review. `resetAll` resets it, which closes the review
+ * when the working set is cleared.
  */
 const reviewingAtom = atomWithReset<{ startAt?: PublicationId } | null>(null);
 
@@ -401,11 +453,11 @@ const rowSubjectFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * The key of a row's subject, as stored with a look-alike check result. It is
- * a hash, so a stored result does not carry the whole subject.
+ * The key of a row's subject (see `digest`), as stored with a look-alike check
+ * result, so a stored result does not carry the whole subject.
  */
 const rowSubjectKeyFamily = atomFamily((id: PublicationId) =>
-  atom((get) => hash(get(rowSubjectFamily(id)))),
+  atom((get) => digest(get(rowSubjectFamily(id)))),
 );
 
 /**
@@ -448,16 +500,21 @@ const rowErrorFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * The subjects of all rows, in order, as one JSON string.
+ * The key of the subjects of all rows, in order: the digest of every row's
+ * subject key. It is stored with the look-alike check results, and a check is
+ * due when it differs from the stored one.
  *
- * It changes only when a row's subject or the set of rows changes, so
- * editing a field outside `RESEMBLANCE_ATTRIBUTES`, such as the sources, leaves
- * it as it was. Being a string, an unchanged value compares equal and does not
- * notify the atom's subscribers.
+ * It changes only when a row's subject or the list of rows changes, so editing
+ * a field outside `RESEMBLANCE_ATTRIBUTES`, such as the sources, leaves it as
+ * it was. Being a string, an unchanged value compares equal and does not
+ * notify the atom's subscribers. An edit recomputes the key of the edited row
+ * only, since every other row's key is cached in `rowSubjectKeyFamily`.
  */
-const resemblanceSubjectAtom = atom((get) =>
-  JSON.stringify(
-    (get(publicationIdsAtom) ?? []).map((id) => get(rowSubjectFamily(id))),
+const resemblanceSubjectKeyAtom = atom((get) =>
+  digest(
+    (get(publicationIdsAtom) ?? [])
+      .map((id) => get(rowSubjectKeyFamily(id)))
+      .join(" "),
   ),
 );
 
@@ -522,10 +579,12 @@ const batchNamesAtom = atom((get) => {
   };
 });
 
+/** The attributes whose columns are shown, in the order of `ATTRIBUTES`. */
 const visibleAttributesAtom = atom((get) =>
   ATTRIBUTES.filter((key) => get(attributeVisibleFamily(key))),
 );
 
+/** The attributes whose columns are hidden, in the order of `ATTRIBUTES`. */
 const hiddenAttributesAtom = atom((get) =>
   ATTRIBUTES.filter((key) => !get(attributeVisibleFamily(key))),
 );
@@ -539,24 +598,29 @@ const publicationSourcesFamily = atomFamily((id: PublicationId) =>
   atom<string[]>((get) => get(publicationFamily(id))?.sources ?? []),
 );
 
-/** The matching text of each of a publication's fields, with the matched words
- * wrapped in `[[ ]]`. Undefined outside a search, and null for any field the
- * search did not match. */
+/**
+ * The matching text of each of a publication's fields, with the matched words
+ * wrapped in `[[ ]]`. It is undefined outside a search, and null for any field
+ * the search did not match.
+ */
 const publicationExcerptsFamily = atomFamily((id: PublicationId) =>
   atom<Record<string, string | null> | undefined>(
     (get) => get(savedFamily(id))?.excerpts,
   ),
 );
 
-/** A publication's saved sources, ignoring unsaved edits, or an empty list when
- * it has none. */
+/**
+ * A publication's saved sources, ignoring unsaved edits, or an empty list when
+ * it has none.
+ */
 const storedSourcesFamily = atomFamily((id: PublicationId) =>
   atom<string[]>((get) => get(savedFamily(id))?.sources ?? []),
 );
 
-/** How many loaded publications still have no *saved* sources — drives the
- * backfill wizard's counter and queue dots, updating as saves land (drafts
- * don't count until they're persisted). */
+/**
+ * How many rows in the list have no saved sources. A row whose sources are
+ * typed but not saved still counts.
+ */
 const unsourcedCountAtom = atom(
   (get) =>
     get(publicationIdsAtom)?.filter(
@@ -564,6 +628,7 @@ const unsourcedCountAtom = atom(
     ).length || 0,
 );
 
+/** Whether nothing is wrong with each row (see `rowErrorFamily`). */
 const isValidFamily = atomFamily((id: PublicationId) =>
   atom((get) => !get(rowErrorFamily(id))),
 );
@@ -593,6 +658,7 @@ const uncheckedCountAtom = atom(
       .length,
 );
 
+/** The code of what is wrong with each row as a whole (see `errorCode`). */
 const errorCodeFamily = atomFamily((id: PublicationId) =>
   atom((get) => errorCode(get(rowErrorFamily(id)))),
 );
@@ -601,10 +667,14 @@ const errorCodeFamily = atomFamily((id: PublicationId) =>
  * Which cell an atom belongs to: the publication, and the attribute of it.
  */
 type FieldKey = { id: PublicationId; key: PublicationKey };
+
+/** A cell written as one string, `<id>:<attribute>`. */
 type CellKey = `${PublicationId}:${PublicationKey}`;
 
+/** Returns the string a cell is cached under. */
 const cellKey = ({ id, key }: FieldKey): CellKey => `${id}:${key}`;
 
+/** Reads a cell back from the string `cellKey` wrote. */
 const fieldKey = (cell: CellKey): FieldKey => {
   const separator = cell.indexOf(":");
 
@@ -615,8 +685,9 @@ const fieldKey = (cell: CellKey): FieldKey => {
 };
 
 /**
- * Cache a per-cell atom under a *string* key, keeping the `{id, key}` call
- * signature.
+ * Returns an atom family for cells that is called with `{ id, key }` and caches
+ * each cell's atom under the string `cellKey` writes. `forget(ids)` removes the
+ * cached atoms of every cell of those rows.
  *
  * `atomFamily` only takes its `Map.get` fast path when no custom comparator is
  * passed; give it one and it linear-scans the whole cache on every lookup. These
@@ -627,10 +698,9 @@ function cellFamily<T>(initialize: (field: FieldKey) => Atom<T>) {
   const family = atomFamily((cell: CellKey) => initialize(fieldKey(cell)));
   const read = (field: FieldKey) => family(cellKey(field));
 
-  // Cells are keyed by a string, so forgetting publications means finding their
-  // cells first — the whole batch in one pass, since a search drops as many ids
-  // as it keeps. Snapshot the keys before removing: `getParams` iterates the
-  // live cache.
+  // The keys are copied before any is removed, because `getParams` iterates
+  // the live cache. One pass covers the whole batch, since a search can drop as
+  // many rows as it keeps.
   read.forget = (ids: Set<PublicationId>) =>
     [...family.getParams()]
       .filter((cell) => ids.has(fieldKey(cell).id))
@@ -639,20 +709,15 @@ function cellFamily<T>(initialize: (field: FieldKey) => Atom<T>) {
   return read;
 }
 
-/** A single cell's value — its own subscription, so editing one cell is cheap. */
+/**
+ * A single cell's value. Each cell has its own atom, so editing one cell
+ * re-renders only that cell.
+ */
 const fieldValueFamily = cellFamily(({ id, key }) =>
   atom((get) => get(publicationFamily(id))?.[key]),
 );
 
-/**
- * A single cell's saved value, as the server last returned it, ignoring
- * unsaved edits. The read-only index reads this, because an editor open over
- * the index edits the same rows.
- */
-const storedFieldValueFamily = cellFamily(({ id, key }) =>
-  atom((get) => get(savedFamily(id))?.[key]),
-);
-
+/** The code of what is wrong with a single cell's field (see `errorCode`). */
 const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
   atom((get) => errorCode(get(rowErrorFamily(id)), key)),
 );
@@ -660,10 +725,10 @@ const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
 // --- Family lifecycle -------------------------------------------------------
 
 /**
- * Every family keyed by a publication id. A family's cache is a `param → atom`
- * map that lives in this module, so an id that is never removed keeps its atom
- * for the life of the tab — and a session that searches a few times has typed
- * every result it ever saw.
+ * Every family keyed by a row key. A family caches one atom per key for the
+ * life of the module, so `forget` removes the keys of rows that leave the
+ * working set. Otherwise every search would add the atoms of its results to the
+ * cache for good.
  */
 const PUBLICATION_FAMILIES = [
   publicationFamily,
@@ -686,32 +751,30 @@ const PUBLICATION_FAMILIES = [
   rowNumberFamily,
 ];
 
-const CELL_FAMILIES = [
-  fieldValueFamily,
-  storedFieldValueFamily,
-  fieldErrorCodeFamily,
-];
+/** Every family keyed by a cell. */
+const CELL_FAMILIES = [fieldValueFamily, fieldErrorCodeFamily];
 
 /**
  * A page of the database: the rows, what the search matched, and how many
- * publications exist in total — which the index reports in a header rather
- * than in the body.
+ * publications exist in total, which the index reports in a header rather than
+ * in the body.
  */
 type PublicationIndex = {
   entries: Publication[];
-  /** What to tell the reader the search matched: the words it resolved to,
-   * grouped by the field each was searched in. */
+  /** The words the search matched with something other than what was typed. */
   matched: Matched[];
   /** How many exist in total, not how many matched. `null` when unreported. */
   total: number | null;
-  /** The ids of every match, in reading order — the ordering the reader scrolls
-   * through, frozen when the query was answered. */
+  /**
+   * The ids of every match, in reading order. The order is fixed when the
+   * query is answered, and later pages are read from it.
+   */
   order: PublicationId[];
   /** How many a page holds, as the server counts them. */
   perPage: number;
 };
 
-/** Drop every atom these publications own — their values and their cached cells. */
+/** Removes the cached atoms of these rows from every family, cells included. */
 function forget(ids: Iterable<PublicationId>): void {
   const dropped = new Set(ids);
 
@@ -721,15 +784,37 @@ function forget(ids: Iterable<PublicationId>): void {
   CELL_FAMILIES.forEach((family) => family.forget(dropped));
 }
 
-/** Every id any family still holds, including ones set without going through
- * `publicationIdsAtom` — which is what makes teardown reach them. */
+/**
+ * Returns every row key any family holds an atom for, including keys that were
+ * never in `publicationIdsAtom`, such as a row a spec set directly.
+ */
 function knownIds(): Set<PublicationId> {
   return new Set(
     PUBLICATION_FAMILIES.flatMap((family) => [...family.getParams()]),
   );
 }
 
-// --- Actions (imperative; operate on the module `store`) --------------------
+// --- Actions (each writes the store it is given) ----------------------------
+
+/**
+ * Runs `change` on the store's document as one edit of this client, and makes
+ * that edit one undo step of its own. `change` receives the document and runs
+ * in one transaction with the origin `LOCAL`, so the document emits one update
+ * for it.
+ *
+ * Yjs merges edits made close together in time into one undo step. `step`
+ * stops that merge before and after `change`, so an undo reverts the action and
+ * nothing typed just before or after it.
+ */
+function step<T>(store: Store, change: (doc: Y.Doc) => T): T {
+  const { doc, undo } = documentOf(store);
+
+  undo.stopCapturing();
+  const result = Doc.write(doc, () => change(doc));
+  undo.stopCapturing();
+
+  return result;
+}
 
 /** The fields a person can edit. `isEdited` compares only these. */
 const EDITED_FIELDS = [...ATTRIBUTES, "sources"] as const;
@@ -745,12 +830,13 @@ function contentOf(publication: Publication): string {
 }
 
 /**
- * Returns the key a validation result is stored with: a hash of the
+ * Returns the key a validation result is stored with: the digest of the
  * publication's editable fields. Two copies with the same content have the
- * same key, whichever other fields they carry.
+ * same key, whichever other fields they carry. A row's current key is cached
+ * in `rowContentKeyFamily`.
  */
 function contentKey(publication: Publication): string {
-  return hash(contentOf(publication));
+  return digest(contentOf(publication));
 }
 
 /**
@@ -792,8 +878,8 @@ function holdSaved(
 }
 
 /**
- * Seed the store with publications the backend has already saved, keyed by
- * their server ids — the one definition of "these rows are now the working set".
+ * Makes `publications`, as the backend saved them, the working set, keyed by
+ * their server ids, and returns their ids.
  *
  * Ids that leave the set are forgotten, so searching does not accumulate every
  * publication seen this session. A row with an unsaved edit is kept but left
@@ -868,10 +954,9 @@ function receiveIndex(
 }
 
 /**
- * Add a further page of results to the working set, keeping the ones already
- * loaded — infinite scroll grows the list rather than replacing it. An id
- * already present is skipped, so a record that shifts across the page boundary
- * (a deletion between fetches) is never doubled.
+ * Adds a further page of results after the rows already loaded. A row already
+ * present is skipped, so a record that moves across the page boundary, as a
+ * deletion between two reads makes it do, is not listed twice.
  */
 function appendIndex(store: Store, entries: Publication[]): void {
   const { doc } = documentOf(store);
@@ -888,14 +973,11 @@ function appendIndex(store: Store, entries: Publication[]): void {
 }
 
 /**
- * Replaces the working set with `entries`, and stores each entry's errors as
- * its validation result.
+ * Replaces the working set with `entries`, as one undo step, and stores each
+ * entry's errors as its validation result.
  */
 function setAll(store: Store, entries: PublicationEntry[]): void {
-  const { doc, undo } = documentOf(store);
-
-  Doc.setAll(doc, entries);
-  undo.stopCapturing();
+  step(store, (doc) => Doc.setAll(doc, entries));
   setErrors(store, entries);
   markLoadedWhenEmpty(store, entries.length);
 }
@@ -953,7 +1035,7 @@ function setResemblances(
         value ? { at: store.get(rowSubjectKeyFamily(id)), value } : null,
       ] as const;
     }),
-    hash(store.get(resemblanceSubjectAtom)),
+    store.get(resemblanceSubjectKeyAtom),
   );
 }
 
@@ -965,10 +1047,12 @@ function openReview(store: Store, startAt?: PublicationId): void {
   store.set(reviewingAtom, { startAt });
 }
 
+/** Closes the resemblance review. */
 function closeReview(store: Store): void {
   store.set(reviewingAtom, RESET);
 }
 
+/** Records which row holds the focus, or that none does. */
 function setFocusedRowId(store: Store, id: PublicationId | undefined): void {
   store.set(focusedRowIdAtom, id);
 }
@@ -983,8 +1067,10 @@ function setField<K extends PublicationKey>(
   writeRow(store, id, { [attribute]: value });
 }
 
-/** Edits a row's whole sources list, which is edited as a unit rather than per
- * cell. */
+/**
+ * Edits a row's sources, which are edited as one list rather than one cell at
+ * a time.
+ */
 function setSources(store: Store, id: PublicationId, sources: string[]): void {
   writeRow(store, id, { sources });
 }
@@ -1029,10 +1115,8 @@ function writeRow(
  * Rows that do not contain `from` are left unchanged. When an attribute would
  * then contain `to` twice, it keeps one copy.
  *
- * All the changes happen in one `Doc.write` transaction, so the document emits
- * one update for them, which is saved and relayed as one change. The
- * replacement is also a separate undo step from any edit made just before or
- * after it.
+ * The replacement is one `step`: the document emits one update for it, which is
+ * saved and relayed as one change, and one undo reverts it.
  */
 function replaceName(
   store: Store,
@@ -1041,10 +1125,7 @@ function replaceName(
   from: string,
   to: string,
 ): void {
-  const { doc, undo } = documentOf(store);
-
-  undo.stopCapturing();
-  Doc.write(doc, () => {
+  step(store, () => {
     for (const id of ids) {
       const publication = store.get(publicationFamily(id));
 
@@ -1057,7 +1138,6 @@ function replaceName(
       }
     }
   });
-  undo.stopCapturing();
 }
 
 /**
@@ -1073,6 +1153,7 @@ function discardEdit(store: Store, id: PublicationId): void {
   store.set(errorFamily(id), RESET);
 }
 
+/** Shows the columns of `keys`, or hides them when `isVisible` is false. */
 function setAttributesVisible(
   store: Store,
   keys: PublicationKey[],
@@ -1081,23 +1162,31 @@ function setAttributesVisible(
   keys.forEach((key) => store.set(attributeVisibleFamily(key), isVisible));
 }
 
-/** Register the draft row as a new publication and clear the draft. */
+/**
+ * Adds the draft row to the end of the list as a new row, as one undo step, so
+ * typing into the new row afterwards is a step of its own. Empties the draft
+ * row, and returns the new row's key. Throws when the working set has not
+ * loaded.
+ */
 function addNew(store: Store): PublicationId {
   const ids = store.get(publicationIdsAtom);
   if (!ids) throw "Can not add new publications: entries not loaded.";
 
-  const { doc, undo } = documentOf(store);
   const id = createId();
 
-  Doc.addRow(doc, id, store.get(publicationFamily(DRAFT_ID)));
-  // Adding a row and typing into it are separate undo steps.
-  undo.stopCapturing();
+  step(store, (doc) =>
+    Doc.addRow(doc, id, store.get(publicationFamily(DRAFT_ID))),
+  );
   store.set(publicationFamily(DRAFT_ID), empty());
 
   return id;
 }
 
-/** Duplicate each selected publication, inserting the copy right after it. */
+/**
+ * Copies each row in `duplicateIds` and inserts the copy right after it, all as
+ * one undo step. Returns the copies' keys. Throws when the working set has not
+ * loaded.
+ */
 function duplicate(
   store: Store,
   duplicateIds: Set<PublicationId>,
@@ -1105,35 +1194,28 @@ function duplicate(
   const ids = store.get(publicationIdsAtom);
   if (!ids) throw "Can not duplicate publications: entries not loaded.";
 
-  const { doc, undo } = documentOf(store);
   const copies = new Map(
     ids.filter((id) => duplicateIds.has(id)).map((id) => [id, createId()]),
   );
 
-  // All copies are added in one transaction. The observer then rebuilds the
-  // lists once, the copies are saved and relayed as one update, and one undo
-  // removes them all.
-  Doc.write(doc, () =>
+  // One transaction for every copy, so the observer rebuilds the lists once.
+  step(store, (doc) =>
     copies.forEach((copy, source) =>
       Doc.addRowAfter(doc, source, copy, store.get(publicationFamily(source))),
     ),
   );
-  undo.stopCapturing();
 
   return [...copies.values()];
 }
 
 /**
- * Empty a store, without reaching into any other.
+ * Empties a store, and leaves every other store as it is.
  *
- * Values are the store's own, so resetting them is its business alone. The atom
- * *caches* are not: they are keyed by id and shared by every store, so a surface
- * emptying itself must not evict from them — another surface may be reading the
- * same ids right now. `hydrate` prunes them instead, for the store that owns
- * what is arriving.
- *
- * Every id the families know, not just the ones currently listed: a value set
- * directly — as the specs do — would otherwise survive teardown.
+ * It resets the store's values for every key the families know (see
+ * `knownIds`), not only the keys in the list, so a value set directly is reset
+ * too. It does not remove the families' cached atoms, which every store shares,
+ * since another surface may be reading the same keys. `hydrate` removes them
+ * for the store it fills.
  *
  * A document the store created is unbound and discarded, and the next write
  * creates a new one. A document from `openWorkspace` is left unchanged.
@@ -1168,12 +1250,7 @@ function resetAll(store: Store): void {
  * validation result is stored with it.
  */
 function append(store: Store, entries: PublicationEntry[]): void {
-  const { doc, undo } = documentOf(store);
-
-  undo.stopCapturing();
-  Doc.appendRows(doc, entries);
-  undo.stopCapturing();
-
+  step(store, (doc) => Doc.appendRows(doc, entries));
   setErrors(store, entries);
 }
 
@@ -1184,12 +1261,7 @@ function append(store: Store, entries: PublicationEntry[]): void {
  * them, so a row brought back by undo is validated again.
  */
 function remove(store: Store, ids: Set<PublicationId>): void {
-  const { doc, undo } = documentOf(store);
-
-  undo.stopCapturing();
-  Doc.removeRows(doc, [...ids]);
-  undo.stopCapturing();
-
+  step(store, (doc) => Doc.removeRows(doc, [...ids]));
   ids.forEach((id) => store.set(lastValidatedFamily(id), RESET));
 }
 
@@ -1208,45 +1280,27 @@ function moveOut(store: Store, ids: PublicationId[]): void {
 }
 
 /**
- * Drop a publication that no longer exists on the server (after a server-side
- * delete): remove its id from the index and reset its per-row state.
+ * Removes a publication that the server no longer holds, such as one just
+ * deleted, from the list as one undo step, and resets its per-row state. The
+ * total count goes down by one, so it stays right without another read.
  */
 function removePublication(store: Store, id: PublicationId): void {
-  const { doc, undo } = documentOf(store);
-
-  Doc.removeRow(doc, id);
-  undo.stopCapturing();
+  step(store, (doc) => Doc.removeRow(doc, id));
 
   store.set(publicationFamily(id), RESET);
   store.set(savedFamily(id), RESET);
   store.set(errorFamily(id), RESET);
   store.set(lastValidatedFamily(id), RESET);
 
-  // Keep the footer's "N publications registered" honest without a refetch.
   const total = store.get(totalIndexCountAtom);
   if (total !== null) {
     store.set(totalIndexCountAtom, total - 1);
   }
 }
 
+/** Shows and hides the columns as `DEFAULT_ATTRIBUTE_VISIBILITY` says. */
 function resetAttributes(store: Store): void {
   ATTRIBUTES.forEach((key) => store.set(attributeVisibleFamily(key), RESET));
-}
-
-/** Focus the next invalid row after the currently focused one (wrapping). */
-function focusNextInvalid(store: Store): void {
-  const ids = store.get(publicationIdsAtom);
-  if (!ids) return;
-
-  const isInvalid = (id: PublicationId) => store.get(rowErrorFamily(id));
-  const focusedId = store.get(focusedRowIdAtom);
-  // Walk by list position (ids are no longer monotonic once rows are keyed by
-  // server id), then wrap to the first invalid row.
-  const start = focusedId === undefined ? -1 : ids.indexOf(focusedId);
-  const nextInvalidId =
-    ids.slice(start + 1).find(isInvalid) ?? ids.find(isInvalid);
-
-  store.set(focusedRowIdAtom, nextInvalidId);
 }
 
 export {
@@ -1270,7 +1324,6 @@ export {
   fieldErrorCodeFamily,
   fieldValueFamily,
   focusedRowIdAtom,
-  focusNextInvalid,
   forget,
   hiddenAttributesAtom,
   hydrate,
@@ -1298,14 +1351,14 @@ export {
   replaceName,
   resemblanceFamily,
   rowErrorFamily,
-  resemblanceSubjectAtom,
+  resemblanceSubjectKeyAtom,
   resemblingCountAtom,
   resemblingIdsAtom,
   resetAll,
   resetAttributes,
   reviewingAtom,
+  rowContentKeyFamily,
   rowNumberFamily,
-  rowSubjectFamily,
   rowSubjectKeyFamily,
   savedFamily,
   setAll,
@@ -1315,7 +1368,6 @@ export {
   setFocusedRowId,
   setResemblances,
   setSources,
-  storedFieldValueFamily,
   storedSourcesFamily,
   totalIndexCountAtom,
   unsourcedCountAtom,

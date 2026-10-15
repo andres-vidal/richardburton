@@ -10,11 +10,9 @@ import {
 } from "next/navigation";
 import { ChangeEventHandler, FC, useRef, useState, useTransition } from "react";
 import useDebounce from "utils/useDebounce";
+import { TYPING_DELAY_MS } from "utils/useLookup";
 import { useURLQueryModal } from "./Modal";
 import { SEARCH_HELP_MODAL_KEY } from "./SearchHelpModal";
-
-/** Long enough that a typist does not query on every letter. */
-const SEARCH_DELAY_MS = 350;
 
 /**
  * A word written as the term that would find it on its own: scoped to the field
@@ -86,7 +84,7 @@ type Props = {
 
 /**
  * The search box over the publications. Typing replaces the `search` query
- * parameter after `SEARCH_DELAY_MS`, and keeps the other query parameters,
+ * parameter after `TYPING_DELAY_MS`, and keeps the other query parameters,
  * such as the chart on the insights page. Below the box it reports `matched`,
  * the words the search was widened to.
  *
@@ -133,7 +131,7 @@ const PublicationSearch: FC<Props> = ({ matched }) => {
     startTransition(() => {
       router.replace(params.size ? `${pathname}?${params}` : pathname);
     });
-  }, SEARCH_DELAY_MS);
+  }, TYPING_DELAY_MS);
 
   const isLoading = search !== searchUrlParam || isNavigating;
 

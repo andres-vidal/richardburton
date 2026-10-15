@@ -1,44 +1,33 @@
 "use client";
 
-import { Publication } from "modules/publication/model";
+import { LOOKUP } from "modules/lookup";
 import { useTranslations } from "next-intl";
-import pDebounce from "p-debounce";
-import { FC, forwardRef, useMemo } from "react";
-import { ListDataInputProps } from "./DataInput";
+import { FC } from "react";
+import { DataInputFieldProps } from "./DataInput";
 import Multicombobox from "./Multicombobox";
 
-export default forwardRef<HTMLDivElement, ListDataInputProps>(
-  function TextArrayDataInput(
-    {
-      rowId: _rowId,
-      autoValidated: _autoValidated,
-      colId,
-      value,
-      onChange,
-      ...props
-    },
-    ref,
-  ) {
-    const t = useTranslations("admin");
+type Props = DataInputFieldProps<string[]> & {
+  /** The search in `LOOKUP` that suggests the names. */
+  lookup: "authors" | "publishers";
+};
 
-    const getOptions = useMemo(
-      () =>
-        pDebounce(
-          (search: string) => Publication.autocomplete(search, colId),
-          350,
-        ),
-      [colId],
-    );
+/**
+ * A field for an attribute that holds a list of names, each shown as a chip.
+ * Typing suggests the names that the search `lookup` finds, and a name it
+ * does not find can be added as typed.
+ */
+const TextArrayDataInput: FC<Props> = ({ lookup, onChange, ...props }) => {
+  const t = useTranslations("admin");
 
-    return (
-      <Multicombobox<string>
-        {...props}
-        forwardedRef={ref}
-        value={value}
-        onChange={(next) => onChange?.(next)}
-        getOptions={getOptions}
-        emptyMessage={t("noMatchComma")}
-      />
-    );
-  },
-) as FC<ListDataInputProps>;
+  return (
+    <Multicombobox<string>
+      {...props}
+      onChange={(next) => onChange?.(next)}
+      getOptions={(term) => LOOKUP[lookup](term)}
+      emptyMessage={t("noMatchComma")}
+      freeText
+    />
+  );
+};
+
+export default TextArrayDataInput;

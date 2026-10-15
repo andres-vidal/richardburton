@@ -24,16 +24,13 @@ const Controlled: FC<ComponentProps<typeof TextEnumArrayDataInput>> = ({
   );
 };
 
-// A Multicombobox for the `countries` cell. The `value` list holds
-// ISO country codes; each renders as a pill labelled by its country name (via
-// Publication.describeValue). Country autocomplete resolves locally, but these
-// stories avoid depending on the dropdown — pill removal is local and live.
+// A Multicombobox for the `countries` cell. The `value` list holds ISO country
+// codes, and each renders as a pill labelled by its country name. The country
+// search is answered from the countries the Storybook preview stubs it with.
 const meta = {
   title: "Publications/Text enum array data input",
   component: TextEnumArrayDataInput,
   args: {
-    rowId: 1,
-    colId: "countries",
     value: [],
     error: "",
     onChange: fn(),

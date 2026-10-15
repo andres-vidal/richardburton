@@ -1,9 +1,6 @@
 "use client";
 
-import Breadcrumb from "components/Breadcrumb";
-import { useTranslations } from "next-intl";
-import Layout from "components/Layout";
-import PageHeader from "components/PageHeader";
+import AdminPage from "components/AdminPage";
 import PublicationCounter from "components/PublicationCounter";
 import PublicationDeselect from "components/PublicationDeselect";
 import PublicationDuplicate from "components/PublicationDuplicate";
@@ -35,34 +32,28 @@ function showEveryColumn(store: Store) {
   setAttributesVisible(store, Publication.ATTRIBUTES);
 }
 
+// Renders the workspace in an `AdminPage`, with the document's status and
+// presence beside the heading. The footer has the actions on the whole document
+// while no row is selected, and the actions on the selected rows otherwise,
+// followed by `PublicationMove` in both cases. The undo shortcuts are bound
+// while it is mounted.
 const Workspace: FC<{
   title: string;
   description: string;
   /** The import document these rows belong to. */
   document: number;
 }> = ({ title, description, document }) => {
-  const t = useTranslations("admin");
   const isSelectionEmpty = useIsSelectionEmpty();
   useUndoShortcuts(useWorkspaceUndo());
 
-  const crumbs = [
-    { label: t("home"), href: "/" },
-    { label: t("admin"), href: "/admin" },
-    { label: title },
-  ];
-
   return (
-    <Layout
-      subheader={
+    <AdminPage
+      title={title}
+      description={description}
+      aside={
         <>
-          <Breadcrumb items={crumbs} />
-          <div className="flex gap-4 justify-between items-center">
-            <PageHeader title={title} description={description} />
-            <span className="flex gap-3 items-center shrink-0">
-              <DocumentStatus />
-              <DocumentPresence />
-            </span>
-          </div>
+          <DocumentStatus />
+          <DocumentPresence />
         </>
       }
       content={<PublicationWorkspace />}

@@ -16,7 +16,6 @@ import {
 } from "modules/publication/workspace";
 import { Link } from "i18n/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRouter } from "i18n/navigation";
 import {
   FC,
   Fragment,
@@ -26,12 +25,17 @@ import {
   useRef,
   useState,
 } from "react";
+import { useMutation } from "utils/useMutation";
 
 const optionId = (position: number) => `duplicate-cluster-option-${position}`;
 
 /** What a cluster is called in the queue: the title its records nearly share. */
 const name = (cluster: DuplicateCluster) =>
   cluster.publications[0]?.title ?? "";
+
+/** Returns a key that names a cluster or a decision by its records. */
+const recordsKey = ({ publications }: { publications: Publication[] }) =>
+  publications.map((p) => p.id).join("-");
 
 /**
  * The queue of clusters as a single-select listbox — one tab stop, arrows move
@@ -207,9 +211,10 @@ const Compared: FC<{
 };
 
 /**
- * One record's evidence. `onKeep` is what makes it a choice — without it the
- * card is the same evidence with nothing to decide, which is what a decision
- * already made looks like.
+ * One record as a card: its title, year, translators, original work,
+ * countries, publishers and sources, and a link to its page when it is stored.
+ * With `onKeep`, the card is also a radio button that chooses the record to
+ * keep, and `kept` marks the chosen one.
  *
  * Each field is compared with the same field of `others`, and the words this
  * record has that at least one of them lacks are highlighted. Without `others`,
@@ -428,7 +433,13 @@ export const RuledApartStep: FC<{
   );
 };
 
-/** Presentational shell, so the empty and populated states render in isolation. */
+/**
+ * The duplicate review without state: the queue beside the open question, the
+ * open decision when `selected` is set, or a message when everything is
+ * answered. With no clusters and no decisions it says there is nothing to
+ * reconcile. Each question and decision is keyed by its records, so a new
+ * question starts with a choice of its own.
+ */
 export const DuplicateReviewView: FC<{
   clusters: DuplicateCluster[];
   distinctions: Distinction[];
@@ -479,7 +490,7 @@ export const DuplicateReviewView: FC<{
       <div className="overflow-y-auto flex-1">
         {ruledApart ? (
           <RuledApartStep
-            key={ruledApart.publications.map((p) => p.id).join("-")}
+            key={recordsKey(ruledApart)}
             distinction={ruledApart}
             busy={busy}
             onReconsider={() => onReconsider(ruledApart)}
@@ -491,8 +502,7 @@ export const DuplicateReviewView: FC<{
           </div>
         ) : (
           <DuplicateStep
-            // Key by the cluster's members so each question gets a fresh choice.
-            key={clusters[position].publications.map((p) => p.id).join("-")}
+            key={recordsKey(clusters[position])}
             cluster={clusters[position]}
             position={position}
             total={clusters.length}
@@ -507,6 +517,11 @@ export const DuplicateReviewView: FC<{
   );
 };
 
+/**
+ * The duplicate review: the queue of `clusters` beside the question that is
+ * open, and the decisions already made, `distinctions`. It answers through
+ * `merge`, `distinguish` and `reconsider`, in a publication store of its own.
+ */
 const DuplicateReview: FC<{
   clusters: DuplicateCluster[];
   distinctions: Distinction[];
@@ -516,65 +531,68 @@ const DuplicateReview: FC<{
   </PublicationStoreProvider>
 );
 
+// The body of `DuplicateReview`: it holds the reviewer's place and the clusters
+// answered in this sitting, and disables the answers while one runs.
 const Review: FC<{
   clusters: DuplicateCluster[];
   distinctions: Distinction[];
 }> = ({ clusters, distinctions }) => {
   const store = usePublicationStore();
-  const router = useRouter();
+  const { pending: busy, run } = useMutation();
 
   const [position, setPosition] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
-  const [busy, setBusy] = useState(false);
 
   // An answered cluster is gone when the page is read again; until then the
   // reviewer keeps its place, so answering does not throw them back to the top.
   const [answered, setAnswered] = useState<string[]>([]);
-  const key = (cluster: DuplicateCluster) =>
-    cluster.publications.map((p) => p.id).join("-");
-
-  const remaining = clusters.filter((c) => !answered.includes(key(c)));
+  const remaining = clusters.filter((c) => !answered.includes(recordsKey(c)));
   const current = remaining[Math.min(position, remaining.length - 1)];
 
-  function advance(cluster: DuplicateCluster) {
-    setAnswered((previous) => [...previous, key(cluster)]);
-    router.refresh();
-  }
-
-  async function handleMerge(winner: Publication) {
-    if (!current) return;
-    setBusy(true);
-    const merged = await merge(store, {
-      winner,
-      losers: current.publications.filter((p) => p.id !== winner.id),
+  // Runs `decide`, which answers `cluster`. When it succeeds, the cluster is
+  // marked answered, and `run` reads the page again.
+  function answer(cluster: DuplicateCluster, decide: () => Promise<boolean>) {
+    run(async () => {
+      const decided = await decide();
+      if (decided)
+        setAnswered((previous) => [...previous, recordsKey(cluster)]);
+      return decided;
     });
-    setBusy(false);
-    if (merged) advance(current);
   }
 
-  async function handleDistinguish() {
-    if (!current) return;
-    setBusy(true);
-    const kept = await distinguish(current.publications.map((p) => p.id!));
-    setBusy(false);
-    if (kept) advance(current);
+  function handleMerge(winner: Publication) {
+    if (current)
+      answer(current, () =>
+        merge(store, {
+          winner,
+          losers: current.publications.filter((p) => p.id !== winner.id),
+        }),
+      );
   }
 
-  async function handleReconsider(distinction: Distinction) {
-    setBusy(true);
-    const back = await reconsider(distinction.publications.map((p) => p.id!));
-    setBusy(false);
-    // The pair rejoins the questions, so the queue is read again rather than
-    // patched — the cluster it belongs to may be larger than the pair. What
-    // this sitting has already answered is forgotten with it: the reviewer is
-    // revisiting decisions, and a cluster still on that list would come back
-    // from the server only to be filtered straight out again.
-    if (back) {
-      setAnswered([]);
-      setPosition(0);
-      setSelected(null);
-      router.refresh();
-    }
+  function handleDistinguish() {
+    if (current)
+      answer(current, () =>
+        distinguish(current.publications.map((p) => p.id!)),
+      );
+  }
+
+  // Takes back the ruling `distinction`. When that succeeds, the review opens
+  // the first question and forgets the clusters answered in this sitting, and
+  // `run` reads the queue again. The pair may rejoin a cluster larger than
+  // itself, so the queue is read rather than patched. A cluster left on the
+  // answered list would be filtered out of the queue the server sends back.
+  function handleReconsider(distinction: Distinction) {
+    run(async () => {
+      const back = await reconsider(distinction.publications.map((p) => p.id!));
+
+      if (back) {
+        setAnswered([]);
+        setPosition(0);
+        setSelected(null);
+      }
+      return back;
+    });
   }
 
   function handleSkip() {

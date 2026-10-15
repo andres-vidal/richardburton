@@ -1,36 +1,38 @@
 "use client";
 
-import { ForwardedRef, KeyboardEvent, useRef, useState } from "react";
-import Pill from "./Pill";
-
 import { Key } from "app";
 import { isString } from "lodash";
 import { useTranslations } from "next-intl";
-import { z } from "zod";
+import { KeyboardEvent, Ref, useRef, useState } from "react";
+import useLookup from "utils/useLookup";
 import MenuProvider from "./MenuProvider";
-import TextInput from "./TextInput";
+import Pill from "./Pill";
+import TextInput, { type TextInputProps } from "./TextInput";
 
 type Item = { id: string; label: string };
 
-type Props<ItemType extends string | Item> = {
-  placeholder?: string;
+type Props<ItemType extends string | Item> = Omit<
+  TextInputProps,
+  "value" | "onChange" | "left" | "right" | "inputRef" | "label" | "ref"
+> & {
+  /** Receives the field around the input. */
+  ref?: Ref<HTMLDivElement>;
   value: ItemType[];
-  error?: string;
-  onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   onChange: (value: ItemType[]) => void;
+  /** Returns the options for a term. `useLookup` decides when to call it. */
   getOptions: (search: string) => Promise<ItemType[]> | ItemType[];
-  forwardedRef?: ForwardedRef<HTMLDivElement>;
-  bordered?: boolean;
   /**
    * Shown when a search matches nothing. Callers word it, because only they
    * know whether the field accepts values outside the offered options.
    */
   emptyMessage?: string;
+  /**
+   * Whether typed text can be added as an entry when no option is highlighted.
+   * Without it, only an option can be added. Only a field of strings can set
+   * it.
+   */
+  freeText?: boolean;
 };
-
-function isStringArray(value: unknown): value is string[] {
-  return z.string().array().safeParse(value).success;
-}
 
 /** What makes two entries the same: the trimmed text, or an item's id. */
 function identity<ItemType extends string | Item>(item: ItemType): string {
@@ -38,14 +40,15 @@ function identity<ItemType extends string | Item>(item: ItemType): string {
 }
 
 /**
- * A comma normally ends a value, so a name that contains one is written in
- * quotes — the same way the CSV says it. While a quote is open the comma is
- * just a character.
+ * Returns whether `input` has a quote open. A comma normally ends a value, so
+ * a name that contains one is written in quotes, the same way the CSV writes
+ * it. While a quote is open the comma is just a character.
  */
 function isQuoting(input: string): boolean {
   return (input.match(/"/g)?.length ?? 0) % 2 === 1;
 }
 
+/** Returns `value` trimmed, without the quotes around it if it has them. */
 function unquote(value: string): string {
   const trimmed = value.trim();
 
@@ -54,6 +57,21 @@ function unquote(value: string): string {
     : trimmed;
 }
 
+/**
+ * A text field that holds a list of entries, each shown as a removable chip.
+ *
+ * Typing looks up options for the typed text through `useLookup`, and opens a
+ * menu of the options that are not chosen yet. Enter or ArrowRight adds the
+ * highlighted option, or, with `freeText`, the typed text when no option is
+ * highlighted. With `freeText`, a comma adds the typed text. Backspace in an
+ * empty field removes the last entry. Adding an entry empties the field, closes
+ * the menu and drops the lookup that is still pending for the typed text.
+ *
+ * A key the field acts on is `preventDefault`ed, so a form or a row around the
+ * field can tell a key the field used from one it left alone. With nothing
+ * typed, Enter is left alone. The input carries `aria-busy` while a lookup is
+ * pending.
+ */
 export default function Multicombobox<ItemType extends string | Item>({
   value,
   placeholder,
@@ -61,18 +79,17 @@ export default function Multicombobox<ItemType extends string | Item>({
   onChange,
   onKeyDown,
   error,
-  forwardedRef,
   emptyMessage,
+  freeText = false,
   ...props
 }: Props<ItemType>) {
   const t = useTranslations("common");
   const [inputValue, setInputValue] = useState("");
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [options, setOptions] = useState<ItemType[]>([]);
-
-  const isEnum = isStringArray(value) && isStringArray(options);
-
   const [isOpen, setIsOpen] = useState(false);
+  const { lookup, cancel, busy } = useLookup(getOptions);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   function unselect(index: number) {
     onChange(value.filter((_, i) => i !== index));
@@ -82,6 +99,7 @@ export default function Multicombobox<ItemType extends string | Item>({
     return value.some((selected) => identity(selected) === identity(item));
   }
 
+  // Adds `item`, unless it is blank or already chosen.
   function select(item: ItemType) {
     const trimmed = (isString(item) ? unquote(item) : item) as ItemType;
 
@@ -90,72 +108,54 @@ export default function Multicombobox<ItemType extends string | Item>({
     }
   }
 
+  // Adds `item`, and leaves the field empty with the menu closed.
+  function commit(item: ItemType) {
+    cancel();
+    setInputValue("");
+    setOptions([]);
+    setIsOpen(false);
+    setActiveIndex(null);
+    select(item);
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    const isInputValueBlank = inputValue.trim() === "";
+    const typed = inputValue.trim() !== "";
+    const highlighted =
+      isOpen && activeIndex !== null ? options[activeIndex] : undefined;
+    const text = freeText ? (inputValue as ItemType) : undefined;
 
     if (event.key === Key.COMMA && !isQuoting(inputValue)) {
       event.preventDefault();
-
-      if (isEnum) {
-        setOptions([]);
-      }
-
-      if (!isInputValueBlank) {
-        setInputValue("");
-        setOptions([]);
-        select(inputValue as ItemType);
-      }
-    }
-
-    if (
+      if (typed && text !== undefined) commit(text);
+    } else if (
       (event.key === Key.ENTER || event.key === Key.ARROW_RIGHT) &&
-      !isInputValueBlank
+      typed
     ) {
       event.preventDefault();
-      setInputValue("");
-      setOptions([]);
-      setIsOpen(false);
-      setActiveIndex(null);
-      if (activeIndex != null && options[activeIndex]) {
-        select(options[activeIndex]);
-      } else {
-        select(inputValue as ItemType);
-      }
-    }
-
-    if (event.key === Key.BACKSPACE && inputValue === "") {
+      const entry = highlighted ?? text;
+      if (entry !== undefined) commit(entry);
+    } else if (event.key === Key.BACKSPACE && inputValue === "") {
       unselect(value.length - 1);
     }
 
     onKeyDown?.(event);
   }
 
-  const latest = useRef(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  async function handleChange(typed: string) {
+    setInputValue(typed);
+    if (!typed) setIsOpen(false);
 
-  async function handleChange(v: string) {
-    setInputValue(v);
+    const found = await lookup(typed);
 
-    const mine = ++latest.current;
-
-    if (!v) {
-      setIsOpen(false);
-      return;
+    if (found) {
+      setIsOpen(true);
+      setActiveIndex(0);
+      setOptions(found.filter((option) => !isSelected(option)));
     }
-
-    const found = await getOptions(v.toLowerCase());
-
-    // Only the newest lookup writes, and only while the field is still on the
-    // page to hear it.
-    if (mine !== latest.current || !inputRef.current?.isConnected) return;
-
-    setIsOpen(true);
-    setActiveIndex(0);
-    setOptions(found.filter((option) => !isSelected(option)));
   }
 
   function handleOptionSelect(option: ItemType) {
-    latest.current += 1;
+    cancel();
     select(option);
     setInputValue("");
     inputRef.current?.focus();
@@ -174,7 +174,6 @@ export default function Multicombobox<ItemType extends string | Item>({
     >
       <TextInput
         {...props}
-        ref={forwardedRef}
         inputRef={inputRef}
         value={inputValue}
         error={error}
@@ -182,12 +181,13 @@ export default function Multicombobox<ItemType extends string | Item>({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         aria-autocomplete="list"
+        aria-busy={busy}
         data-multiselect-input="true"
         left={
           <>
             {value.map((item, index) => (
               <Pill
-                key={`${item}-${index}`}
+                key={`${identity(item)}-${index}`}
                 label={isString(item) ? item : item.label}
                 onRemove={() => unselect(index)}
               />

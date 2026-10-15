@@ -16,12 +16,10 @@ import {
   discardEdit,
   duplicate,
   fieldValueFamily,
-  focusNextInvalid,
   forget,
   hydrate,
   knownIds,
   lastValidatedFamily,
-  focusedRowIdAtom,
   hiddenAttributesAtom,
   invalidIdsAtom,
   isValidFamily,
@@ -38,7 +36,6 @@ import {
   setField,
   setResemblances,
   setSources,
-  storedFieldValueFamily,
   validCountAtom,
   visibleAttributesAtom,
   documentOf,
@@ -290,13 +287,8 @@ describe("edits", () => {
 
     setField(store, 1, "title", "Dom Casmurro (rev.)");
 
-    // `fieldValueFamily` reads the edit...
     expect(store.get(fieldValueFamily({ id: 1, key: "title" }))).toBe(
       "Dom Casmurro (rev.)",
-    );
-    // ...and `storedFieldValueFamily` still reads the saved value.
-    expect(store.get(storedFieldValueFamily({ id: 1, key: "title" }))).toBe(
-      "Dom Casmurro",
     );
     expect(store.get(savedFamily(1))?.title).toBe("Dom Casmurro");
   });
@@ -384,30 +376,6 @@ describe("attribute visibility", () => {
   });
 });
 
-describe("focusNextInvalid", () => {
-  test("steps through invalid rows and wraps back to the first", () => {
-    const [a, b, c, d] = [createId(), createId(), createId(), createId()];
-    setAll(store, [
-      entry(a),
-      entry(b, {}, "conflict"),
-      entry(c),
-      entry(d, {}, "conflict"),
-    ]);
-
-    // Nothing focused yet → first invalid (b).
-    focusNextInvalid(store);
-    expect(store.get(focusedRowIdAtom)).toBe(b);
-
-    // → next invalid after b (d).
-    focusNextInvalid(store);
-    expect(store.get(focusedRowIdAtom)).toBe(d);
-
-    // → nothing invalid after d, so wrap around to b.
-    focusNextInvalid(store);
-    expect(store.get(focusedRowIdAtom)).toBe(b);
-  });
-});
-
 describe("ids and the draft", () => {
   test("createId hands out keys no other browser could mint", () => {
     const a = createId();
@@ -464,7 +432,7 @@ describe("family lifecycle", () => {
 
     // The row keeps the edit, and only the saved copy is updated.
     expect(store.get(publicationFamily(1)).title).toBe("Being typed");
-    expect(store.get(storedFieldValueFamily({ id: 1, key: "title" }))).toBe(
+    expect(store.get(savedFamily(1))?.title).toBe(
       "Dom Casmurro, as someone else saved it",
     );
   });
@@ -653,12 +621,5 @@ describe("a row that repeats an earlier row", () => {
 
     expect(store.get(rowErrorFamily(2))).toBeNull();
     expect(store.get(validCountAtom)).toBe(2);
-  });
-
-  test("is where focusing the next invalid row goes", () => {
-    repeated();
-    focusNextInvalid(store);
-
-    expect(store.get(focusedRowIdAtom)).toBe(2);
   });
 });

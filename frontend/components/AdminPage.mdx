@@ -1,0 +1,44 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as AdminPageStories from "./AdminPage.stories";
+
+<Meta of={AdminPageStories} />
+
+# Admin page
+
+Renders a page of the admin area other than the admin index itself. It renders
+a [Layout](?path=/docs/components-layout--docs) whose subheader has a
+[Breadcrumb](?path=/docs/components-breadcrumb--docs) from the home page
+through the admin index to the page, and a
+[Page header](?path=/docs/components-page-header--docs) with the page's title
+and description.
+
+## Props
+
+- `title` — the page's name. It is the last crumb of the breadcrumb and the
+  page's heading.
+- `description` — an optional sentence under the heading that says what the
+  page is for.
+- `aside` — optional controls or status shown at the end of the heading's row,
+  such as a save status.
+- `measure` — `full` (the default) or `aligned`, passed to `Layout`.
+- `content` — the page's content.
+- `footer` — optional content for the layout's sticky footer.
+
+<Description of={AdminPageStories.Default} />
+
+<Canvas of={AdminPageStories.Default} />
+
+## Measure
+
+The `aligned` measure suits a page of text: its heading and its content share
+one column of readable width. The `full` measure suits a page with a wide
+table.
+
+<Canvas of={AdminPageStories.Aligned} />
+
+## Aside and footer
+
+<Description of={AdminPageStories.AsideAndFooter} />
+
+<Canvas of={AdminPageStories.AsideAndFooter} />

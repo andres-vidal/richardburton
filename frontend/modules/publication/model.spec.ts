@@ -1,22 +1,16 @@
 import {
   ATTRIBUTES,
-  autocomplete,
   contrast,
   define,
   empty,
   errorCode,
   marking,
   merged,
+  searchHref,
 } from "./model";
 import type { Publication } from "./model";
-import { Country } from "modules/country";
 import { routing } from "i18n/routing";
 import { messages } from "test/messages";
-
-vi.mock("modules/country", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("modules/country")>()),
-  Country: { REMOTE: { search: vi.fn() } },
-}));
 
 const COUNTRIES = messages.countryNames;
 
@@ -200,35 +194,6 @@ describe("define", () => {
   test("has no constraints for other attributes", () => {
     expect(define("title")).toEqual({});
     expect(define("authors")).toEqual({});
-  });
-});
-
-describe("autocomplete", () => {
-  // Which countries a term finds is the server's to decide — it is the only
-  // side that knows every name a country goes by. See the Country specs.
-  test("asks the server for the countries a term finds, in the reader's language", async () => {
-    const netherlands = { id: "NL", label: "Países Baixos" };
-    vi.mocked(Country.REMOTE.search).mockResolvedValue([netherlands]);
-
-    await expect(autocomplete("holanda", "countries", "pt")).resolves.toEqual([
-      netherlands,
-    ]);
-    expect(Country.REMOTE.search).toHaveBeenCalledWith("holanda", "pt");
-  });
-
-  test("asks in the default language when none is given", async () => {
-    vi.mocked(Country.REMOTE.search).mockResolvedValue([]);
-
-    await autocomplete("anything", "countries");
-
-    expect(Country.REMOTE.search).toHaveBeenCalledWith(
-      "anything",
-      routing.defaultLocale,
-    );
-  });
-
-  test("resolves to an empty list for attributes without suggestions", async () => {
-    await expect(autocomplete("anything", "year")).resolves.toEqual([]);
   });
 });
 
@@ -428,5 +393,33 @@ describe("contrast", () => {
       values: [[{ text: "Dom Casmurro", differs: false }]],
       lacking: false,
     });
+  });
+});
+
+describe("searchHref", () => {
+  test("links to the index with the term encoded", () => {
+    expect(searchHref("Machado de Assis")).toBe("/?search=Machado+de+Assis");
+    expect(searchHref("author:Lispector & co")).toBe(
+      "/?search=author%3ALispector+%26+co",
+    );
+  });
+
+  test("links to the path alone when there is no term", () => {
+    expect(searchHref(undefined)).toBe("/");
+    expect(searchHref(null, "/insights")).toBe("/insights");
+    expect(searchHref("")).toBe("/");
+  });
+
+  test("gives only the query string for an empty path", () => {
+    expect(searchHref("clarke", "")).toBe("?search=clarke");
+  });
+
+  test("puts other parameters before the term", () => {
+    expect(searchHref("Iracema", "/publications/1", { modal: "" })).toBe(
+      "/publications/1?modal=&search=Iracema",
+    );
+    expect(searchHref(undefined, "/publications/1", { modal: "" })).toBe(
+      "/publications/1?modal=",
+    );
   });
 });

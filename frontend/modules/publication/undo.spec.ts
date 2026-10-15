@@ -1,42 +1,100 @@
-import { ownsShortcut, shortcutOf } from "./undo";
+import { createEvent, fireEvent, renderHook } from "@testing-library/react";
+import { ownsShortcut, useUndoShortcuts } from "./undo";
 
+type Modifier = "ctrlKey" | "metaKey" | "shiftKey" | "altKey";
+
+/** Presses `key` on `target` with `modifiers` held, and returns the event. */
 const press = (
   key: string,
-  modifiers: Partial<
-    Record<"ctrlKey" | "metaKey" | "shiftKey" | "altKey", boolean>
-  > = {},
-) => ({
-  key,
-  ctrlKey: false,
-  metaKey: false,
-  shiftKey: false,
-  altKey: false,
-  ...modifiers,
-});
+  modifiers: Modifier[] = [],
+  target: Element = document.body,
+) => {
+  const event = createEvent.keyDown(target, {
+    key,
+    ...Object.fromEntries(modifiers.map((modifier) => [modifier, true])),
+  });
+  fireEvent(target, event);
+  return event;
+};
 
-describe("shortcutOf", () => {
-  test("Ctrl+Z and Cmd+Z undo", () => {
-    expect(shortcutOf(press("z", { ctrlKey: true }))).toBe("undo");
-    expect(shortcutOf(press("z", { metaKey: true }))).toBe("undo");
+describe("useUndoShortcuts", () => {
+  const bind = () => {
+    const undo = vi.fn();
+    const redo = vi.fn();
+    renderHook(() => useUndoShortcuts({ undo, redo }));
+    return { undo, redo };
+  };
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  test("Ctrl+Z and Cmd+Z undo, alone or held together", () => {
+    const { undo, redo } = bind();
+
+    press("z", ["ctrlKey"]);
+    press("z", ["metaKey"]);
+    press("z", ["ctrlKey", "metaKey"]);
+
+    expect(undo).toHaveBeenCalledTimes(3);
+    expect(redo).not.toHaveBeenCalled();
   });
 
   // With Shift held, browsers report the key as an upper-case "Z".
-  test("Ctrl+Shift+Z, Cmd+Shift+Z and Ctrl+Y redo", () => {
-    expect(shortcutOf(press("Z", { ctrlKey: true, shiftKey: true }))).toBe(
-      "redo",
-    );
-    expect(shortcutOf(press("Z", { metaKey: true, shiftKey: true }))).toBe(
-      "redo",
-    );
-    expect(shortcutOf(press("y", { ctrlKey: true }))).toBe("redo");
+  test("Ctrl+Shift+Z, Cmd+Shift+Z and Ctrl+Y redo, with Ctrl and Cmd alone or held together", () => {
+    const { undo, redo } = bind();
+
+    press("Z", ["ctrlKey", "shiftKey"]);
+    press("Z", ["metaKey", "shiftKey"]);
+    press("Z", ["ctrlKey", "metaKey", "shiftKey"]);
+    press("y", ["ctrlKey"]);
+    press("y", ["ctrlKey", "metaKey"]);
+
+    expect(redo).toHaveBeenCalledTimes(5);
+    expect(undo).not.toHaveBeenCalled();
   });
 
-  test("other keys, a plain Z, and Alt combinations ask for nothing", () => {
-    expect(shortcutOf(press("z"))).toBeNull();
-    expect(shortcutOf(press("x", { ctrlKey: true }))).toBeNull();
-    expect(shortcutOf(press("z", { ctrlKey: true, altKey: true }))).toBeNull();
+  test("other keys, a plain Z, Alt combinations, Ctrl+Shift+Y and Cmd+Y do nothing", () => {
+    const { undo, redo } = bind();
+
+    press("z");
+    press("x", ["ctrlKey"]);
+    press("z", ["ctrlKey", "altKey"]);
+    press("Z", ["metaKey", "shiftKey", "altKey"]);
+    press("Y", ["ctrlKey", "shiftKey"]);
     // Cmd+Y opens the history in some Mac browsers, so it is left to them.
-    expect(shortcutOf(press("y", { metaKey: true }))).toBeNull();
+    press("y", ["metaKey"]);
+
+    expect(undo).not.toHaveBeenCalled();
+    expect(redo).not.toHaveBeenCalled();
+  });
+
+  test("a shortcut that undoes is kept from the browser", () => {
+    bind();
+
+    expect(press("z", ["ctrlKey"]).defaultPrevented).toBe(true);
+    expect(press("x", ["ctrlKey"]).defaultPrevented).toBe(false);
+  });
+
+  test("a press in a text field is left to the field", () => {
+    const { undo } = bind();
+    document.body.innerHTML = '<input id="title" />';
+
+    const event = press("z", ["ctrlKey"], document.querySelector("#title")!);
+
+    expect(undo).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  test("a press that an earlier listener prevented is left alone", () => {
+    const { undo } = bind();
+    document.body.innerHTML = '<button id="remove">Remove</button>';
+    const button = document.querySelector("#remove")!;
+    button.addEventListener("keydown", (event) => event.preventDefault());
+
+    press("z", ["ctrlKey"], button);
+
+    expect(undo).not.toHaveBeenCalled();
   });
 });
 

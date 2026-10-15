@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { Kind, Listed, Name, rename } from "modules/vocabulary";
+import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
+import type { Listed, Name, rename } from "modules/vocabulary";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
 import VocabularyList from "./VocabularyList";
@@ -19,13 +20,12 @@ const AUTHORS: Name[] = [
   { id: 12, name: "Machado de Assis", publications: 12, resembles: [] },
 ];
 
-const read = async (kind: Kind) => (kind === "authors" ? AUTHORS : PUBLISHERS);
-
 const meta = {
   title: "Admin/Names",
   component: VocabularyList,
   args: {
-    read,
+    kind: "publishers",
+    names: PUBLISHERS,
     write: fn<typeof rename>(async () => ({ outcome: "renamed" })),
   },
 } satisfies Meta<typeof VocabularyList>;
@@ -51,19 +51,32 @@ export const Default: Story = {
   },
 };
 
-/** Switching to translators and original authors lists that kind instead. */
+/** The translators and original authors, with their button pressed. */
 export const Authors: Story = {
+  args: { kind: "authors", names: AUTHORS },
   play: async () => {
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Translators & authors" }),
-    );
-
     await expect(
       await screen.findByLabelText("Name, currently Machado de Assis"),
     ).toBeInTheDocument();
     await expect(
-      screen.queryByLabelText("Name, currently Noonday Press"),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Translators & authors" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  },
+};
+
+/**
+ * Choosing the other kind navigates to the address that lists it. The play
+ * test checks the address.
+ */
+export const SwitchingKinds: Story = {
+  play: async () => {
+    await userEvent.click(
+      screen.getByRole("button", { name: "Translators & authors" }),
+    );
+
+    await expect(getRouter().push).toHaveBeenCalledWith(
+      expect.stringContaining("/admin/vocabulary?kind=authors"),
+    );
   },
 };
 
@@ -81,7 +94,10 @@ export const FindingSpellings: Story = {
   },
 };
 
-/** Typing a new name and pressing Enter sends the rename. */
+/**
+ * Typing a new name and pressing Enter sends the rename. Once it is done, the
+ * page reads the names again.
+ */
 export const RenamingCommitsOnEnter: Story = {
   play: async ({ args }) => {
     const field = await screen.findByLabelText(
@@ -99,6 +115,7 @@ export const RenamingCommitsOnEnter: Story = {
         false,
       ),
     );
+    await waitFor(() => expect(getRouter().refresh).toHaveBeenCalled());
   },
 };
 
@@ -314,8 +331,11 @@ export const BackingOutOfAFold: Story = {
     );
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    await expect(field).toHaveValue("Alfred A.Knopf");
+    await expect(
+      screen.getByLabelText("Name, currently Alfred A.Knopf"),
+    ).toHaveValue("Alfred A.Knopf");
     await expect(args.write).toHaveBeenCalledTimes(1);
+    await expect(getRouter().refresh).not.toHaveBeenCalled();
   },
 };
 
