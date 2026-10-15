@@ -20,13 +20,27 @@ defmodule RichardBurtonWeb.PublicationController do
   alias RichardBurton.FlatPublication
   alias RichardBurton.Publication
 
-  # A later page of a search or listing that has already started: the reader has
-  # scrolled, and is asking for the next stretch of the ordering the first
-  # response returned. The search is sent along too, so each row can still show
-  # what matched it.
-  #
-  # The total was already reported with the first page and does not change while
-  # the reader scrolls, so later pages return only the rows and skip counting.
+  @doc """
+  Lists the publications in the index.
+
+  Without `ids`, the response holds `order`, the ids of every publication the
+  `search` parameter matches, or of every publication when there is no search;
+  `entries`, the rows of the first `per_page` of them; `per_page`; and
+  `matched`, which is `Publication.Index.Excerpt.resolution/2` for the search,
+  or nil. The words of the search are looked up once, for all three.
+
+  With `ids`, the response holds `entries` alone: the rows of those ids in the
+  order given, with the excerpts of `search` when there is one. An id that is
+  not a whole number is left out. Reading later pages by id against a fixed
+  `order` keeps them stable when publications are added or deleted between
+  requests.
+
+  With `unsourced`, the response holds `entries`, every publication without
+  sources, ordered by id.
+
+  Every response but the one for `ids` puts the number of publications in the
+  index in the count header (see `Publication.Index.count_header/0`).
+  """
   def index(conn, params = %{"ids" => ids}) do
     entries = Publication.Index.details(Params.integers(ids), params["search"])
 
@@ -39,28 +53,31 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   def index(conn, %{"search" => query}) do
-    case Publication.Index.search_order(query) do
-      :none -> conn |> put_total() |> json(first_page([], nil))
-      order -> conn |> put_total() |> json(first_page(order, query))
+    standings = Publication.Index.standings(query)
+
+    case Publication.Index.search_order(query, standings) do
+      :none -> conn |> put_total() |> json(first_page([], nil, %{}))
+      order -> conn |> put_total() |> json(first_page(order, query, standings))
     end
   end
 
   def index(conn, _params) do
-    conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil))
+    conn |> put_total() |> json(first_page(Publication.Index.all_order(), nil, %{}))
   end
 
-  # How the index read the term is included in the response for the caller to
-  # report. The rows do not need it: each one already carries its own record of
-  # what matched it.
-  defp first_page(order, search) do
+  # Returns the body of a first page: `order`, the rows of its first
+  # `per_page` ids as `entries`, `per_page`, and `matched`, the resolution of
+  # `search`, or nil when `search` is nil. `standings` are the search's, as
+  # `Publication.Index.standings/1` returns them.
+  defp first_page(order, search, standings) do
     per_page = Publication.Index.per_page()
-    entries = Publication.Index.details(Enum.take(order, per_page), search)
+    entries = Publication.Index.details(Enum.take(order, per_page), search, standings)
 
     %{
       entries: entries,
       order: order,
       per_page: per_page,
-      matched: search && Publication.Index.Excerpt.resolution(search)
+      matched: search && Publication.Index.Excerpt.resolution(search, standings)
     }
   end
 
@@ -99,40 +116,24 @@ defmodule RichardBurtonWeb.PublicationController do
     end
   end
 
-  def export(conn, %{"search" => query, "select" => attributes}) do
-    attributes = Enum.map(attributes, &String.to_existing_atom/1)
-    {:ok, results} = Publication.Index.search(query, select: attributes)
-    filename = "publications-#{query}-#{Enum.join(attributes, "-")}.csv"
-    send_exported_csv(conn, results, filename)
-  end
+  @doc """
+  Responds with a CSV attachment of the publications the `search` parameter
+  matches, or of every publication when there is no search. The `select`
+  parameter lists the columns, and every column is included when it is absent.
+  The file name holds the search and the columns.
+  """
+  def export(conn, params) do
+    search = params["search"]
+    attributes = params |> Map.get("select", []) |> Enum.map(&String.to_existing_atom/1)
 
-  def export(conn, %{"search" => query}) do
-    {:ok, results} = Publication.Index.search(query, select: [])
-    filename = "publications-#{query}.csv"
-    send_exported_csv(conn, results, filename)
-  end
+    {:ok, results} =
+      case search do
+        nil -> Publication.Index.all(select: attributes)
+        search -> Publication.Index.search(search, select: attributes)
+      end
 
-  def export(conn, %{"select" => attributes}) do
-    attributes = Enum.map(attributes, &String.to_existing_atom/1)
-    {:ok, results} = Publication.Index.all(select: attributes)
-    filename = "publications-#{Enum.join(attributes, "-")}.csv"
-    send_exported_csv(conn, results, filename)
-  end
-
-  def export(conn, _params) do
-    {:ok, results} = Publication.Index.all(select: [])
-    filename = "publications.csv"
-    send_exported_csv(conn, results, filename)
-  end
-
-  # Sends results as a CSV attachment.
-  defp send_exported_csv(conn, data, filename) do
-    content = Publication.Codec.to_csv(data)
-
-    send_download(
-      conn,
-      {:binary, content},
-      filename: filename,
+    send_download(conn, {:binary, Publication.Codec.to_csv(results)},
+      filename: Enum.join(["publications" | List.wrap(search)] ++ attributes, "-") <> ".csv",
       disposition: :attachment
     )
   end
@@ -166,25 +167,38 @@ defmodule RichardBurtonWeb.PublicationController do
     end
   end
 
+  @doc """
+  Replaces the fields of the publication `id` with the flat fields in the
+  request body, and responds with the publication, flattened. Invalid fields
+  are a 400 whose `errors` are keyed by the same flat fields.
+  """
   def update(conn, params = %{"id" => id}) do
     attrs = params |> Map.delete("id") |> Publication.Codec.nest()
 
     with {:ok, id} <- Params.id(id),
-         {:ok, publication} <- Publication.update(id, attrs, actor(conn)) do
+         {:ok, publication} <- id |> Publication.update(attrs, actor(conn)) |> flat_errors() do
       json(conn, Publication.Codec.flatten(publication))
     end
   end
 
-  # The clusters of records that look like the same publication entered twice,
-  # likeliest first — what the duplicate review steps through.
-  def duplicates(conn, _params) do
-    entries =
-      Enum.map(
-        Publication.Duplicates.clusters(),
-        &%{publications: &1.publications, score: &1.score}
-      )
+  # Returns `result` with a map of errors keyed by the flat fields, as
+  # `Publication.Codec.flatten_errors/1` gives them. Any other result is
+  # returned unchanged.
+  defp flat_errors({:error, errors}) when is_map(errors),
+    do: {:error, Publication.Codec.flatten_errors(errors)}
 
-    json(conn, %{entries: entries, threshold: Publication.Duplicates.threshold()})
+  defp flat_errors(result), do: result
+
+  @doc """
+  Responds with the clusters of publications that look like one publication
+  entered twice, likeliest first, as `entries`, and the `threshold` their
+  scores are compared with. See `Publication.Duplicates.clusters/0`.
+  """
+  def duplicates(conn, _params) do
+    json(conn, %{
+      entries: Publication.Duplicates.clusters(),
+      threshold: Publication.Duplicates.threshold()
+    })
   end
 
   @doc """

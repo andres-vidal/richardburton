@@ -9,55 +9,27 @@ defmodule RichardBurton.Publication.DuplicatesTest do
   alias RichardBurton.Publication.History
   alias RichardBurton.Util
 
-  @base %{
-    "title" => "Dom Casmurro",
-    "year" => 1953,
-    "countries" => [%{"code" => "US"}],
-    "publishers" => [%{"name" => "Noonday Press"}],
-    "translated_book" => %{
-      "authors" => [%{"name" => "Helen Caldwell"}],
-      "original_book" => %{
-        "title" => "Dom Casmurro",
-        "authors" => [%{"name" => "Machado de Assis"}]
-      }
-    }
-  }
-
-  defp insert(attrs) do
-    {:ok, publication} = Publication.insert(Util.deep_merge_maps(@base, attrs))
-    # Duplicates are read from the flattened publications, which are
-    # materialized; a single insert doesn't signal the refresher, so stand in for
-    # the caller that would.
-    Publication.Index.Refresher.refresh()
-    publication
-  end
-
-  # Another translator's rendering of the same book — the subject matter of this
-  # database, not a mistake in it.
+  # Inserts another translator's translation of the same book, which is the
+  # subject matter of this database, not a mistake in it.
   defp by_another_translator(title, translator, year) do
-    insert(%{
-      "title" => title,
-      "year" => year,
-      "translated_book" => %{"authors" => [%{"name" => translator}]}
-    })
+    publication_fixture(%{title: title, year: year, authors: [translator]})
   end
 
-  # A wholly different work, by a different hand.
+  # Inserts a publication of another work, by another translator.
   defp another_work(title, original_title, author, year) do
-    insert(%{
-      "title" => title,
-      "year" => year,
-      "translated_book" => %{
-        "authors" => [%{"name" => "Isabel Burton"}],
-        "original_book" => %{"title" => original_title, "authors" => [%{"name" => author}]}
-      }
+    publication_fixture(%{
+      title: title,
+      year: year,
+      authors: ["Isabel Burton"],
+      original_title: original_title,
+      original_authors: [author]
     })
   end
 
-  # Builds a row: a flat, string-keyed publication with no id, in the shape
-  # validation takes. `attrs` override the default Helen Caldwell translation of
-  # "Dom Casmurro".
-  defp row(attrs), do: @base |> Publication.Codec.flatten() |> Map.merge(attrs)
+  # Returns a row: the flat publication `flat_publication_attrs/1` returns,
+  # with string keys and no id, as validation takes it, and with `attrs`, given
+  # with string keys, in place of its own fields.
+  defp row(attrs), do: flat_publication_attrs() |> Util.stringify_keys() |> Map.merge(attrs)
 
   defp titles(clusters) do
     Enum.map(clusters, fn cluster -> Enum.map(cluster.publications, & &1.title) end)
@@ -65,14 +37,14 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
   describe "clusters/0" do
     test "unrelated works are nothing to review" do
-      insert(%{})
+      publication_fixture()
       another_work("Iraçéma the Honey-Lips", "Iracema", "José de Alencar", 1886)
 
       assert [] == Duplicates.clusters()
     end
 
     test "two translations of one book are two publications, not a duplicate" do
-      insert(%{})
+      publication_fixture()
       by_another_translator("Dom Casmurro", "John Gledson", 1997)
 
       # Same title, same original book, same author — and still not the same
@@ -82,15 +54,15 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
     test "records the composite key cannot see are put together" do
       # A typo in the title: two records, one publication.
-      insert(%{})
-      insert(%{"title" => "Dom Casmuro"})
+      publication_fixture()
+      publication_fixture(%{title: "Dom Casmuro"})
 
       assert [["Dom Casmuro", "Dom Casmurro"]] = titles(Duplicates.clusters())
     end
 
     test "one translator's work entered under another title is found by the book behind it" do
-      insert(%{})
-      insert(%{"title" => "The Confessions of a Jealous Man"})
+      publication_fixture()
+      publication_fixture(%{title: "The Confessions of a Jealous Man"})
 
       assert [cluster] = Duplicates.clusters()
       assert 2 == length(cluster.publications)
@@ -99,16 +71,16 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     # The year, the countries and the publishers rule a pair out when they
     # differ, because a printing of its own is another publication.
     test "another printing, with a year of its own, is not offered" do
-      insert(%{})
-      insert(%{"title" => "The Confessions of a Jealous Man", "year" => 1997})
+      publication_fixture()
+      publication_fixture(%{title: "The Confessions of a Jealous Man", year: 1997})
 
       assert [] == Duplicates.clusters()
     end
 
     test "records joined through a third are one question, because merging them is one act" do
-      insert(%{})
-      insert(%{"title" => "Dom Casmuro"})
-      insert(%{"title" => "Dom Casmurr"})
+      publication_fixture()
+      publication_fixture(%{title: "Dom Casmuro"})
+      publication_fixture(%{title: "Dom Casmurr"})
 
       assert [cluster] = Duplicates.clusters()
       assert 3 == length(cluster.publications)
@@ -116,23 +88,19 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
     test "the likelier cluster is offered first" do
       # All but the same title — barely a difference at all.
-      insert(%{})
-      insert(%{"title" => "Dom Casmuro"})
+      publication_fixture()
+      publication_fixture(%{title: "Dom Casmuro"})
 
       # The same translator's other book, retitled: alike enough to ask about,
       # but nowhere near as alike.
       another_work("Iraçéma the Honey-Lips", "Iracema", "José de Alencar", 1886)
 
-      insert(%{
-        "title" => "Iracema, the Honey-Lips: A Legend",
-        "year" => 1886,
-        "translated_book" => %{
-          "authors" => [%{"name" => "Isabel Burton"}],
-          "original_book" => %{
-            "title" => "Iracema",
-            "authors" => [%{"name" => "José de Alencar"}]
-          }
-        }
+      publication_fixture(%{
+        title: "Iracema, the Honey-Lips: A Legend",
+        year: 1886,
+        authors: ["Isabel Burton"],
+        original_title: "Iracema",
+        original_authors: ["José de Alencar"]
       })
 
       assert [closest, _further] = Duplicates.clusters()
@@ -140,8 +108,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a record that has left the database is not offered" do
-      insert(%{})
-      twin = insert(%{"title" => "Dom Casmuro"})
+      publication_fixture()
+      twin = publication_fixture(%{title: "Dom Casmuro"})
 
       {:ok, _} = Publication.delete(twin.id)
 
@@ -149,8 +117,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a pair ruled apart is no longer asked about" do
-      one = insert(%{})
-      other = insert(%{"title" => "Dom Casmuro"})
+      one = publication_fixture()
+      other = publication_fixture(%{title: "Dom Casmuro"})
 
       assert [_] = Duplicates.clusters()
 
@@ -160,9 +128,9 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "telling one pair apart can split a cluster rather than shrink it" do
-      middle = insert(%{"title" => "Dom Casmuro"})
-      left = insert(%{})
-      right = insert(%{"title" => "Dom Casmur"})
+      middle = publication_fixture(%{title: "Dom Casmuro"})
+      left = publication_fixture()
+      right = publication_fixture(%{title: "Dom Casmur"})
 
       assert [%{publications: [_, _, _]}] = Duplicates.clusters()
 
@@ -174,29 +142,41 @@ defmodule RichardBurton.Publication.DuplicatesTest do
       assert [%{publications: remaining}] = Duplicates.clusters()
       assert [middle.id, right.id] == remaining |> Enum.map(& &1.id) |> Enum.sort()
     end
+
+    test "finds any number of clusters with the same number of queries" do
+      publication_fixture()
+      publication_fixture(%{title: "Dom Casmuro"})
+      {[_], one} = count_queries(&Duplicates.clusters/0)
+
+      another_work("Iraçéma the Honey-Lips", "Iracema", "José de Alencar", 1886)
+      another_work("Iracema, the Honey-Lips", "Iracema", "José de Alencar", 1886)
+      {[_, _], two} = count_queries(&Duplicates.clusters/0)
+
+      assert one == two
+    end
   end
 
   describe "rule_apart/2" do
     test "remembers every pair among the records it was given" do
       [a, b, c] = [
-        insert(%{}),
-        insert(%{"title" => "Dom Casmuro"}),
-        insert(%{"title" => "Dom C"})
+        publication_fixture(),
+        publication_fixture(%{title: "Dom Casmuro"}),
+        publication_fixture(%{title: "Dom C"})
       ]
 
       assert {:ok, 3} = Duplicates.rule_apart([a.id, b.id, c.id], "admin@example.com")
     end
 
     test "saying the same thing twice remembers it once" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
 
       assert {:ok, 1} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
       assert {:ok, 0} = Duplicates.rule_apart([b.id, a.id], "someone.else@example.com")
     end
 
     test "one record on its own is nothing to rule apart" do
-      a = insert(%{})
+      a = publication_fixture()
 
       assert {:error, :not_enough} = Duplicates.rule_apart([a.id], "admin@example.com")
     end
@@ -204,8 +184,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
   describe "reconsider/2" do
     test "puts the pair back among the questions" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
 
       {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
       assert [] == Duplicates.clusters()
@@ -216,9 +196,9 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
     test "forgets every pair among the records, as ruling apart recorded them" do
       [a, b, c] = [
-        insert(%{}),
-        insert(%{"title" => "Dom Casmuro"}),
-        insert(%{"title" => "Dom C"})
+        publication_fixture(),
+        publication_fixture(%{title: "Dom Casmuro"}),
+        publication_fixture(%{title: "Dom C"})
       ]
 
       {:ok, 3} = Duplicates.rule_apart([a.id, b.id, c.id], "admin@example.com")
@@ -227,8 +207,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "taking back what was never decided is not an error" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
 
       assert {:ok, 0} = Duplicates.reconsider([a.id, b.id], "admin@example.com")
     end
@@ -246,9 +226,9 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
     test "ruling apart records it on each publication, naming the others, under who said so" do
       [a, b, c] = [
-        insert(%{}),
-        insert(%{"title" => "Dom Casmuro"}),
-        insert(%{"title" => "Dom C"})
+        publication_fixture(),
+        publication_fixture(%{title: "Dom Casmuro"}),
+        publication_fixture(%{title: "Dom C"})
       ]
 
       {:ok, 3} = Duplicates.rule_apart([a.id, b.id, c.id], "reviewer@example.com")
@@ -263,8 +243,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "saying the same thing twice records it once" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
 
       {:ok, 1} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
       {:ok, 0} = Duplicates.rule_apart([b.id, a.id], "someone.else@example.com")
@@ -273,8 +253,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "taking a decision back records it on each publication, and taking back nothing records nothing" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
 
       {:ok, 0} = Duplicates.reconsider([a.id, b.id], "admin@example.com")
       assert actions(a) == ["created"]
@@ -288,8 +268,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a decision is not undone from the history, and does not hold back the entry before it" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
       {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
 
       [decision, created] = History.of(a.id)
@@ -304,8 +284,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a merge clears the distinctions among the merged records without recording a decision" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
       {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
 
       {:ok, _} = Publication.merge(a.id, [b.id], "admin@example.com")
@@ -317,38 +297,53 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
   describe "ruled_apart/0" do
     test "says which records were ruled apart, and by whom" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
       {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
 
       assert [%{publications: [_, _], actor: "admin@example.com"}] = Duplicates.ruled_apart()
     end
 
     test "leaves out a pair one of whose records is gone" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
       {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
 
       {:ok, _} = Publication.delete(b.id)
-      Publication.Index.Refresher.refresh()
 
       # Nothing left to ask about, so nothing to offer taking back.
       assert [] == Duplicates.ruled_apart()
+    end
+
+    test "lists the pairs newest first, each ordered by title, with two queries" do
+      [a, b, c] = [
+        publication_fixture(),
+        publication_fixture(%{title: "Dom Casmuro"}),
+        publication_fixture(%{title: "Dom C"})
+      ]
+
+      {:ok, _} = Duplicates.rule_apart([a.id, b.id], "first@example.com")
+      {:ok, _} = Duplicates.rule_apart([c.id, a.id], "second@example.com")
+
+      assert {pairs, 2} = count_queries(&Duplicates.ruled_apart/0)
+
+      assert Enum.map(pairs, &{&1.actor, Enum.map(&1.publications, fn p -> p.title end)}) == [
+               {"second@example.com", ["Dom C", "Dom Casmurro"]},
+               {"first@example.com", ["Dom Casmuro", "Dom Casmurro"]}
+             ]
     end
   end
 
   describe "a merge and a distinction, which answer the same question" do
     test "merging forgets the distinction, so an un-merge asks again" do
-      a = insert(%{})
-      b = insert(%{"title" => "Dom Casmuro"})
+      a = publication_fixture()
+      b = publication_fixture(%{title: "Dom Casmuro"})
 
       {:ok, _} = Duplicates.rule_apart([a.id, b.id], "admin@example.com")
       {:ok, _} = Publication.merge(a.id, [b.id], "admin@example.com")
-      Publication.Index.Refresher.refresh()
 
-      [merge | _] = Publication.History.of(a.id)
+      [merge | _] = History.of(a.id)
       {:ok, _} = Publication.undo(a.id, merge.version, "admin@example.com")
-      Publication.Index.Refresher.refresh()
 
       # Both are live again and still alike, so the question is live again too:
       # the merge was the later answer, and taking it back leaves none.
@@ -370,17 +365,9 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
       # Two of one translator's books, one titled almost like the other: alike
       # by their titles alone, which is what the threshold governs.
-      insert(%{})
+      publication_fixture()
 
-      insert(%{
-        "title" => "Dom Casmuro",
-        "translated_book" => %{
-          "original_book" => %{
-            "title" => "Quincas Borba",
-            "authors" => [%{"name" => "Machado de Assis"}]
-          }
-        }
-      })
+      publication_fixture(%{title: "Dom Casmuro", original_title: "Quincas Borba"})
 
       # Asking for near-identity finds nothing; loosening it finds the pair.
       Application.put_env(:richard_burton, :duplicate_threshold, 0.99)
@@ -397,7 +384,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a row unlike anything stored is not reported" do
-      insert(%{})
+      publication_fixture()
 
       assert [] ==
                Duplicates.resemblances([
@@ -411,7 +398,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a row that all but spells a stored record is reported against it" do
-      stored = insert(%{})
+      stored = publication_fixture()
 
       assert [%{position: 0, stored: [found], others: []}] =
                Duplicates.resemblances([row(%{"title" => "Dom Casmuro"})])
@@ -420,7 +407,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "another translator is not a duplicate, here as anywhere" do
-      insert(%{})
+      publication_fixture()
 
       # The row has the same book and title as the stored record, but a
       # different translator. The rule requires similar translators, so
@@ -430,7 +417,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a row from another publisher is another edition, not a look-alike" do
-      insert(%{})
+      publication_fixture()
 
       assert [] ==
                Duplicates.resemblances([
@@ -439,20 +426,20 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a row published in another country is another edition, not a look-alike" do
-      insert(%{})
+      publication_fixture()
 
       assert [] ==
                Duplicates.resemblances([row(%{"title" => "Dom Casmuro", "countries" => ["GB"]})])
     end
 
     test "a row published in another year is another edition, not a look-alike" do
-      insert(%{})
+      publication_fixture()
 
       assert [] == Duplicates.resemblances([row(%{"title" => "Dom Casmuro", "year" => "1997"})])
     end
 
     test "a row that shares one of its countries with a record still resembles it" do
-      insert(%{})
+      publication_fixture()
 
       assert [%{position: 0}] =
                Duplicates.resemblances([
@@ -461,7 +448,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a publisher written in full agrees with its short form" do
-      insert(%{"publishers" => [%{"name" => "Alfred A. Knopf"}]})
+      publication_fixture(%{publishers: ["Alfred A. Knopf"]})
 
       assert [%{position: 0}] =
                Duplicates.resemblances([
@@ -471,7 +458,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
     # A field rules a look-alike out only when both sides have a value for it.
     test "a row that leaves the year, countries and publishers empty still resembles a record" do
-      insert(%{})
+      publication_fixture()
 
       assert [%{position: 0}] =
                Duplicates.resemblances([
@@ -490,7 +477,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a row is named by its position, so the ones with nothing to say are absent" do
-      insert(%{})
+      publication_fixture()
 
       assert [%{position: 1}] =
                Duplicates.resemblances([
@@ -505,7 +492,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a differently titled row still resembles through the original book" do
-      insert(%{})
+      publication_fixture()
 
       # The titles differ, but the translators and the original book match, so
       # the rule still reports the row. This is how a retitled edition is found.
@@ -516,7 +503,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a row with no translators resembles nothing" do
-      insert(%{})
+      publication_fixture()
 
       assert [] == Duplicates.resemblances([row(%{"authors" => []})])
     end
@@ -544,7 +531,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a row that names its country agrees with a record that holds its code" do
-      insert(%{})
+      publication_fixture()
 
       assert [%{position: 0, stored: [_]}] =
                Duplicates.resemblances([
@@ -553,7 +540,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "a row is not a repeat of a stored record, which validation reports instead" do
-      insert(%{})
+      publication_fixture()
 
       assert [%{position: 0, repeats: nil, stored: [_]}] = Duplicates.resemblances([row(%{})])
     end

@@ -272,13 +272,13 @@ defmodule RichardBurton.Publication.CodecTest do
         %{
           publication: input_publication,
           errors: %{
-            year: "required",
-            countries: ["required"],
-            publishers: ["required"],
+            year: :required,
+            countries: :required,
+            publishers: :required,
             translated_book: %{
               original_book: %{
-                authors: [%{name: "required"}],
-                title: "required"
+                authors: [%{name: :required}],
+                title: :required
               }
             }
           }
@@ -297,11 +297,11 @@ defmodule RichardBurton.Publication.CodecTest do
         %{
           "publication" => @output_publication,
           "errors" => %{
-            "year" => "required",
-            "countries" => ["required"],
-            "publishers" => ["required"],
-            "original_authors" => ["required"],
-            "original_title" => "required"
+            "year" => :required,
+            "countries" => :required,
+            "publishers" => :required,
+            "original_authors" => :required,
+            "original_title" => :required
           }
         },
         %{
@@ -430,6 +430,183 @@ defmodule RichardBurton.Publication.CodecTest do
       ]
 
       assert [@output, @output, @output_struct] == Publication.Codec.nest(input)
+    end
+  end
+
+  describe "nest/1 on the maps its callers pass" do
+    @flat %{
+      "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
+      "year" => 1886,
+      "countries" => ["GB"],
+      "publishers" => ["Bickers & Son"],
+      "authors" => ["Isabel Burton"],
+      "original_title" => "Iracema",
+      "original_authors" => ["José de Alencar"],
+      "sources" => ["A source"]
+    }
+
+    test "a row as the editor sends it keeps its id, excerpts and marks as they are" do
+      excerpts = %{"title" => "[[Iraçéma]] the Honey-Lips", "authors" => nil}
+      marked = %{"authors" => ["[[Isabel]] Burton"]}
+      input = Map.merge(@flat, %{"id" => 7, "excerpts" => excerpts, "marked" => marked})
+
+      nested = Publication.Codec.nest(input)
+
+      assert nested["id"] == 7
+      assert nested["excerpts"] == excerpts
+      assert nested["marked"] == marked
+
+      assert nested["translated_book"] == %{
+               "authors" => [%{"name" => "Isabel Burton"}],
+               "original_book" => %{
+                 "title" => "Iracema",
+                 "authors" => [%{"name" => "José de Alencar"}]
+               }
+             }
+    end
+
+    test "a history snapshot comes back as a changeset casts it" do
+      snapshot = Map.merge(@flat, %{"id" => 7, "excerpts" => nil, "marked" => nil})
+
+      changeset = Publication.changeset(%Publication{}, Publication.Codec.nest(snapshot))
+
+      assert changeset.valid?
+    end
+
+    test "a map with some of the translated book's fields gets a book with only those" do
+      assert Publication.Codec.nest(%{"authors" => ["Isabel Burton"]}) ==
+               %{"translated_book" => %{"authors" => [%{"name" => "Isabel Burton"}]}}
+
+      assert Publication.Codec.nest(%{"original_title" => "Iracema"}) ==
+               %{"translated_book" => %{"original_book" => %{"title" => "Iracema"}}}
+
+      assert Publication.Codec.nest(%{
+               "authors" => ["Isabel Burton"],
+               "original_title" => "Iracema"
+             }) == %{
+               "translated_book" => %{
+                 "authors" => [%{"name" => "Isabel Burton"}],
+                 "original_book" => %{"title" => "Iracema"}
+               }
+             }
+    end
+
+    test "a map with none of the translated book's fields gets no translated book" do
+      assert Publication.Codec.nest(%{"title" => "Iracema", "year" => 1886}) ==
+               %{"title" => "Iracema", "year" => 1886}
+    end
+
+    test "a map that is already nested keeps its translated book" do
+      skeleton = %{translated_book: %{authors: nil, original_book: %{authors: nil, title: nil}}}
+
+      assert Publication.Codec.nest(skeleton) == %{
+               "translated_book" => %{authors: nil, original_book: %{authors: nil, title: nil}}
+             }
+    end
+  end
+
+  describe "flatten/1 on the maps its callers pass" do
+    test "leaves out the translated book's and the original book's other fields" do
+      input = %{
+        "title" => "Iracema",
+        "translated_book" => %{
+          "id" => 3,
+          "authors_fingerprint" => "abc",
+          "authors" => [%{"name" => "Isabel Burton"}],
+          "original_book" => %{
+            "id" => 4,
+            "title" => "Iracema",
+            "authors" => [%{"name" => "José de Alencar"}]
+          }
+        }
+      }
+
+      assert Publication.Codec.flatten(input) == %{
+               "title" => "Iracema",
+               "authors" => ["Isabel Burton"],
+               "original_title" => "Iracema",
+               "original_authors" => ["José de Alencar"]
+             }
+    end
+
+    test "keeps other nested maps as they are" do
+      excerpts = %{"title" => "[[Iracema]]", "authors" => nil}
+
+      assert Publication.Codec.flatten(%{"title" => "Iracema", "excerpts" => excerpts}) ==
+               %{"title" => "Iracema", "excerpts" => excerpts}
+    end
+
+    test "keeps a translated book that is not a map under its own key" do
+      assert Publication.Codec.flatten(%{title: :required, translated_book: :required}) ==
+               %{"title" => :required, "translated_book" => :required}
+    end
+
+    test "leaves a map that is already flat as it is, with its lists of names" do
+      flat = %{
+        "title" => "Iracema",
+        "authors" => ["Isabel Burton"],
+        "original_title" => "Iracema",
+        "original_authors" => ["José de Alencar"],
+        "countries" => ["GB"]
+      }
+
+      assert Publication.Codec.flatten(flat) == flat
+    end
+
+    test "reads the nested attrs it was nested into back to the row they came from" do
+      row = %{
+        "title" => "Iracema",
+        "year" => 1886,
+        "countries" => ["GB"],
+        "publishers" => ["Bickers & Son"],
+        "authors" => ["Isabel Burton"],
+        "original_title" => "Iracema",
+        "original_authors" => ["José de Alencar"]
+      }
+
+      assert row |> Publication.Codec.nest() |> Publication.Codec.flatten() == row
+    end
+
+    test "flattens a changeset's errors for the row that caused them" do
+      attrs =
+        Publication.Codec.nest(%{
+          "title" => "",
+          "year" => 1886,
+          "countries" => ["GB"],
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Isabel Burton"],
+          "original_title" => "",
+          "original_authors" => ["José de Alencar"]
+        })
+
+      errors =
+        %Publication{}
+        |> Publication.changeset(attrs)
+        |> RichardBurton.Validation.get_errors()
+
+      assert %{"errors" => %{"title" => :required, "original_title" => :required}} =
+               Publication.Codec.flatten(%{publication: attrs, errors: errors})
+    end
+
+    test "flattens the errors of a list whose entries are partly valid to one code" do
+      attrs =
+        Publication.Codec.nest(%{
+          "title" => "Iracema",
+          "year" => 1886,
+          "countries" => ["GB", "XX"],
+          "publishers" => ["Bickers & Son"],
+          "authors" => ["Isabel Burton"],
+          "original_title" => "Iracema",
+          "original_authors" => ["José de Alencar"]
+        })
+
+      errors =
+        %Publication{}
+        |> Publication.changeset(attrs)
+        |> RichardBurton.Validation.get_errors()
+
+      assert %{"errors" => %{"countries" => :alpha2}} =
+               Publication.Codec.flatten(%{publication: attrs, errors: errors})
     end
   end
 

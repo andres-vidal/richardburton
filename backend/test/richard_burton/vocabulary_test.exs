@@ -18,25 +18,6 @@ defmodule RichardBurton.VocabularyTest do
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Vocabulary
 
-  @base %{
-    "title" => "Dom Casmurro",
-    "year" => 1953,
-    "countries" => [%{"code" => "US"}],
-    "publishers" => [%{"name" => "Noonday Press"}],
-    "translated_book" => %{
-      "authors" => [%{"name" => "Helen Caldwell"}],
-      "original_book" => %{
-        "title" => "Dom Casmurro",
-        "authors" => [%{"name" => "Machado de Assis"}]
-      }
-    }
-  }
-
-  defp insert(attrs \\ %{}) do
-    {:ok, publication} = Publication.insert(RichardBurton.Util.deep_merge_maps(@base, attrs))
-    publication
-  end
-
   defp id_of(schema, name), do: Repo.get_by!(schema, name: name).id
 
   # The parts of a publication's composite key that names reach: the
@@ -54,9 +35,9 @@ defmodule RichardBurton.VocabularyTest do
 
   describe "all/1" do
     test "counts the publications each name is on" do
-      insert()
-      insert(%{"title" => "Dom Casmurro (revised)"})
-      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Bickers & Son"}]})
+      publication_fixture(%{publishers: ["Noonday Press"]})
+      publication_fixture(%{title: "Dom Casmurro (revised)", publishers: ["Noonday Press"]})
+      publication_fixture(%{title: "Iracema", publishers: ["Bickers & Son"]})
 
       names = Vocabulary.all("publishers")
 
@@ -76,14 +57,13 @@ defmodule RichardBurton.VocabularyTest do
 
     test "an author is counted through both ways it reaches a publication" do
       # Ana Lessa translates one book and wrote the original of another.
-      insert(%{"translated_book" => %{"authors" => [%{"name" => "Ana Lessa"}]}})
+      publication_fixture(%{authors: ["Ana Lessa"]})
 
-      insert(%{
-        "title" => "Another",
-        "translated_book" => %{
-          "authors" => [%{"name" => "Someone Else"}],
-          "original_book" => %{"title" => "Outro", "authors" => [%{"name" => "Ana Lessa"}]}
-        }
+      publication_fixture(%{
+        title: "Another",
+        authors: ["Someone Else"],
+        original_title: "Outro",
+        original_authors: ["Ana Lessa"]
       })
 
       assert %{publications: 2} =
@@ -97,9 +77,9 @@ defmodule RichardBurton.VocabularyTest do
 
   describe "all/1, on the names resembling each other" do
     test "each spelling points at the others, and says nothing where there are none" do
-      insert(%{"publishers" => [%{"name" => "Penguin Books"}]})
-      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Penguin books"}]})
-      insert(%{"title" => "Esau and Jacob", "publishers" => [%{"name" => "Peter Owen"}]})
+      publication_fixture(%{publishers: ["Penguin Books"]})
+      publication_fixture(%{title: "Iracema", publishers: ["Penguin books"]})
+      publication_fixture(%{title: "Esau and Jacob", publishers: ["Peter Owen"]})
 
       names = Vocabulary.all("publishers")
       by_name = Map.new(names, &{&1.name, &1})
@@ -110,8 +90,8 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a publisher's short name and its full name point at each other" do
-      insert(%{"publishers" => [%{"name" => "Alfred A. Knopf"}]})
-      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Knopf"}]})
+      publication_fixture(%{publishers: ["Alfred A. Knopf"]})
+      publication_fixture(%{title: "Iracema", publishers: ["Knopf"]})
 
       by_name = Map.new(Vocabulary.all("publishers"), &{&1.name, &1})
 
@@ -126,7 +106,7 @@ defmodule RichardBurton.VocabularyTest do
 
   describe "resemblances/2" do
     test "says nothing about a name the vocabulary already holds exactly" do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
 
       {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Noonday Press"])
 
@@ -134,7 +114,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a name nothing here is near is simply new" do
-      insert()
+      publication_fixture()
 
       {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Tagus Press"])
 
@@ -142,7 +122,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "catches the spelling that differs only in case" do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
 
       {:ok, [entry]} = Vocabulary.resemblances("publishers", ["noonday press"])
 
@@ -150,8 +130,8 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "catches a dropped space, and says how much rests on the other spelling" do
-      insert(%{"publishers" => [%{"name" => "Alfred A. Knopf"}]})
-      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Alfred A. Knopf"}]})
+      publication_fixture(%{publishers: ["Alfred A. Knopf"]})
+      publication_fixture(%{title: "Iracema", publishers: ["Alfred A. Knopf"]})
 
       {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Alfred A.Knopf"])
 
@@ -159,7 +139,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "catches a publisher's short name inside its full name" do
-      insert(%{"publishers" => [%{"name" => "Alfred A. Knopf"}]})
+      publication_fixture(%{publishers: ["Alfred A. Knopf"]})
 
       {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Knopf"])
 
@@ -169,11 +149,7 @@ defmodule RichardBurton.VocabularyTest do
     # An author record can name two people. Each person's own name is a
     # different author, not another spelling of the record.
     test "does not take one translator's name for a record that names two" do
-      insert(%{
-        "translated_book" => %{
-          "authors" => [%{"name" => "William L. Grossman & Helen Caldwell"}]
-        }
-      })
+      publication_fixture(%{authors: ["William L. Grossman & Helen Caldwell"]})
 
       {:ok, [entry]} = Vocabulary.resemblances("authors", ["Helen Caldwell"])
 
@@ -181,7 +157,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a translator is found whether the name translated or wrote" do
-      insert()
+      publication_fixture(%{authors: ["Helen Caldwell"], original_authors: ["Machado de Assis"]})
 
       {:ok, [translator, author]} =
         Vocabulary.resemblances("authors", ["Helen Caldwel", "Machado de Assiz"])
@@ -191,9 +167,9 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "the established spelling comes first" do
-      insert(%{"publishers" => [%{"name" => "Penguin Books"}]})
-      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Penguin Books"}]})
-      insert(%{"title" => "Esau and Jacob", "publishers" => [%{"name" => "Penguin Book"}]})
+      publication_fixture(%{publishers: ["Penguin Books"]})
+      publication_fixture(%{title: "Iracema", publishers: ["Penguin Books"]})
+      publication_fixture(%{title: "Esau and Jacob", publishers: ["Penguin Book"]})
 
       {:ok, [entry]} = Vocabulary.resemblances("publishers", ["Penguin books"])
 
@@ -202,7 +178,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "trims, drops blanks and asks about each name once" do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
 
       {:ok, entries} =
         Vocabulary.resemblances("publishers", ["  Noonday Press  ", "", "Noonday Press", "   "])
@@ -221,7 +197,7 @@ defmodule RichardBurton.VocabularyTest do
 
   describe "rename/5 correcting a spelling" do
     test "the name changes and the publication's fingerprint follows" do
-      publication = insert()
+      publication = publication_fixture(%{publishers: ["Noonday Press"]})
       before = fingerprints(publication)
 
       assert {:ok, :renamed} =
@@ -232,7 +208,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "renaming a translator moves the publication's identity too" do
-      publication = insert()
+      publication = publication_fixture(%{authors: ["Helen Caldwell"]})
       {_, translated_before} = fingerprints(publication)
 
       assert {:ok, :renamed} =
@@ -243,7 +219,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "renaming an original author moves it as well" do
-      publication = insert()
+      publication = publication_fixture(%{original_authors: ["Machado de Assis"]})
       {_, translated_before} = fingerprints(publication)
 
       assert {:ok, :renamed} =
@@ -254,14 +230,14 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a blank name is refused" do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
 
       assert {:error, :blank} =
                Vocabulary.rename("publishers", id_of(Publisher, "Noonday Press"), "   ")
     end
 
     test "a name is trimmed on the way in" do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
 
       {:ok, :renamed} =
         Vocabulary.rename("publishers", id_of(Publisher, "Noonday Press"), "  Noonday  ")
@@ -270,7 +246,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "renaming something to what it is already called changes nothing" do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
       id = id_of(Publisher, "Noonday Press")
 
       assert {:ok, :renamed} = Vocabulary.rename("publishers", id, "Noonday Press")
@@ -282,15 +258,9 @@ defmodule RichardBurton.VocabularyTest do
     test "two spellings of an original author fold their books, and the translations of each" do
       # The same translation catalogued twice, the original author spelt two
       # ways, in two printings.
-      kept = insert()
+      kept = publication_fixture(%{original_authors: ["Machado de Assis"]})
 
-      copy =
-        insert(%{
-          "year" => 1966,
-          "translated_book" => %{
-            "original_book" => %{"authors" => [%{"name" => "Machado de Assiz"}]}
-          }
-        })
+      copy = publication_fixture(%{year: 1966, original_authors: ["Machado de Assiz"]})
 
       assert {:ok, :merged} =
                Vocabulary.rename(
@@ -308,12 +278,9 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "two translations folded into one keep two printings that differ only in year" do
-      insert()
+      publication_fixture(%{authors: ["Helen Caldwell"]})
 
-      insert(%{
-        "year" => 1966,
-        "translated_book" => %{"authors" => [%{"name" => "Helen Caldwel"}]}
-      })
+      publication_fixture(%{year: 1966, authors: ["Helen Caldwel"]})
 
       assert {:ok, :merged} =
                Vocabulary.rename(
@@ -328,8 +295,8 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "the two become one, and its publications come with it" do
-      kept = insert()
-      stray = insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
+      kept = publication_fixture(%{publishers: ["Noonday Press"]})
+      stray = publication_fixture(%{title: "Iracema", publishers: ["Noonday press"]})
 
       assert {:ok, :merged} =
                Vocabulary.rename(
@@ -352,10 +319,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a publication crediting both spellings credits the survivor once" do
-      publication =
-        insert(%{
-          "publishers" => [%{"name" => "Noonday Press"}, %{"name" => "Noonday press"}]
-        })
+      publication = publication_fixture(%{publishers: ["Noonday Press", "Noonday press"]})
 
       assert {:ok, :merged} =
                Vocabulary.rename(
@@ -370,12 +334,9 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "two spellings of one translator become one" do
-      insert()
+      publication_fixture(%{authors: ["Helen Caldwell"]})
 
-      insert(%{
-        "title" => "Iracema",
-        "translated_book" => %{"authors" => [%{"name" => "helen caldwell"}]}
-      })
+      publication_fixture(%{title: "Iracema", authors: ["helen caldwell"]})
 
       assert {:ok, :merged} =
                Vocabulary.rename(
@@ -394,8 +355,8 @@ defmodule RichardBurton.VocabularyTest do
 
   describe "rename/5 onto a name already taken, unasked" do
     test "nothing is written, and it says who holds the name" do
-      insert()
-      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
+      publication_fixture(%{publishers: ["Noonday Press"]})
+      publication_fixture(%{title: "Iracema", year: 1953, publishers: ["Noonday press"]})
 
       assert {:error, {:would_fold, keeper, publications}} =
                Vocabulary.rename(
@@ -414,48 +375,36 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "it lists each publication on the author once, by title, without the deleted ones" do
-      insert()
+      publication_fixture(%{authors: ["Helen Caldwell"]})
 
       # "helen caldwell" translated "Ressurreição", wrote the original of "A Mão
       # e a Luva", and both translated and wrote "Casa Velha", which is listed
       # once. "Helena" is deleted, so it is not listed.
-      insert(%{
-        "title" => "Ressurreição",
-        "translated_book" => %{
-          "authors" => [%{"name" => "helen caldwell"}],
-          "original_book" => %{"title" => "Ressurreição"}
-        }
+      publication_fixture(%{
+        title: "Ressurreição",
+        authors: ["helen caldwell"],
+        original_title: "Ressurreição"
       })
 
-      insert(%{
-        "title" => "A Mão e a Luva",
-        "translated_book" => %{
-          "authors" => [%{"name" => "Pat Kelly"}],
-          "original_book" => %{
-            "title" => "A Mão e a Luva",
-            "authors" => [%{"name" => "helen caldwell"}]
-          }
-        }
+      publication_fixture(%{
+        title: "A Mão e a Luva",
+        authors: ["Pat Kelly"],
+        original_title: "A Mão e a Luva",
+        original_authors: ["helen caldwell"]
       })
 
-      insert(%{
-        "title" => "Casa Velha",
-        "translated_book" => %{
-          "authors" => [%{"name" => "helen caldwell"}],
-          "original_book" => %{
-            "title" => "Casa Velha",
-            "authors" => [%{"name" => "helen caldwell"}]
-          }
-        }
+      publication_fixture(%{
+        title: "Casa Velha",
+        authors: ["helen caldwell"],
+        original_title: "Casa Velha",
+        original_authors: ["helen caldwell"]
       })
 
       deleted =
-        insert(%{
-          "title" => "Helena",
-          "translated_book" => %{
-            "authors" => [%{"name" => "helen caldwell"}],
-            "original_book" => %{"title" => "Helena"}
-          }
+        publication_fixture(%{
+          title: "Helena",
+          authors: ["helen caldwell"],
+          original_title: "Helena"
         })
 
       {:ok, _} = Publication.delete(deleted.id)
@@ -471,14 +420,14 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "correcting onto a free name needs no such permission" do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
 
       assert {:ok, :renamed} =
                Vocabulary.rename("publishers", id_of(Publisher, "Noonday Press"), "Noonday")
     end
 
     test "renaming a name to itself is not a fold" do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
       id = id_of(Publisher, "Noonday Press")
 
       assert {:ok, :renamed} = Vocabulary.rename("publishers", id, "Noonday Press")
@@ -489,8 +438,8 @@ defmodule RichardBurton.VocabularyTest do
     test "it is refused, and says which publications clashed" do
       # The same publication is entered twice, and the two copies differ only
       # in the spelling of the publisher.
-      kept = insert()
-      hidden = insert(%{"publishers" => [%{"name" => "Noonday press"}]})
+      kept = publication_fixture(%{title: "Dom Casmurro", publishers: ["Noonday Press"]})
+      hidden = publication_fixture(%{title: "Dom Casmurro", publishers: ["Noonday press"]})
 
       before = {fingerprints(kept), fingerprints(hidden)}
 
@@ -515,13 +464,9 @@ defmodule RichardBurton.VocabularyTest do
     test "a copy published in another country is not a duplicate" do
       # The composite key includes the countries, so these two can both be
       # stored once their publishers are spelt the same.
-      kept = insert()
+      kept = publication_fixture(%{countries: ["US"], publishers: ["Noonday Press"]})
 
-      other =
-        insert(%{
-          "countries" => [%{"code" => "GB"}],
-          "publishers" => [%{"name" => "Noonday press"}]
-        })
+      other = publication_fixture(%{countries: ["GB"], publishers: ["Noonday press"]})
 
       assert {:ok, :merged} =
                Vocabulary.rename(
@@ -539,8 +484,8 @@ defmodule RichardBurton.VocabularyTest do
     test "a deleted copy of a publication does not stop the rename" do
       # The composite key applies only to publications that are not deleted,
       # so a deleted copy cannot clash with the publication it copies.
-      insert()
-      copy = insert(%{"publishers" => [%{"name" => "Noonday press"}]})
+      publication_fixture(%{publishers: ["Noonday Press"]})
+      copy = publication_fixture(%{publishers: ["Noonday press"]})
       {:ok, _} = Publication.delete(copy.id)
 
       assert {:ok, :merged} =
@@ -553,8 +498,8 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a deleted publication's fingerprints follow an author rename" do
-      kept = insert(%{"year" => 1966})
-      copy = insert(%{"translated_book" => %{"authors" => [%{"name" => "Helen Caldwel"}]}})
+      kept = publication_fixture(%{year: 1966, authors: ["Helen Caldwell"]})
+      copy = publication_fixture(%{authors: ["Helen Caldwel"]})
       {:ok, _} = Publication.delete(copy.id)
 
       assert {:ok, :merged} =
@@ -570,8 +515,8 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "restoring a deleted copy after the rename is refused as a duplicate of the other" do
-      kept = insert()
-      copy = insert(%{"translated_book" => %{"authors" => [%{"name" => "Helen Caldwel"}]}})
+      kept = publication_fixture(%{authors: ["Helen Caldwell"]})
+      copy = publication_fixture(%{authors: ["Helen Caldwel"]})
       {:ok, _} = Publication.delete(copy.id)
 
       assert {:ok, :merged} =
@@ -592,9 +537,12 @@ defmodule RichardBurton.VocabularyTest do
     defp latest(publication), do: publication.id |> History.of() |> hd()
 
     test "each publication crediting the name records the change, under the user who made it" do
-      first = insert()
-      second = insert(%{"title" => "Epitaph of a Small Winner"})
-      other = insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Bickers & Son"}]})
+      first = publication_fixture(%{publishers: ["Noonday Press"]})
+
+      second =
+        publication_fixture(%{title: "Epitaph of a Small Winner", publishers: ["Noonday Press"]})
+
+      other = publication_fixture(%{title: "Iracema", publishers: ["Bickers & Son"]})
 
       assert {:ok, :renamed} =
                Vocabulary.rename(
@@ -620,13 +568,9 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a fold records the change on the publications of the folded spelling only" do
-      kept = insert()
+      kept = publication_fixture(%{authors: ["Helen Caldwell"]})
 
-      folded =
-        insert(%{
-          "title" => "Iracema",
-          "translated_book" => %{"authors" => [%{"name" => "helen caldwell"}]}
-        })
+      folded = publication_fixture(%{title: "Iracema", authors: ["helen caldwell"]})
 
       assert {:ok, :merged} =
                Vocabulary.rename(
@@ -647,7 +591,7 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a rename is not undone from a publication's history" do
-      publication = insert()
+      publication = publication_fixture(%{publishers: ["Noonday Press"]})
       {:ok, _} = Publication.update(publication.id, %{"title" => "Dom Casmurro (1953)"})
 
       {:ok, :renamed} =
@@ -663,8 +607,8 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a rename refused as a collision records nothing" do
-      kept = insert()
-      copy = insert(%{"publishers" => [%{"name" => "Noonday press"}]})
+      kept = publication_fixture(%{publishers: ["Noonday Press"]})
+      copy = publication_fixture(%{publishers: ["Noonday press"]})
 
       assert {:error, {:would_collide, _}} =
                Vocabulary.rename(
@@ -679,9 +623,11 @@ defmodule RichardBurton.VocabularyTest do
     end
 
     test "a deleted publication gets no entry, and a rename to the same name records nothing" do
-      deleted = insert()
+      deleted = publication_fixture(%{publishers: ["Noonday Press"]})
       {:ok, _} = Publication.delete(deleted.id)
-      live = insert(%{"title" => "Epitaph of a Small Winner"})
+
+      live =
+        publication_fixture(%{title: "Epitaph of a Small Winner", publishers: ["Noonday Press"]})
 
       {:ok, :renamed} =
         Vocabulary.rename("publishers", id_of(Publisher, "Noonday Press"), "Noonday Press")

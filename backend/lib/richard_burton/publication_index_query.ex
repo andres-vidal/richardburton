@@ -1,16 +1,15 @@
 defmodule RichardBurton.Publication.Index.Query do
   @moduledoc """
-  Builds the query a parsed search term resolves to.
-
-  `Publication.Index.Term` says what a reader asked for; this says how to ask it
-  of the database. Nothing here reads a publication. It returns the `WHERE` and
-  `ORDER BY` fragments `Publication.Index` runs.
+  Builds the query a parsed search term resolves to: the `WHERE` and
+  `ORDER BY` expressions that `Publication.Index` runs for the alternatives
+  `Publication.Index.Term.parse/1` returns. Nothing here reads a publication.
 
   Terms used here:
 
     * **criteria** — a term ready to query with, and a tag the code matches on:
       `{:spelled_out, term}` for one handed to Postgres verbatim, or
-      `{:alternatives, alternatives}` for one parsed into words and filters.
+      `{:alternatives, alternatives}` for one parsed into, per alternative, a
+      tsquery for its free words and a predicate for each of its filters.
     * **predicate** — one condition a publication has to satisfy, held as an Ecto
       `dynamic` so it can be combined with others and spliced into the `WHERE`.
 
@@ -26,18 +25,55 @@ defmodule RichardBurton.Publication.Index.Query do
   alias RichardBurton.Publication.Index.Term
 
   # The columns holding several values, which are matched as one joined string.
-  # `countries` holds several values too, but is matched by resolving the value
-  # to codes rather than as text — see `text_predicate/2`.
+  # `countries` holds several values too, but its value is resolved to country
+  # codes rather than matched as text. See `text_predicate/2`.
   @list_fields [:sources, :publishers, :authors, :original_authors]
 
   @doc """
-  A parsed term as criteria: for each alternative, the tsquery for its free words
-  and the filters that narrow it.
+  Returns the standing of every word of a term that is matched against the
+  index's words, keyed by the word and looked up with one query. See
+  `Keywords.standings/1`.
+
+  The words are the free words, and the words of each unquoted operator value
+  that is matched as text, which excludes a year and a country. A term that
+  Postgres reads as written (see `spelled_out?/1`) looks nothing up and gets an
+  empty map.
   """
-  def criteria(alternatives) do
+  @spec standings(String.t()) :: %{String.t() => Keywords.standing()}
+  def standings(term) do
+    alternatives = Term.parse(term)
+
+    if Term.plain?(alternatives) and spelled_out?(term),
+      do: %{},
+      else: alternatives |> Enum.flat_map(&looked_up/1) |> Keywords.standings()
+  end
+
+  # The words of an alternative that are looked up in the index's words: its
+  # free words, and the words of the filter values matched as text.
+  defp looked_up(%{words: words, filters: filters}),
+    do: words ++ Enum.flat_map(filters, &value_words/1)
+
+  # The words of a filter's value that are looked up. A year is a range and a
+  # country is resolved to codes, and a quoted value is matched as the phrase
+  # it is, so none of those has words to look up.
+  defp value_words(%{field: field}) when field in [:year, :countries], do: []
+  defp value_words(%{exact: true}), do: []
+  defp value_words(%{value: value}), do: Keywords.words(value)
+
+  @doc """
+  A parsed term as criteria: for each alternative, the tsquery for its free words
+  and the predicate of each of its filters.
+
+  `standings` must hold the standing of every word that `standings/1` looks up
+  for the term.
+  """
+  def criteria(alternatives, standings) do
     {:alternatives,
      Enum.map(alternatives, fn alternative ->
-       %{query: words_query(alternative.words), filters: alternative.filters}
+       %{
+         query: words_query(alternative.words, standings),
+         predicates: Enum.map(alternative.filters, &filter_predicate(&1, standings))
+       }
      end)}
   end
 
@@ -46,7 +82,7 @@ defmodule RichardBurton.Publication.Index.Query do
   nothing, and which carries no filter, asks for nothing at all.
   """
   def empty?({:alternatives, alternatives}),
-    do: Enum.all?(alternatives, &(&1.query == nil and &1.filters == []))
+    do: Enum.all?(alternatives, &(&1.query == nil and &1.predicates == []))
 
   def empty?({:spelled_out, _term}), do: false
 
@@ -82,7 +118,7 @@ defmodule RichardBurton.Publication.Index.Query do
   @doc """
   A word as the tsquery that matches it.
 
-  Reads the word through `Keywords.standing_for/1` and renders whichever way it
+  Reads the word's standing from `standings` and renders whichever way it
   matched: a word that begins indexed words becomes a prefix query, and one that
   begins none becomes the list of words it resembles. A word the index does not
   hold at all has no tsquery, and the caller decides what that means.
@@ -90,9 +126,9 @@ defmodule RichardBurton.Publication.Index.Query do
   This is the one place a word becomes a query, so a row is highlighted by the
   same thing that matched it.
   """
-  @spec word_query(String.t()) :: String.t() | nil
-  def word_query(word) do
-    case Keywords.standing_for(word) do
+  @spec word_query(String.t(), %{String.t() => Keywords.standing()}) :: String.t() | nil
+  def word_query(word, standings) do
+    case Map.fetch!(standings, word) do
       {:prefix, _words} -> "#{lexeme(word)}:*"
       {:fuzzy, []} -> nil
       {:fuzzy, words} -> Enum.map_join(words, " | ", &lexeme/1)
@@ -125,8 +161,8 @@ defmodule RichardBurton.Publication.Index.Query do
   end
 
   # An alternative is satisfied by its free words and all of its filters.
-  defp alternative_predicate(%{query: query, filters: filters}) do
-    [words_predicate(query) | Enum.map(filters, &filter_predicate/1)]
+  defp alternative_predicate(%{query: query, predicates: predicates}) do
+    [words_predicate(query) | predicates]
     |> Enum.reject(&is_nil/1)
     |> all_of()
   end
@@ -154,19 +190,21 @@ defmodule RichardBurton.Publication.Index.Query do
   #
   # A value that parses into no range matches nothing, rather than the operator
   # being dropped, which would widen a term the reader narrowed.
-  defp filter_predicate(%{field: :year, value: value, negated: negated}) do
+  #
+  # `standings` holds the standing of each word of a value matched as text.
+  defp filter_predicate(%{field: :year, value: value, negated: negated}, _standings) do
     case Term.span(value) do
       :none -> negate(dynamic(false), negated)
       {from, to} -> negate(year_predicate(from, to), negated)
     end
   end
 
-  defp filter_predicate(%{field: :countries, value: value, negated: negated}) do
+  defp filter_predicate(%{field: :countries, value: value, negated: negated}, _standings) do
     negate(countries_predicate(Country.answering(value)), negated)
   end
 
-  defp filter_predicate(%{field: field, value: value, exact: exact, negated: negated}) do
-    negate(text_predicate(field, value_query(value, exact)), negated)
+  defp filter_predicate(filter = %{field: field, negated: negated}, standings) do
+    negate(text_predicate(field, value_query(filter, standings)), negated)
   end
 
   # The column holds codes and the reader writes a name, so the value is
@@ -209,15 +247,15 @@ defmodule RichardBurton.Publication.Index.Query do
   end
 
   # A quoted value matches as a phrase, exactly as written.
-  defp value_query(value, true),
+  defp value_query(%{value: value, exact: true}, _standings),
     do: dynamic(fragment("phraseto_tsquery('rb_search', ?)", ^value))
 
   # Any other value matches word by word, every word required.
-  defp value_query(value, false) do
+  defp value_query(%{value: value, exact: false}, standings) do
     query =
       value
       |> Keywords.words()
-      |> Enum.map(&value_word_query/1)
+      |> Enum.map(&value_word_query(&1, standings))
       |> all_words()
 
     dynamic(fragment("to_tsquery('rb_search', ?)", ^query))
@@ -230,10 +268,10 @@ defmodule RichardBurton.Publication.Index.Query do
   # a free word would be dropped instead. That view is built from the search
   # document, so it holds only countries some publication uses, while an
   # operator is answered from the whole country table.
-  defp value_word_query(word) do
+  defp value_word_query(word, standings) do
     prefix = "#{lexeme(word)}:*"
 
-    case Keywords.standing_for(word) do
+    case Map.fetch!(standings, word) do
       {:fuzzy, [_ | _] = words} ->
         Enum.map_join([prefix | Enum.map(words, &lexeme/1)], " | ", & &1)
 
@@ -249,10 +287,10 @@ defmodule RichardBurton.Publication.Index.Query do
   # One alternative's free words as a tsquery. A word the index does not hold is
   # dropped rather than failing the alternative; an alternative left with no
   # usable word has no tsquery at all.
-  defp words_query([]), do: nil
+  defp words_query([], _standings), do: nil
 
-  defp words_query(words) do
-    case words |> Enum.map(&word_query/1) |> Enum.reject(&is_nil/1) do
+  defp words_query(words, standings) do
+    case words |> Enum.map(&word_query(&1, standings)) |> Enum.reject(&is_nil/1) do
       [] -> nil
       queries -> all_words(queries)
     end

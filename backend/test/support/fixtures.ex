@@ -57,6 +57,43 @@ defmodule RichardBurton.Fixtures do
   end
 
   @doc """
+  Returns a flat publication with atom keys: Dom Casmurro in Helen Caldwell's
+  translation, published by Noonday Press in the United States in 1953, with
+  no source. The fields in `changes`, given with atom keys, replace its own.
+  """
+  def flat_publication_attrs(changes \\ %{}) do
+    Map.merge(
+      %{
+        title: "Dom Casmurro",
+        year: 1953,
+        countries: ["US"],
+        publishers: ["Noonday Press"],
+        authors: ["Helen Caldwell"],
+        original_title: "Dom Casmurro",
+        original_authors: ["Machado de Assis"]
+      },
+      changes
+    )
+  end
+
+  @doc """
+  Returns what `flat_publication_attrs/1` returns for `changes`, in the nested
+  shape `Publication.insert/2` and `Publication.update/3` take.
+  """
+  def publication_attrs(changes \\ %{}) do
+    changes |> flat_publication_attrs() |> Publication.Codec.nest()
+  end
+
+  @doc """
+  Inserts the publication `publication_attrs/1` returns for `changes`, and
+  returns it, preloaded.
+  """
+  def publication_fixture(changes \\ %{}) do
+    {:ok, publication} = changes |> publication_attrs() |> Publication.insert()
+    publication
+  end
+
+  @doc """
   Returns seven flat publications of five works, for tests that count them.
   Dom Casmurro has two translations, and Helen Caldwell's translation is
   published twice. John Gledson's Dom Casmurro names two countries, and two
@@ -133,14 +170,11 @@ defmodule RichardBurton.Fixtures do
   end
 
   @doc """
-  Inserts flat publications the way an import does, then refreshes the index
-  that the insights and the charts read from.
+  Inserts flat publications as one import, which also refreshes the index, and
+  returns them, preloaded, in order.
   """
   def seed_index(publications) do
-    publications
-    |> Publication.Codec.nest()
-    |> Enum.each(&({:ok, _} = Publication.insert(&1)))
-
-    Publication.Index.Refresher.refresh()
+    {:ok, inserted} = publications |> Publication.Codec.nest() |> Publication.insert_all()
+    inserted
   end
 end

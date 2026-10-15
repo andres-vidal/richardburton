@@ -1,6 +1,7 @@
 defmodule RichardBurtonWeb.VocabularyControllerTest do
   @moduledoc """
-  Tests for the vocabulary endpoints.
+  Tests for `RichardBurtonWeb.VocabularyController`: listing the names of a
+  kind, checking new names against them, and renaming one.
   """
   use RichardBurtonWeb.ConnCase
 
@@ -10,35 +11,16 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
 
-  @base %{
-    "title" => "Dom Casmurro",
-    "year" => 1953,
-    "countries" => [%{"code" => "US"}],
-    "publishers" => [%{"name" => "Noonday Press"}],
-    "translated_book" => %{
-      "authors" => [%{"name" => "Helen Caldwell"}],
-      "original_book" => %{
-        "title" => "Dom Casmurro",
-        "authors" => [%{"name" => "Machado de Assis"}]
-      }
-    }
-  }
-
   setup do
     create_session_user()
     :ok
-  end
-
-  defp insert(attrs \\ %{}) do
-    {:ok, publication} = Publication.insert(RichardBurton.Util.deep_merge_maps(@base, attrs))
-    publication
   end
 
   defp id_of(name), do: Repo.get_by!(Publisher, name: name).id
 
   describe "GET /vocabulary/:kind" do
     test "lists the names with how many publications each is on", meta do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
       expect_auth_authorize_admin()
 
       assert %{"entries" => entries, "kinds" => kinds} =
@@ -62,7 +44,7 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
 
   describe "POST /vocabulary/:kind/resemblances" do
     test "answers which names are held and which look like misspellings", meta do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
       expect_auth_authorize_admin()
 
       assert %{"entries" => entries} =
@@ -91,7 +73,7 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
   describe "PATCH /vocabulary/:kind/:id" do
     test "correcting a spelling says it renamed, and records it under the signed-in user",
          meta do
-      publication = insert()
+      publication = publication_fixture(%{publishers: ["Noonday Press"]})
       expect_auth_authorize_admin()
 
       assert %{"outcome" => "renamed"} =
@@ -107,8 +89,8 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     end
 
     test "renaming onto a name already taken is refused until it is asked for", meta do
-      insert()
-      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
+      publication_fixture(%{publishers: ["Noonday Press"]})
+      publication_fixture(%{title: "Iracema", year: 1953, publishers: ["Noonday press"]})
 
       expect_auth_authorize_admin()
 
@@ -125,8 +107,8 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     end
 
     test "asking for the fold says it merged", meta do
-      insert()
-      insert(%{"title" => "Iracema", "publishers" => [%{"name" => "Noonday press"}]})
+      publication_fixture(%{publishers: ["Noonday Press"]})
+      publication_fixture(%{title: "Iracema", publishers: ["Noonday press"]})
 
       expect_auth_authorize_admin()
 
@@ -140,8 +122,8 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     end
 
     test "a rename that would give two publications one identity is refused", meta do
-      insert()
-      insert(%{"publishers" => [%{"name" => "Noonday press"}]})
+      publication_fixture(%{publishers: ["Noonday Press"]})
+      publication_fixture(%{publishers: ["Noonday press"]})
 
       expect_auth_authorize_admin()
 
@@ -158,7 +140,7 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
     end
 
     test "a blank name is refused", meta do
-      insert()
+      publication_fixture(%{publishers: ["Noonday Press"]})
       expect_auth_authorize_admin()
 
       assert %{"error" => "blank"} =

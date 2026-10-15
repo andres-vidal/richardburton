@@ -103,4 +103,12 @@ defmodule RichardBurtonWeb.ConnCase do
   def expect_auth_recaptcha_verify(n \\ 1) do
     expect(RichardBurton.Auth.RecaptchaMock, :verify, n, fn _ -> :ok end)
   end
+
+  @doc """
+  Runs `fun`, and returns its result and how many of the queries the calling
+  process ran meanwhile read the `search_keywords` view.
+  """
+  def counting_keyword_lookups(fun) do
+    RichardBurton.DataCase.count_queries(fun, &(&1 =~ "search_keywords"))
+  end
 end

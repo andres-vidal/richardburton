@@ -104,6 +104,18 @@
       "Armenië"
     ]
   },
+  "AN": {
+    "alpha3": "ANT",
+    "numeric": "530",
+    "en": {
+      "name": "Netherlands Antilles",
+      "article": "the"
+    },
+    "pt": {
+      "name": "Antilhas Holandesas",
+      "article": "as"
+    }
+  },
   "AO": {
     "alpha3": "AGO",
     "numeric": "024",

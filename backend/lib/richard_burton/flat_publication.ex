@@ -1,6 +1,13 @@
 defmodule RichardBurton.FlatPublication do
   @moduledoc """
-  Schema for publications
+  A publication in its flat shape: the title, year, countries, publishers,
+  translators (`authors`), original title, original authors and sources side
+  by side, each list holding names, country codes or source texts.
+
+  The schema reads the `flat_publications` materialized view, which holds one
+  row for each publication that is not deleted, and which
+  `RichardBurton.Publication.Index.Refresher` rebuilds after each write. It
+  also validates a publication in this shape, without writing it.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -8,7 +15,6 @@ defmodule RichardBurton.FlatPublication do
   alias RichardBurton.Country
   alias RichardBurton.FlatPublication
   alias RichardBurton.Identity
-  alias RichardBurton.Repo
   alias RichardBurton.Validation
 
   @required_attributes [
@@ -60,6 +66,8 @@ defmodule RichardBurton.FlatPublication do
     |> validate_entries()
   end
 
+  # Adds a `:required` error to each multivalued attribute that holds no
+  # value.
   defp validate_any_values(changeset) do
     Enum.reduce(@multivalued_attributes, changeset, &validate_length(&2, &1, min: 1))
   end
@@ -95,10 +103,6 @@ defmodule RichardBurton.FlatPublication do
   # Returns whether an entry is missing, empty or only whitespace, which is what
   # `validate_required/2` treats as missing.
   defp blank?(entry), do: is_nil(entry) or (is_binary(entry) and String.trim(entry) == "")
-
-  def all() do
-    Repo.all(FlatPublication)
-  end
 
   @doc """
   Validates `attrs` as `validate_all/2` validates each entry of a list.

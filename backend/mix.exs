@@ -83,7 +83,6 @@ defmodule RichardBurton.MixProject do
       {:httpoison, "~> 3.0"},
       {:mox, "~> 1.2", only: :test},
       {:bypass, "~> 2.1", only: :test},
-      {:countries, "~> 1.6.0"},
       {:ssl_verify_fun, "~> 1.1.7"},
       {:swoosh, "~> 1.26"},
       {:gen_smtp, "~> 1.3"}

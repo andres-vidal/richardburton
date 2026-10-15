@@ -8,15 +8,8 @@ defmodule RichardBurton.FlatPublicationTest do
   alias RichardBurton.Publication
   alias RichardBurton.Util
 
-  @valid_attrs %{
-    "title" => "Manuel de Moraes: A Chronicle of the Seventeenth Century",
-    "countries" => ["GB"],
-    "year" => 1886,
-    "publishers" => ["Bickers & Son"],
-    "authors" => ["Richard Burton", "Isabel Burton"],
-    "original_authors" => ["J. M. Pereira da Silva"],
-    "original_title" => "Manuel de Moraes: crônica do século XVII"
-  }
+  # A flat publication with string keys, as a request holds it.
+  @valid_attrs Util.stringify_keys(flat_publication_attrs())
 
   @skeleton_attrs %{
     translated_book: %{
@@ -46,15 +39,6 @@ defmodule RichardBurton.FlatPublicationTest do
 
   defp change_valid(attrs = %{}) do
     changeset(Util.deep_merge_maps(@valid_attrs, attrs))
-  end
-
-  defp insert(attrs) do
-    %Publication{} |> Publication.changeset(Publication.Codec.nest(attrs)) |> Repo.insert()
-  end
-
-  defp insert_publication(attrs) do
-    {:ok, publication} = attrs |> Publication.Codec.nest() |> Publication.insert()
-    publication
   end
 
   # Returns what `Publication.insert/2` gives for `nested`, `:ok` or
@@ -105,13 +89,6 @@ defmodule RichardBurton.FlatPublicationTest do
       assert change_valid(%{"year" => 2000}).valid?
     end
 
-    test "when a publication with the provided attributes already exists, is refused" do
-      insert_publication(@valid_attrs)
-
-      assert {:error, :conflict} =
-               @valid_attrs |> Publication.Codec.nest() |> Publication.insert()
-    end
-
     # A spreadsheet says what a person calls a country, not what the database
     # files it under.
     test "a country written by name or by a code readers use is filed under its own" do
@@ -152,18 +129,14 @@ defmodule RichardBurton.FlatPublicationTest do
     # The whole point of filing it under the code: an import that says "UK" and
     # one that says "GB" are the same record, and the second is a duplicate.
     test "a record imported as UK is the record imported as GB" do
-      publication = insert_publication(Map.put(@valid_attrs, "countries", ["UK"]))
+      publication = publication_fixture(%{countries: ["UK"]})
 
       codes =
         publication |> Repo.preload(:countries) |> Map.get(:countries) |> Enum.map(& &1.code)
 
       assert codes == ["GB"]
 
-      assert {:error, :conflict} =
-               @valid_attrs
-               |> Map.put("countries", ["GB"])
-               |> Publication.Codec.nest()
-               |> Publication.insert()
+      assert {:error, :conflict} = Publication.insert(publication_attrs(%{countries: ["GB"]}))
     end
   end
 
@@ -171,13 +144,13 @@ defmodule RichardBurton.FlatPublicationTest do
     import FlatPublication, only: [validate: 1]
 
     test "when validating valid publications, returns :ok" do
-      # Insert a dummy publication to make sure the test passes on a non-empty database
-      insert(Map.put(@valid_attrs, "title", "New title"))
+      # Another publication is stored, so the database is not empty.
+      publication_fixture(%{title: "New title"})
       assert :ok == validate(@valid_attrs)
     end
 
     test "when validating a duplicate publication, returns {:error, :conflict}" do
-      insert(@valid_attrs)
+      publication_fixture()
       assert {:error, :conflict} == validate(@valid_attrs)
     end
 
@@ -214,7 +187,7 @@ defmodule RichardBurton.FlatPublicationTest do
     end
 
     test "generates results analog to those of Publication.insert/2 on duplicate attrs" do
-      insert(@valid_attrs)
+      publication_fixture()
 
       expected =
         @valid_attrs
@@ -240,10 +213,10 @@ defmodule RichardBurton.FlatPublicationTest do
 
     test "refuses an attribute that holds the same entry twice, as the insert does" do
       for {attribute, entry} <- [
-            {:publishers, "Bickers & Son"},
-            {:countries, "GB"},
-            {:authors, "Richard Burton"},
-            {:original_authors, "J. M. Pereira da Silva"}
+            {:publishers, "Noonday Press"},
+            {:countries, "US"},
+            {:authors, "Helen Caldwell"},
+            {:original_authors, "Machado de Assis"}
           ] do
         attrs = Map.put(@valid_attrs, Atom.to_string(attribute), [entry, entry])
 
@@ -268,7 +241,7 @@ defmodule RichardBurton.FlatPublicationTest do
     end
 
     test "reports a blank entry before a repeated one" do
-      attrs = Map.put(@valid_attrs, "publishers", ["Bickers & Son", "Bickers & Son", ""])
+      attrs = Map.put(@valid_attrs, "publishers", ["Noonday Press", "Noonday Press", ""])
 
       assert {:error, %{publishers: :required}} == validate(attrs)
     end
@@ -278,14 +251,14 @@ defmodule RichardBurton.FlatPublicationTest do
     import FlatPublication, only: [validate: 2]
 
     test "excludes the given id, so the row being edited is not a conflict with itself" do
-      publication = insert_publication(@valid_attrs)
+      publication = publication_fixture()
 
       assert :ok == validate(@valid_attrs, publication.id)
     end
 
     test "still reports a conflict when a different row matches the attributes" do
-      conflicting = insert_publication(@valid_attrs)
-      other = insert_publication(Map.put(@valid_attrs, "title", "Another title"))
+      conflicting = publication_fixture()
+      other = publication_fixture(%{title: "Another title"})
 
       # Excluding `other` does not hide the collision with `conflicting`.
       assert conflicting.id != other.id
@@ -293,7 +266,7 @@ defmodule RichardBurton.FlatPublicationTest do
     end
 
     test "with a nil id, behaves like validate/1" do
-      insert_publication(@valid_attrs)
+      publication_fixture()
 
       assert {:error, :conflict} == validate(@valid_attrs, nil)
     end
@@ -301,7 +274,7 @@ defmodule RichardBurton.FlatPublicationTest do
 
   describe "validate_all/2" do
     test "returns each row's result in order" do
-      stored = insert_publication(@valid_attrs)
+      stored = publication_fixture()
       new = Map.put(@valid_attrs, "year", 1887)
       invalid = Map.delete(@valid_attrs, "year")
 

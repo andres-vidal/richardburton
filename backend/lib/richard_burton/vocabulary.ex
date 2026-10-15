@@ -163,6 +163,8 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
+  # Builds the query that counts, for each name of the schema's kind, the
+  # publications that credit it and are not deleted.
   defp counts(Author), do: author_counts()
   defp counts(Publisher), do: publisher_counts()
 
@@ -202,6 +204,8 @@ defmodule RichardBurton.Vocabulary do
     )
   end
 
+  # Builds the query that pairs each translator with the publications, not
+  # deleted, of the books they translated.
   defp as_translator do
     from(p in Publication,
       join: ta in "translated_book_authors",
@@ -211,6 +215,8 @@ defmodule RichardBurton.Vocabulary do
     )
   end
 
+  # Builds the query that pairs each original author with the publications,
+  # not deleted, of translations of the books they wrote.
   defp as_original_author do
     from(p in Publication,
       join: tb in TranslatedBook,
@@ -222,6 +228,8 @@ defmodule RichardBurton.Vocabulary do
     )
   end
 
+  # Builds the query that counts, for each publisher, the publications that
+  # are not deleted and credit it.
   defp publisher_counts do
     from(p in Publisher,
       left_join: pub in assoc(p, :publications),
@@ -251,6 +259,7 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
+  # Returns one `%{name:, held:, resembles:}` entry for each asked name.
   defp answer(_schema, []), do: []
 
   defp answer(schema, asked) do
@@ -266,6 +275,7 @@ defmodule RichardBurton.Vocabulary do
     end)
   end
 
+  # Returns the set of asked names that a record of the schema has exactly.
   defp held(schema, asked) do
     from(v in schema, where: v.name in ^asked, select: v.name)
     |> Repo.all()
@@ -286,6 +296,8 @@ defmodule RichardBurton.Vocabulary do
     end)
   end
 
+  # Builds the query that pairs each asked name with the ids of the stored
+  # names that resemble it and differ from it.
   defp resembling(schema, asked) do
     from(v in schema,
       join: a in fragment("SELECT * FROM unnest(?::text[]) AS a(name)", ^asked),
@@ -313,11 +325,10 @@ defmodule RichardBurton.Vocabulary do
     rows
   end
 
-  defp counts_of(Author, ids), do: by_id(author_counts(), ids)
-  defp counts_of(Publisher, ids), do: by_id(publisher_counts(), ids)
-
-  defp by_id(counts, ids) do
-    from(c in subquery(counts), where: c.id in ^ids)
+  # Returns a map from each of the ids to `%{id:, name:, publications:}` for
+  # the name of the schema's kind with that id.
+  defp counts_of(schema, ids) do
+    from(c in subquery(counts(schema)), where: c.id in ^ids)
     |> Repo.all()
     |> Map.new(&{&1.id, &1})
   end
@@ -342,50 +353,50 @@ defmodule RichardBurton.Vocabulary do
   `actor` (see the module doc).
 
   The other errors are `{:error, {:would_collide, publications}}` (see the
-  module doc), `{:error, :blank}`, `{:error, :not_found}` and
-  `{:error, :no_such_kind}`.
+  module doc), `{:error, :conflict}` when two books or publications still share
+  a composite key after the books are folded, `{:error, :blank}`,
+  `{:error, :not_found}` and `{:error, :no_such_kind}`.
   """
   def rename(kind, id, name, folding? \\ false, actor \\ History.system_actor())
       when is_binary(name) do
     with {:ok, schema} <- kind_of(kind),
          {:ok, name} <- named(name),
          {:ok, record} <- fetch(schema, id),
-         :ok <- permitted(schema, record, name, folding?) do
-      Repo.transaction(fn ->
-        credited = schema |> crediting(record) |> Enum.map(& &1.id)
-        before = snapshots(credited)
-
-        outcome = write(schema, record, name)
-        fold_books(schema, name)
-        refuse_collision()
-        settle!()
-        record_renames(credited, before, actor)
-
-        outcome
-      end)
-      |> case do
-        {:ok, outcome} ->
-          Refresher.refresh()
-          {:ok, outcome}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+         {:ok, outcome} <- rename_in_transaction(schema, record, name, folding?, actor) do
+      Refresher.refresh()
+      {:ok, outcome}
     end
   end
 
-  # Returns :ok when the rename may go ahead. When `folding?` is false and
-  # another record already has the new name, returns `:would_fold` as an error
-  # with that record and its publication count, and the publications that
-  # credit `record`.
-  defp permitted(_schema, _record, _name, true), do: :ok
+  # Renames `record`, or folds it into the keeper, in one transaction, as
+  # `rename/5` describes. Returns `{:ok, :renamed}`, `{:ok, :merged}`, or the
+  # error the transaction was rolled back with.
+  defp rename_in_transaction(schema, record, name, folding?, actor) do
+    Repo.transaction(fn ->
+      keeper = keeper(schema, record, name)
+      credited = crediting(schema, record)
 
-  defp permitted(schema, record, name, false) do
-    case Repo.get_by(schema, name: name) do
-      nil -> :ok
-      %{id: same} when same == record.id -> :ok
-      keeper -> {:error, {:would_fold, counted(schema, keeper), crediting(schema, record)}}
-    end
+      if keeper && not folding? do
+        Repo.rollback({:would_fold, counted(schema, keeper), credited})
+      end
+
+      ids = Enum.map(credited, & &1.id)
+      before = snapshots(ids)
+
+      {outcome, survivor} = write(schema, record, keeper, name)
+      fold_books(schema, survivor)
+      refuse_collision()
+      settle!()
+      record_renames(ids, before, actor)
+
+      outcome
+    end)
+  end
+
+  # Returns the other record of `schema` that already has `name`, or nil when
+  # no other record has it.
+  defp keeper(schema, record, name) do
+    from(r in schema, where: r.name == ^name and r.id != ^record.id) |> Repo.one()
   end
 
   # Returns the publications that credit `record` and are not deleted, as
@@ -433,12 +444,15 @@ defmodule RichardBurton.Vocabulary do
     |> then(&History.record_all(:renamed, &1, actor))
   end
 
+  # Returns `record` as `%{id:, name:, publications:}`, with the number of
+  # publications that credit it and are not deleted.
   defp counted(schema, record) do
     counts = counts_of(schema, [record.id])
 
     Map.get(counts, record.id, %{id: record.id, name: record.name, publications: 0})
   end
 
+  # Returns `{:ok, schema}` for a kind, or `{:error, :no_such_kind}`.
   defp kind_of(kind) do
     case Map.fetch(@kinds, kind) do
       {:ok, schema} -> {:ok, schema}
@@ -446,6 +460,8 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
+  # Returns `{:ok, name}` with the name trimmed, or `{:error, :blank}` when
+  # nothing is left.
   defp named(name) do
     case String.trim(name) do
       "" -> {:error, :blank}
@@ -453,6 +469,8 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
+  # Returns `{:ok, record}` for the record of `schema` with `id`, or
+  # `{:error, :not_found}`.
   defp fetch(schema, id) do
     case Repo.get(schema, id) do
       nil -> {:error, :not_found}
@@ -460,23 +478,17 @@ defmodule RichardBurton.Vocabulary do
     end
   end
 
-  # Gives the record the new name and returns :renamed when the name is free or
-  # is already the record's own. When another record has the name, moves the
-  # record's links to that keeper, deletes the record and returns :merged.
-  defp write(schema, record, name) do
-    case Repo.get_by(schema, name: name) do
-      nil ->
-        record |> Ecto.Changeset.change(name: name) |> Repo.update!()
-        :renamed
+  # Gives the record the new name when no `keeper` has it, and returns
+  # `{:renamed, record}`. Otherwise moves the record's links to the keeper,
+  # deletes the record and returns `{:merged, keeper}`.
+  defp write(_schema, record, nil, name) do
+    {:renamed, record |> Ecto.Changeset.change(name: name) |> Repo.update!()}
+  end
 
-      %{id: same} when same == record.id ->
-        :renamed
-
-      keeper ->
-        Enum.each(joins(schema), &repoint(&1, record.id, keeper.id))
-        Repo.delete!(record)
-        :merged
-    end
+  defp write(schema, record, keeper, _name) do
+    Enum.each(joins(schema), &repoint(&1, record.id, keeper.id))
+    Repo.delete!(record)
+    {:merged, keeper}
   end
 
   # Returns the join tables that reference a name of this schema, each with its
@@ -506,6 +518,8 @@ defmodule RichardBurton.Vocabulary do
     Repo.query!("UPDATE #{table} SET #{column} = $2 WHERE #{column} = $1", [from, to])
   end
 
+  # The other foreign key column of a join table, the one that names the book
+  # or the publication.
   defp other_column("translated_book_authors", _), do: "translated_book_id"
   defp other_column("original_book_authors", _), do: "original_book_id"
   defp other_column("publication_publishers", _), do: "publication_id"
@@ -513,19 +527,18 @@ defmodule RichardBurton.Vocabulary do
   # Folds the books the rename gave the same key as an older book. The
   # database has already recomputed every fingerprint built from the name.
   #
-  # It looks the author up by the new name instead of using the renamed record.
-  # After a fold, the name belongs to the keeper, whose links now include the
-  # ones moved from the renamed record. A publisher's name is part of no book's
-  # key, so there is nothing to fold for a publisher.
-  defp fold_books(Author, name) do
-    author = Repo.get_by!(Author, name: name)
-
+  # `author` is the record that holds the new name after the rename: the
+  # renamed record, or the keeper, whose links now include the ones moved from
+  # the renamed record. A publisher's name is part of no book's key, so there
+  # is nothing to fold for a publisher.
+  defp fold_books(Author, author) do
     author |> original_books_of() |> Enum.each(&settle_original_book/1)
     author |> translated_books_of() |> Enum.each(&settle_translated_book/1)
   end
 
-  defp fold_books(Publisher, _name), do: :ok
+  defp fold_books(Publisher, _publisher), do: :ok
 
+  # Returns the original books `author` wrote.
   defp original_books_of(author) do
     Repo.all(
       from(ob in OriginalBook,
@@ -536,6 +549,7 @@ defmodule RichardBurton.Vocabulary do
     )
   end
 
+  # Returns the translated books `author` translated.
   defp translated_books_of(author) do
     Repo.all(
       from(tb in TranslatedBook,
@@ -576,6 +590,7 @@ defmodule RichardBurton.Vocabulary do
     Repo.delete!(book)
   end
 
+  # Makes `translation` a translation of `original_book`.
   defp repoint_translation(translation, original_book) do
     Repo.update_all(
       from(tb in TranslatedBook, where: tb.id == ^translation.id),

@@ -1,22 +1,24 @@
 defmodule RichardBurton.Publication.Index.Refresher do
   @moduledoc """
-  Owns the read model: write paths call `refresh/0` once per logical operation
-  (a bulk insert, an update), and the refresher rebuilds the `flat_publications`,
-  `search_documents` and `search_keywords` materialized views — the flattened
-  rows the index lists, and the search documents and keywords stacked on them.
+  Rebuilds the materialized views the index reads: `flat_publications`, the
+  flat rows the index lists, and `search_documents` and `search_keywords`,
+  which are built from them. A write calls `refresh/0` once for each
+  operation, such as a bulk insert or an update, after it commits.
 
   The strategy comes from `config :richard_burton, :search_index_refresh`:
 
-    * `{:debounced, ms}` (default — dev and prod): signals coalesce; the views
-      rebuild once after a quiet window, outside any transaction, with
-      `REFRESH MATERIALIZED VIEW CONCURRENTLY` so searches never block and
-      writes never wait. Search lags a write by up to the window — the
-      documented trade-off.
-    * `:sync_concurrent` (e2e): rebuild inline before `refresh/0` returns —
-      deterministic for browser tests while exercising the same CONCURRENTLY
-      path production runs.
-    * `:sync` (test): rebuild inline with a plain `REFRESH` — the ExUnit
-      sandbox wraps tests in transactions, where CONCURRENTLY is not allowed.
+    * `{:debounced, ms}` (the default, used in dev and prod): the signals of a
+      burst coalesce, and the views are rebuilt once after `ms` milliseconds
+      with no signal, outside any transaction, with
+      `REFRESH MATERIALIZED VIEW CONCURRENTLY`, so neither a search nor a
+      write waits for the rebuild. A search includes a write up to `ms`
+      milliseconds after it.
+    * `:sync_concurrent` (e2e): rebuild inline before `refresh/0` returns, with
+      the same `CONCURRENTLY` refresh production runs, so an end-to-end test
+      reads what it just wrote.
+    * `:sync` (test): rebuild inline with a plain `REFRESH`, because the
+      ExUnit sandbox runs each test in a transaction, where `CONCURRENTLY` is
+      not allowed.
 
   In debounced mode the refresher also rebuilds once on boot, covering signals
   lost to a restart and data seeded while the app was down.
@@ -40,13 +42,18 @@ defmodule RichardBurton.Publication.Index.Refresher do
     :ok
   end
 
+  @doc """
+  Starts the refresher, registered under `opts[:name]`, `__MODULE__` by
+  default, or unregistered when the name is nil. `opts` may also give
+  `:debounce_ms`, the quiet window, `:rebuild`, the function that rebuilds the
+  views, and `:refresh_on_boot`, whether to rebuild once on start.
+  """
   def start_link(opts) do
     {name, opts} = Keyword.pop(opts, :name, __MODULE__)
 
     if name do
       GenServer.start_link(__MODULE__, opts, name: name)
     else
-      # Unnamed instances let tests exercise the scheduling in isolation.
       GenServer.start_link(__MODULE__, opts)
     end
   end
@@ -56,7 +63,7 @@ defmodule RichardBurton.Publication.Index.Refresher do
     state = %{
       timer: nil,
       debounce_ms: Keyword.get(opts, :debounce_ms, configured_debounce_ms()),
-      # Injectable for coalescing tests; the real rebuild everywhere else.
+      # The function that rebuilds the views.
       rebuild: Keyword.get(opts, :rebuild, fn -> rebuild(:concurrent) end)
     }
 
@@ -75,8 +82,8 @@ defmodule RichardBurton.Publication.Index.Refresher do
 
   @impl true
   def handle_info(:rebuild, state) do
-    # Signals cast during this rebuild wait in the mailbox and coalesce into
-    # the next window — a burst never yields more than one trailing rebuild.
+    # The signals cast during this rebuild wait in the mailbox and coalesce
+    # into the next window, so a burst gives at most one more rebuild.
     state.rebuild.()
     {:noreply, %{state | timer: nil}}
   end

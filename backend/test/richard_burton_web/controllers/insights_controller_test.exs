@@ -1,14 +1,13 @@
 defmodule RichardBurtonWeb.InsightsControllerTest do
   @moduledoc """
-  Tests for the Insights controller.
+  Tests for `RichardBurtonWeb.InsightsController`: the counts and the chart for
+  the whole index or for a search, and the chart parameters it refuses.
   """
   use RichardBurtonWeb.ConnCase
   import Routes, only: [insights_path: 2, insights_path: 3]
 
-  alias RichardBurton.Publication
-
   setup do
-    [
+    seed_index([
       %{
         title: "Dom Casmurro",
         year: 1953,
@@ -27,11 +26,8 @@ defmodule RichardBurtonWeb.InsightsControllerTest do
         original_title: "A hora da estrela",
         original_authors: ["Clarice Lispector"]
       }
-    ]
-    |> Publication.Codec.nest()
-    |> Enum.each(&({:ok, _} = Publication.insert(&1)))
+    ])
 
-    Publication.Index.Refresher.refresh()
     :ok
   end
 
@@ -108,6 +104,19 @@ defmodule RichardBurtonWeb.InsightsControllerTest do
              ]
 
       assert [%{"typed" => "clarise", "words" => ["clarice"]}] = body["matched"]
+    end
+
+    test "looks each word of a search up once", %{conn: conn} do
+      {body, lookups} =
+        counting_keyword_lookups(fn ->
+          conn
+          |> get(insights_path(conn, :show, search: "clarise lispectr"))
+          |> json_response(200)
+        end)
+
+      assert lookups == 1
+      assert body["publications"] == 1
+      assert length(body["matched"]) == 2
     end
 
     test "reads a blank search as none", %{conn: conn} do

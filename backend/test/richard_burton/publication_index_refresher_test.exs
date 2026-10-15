@@ -1,13 +1,16 @@
 defmodule RichardBurton.Publication.Index.RefresherTest do
+  @moduledoc """
+  Tests for the debounced refresh. Each test starts an unnamed refresher whose
+  rebuild sends a message to the test rather than refreshing the views. The
+  synchronous strategies are tested by every test that searches what it wrote.
+  """
+
   use ExUnit.Case, async: true
 
   alias RichardBurton.Publication.Index.Refresher
 
-  # Exercises the debounced scheduling in isolation: unnamed instances with an
-  # injected rebuild that reports to the test instead of touching the database.
-  # (The synchronous strategies are covered end-to-end by the index tests, which
-  # search right after their seed's refresh.)
-
+  # Starts an unnamed refresher with the quiet window `debounce_ms`, whose
+  # rebuild sends `:rebuilt` to the test.
   defp start_refresher(debounce_ms) do
     test = self()
 

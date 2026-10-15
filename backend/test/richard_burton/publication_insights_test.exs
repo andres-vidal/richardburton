@@ -45,6 +45,15 @@ defmodule RichardBurton.Publication.InsightsTest do
                Chart.draw(Index.matching("machado"), chart)
     end
 
+    test "reads every count with one query, besides the queries of the chart" do
+      chart = %Chart{by: :decade, split: :kind}
+
+      {_chart, drawing} = count_queries(fn -> Chart.draw(FlatPublication, chart) end)
+      {_insights, describing} = count_queries(fn -> Insights.describe(nil, chart) end)
+
+      assert describing == drawing + 1
+    end
+
     test "counts only the publications a search matches" do
       insights = Insights.describe("machado")
 
