@@ -31,8 +31,6 @@ const meta = {
   title: "Publications/Text number data input",
   component: TextNumberDataInput,
   args: {
-    rowId: 1,
-    colId: "year",
     value: "",
     error: "",
     onChange: fn(),

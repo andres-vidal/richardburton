@@ -1,21 +1,23 @@
-"use client";
-
 import AdminMenu from "components/AdminMenu";
 import Breadcrumb from "components/Breadcrumb";
-import { useTranslations } from "next-intl";
 import Layout from "components/Layout";
 import PageHeader from "components/PageHeader";
+import { getTranslations } from "next-intl/server";
 
-export default function AdminPage() {
-  const t = useTranslations("admin");
-
-  const crumbs = [{ label: t("home"), href: "/" }, { label: t("admin") }];
+/**
+ * The admin index. It lists the admin pages with `AdminMenu`, under a
+ * breadcrumb from the home page.
+ */
+export default async function AdminIndexPage() {
+  const t = await getTranslations("admin");
 
   return (
     <Layout
       subheader={
         <>
-          <Breadcrumb items={crumbs} />
+          <Breadcrumb
+            items={[{ label: t("home"), href: "/" }, { label: t("admin") }]}
+          />
           <PageHeader title={t("adminTitle")} />
         </>
       }

@@ -22,7 +22,6 @@ import {
   publicationFamily,
   publicationIdsAtom,
   savedFamily,
-  storedFieldValueFamily,
   storedSourcesFamily,
   matchingCountAtom,
   totalIndexCountAtom,
@@ -37,10 +36,11 @@ import {
   visibleAttributesAtom,
 } from "./store";
 
-// Reads are thin `useAtomValue` wrappers; writes are the plain action functions
-// exported from ./store (they operate on the module store directly, so they
-// don't need to be hooks). Components read with these and call actions inline.
+// The hooks that read the publication store of the nearest
+// `PublicationStoreProvider`. Each one reads one atom of `./store`. Writes are
+// the actions in `./store`, which take the store as their first argument.
 
+/** An atom that always reads undefined, read when there is no row to read. */
 const NO_PUBLICATION = atom<Publication | undefined>(undefined);
 
 /** The ids of the rows in the list, in order. */
@@ -78,7 +78,7 @@ function usePublication(id: PublicationId | undefined) {
   );
 }
 
-/** A single cell's edited value — its own subscription. */
+/** A single cell's value, including unsaved edits. Each cell has its own atom. */
 function usePublicationField<K extends PublicationKey>(
   id: PublicationId,
   key: K,
@@ -86,18 +86,9 @@ function usePublicationField<K extends PublicationKey>(
   return useAtomValue(fieldValueFamily({ id, key })) as Publication[K];
 }
 
-/** A single cell's saved value, ignoring unsaved edits. Each cell has its own
- * subscription. */
-function usePublicationStoredField<K extends PublicationKey>(
-  id: PublicationId,
-  key: K,
-) {
-  return useAtomValue(storedFieldValueFamily({ id, key })) as Publication[K];
-}
-
 /**
- * How a publication reads on this page: in its language, naming countries from
- * the catalogue. Taken once and asked about any field.
+ * Returns how a publication reads on this page: in the page's language, with
+ * countries named from the `countryNames` catalogue. See `marking`.
  */
 function usePublicationMarking(): Marking {
   const locale = useLocale();
@@ -118,10 +109,12 @@ function usePublicationMarkedField(id: PublicationId, key: PublicationKey) {
   return publication ? marking.value(publication, key) : "";
 }
 
+/** The matching text of each of a saved publication's fields in a search. */
 function usePublicationExcerpts(id: PublicationId) {
   return useAtomValue(publicationExcerptsFamily(id));
 }
 
+/** A row's sources, including unsaved edits. */
 function usePublicationSources(id: PublicationId) {
   return useAtomValue(publicationSourcesFamily(id));
 }
@@ -136,33 +129,36 @@ function useInvalidPublicationIds() {
   return useAtomValue(invalidIdsAtom);
 }
 
+/** What is wrong with a row, or null when nothing is (see `rowErrorFamily`). */
 function usePublicationError(id: PublicationId) {
   return useAtomValue(rowErrorFamily(id));
 }
 
-/** An error code as a sentence, or the code itself where there is none for it. */
+/** Returns an error code's sentence, or the code itself when it has none. */
 function useErrorSentence(code: string): string {
   const t = useTranslations("publicationError");
   return code && t.has(code) ? t(code) : code;
 }
 
 /**
- * What is wrong with a publication, in words. A code with no sentence for it is
- * shown as the code, so an error newer than this catalogue still reaches the
- * reader.
+ * Returns what is wrong with a row as a whole, in words. A code with no
+ * sentence in the `publicationError` messages is returned as the code.
  */
 function usePublicationErrorDescription(id: PublicationId) {
   return useErrorSentence(useAtomValue(errorCodeFamily(id)));
 }
 
+/** Returns what is wrong with one field of a row, in words. */
 function usePublicationFieldError(id: PublicationId, key: PublicationKey) {
   return useErrorSentence(useAtomValue(fieldErrorCodeFamily({ id, key })));
 }
 
+/** Whether nothing is wrong with a row. */
 function useIsPublicationValid(id: PublicationId) {
   return useAtomValue(isValidFamily(id));
 }
 
+/** Whether a row holds the focus. */
 function useIsPublicationFocused(id: PublicationId) {
   return id === useAtomValue(focusedRowIdAtom);
 }
@@ -180,6 +176,7 @@ function usePublicationCount() {
   return useAtomValue(publicationCountAtom);
 }
 
+/** The number of rows nothing is wrong with. */
 function useValidPublicationCount() {
   return useAtomValue(validCountAtom);
 }
@@ -211,11 +208,12 @@ function useResemblingPublicationCount() {
   return useAtomValue(resemblingCountAtom);
 }
 
-/** How many loaded publications still lack sources (live). */
+/** How many rows in the list have no saved sources. */
 function useUnsourcedPublicationCount() {
   return useAtomValue(unsourcedCountAtom);
 }
 
+/** How many publications the database holds, or null before the index says. */
 function usePublicationIndexCount() {
   return useAtomValue(totalIndexCountAtom);
 }
@@ -225,18 +223,22 @@ function useMatchingCount() {
   return useAtomValue(matchingCountAtom);
 }
 
+/** The attributes whose columns are shown. */
 function useVisibleAttributes() {
   return useAtomValue(visibleAttributesAtom);
 }
 
+/** The attributes whose columns are hidden. */
 function useHiddenAttributes() {
   return useAtomValue(hiddenAttributesAtom);
 }
 
+/** Whether an attribute's column is shown. */
 function useIsAttributeVisible(key: PublicationKey) {
   return useAtomValue(attributeVisibleFamily(key));
 }
 
+/** Whether rows show their numbers, and a function that changes it. */
 function useAreRowIdsVisible(): [
   boolean,
   (update: SetStateAction<boolean>) => void,
@@ -268,7 +270,6 @@ export {
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationMarking,
-  usePublicationStoredField,
   useStoredPublicationSources,
   useUnsourcedPublicationCount,
   usePublicationResemblance,

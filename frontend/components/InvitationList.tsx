@@ -3,37 +3,34 @@
 import type { Invitation } from "modules/access/model";
 import { cancelInvitation, resendInvitation } from "modules/access/remote";
 import { useFormatDate } from "modules/dates";
-import { useRouter } from "i18n/navigation";
 import { useTranslations } from "next-intl";
-import { FC, useState } from "react";
+import { FC } from "react";
+import { useMutation } from "utils/useMutation";
 import Button from "./Button";
 
+/**
+ * One invitation's row: the address, the role and when it was offered. A
+ * waiting invitation has buttons to send its mail again and to withdraw it,
+ * both disabled while either runs. A taken-up one says when it was taken up.
+ */
 const Entry: FC<{ invitation: Invitation }> = ({ invitation }) => {
   const t = useTranslations("admin");
   const formatDate = useFormatDate();
-  const router = useRouter();
-  const [working, setWorking] = useState(false);
+  const { pending: working, run } = useMutation();
   const pending = invitation.acceptedAt === null;
 
-  // Sending the mail again leaves the invitation exactly as it was, so the
-  // list has nothing to re-read; withdrawing takes the row away.
-  async function resend() {
-    setWorking(true);
-    await resendInvitation(invitation.id);
-    setWorking(false);
+  function resend() {
+    run(() => resendInvitation(invitation.id));
   }
 
-  async function withdraw() {
-    setWorking(true);
-    const done = await cancelInvitation(invitation.id);
-    setWorking(false);
-    if (done) router.refresh();
+  function withdraw() {
+    run(() => cancelInvitation(invitation.id));
   }
 
   return (
     <li
       data-pending={pending}
-      className="flex flex-wrap gap-3 items-center p-4 rounded-lg border group data-[pending=true]:bg-white data-[pending=true]:border-gray-200 data-[pending=false]:bg-gray-50 data-[pending=false]:border-gray-100"
+      className="flex flex-wrap gap-3 items-center p-4 rounded-lg border data-[pending=true]:bg-white data-[pending=true]:border-gray-200 data-[pending=false]:bg-gray-50 data-[pending=false]:border-gray-100"
     >
       <div className="min-w-0 grow">
         <p className="font-medium text-gray-800 wrap-break-words">
@@ -60,7 +57,6 @@ const Entry: FC<{ invitation: Invitation }> = ({ invitation }) => {
             width="fit"
             size="small"
             loading={working}
-            disabled={working}
             onClick={resend}
           />
           <Button
@@ -82,27 +78,21 @@ const Entry: FC<{ invitation: Invitation }> = ({ invitation }) => {
 };
 
 /**
- * The invitations, waiting and taken up.
- *
- * A taken-up one stays listed: it is the record of how someone came to have
- * what they have, and who offered it. Only a waiting one can be withdrawn or
- * sent again — there is nothing left to chase once it has been redeemed.
+ * Lists the invitations, waiting and taken up, or says that there are none.
+ * Only a waiting invitation can be sent again or withdrawn. A taken-up one stays
+ * listed as the record of how someone came to have their role.
  */
 const InvitationList: FC<{ invitations: Invitation[] }> = ({ invitations }) => {
   const t = useTranslations("admin");
 
-  return (
-    <div>
-      {invitations.length === 0 ? (
-        <p className="text-sm text-gray-600">{t("noInvitations")}</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {invitations.map((invitation) => (
-            <Entry key={invitation.id} invitation={invitation} />
-          ))}
-        </ul>
-      )}
-    </div>
+  return invitations.length === 0 ? (
+    <p className="text-sm text-gray-600">{t("noInvitations")}</p>
+  ) : (
+    <ul className="flex flex-col gap-2">
+      {invitations.map((invitation) => (
+        <Entry key={invitation.id} invitation={invitation} />
+      ))}
+    </ul>
   );
 };
 

@@ -1,11 +1,6 @@
-import { isString } from "lodash";
-import { Author } from "modules/author";
-import { Country } from "modules/country";
 import type { CountryNaming } from "modules/country-names";
-import { routing } from "i18n/routing";
-import { OriginalBook, type OriginalBookValue } from "modules/original-book";
-import { Publisher } from "modules/publisher";
 
+/** A publication as the API sends and takes it, one field per attribute. */
 type Publication = {
   title: string;
   countries: string[];
@@ -15,23 +10,33 @@ type Publication = {
   originalTitle: string;
   originalAuthors: string[];
   sources: string[];
-  // The server PK: a real id on persisted rows (index/search), null on
-  // unsaved/working rows. Read-only: never cast from client input.
+  /**
+   * The stored publication's id, or null for a row that is not stored. The
+   * server never takes it from a request body.
+   */
   id: number | null;
-  // The matching text of each field, keyed by field, with the matched words
-  // wrapped in `[[ ]]`. Only present on search results, and null for any field
-  // the search did not match. `countries` and `year` never carry one.
+  /**
+   * The matching text of each field, with the matched words wrapped in
+   * `[[ ]]`, or null for a field the search did not match. Only search results
+   * carry it, and never for `countries` or `year`.
+   */
   excerpts?: Partial<Record<PublicationKey | "sources", string | null>>;
-  // What matched, value by value: a list lined up with the field's own, holding
-  // each value's matching text and null where that value did not match. Only
-  // present on a record read with a search, and `sources` only where the whole
-  // provenance list is shown.
-  //
-  // `countries` holds the matched country's code rather than marked text, since
-  // naming a country needs a locale the index does not have.
+  /**
+   * What a search matched, value by value: for each list field, a list lined up
+   * with the field's values that holds each value's matching text, or null
+   * where that value did not match. Only a record read with a search carries
+   * it, and `sources` only where the whole list of sources is shown.
+   *
+   * `countries` holds the matched country's code rather than marked text,
+   * since naming a country needs a locale the index does not have.
+   */
   marked?: Partial<Record<PublicationListKey | "sources", (string | null)[]>>;
 };
 
+/**
+ * The name of an attribute: a field of a publication other than its id, its
+ * sources and its search marks.
+ */
 type PublicationKey = keyof Omit<
   Publication,
   "id" | "sources" | "excerpts" | "marked"
@@ -64,6 +69,10 @@ type PublicationListKey = {
   [K in PublicationKey]: Publication[K] extends string[] ? K : never;
 }[PublicationKey];
 
+/**
+ * What is wrong with a row: null when nothing is, the code of an error with the
+ * whole row, or the code of an error with each field that has one.
+ */
 type PublicationError = null | string | Record<PublicationKey, string>;
 
 /**
@@ -77,8 +86,12 @@ type Resemblance = {
   repeats: PublicationId | null;
 };
 
+/** A publication and what validation found wrong with it. */
 type ValidationResult = { publication: Publication; errors: PublicationError };
+
+/** A validation result for the row with the key `id`. */
 type PublicationEntry = ValidationResult & { id: PublicationId };
+
 /**
  * The key the store uses for a row.
  *
@@ -93,8 +106,9 @@ type PublicationEntry = ValidationResult & { id: PublicationId };
  * key.
  */
 type PublicationId = number | string;
-type PublicationKeyType =
-  "array" | "text" | "enum" | "enumArray" | "number" | "book";
+
+/** The kind of input an attribute is edited with. */
+type PublicationKeyType = "array" | "text" | "enumArray" | "number" | "book";
 /** Every act the log records, in the order a reader meets them. */
 const HISTORY_ACTIONS = [
   "created",
@@ -108,8 +122,14 @@ const HISTORY_ACTIONS = [
   "reconsidered",
 ] as const;
 
+/** An act the log records. */
 type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
 
+/**
+ * What an entry of the log changed: the old and new value of each field that
+ * changed, and the sources added, removed or reordered, or null when the
+ * sources did not change.
+ */
 type SnapshotDiff = {
   fields: Partial<Record<PublicationKey, { from: unknown; to: unknown }>>;
   sources: { added: string[]; removed: string[]; reordered: boolean } | null;
@@ -128,6 +148,10 @@ type PublicationSnapshot = Omit<Publication, "id" | "year"> & { year: number };
  */
 type AbsorbedPublication = PublicationSnapshot & { id: number };
 
+/**
+ * One entry of a publication's log: the act, who did it and when, the record as
+ * it stood afterwards, what changed, and whether the act can be undone.
+ */
 type PublicationHistoryEntry = {
   version: number;
   action: PublicationHistoryAction;
@@ -137,9 +161,8 @@ type PublicationHistoryEntry = {
   diff: SnapshotDiff | null;
   undoable: boolean;
   /**
-   * The publications this entry took in (a merge) or gave back (an un-merge) —
-   * a merge is one act over several records, and this is what says which.
-   * Absent on entries that change one record only.
+   * The publications this entry took in, for a merge, or gave back, for an
+   * un-merge. Absent on entries that change one record only.
    */
   absorbed?: AbsorbedPublication[] | null;
   /**
@@ -150,13 +173,13 @@ type PublicationHistoryEntry = {
   related?: AbsorbedPublication[] | null;
 };
 
-// The database-wide feed tags each entry with the publication it belongs to.
+/** An entry of the log of the whole database, with its publication's id. */
 type FullHistoryEntry = PublicationHistoryEntry & { publicationId: number };
 
-// A publication that is *currently* deleted — the trash's state, distinct from
-// the history's record of deletion events.
+/** A publication that is deleted now, and when it was deleted. */
 type DeletedPublicationEntry = { publication: Publication; deletedAt: string };
 
+/** Every attribute, in the order the columns are shown. */
 const ATTRIBUTES: PublicationKey[] = [
   "title",
   "originalTitle",
@@ -167,6 +190,7 @@ const ATTRIBUTES: PublicationKey[] = [
   "publishers",
 ];
 
+/** The kind of input each attribute is edited with. */
 const ATTRIBUTE_TYPES: Record<PublicationKey, PublicationKeyType> = {
   authors: "array",
   originalAuthors: "array",
@@ -177,6 +201,7 @@ const ATTRIBUTE_TYPES: Record<PublicationKey, PublicationKeyType> = {
   year: "number",
 };
 
+/** Whether each attribute's column can be hidden. */
 const ATTRIBUTE_IS_TOGGLEABLE: Record<PublicationKey, boolean> = {
   authors: true,
   originalAuthors: true,
@@ -187,6 +212,7 @@ const ATTRIBUTE_IS_TOGGLEABLE: Record<PublicationKey, boolean> = {
   year: true,
 };
 
+/** Whether each attribute's column is shown before anyone changes it. */
 const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
   title: true,
   countries: true,
@@ -197,6 +223,10 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
   originalAuthors: true,
 };
 
+/**
+ * Returns a publication with no id, an empty text in each text field and an
+ * empty list in each list field.
+ */
 function empty(): Publication {
   return {
     id: null,
@@ -227,10 +257,8 @@ function idFromText(text: string): PublicationId {
  * own fields, the countries and publishers of all of them, and every source
  * none of the others already gave.
  *
- * A preview, so an admin sees the outcome before asking for it. The server
- * reconciles a merge itself and stays the authority on what it produces; the
- * rules are simple enough to say twice, and saying them here is what lets the
- * dialog show the result rather than describe it.
+ * The server merges the records itself and decides the result. This function
+ * repeats its rules, so the result can be shown before the merge is asked for.
  */
 function merged(winner: Publication, losers: Publication[]): Publication {
   const all = [winner, ...losers];
@@ -354,11 +382,10 @@ function stretches(
  * with the model. `year` is an integer on the backend and text in a form, so it
  * arrives here as either.
  *
- * Countries are the one attribute stored as something other than what is read,
- * and `marked.countries` holds a code rather than marked text, so their names
- * are wrapped here. The whole name, because what matched is often not what is
- * displayed: "Holanda" matches a name neither language shows. This is the only
- * place that knows countries differ.
+ * Countries are stored as codes and read as names, and `marked.countries` holds
+ * a code rather than marked text. So a country that matched has its whole name
+ * wrapped here, because the word that matched is often not in the name shown:
+ * "Holanda" matches a name neither language shows.
  */
 function shown(
   values: unknown[],
@@ -430,7 +457,7 @@ function markedItems(
   return values.map((value, index) => ({ value, label: labels[index] }));
 }
 
-/** How a publication's fields read to one reader — see `marking`. */
+/** How a publication's fields read to one reader. See `marking`. */
 type Marking = {
   /** A whole field, its values joined as that reader's language joins a list. */
   value(publication: Publication, attribute: PublicationKey): string;
@@ -445,8 +472,9 @@ type Marking = {
  * How a publication reads to one reader: their language, and how they name a
  * country.
  *
- * Both belong to the reader, not the record. Taking them once keeps the
- * language out of every call, and lets code outside React say who is reading.
+ * The functions it returns take only a publication and an attribute, so the
+ * locale and the country naming are passed once, and code outside React can
+ * use them too.
  */
 function marking(locale: string, country: CountryNaming): Marking {
   return {
@@ -469,26 +497,30 @@ function markedSources(publication: Publication): string[] {
 }
 
 /**
- * The code for what is wrong, empty where nothing is.
+ * Returns the code of what is wrong, or an empty string when nothing is.
  *
- * A code, not a sentence: this module is read outside React, with no locale to
- * write one in. The sentence lives in the `publicationError` catalogue under
- * this code.
+ * Without `scope`, it returns the code of an error with the whole row. With
+ * `scope`, it returns the code of the error with that field. A row has one kind
+ * of error or the other, so asking for the kind it does not have returns an
+ * empty string.
  *
- * Unscoped answers the publication's own error, scoped the field's. A
- * publication has one kind or the other, so asking for the absent kind is empty
- * rather than wrong.
+ * The sentence for each code is in the `publicationError` messages. This module
+ * runs outside React, where there is no locale to write a sentence in.
  */
 function errorCode(error: PublicationError, scope?: PublicationKey): string {
   if (!error) {
     return "";
   } else if (!scope) {
-    return isString(error) ? error : "";
+    return typeof error === "string" ? error : "";
   } else {
-    return isString(error) ? "" : error[scope];
+    return typeof error === "string" ? "" : error[scope];
   }
 }
 
+/**
+ * Returns the bounds an attribute's input takes: for the year, from 0 to the
+ * current year. Other attributes have none.
+ */
 function define(attribute: PublicationKey): Record<string, unknown> {
   if (attribute === "year") {
     return { min: 0, max: new Date().getFullYear() };
@@ -496,58 +528,33 @@ function define(attribute: PublicationKey): Record<string, unknown> {
   return {};
 }
 
-function autocomplete(
-  value: string,
-  attribute: "countries",
-  locale?: string,
-): Promise<Country[]>;
-function autocomplete(
-  value: string,
-  attribute: "originalAuthors",
-): Promise<Author[]>;
-function autocomplete(value: string, attribute: "authors"): Promise<Author[]>;
-function autocomplete(
-  value: string,
-  attribute: "originalTitle",
-): Promise<OriginalBookValue[]>;
-function autocomplete(value: string, attribute: "publishers"): Promise<[]>;
-function autocomplete(
-  value: string,
-  attribute: string,
-  locale?: string,
-): Promise<[]>;
-function autocomplete(
-  value: string,
-  attribute: string,
-  locale?: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any> {
-  switch (attribute) {
-    case "authors":
-    case "originalAuthors":
-      return Author.REMOTE.search(value);
-    case "publishers":
-      return Publisher.REMOTE.search(value);
+/**
+ * Returns a link to `path` that searches the publications for `term`. The link
+ * carries `params` first and `term` as the `search` parameter after them, all
+ * URL-encoded. It is `path` alone when there is no term and no other parameter.
+ * An empty `path` gives only the query string, which a link resolves against
+ * the current page.
+ */
+function searchHref(
+  term: string | null | undefined,
+  path = "/",
+  params: Record<string, string> = {},
+): string {
+  const query = new URLSearchParams(params);
+  if (term) query.set("search", term);
 
-    // The original book is one entity, so it is suggested as one: a term finds
-    // it by its title or by an author, and the suggestion carries both.
-    case "originalTitle":
-      return OriginalBook.REMOTE.search(value);
-
-    case "countries":
-      return Country.REMOTE.search(value, locale ?? routing.defaultLocale);
-    default:
-      return new Promise<[]>((resolve) => resolve([]));
-  }
+  const string = query.toString();
+  return string ? `${path}?${string}` : path;
 }
 
-// Model namespace — constants + pure helpers. Same `Publication.X` shape the
-// components already use (a type and a value can share the name in TS).
+/**
+ * The constants and helpers of the model, read as `Publication.X`. The value
+ * shares its name with the `Publication` type.
+ */
 const Publication = {
   ATTRIBUTES,
   ATTRIBUTE_TYPES,
   ATTRIBUTE_IS_TOGGLEABLE,
-  autocomplete,
   define,
   errorCode,
   marking,
@@ -557,10 +564,7 @@ const Publication = {
 };
 
 export {
-  ATTRIBUTE_IS_TOGGLEABLE,
-  ATTRIBUTE_TYPES,
   ATTRIBUTES,
-  autocomplete,
   contrast,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
@@ -571,9 +575,9 @@ export {
   marking,
   merged,
   Publication,
+  searchHref,
 };
 export type {
-  AbsorbedPublication,
   Contrast,
   ContrastedKey,
   DeletedPublicationEntry,
@@ -591,6 +595,5 @@ export type {
   PublicationListKey,
   Resemblance,
   SnapshotDiff,
-  Stretch,
   ValidationResult,
 };

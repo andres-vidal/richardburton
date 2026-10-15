@@ -6,14 +6,11 @@ import { useTranslations } from "next-intl";
 import { merge, search } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { ChangeEventHandler, FC, useState } from "react";
-import useDebounce from "utils/useDebounce";
+import useLookup from "utils/useLookup";
 import Button from "./Button";
 import Highlight from "./Highlight";
 import { Modal } from "./Modal";
 import SectionHeading from "./SectionHeading";
-
-/** Long enough that a typist does not query on every letter. */
-const SEARCH_DELAY_MS = 350;
 
 type Props = {
   /** The record the others fold into: it keeps its identity and its address. */
@@ -22,7 +19,10 @@ type Props = {
   onClose: () => void;
   /** Run once the merge has happened, so the view showing the record can re-read it. */
   onMerged: () => void;
-  /** How a term finds candidates. Defaults to searching the database. */
+  /**
+   * Finds the candidates for a term, which it receives in lower case. Defaults
+   * to searching the database.
+   */
   find?: (term: string) => Promise<Publication[]>;
 };
 
@@ -158,12 +158,14 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
 };
 
 /**
- * Collapse duplicates of a publication into it: find them, see what the record
- * becomes, and confirm.
+ * A dialog that merges duplicates into `publication`: find them, see what the
+ * record becomes, and confirm.
  *
- * A merge is deliberately not undoable, so the dialog shows the outcome rather
- * than describing it — everything the survivor gains is marked before the
- * question is asked.
+ * The search runs through `useLookup`, so it waits for typing to pause and
+ * only the newest search fills the list. A merge is not undoable, so the
+ * dialog shows the outcome rather than describing it: everything the survivor
+ * gains is marked before the question is asked. Closing the dialog clears the
+ * search and the picks.
  */
 const PublicationMerge: FC<Props> = ({
   publication,
@@ -176,25 +178,22 @@ const PublicationMerge: FC<Props> = ({
   const store = usePublicationStore();
 
   const [term, setTerm] = useState("");
-  const [searching, setSearching] = useState(false);
   const [candidates, setCandidates] = useState<Publication[]>([]);
   const [chosen, setChosen] = useState<Publication[]>([]);
   const [merging, setMerging] = useState(false);
+  const {
+    lookup,
+    cancel,
+    busy: searching,
+  } = useLookup<Publication>(findPublications);
 
-  const find = useDebounce(async (value: string) => {
-    if (!value.trim()) {
-      setCandidates([]);
-      setSearching(false);
-      return;
-    }
-    setCandidates(await findPublications(value));
-    setSearching(false);
-  }, SEARCH_DELAY_MS);
+  const handleTerm: ChangeEventHandler<HTMLInputElement> = async (event) => {
+    const typed = event.target.value;
+    setTerm(typed);
+    if (!typed.trim()) setCandidates([]);
 
-  const handleTerm: ChangeEventHandler<HTMLInputElement> = (event) => {
-    setTerm(event.target.value);
-    setSearching(Boolean(event.target.value.trim()));
-    find(event.target.value);
+    const found = await lookup(typed.trim());
+    if (found) setCandidates(found);
   };
 
   // A record cannot be folded into itself, and one already picked is offered
@@ -206,6 +205,7 @@ const PublicationMerge: FC<Props> = ({
   );
 
   function reset() {
+    cancel();
     setTerm("");
     setCandidates([]);
     setChosen([]);

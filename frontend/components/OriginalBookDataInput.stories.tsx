@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { OriginalBook, type OriginalBookValue } from "modules/original-book";
+import { LOOKUP, type OriginalBook } from "modules/lookup";
 import { empty } from "modules/publication/model";
 import { publicationFamily, resetAll, setAll } from "modules/publication/store";
 import { store } from "modules/store";
@@ -8,7 +8,7 @@ import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
 import OriginalBookDataInput from "./OriginalBookDataInput";
 
-const LIBRARY: OriginalBookValue[] = [
+const LIBRARY: OriginalBook[] = [
   { title: "Dom Casmurro", authors: ["Machado de Assis"] },
   { title: "Memórias Póstumas de Brás Cubas", authors: ["Machado de Assis"] },
   {
@@ -18,13 +18,13 @@ const LIBRARY: OriginalBookValue[] = [
 ];
 
 /**
- * Stand in for the database while a story runs. The module exposes its calls
- * as one `REMOTE` object precisely so a caller can be given a different one.
+ * Replaces `LOOKUP.originalBooks` while a story runs with a search of `books`
+ * by title or by author, and puts the previous search back afterwards.
  */
-const withLibrary = (books: OriginalBookValue[]) => () => {
-  const answering = OriginalBook.REMOTE.search;
+const withLibrary = (books: OriginalBook[]) => () => {
+  const answering = LOOKUP.originalBooks;
 
-  OriginalBook.REMOTE.search = async (term) =>
+  LOOKUP.originalBooks = async (term) =>
     books.filter(
       (book) =>
         book.title.toLowerCase().includes(term.toLowerCase()) ||
@@ -34,7 +34,7 @@ const withLibrary = (books: OriginalBookValue[]) => () => {
     );
 
   return () => {
-    OriginalBook.REMOTE.search = answering;
+    LOOKUP.originalBooks = answering;
   };
 };
 
@@ -66,7 +66,6 @@ const meta = {
   component: OriginalBookDataInput,
   args: {
     rowId: ROW,
-    colId: "originalTitle",
     value: "",
     error: "",
     bordered: true,
@@ -102,13 +101,15 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** A term offers whole books: the title, and who wrote it. */
+/**
+ * A term offers whole books: the title, and who wrote it. The input carries
+ * `aria-busy` until the books for the term arrive.
+ */
 export const Suggesting: Story = {
   play: async ({ canvasElement }) => {
-    await userEvent.type(
-      within(canvasElement).getByRole("combobox"),
-      "Dom Cas",
-    );
+    const input = within(canvasElement).getByRole("combobox");
+    await userEvent.type(input, "Dom Cas");
+    await expect(input).toHaveAttribute("aria-busy", "true");
 
     // `screen`, not the canvas: the menu is portalled out of the field.
     await waitFor(async () =>
@@ -118,6 +119,7 @@ export const Suggesting: Story = {
         }),
       ).toBeVisible(),
     );
+    await expect(input).toHaveAttribute("aria-busy", "false");
   },
 };
 
@@ -180,7 +182,6 @@ export const FreeTextStands: Story = {
  * that has just been filled reads as the choice not having been taken.
  */
 export const AChoiceSurvivesALookupInFlight: Story = {
-  beforeEach: withLibrary(LIBRARY),
   play: async ({ args, canvasElement }) => {
     const input = within(canvasElement).getByRole("combobox");
 
@@ -200,6 +201,35 @@ export const AChoiceSurvivesALookupInFlight: Story = {
     await waitFor(() =>
       expect(screen.queryAllByRole("option")).toHaveLength(0),
     );
-    await expect(screen.queryAllByRole("option")).toHaveLength(0);
+  },
+};
+
+/**
+ * Enter picks the highlighted book while the menu is open. The play test
+ * checks that both fields are filled and that the key is `preventDefault`ed,
+ * so a row around the field does not act on it too.
+ */
+export const PickedWithEnter: Story = {
+  play: async ({ args, canvasElement }) => {
+    const input = within(canvasElement).getByRole("combobox");
+
+    // Read on the document, which hears the key after React has handled it.
+    const prevented: boolean[] = [];
+    const listen = (event: KeyboardEvent) =>
+      prevented.push(event.defaultPrevented);
+    document.addEventListener("keydown", listen);
+
+    await userEvent.type(input, "Dom Cas");
+    await screen.findByRole("option", { name: /Dom Casmurro/ });
+    await userEvent.keyboard("{Enter}");
+    document.removeEventListener("keydown", listen);
+
+    await expect(args.onChange).toHaveBeenLastCalledWith("Dom Casmurro");
+    await waitFor(() =>
+      expect(store.get(publicationFamily(ROW)).originalAuthors).toEqual([
+        "Machado de Assis",
+      ]),
+    );
+    await expect(prevented.at(-1)).toBe(true);
   },
 };

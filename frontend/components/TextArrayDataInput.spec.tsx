@@ -3,13 +3,12 @@ import { fireEvent, render, screen } from "test/render";
 import TextArrayDataInput from "./TextArrayDataInput";
 
 // The array cell editor (authors, publishers, …) hands the list of values to
-// the pill-based Multicombobox, one pill each, and takes a list back. Typing
-// runs the network autocomplete, so these specs drive the non-network paths —
-// render, pill removal, and the quoting that lets a value hold a comma.
+// the pill-based Multicombobox, one pill each, and takes a list back. These
+// specs cover rendering, pill removal, and the quoting that lets a value hold a
+// comma.
 describe("TextArrayDataInput", () => {
   const props = {
-    rowId: 1,
-    colId: "authors",
+    lookup: "authors",
     error: "",
     "aria-label": "Authors",
   } as const;

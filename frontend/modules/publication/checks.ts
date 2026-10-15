@@ -1,11 +1,14 @@
 import type { Store } from "modules/store";
-import hash from "object-hash";
 import type * as Y from "yjs";
 
 import * as Doc from "./doc";
 import type { PublicationId } from "./model";
-import { REMOTE, validate } from "./remote";
-import { publicationIdsAtom, resemblanceSubjectAtom } from "./store";
+import { REMOTE, validate, validateUpdate } from "./remote";
+import {
+  publicationIdsAtom,
+  resemblanceSubjectKeyAtom,
+  rowContentKeyFamily,
+} from "./store";
 
 /** How long to wait after this client's last edit before checking it, in ms. */
 const SETTLE = 500;
@@ -32,7 +35,9 @@ type Checks = {
  * The client that edits the document checks the edit. `SETTLE` ms after this
  * client's last edit, it validates the rows it changed that the document still
  * holds, and runs the look-alike check when the subject of the rows differs
- * from the one the stored results were measured on. The results are stored in
+ * from the one the stored results were measured on. The look-alike check sends
+ * every row, because its results for one row depend on the others (see
+ * `resemblances`). The results are stored in
  * the document (see `setErrors` and `setResemblances`), so the other clients
  * read them and do not send the same requests.
  *
@@ -65,7 +70,7 @@ function watchChecks(
 
   const measure = (force: boolean) => {
     const ids = all();
-    const subject = hash(store.get(resemblanceSubjectAtom));
+    const subject = store.get(resemblanceSubjectKeyAtom);
 
     if (ids.length === 0) return;
     if (!force && subject === Doc.checkedSubject(doc)) return;
@@ -132,5 +137,32 @@ function watchChecks(
   };
 }
 
-export { FALLBACK, SETTLE, watchChecks };
-export type { Checks };
+/**
+ * Validates the edits to the stored publication `id` in `store` with
+ * `validateUpdate`, `settle` ms after the last change to its content. Returns a
+ * function that stops watching and cancels a validation not yet started.
+ *
+ * A failed request is ignored here, as in `watchChecks`: the row keeps its old
+ * errors until the next change.
+ */
+function watchEdit(
+  store: Store,
+  id: PublicationId,
+  { settle = SETTLE } = {},
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const unsubscribe = store.sub(rowContentKeyFamily(id), () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      validateUpdate(store, id).catch(() => {});
+    }, settle);
+  });
+
+  return () => {
+    clearTimeout(timer);
+    unsubscribe();
+  };
+}
+
+export { FALLBACK, SETTLE, watchChecks, watchEdit };

@@ -1,5 +1,6 @@
 "use client";
 
+import { ADDRESS } from "modules/address";
 import {
   COUNTS,
   GROUPINGS,
@@ -7,6 +8,7 @@ import {
   PRESETS,
   SPLITS,
   TOPS,
+  chartParams,
   descriptionParams,
   formsFor,
   groups,
@@ -28,11 +30,19 @@ import InsightChart from "./InsightChart";
 import Select from "./Select";
 
 type Props = {
-  /** The chart the page's address describes. */
+  /** The chart the page's address described when the server rendered it. */
   description: Description;
   /** Its counts, from `GET /insights`. */
   drawn: Drawn;
 };
+
+/**
+ * Returns whether `a` and `b` ask `GET /insights` for the same counts.
+ * `chartParams` writes its fields in one order, so the JSON of two equal
+ * answers is equal.
+ */
+const sameCounts = (a: Description, b: Description) =>
+  JSON.stringify(chartParams(a)) === JSON.stringify(chartParams(b));
 
 /**
  * A `Select` for one control of `ChartBuilder`. Its options name themselves,
@@ -49,7 +59,7 @@ function Choice<Value extends string>({
   onChange,
   disabled = false,
 }: {
-  control: "preset" | "count" | "by" | "split" | "form" | "top" | "least";
+  control: "preset" | keyof Description;
   label: string;
   value: Value;
   /** Each option's value and text, in order. */
@@ -97,7 +107,9 @@ function Choice<Value extends string>({
  * other counts take the names listed for them and time, with no split. A form
  * is offered only for the groupings and counts it can draw, so the map is
  * offered only for publications by country, and the split is disabled for a
- * form that draws no series and for a count that takes no split.
+ * form that draws no series and for a count that takes no split. Shares need
+ * a split, so choosing them for a chart without one splits it by the first
+ * split it takes: by kind, or by country when the groups are kinds.
  *
  * The chart's title row has how many groups to keep and how many items each
  * needs, which are disabled unless the chart keeps only some of its groups
@@ -108,11 +120,24 @@ function Choice<Value extends string>({
  * move the others. On screens from the `md` breakpoint, the toolbar stays
  * pinned under the page's header while the chart scrolls.
  *
- * Each change writes the chart to the page's address, keeping the search, in
- * a transition. The new chart is read on the server, and the controls show the
- * new choice at once through `useOptimistic`. The current chart stays on
- * screen, dimmed, until the new one arrives. Every change goes through
- * `normalize`, so the address always describes a chart that can be drawn.
+ * Each change goes through `normalize`, so the address always describes a
+ * chart that can be drawn, and is written to the page's address, keeping the
+ * search.
+ *
+ * When the new chart asks `GET /insights` for the same counts as `drawn` (see
+ * `chartParams`), as columns and lines do, and no other change is pending,
+ * the component draws it from `drawn` at once. `ADDRESS.replace` writes the
+ * address, and the server is not asked for the page.
+ *
+ * Any other change replaces the address with `router.replace` in a
+ * transition, and the page reads the new chart on the server. The controls
+ * show the new choice at once through `useOptimistic`, and the current chart
+ * stays on screen, dimmed, until the new one arrives. A change made while
+ * another is pending also goes through the server, because the pending chart
+ * would replace a chart drawn without it when it arrives.
+ *
+ * The component keeps the chart it draws in state, and resets it to
+ * `description` whenever the server sends a new one.
  */
 const ChartBuilder: FC<Props> = ({ description, drawn }) => {
   const t = useTranslations("insights.builder");
@@ -121,23 +146,39 @@ const ChartBuilder: FC<Props> = ({ description, drawn }) => {
   const pathname = usePathname() ?? "";
   const search = useSearchParams()?.get("search");
   const [pending, startTransition] = useTransition();
-  const [shown, setShown] = useOptimistic(description);
+  const [drawnAs, setDrawnAs] = useState(description);
+  const [previous, setPrevious] = useState(description);
+  const [shown, setShown] = useOptimistic(drawnAs);
   const [view, setView] = useState<"chart" | "table">("chart");
   const preset = presetOf(shown);
 
+  if (description !== previous) {
+    setPrevious(description);
+    setDrawnAs(description);
+  }
+
+  // Returns the page's address for `next`, keeping the search.
   const href = (next: Description) =>
     `${pathname}?${new URLSearchParams({
       ...(search ? { search } : {}),
       ...descriptionParams(next),
     })}`;
 
+  // Applies `changes` to the chart shown and normalizes the result. The new
+  // chart is drawn from `drawn` when it asks for the same counts and nothing
+  // is pending, and is read on the server otherwise.
   const change = (changes: Partial<Description>) => {
     const next = normalize({ ...shown, ...changes });
 
-    startTransition(() => {
-      setShown(next);
-      router.replace(href(next), { scroll: false });
-    });
+    if (!pending && sameCounts(next, description)) {
+      setDrawnAs(next);
+      ADDRESS.replace(href(next));
+    } else {
+      startTransition(() => {
+        setShown(next);
+        router.replace(href(next), { scroll: false });
+      });
+    }
   };
 
   const refinements = (
@@ -252,7 +293,10 @@ const ChartBuilder: FC<Props> = ({ description, drawn }) => {
               change({
                 form,
                 ...(form === "shares" && !shown.split
-                  ? { split: "kind" as const }
+                  ? {
+                      split:
+                        SPLITS.find((split) => splitsBy(shown, split)) ?? null,
+                    }
                   : {}),
               })
             }
@@ -264,7 +308,7 @@ const ChartBuilder: FC<Props> = ({ description, drawn }) => {
         className="transition-opacity data-[pending=true]:opacity-50"
       >
         <InsightChart
-          description={description}
+          description={drawnAs}
           drawn={drawn}
           view={view}
           actions={refinements}

@@ -13,10 +13,13 @@ dispatches to for `enumArray` columns, built on a `Multicombobox`.
 ## Data flow
 
 The stored `value` is the list of ISO country codes. Each code becomes a pill
-labelled by its country name via `Publication.describeValue`, and the selection
-goes back through `onChange` as codes, not labels.
-Typing queries `Publication.autocomplete` (debounced) for matching countries;
-those options resolve locally, but the stories stay render-only to avoid
-depending on the dropdown.
+labelled by its country name in the reader's locale, and the selection goes back
+through `onChange` as codes, not labels.
+
+Typing suggests the countries that `LOOKUP.countries` finds, named in the
+reader's locale. Only a country that was found can be added, so typed text that
+names no country is not added. The `Multicombobox` calls the search through `useLookup`, once
+typing pauses. In Storybook the search is answered from a few stubbed
+countries.
 
 <Canvas of={TextEnumArrayDataInputStories.Default} />

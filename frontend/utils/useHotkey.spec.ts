@@ -61,6 +61,7 @@ describe("useHotkey", () => {
 
     expect(handle).toHaveBeenCalledTimes(2);
   });
+
   test("a disabled hotkey does not answer the press", () => {
     const handle = vi.fn();
     renderHook(() => useHotkey(Key.ESCAPE, handle, false));

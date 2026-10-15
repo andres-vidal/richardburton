@@ -25,15 +25,13 @@ const Controlled: FC<ComponentProps<typeof TextArrayDataInput>> = ({
 };
 
 // A Multicombobox for free-text list cells (authors, originalAuthors,
-// publishers). Each value in `value` renders as a removable pill. Its
-// autocomplete calls the network on keystroke, so these stories never type
-// into the field — but pill removal is purely local and live.
+// publishers). Each value in `value` renders as a removable pill. The Storybook
+// preview stubs the name searches to find nothing.
 const meta = {
   title: "Publications/Text array data input",
   component: TextArrayDataInput,
   args: {
-    rowId: 1,
-    colId: "authors",
+    lookup: "authors",
     value: [],
     error: "",
     onChange: fn(),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useHotkey } from "utils/useHotkey";
 
 import { documentOf } from "./store";
 import { usePublicationStore } from "./workspace";
@@ -66,28 +67,17 @@ const TEXT_INPUT_TYPES = new Set([
 ]);
 
 /**
- * Returns which action a key press asks for: `"undo"` for Ctrl+Z or Cmd+Z,
- * `"redo"` for Ctrl+Shift+Z, Cmd+Shift+Z or Ctrl+Y, and `null` for any other
- * key, or when Alt is held.
+ * The key combinations that undo: Ctrl+Z or Cmd+Z. Ctrl and Cmd may also be
+ * held together, but Shift and Alt may not be held.
  */
-function shortcutOf(
-  event: Pick<
-    KeyboardEvent,
-    "key" | "ctrlKey" | "metaKey" | "shiftKey" | "altKey"
-  >,
-): "undo" | "redo" | null {
-  const key = event.key.toLowerCase();
+const UNDO_KEYS = ["ctrl+meta?+z", "meta+z"];
 
-  return event.altKey || !(event.ctrlKey || event.metaKey)
-    ? null
-    : key === "z"
-      ? event.shiftKey
-        ? "redo"
-        : "undo"
-      : key === "y" && event.ctrlKey && !event.shiftKey
-        ? "redo"
-        : null;
-}
+/**
+ * The key combinations that redo: Ctrl+Shift+Z, Cmd+Shift+Z or Ctrl+Y. Ctrl and
+ * Cmd may also be held together, but Alt may not be held. Cmd+Y without Ctrl is
+ * not one of them, since some Mac browsers open their history with it.
+ */
+const REDO_KEYS = ["ctrl+meta?+shift+z", "meta+shift+z", "ctrl+meta?+y"];
 
 /**
  * Returns whether a key press on `target` belongs to the element: a text
@@ -111,26 +101,27 @@ function ownsShortcut(target: EventTarget | null): boolean {
 }
 
 /**
- * Binds the undo shortcuts to `undo` and `redo` while the calling component is
- * mounted: Ctrl+Z or Cmd+Z undoes, and Ctrl+Shift+Z, Cmd+Shift+Z or Ctrl+Y
- * redoes. A key press in a text field or in an open dialog is left to the
- * browser, so the text field keeps its own undo for the text typed in it.
+ * Runs `action` for a shortcut and stops the browser from acting on the key
+ * press too. It does nothing when the press belongs to its target, as
+ * `ownsShortcut` decides, or when an earlier listener has already called
+ * `preventDefault` on it.
  */
-function useUndoShortcuts({ undo, redo }: Pick<Undo, "undo" | "redo">): void {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const action = shortcutOf(event);
-
-      if (action && !event.defaultPrevented && !ownsShortcut(event.target)) {
-        event.preventDefault();
-        (action === "undo" ? undo : redo)();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo]);
+function runShortcut(event: KeyboardEvent, action: () => void) {
+  if (!event.defaultPrevented && !ownsShortcut(event.target)) {
+    event.preventDefault();
+    action();
+  }
 }
 
-export { ownsShortcut, shortcutOf, useUndoShortcuts, useWorkspaceUndo };
-export type { Undo };
+/**
+ * Binds the undo shortcuts to `undo` and `redo` while the calling component is
+ * mounted: `UNDO_KEYS` undo, and `REDO_KEYS` redo. A key press in a text field
+ * or in an open dialog is left to the browser, so the text field keeps its own
+ * undo for the text typed in it.
+ */
+function useUndoShortcuts({ undo, redo }: Pick<Undo, "undo" | "redo">): void {
+  useHotkey(UNDO_KEYS, (event) => runShortcut(event, undo));
+  useHotkey(REDO_KEYS, (event) => runShortcut(event, redo));
+}
+
+export { ownsShortcut, useUndoShortcuts, useWorkspaceUndo };

@@ -1,4 +1,4 @@
-import { get, getWithHeaders } from "app/api";
+import { get, getOrNull, getWithHeaders } from "app/api";
 import { getSession } from "app/session";
 import { TOTAL_COUNT_HEADER } from "modules/api";
 import { withChanges, type WithChanges } from "modules/publication/history";
@@ -13,42 +13,53 @@ import { User } from "modules/users";
 import { cache } from "react";
 
 /**
- * One publication with everything its reader is allowed to see: the record, and
- * for an admin the mutation log behind it. Both are read together so a view
- * renders complete instead of filling in after it is on screen.
+ * One publication with what its reader may see of it: the record, and for a
+ * user who can edit publications, the record's history.
  */
 export type PublicationView = {
   publication: Publication;
-  /** Present only for an admin — nobody else may read the log. */
+  /** The record's history, present only for a user who can edit publications. */
   history?: WithChanges<PublicationHistoryEntry>[];
 };
 
 /**
- * Read a publication as the signed-in user, or `null` when there is nothing to
- * show — the record never existed, or has been deleted. Callers decide what that
- * means: a page answers 404, an overlay says the link is stale.
+ * Reads a publication as the signed-in user, or returns `null` when the backend
+ * answers 404 because the record never existed or has been deleted. Any other
+ * failure is thrown. For a user who can edit publications, the record's history
+ * is read at the same time as the record.
  */
 export const readPublication = cache(
   async (id: string, search?: string): Promise<PublicationView | null> => {
-    const [publication, session] = await Promise.all([
-      get<Publication>(`/publications/${id}`, { search }).catch(() => null),
-      getSession(),
+    const session = await getSession();
+    const readRecord = () =>
+      getOrNull<Publication>(`/publications/${id}`, { search });
+
+    if (!User.canEditPublications(session)) {
+      const publication = await readRecord();
+      return publication && { publication };
+    }
+
+    const [publication, history] = await Promise.all([
+      readRecord(),
+      getOrNull<{ entries: PublicationHistoryEntry[] }>(
+        `/publications/${id}/history`,
+      ),
     ]);
 
-    if (!publication) return null;
-
-    if (!User.canEditPublications(session)) return { publication };
-
-    const { entries } = await get<{ entries: PublicationHistoryEntry[] }>(
-      `/publications/${id}/history`,
+    return (
+      publication && {
+        publication,
+        history: withChanges(history?.entries ?? []),
+      }
     );
-
-    return { publication, history: withChanges(entries) };
   },
 );
 
 export type { PublicationIndex };
 
+// Reads `GET /publications` with `params` as a `PublicationIndex`. A response
+// that is not paged, such as the unsourced queue, has no `order` or `perPage`.
+// Its rows are then the whole order, and the whole page.
 async function readDatabase(
   params: Record<string, unknown>,
 ): Promise<PublicationIndex> {
@@ -65,25 +76,18 @@ async function readDatabase(
     entries: data.entries,
     matched: data.matched ?? [],
     total: total === undefined ? null : parseInt(total),
-    // An endpoint that does not page (the backfill queue) hands back no
-    // ordering; the rows it returned stand as the whole of it.
     order: data.order ?? data.entries.map((entry) => entry.id!),
     perPage: data.perPage ?? data.entries.length,
   };
 }
 
 /**
- * Read the first page of the database, for a query or for all of it. This is
- * the page's own content, so it is read where the page is rendered — the reader
- * gets rows in the first response instead of an empty table and a spinner. The
- * rest of the pages are fetched in the browser as the reader scrolls.
+ * Reads the first page of the database, for the search `search` or for every
+ * publication. The later pages are read in the browser as the reader scrolls.
  */
 export const readIndex = cache((search?: string) => readDatabase({ search }));
 
-/**
- * The publications with no sources yet — the queue the backfill wizard steps
- * through, in the order it will offer them.
- */
+/** Reads the publications that cite no source yet, in the order to fill them. */
 export const readUnsourced = cache(() => readDatabase({ unsourced: true }));
 
 /** A set of records that look like one publication entered more than once. */
@@ -93,17 +97,13 @@ export type DuplicateCluster = {
   score: number;
 };
 
-export type DuplicateReport = {
+/** The clusters of possible duplicates, and how alike values must be. */
+type DuplicateReport = {
   clusters: DuplicateCluster[];
-  /** The likeness the server is currently asking about, for the reader's sake. */
+  /** The trigram similarity, between 0 and 1, above which values are alike. */
   threshold: number;
 };
 
-/**
- * The clusters the duplicate review steps through, likeliest first. Read where
- * the page is rendered, like the rest of the admin views, so the reviewer has
- * the first question in the first response.
- */
 /** A pair someone has ruled apart, and the record of who did. */
 export type Distinction = {
   publications: Publication[];
@@ -111,10 +111,7 @@ export type Distinction = {
   timestamp: string;
 };
 
-/**
- * The pairs already ruled apart, newest first. Read alongside the clusters so
- * a decision can be seen and taken back — one that cannot be seen cannot be.
- */
+/** Reads the pairs already ruled apart, newest first. */
 export const readDistinctions = cache(async (): Promise<Distinction[]> => {
   const { entries } = await get<{ entries: Distinction[] }>(
     "/publications/duplicates/distinctions",
@@ -123,6 +120,7 @@ export const readDistinctions = cache(async (): Promise<Distinction[]> => {
   return entries;
 });
 
+/** Reads the clusters of possible duplicates, likeliest first. */
 export const readDuplicates = cache(async (): Promise<DuplicateReport> => {
   const { entries, threshold } = await get<{
     entries: DuplicateCluster[];

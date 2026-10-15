@@ -1,39 +1,27 @@
-import Breadcrumb from "components/Breadcrumb";
-import { getTranslations } from "next-intl/server";
-import Layout from "components/Layout";
-import PageHeader from "components/PageHeader";
+import AdminPage from "components/AdminPage";
+import DeletedPublications from "components/DeletedPublications";
 import type { DeletedPublicationEntry } from "modules/publication/model";
+import { getTranslations } from "next-intl/server";
 
 import { get } from "app/api";
-import DeletedPublications from "components/DeletedPublications";
 import { admitEditors } from "../../guard";
 
+/**
+ * Lists the publications that are deleted now, the most recently deleted first,
+ * with `DeletedPublications`, which offers to restore each.
+ */
 export default async function DeletedPublicationsPage() {
   await admitEditors();
 
-  const t = await getTranslations("admin");
-
-  const crumbs = [
-    { label: t("home"), href: "/" },
-    { label: t("admin"), href: "/admin" },
-    { label: t("deletedTitle") },
-  ];
-
-  const { entries } = await get<{ entries: DeletedPublicationEntry[] }>(
-    "/publications/deleted",
-  );
+  const [t, { entries }] = await Promise.all([
+    getTranslations("admin"),
+    get<{ entries: DeletedPublicationEntry[] }>("/publications/deleted"),
+  ]);
 
   return (
-    <Layout
-      subheader={
-        <>
-          <Breadcrumb items={crumbs} />
-          <PageHeader
-            title={t("deletedTitle")}
-            description={t("deletedPage")}
-          />
-        </>
-      }
+    <AdminPage
+      title={t("deletedTitle")}
+      description={t("deletedPage")}
       measure="aligned"
       content={<DeletedPublications entries={entries} />}
     />

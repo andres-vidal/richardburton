@@ -15,12 +15,10 @@ import {
   type PublicationId,
   type PublicationKey,
   type PublicationListKey,
+  searchHref,
 } from "modules/publication/model";
-import {
-  deletePublication,
-  update,
-  validateUpdate,
-} from "modules/publication/remote";
+import { watchEdit } from "modules/publication/checks";
+import { deletePublication, update } from "modules/publication/remote";
 import { discardEdit, setSources, remember } from "modules/publication/store";
 import {
   PublicationStoreProvider,
@@ -30,8 +28,7 @@ import { useCountryNaming } from "modules/country-names";
 import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
 import { useFormatter, useTranslations } from "next-intl";
-import { Link } from "i18n/navigation";
-import { useRouter } from "i18n/navigation";
+import { Link, useRouter } from "i18n/navigation";
 import {
   FC,
   Fragment,
@@ -40,6 +37,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { useMutation } from "utils/useMutation";
 import Button from "./Button";
 import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
@@ -51,17 +49,17 @@ import SourcesEditor from "./SourcesEditor";
 import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
 
+/** `label`, marked where the search matched, as a link to a search for `value`. */
 const Searchable: FC<{ label: string; value: string }> = ({ value, label }) => (
-  <Link href={`/?search=${value}`} className="anchor">
+  <Link href={searchHref(value)} className="anchor">
     <Highlight>{label}</Highlight>
   </Link>
 );
 
 /**
- * Several things read as one sentence would say them: "A, B and C".
- *
- * `Intl.ListFormat` supplies the commas and the final conjunction, which differ
- * by language.
+ * Renders `items` as a sentence lists them: "A, B and C". The formatter of the
+ * locale supplies the commas and the final conjunction, which differ by
+ * language.
  */
 const SentenceList: FC<{ items: { key: string; node: ReactNode }[] }> = ({
   items,
@@ -77,6 +75,10 @@ const SentenceList: FC<{ items: { key: string; node: ReactNode }[] }> = ({
   );
 };
 
+/**
+ * The heading of a publication: its title and, in brackets, its translators,
+ * each with a tooltip that says what it is.
+ */
 const PublicationHeading: FC<{ publication: Publication }> = ({
   publication,
 }) => {
@@ -99,6 +101,12 @@ const PublicationHeading: FC<{ publication: Publication }> = ({
   );
 };
 
+/**
+ * A sentence that places the publication: its original book and authors, its
+ * translators, and where, when and by whom it was published. Every name in it
+ * links to a search for that name, and a country links to a search for its
+ * code.
+ */
 const PublicationDescription: FC<{ publication: Publication }> = ({
   publication: p,
 }) => {
@@ -208,12 +216,15 @@ const PublicationHistorySection: FC<{
   );
 };
 
+/**
+ * The field for `attribute` of the publication `id`, under its label. It writes
+ * its error under itself, since a form has room for it.
+ */
 const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
   id,
   attribute,
 }) => {
   const t = useTranslations("attributes");
-  const store = usePublicationStore();
   const value = usePublicationField(id, attribute);
   const error = usePublicationFieldError(id, attribute);
 
@@ -226,11 +237,7 @@ const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
         value={value}
         error={error}
         aria-label={t(attribute)}
-        bordered
-        autoValidated
-        // A form has room to say what is wrong, in place.
         errorDisplay="inline"
-        onValidate={() => validateUpdate(store, id)}
       />
     </div>
   );
@@ -238,12 +245,15 @@ const EditField: FC<{ id: PublicationId; attribute: PublicationKey }> = ({
 
 /**
  * A form that edits every field of the publication `id` in the enclosing store,
- * validating each field as it changes, and saves it with `save`.
+ * and saves it with `save`. While the form is open, `watchEdit` validates the
+ * publication shortly after each change.
  *
  * `save` defaults to `update`, which saves the edit to the database. It returns
- * whether the save succeeded, and `onSaved` runs only then. The save button is
- * disabled while the publication has errors. `heading` and `saveLabel` replace
- * the form's heading and the save button's label.
+ * whether the save succeeded. Only then does `onSaved` run, and the page is
+ * read again from the server. The save button is disabled while the
+ * publication has errors, since the server would refuse it, and while a save
+ * runs. `heading` and `saveLabel` replace the form's heading and the save
+ * button's label.
  */
 const PublicationEditForm: FC<{
   id: PublicationId;
@@ -255,17 +265,20 @@ const PublicationEditForm: FC<{
 }> = ({ id, onSaved, onCancel, save = update, heading, saveLabel }) => {
   const t = useTranslations("publication");
   const store = usePublicationStore();
-  const [saving, setSaving] = useState(false);
+  const { pending: saving, run } = useMutation();
   const error = usePublicationErrorDescription(id);
   const isValid = useIsPublicationValid(id);
   const sources = usePublicationSources(id);
 
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+  useEffect(() => watchEdit(store, id), [store, id]);
+
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
-    const saved = await save(store, id);
-    setSaving(false);
-    if (saved) onSaved();
+    run(async () => {
+      const saved = await save(store, id);
+      if (saved) onSaved();
+      return saved;
+    });
   }
 
   return (
@@ -295,31 +308,13 @@ const PublicationEditForm: FC<{
           width="fit"
           size="medium"
           loading={saving}
-          // Nothing to gain from a round-trip we know the server will reject.
-          // `saving` is included because Button lets an explicit `disabled`
-          // override its own `loading`-implies-disabled.
-          disabled={!isValid || saving}
+          disabled={!isValid}
         />
       </div>
     </form>
   );
 };
 
-/**
- * A publication as a reader sees it: the title and its translators, a sentence
- * placing it, and its sources — plus, for an admin, its history and the controls
- * to correct or remove it.
- *
- * Takes the record — and the log behind it — rather than an id, so whoever
- * renders it decides where those came from, and the view is complete the moment
- * it appears instead of filling in afterwards. Who may do what is settled here
- * rather than by each caller, so the same publication offers the same
- * affordances wherever it is read.
- *
- * A save asks the server to render again: the heading, the breadcrumb, and the
- * page title are drawn from the same record by whoever placed this view, and
- * re-reading is the only way they cannot disagree with the body.
- */
 type PublicationDetailProps = {
   publication: Publication;
   /**
@@ -335,12 +330,26 @@ type PublicationDetailProps = {
   onDeleted?: () => void;
 };
 
+/**
+ * A publication as a reader sees it: a sentence placing it and its sources.
+ * Whoever may edit publications also gets the controls to edit, merge and
+ * delete it, and `history`, when given, is shown in a collapsed section. The
+ * view keeps its edits in a publication store of its own, or in the enclosing
+ * one.
+ *
+ * It takes the record and its log rather than an id, so it reads nothing and
+ * is complete when it first renders. A save or a merge reads the page again
+ * from the server, so the heading and the page title, which are drawn from the
+ * same record elsewhere on the page, agree with it.
+ */
 const PublicationDetail: FC<PublicationDetailProps> = (props) => (
   <PublicationStoreProvider>
     <Detail {...props} />
   </PublicationStoreProvider>
 );
 
+// The body of `PublicationDetail`: the reader's view, or the edit form while
+// editing, and the merge and delete dialogs.
 const Detail: FC<PublicationDetailProps> = ({
   publication,
   history,
@@ -354,7 +363,7 @@ const Detail: FC<PublicationDetailProps> = ({
 
   const [editing, setEditing] = useState(false);
   const deleteConfirmation = useModal();
-  const [deleting, setDeleting] = useState(false);
+  const { pending: deleting, run } = useMutation();
   const mergeDialog = useModal();
 
   // When editing ends or the view closes, `discardEdit` drops any unsaved edit.
@@ -371,26 +380,20 @@ const Detail: FC<PublicationDetailProps> = ({
     setEditing(true);
   }
 
-  function handleSaved() {
-    setEditing(false);
-    router.refresh();
-  }
-
+  // Deletes the publication. When that succeeds, `run` reads the page again,
+  // since whatever shows the record was drawn before it left, and then the view
+  // leaves through `onDeleted`.
   async function handleDelete() {
-    setDeleting(true);
-    const removed = await deletePublication(store, {
-      id,
-      title: publication.title,
+    const removed = await run(async () => {
+      const removed = await deletePublication(store, {
+        id,
+        title: publication.title,
+      });
+      deleteConfirmation.close();
+      return removed;
     });
-    setDeleting(false);
-    deleteConfirmation.close();
 
-    if (removed) {
-      // Whatever was showing this record — the database underneath an overlay,
-      // or this page — was drawn before it left. Ask for it again, then leave.
-      router.refresh();
-      (onDeleted ?? (() => router.replace("/")))();
-    }
+    if (removed) (onDeleted ?? (() => router.replace("/")))();
   }
 
   return (
@@ -398,7 +401,7 @@ const Detail: FC<PublicationDetailProps> = ({
       {editing ? (
         <PublicationEditForm
           id={id}
-          onSaved={handleSaved}
+          onSaved={() => setEditing(false)}
           onCancel={() => setEditing(false)}
         />
       ) : (

@@ -82,7 +82,7 @@ export const Default: Story = {
     // Every field a reader might want to pivot on is a search link.
     await expect(
       screen.getByRole("link", { name: "Machado de Assis" }),
-    ).toHaveAttribute("href", "/en?search=Machado de Assis");
+    ).toHaveAttribute("href", "/en?search=Machado+de+Assis");
 
     // Countries render their label but search by the stored code.
     await expect(
@@ -186,7 +186,7 @@ export const SearchLinks: Story = {
   play: async () => {
     await expect(
       screen.getByRole("link", { name: "Helen Caldwell" }),
-    ).toHaveAttribute("href", "/en?search=Helen Caldwell");
+    ).toHaveAttribute("href", "/en?search=Helen+Caldwell");
   },
 };
 

@@ -1,11 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
+import { ADDRESS } from "modules/address";
 import { PRESETS } from "modules/chart";
 import { worldMap } from "modules/world-map";
 import { WorldMapProvider } from "modules/world-map-provider";
 import { CHARTS } from "test/insights-fixtures";
 import { NUMERIC_CODES } from "test/messages";
-import { expect, screen, userEvent, within } from "storybook/test";
+import { expect, fn, screen, userEvent, within } from "storybook/test";
 
 import ChartBuilder from "./ChartBuilder";
 
@@ -19,10 +20,23 @@ async function pick(canvasElement: HTMLElement, label: string, option: string) {
   await userEvent.click(await screen.findByRole("option", { name: option }));
 }
 
+// Stands in for `ADDRESS.replace`, so a change drawn without asking the server
+// leaves the story frame's own address alone.
+const replaceAddress = fn<(href: string) => void>().mockName("ADDRESS.replace");
+
 const meta = {
   title: "Insights/Chart builder",
   component: ChartBuilder,
   args: { description: preset("perYear"), drawn: CHARTS.perYear },
+  beforeEach: () => {
+    const replace = ADDRESS.replace;
+    replaceAddress.mockClear();
+    ADDRESS.replace = replaceAddress;
+
+    return () => {
+      ADDRESS.replace = replace;
+    };
+  },
   decorators: [
     (Story) => (
       <WorldMapProvider map={worldMap(NUMERIC_CODES)}>
@@ -84,7 +98,10 @@ export const ChoosingAPreset: Story = {
   },
 };
 
-/** A change keeps the search in the address. */
+/**
+ * A change keeps the search in the address, both when the server reads the new
+ * chart and when the chart is drawn without asking it.
+ */
 export const KeepingTheSearch: Story = {
   parameters: {
     nextjs: {
@@ -94,10 +111,49 @@ export const KeepingTheSearch: Story = {
   play: async ({ canvasElement }) => {
     await pick(canvasElement, "Show as", "as lines");
 
-    await expect(getRouter().replace).toHaveBeenLastCalledWith(
+    await expect(replaceAddress).toHaveBeenLastCalledWith(
       "/insights?search=clarice&count=publications&by=year&split=country&form=lines",
+    );
+
+    await pick(canvasElement, "Group by", "by decade");
+
+    await expect(getRouter().replace).toHaveBeenLastCalledWith(
+      "/insights?search=clarice&count=publications&by=decade&split=country&form=lines",
       { scroll: false },
     );
+  },
+};
+
+/**
+ * Columns, lines and stacked areas of publications by year ask the server for
+ * the same counts, so switching between them draws the new form at once. The
+ * play test checks that each switch writes the address with `ADDRESS.replace`,
+ * that `router.replace` is not called, and that the new form is drawn.
+ */
+export const DrawingTheSameCounts: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const chart = () =>
+      canvas.getByRole("region", {
+        name: "Publications by year and leading countries",
+      });
+
+    await pick(canvasElement, "Show as", "as lines");
+
+    await expect(replaceAddress).toHaveBeenLastCalledWith(
+      "/insights?count=publications&by=year&split=country&form=lines",
+    );
+    await expect(canvas.getByLabelText("Preset")).toHaveValue("Custom");
+    await expect(chart().querySelectorAll("polyline")).toHaveLength(3);
+
+    await pick(canvasElement, "Show as", "as stacked area");
+
+    await expect(replaceAddress).toHaveBeenLastCalledWith(
+      "/insights?count=publications&by=year&split=country&form=area",
+    );
+    await expect(chart().querySelectorAll("polygon")).toHaveLength(3);
+
+    await expect(getRouter().replace).not.toHaveBeenCalled();
   },
 };
 
@@ -198,6 +254,41 @@ export const OtherCounts: Story = {
     ]);
 
     await userEvent.keyboard("{Escape}");
+  },
+};
+
+/**
+ * Shares need a split, and kinds are not split by kind, so choosing shares for
+ * publications by kind splits them by country. The play test checks the
+ * address it writes.
+ */
+export const SharesOfKinds: Story = {
+  args: {
+    description: {
+      count: "publications",
+      by: "kind",
+      split: null,
+      form: "bars",
+      top: null,
+      least: null,
+    },
+    drawn: {
+      series: [null],
+      groups: [
+        { key: "first_translation", total: 300, counts: [300] },
+        { key: "retranslation", total: 40, counts: [40] },
+        { key: "reissue", total: 88, counts: [88] },
+      ],
+      hidden: 0,
+    },
+  },
+  play: async ({ canvasElement }) => {
+    await pick(canvasElement, "Show as", "as shares");
+
+    await expect(getRouter().replace).toHaveBeenLastCalledWith(
+      "/insights?count=publications&by=kind&split=country&form=shares",
+      { scroll: false },
+    );
   },
 };
 

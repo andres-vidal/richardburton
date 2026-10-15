@@ -1,4 +1,4 @@
-import { get } from "app/api";
+import { get, getOrNull } from "app/api";
 import {
   DOCUMENTS_PER_PAGE,
   type DocumentPage,
@@ -17,12 +17,12 @@ export async function readDocuments(archived: boolean): Promise<DocumentPage> {
 }
 
 /**
- * Reads one import document. Returns `null` when the read fails, for example
- * when there is no such document. Archived documents are returned too, so a
- * link to one still works.
+ * Reads one import document. Returns `null` when the backend answers 404
+ * because there is no such document, and throws any other failure. Archived
+ * documents are returned too, so a link to one still works.
  */
 export async function readDocument(
   id: string,
 ): Promise<DocumentSummary | null> {
-  return get<DocumentSummary>(`/documents/${id}`).catch(() => null);
+  return getOrNull<DocumentSummary>(`/documents/${id}`);
 }
