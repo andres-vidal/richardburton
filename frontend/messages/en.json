@@ -437,10 +437,10 @@
     "subject": "Subject",
     "message": "Write your message here...",
     "thanks": "Thank you for your contact!",
-    "cancel": "Cancel",
     "send": "Send",
     "sent": "Your message has been sent!",
-    "failed": "Something went wrong."
+    "failed": "Something went wrong.",
+    "captchaFailed": "The reCAPTCHA check failed. Please try sending your message again."
   },
   "about": {
     "label": "About the platform",
@@ -473,6 +473,7 @@
   },
   "common": {
     "loading": "Loading",
+    "cancel": "Cancel",
     "processing": "Your request is being processed",
     "notifications": "Notifications",
     "breadcrumb": "Breadcrumb",
@@ -523,7 +524,8 @@
     "stray_escape_character": "Could not parse publications from the provided file",
     "alpha2": "This field should be a valid ISO 3166-1 alpha 2 country code",
     "duplicate": "This field cannot repeat the same entry",
-    "repeated": "Another row of this import is the same publication"
+    "repeated": "Another row of this import is the same publication",
+    "invalid": "A publication is not valid, so nothing was inserted"
   },
   "moving": {
     "moved": "{count, plural, one {Moved # row} other {Moved # rows}}",

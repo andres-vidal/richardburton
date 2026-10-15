@@ -437,10 +437,10 @@
     "subject": "Assunto",
     "message": "Escreva sua mensagem aqui...",
     "thanks": "Obrigado pelo seu contato!",
-    "cancel": "Cancelar",
     "send": "Enviar",
     "sent": "Sua mensagem foi enviada!",
-    "failed": "Algo deu errado."
+    "failed": "Algo deu errado.",
+    "captchaFailed": "A verificação do reCAPTCHA falhou. Tente enviar sua mensagem novamente."
   },
   "about": {
     "label": "Sobre a plataforma",
@@ -473,6 +473,7 @@
   },
   "common": {
     "loading": "Carregando",
+    "cancel": "Cancelar",
     "processing": "Sua solicitação está sendo processada",
     "notifications": "Notificações",
     "breadcrumb": "Trilha de navegação",
@@ -523,7 +524,8 @@
     "stray_escape_character": "Não foi possível ler as publicações do arquivo enviado",
     "alpha2": "Este campo deve ser um código de país ISO 3166-1 alfa 2 válido",
     "duplicate": "Este campo não pode repetir a mesma entrada",
-    "repeated": "Outra linha desta importação é a mesma publicação"
+    "repeated": "Outra linha desta importação é a mesma publicação",
+    "invalid": "Uma publicação não é válida, então nada foi inserido"
   },
   "moving": {
     "moved": "{count, plural, one {# linha movida} other {# linhas movidas}}",

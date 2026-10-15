@@ -49,9 +49,14 @@ function useNotify(): Notifier {
 }
 
 /**
- * Where notifications live and how long: a stack pinned near the top, capped,
- * with confirmations timing out and failures waiting to be dismissed. The
- * cards themselves are `Notification`.
+ * Renders the notifications as a stack of `Notification` cards pinned near the
+ * top of the page, in a portal. It shows up to five, and summarises any more as
+ * a count. A confirmation disappears after four seconds, and a failure stays
+ * until it is dismissed. Moving to another page clears them all.
+ *
+ * The stack is marked `data-live-region`, so a modal that is open leaves it
+ * visible to assistive technology and a notification raised from the modal is
+ * still announced.
  */
 const Notifications: FC = () => {
   // Rooted, not scoped, so a name can point anywhere in the catalogue. An
@@ -96,6 +101,7 @@ const Notifications: FC = () => {
   return (
     <FloatingPortal>
       <section
+        data-live-region
         aria-label={t("common.notifications")}
         className="flex fixed top-10 left-1/2 flex-col items-center space-y-2 -translate-x-1/2 z-70"
       >
