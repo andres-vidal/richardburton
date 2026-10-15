@@ -6,7 +6,7 @@ import type { PublicationHistoryEntry } from "modules/publication/model";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
-import Notes from "./Notes";
+import RichText from "./RichText";
 
 type HistoryEntry = WithChanges<PublicationHistoryEntry>;
 
@@ -206,7 +206,7 @@ const Entry: FC<{
                   </span>
                   <del className="text-gray-500 no-underline">
                     {change.from ? (
-                      <Notes markdown={change.from} size="small" />
+                      <RichText markdown={change.from} size="small" />
                     ) : (
                       t("noNotes")
                     )}
@@ -216,7 +216,7 @@ const Entry: FC<{
                   </span>
                   <ins className="no-underline">
                     {change.to ? (
-                      <Notes markdown={change.to} size="small" />
+                      <RichText markdown={change.to} size="small" />
                     ) : (
                       t("noNotes")
                     )}
@@ -270,7 +270,7 @@ const Entry: FC<{
                         {record.notes && (
                           <li className="text-gray-500">
                             {attribute("notes")}:
-                            <Notes markdown={record.notes} size="small" />
+                            <RichText markdown={record.notes} size="small" />
                           </li>
                         )}
                       </ul>

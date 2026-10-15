@@ -36,9 +36,9 @@ so the same publication offers the same affordances wherever it is read.
 The Edit control opens `PublicationEditForm`, which the module also exports. It
 edits every field of a publication in the enclosing store. While it is open,
 `watchEdit` validates the publication shortly after each change, and each field
-writes its error under itself. The notes are edited in the
-[notes editor](?path=/docs/publications-notes-editor--docs), which
-writes them to the row as Markdown. The save button is disabled while the
+writes its error under itself. The notes are edited in a
+[rich text area](?path=/docs/components-rich-text-area--docs), which writes
+them to the row as Markdown. The save button is disabled while the
 publication has errors. By default it saves with `update`. Its `save`, `heading` and
 `saveLabel` props replace the save action and the two labels, which is how the
 [trash](?path=/docs/publications-deleted-publications--docs) uses it to restore
@@ -60,7 +60,7 @@ a publication with changes.
 - **Search links** — every value in the sentence links to a search for it.
 
 The notes section renders the publication's Markdown with
-[`Notes`](?path=/docs/publications-notes--docs). Unlike the sources, it is
+[`RichText`](?path=/docs/components-rich-text--docs). Unlike the sources, it is
 left out when there are none.
 
 <Canvas of={PublicationDetailStories.WithNotes} />

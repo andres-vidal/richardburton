@@ -11,7 +11,7 @@ type Publication = {
   originalAuthors: string[];
   sources: string[];
   /**
-   * The publication's notes in Markdown (see `modules/notes`), or null
+   * The publication's notes in Markdown (see `modules/rich-text`), or null
    * when it has none. A page of the index leaves notes out, so a record read
    * from one has no `notes` key, and neither has a new row nobody has
    * written notes on. A request without the key keeps the stored notes, and a

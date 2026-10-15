@@ -144,8 +144,8 @@ export const AsAdmin: Story = {
 
 /**
  * Editing happens in place, over the record it is about to change — there is no
- * separate screen to navigate to and come back from. The notes open in the
- * notes editor, which loads with the form, formatted as they are stored.
+ * separate screen to navigate to and come back from. The notes open in a
+ * rich text area, which loads with the form, formatted as they are stored.
  */
 export const Editing: Story = {
   args: {
@@ -160,7 +160,7 @@ export const Editing: Story = {
     await waitFor(() =>
       expect(screen.getByLabelText("Title")).toHaveValue("Dom Casmurro"),
     );
-    // The notes editor loads when the form first renders.
+    // The rich text area loads when the form first renders.
     await expect(
       within(await screen.findByRole("textbox", { name: "Notes" })).getByText(
         "first",

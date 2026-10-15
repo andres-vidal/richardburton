@@ -47,27 +47,32 @@ import {
 } from "react";
 import { useMutation } from "utils/useMutation";
 import Button from "./Button";
-import Notes from "./Notes";
 import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
 import Highlight from "./Highlight";
 import { useModal } from "./Modal";
 import PublicationHistory from "./PublicationHistory";
 import PublicationMerge from "./PublicationMerge";
+import RichText from "./RichText";
 import SourcesEditor from "./SourcesEditor";
 import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
 
 /**
- * The notes editor, loaded the first time the edit form renders. A reader
- * who never edits does not download the editor's code. Until the editor has
- * loaded, an empty box about its size holds its place, and the rest of the
- * form is already usable.
+ * The rich-text field, loaded the first time the edit form renders. A reader
+ * who never edits does not download the field's code. Until the field has
+ * loaded, an empty box holds its place, and the rest of the form is already
+ * usable. The box is 247px tall, the height of the empty field with a one-line
+ * label and hint: 38px for them, an 8px gap, and 201px for the toolbar and
+ * the 10rem text area in their border.
  */
-const NotesEditor = dynamic(() => import("./NotesEditor"), {
+const RichTextArea = dynamic(() => import("./RichTextArea"), {
   ssr: false,
   loading: () => (
-    <div aria-hidden className="h-52 bg-white rounded border border-gray-200" />
+    <div
+      aria-hidden
+      className="h-61.75 bg-white rounded border border-gray-200"
+    />
   ),
 });
 
@@ -232,23 +237,28 @@ const PublicationNotes: FC<{ notes: string | null | undefined }> = ({
   return notes?.trim() ? (
     <section aria-label={t("notes")} className="space-y-2">
       <SectionHeading>{t("notes")}</SectionHeading>
-      <Notes markdown={notes} />
+      <RichText markdown={notes} />
     </section>
   ) : null;
 };
 
 /**
- * The notes editor for the publication `id` in the enclosing store, with
+ * The notes field for the publication `id` in the enclosing store, with
  * the error the notes have. Edits are written to the row with
  * `setNotes`, and saved with the rest of it.
  */
 const EditNotes: FC<{ id: PublicationId }> = ({ id }) => {
+  const t = useTranslations("notes");
+  const attribute = useTranslations("attributes");
   const store = usePublicationStore();
   const notes = usePublicationNotes(id);
   const error = usePublicationNotesError(id);
 
   return (
-    <NotesEditor
+    <RichTextArea
+      label={attribute("notes")}
+      hint={t("hint")}
+      placeholder={t("placeholder")}
       value={notes}
       error={error}
       onChange={(markdown) => setNotes(store, id, markdown)}

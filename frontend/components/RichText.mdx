@@ -1,0 +1,51 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as RichTextStories from "./RichText.stories";
+
+<Meta of={RichTextStories} />
+
+# Rich text
+
+Renders rich text from its Markdown, read-only. It renders paragraphs, line
+breaks, bold and italic text, bulleted and numbered lists, nested lists
+included, and links. Every link opens in a new tab with
+`rel="noopener noreferrer"`.
+
+The Markdown is read with `parse` and laid out with `toTree` from
+`modules/rich-text`, the same conversion that the
+[rich text area](?path=/docs/components-rich-text-area--docs) writes with, so
+the text reads as it did in the field. The component builds React elements from
+that tree and sets no HTML of its own.
+
+<Description of={RichTextStories.Default} />
+<Canvas of={RichTextStories.Default} />
+
+## Props
+
+- `markdown` — the text in Markdown. Empty, null or missing Markdown renders
+  nothing.
+- `size` — `base`, the default, for running text, or `small` for smaller text
+  with less space between blocks.
+
+<Description of={RichTextStories.Small} />
+<Canvas of={RichTextStories.Small} />
+
+## Bare addresses
+
+A URL or an email address written out in the text is a link, as GitHub reads
+one.
+
+<Description of={RichTextStories.BareLinks} />
+<Canvas of={RichTextStories.BareLinks} />
+
+## Markdown that rich text does not support
+
+Rich text is a subset of Markdown. The rest keeps its text: a heading is a
+paragraph, code and raw HTML are text, an image is its alternative text, and a
+link to anything but an `http`, `https` or `mailto` address is its label.
+
+<Description of={RichTextStories.UnsupportedMarkdown} />
+<Canvas of={RichTextStories.UnsupportedMarkdown} />
+
+<Description of={RichTextStories.Empty} />
+<Canvas of={RichTextStories.Empty} />

@@ -21,10 +21,10 @@ import {
   linkTarget,
   parse,
   serialize,
-  type NotesMark,
-  type NotesValue,
   type ListKind,
-} from "modules/notes";
+  type RichTextMark,
+  type RichTextValue,
+} from "modules/rich-text";
 import {
   activeLink,
   activeList,
@@ -35,8 +35,8 @@ import {
   replaceValue,
   toggleList,
   toggleMark,
-  withNotes,
-} from "modules/notes-editor";
+  withRichText,
+} from "modules/rich-text-editor";
 import { useTranslations } from "next-intl";
 import {
   FC,
@@ -128,7 +128,7 @@ const LinkForm: FC<{
   onRemove,
   onCancel,
 }) => {
-  const t = useTranslations("notes");
+  const t = useTranslations("richText");
   const errorId = useId();
   const [address, setAddress] = useState(initialUrl);
   const [text, setText] = useState("");
@@ -223,7 +223,7 @@ const LinkControl: FC<{
   onOpen: () => void;
   onClose: (change?: (at: Range) => void) => void;
 }> = ({ at, onOpen, onClose }) => {
-  const t = useTranslations("notes");
+  const t = useTranslations("richText");
   const editor = useSlate();
   const urlRef = useRef<HTMLInputElement>(null);
   const open = at !== null;
@@ -304,11 +304,11 @@ const Toolbar: FC<{
   onLink: () => void;
   onLinked: (change?: (at: Range) => void) => void;
 }> = ({ linking, onLink, onLinked }) => {
-  const t = useTranslations("notes");
+  const t = useTranslations("richText");
   const editor = useSlate();
   const list = activeList(editor);
 
-  const mark = (name: NotesMark) => ({
+  const mark = (name: RichTextMark) => ({
     pressed: isMarkActive(editor, name),
     onToggle: () => toggleMark(editor, name),
   });
@@ -393,12 +393,21 @@ function renderElement({ attributes, children, element }: RenderElementProps) {
 }
 
 /**
- * The placeholder of an empty editor, in grey that keeps the contrast text
- * needs. Slate gives it an inline opacity, which the class overrides.
+ * The placeholder of an empty text area, in grey that keeps the contrast text
+ * needs. It sits where the first line of text starts: inside the text area's
+ * padding, or after the marker when the only block is a list item.
+ *
+ * Slate gives the placeholder an inline style that places it at the top of
+ * its positioned ancestor, as wide as that ancestor's padding box, and makes
+ * it faint. The important classes override that style, so the placeholder
+ * lines up with the caret and is never wider than the text area.
  */
 function renderPlaceholder({ attributes, children }: RenderPlaceholderProps) {
   return (
-    <span {...attributes} className="text-gray-500 opacity-100!">
+    <span
+      {...attributes}
+      className="text-gray-500 opacity-100! top-2! left-3! right-3! w-auto! max-w-none! in-data-list:top-0! in-data-list:left-6! in-data-list:right-0!"
+    >
       {children}
     </span>
   );
@@ -429,59 +438,78 @@ const EdgeSpacer: FC = () => (
 );
 
 /**
- * Edits a publication's notes: rich text with paragraphs and line breaks,
- * bold and italic text, bulleted and numbered lists, and links. `value` is the
- * notes in Markdown, or null for none, and `onChange` receives the Markdown
- * the edited text is written as (see `serialize`), each time that Markdown
- * changes. Changing only the selection, or typing what Markdown cannot hold,
- * such as an empty paragraph, calls nothing.
+ * A field that edits rich text: paragraphs and line breaks, bold and italic
+ * text, bulleted and numbered lists, and links (see `modules/rich-text`).
+ * `value` is the text in Markdown, or null for none, and `onChange` receives
+ * the Markdown the edited text is written as (see `serialize`), each time that
+ * Markdown changes. Changing only the selection, or typing what Markdown
+ * cannot hold, such as an empty paragraph, calls nothing.
  *
- * The editor keeps its own value while it is typed in. When `value` changes to
- * Markdown other than what it last passed to `onChange`, as when another
- * person edits the same notes, the editor shows the new value and forgets
- * its undo history.
+ * The field keeps its own value while it is typed in. When `value` changes to
+ * Markdown that the field did not pass to `onChange`, as when another person
+ * edits the same text, the field shows the new value and forgets its undo
+ * history. A `value` that the field did pass to `onChange` changes nothing,
+ * even when the field has passed newer Markdown since, so a parent that
+ * renders a keystroke behind does not undo what was typed after it.
  *
  * The toolbar's buttons, and Ctrl or Cmd with B, I and K, set bold and italic
  * and open the link dialog. In a list item, Tab and Shift+Tab move the item a
  * level deeper or shallower, and Enter on an empty item leaves the list. Undo
  * and redo are the editor's own, with the usual shortcuts. A bare URL or email
- * address that is typed or pasted becomes a link (see `withNotes`).
+ * address that is typed or pasted becomes a link (see `withRichText`).
  *
- * The text area is a labelled multi-line textbox, described by the hint under
- * the label and by `error`, which is shown under the editor.
+ * The text area is a multi-line textbox named by `label`. It is described by
+ * `hint`, which is shown under the label, and by `error`, which is shown under
+ * the field and marks the text area invalid. `placeholder` is shown in the
+ * empty text area. The text area is 10rem tall when empty, grows with its
+ * text up to 20rem, and scrolls after that.
  */
-const NotesEditor: FC<{
+const RichTextArea: FC<{
+  label: string;
+  hint?: string;
+  placeholder?: string;
   value: string | null;
   onChange: (markdown: string) => void;
   error?: string;
-}> = ({ value, onChange, error }) => {
-  const t = useTranslations("notes");
-  const attribute = useTranslations("attributes");
+}> = ({ label, hint, placeholder, value, onChange, error }) => {
   const labelId = useId();
   const hintId = useId();
   const errorId = useId();
+  const describedBy = [hint ? hintId : "", error ? errorId : ""]
+    .filter(Boolean)
+    .join(" ");
 
   const [editor] = useState(() =>
-    withNotes(withHistory(withReact(createEditor()))),
+    withRichText(withHistory(withReact(createEditor()))),
   );
   const [initialValue] = useState(() => parse(value));
+  // The Markdown the editor holds: what it last passed to `onChange`, or the
+  // `value` it last took.
   const reported = useRef(value ?? "");
+  // The Markdown passed to `onChange` that `value` has not yet held, oldest
+  // first.
+  const unconfirmed = useRef<string[]>([]);
   const [linking, setLinking] = useState<RangeRef | null>(null);
 
   useEffect(() => {
     const incoming = value ?? "";
+    const echoed = unconfirmed.current.lastIndexOf(incoming);
 
-    if (incoming !== reported.current) {
+    if (echoed >= 0) {
+      unconfirmed.current.splice(0, echoed + 1);
+    } else if (incoming !== reported.current) {
+      unconfirmed.current = [];
       reported.current = incoming;
       replaceValue(editor, parse(incoming));
     }
   }, [editor, value]);
 
   function handleValueChange(next: Descendant[]) {
-    const markdown = serialize(next as NotesValue);
+    const markdown = serialize(next as RichTextValue);
 
     if (markdown !== reported.current) {
       reported.current = markdown;
+      unconfirmed.current.push(markdown);
       onChange(markdown);
     }
   }
@@ -532,14 +560,16 @@ const NotesEditor: FC<{
       initialValue={initialValue}
       onValueChange={handleValueChange}
     >
-      <section className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-0.5">
           <span id={labelId} className="text-sm text-gray-600">
-            {attribute("notes")}
+            {label}
           </span>
-          <span id={hintId} className="text-xs text-gray-500">
-            {t("hint")}
-          </span>
+          {hint && (
+            <span id={hintId} className="text-xs text-gray-500">
+              {hint}
+            </span>
+          )}
         </div>
         <div
           data-error={Boolean(error)}
@@ -550,14 +580,15 @@ const NotesEditor: FC<{
             role="textbox"
             aria-multiline
             aria-labelledby={labelId}
-            aria-describedby={error ? `${hintId} ${errorId}` : hintId}
+            aria-describedby={describedBy || undefined}
             aria-invalid={Boolean(error)}
-            placeholder={t("placeholder")}
+            placeholder={placeholder}
+            disableDefaultStyles
             renderElement={renderElement}
             renderLeaf={renderLeaf}
             renderPlaceholder={renderPlaceholder}
             onKeyDown={handleKeyDown}
-            className="overflow-y-auto py-2 px-3 max-h-80 text-sm text-gray-800 outline-none min-h-28 [counter-reset:list-0_list-1_list-2]"
+            className="relative overflow-y-auto py-2 px-3 min-h-40 max-h-80 text-sm text-gray-800 whitespace-pre-wrap break-words outline-none [counter-reset:list-0_list-1_list-2]"
           />
         </div>
         {error && (
@@ -565,9 +596,9 @@ const NotesEditor: FC<{
             {error}
           </p>
         )}
-      </section>
+      </div>
     </Slate>
   );
 };
 
-export default NotesEditor;
+export default RichTextArea;

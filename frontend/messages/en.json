@@ -518,7 +518,9 @@
   },
   "notes": {
     "hint": "Shown to everyone on the publication's page.",
-    "placeholder": "Notes about this publication",
+    "placeholder": "Notes about this publication"
+  },
+  "richText": {
     "toolbar": "Formatting",
     "bold": "Bold",
     "italic": "Italic",

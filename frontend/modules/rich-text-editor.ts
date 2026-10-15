@@ -14,18 +14,18 @@ import {
   bareUrl,
   isLink,
   linkLabel,
-  type NotesBlock,
-  type NotesMark,
-  type NotesValue,
   type LinkElement,
   type ListItemElement,
   type ListKind,
-} from "./notes";
+  type RichTextBlock,
+  type RichTextMark,
+  type RichTextValue,
+} from "./rich-text";
 
 /**
- * The editing commands of the notes editor, which work on a Slate editor
- * holding a notes value (see `modules/notes`), and `withNotes`, which
- * gives an editor the behaviour they rely on.
+ * The editing commands of a rich-text editor, which work on a Slate editor
+ * holding a rich-text value (see `modules/rich-text`), and `withRichText`,
+ * which gives an editor the behaviour they rely on.
  *
  * The **selection** is the editor's own, or the range a command is given with
  * `at`, so a command can act on a selection saved before the focus left the
@@ -33,7 +33,7 @@ import {
  */
 
 /** Returns whether a node is a block: a paragraph or a list item. */
-function isBlock(node: unknown): node is NotesBlock {
+function isBlock(node: unknown): node is RichTextBlock {
   return (
     Element.isElement(node) &&
     (node.type === "paragraph" || node.type === "list-item")
@@ -46,7 +46,7 @@ function isListItem(node: unknown): node is ListItemElement {
 }
 
 /** Returns whether the text typed next carries `mark`. */
-function isMarkActive(editor: Editor, mark: NotesMark): boolean {
+function isMarkActive(editor: Editor, mark: RichTextMark): boolean {
   return Editor.marks(editor)?.[mark] === true;
 }
 
@@ -55,7 +55,7 @@ function isMarkActive(editor: Editor, mark: NotesMark): boolean {
  * carries it. With a collapsed selection, it changes the marks of the text
  * typed next.
  */
-function toggleMark(editor: Editor, mark: NotesMark): void {
+function toggleMark(editor: Editor, mark: RichTextMark): void {
   if (isMarkActive(editor, mark)) Editor.removeMark(editor, mark);
   else Editor.addMark(editor, mark, true);
 }
@@ -250,7 +250,7 @@ function linkWordBefore(editor: Editor): void {
  * Replaces the editor's value with `value`, and clears its selection and its
  * undo history.
  */
-function replaceValue(editor: Editor, value: NotesValue): void {
+function replaceValue(editor: Editor, value: RichTextValue): void {
   editor.children = value;
   editor.selection = null;
   editor.history = { undos: [], redos: [] };
@@ -258,7 +258,7 @@ function replaceValue(editor: Editor, value: NotesValue): void {
 }
 
 /**
- * Gives `editor` the behaviour of the notes editor and returns it:
+ * Gives `editor` the behaviour of a rich-text editor and returns it:
  *
  * - A link is an inline element, and a link with no text is removed.
  * - A soft break, Shift+Enter, is a line break in the block.
@@ -269,7 +269,7 @@ function replaceValue(editor: Editor, value: NotesValue): void {
  *   it, and pasting one links it, or links the selected text to it.
  * - A list item's depth is kept between 0 and `MAX_DEPTH`.
  */
-function withNotes<T extends Editor>(editor: T): T {
+function withRichText<T extends Editor>(editor: T): T {
   const {
     deleteBackward,
     insertBreak,
@@ -370,5 +370,5 @@ export {
   replaceValue,
   toggleList,
   toggleMark,
-  withNotes,
+  withRichText,
 };

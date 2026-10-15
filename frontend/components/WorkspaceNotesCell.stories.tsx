@@ -3,6 +3,7 @@ import { store, type Store } from "modules/store";
 import { Publication, type PublicationError } from "modules/publication/model";
 import { publicationFamily, resetAll, setAll } from "modules/publication/store";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
+import { focusEditor } from "test/slate";
 
 import WorkspaceNotesCell from "./WorkspaceNotesCell";
 
@@ -102,7 +103,7 @@ export const Editing: Story = {
     await userEvent.click(screen.getByRole("button", { name: "Add notes" }));
     const dialog = await screen.findByRole("dialog", { name: "Edit notes" });
 
-    await userEvent.click(within(dialog).getByRole("textbox"));
+    await focusEditor(within(dialog).getByRole("textbox"));
     await userEvent.click(within(dialog).getByRole("button", { name: "Bold" }));
     await userEvent.keyboard("First edition");
 

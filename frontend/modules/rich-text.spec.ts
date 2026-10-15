@@ -6,14 +6,14 @@ import {
   plainText,
   safeUrl,
   serialize,
-  type NotesValue,
-} from "./notes";
+  type RichTextValue,
+} from "./rich-text";
 
 // Parses `markdown` and writes it back.
 const roundTrip = (markdown: string) => serialize(parse(markdown));
 
 describe("parse", () => {
-  it("reads empty notes as one empty paragraph", () => {
+  it("reads empty Markdown as one empty paragraph", () => {
     const empty = [{ type: "paragraph", children: [{ text: "" }] }];
 
     expect(parse(null)).toEqual(empty);
@@ -47,7 +47,7 @@ describe("parse", () => {
 
   it("reads emphasis inside a link onto the link's text", () => {
     expect(
-      parse("See [the **first** edition](https://example.com/1886)."),
+      parse("See [the **first** draft](https://example.com/draft)."),
     ).toEqual([
       {
         type: "paragraph",
@@ -55,11 +55,11 @@ describe("parse", () => {
           { text: "See " },
           {
             type: "link",
-            url: "https://example.com/1886",
+            url: "https://example.com/draft",
             children: [
               { text: "the " },
               { text: "first", bold: true },
-              { text: " edition" },
+              { text: " draft" },
             ],
           },
           { text: "." },
@@ -71,7 +71,7 @@ describe("parse", () => {
   it("links bare URLs and email addresses", () => {
     expect(
       parse(
-        "Read https://archive.org/details/iracema, www.example.com or ask a@b.org.",
+        "Read https://example.com/docs/guide, www.example.com or ask a@b.org.",
       ),
     ).toEqual([
       {
@@ -80,8 +80,8 @@ describe("parse", () => {
           { text: "Read " },
           {
             type: "link",
-            url: "https://archive.org/details/iracema",
-            children: [{ text: "https://archive.org/details/iracema" }],
+            url: "https://example.com/docs/guide",
+            children: [{ text: "https://example.com/docs/guide" }],
           },
           { text: ", " },
           {
@@ -245,7 +245,7 @@ describe("serialize", () => {
   });
 
   it("writes marks, links and line breaks", () => {
-    const value: NotesValue = [
+    const value: RichTextValue = [
       {
         type: "paragraph",
         children: [
@@ -268,41 +268,41 @@ describe("serialize", () => {
   });
 
   it("writes nested lists from items of increasing depth", () => {
-    const value: NotesValue = [
-      { type: "paragraph", children: [{ text: "Editions:" }] },
+    const value: RichTextValue = [
+      { type: "paragraph", children: [{ text: "Groceries:" }] },
       {
         type: "list-item",
         list: "bulleted",
         depth: 0,
-        children: [{ text: "English" }],
+        children: [{ text: "Fruit" }],
       },
       {
         type: "list-item",
         list: "numbered",
         depth: 1,
-        children: [{ text: "1886" }],
+        children: [{ text: "Apples" }],
       },
       {
         type: "list-item",
         list: "numbered",
         depth: 1,
-        children: [{ text: "1902" }],
+        children: [{ text: "Pears" }],
       },
       {
         type: "list-item",
         list: "bulleted",
         depth: 0,
-        children: [{ text: "German" }],
+        children: [{ text: "Bread" }],
       },
     ];
 
     expect(serialize(value)).toBe(
-      "Editions:\n\n- English\n  1. 1886\n  2. 1902\n- German",
+      "Groceries:\n\n- Fruit\n  1. Apples\n  2. Pears\n- Bread",
     );
   });
 
   it("takes an item that skips a level to be one level deeper", () => {
-    const value: NotesValue = [
+    const value: RichTextValue = [
       {
         type: "list-item",
         list: "bulleted",
@@ -321,7 +321,7 @@ describe("serialize", () => {
   });
 
   it("links the bare URLs left in the text", () => {
-    const value: NotesValue = [
+    const value: RichTextValue = [
       {
         type: "paragraph",
         children: [{ text: "At https://example.com/a_b and www.example.org." }],
@@ -334,7 +334,7 @@ describe("serialize", () => {
   });
 
   it("escapes text that would read as Markdown", () => {
-    const value: NotesValue = [
+    const value: RichTextValue = [
       {
         type: "paragraph",
         children: [{ text: "1. not a list, *not* italic, <b>" }],
@@ -345,7 +345,7 @@ describe("serialize", () => {
   });
 
   it("keeps the white space at the ends of a marked run outside the mark", () => {
-    const value: NotesValue = [
+    const value: RichTextValue = [
       {
         type: "paragraph",
         children: [
@@ -378,7 +378,7 @@ describe("round trips", () => {
   });
 
   it("keeps marks that start or end inside a word", () => {
-    const value: NotesValue = [
+    const value: RichTextValue = [
       {
         type: "paragraph",
         children: [
@@ -404,7 +404,7 @@ describe("round trips", () => {
 });
 
 describe("plainText", () => {
-  it("reads notes as one line of text", () => {
+  it("reads Markdown as one line of text", () => {
     expect(
       plainText("A **bold** [link](https://x.org).\\\nNext\n\n- item\n- other"),
     ).toBe("A bold link. Next item other");

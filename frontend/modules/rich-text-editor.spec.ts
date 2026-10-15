@@ -2,7 +2,7 @@ import { createEditor, Editor, Transforms } from "slate";
 import { withHistory } from "slate-history";
 import { withReact } from "slate-react";
 import { describe, expect, it } from "vitest";
-import { parse, serialize, type NotesValue } from "./notes";
+import { parse, serialize, type RichTextValue } from "./rich-text";
 import {
   activeLink,
   activeList,
@@ -13,13 +13,13 @@ import {
   replaceValue,
   toggleList,
   toggleMark,
-  withNotes,
-} from "./notes-editor";
+  withRichText,
+} from "./rich-text-editor";
 
-// Returns a notes editor holding `markdown`, normalized as the editor
-// would hold it.
+// Returns an editor with `withRichText` holding `markdown`, normalized as
+// the editor would hold it.
 const editorOf = (markdown: string) => {
-  const editor = withNotes(withHistory(withReact(createEditor())));
+  const editor = withRichText(withHistory(withReact(createEditor())));
   editor.children = parse(markdown);
   Editor.normalize(editor, { force: true });
 
@@ -49,7 +49,9 @@ const atEnd = (editor: Editor) =>
 const type = (editor: Editor, text: string) =>
   [...text].forEach((character) => editor.insertText(character));
 
-const markdownOf = (editor: Editor) => serialize(editor.children as NotesValue);
+// Returns the Markdown that the editor's value is written as.
+const markdownOf = (editor: Editor) =>
+  serialize(editor.children as RichTextValue);
 
 describe("marks", () => {
   it("toggles bold and italic on the selected text", () => {

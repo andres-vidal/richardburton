@@ -1,0 +1,93 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as RichTextAreaStories from "./RichTextArea.stories";
+
+<Meta of={RichTextAreaStories} />
+
+# Rich text area
+
+A labelled field that edits rich text with Slate. It takes and gives the text
+as Markdown, which it reads and writes through `parse` and `serialize` in
+`modules/rich-text`. It supports paragraphs and line breaks, bold and italic
+text, bulleted and numbered lists, nested up to three levels, and links. The
+[rich text](?path=/docs/components-rich-text--docs) component renders the same
+Markdown read-only.
+
+<Description of={RichTextAreaStories.WithContent} />
+<Canvas of={RichTextAreaStories.WithContent} />
+
+## Props
+
+- `label` — the name of the field, shown over it. It names the text area, a
+  multi-line textbox.
+- `hint` — optional words under the label that describe the text area.
+- `placeholder` — optional text shown in the empty text area.
+- `value` — the text in Markdown, or null for none. The field reads it when it
+  mounts, and again whenever it changes to Markdown other than what the field
+  last passed to `onChange`, as when another person edits the same text.
+  Reading it again clears the field's undo history.
+- `onChange` — receives the Markdown the text is written as, each time that
+  Markdown changes. An empty field passes an empty string. A change of the
+  selection alone calls nothing.
+- `error` — what is wrong with the text. It is shown under the field, describes
+  the text area after the hint, and marks the text area invalid.
+
+<Description of={RichTextAreaStories.WithError} />
+<Canvas of={RichTextAreaStories.WithError} />
+
+<Description of={RichTextAreaStories.LabelOnly} />
+<Canvas of={RichTextAreaStories.LabelOnly} />
+
+## Size
+
+The text area is 10rem tall when empty. It grows with its text up to 20rem and
+scrolls after that. The placeholder starts where the caret does, and wraps
+inside the text area.
+
+<Description of={RichTextAreaStories.EmptyLayout} />
+<Canvas of={RichTextAreaStories.EmptyLayout} />
+
+## Formatting
+
+The toolbar, named "Formatting", holds Bold, Italic, Bulleted list, Numbered
+list and Link. A button that toggles something is pressed (`aria-pressed`) and
+outlined in the primary colour while the selection has it. Pressing a button
+keeps the focus and the selection in the text.
+
+Ctrl+B and Ctrl+I, or Cmd on a Mac, toggle bold and italic. Shift+Enter breaks
+the line within a paragraph or an item, and undo and redo use the usual
+shortcuts.
+
+<Description of={RichTextAreaStories.TypingBoldAndItalic} />
+<Canvas of={RichTextAreaStories.TypingBoldAndItalic} />
+
+In a list item, Tab and Shift+Tab move the item a level deeper or shallower,
+and Enter on an empty item, or Backspace at the start of an item, takes it out
+a level and then out of the list.
+
+<Description of={RichTextAreaStories.MakingAList} />
+<Canvas of={RichTextAreaStories.MakingAList} />
+
+## Links
+
+The Link button, or Ctrl+K, opens a small dialog under the button. It asks for
+the address, which can be a URL, a web address without `https://`, or an email
+address, and for the text of a new link when no text is selected. In a link, it
+edits the link's address and offers Remove link. Escape closes it without
+closing a dialog around the field.
+
+<Description of={RichTextAreaStories.AddingALink} />
+<Canvas of={RichTextAreaStories.AddingALink} />
+
+<Description of={RichTextAreaStories.EditingALink} />
+<Canvas of={RichTextAreaStories.EditingALink} />
+
+A URL or an email address typed into the text becomes a link once a space or a
+new line follows it, and one that is pasted becomes a link at once, or links
+the selected text.
+
+<Description of={RichTextAreaStories.TypingAUrl} />
+<Canvas of={RichTextAreaStories.TypingAUrl} />
+
+<Description of={RichTextAreaStories.Empty} />
+<Canvas of={RichTextAreaStories.Empty} />

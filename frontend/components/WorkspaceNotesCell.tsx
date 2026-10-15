@@ -1,6 +1,6 @@
 "use client";
 
-import { plainText } from "modules/notes";
+import { plainText } from "modules/rich-text";
 import {
   usePublicationNotes,
   usePublicationNotesError,
@@ -10,21 +10,21 @@ import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
 import { FC, MouseEvent } from "react";
 import { BUTTON_CLASS_NAME } from "./Button";
-import NotesEditor from "./NotesEditor";
 import { Modal, useModal } from "./Modal";
 import type { RowId } from "./PublicationIndexTable";
+import RichTextArea from "./RichTextArea";
 import Tooltip from "./Tooltip";
 
 /**
  * The cell of a workspace row that holds the row's notes: a button showing
- * them as one line of plain text, cut short to fit, which opens the notes
- * editor in a dialog. A row without notes shows "Notes" instead. Edits
- * are written to the row with `setNotes`, and the bulk insert saves them
- * with the rest of the row. A click on the button does not reach the row, so it
- * does not select the row.
+ * them as one line of plain text, cut short to fit, which opens a rich-text
+ * field for them in a dialog. A row without notes shows "Notes"
+ * instead. Edits are written to the row with `setNotes`, and the bulk
+ * insert saves them with the rest of the row. A click on the button does not
+ * reach the row, so it does not select the row.
  *
  * When the notes have an error, such as being too long, the button's
- * tooltip says so, and the editor shows it under the text.
+ * tooltip says so, and the field shows it under the text.
  *
  * `invalid`, `selected` and `focused` give the cell the background the row's
  * other cells have in those states. They default to false.
@@ -36,6 +36,8 @@ const WorkspaceNotesCell: FC<{
   focused?: boolean;
 }> = ({ rowId, invalid = false, selected = false, focused = false }) => {
   const t = useTranslations("admin");
+  const note = useTranslations("notes");
+  const attribute = useTranslations("attributes");
   const store = usePublicationStore();
   const notes = usePublicationNotes(rowId);
   const error = usePublicationNotesError(rowId);
@@ -80,7 +82,10 @@ const WorkspaceNotesCell: FC<{
         onClose={editor.close}
         heading={t("notesEditor")}
       >
-        <NotesEditor
+        <RichTextArea
+          label={attribute("notes")}
+          hint={note("hint")}
+          placeholder={note("placeholder")}
           value={notes}
           error={error}
           onChange={(markdown) => setNotes(store, rowId, markdown)}

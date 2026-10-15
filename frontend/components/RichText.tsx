@@ -1,5 +1,5 @@
 import type * as Mdast from "mdast";
-import { parse, toTree } from "modules/notes";
+import { parse, toTree } from "modules/rich-text";
 import { FC, Fragment, ReactNode } from "react";
 
 /**
@@ -65,19 +65,19 @@ function render(node: Mdast.Nodes, key: number): ReactNode {
 }
 
 /**
- * A publication's notes, read from their Markdown: paragraphs, bulleted
- * and numbered lists, line breaks, bold and italic text, and links. A link
- * opens in a new tab and passes on neither the page nor its address. Renders
- * nothing when the notes are empty.
+ * Renders rich text from its Markdown: paragraphs, bulleted and numbered
+ * lists, line breaks, bold and italic text, and links. A link opens in a new
+ * tab and passes on neither the page nor its address. Renders nothing when the
+ * Markdown holds no text.
  *
- * Only the subset of Markdown that notes support is rendered (see
- * `modules/notes`), and raw HTML is shown as text, so the Markdown cannot
- * add markup of its own to the page.
+ * Only rich text, the subset of Markdown that `modules/rich-text` supports, is
+ * rendered, and raw HTML is shown as text, so the Markdown cannot add markup of
+ * its own to the page.
  *
- * `size` sets the text: `base` for the publication's page, and `small` for a
- * denser place such as the history.
+ * `size` sets the size of the text: `base`, the default, is small body text,
+ * and `small` is a size smaller, with less space between blocks.
  */
-const Notes: FC<{
+const RichText: FC<{
   markdown: string | null | undefined;
   size?: "base" | "small";
 }> = ({ markdown, size = "base" }) => {
@@ -86,11 +86,11 @@ const Notes: FC<{
   return tree.children.length === 0 ? null : (
     <div
       data-size={size}
-      className="space-y-2 text-gray-700 wrap-break-words data-[size=base]:text-sm data-[size=small]:text-xs data-[size=small]:space-y-1"
+      className="space-y-2 text-gray-700 break-words data-[size=base]:text-sm data-[size=small]:text-xs data-[size=small]:space-y-1"
     >
       {tree.children.map(render)}
     </div>
   );
 };
 
-export default Notes;
+export default RichText;

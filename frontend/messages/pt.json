@@ -518,7 +518,9 @@
   },
   "notes": {
     "hint": "Visível para todos na página da publicação.",
-    "placeholder": "Notas sobre esta publicação",
+    "placeholder": "Notas sobre esta publicação"
+  },
+  "richText": {
     "toolbar": "Formatação",
     "bold": "Negrito",
     "italic": "Itálico",
