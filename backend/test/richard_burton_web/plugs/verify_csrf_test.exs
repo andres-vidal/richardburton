@@ -31,7 +31,7 @@ defmodule RichardBurtonWeb.Plugs.VerifyCsrfTest do
     refute conn.halted
   end
 
-  test "responds 403 when the CSRF header is missing" do
+  test "responds 403 invalid_csrf when the CSRF header is missing" do
     conn =
       conn(:post, "/")
       |> assign(:subject_id, @subject)
@@ -39,7 +39,7 @@ defmodule RichardBurtonWeb.Plugs.VerifyCsrfTest do
 
     assert conn.halted
     assert conn.status == 403
-    assert conn.resp_body == "Invalid CSRF token"
+    assert Jason.decode!(conn.resp_body) == %{"error" => "invalid_csrf"}
   end
 
   test "responds 403 when the CSRF token is tampered" do

@@ -1,9 +1,8 @@
-import { request } from "app";
 import { createStore } from "jotai";
-import type { AxiosInstance } from "axios";
 import { notify } from "components/Notifications";
-
+import { ApiError } from "modules/http";
 import type { Store } from "modules/store";
+import { httpError, networkError, stubHttp } from "test/http";
 
 import type { Publication, PublicationId } from "./model";
 import { empty } from "./model";
@@ -40,21 +39,13 @@ import {
   totalIndexCountAtom,
 } from "./store";
 
-// The two side-effecting seams. Mocking the modules keeps `pages/_app.tsx` and
-// the Notifications UI out of the test; the rest (store, model, hashing) is real.
-vi.mock("app", () => ({ request: vi.fn() }));
+// The Notifications UI is mocked, and the API client's methods are stubbed. The
+// rest, `request` included, is real.
 vi.mock("components/Notifications", () => ({ notify: vi.fn() }));
 
-const mockRequest = vi.mocked(request);
 const mockNotify = vi.mocked(notify);
 
-type Http = {
-  get: ReturnType<typeof vi.fn>;
-  post: ReturnType<typeof vi.fn>;
-  put: ReturnType<typeof vi.fn>;
-  delete: ReturnType<typeof vi.fn>;
-};
-let http: Http;
+let http: ReturnType<typeof stubHttp>;
 
 // A store per test — the remote layer writes the one it is handed.
 let store: Store;
@@ -66,12 +57,10 @@ function pub(fields: Partial<Publication> = {}): Publication {
 beforeEach(() => {
   store = createStore();
   vi.clearAllMocks();
-
-  http = { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() };
-  // By default, `request(op)` runs the op against our fake http client.
-  mockRequest.mockImplementation(((op: (client: AxiosInstance) => unknown) =>
-    op(http as unknown as AxiosInstance)) as typeof request);
+  http = stubHttp();
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("bulk", () => {
   test("submits the rows and leaves them in place while the request runs", async () => {
@@ -97,9 +86,11 @@ describe("bulk", () => {
   test("a failed insert leaves the rows as they were", async () => {
     const id = createId();
     setAll(store, [{ id, publication: pub({ title: "A" }), errors: null }]);
-    http.post.mockRejectedValue("conflict");
+    http.post.mockRejectedValue(
+      httpError(409, { error: "conflict", publication: pub({ title: "A" }) }),
+    );
 
-    await expect(bulk(store)).rejects.toBe("conflict");
+    await expect(bulk(store)).rejects.toBeInstanceOf(ApiError);
 
     expect(store.get(publicationIdsAtom)).toEqual([id]);
     expect(store.get(publicationFamily(id))?.title).toBe("A");
@@ -132,29 +123,44 @@ describe("update", () => {
   test("on a 409 conflict, notifies and returns false", async () => {
     const id = 7;
     remember(store, { ...pub({ title: "A" }), id });
-    http.put.mockRejectedValue({
-      response: { status: 409, data: { errors: "conflict" } },
-    });
+    http.put.mockRejectedValue(httpError(409, { error: "conflict" }));
 
     const ok = await update(store, id);
 
     expect(ok).toBe(false);
     expect(mockNotify).toHaveBeenCalledWith(
-      expect.objectContaining({ level: "warning" }),
+      expect.objectContaining({
+        message: "publicationError.conflict",
+        level: "warning",
+      }),
     );
   });
 
-  test("on a 400, surfaces the field errors on the row and returns false", async () => {
+  test("on a 400, stores the field errors on the row, notifies nothing, and returns false", async () => {
     const id = 7;
     remember(store, { ...pub({ title: "" }), id });
-    http.put.mockRejectedValue({
-      response: { status: 400, data: { errors: { title: "required" } } },
-    });
+    http.put.mockRejectedValue(
+      httpError(400, { errors: { title: "required" } }),
+    );
 
     const ok = await update(store, id);
 
     expect(ok).toBe(false);
     expect(store.get(errorFamily(id))).toEqual({ title: "required" });
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  test("on any other failure, notifies that the save failed", async () => {
+    const id = 7;
+    remember(store, { ...pub({ title: "A" }), id });
+    http.put.mockRejectedValue(networkError());
+
+    const ok = await update(store, id);
+
+    expect(ok).toBe(false);
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "notify.saveFailed" }),
+    );
   });
 });
 
@@ -186,7 +192,7 @@ describe("remove", () => {
   test("on failure, notifies and leaves the index untouched", async () => {
     hydrate(store, [{ ...pub({ title: "Survivor" }), id: 7 }]);
     store.set(totalIndexCountAtom, 288);
-    http.delete.mockRejectedValue({ response: { status: 404 } });
+    http.delete.mockRejectedValue(httpError(404, { error: "not_found" }));
 
     const ok = await deletePublication(store, {
       ...pub({ title: "Survivor" }),
@@ -218,7 +224,7 @@ describe("undo", () => {
   });
 
   test("a 409 explains that the record has moved on", async () => {
-    http.post.mockRejectedValue({ response: { status: 409 } });
+    http.post.mockRejectedValue(httpError(409, { error: "conflict" }));
 
     const ok = await undo(7, 3);
 
@@ -241,11 +247,7 @@ describe("restore", () => {
     const result = await restore(7);
 
     expect(result).toEqual({ outcome: "restored" });
-    expect(http.post).toHaveBeenCalledWith(
-      "publications/7/restore",
-      undefined,
-      expect.objectContaining({ validateStatus: expect.any(Function) }),
-    );
+    expect(http.post).toHaveBeenCalledWith("publications/7/restore", undefined);
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({ level: "success" }),
     );
@@ -257,19 +259,14 @@ describe("restore", () => {
 
     await restore(7, changes);
 
-    expect(http.post).toHaveBeenCalledWith(
-      "publications/7/restore",
-      changes,
-      expect.anything(),
-    );
+    expect(http.post).toHaveBeenCalledWith("publications/7/restore", changes);
   });
 
   test("a 409 that names the identical publication returns it, without a notice", async () => {
     const twin = { ...pub({ title: "Dom Casmurro" }), id: 8 };
-    http.post.mockResolvedValue({
-      status: 409,
-      data: { error: "conflict", publication: twin },
-    });
+    http.post.mockRejectedValue(
+      httpError(409, { error: "conflict", publication: twin }),
+    );
 
     const result = await restore(7);
 
@@ -278,7 +275,7 @@ describe("restore", () => {
   });
 
   test("a 409 without a publication explains the record already exists again", async () => {
-    http.post.mockResolvedValue({ status: 409, data: { error: "conflict" } });
+    http.post.mockRejectedValue(httpError(409, { error: "conflict" }));
 
     const result = await restore(7);
 
@@ -293,7 +290,7 @@ describe("restore", () => {
   });
 
   test("any other refusal is a plain failure", async () => {
-    http.post.mockResolvedValue({ status: 409, data: { error: "absorbed" } });
+    http.post.mockRejectedValue(httpError(409, { error: "absorbed" }));
 
     const result = await restore(7);
 
@@ -318,7 +315,7 @@ describe("search", () => {
   });
 
   test("a failed search finds nothing rather than interrupting", async () => {
-    http.get.mockRejectedValue(new Error("offline"));
+    http.get.mockRejectedValue(networkError());
 
     expect(await search("iracema")).toEqual([]);
     // The view showing the search says so where the results would be.
@@ -350,7 +347,7 @@ describe("merge", () => {
   });
 
   test("a 409 explains the merged record would already exist", async () => {
-    http.post.mockRejectedValue({ response: { status: 409 } });
+    http.post.mockRejectedValue(httpError(409, { error: "conflict" }));
 
     const ok = await merge(store, { winner, losers });
 
@@ -507,9 +504,9 @@ describe("validate", () => {
   test("reports a failed request and stores no result", async () => {
     const a = createId();
     unchecked([{ id: a, title: "A" }]);
-    http.post.mockRejectedValue("boom");
+    http.post.mockRejectedValue(httpError(500));
 
-    await expect(validate(store, [a])).rejects.toBe("boom");
+    await expect(validate(store, [a])).rejects.toMatchObject({ status: 500 });
 
     expect(mockNotify).toHaveBeenCalled();
     expect(store.get(isCheckedFamily(a))).toBe(false);
@@ -637,22 +634,45 @@ describe("upload", () => {
     setAll(store, [
       { id: old, publication: pub({ title: "old" }), errors: null },
     ]);
-    http.post.mockRejectedValue("boom");
+    http.post.mockRejectedValue(
+      httpError(400, { error: "invalid_escape_sequence" }),
+    );
 
-    await expect(upload(store, new FormData())).rejects.toBe("boom");
+    await expect(upload(store, new FormData())).rejects.toMatchObject({
+      code: "invalid_escape_sequence",
+    });
 
     expect(store.get(publicationIdsAtom)).toEqual([old]);
+    expect(mockNotify).toHaveBeenCalledWith({
+      message: "publicationError.invalid_escape_sequence",
+      level: "warning",
+    });
   });
 });
 
 describe("run (error handling)", () => {
-  test("names the error's copy and re-throws on failure", async () => {
-    mockRequest.mockRejectedValueOnce("conflict");
+  test("names the copy for the error's code, and rethrows", async () => {
+    // The bulk insert answers a conflict with its code and the conflicting
+    // publication.
+    http.post.mockRejectedValue(
+      httpError(409, { error: "conflict", publication: pub({ title: "A" }) }),
+    );
 
-    await expect(bulk(store)).rejects.toBe("conflict");
+    await expect(bulk(store)).rejects.toMatchObject({ status: 409 });
 
     expect(mockNotify).toHaveBeenCalledWith({
       message: "publicationError.conflict",
+      level: "warning",
+    });
+  });
+
+  test("notifies a failure without a code by its message", async () => {
+    http.post.mockRejectedValue(networkError());
+
+    await expect(bulk(store)).rejects.toMatchObject({ status: undefined });
+
+    expect(mockNotify).toHaveBeenCalledWith({
+      message: "Network Error",
       level: "warning",
     });
   });

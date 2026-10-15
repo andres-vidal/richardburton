@@ -42,7 +42,7 @@ defmodule RichardBurtonWeb.Plugs.Authenticate.BearerTest do
 
     assert conn.halted
     assert conn.status == 401
-    assert conn.resp_body == "Unauthorized"
+    assert Jason.decode!(conn.resp_body) == %{"error" => "unauthorized"}
   end
 
   test "responds 401 (without calling Auth) when the header is missing" do

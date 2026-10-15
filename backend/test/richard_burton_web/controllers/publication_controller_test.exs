@@ -202,6 +202,11 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert json_response(conn, 404) == %{"error" => "not_found"}
     end
 
+    test "returns 404 for an id that is not a number", meta do
+      conn = get(meta.conn, publication_path(meta.conn, :show, "abc"))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
+    end
+
     test "a deleted publication reads as missing, not merely hidden", meta do
       expect_auth_authorize_admin()
       delete(meta.conn, publication_path(meta.conn, :delete, meta.publication.id))
@@ -252,7 +257,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> delete_req_header("rb-csrf-token")
         |> post(publication_path(conn, :create_all), %{"_json" => []})
 
-      assert response(conn, 403)
+      assert %{"error" => "invalid_csrf"} == json_response(conn, 403)
     end
 
     test "rejects a POST whose CSRF token is for a different subject", %{conn: conn} do
@@ -261,7 +266,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> put_req_header("rb-csrf-token", RichardBurton.Auth.Csrf.sign("99999"))
         |> post(publication_path(conn, :create_all), %{"_json" => []})
 
-      assert response(conn, 403)
+      assert %{"error" => "invalid_csrf"} == json_response(conn, 403)
     end
 
     test "rejects a DELETE without a CSRF token", %{conn: conn} do
@@ -270,7 +275,23 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> delete_req_header("rb-csrf-token")
         |> delete(publication_path(conn, :delete, 1))
 
-      assert response(conn, 403)
+      assert %{"error" => "invalid_csrf"} == json_response(conn, 403)
+    end
+  end
+
+  describe "an id that is not a number" do
+    test "is not found by any write", %{conn: conn} do
+      expect_auth_authorize_admin(5)
+
+      for conn <- [
+            put(conn, "/api/publications/abc", @publication_attrs),
+            delete(conn, "/api/publications/abc"),
+            post(conn, "/api/publications/abc/merge", %{"losers" => [1]}),
+            post(conn, "/api/publications/abc/restore"),
+            post(conn, "/api/publications/1/history/abc/undo")
+          ] do
+        assert json_response(conn, 404) == %{"error" => "not_found"}
+      end
     end
   end
 
@@ -335,6 +356,13 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       [conn: conn, publication: publication]
     end
 
+    test "returns 404 for an id that is not a number", meta do
+      expect_auth_authorize_admin()
+
+      conn = get(meta.conn, publication_path(meta.conn, :history, "abc"))
+      assert json_response(conn, 404) == %{"error" => "not_found"}
+    end
+
     test "returns the ordered mutation stream with actors and snapshots", meta do
       expect_auth_authorize_admin(2)
 
@@ -374,7 +402,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "returns no entries for an unknown publication", meta do
       expect_auth_authorize_admin()
 
-      conn = get(meta.conn, publication_path(meta.conn, :history, -1))
+      conn = get(meta.conn, publication_path(meta.conn, :history, 999_999))
 
       assert %{"entries" => []} = json_response(conn, 200)
     end
@@ -1078,7 +1106,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                )
     end
 
-    test "returns 409 when publications are repeated, and returns the first repeated one", meta do
+    test "returns 409 when publications are repeated, and names the first repeated one", meta do
       expect_auth_authorize_admin()
 
       repeated_publication = %{
@@ -1112,7 +1140,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :create_all), input)
         |> json_response(409)
 
-      assert repeated_publication == result
+      assert %{"error" => "conflict", "publication" => repeated_publication} == result
+      assert [] == FlatPublication.all()
     end
 
     test "returns 400 when a publication is invalid, and returns it with its errors", meta do
@@ -1158,6 +1187,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       input = %{"_json" => publications}
 
       output = %{
+        "error" => "invalid",
         "publication" => invalid_publication,
         "errors" => invalid_publication_errors
       }
@@ -1335,7 +1365,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
   end
 
   describe "POST /publications/validate when sending incorrect csv" do
-    test "on invalid escape sequence, returns 400 with invalid_escape_sequence code", meta do
+    test "on invalid escape sequence, returns 400 naming the reason", meta do
       expect_auth_authorize_admin()
       input = uploaded_csv_fixture("test/fixtures/data_incorrect_escape_sequence.csv")
 
@@ -1344,7 +1374,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :validate), input)
         |> json_response(400)
 
-      assert "invalid_escape_sequence" = response
+      assert %{"error" => "invalid_escape_sequence"} == response
     end
   end
 

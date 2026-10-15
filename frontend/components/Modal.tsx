@@ -87,6 +87,14 @@ const Header: FC<{ onClose: Props["onClose"] }> = ({ onClose }) => {
   );
 };
 
+/**
+ * Returns the elements marked `data-live-region`, which stay visible to
+ * assistive technology while a modal is open.
+ */
+function liveRegions(): Element[] {
+  return Array.from(document.querySelectorAll("[data-live-region]"));
+}
+
 interface Props extends PropsWithChildren {
   isOpen: boolean;
   onClose: () => void;
@@ -115,6 +123,7 @@ const Modal: FC<Props> = ({ children, isOpen, onClose, label = "Dialog" }) => {
             <FloatingFocusManager
               context={context}
               initialFocus={refs.floating}
+              getInsideElements={liveRegions}
             >
               <motion.div
                 ref={refs.setFloating}

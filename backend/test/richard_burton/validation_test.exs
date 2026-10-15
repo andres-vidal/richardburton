@@ -7,6 +7,7 @@ defmodule RichardBurton.ValidationTest do
 
   alias RichardBurton.Author
   alias RichardBurton.Country
+  alias RichardBurton.Document
   alias RichardBurton.Validation
 
   describe "get_errors/1" do
@@ -26,6 +27,22 @@ defmodule RichardBurton.ValidationTest do
     test "returns :alpha2 for an invalid ISO country code" do
       assert Validation.get_errors(Country.changeset(%Country{}, %{code: "ZZ"})) ==
                %{code: :alpha2}
+    end
+
+    test "returns the type a value could not be cast to" do
+      changeset = Ecto.Changeset.cast(%Document{}, %{"rows" => "many"}, [:rows])
+
+      assert Validation.get_errors(changeset) == %{rows: :integer}
+    end
+
+    test "returns :invalid for any other failed validation" do
+      changeset =
+        %Author{}
+        |> Ecto.Changeset.cast(%{"name" => "Isabel Burton"}, [:name])
+        |> Ecto.Changeset.validate_length(:name, max: 5)
+        |> Ecto.Changeset.validate_inclusion(:name, ["Richard Burton"])
+
+      assert Validation.get_errors(changeset) == %{name: :invalid}
     end
   end
 end

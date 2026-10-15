@@ -25,7 +25,7 @@ defmodule RichardBurtonWeb.Plugs.Authorize.RecaptchaTest do
     refute conn.halted
   end
 
-  test "responds 401 when recaptcha verification fails" do
+  test "responds 403 invalid_captcha when recaptcha verification fails" do
     expect(RichardBurton.Auth.RecaptchaMock, :verify, fn _ ->
       {:error, ["timeout-or-duplicate"]}
     end)
@@ -33,14 +33,15 @@ defmodule RichardBurtonWeb.Plugs.Authorize.RecaptchaTest do
     conn = call(%{"recaptcha_token" => "bot"})
 
     assert conn.halted
-    assert conn.status == 401
-    assert conn.resp_body == "Unauthorized, recaptcha token is invalid"
+    assert conn.status == 403
+    assert Jason.decode!(conn.resp_body) == %{"error" => "invalid_captcha"}
   end
 
-  test "responds 401 (without calling Auth) when the token param is missing" do
+  test "responds 403 invalid_captcha (without calling Auth) when the token param is missing" do
     conn = call(%{})
 
     assert conn.halted
-    assert conn.status == 401
+    assert conn.status == 403
+    assert Jason.decode!(conn.resp_body) == %{"error" => "invalid_captcha"}
   end
 end

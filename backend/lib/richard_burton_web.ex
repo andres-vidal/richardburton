@@ -17,6 +17,11 @@ defmodule RichardBurtonWeb do
   and import those modules here.
   """
 
+  @doc """
+  Returns the definition of a JSON controller. It imports `found/1` and
+  `actor/1`, aliases `RichardBurtonWeb.Params`, and sends the errors an action
+  returns to `RichardBurtonWeb.FallbackController`.
+  """
   def controller do
     quote do
       use Phoenix.Controller, formats: [:json]
@@ -24,7 +29,8 @@ defmodule RichardBurtonWeb do
       import Plug.Conn
       import RichardBurtonWeb.FallbackController, only: [found: 1]
       import RichardBurtonWeb.Actor, only: [actor: 1]
-      alias RichardBurtonWeb.Router.Helpers, as: Routes
+
+      alias RichardBurtonWeb.Params
 
       action_fallback(RichardBurtonWeb.FallbackController)
     end
