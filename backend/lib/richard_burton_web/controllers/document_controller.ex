@@ -27,7 +27,7 @@ defmodule RichardBurtonWeb.DocumentController do
       json(
         conn,
         Document.page(
-          limit: integer_param(params["limit"]),
+          limit: Params.integer(params["limit"]),
           after: cursor,
           archived: params["archived"] == "true"
         )
@@ -35,27 +35,31 @@ defmodule RichardBurtonWeb.DocumentController do
     end
   end
 
+  @doc """
+  Creates a document from `name` and an optional `rows`. Invalid fields are a
+  400 with `errors` by field.
+  """
   def create(conn, params) do
     with {:ok, document} <- Document.create(params) do
       conn |> put_status(:created) |> json(document)
     end
   end
 
+  @doc "Returns a document, archived or not."
   def show(conn, %{"id" => id}) do
     with {:ok, document} <- Document.find(id), do: json(conn, document)
   end
 
   @doc """
-  Renames a document. A request without `name` is a 400 with `name_required`.
+  Renames a document to `name`. A missing, blank or too long name is a 400
+  with `errors` by field.
   """
-  def update(conn, %{"id" => id, "name" => name}) do
+  def update(conn, params = %{"id" => id}) do
     with {:ok, document} <- Document.find(id),
-         {:ok, renamed} <- Document.rename(document, name) do
+         {:ok, renamed} <- Document.rename(document, params) do
       json(conn, renamed)
     end
   end
-
-  def update(_conn, _params), do: {:error, :name_required}
 
   @doc """
   Archives a document, which takes it off the list and keeps its content.
@@ -86,11 +90,12 @@ defmodule RichardBurtonWeb.DocumentController do
   from these entries sends `through` back, so that it keeps any update
   appended after this read.
 
-  With `after`, only the updates written after that id are returned.
+  With `after`, only the updates written after that id are returned. An
+  `after` that is not a whole number is a 400 with `invalid_after`.
   """
   def updates(conn, params = %{"id" => id}) do
     with {:ok, document} <- Document.find(id),
-         {:ok, since} <- since(params["after"]) do
+         {:ok, since} <- whole_number(params["after"] || 0, :invalid_after) do
       {updates, through} = Document.updates(document, after: since)
 
       json(conn, %{entries: Enum.map(updates, &Base.encode64/1), through: through})
@@ -99,18 +104,19 @@ defmodule RichardBurtonWeb.DocumentController do
 
   @doc """
   Appends one base64 update to a document, with an optional `rows` count. A
-  missing or invalid `rows` leaves the stored count unchanged.
+  missing or invalid `rows` leaves the stored count unchanged. An `update`
+  that is missing or not base64 is a 400 with `invalid_update`.
 
   With `relay` set to true, the update is also broadcast as an `update` message
   to the connections on the document's channel, as if a connection had sent it.
   A connection relays its own edits, so `relay` is for an update from a writer
   that is not connected to the document.
   """
-  def append(conn, params = %{"id" => id, "update" => update}) do
+  def append(conn, params = %{"id" => id}) do
     with {:ok, document} <- Document.find(id),
-         {:ok, bytes} <- decoded(update),
-         {:ok, _} <- Document.append(document, bytes, integer_param(params["rows"])),
-         :ok <- relay(document, update, params["relay"]) do
+         {:ok, bytes} <- decoded(params["update"]),
+         {:ok, _} <- Document.append(document, bytes, Params.integer(params["rows"])),
+         :ok <- relay(document, params["update"], params["relay"]) do
       send_resp(conn, :no_content, "")
     end
   end
@@ -121,39 +127,34 @@ defmodule RichardBurtonWeb.DocumentController do
   The caller builds the merged update, because the server does not parse the
   content. `through` is the id returned by the read the merge was built from,
   and updates with a larger id are kept. See `RichardBurton.Document.compact/3`.
+  A `through` that is missing or not a whole number is a 400 with
+  `invalid_through`, and an `update` that is missing or not base64 one with
+  `invalid_update`.
   """
-  def compact(conn, %{"id" => id, "update" => update, "through" => through}) do
+  def compact(conn, params = %{"id" => id}) do
     with {:ok, document} <- Document.find(id),
-         {:ok, bound} <- bounded(through),
-         {:ok, bytes} <- decoded(update),
-         {:ok, _} <- Document.compact(document, bytes, bound) do
+         {:ok, through} <- whole_number(params["through"], :invalid_through),
+         {:ok, bytes} <- decoded(params["update"]),
+         {:ok, _} <- Document.compact(document, bytes, through) do
       send_resp(conn, :no_content, "")
     end
   end
-
-  def compact(_conn, _params), do: {:error, :invalid_through}
 
   # Relays `update` to the connections on `document` when the request asked for
   # it with `relay` set to true, and does nothing otherwise. Returns `:ok`.
   defp relay(document, update, true), do: DocumentChannel.relay!(document.id, update)
   defp relay(_document, _update, _relay), do: :ok
 
-  # Decodes a base64 update, or returns `{:error, :invalid_update}`.
-  defp decoded(update) do
+  # Decodes a base64 update, or returns `{:error, :invalid_update}` for
+  # anything that is not a base64 string.
+  defp decoded(update) when is_binary(update) do
     case Base.decode64(update) do
       {:ok, bytes} -> {:ok, bytes}
       :error -> {:error, :invalid_update}
     end
   end
 
-  # Parses a compaction's `through` as a whole number, or returns
-  # `{:error, :invalid_through}`.
-  defp bounded(through) do
-    case integer_param(through) do
-      nil -> {:error, :invalid_through}
-      bound -> {:ok, bound}
-    end
-  end
+  defp decoded(_update), do: {:error, :invalid_update}
 
   # Parses the `after` cursor of the list into `{updated_at, id}`. Returns
   # `{:ok, nil}` when there is no cursor, and `{:error, :invalid_after}` when it
@@ -162,7 +163,7 @@ defmodule RichardBurtonWeb.DocumentController do
 
   defp cursor(%{"updated_at" => updated_at, "id" => id}) when is_binary(updated_at) do
     with {:ok, updated_at} <- NaiveDateTime.from_iso8601(updated_at),
-         id when is_integer(id) <- integer_param(id) do
+         {:ok, id} <- whole_number(id, :invalid_after) do
       {:ok, {updated_at, id}}
     else
       _ -> {:error, :invalid_after}
@@ -171,28 +172,12 @@ defmodule RichardBurtonWeb.DocumentController do
 
   defp cursor(_), do: {:error, :invalid_after}
 
-  # Parses the `after` id for a read of updates. Returns 0, which reads every
-  # update, when none is given, and `{:error, :invalid_after}` when it is not a
-  # whole number.
-  defp since(nil), do: {:ok, 0}
-
-  defp since(value) do
-    case integer_param(value) do
-      nil -> {:error, :invalid_after}
-      id -> {:ok, id}
+  # Returns `{:ok, n}` for a whole number, as `RichardBurtonWeb.Params.integer/1`
+  # reads it, and `{:error, reason}` for anything else.
+  defp whole_number(value, reason) do
+    case Params.integer(value) do
+      nil -> {:error, reason}
+      n -> {:ok, n}
     end
   end
-
-  # Returns a parameter as a non-negative integer, from an integer or a string
-  # of digits. Returns nil for anything else.
-  defp integer_param(value) when is_integer(value) and value >= 0, do: value
-
-  defp integer_param(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {parsed, ""} when parsed >= 0 -> parsed
-      _ -> nil
-    end
-  end
-
-  defp integer_param(_value), do: nil
 end

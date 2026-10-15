@@ -1,41 +1,43 @@
 defmodule RichardBurtonWeb.Plugs.Authenticate.Bearer do
   @moduledoc """
-  Authenticates a request via an identity-provider token in the
-  `Authorization: Bearer` header (see `RichardBurton.Auth`) and assigns
-  `:subject_id` and `:email`. Used by the login endpoints that exchange the
-  provider token for a session.
+  Authenticates a request by the identity-provider token in its
+  `Authorization: Bearer` header (see `RichardBurton.Auth`), and assigns the
+  `:subject_id` and `:email` the token vouches for.
 
   The email is assigned from the verified token, not read from the request, so
-  what the account is keyed on is the provider's word rather than the caller's.
+  an account is looked up by the provider's address rather than the caller's.
+
+  A request without the header, or with a token that does not verify, is
+  refused with a 401 and the reason `unauthorized`. The response does not say
+  which of the two it was.
   """
+  @behaviour Plug
+
   alias RichardBurton.Auth
 
   import Plug.Conn
+  import RichardBurtonWeb.Refusal
 
+  @impl true
   def init(params), do: params
 
+  @impl true
   def call(conn, _params) do
     case verify(conn) do
       {:ok, %{subject_id: subject_id, email: email}} ->
         conn |> assign(:subject_id, subject_id) |> assign(:email, email)
 
       :error ->
-        halt_unauthorized(conn)
+        refuse(conn, :unauthorized, :unauthorized)
     end
   end
 
-  # The bearer token from the Authorization header, verified. A missing or
-  # malformed header is the same answer as an invalid token.
+  # Returns what `Auth.verify/1` returns for the bearer token, or `:error` when
+  # the request has no bearer token.
   defp verify(conn) do
     case get_req_header(conn, "authorization") do
       ["Bearer " <> token] -> Auth.verify(token)
       _ -> :error
     end
-  end
-
-  # Refuses the request without saying which check failed, so a caller learns
-  # nothing it can probe with.
-  defp halt_unauthorized(conn) do
-    conn |> send_resp(:unauthorized, "Unauthorized") |> halt()
   end
 end

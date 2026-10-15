@@ -1,7 +1,8 @@
 defmodule RichardBurtonWeb.VocabularyController do
   @moduledoc """
   Lists, checks and renames the author and publisher names that publications
-  are built from. See `RichardBurton.Vocabulary`.
+  are built from. See `RichardBurton.Vocabulary`. A `kind` that
+  `RichardBurton.Vocabulary.kinds/0` does not list is a 404.
 
   There are no create or delete actions. A name is created when a publication
   that uses it is saved. It is deleted only when a rename folds it into another
@@ -12,9 +13,14 @@ defmodule RichardBurtonWeb.VocabularyController do
 
   alias RichardBurton.Vocabulary
 
+  @doc """
+  Responds with `entries`, every name of `kind` as
+  `RichardBurton.Vocabulary.all/1` returns it, and `kinds`, the kinds there
+  are.
+  """
   def index(conn, %{"kind" => kind}) do
     case Vocabulary.all(kind) do
-      {:error, :no_such_kind} -> not_found(conn)
+      {:error, :no_such_kind} -> {:error, :not_found}
       entries -> json(conn, %{entries: entries, kinds: Vocabulary.kinds()})
     end
   end
@@ -29,7 +35,7 @@ defmodule RichardBurtonWeb.VocabularyController do
   def resemblances(conn, %{"kind" => kind, "names" => names}) when is_list(names) do
     case Vocabulary.resemblances(kind, names) do
       {:ok, entries} -> json(conn, %{entries: entries})
-      {:error, :no_such_kind} -> not_found(conn)
+      {:error, :no_such_kind} -> {:error, :not_found}
     end
   end
 
@@ -43,13 +49,15 @@ defmodule RichardBurtonWeb.VocabularyController do
   `into`, the name that has it, and `publications`, the publications that
   credit the name being renamed. A rename that would give two publications the
   same identity is also a 409, with `error: "would_collide"` and the
-  `publications` involved.
+  `publications` involved. A blank name is a 400 with `blank`, and an unknown
+  name is a 404.
   """
   def update(conn, params = %{"kind" => kind, "id" => id, "name" => name}) do
-    case Vocabulary.rename(kind, id, name, params["fold"] == true, actor(conn)) do
-      {:ok, outcome} ->
-        json(conn, %{outcome: outcome})
-
+    with {:ok, id} <- Params.id(id),
+         {:ok, outcome} <-
+           Vocabulary.rename(kind, id, name, params["fold"] == true, actor(conn)) do
+      json(conn, %{outcome: outcome})
+    else
       {:error, {:would_fold, keeper, publications}} ->
         conn
         |> put_status(:conflict)
@@ -61,17 +69,10 @@ defmodule RichardBurtonWeb.VocabularyController do
         |> json(%{error: :would_collide, publications: publications})
 
       {:error, :no_such_kind} ->
-        not_found(conn)
+        {:error, :not_found}
 
-      {:error, :not_found} ->
-        not_found(conn)
-
-      {:error, :blank} ->
-        conn |> put_status(:bad_request) |> json(%{error: :blank})
+      error ->
+        error
     end
-  end
-
-  defp not_found(conn) do
-    conn |> put_status(:not_found) |> json(%{error: :not_found})
   end
 end

@@ -170,6 +170,17 @@ defmodule RichardBurtonWeb.VocabularyControllerTest do
                |> json_response(400)
     end
 
+    test "an id that is not a number is not found", meta do
+      expect_auth_authorize_admin()
+
+      assert %{"error" => "not_found"} =
+               meta.conn
+               |> patch(vocabulary_path(meta.conn, :update, "publishers", "abc"), %{
+                 "name" => "Anything"
+               })
+               |> json_response(404)
+    end
+
     test "a name that is not there", meta do
       expect_auth_authorize_admin()
 

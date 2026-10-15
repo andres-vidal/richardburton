@@ -1,6 +1,7 @@
 defmodule RichardBurtonWeb.OriginalBookControllerTest do
   @moduledoc """
-  Tests for the OriginalBook controller
+  Tests for `RichardBurtonWeb.OriginalBookController`: every original book, or
+  those a search finds by title or by author.
   """
   use RichardBurtonWeb.ConnCase
   import Routes, only: [original_book_path: 2]
@@ -60,7 +61,7 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
 
     test "returns 401 without a session cookie", %{conn: conn} do
       path = original_book_path(conn, :index)
-      assert build_conn() |> get(path) |> response(401) == "Unauthorized"
+      assert build_conn() |> get(path) |> json_response(401) == %{"error" => "unauthorized"}
     end
   end
 end

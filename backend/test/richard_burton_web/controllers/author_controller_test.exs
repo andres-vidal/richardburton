@@ -44,7 +44,7 @@ defmodule RichardBurtonWeb.AuthorControllerTest do
 
     test "returns 401 without a session cookie", %{conn: conn} do
       path = author_path(conn, :index)
-      assert build_conn() |> get(path) |> response(401) == "Unauthorized"
+      assert build_conn() |> get(path) |> json_response(401) == %{"error" => "unauthorized"}
     end
   end
 end

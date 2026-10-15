@@ -72,18 +72,30 @@ defmodule RichardBurton.Document do
     end
   end
 
-  @doc false
-  def changeset(document, attrs) do
-    document
+  @doc """
+  Creates a document from `attrs`: its `name`, and optionally its `rows`, a
+  count that cannot be negative. Returns `{:ok, document}`, or
+  `{:error, changeset}` when a field is invalid.
+  """
+  def create(attrs) do
+    %Document{}
     |> cast(attrs, [:name, :rows])
-    |> validate_required([:name])
-    |> validate_length(:name, min: 1, max: 200)
+    |> validate_name()
     |> validate_number(:rows, greater_than_or_equal_to: 0)
+    |> Repo.insert()
   end
 
-  @doc "Creates a document from `attrs`, which must include a `name`."
-  def create(attrs) do
-    %Document{} |> changeset(attrs) |> Repo.insert()
+  # Requires `name` in the changeset's params, not blank and at most 200
+  # characters long. The name the document already has does not count, so a
+  # rename that gives no name is refused instead of keeping the old one.
+  defp validate_name(changeset = %{params: %{"name" => _}}) do
+    changeset
+    |> validate_required([:name])
+    |> validate_length(:name, max: 200)
+  end
+
+  defp validate_name(changeset) do
+    add_error(changeset, :name, "can't be blank", validation: :required)
   end
 
   @doc """
@@ -139,21 +151,31 @@ defmodule RichardBurton.Document do
   defp bound(_), do: @default_limit
 
   @doc """
-  Returns `{:ok, document}` for the id, or `{:error, :not_found}`.
+  Returns `{:ok, document}` for the id, or `{:error, :not_found}` when no
+  document has it, including when the id is not an integer.
 
   It finds archived documents too, so an archived document stays reachable by
   id.
   """
   def find(id) do
-    case Repo.get(Document, id) do
-      nil -> {:error, :not_found}
-      document -> {:ok, document}
+    with {:ok, id} <- Ecto.Type.cast(:id, id),
+         document = %Document{} <- Repo.get(Document, id) do
+      {:ok, document}
+    else
+      _ -> {:error, :not_found}
     end
   end
 
-  @doc "Renames a document."
-  def rename(document = %Document{}, name) do
-    document |> changeset(%{"name" => name}) |> Repo.update()
+  @doc """
+  Renames a document to the `name` in `attrs`. Returns `{:ok, document}`, or
+  `{:error, changeset}` when `attrs` has no name, or one that is blank or
+  longer than 200 characters.
+  """
+  def rename(document = %Document{}, attrs) do
+    document
+    |> cast(attrs, [:name])
+    |> validate_name()
+    |> Repo.update()
   end
 
   @doc """
@@ -214,21 +236,21 @@ defmodule RichardBurton.Document do
   defp last_id(rows, _since), do: List.last(rows).id
 
   @doc """
-  Appends an update to a document and stores `rows` as its row count.
+  Appends an update to a document and stores `rows`, a count that cannot be
+  negative, as its row count.
 
   It also sets the document's `updated_at` to now, which moves the document to
   the top of the list. When `rows` is `nil`, the stored count is kept and the
   update is still appended, so a missing count never loses an update.
   """
   def append(document = %Document{}, update, rows)
-      when is_binary(update) and (is_integer(rows) or is_nil(rows)) do
+      when is_binary(update) and ((is_integer(rows) and rows >= 0) or is_nil(rows)) do
     Repo.transaction(fn ->
       lock!(document)
       Repo.insert!(%Update{document_id: document.id, update: update})
 
       document
-      |> changeset(%{"rows" => rows || document.rows})
-      |> force_change(:updated_at, NaiveDateTime.utc_now())
+      |> change(rows: rows || document.rows, updated_at: NaiveDateTime.utc_now())
       |> Repo.update!()
     end)
   end

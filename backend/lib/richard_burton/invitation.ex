@@ -2,16 +2,18 @@ defmodule RichardBurton.Invitation do
   @moduledoc """
   A role held for an email address until whoever owns it signs in.
 
-  An admin cannot grant a role to someone who has never been here: the provider
-  mints the subject id, and only on a first sign-in. So the grant waits on the
-  address instead, and the sign-in redeems it — the provider vouching for that
-  address *is* the confirmation, which is why no separate confirmation link is
-  sent. Everything this rests on is therefore the identity provider's word: see
-  `RichardBurton.Auth.Claims`, which refuses a token that does not carry a
-  verified email.
+  An admin cannot grant a role to someone who has never signed in, because the
+  identity provider mints the subject id only on a first sign-in. So the role
+  waits on the address instead, and the first sign-in with that address
+  redeems it. The provider vouching for the address is the confirmation, so no
+  separate confirmation link is sent. `RichardBurton.Auth.Claims` refuses a
+  token that does not carry a verified email, which is what this rests on.
 
-  Someone who already has an account is given the role outright; there is
-  nothing left to wait for.
+  Someone who already has an account is given the role outright, and no
+  invitation is recorded.
+
+  An invitation is **pending** until it is redeemed, and **accepted** after.
+  An address has at most one pending invitation.
   """
   use Ecto.Schema
 
@@ -24,7 +26,6 @@ defmodule RichardBurton.Invitation do
   alias RichardBurton.Invitation
   alias RichardBurton.Repo
   alias RichardBurton.User
-  alias RichardBurton.Validation
 
   @derive {Jason.Encoder, only: [:id, :email, :role, :accepted_at, :inserted_at]}
   schema "invitations" do
@@ -37,7 +38,10 @@ defmodule RichardBurton.Invitation do
     timestamps()
   end
 
-  @doc false
+  @doc """
+  Casts a new invitation's `email`, `role` and `invited_by_id`. The email,
+  trimmed, must be an email address, and the role is required.
+  """
   def changeset(invitation, attrs) do
     invitation
     |> cast(attrs, [:email, :role, :invited_by_id])
@@ -47,44 +51,59 @@ defmodule RichardBurton.Invitation do
     |> unique_constraint(:email, name: :invitations_pending_email_index)
   end
 
-  @doc "Every invitation, newest first — pending ones and the ones taken up."
+  @doc "Every invitation, newest first, pending and accepted."
   def all do
     from(i in Invitation, order_by: [desc: i.inserted_at]) |> Repo.all()
   end
 
+  @doc "Returns the invitation with `id`, or nil."
   def get(id), do: Repo.get(Invitation, id)
 
   @doc """
-  Offer `role` to an address, and say so by email.
+  Offers the role in `attrs["role"]` to the address in `attrs["email"]`, on
+  behalf of `invited_by`, and mails the offer.
 
-  Someone who has already signed in gets the role now — there is no sign-in left
-  to wait for — and no invitation is recorded. The mail is sent after the grant
-  lands, so a mail server having a bad day cannot cost someone their role; a
-  failure to send is reported so the dashboard can offer to send it again.
+  Someone who already has an account gets the role now, and no invitation is
+  recorded. Returns `{:ok, {:granted, user}}`, or the errors of
+  `RichardBurton.User.set_role/3`.
+
+  Otherwise it records a pending invitation and mails it. Returns
+  `{:ok, {:invited, invitation}}`, or `{:ok, {:unsent, invitation}}` when the
+  mail could not be sent. The invitation is recorded first, so a failure to
+  send does not lose it, and it can be sent again with `resend/1`.
+
+  Returns `{:error, :invalid_role}` when the role is missing or is not a role,
+  `{:error, :pending}` when the address already has a pending invitation, and
+  `{:error, changeset}` when the address is not one.
   """
   def invite(attrs, invited_by \\ nil) do
     email = attrs |> Map.get("email", "") |> to_string() |> String.trim()
 
-    case User.get_by_email(email) do
-      nil -> offer(attrs, invited_by)
-      user -> promote(user, attrs, invited_by)
+    with {:ok, role} <- User.cast_role(attrs["role"]) do
+      case User.get_by_email(email) do
+        nil -> offer(email, role, invited_by)
+        user -> promote(user, role, invited_by)
+      end
     end
   end
 
   @doc """
-  Admit a signed-in identity, if it is one this platform knows.
+  Admits a signed-in identity when it is one this platform knows.
 
   An account is made only for someone who was invited. Anyone may hold a Google
-  account, so a sign-in that created one regardless would mean the set of people
-  with accounts is decided by whoever tries — and revoking an account would mean
-  nothing, since signing in again would make another. Being invited is what
-  admits you; the invitation is taken up in the same breath, so the role is
-  already in hand.
+  account, so a sign-in that created one regardless would let whoever tries
+  decide who has an account, and revoking an account would mean nothing, since
+  signing in again would make another. The new account takes up the pending
+  invitation in the same transaction, so it starts with the offered role.
 
-  Someone who has been here before is admitted on the strength of their account.
-  If an invitation is also waiting for their address, they take it up, and
+  Someone who already has an account is admitted on the strength of it. If a
+  pending invitation is also waiting for their address, they take it up, and
   their role is raised to the offered one when the offered one is higher. An
   invitation never lowers a role.
+
+  Returns `{:ok, user}`, `:not_invited` for someone with neither an account
+  nor a pending invitation, or `{:error, changeset}` when the account cannot
+  be made.
   """
   def admit(subject_id, email) when is_binary(subject_id) and is_binary(email) do
     case {User.get(subject_id), pending_for(email)} do
@@ -99,30 +118,36 @@ defmodule RichardBurton.Invitation do
       {user, nil} ->
         {:ok, user}
 
-      # An existing account with an invitation waiting for its address takes
-      # the invitation up. Its role is raised if the offered role is higher.
       {user, invitation} ->
         accept(invitation, user)
     end
   end
 
-  @doc "Withdraw a pending invitation."
+  @doc """
+  Withdraws a pending invitation by deleting it. Returns `{:ok, invitation}`,
+  or `{:error, :accepted}` for an invitation already accepted.
+  """
   def cancel(invitation = %Invitation{accepted_at: nil}) do
     {:ok, Repo.delete!(invitation)}
   end
 
-  def cancel(%Invitation{}), do: {:error, :already_accepted}
+  def cancel(%Invitation{}), do: {:error, :accepted}
 
-  @doc "Send a pending invitation's mail again."
+  @doc """
+  Mails a pending invitation again. Returns `{:ok, invitation}`,
+  `{:error, :unsent}` when the mail could not be sent, or `{:error, :accepted}`
+  for an invitation already accepted.
+  """
   def resend(invitation = %Invitation{accepted_at: nil}) do
     with :ok <- notify(invitation), do: {:ok, invitation}
   end
 
-  def resend(%Invitation{}), do: {:error, :already_accepted}
+  def resend(%Invitation{}), do: {:error, :accepted}
 
-  # Records an invitation for an address that has no account yet.
-  defp offer(attrs, invited_by) do
-    attrs = Map.put(attrs, "invited_by_id", invited_by && invited_by.id)
+  # Records a pending invitation of `role` for `email`, which has no account,
+  # and mails it.
+  defp offer(email, role, invited_by) do
+    attrs = %{"email" => email, "role" => role, "invited_by_id" => invited_by && invited_by.id}
 
     case %Invitation{} |> changeset(attrs) |> Repo.insert() do
       {:ok, invitation} ->
@@ -130,25 +155,32 @@ defmodule RichardBurton.Invitation do
 
         case notify(invitation) do
           :ok -> {:ok, {:invited, invitation}}
-          {:error, _reason} -> {:ok, {:unsent, invitation}}
+          {:error, :unsent} -> {:ok, {:unsent, invitation}}
         end
 
       {:error, changeset} ->
-        {:error, Validation.get_errors(changeset)}
+        {:error, refusal(changeset)}
     end
   end
 
-  # An address that already has an account takes the role directly, without an
+  # Returns `:pending` when the insert was refused because the address already
+  # has a pending invitation, and the changeset for any other invalid field.
+  defp refusal(changeset) do
+    case Keyword.get(changeset.errors, :email) do
+      {_message, opts} -> if opts[:constraint] == :unique, do: :pending, else: changeset
+      nil -> changeset
+    end
+  end
+
+  # Gives `role` to an address that already has an account, without an
   # invitation to redeem.
-  defp promote(user, %{"role" => role}, invited_by) do
+  defp promote(user, role, invited_by) do
     with {:ok, updated} <- User.set_role(user, role, invited_by && invited_by.subject_id) do
       {:ok, {:granted, updated}}
     end
   end
 
-  defp promote(_user, _attrs, _invited_by), do: {:error, %{role: "required"}}
-
-  # Raises the user to the offered role and marks the invitation redeemed, in
+  # Raises the user to the offered role and marks the invitation accepted, in
   # one transaction, so an invitation cannot be spent twice. A user who already
   # holds the offered role or a higher one keeps their role. After the
   # transaction commits, it calls `RichardBurton.Auth.Access.changed/1` for the
@@ -162,7 +194,7 @@ defmodule RichardBurton.Invitation do
         updated = raise_role(user, invitation.role)
 
         invitation
-        |> change(accepted_at: DateTime.utc_now() |> DateTime.truncate(:second))
+        |> change(accepted_at: DateTime.utc_now(:second))
         |> Repo.update!()
 
         updated
@@ -183,7 +215,8 @@ defmodule RichardBurton.Invitation do
     end
   end
 
-  # The unredeemed invitation for an address, if there is one.
+  # The pending invitation for an address, compared without case, if there is
+  # one.
   defp pending_for(email) do
     Repo.one(
       from(i in Invitation,
@@ -192,9 +225,8 @@ defmodule RichardBurton.Invitation do
     )
   end
 
-  # Any failure to send is a failure to send: a refusal from the server, and a
-  # mailer too misconfigured to try, cost the same thing — an invitation nobody
-  # was told about — and neither may cost the invitation itself.
+  # Mails the invitation, naming who sent it when the record still has them.
+  # Returns `:ok` or `{:error, :unsent}`.
   defp notify(invitation) do
     invitation = Repo.preload(invitation, :invited_by)
 
@@ -205,8 +237,6 @@ defmodule RichardBurton.Invitation do
           "Invitation to the Richard & Isabel Burton Platform",
       message: message(invitation)
     )
-  rescue
-    error -> {:error, error}
   end
 
   # The invitation email body: the message in Portuguese, then the same message
@@ -239,8 +269,8 @@ defmodule RichardBurton.Invitation do
     """
   end
 
-  # Names the inviter when the record still has one; an invitation outlives the
-  # account that sent it.
+  # The words that name the inviter, or an empty string when the invitation has
+  # none, such as one whose sender's account has since been deleted.
   defp invited_by(%{invited_by: %User{email: email}}, :pt), do: " por #{email}"
   defp invited_by(%{invited_by: %User{email: email}}, :en), do: " by #{email}"
   defp invited_by(_invitation, _language), do: ""

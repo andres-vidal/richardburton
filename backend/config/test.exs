@@ -8,9 +8,15 @@ config :richard_burton,
   # The key store runs in all environments; under test it uses a no-op JWKS
   # provider so it makes no network calls (auth itself is mocked via Mox).
   jwks_provider: RichardBurton.Auth.JWKS.Stub,
-  # Capture built emails in the process mailbox instead of opening an SMTP
-  # connection (see RichardBurton.Mailer.SMTP).
+  # Send built emails to the calling process instead of opening an SMTP
+  # connection (see RichardBurton.Mailer).
   mailer_adapter: Swoosh.Adapters.Test
+
+# Who mail is from, and where the contact form's mail goes. The mailer reads
+# them from the environment when it builds an email.
+System.put_env("SMTP_NAME", "Richard & Isabel Burton Platform")
+System.put_env("SMTP_FROM", "no-reply@richardburton.test")
+System.put_env("SMTP_ADMIN_INBOX", "inbox@richardburton.test")
 
 # Rebuild the search index inline (plain REFRESH): tests need writes visible to
 # search immediately, and the sandbox's transactions forbid CONCURRENTLY.

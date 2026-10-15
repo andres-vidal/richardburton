@@ -16,7 +16,6 @@ defmodule RichardBurtonWeb.SessionControllerTest do
 
   describe "POST /sessions" do
     test "makes the account for an invited address, with the role offered", %{conn: conn} do
-      expect_mailer_send()
       {:ok, _} = Invitation.invite(%{"email" => @email, "role" => "contributor"})
       expect_auth_verify(1, @email)
 
@@ -58,7 +57,6 @@ defmodule RichardBurtonWeb.SessionControllerTest do
     # The address decides which invitation is redeemed and therefore which role
     # is granted, so the body must not be able to name it.
     test "keys the account on the provider's address, not the request body", %{conn: conn} do
-      expect_mailer_send()
       {:ok, _} = Invitation.invite(%{"email" => @email, "role" => "reader"})
       expect_auth_verify(1, @email)
 
