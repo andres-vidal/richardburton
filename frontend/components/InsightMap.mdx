@@ -6,16 +6,14 @@ import * as InsightMapStories from "./InsightMap.stories";
 
 # Insight map
 
-A titled world map with each country shaded by its number of publications, and
-a list of the countries with their counts beside it. On narrow screens the list
-is below the map.
+A world map with each country shaded by its number of publications, and a list
+of the countries with their counts beside it. On narrow screens the list is
+below the map.
 
 <Canvas of={InsightMapStories.Countries} />
 
 ## Props
 
-- `title`, `hint` and `actions` — see
-  [Insight section](?path=/docs/insights-insight-section--docs).
 - `map` — the outlines to draw, from `worldMap` in `modules/world-map`. It
   projects Natural Earth's outlines, from the `world-atlas` package, and names
   each by the two-letter code that its numeric ISO code maps to, in the codes it

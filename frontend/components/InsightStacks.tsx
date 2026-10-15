@@ -2,17 +2,13 @@
 
 import { total } from "modules/insights";
 import { useFormatter } from "next-intl";
-import { CSSProperties, FC, ReactNode } from "react";
+import { CSSProperties, FC } from "react";
 import InsightLegend from "./InsightLegend";
-import InsightSection from "./InsightSection";
 import InsightTable, { type Row } from "./InsightTable";
 
 type Props = {
+  /** The caption of the table of counts, which is the title of the chart. */
   title: string;
-  /** What the chart shows, in a tooltip beside the title. */
-  hint?: string;
-  /** Controls shown at the end of the title's row. */
-  actions?: ReactNode;
   /** The heading of the table's first column, such as "Decade". */
   heading: string;
   /** The name of each series, in the order they are stacked from the left. */
@@ -27,10 +23,10 @@ type Props = {
 };
 
 /**
- * A titled list of stacked bars, one for each entry in `rows`. Each row shows
- * its label and total above a grey track, and a bar on the track stacks the
- * row's series from the left. A bar's length is the sum of the row's counts as
- * a fraction of the largest sum, so a row with no counts shows only the track.
+ * A list of stacked bars, one for each entry in `rows`. Each row shows its
+ * label and total above a grey track, and a bar on the track stacks the row's
+ * series from the left. A bar's length is the sum of the row's counts as a
+ * fraction of the largest sum, so a row with no counts shows only the track.
  * With `shares`, every bar fills its track, and each series takes its share of
  * the row's sum.
  *
@@ -40,8 +36,6 @@ type Props = {
  */
 const InsightStacks: FC<Props> = ({
   title,
-  hint,
-  actions,
   heading,
   series,
   rows,
@@ -53,7 +47,7 @@ const InsightStacks: FC<Props> = ({
     shares ? Math.max(1, total(counts)) : most;
 
   return (
-    <InsightSection title={title} hint={hint} actions={actions}>
+    <div className="space-y-3">
       <InsightLegend series={series} />
       <ol aria-hidden className="space-y-2">
         {rows.map(({ key, label, detail, counts }) => (
@@ -99,7 +93,7 @@ const InsightStacks: FC<Props> = ({
         series={series}
         rows={rows}
       />
-    </InsightSection>
+    </div>
   );
 };
 

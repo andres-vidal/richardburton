@@ -6,20 +6,14 @@ import * as InsightBarsStories from "./InsightBars.stories";
 
 # Insight bars
 
-A titled list of counts, drawn in an [Insight section](?path=/docs/insights-insight-section--docs). Each item shows its
-label and its count, formatted for the reader's locale, above a bar whose length
-is its count as a fraction of the largest count in the list.
+A list of counts. Each item shows its label and its count, formatted for the
+reader's locale, above a bar whose length is its count as a fraction of the
+largest count in the list.
 
 <Canvas of={InsightBarsStories.Names} />
 
 ## Props
 
-- `title` — the heading of the list. It is also the accessible name of the
-  section around the list.
-- `hint` — an optional explanation of what the list shows, in an
-  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
-- `actions` — optional controls shown at the end of the title's row, such
-  as a chart's settings.
 - `bars` — the items, in the order they are listed. Each has a `key`, a
   `label`, an optional `detail` shown after the label, and the `count`.
 
@@ -37,6 +31,6 @@ decade with no publications still appears in the list of decades.
 
 ## Accessibility
 
-- The list is an `ol` inside a `section` labelled by the title.
+- The list is an `ol`.
 - The bars have `aria-hidden`. Assistive technology reads the label and the
   count instead.

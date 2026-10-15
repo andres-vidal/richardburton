@@ -42,10 +42,7 @@ const WORKS: Track[] = CHARTS.retranslated.groups.map(
 const meta = {
   title: "Insights/Insight timeline",
   component: InsightTimeline,
-  args: {
-    title: "Translators with the most publications",
-    tracks: TRANSLATORS,
-  },
+  args: { tracks: TRANSLATORS },
   parameters: { layout: "padded" },
 } satisfies Meta<typeof InsightTimeline>;
 
@@ -74,7 +71,7 @@ export const Weighted: Story = {
  * such as the year and translators of a translation.
  */
 export const Unweighted: Story = {
-  args: { title: "Works translated more than once", tracks: WORKS },
+  args: { tracks: WORKS },
   play: async ({ canvasElement }) => {
     const work = within(canvasElement).getAllByRole("listitem")[0];
 

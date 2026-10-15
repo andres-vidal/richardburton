@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   PRESETS,
   chartParams,
+  countsFirst,
   cumulative,
   descriptionParams,
   formsFor,
@@ -19,7 +20,6 @@ const describing = (fields: Partial<Description>): Description => ({
   by: "year",
   split: null,
   form: "columns",
-  first: false,
   top: null,
   least: null,
   ...fields,
@@ -126,7 +126,7 @@ describe("normalize", () => {
   it("groups by year a count that cannot be grouped as asked", () => {
     expect(
       normalize(describing({ count: "works", by: "country", form: "map" })),
-    ).toEqual(describing({ count: "works", first: true }));
+    ).toEqual(describing({ count: "works" }));
     expect(
       normalize(
         describing({
@@ -135,7 +135,7 @@ describe("normalize", () => {
           form: "bars",
         }),
       ),
-    ).toEqual(describing({ count: "original_authors", first: true }));
+    ).toEqual(describing({ count: "original_authors" }));
   });
 
   it("drops a split the count cannot take", () => {
@@ -156,28 +156,6 @@ describe("normalize", () => {
     ).toBeNull();
   });
 
-  it("counts first appearances for every count but publications that is placed in time", () => {
-    expect(normalize(describing({ count: "works" })).first).toBe(true);
-    expect(
-      normalize(
-        describing({ count: "works", by: "original_author", form: "heat" }),
-      ).first,
-    ).toBe(true);
-    expect(
-      normalize(
-        describing({
-          count: "works",
-          by: "original_author",
-          form: "bars",
-          first: true,
-        }),
-      ).first,
-    ).toBe(false);
-    expect(normalize(describing({ form: "running", first: true })).first).toBe(
-      false,
-    );
-  });
-
   it("drops top and least on a map, which shows every country", () => {
     expect(
       normalize(describing({ by: "country", form: "map", top: 10, least: 2 })),
@@ -192,6 +170,23 @@ describe("normalize", () => {
     expect(
       normalize(describing({ by: "work", form: "bars", top: 10, least: 2 })),
     ).toMatchObject({ top: 10, least: 2 });
+  });
+});
+
+describe("countsFirst", () => {
+  it("counts first appearances for every count but publications that is placed in time", () => {
+    expect(countsFirst(describing({ count: "works" }))).toBe(true);
+    expect(
+      countsFirst(
+        describing({ count: "works", by: "original_author", form: "heat" }),
+      ),
+    ).toBe(true);
+    expect(
+      countsFirst(
+        describing({ count: "works", by: "original_author", form: "bars" }),
+      ),
+    ).toBe(false);
+    expect(countsFirst(describing({ form: "running" }))).toBe(false);
   });
 });
 
@@ -232,14 +227,11 @@ describe("descriptionParams", () => {
       form: "columns",
     });
     expect(
-      descriptionParams(
-        describing({ by: "work", form: "timeline", first: true, top: 10 }),
-      ),
+      descriptionParams(describing({ by: "work", form: "timeline", top: 10 })),
     ).toEqual({
       count: "publications",
       by: "work",
       form: "timeline",
-      first: "true",
       top: "10",
     });
   });
@@ -266,12 +258,7 @@ describe("chartParams", () => {
   it("leaves out the form, which the backend does not take", () => {
     expect(
       chartParams(
-        describing({
-          count: "works",
-          split: "kind",
-          form: "running",
-          first: true,
-        }),
+        describing({ count: "works", split: "kind", form: "running" }),
       ),
     ).toEqual({ count: "works", by: "year", split: "kind", first: true });
   });

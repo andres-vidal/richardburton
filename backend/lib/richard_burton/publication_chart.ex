@@ -11,7 +11,7 @@ defmodule RichardBurton.Publication.Chart do
   A chart has these fields:
 
     * `count` — the items: `:publications`, `:works`, `:translations`,
-      `:original_authors`, `:translators`, `:publishers` or `:countries`. Works
+      `:original_authors`, `:translators` or `:publishers`. Works
       and translations are those `RichardBurton.Publication.Insights` defines.
     * `by` — the groups: `:year`, `:decade`, `:kind`, `:country`,
       `:original_author`, `:translator`, `:publisher`, `:work`, or `:pair`,
@@ -77,7 +77,6 @@ defmodule RichardBurton.Publication.Chart do
   # The `FlatPublication` field each grouping or count of names unnests.
   @names %{
     country: :countries,
-    countries: :countries,
     original_author: :original_authors,
     original_authors: :original_authors,
     translator: :authors,
@@ -85,6 +84,12 @@ defmodule RichardBurton.Publication.Chart do
     publisher: :publishers,
     publishers: :publishers
   }
+
+  # Builds the query expression for the first year of the decade `year` falls
+  # in, which is the year a decade is named by.
+  defmacrop decade_of(year) do
+    quote do: fragment("? / 10 * 10", unquote(year))
+  end
 
   @primary_key false
   embedded_schema do
@@ -95,8 +100,7 @@ defmodule RichardBurton.Publication.Chart do
         :translations,
         :original_authors,
         :translators,
-        :publishers,
-        :countries
+        :publishers
       ],
       default: :publications
     )
@@ -353,7 +357,7 @@ defmodule RichardBurton.Publication.Chart do
   defp category(query, :decade) do
     select_merge(query, [publication: fp], %{
       category: type(^[], {:array, :string}),
-      key: fragment("ARRAY[(? / 10 * 10)::text]", fp.year)
+      key: fragment("ARRAY[(?)::text]", decade_of(fp.year))
     })
   end
 
@@ -470,22 +474,18 @@ defmodule RichardBurton.Publication.Chart do
   # translation of the work's earliest publication.
   defp kinds do
     ranked =
-      from(fp in FlatPublication,
-        join: p in Publication,
-        on: p.id == fp.id,
-        join: tb in TranslatedBook,
-        on: tb.id == p.translated_book_id,
-        windows: [
-          translation: [partition_by: p.translated_book_id, order_by: [fp.year, fp.id]],
-          work: [partition_by: tb.original_book_id, order_by: [fp.year, fp.id]]
-        ],
-        select: %{
-          id: fp.id,
-          translation: p.translated_book_id,
-          edition: over(row_number(), :translation),
-          first: over(first_value(p.translated_book_id), :work)
-        }
+      from(fp in FlatPublication, as: :publication)
+      |> with_book()
+      |> windows([publication: fp, link: p, book: tb],
+        translation: [partition_by: p.translated_book_id, order_by: [fp.year, fp.id]],
+        work: [partition_by: tb.original_book_id, order_by: [fp.year, fp.id]]
       )
+      |> select([publication: fp, link: p], %{
+        id: fp.id,
+        translation: p.translated_book_id,
+        edition: over(row_number(), :translation),
+        first: over(first_value(p.translated_book_id), :work)
+      })
 
     from(r in subquery(ranked),
       select: %{
@@ -506,7 +506,7 @@ defmodule RichardBurton.Publication.Chart do
   defp stepped(query, :year), do: select_merge(query, [publication: fp], %{step: fp.year})
 
   defp stepped(query, :decade) do
-    select_merge(query, [publication: fp], %{step: fragment("? / 10 * 10", fp.year)})
+    select_merge(query, [publication: fp], %{step: decade_of(fp.year)})
   end
 
   # Returns a query for the groups to keep, each with its `key`, its `total`,

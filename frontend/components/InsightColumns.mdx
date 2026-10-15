@@ -6,21 +6,16 @@ import * as InsightColumnsStories from "./InsightColumns.stories";
 
 # Insight columns
 
-A titled column chart with one column for each year or decade, drawn in an
-[Insight section](?path=/docs/insights-insight-section--docs). A column stacks
-its series from the bottom, and its height is the sum of its counts as a
-fraction of the largest sum, which is written at the top of the chart.
+A column chart with one column for each year or decade. A column stacks its
+series from the bottom, and its height is the sum of its counts as a fraction
+of the largest sum, which is written at the top of the chart.
 
 <Canvas of={InsightColumnsStories.Years} />
 
 ## Props
 
-- `title` — the heading of the chart, and the accessible name of the section
-  around it and of its table.
-- `hint` — an optional explanation of what the chart shows, in an
-  [Info hint](?path=/docs/components-info-hint--docs) beside the title.
-- `actions` — optional controls shown at the end of the title's row, such
-  as a chart's settings.
+- `title` — the caption of the table of counts, which is the title of the
+  chart, and so the table's accessible name.
 - `heading` — the heading of the table's first column, such as "Year".
 - `series` — the name of each series, in the order they are stacked from the
   bottom. With more than one, they are listed in an
@@ -32,10 +27,12 @@ fraction of the largest sum, which is written at the top of the chart.
 
 ## Labels under the columns
 
-Years divisible by 20 are always labelled under the chart, and the other
-decades only on screens at least as wide as the `md` breakpoint, where there is
-room for them. `tickOf` in `modules/insights` decides which. A label under the
-first or last column is aligned inwards, so it stays inside the chart.
+The chart is drawn on an
+[Insight axis](?path=/docs/insights-insight-axis--docs), which writes the
+largest sum at the top and labels the columns underneath. Years divisible by 20
+are always labelled, and the other decades only on screens at least as wide as
+the `md` breakpoint, where there is room for them. A label under the first or
+last column is aligned inwards, so it stays inside the chart.
 
 <Canvas of={InsightColumnsStories.OneDecade} />
 
@@ -58,6 +55,6 @@ where that count is above 0, with its share when `shares` is set.
 
 ## Accessibility
 
-The drawing has `aria-hidden`. The section holds an
+The drawing has `aria-hidden`. The component also renders an
 [Insight table](?path=/docs/insights-insight-table--docs) of the same counts,
-which assistive technology reads instead.
+visually hidden, which assistive technology reads instead.
