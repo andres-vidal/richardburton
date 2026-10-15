@@ -218,10 +218,10 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     # Returns the actions of a publication's history, newest first.
     defp actions(publication), do: publication.id |> History.of() |> Enum.map(& &1.action)
 
-    # Returns the ids of the publications the latest entry of a publication's
-    # history is related to.
-    defp related(publication) do
-      publication.id |> History.of() |> hd() |> History.related_records() |> Enum.map(& &1["id"])
+    # Returns the ids of the other publications that the latest entry of a
+    # publication's history is about, in order.
+    defp others(publication) do
+      publication.id |> History.of() |> hd() |> History.other_records() |> Enum.map(& &1["id"])
     end
 
     test "ruling apart records it on each publication, naming the others, under who said so" do
@@ -238,8 +238,8 @@ defmodule RichardBurton.Publication.DuplicatesTest do
                  History.of(publication.id)
       end
 
-      assert related(a) == [b.id, c.id]
-      assert related(b) == [a.id, c.id]
+      assert others(a) == [b.id, c.id]
+      assert others(b) == [a.id, c.id]
     end
 
     test "saying the same thing twice records it once" do
@@ -264,7 +264,7 @@ defmodule RichardBurton.Publication.DuplicatesTest do
 
       assert [%{action: "reconsidered", actor: "reviewer@example.com"} | _] = History.of(b.id)
       assert actions(a) == ["reconsidered", "distinguished", "created"]
-      assert related(a) == [b.id]
+      assert others(a) == [b.id]
     end
 
     test "a decision is not undone from the history, and does not hold back the entry before it" do

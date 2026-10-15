@@ -350,9 +350,9 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   # Returns a history entry as a map for a response. Besides the entry's own
-  # fields, it holds `absorbed`, the publications a merge took in or an undone
-  # merge gave back, and `related`, the other publications a duplicate decision
-  # is about.
+  # fields, it holds `others`, the other publications the entry is about: the
+  # ones a merge took in, an undone merge gave back, or a duplicate decision is
+  # about. See `Publication.History.other_records/1`.
   defp serialize_history(entry) do
     %{
       publication_id: entry.publication_id,
@@ -362,8 +362,7 @@ defmodule RichardBurtonWeb.PublicationController do
       snapshot: entry.snapshot,
       diff: entry.diff,
       undoable: entry.undoable,
-      absorbed: Publication.History.absorbed_records(entry),
-      related: Publication.History.related_records(entry),
+      others: Publication.History.other_records(entry),
       timestamp: entry.inserted_at
     }
   end

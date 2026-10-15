@@ -22,8 +22,6 @@ jobs:
             backend/_build
           key: mix-docs-${{ runner.os }}-${{ hashFiles('backend/.tool-versions', 'backend/mix.lock') }}
           restore-keys: mix-docs-${{ runner.os }}-
-      - run: touch config/dev.local.exs
-      - run: echo -e "import Config\nconfig :richard_burton, []" >> config/dev.local.exs
       - run: mix deps.get
       - run: mix docs -f html -o ../docs
       - uses: stefanzweifel/git-auto-commit-action@v7

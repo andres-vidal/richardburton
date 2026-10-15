@@ -20,6 +20,5 @@ jobs:
             backend/priv/plts
           key: mix-dialyzer-${{ runner.os }}-${{ hashFiles('backend/.tool-versions', 'backend/mix.lock') }}
           restore-keys: mix-dialyzer-${{ runner.os }}-
-      - run: echo -e "import Config\nconfig :richard_burton, []" >> config/dev.local.exs
       - run: mix deps.get
       - run: mix dialyzer --format github

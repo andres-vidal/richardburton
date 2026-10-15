@@ -53,8 +53,9 @@ keeps focus.
 `errorDisplay` decides. With `"tooltip"`, the default, the field is tinted and
 the message is in a tooltip, which takes no room around the field, so a grid of
 fields does not reflow. With `"inline"` the message is written under the field,
-where it can be read without hovering and is announced as an alert. The slot
-for it is always reserved, so a message appearing does not move the fields
-around it.
+where it can be read without hovering and is announced as an alert. A slot two
+lines tall is always reserved for it, so a message appearing does not move the
+fields around it. A message longer than two lines is cut on screen and read in
+full by assistive technology.
 
 <Canvas of={DataInputStories.InlineError} />
