@@ -1,17 +1,18 @@
 defmodule RichardBurtonWeb.Plugs.IgnoreBlankSearch do
   @moduledoc """
-  Removes a `search` parameter holding nothing but whitespace, so that the
-  request is answered as though it carried no search at all.
+  Removes a `search` parameter that holds nothing but whitespace, so the
+  request is answered as if it had no search.
 
-  An empty term matches nothing and an absent one asks for everything, so the two
-  answers are opposites rather than neighbours. A caller that builds its query
-  string from an empty input would get an empty database back, which is why every
-  such caller otherwise has to remember to leave the parameter out. This removes
-  it once, for every action that reads one.
+  The index answers an empty search with no publications, and a missing search
+  with all of them. Removing a blank search here gives every action that reads
+  the parameter the second answer.
   """
+  @behaviour Plug
 
+  @impl true
   def init(params), do: params
 
+  @impl true
   def call(conn = %{params: %{"search" => search}}, _params) when is_binary(search) do
     case String.trim(search) do
       "" -> %{conn | params: Map.delete(conn.params, "search")}

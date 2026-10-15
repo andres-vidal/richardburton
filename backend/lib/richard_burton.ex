@@ -1,9 +1,7 @@
 defmodule RichardBurton do
   @moduledoc """
-  RichardBurton keeps the contexts that define your domain
-  and business logic.
-
-  Contexts are also responsible for managing your data, regardless
-  if it comes from the database, an external API or others.
+  The namespace of the platform's contexts: the publications and the books,
+  names and countries they are built from, accounts and invitations, import
+  documents, and mail. Each context is a module under `RichardBurton`.
   """
 end

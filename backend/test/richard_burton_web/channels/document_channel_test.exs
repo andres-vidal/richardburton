@@ -8,30 +8,17 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
   """
   use RichardBurtonWeb.ChannelCase
 
-  import Mox
-
   alias RichardBurton.Auth.Csrf
   alias RichardBurton.Auth.Session
   alias RichardBurtonWeb.DocumentChannel
   alias RichardBurtonWeb.DocumentSocket
 
-  # The role check calls `Auth.authorize/2`, which is mocked here as in the
-  # controller tests. The mock is global because the channel process calls it
-  # as well as the test process. It allows access by default, because most of
-  # these tests are about what happens after connecting.
-  setup :set_mox_global
-  setup :verify_on_exit!
-
-  setup do
-    stub(RichardBurton.AuthMock, :authorize, fn _, :contributor -> :ok end)
-    :ok
-  end
-
-  # Creates a real session, because the socket checks that it is still active.
-  # `cookie` is the session token that the `rb-session` cookie holds, and `csrf`
-  # is the CSRF token that the `csrf-token` cookie holds.
-  defp signed_in(email) do
-    user = user_fixture(email, :contributor)
+  # Creates a user with `role` and a real session for them, because the socket
+  # checks that the session is still active. `cookie` is the session token that
+  # the `rb-session` cookie holds, and `csrf` is the CSRF token that the
+  # `csrf-token` cookie holds.
+  defp signed_in(email, role \\ :contributor) do
+    user = user_fixture(email, role)
     {:ok, cookie} = Session.create(user.subject_id)
 
     %{user: user, cookie: cookie, csrf: Csrf.sign(user.subject_id)}
@@ -95,8 +82,7 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
     end
 
     test "somebody whose role does not reach the documents is refused" do
-      person = signed_in("helen@example.com")
-      stub(RichardBurton.AuthMock, :authorize, fn _, :contributor -> :error end)
+      person = signed_in("helen@example.com", :reader)
 
       assert :error = connect(DocumentSocket, %{}, connect_info: connect_info(person))
     end
@@ -230,7 +216,6 @@ defmodule RichardBurtonWeb.DocumentChannelTest do
       person = signed_in("helen@example.com")
       socket = joined(person, document())
 
-      stub(RichardBurton.AuthMock, :authorize, fn _, :contributor -> :error end)
       RichardBurton.User.set_role(person.user, :reader)
 
       assert_push("refused", %{})

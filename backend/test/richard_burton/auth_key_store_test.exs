@@ -60,7 +60,7 @@ defmodule RichardBurton.Auth.KeyStoreTest do
     StubJWKS.publish(jwks(["k1", "k2"]))
 
     # The next request for k2 misses the cache, refetches, and now resolves it
-    # — no restart required.
+    # without a restart.
     assert {:ok, %{"kid" => "k2"}} = KeyStore.fetch_key(store, "k2")
   end
 

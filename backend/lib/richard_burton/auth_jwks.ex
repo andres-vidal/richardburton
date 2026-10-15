@@ -6,5 +6,9 @@ defmodule RichardBurton.Auth.JWKS do
 
   @type result :: %{issuer: String.t() | nil, keys: [map()], max_age: non_neg_integer()}
 
+  @doc """
+  Returns the provider's issuer, its signing keys, and how many seconds they
+  may be cached for, or `{:error, reason}`.
+  """
   @callback fetch() :: {:ok, result()} | {:error, term()}
 end

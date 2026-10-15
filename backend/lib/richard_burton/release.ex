@@ -1,10 +1,10 @@
 defmodule RichardBurton.Release do
   @moduledoc """
-  Used for executing DB release tasks when run in production without Mix
-  installed.
+  Database tasks for a release, which runs without Mix.
   """
   @app :richard_burton
 
+  @doc "Runs every pending migration of every repo."
   def migrate do
     load_app()
 
@@ -13,6 +13,7 @@ defmodule RichardBurton.Release do
     end
   end
 
+  @doc "Rolls `repo` back to the migration `version`."
   def rollback(repo, version) do
     load_app()
     {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version))

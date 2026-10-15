@@ -1,13 +1,12 @@
 defmodule RichardBurton.Author do
   @moduledoc """
-  Schema for authors
+  A name credited on a book: a translator of a translated book, or an author
+  of an original book. Each name is stored once. See `RichardBurton.Name`.
   """
   use Ecto.Schema
   import Ecto.Changeset
-  import Ecto.Query
 
-  alias RichardBurton.Author
-  alias RichardBurton.Repo
+  alias RichardBurton.Name
   alias RichardBurton.OriginalBook
   alias RichardBurton.TranslatedBook
 
@@ -23,75 +22,17 @@ defmodule RichardBurton.Author do
     timestamps()
   end
 
-  @doc false
-  def changeset(author, attrs \\ %{})
-
-  @doc false
-  def changeset(author, attrs = %Author{}) do
-    changeset(author, Map.from_struct(attrs))
-  end
-
-  @doc false
-  def changeset(author, attrs) do
+  @doc "Casts the `name`, which is required and unique among authors."
+  def changeset(author, attrs \\ %{}) do
     author
     |> cast(attrs, [:name])
     |> validate_required([:name])
     |> unique_constraint([:name])
   end
 
-  def all do
-    Repo.all(Author)
-  end
+  @doc "Nests author names into the maps the schema casts. See `RichardBurton.Name.nest/1`."
+  defdelegate nest(authors), to: Name
 
-  @spec search(binary(), :fuzzy | :prefix) :: any()
-  def search(term, :prefix) when is_binary(term) do
-    from(a in Author, where: ilike(a.name, ^"#{term}%"))
-    |> Repo.all()
-  end
-
-  def search(term, :fuzzy) when is_binary(term) do
-    from(a in Author, where: fragment("similarity((?), (?)) > 0.3", a.name, ^term))
-    |> Repo.all()
-  end
-
-  def search(term) when is_binary(term) do
-    case search(term, :prefix) do
-      [] -> search(term, :fuzzy)
-      keywords when is_list(keywords) -> keywords
-    end
-  end
-
-  @doc ~S"""
-  Nest author names into the maps the schema casts.
-
-  Takes the list the client and the flat schema both speak in. Splitting a
-  written-down string into values is the CSV codec's, and is done before a value
-  reaches here.
-
-  ## Examples
-
-    iex> RichardBurton.Author.nest(["Machado de Assis", "Clarice Lispector"])
-    [%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}]
-  """
-  def nest(authors) when is_list(authors), do: Enum.map(authors, &%{"name" => get_name(&1)})
-
-  @doc ~S"""
-  Flatten authors to the names they are. A value that is not a list is returned
-  unchanged.
-
-  ## Examples
-
-    iex> RichardBurton.Author.flatten([%{"name" => "Machado de Assis"}, %{"name" => "Clarice Lispector"}])
-    ["Machado de Assis", "Clarice Lispector"]
-
-    iex> RichardBurton.Author.flatten("Machado de Assis")
-    "Machado de Assis"
-  """
-  def flatten(authors) when is_list(authors), do: Enum.map(authors, &get_name/1)
-  def flatten(authors), do: authors
-
-  def get_name(name) when is_binary(name), do: name
-  def get_name(%Author{name: name}), do: name
-  def get_name(%{"name" => name}), do: name
-  def get_name(%{name: name}), do: name
+  @doc "Flattens authors to their names. See `RichardBurton.Name.flatten/1`."
+  defdelegate flatten(authors), to: Name
 end

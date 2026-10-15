@@ -1,12 +1,13 @@
 defmodule RichardBurton.AuthorTest do
   @moduledoc """
-  Tests for the Author schema
+  Tests for the Author schema, and for searching authors by name with
+  `RichardBurton.Name.search/2`.
   """
 
   use RichardBurton.DataCase
-  doctest RichardBurton.Author
 
   alias RichardBurton.Author
+  alias RichardBurton.Name
   alias RichardBurton.Validation
 
   @valid_attrs %{"name" => "J. M. Pereira da Silva"}
@@ -18,6 +19,13 @@ defmodule RichardBurton.AuthorTest do
     %{"name" => "Isabel Burton"},
     %{"name" => "Clarice Lispector"}
   ]
+
+  # Returns the sorted names of the authors `Name.search` finds for `term`, in
+  # both passes or in the one `pass` names.
+  defp found(term), do: Author |> Name.search(term) |> names()
+  defp found(term, pass), do: Author |> Name.search(term, pass) |> names()
+
+  defp names(authors), do: authors |> Enum.map(& &1.name) |> Enum.sort()
 
   def search_fixture(_) do
     @authors
@@ -57,74 +65,47 @@ defmodule RichardBurton.AuthorTest do
     end
   end
 
-  describe "search/2 when second argument is :prefix" do
+  describe "searching by prefix" do
     setup [:search_fixture]
 
-    test "retrieves authors by full name" do
-      term = "Machado de Assis"
-
-      for %Author{name: name} <- Author.search(term, :prefix) do
-        assert name == term
-      end
+    test "finds an author by full name" do
+      assert found("Machado de Assis", :prefix) == ["Machado de Assis"]
     end
 
-    test "retrieves authors by prefix" do
-      term = "Richa"
-
-      for %Author{name: name} <- Author.search(term, :prefix) do
-        assert name in ["Richard Burton", "Richard A. Mazzara"]
-      end
+    test "finds every author whose name starts with the term" do
+      assert found("Richa", :prefix) == ["Richard A. Mazzara", "Richard Burton"]
     end
   end
 
-  describe "search/2 when second argument is :fuzzy" do
+  describe "searching by similarity" do
     setup [:search_fixture]
 
-    test "retrieves authors by full name" do
-      term = "Machado de Assis"
-
-      for %Author{name: name} <- Author.search(term, :fuzzy) do
-        assert name == term
-      end
+    test "finds an author by full name" do
+      assert found("Machado de Assis", :fuzzy) == ["Machado de Assis"]
     end
 
-    test "retrieves authors by similarity" do
-      for %Author{name: name} <- Author.search("Machada de Assis", :fuzzy) do
-        assert name == "Machado de Assis"
-      end
-
-      for %Author{name: name} <- Author.search("Richord", :fuzzy) do
-        assert name in ["Richard Burton", "Richard A. Mazzara"]
-      end
-
-      for %Author{name: name} <- Author.search("Clarissa", :fuzzy) do
-        assert name in ["Clarice Lispector"]
-      end
+    test "finds an author by a misspelling of their name" do
+      assert found("Machada de Assis", :fuzzy) == ["Machado de Assis"]
+      assert found("Clarise Lispector", :fuzzy) == ["Clarice Lispector"]
+      assert found("Isabel Burtin", :fuzzy) == ["Isabel Burton"]
     end
   end
 
-  describe "search/1" do
+  describe "searching in both passes" do
     setup [:search_fixture]
 
     test "searches by prefix first" do
-      for %Author{name: name} <- Author.search("Richard B") do
-        assert name == "Richard Burton"
-      end
+      assert found("Richard B") == ["Richard Burton"]
     end
 
-    test "searches by similarity if prefix search renders no results" do
-      term = "Rochard B"
-
-      assert [] == Author.search(term, :prefix)
-
-      for %Author{name: name} <- Author.search(term) do
-        assert name in ["Richard Burton", "Richard A. Mazzara"]
-      end
+    test "searches by similarity when no name starts with the term" do
+      assert found("Rochard Burton", :prefix) == []
+      assert found("Rochard Burton") == ["Isabel Burton", "Richard Burton"]
     end
   end
 
   describe "flatten/1" do
-    test "with a list of maps with string keys, returns a list of maps with code key" do
+    test "with a list of maps with string keys, returns their names" do
       authors = [
         %{"name" => "Richard Burton"},
         %{"name" => "Isabel Burton"}
@@ -133,7 +114,7 @@ defmodule RichardBurton.AuthorTest do
       assert ["Richard Burton", "Isabel Burton"] = Author.flatten(authors)
     end
 
-    test "with a list of maps with atom keys, returns a list of maps with code key" do
+    test "with a list of maps with atom keys, returns their names" do
       authors = [
         %{name: "Richard Burton"},
         %{name: "Isabel Burton"}
@@ -142,7 +123,7 @@ defmodule RichardBurton.AuthorTest do
       assert ["Richard Burton", "Isabel Burton"] = Author.flatten(authors)
     end
 
-    test "with a list of Author structs, returns a list of maps with code key" do
+    test "with a list of Author structs, returns their names" do
       authors = [
         %Author{name: "Richard Burton"},
         %Author{name: "Isabel Burton"}

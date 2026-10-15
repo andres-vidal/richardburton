@@ -41,12 +41,13 @@ defmodule RichardBurton.Auth.Session do
   def create(subject_id) do
     token = generate_token()
 
-    %Session{subject_id: subject_id, token_hash: hash(token), expires_at: idle_deadline()}
-    |> Repo.insert()
-    |> case do
-      {:ok, _session} -> {:ok, token}
-      {:error, changeset} -> {:error, changeset}
-    end
+    session = %Session{
+      subject_id: subject_id,
+      token_hash: hash(token),
+      expires_at: idle_deadline()
+    }
+
+    with {:ok, _session} <- Repo.insert(session), do: {:ok, token}
   end
 
   @doc """
@@ -65,12 +66,12 @@ defmodule RichardBurton.Auth.Session do
         :error
 
       session ->
-        if expired?(now, session.expires_at) or expired?(now, absolute_deadline(session)) do
-          Repo.delete(session)
-          :error
-        else
+        if live?(session, now) do
           maybe_slide(session, now)
           {:ok, session}
+        else
+          Repo.delete(session)
+          :error
         end
     end
   end
@@ -84,14 +85,9 @@ defmodule RichardBurton.Auth.Session do
   """
   @spec active?(integer()) :: boolean()
   def active?(session_id) do
-    now = DateTime.utc_now()
-
     case Repo.get(Session, session_id) do
-      nil ->
-        false
-
-      session ->
-        not (expired?(now, session.expires_at) or expired?(now, absolute_deadline(session)))
+      nil -> false
+      session -> live?(session, DateTime.utc_now())
     end
   end
 
@@ -129,7 +125,10 @@ defmodule RichardBurton.Auth.Session do
     :ok
   end
 
-  @doc "Absolute session cap in seconds — also the cookie max_age (`:session_max_age`)."
+  @doc """
+  The absolute session cap in seconds, the `:session_max_age` setting. It is
+  also the cookie's max age.
+  """
   @spec max_age() :: pos_integer()
   def max_age, do: Application.get_env(:richard_burton, :session_max_age, @default_max_age)
 
@@ -163,7 +162,13 @@ defmodule RichardBurton.Auth.Session do
     session.inserted_at |> DateTime.add(max_age(), :second) |> DateTime.truncate(:second)
   end
 
-  # A session is live only until the earlier of its two deadlines.
+  # Whether `session` has, at `now`, passed neither its idle deadline nor its
+  # absolute cap.
+  defp live?(session, now) do
+    not (expired?(now, session.expires_at) or expired?(now, absolute_deadline(session)))
+  end
+
+  # Whether `now` has reached `deadline`.
   defp expired?(now, deadline), do: DateTime.compare(now, deadline) != :lt
 
   # The earlier of two times.

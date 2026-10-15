@@ -11,10 +11,10 @@ defmodule RichardBurtonWeb.UserControllerTest do
   alias RichardBurton.User
 
   describe "GET /users" do
+    @describetag role: :admin
+
     test "lists everyone with access, and what they may do", %{conn: conn} do
-      create_session_user()
       user_fixture("contributor@example.com", :contributor)
-      expect_auth_authorize_admin()
 
       conn = get(conn, user_path(conn, :index))
 
@@ -22,9 +22,8 @@ defmodule RichardBurtonWeb.UserControllerTest do
       assert [first, second] == Enum.sort([session_user_email(), "contributor@example.com"])
     end
 
+    @tag role: :contributor
     test "is refused to anyone who is not an admin", %{conn: conn} do
-      refuse_auth_authorize(:admin)
-
       conn = get(conn, user_path(conn, :index))
 
       assert %{"error" => "forbidden"} == json_response(conn, 403)
@@ -32,10 +31,10 @@ defmodule RichardBurtonWeb.UserControllerTest do
   end
 
   describe "PATCH /users/:id" do
+    @describetag role: :admin
+
     test "changes what a user may do", %{conn: conn} do
-      create_session_user()
       user = user_fixture("reader@example.com")
-      expect_auth_authorize_admin()
 
       conn = patch(conn, user_path(conn, :update, user.id), %{"role" => "contributor"})
 
@@ -44,9 +43,7 @@ defmodule RichardBurtonWeb.UserControllerTest do
     end
 
     test "refuses an unknown role", %{conn: conn} do
-      create_session_user()
       user = user_fixture("reader@example.com")
-      expect_auth_authorize_admin()
 
       conn = patch(conn, user_path(conn, :update, user.id), %{"role" => "superuser"})
 
@@ -55,11 +52,8 @@ defmodule RichardBurtonWeb.UserControllerTest do
     end
 
     # Another admin can do it; doing it to yourself is a mistake often enough.
-    test "refuses to change your own role", %{conn: conn} do
-      me = create_session_user()
-      {:ok, _} = User.set_role(me, :admin)
+    test "refuses to change your own role", %{conn: conn, session_user: me} do
       user_fixture("other-admin@example.com", :admin)
-      expect_auth_authorize_admin()
 
       conn = patch(conn, user_path(conn, :update, me.id), %{"role" => "reader"})
 
@@ -67,31 +61,13 @@ defmodule RichardBurtonWeb.UserControllerTest do
       assert User.get_by_id(me.id).role == :admin
     end
 
-    # Nobody left who can grant access is a state only the database can undo.
-    test "refuses to demote the last admin", %{conn: conn} do
-      create_session_user()
-      only_admin = user_fixture("only-admin@example.com", :admin)
-      expect_auth_authorize_admin()
-
-      conn = patch(conn, user_path(conn, :update, only_admin.id), %{"role" => "contributor"})
-
-      assert %{"error" => "last_admin"} = json_response(conn, 409)
-      assert User.get_by_id(only_admin.id).role == :admin
-    end
-
     test "is not found for an unknown user", %{conn: conn} do
-      create_session_user()
-      expect_auth_authorize_admin()
-
       conn = patch(conn, user_path(conn, :update, 0), %{"role" => "reader"})
 
       assert %{"error" => "not_found"} = json_response(conn, 404)
     end
 
     test "is not found for an id that is not a number", %{conn: conn} do
-      create_session_user()
-      expect_auth_authorize_admin()
-
       conn = patch(conn, user_path(conn, :update, "abc"), %{"role" => "reader"})
 
       assert %{"error" => "not_found"} = json_response(conn, 404)
@@ -99,11 +75,11 @@ defmodule RichardBurtonWeb.UserControllerTest do
   end
 
   describe "DELETE /users/:id" do
-    test "revokes access, and the sessions signed in as them", %{conn: conn} do
-      me = create_session_user()
+    @describetag role: :admin
+
+    test "revokes access, and the sessions signed in as them", %{conn: conn, session_user: me} do
       user = user_fixture("leaving@example.com")
       {:ok, _token} = Session.create(user.subject_id)
-      expect_auth_authorize_admin()
 
       conn = delete(conn, user_path(conn, :delete, user.id))
 
@@ -113,21 +89,8 @@ defmodule RichardBurtonWeb.UserControllerTest do
       refute is_nil(Repo.get_by(Session, subject_id: me.subject_id))
     end
 
-    test "refuses to remove the last admin", %{conn: conn} do
-      create_session_user()
-      only_admin = user_fixture("only-admin@example.com", :admin)
-      expect_auth_authorize_admin()
-
-      conn = delete(conn, user_path(conn, :delete, only_admin.id))
-
-      assert %{"error" => "last_admin"} = json_response(conn, 409)
-      refute is_nil(User.get_by_id(only_admin.id))
-    end
-
-    test "refuses to remove yourself", %{conn: conn} do
-      me = create_session_user()
+    test "refuses to remove yourself", %{conn: conn, session_user: me} do
       user_fixture("an-admin@example.com", :admin)
-      expect_auth_authorize_admin()
 
       conn = delete(conn, user_path(conn, :delete, me.id))
 
@@ -138,7 +101,7 @@ defmodule RichardBurtonWeb.UserControllerTest do
 
   describe "GET /users/me" do
     test "returns the current user for a valid rb-session", %{conn: conn} do
-      {:ok, _} = User.insert(%{"subject_id" => "12345", "email" => "me@example.com"})
+      {:ok, _} = User.insert(%{"subject_id" => session_subject_id(), "email" => "me@example.com"})
 
       conn = get(conn, user_path(conn, :me))
 

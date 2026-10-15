@@ -12,13 +12,17 @@ defmodule RichardBurton.Auth.Google do
 
   alias RichardBurton.Auth.Claims
   alias RichardBurton.Auth.KeyStore
-  alias RichardBurton.User
 
+  @doc """
+  Verifies the signature of `token` with the key `key_store` holds for its
+  `kid`, then validates its claims with `RichardBurton.Auth.Claims`. Returns
+  the identity, or `:error` for a token that fails any check or is malformed.
+
+  `key_store` is a module with `fetch_key/1` and `issuer/0`, the running
+  `RichardBurton.Auth.KeyStore` by default.
+  """
   @impl true
-  @spec verify(token :: String.t()) :: {:ok, Claims.identity()} | :error
-  # `key_store` is injectable (defaulting to the running `KeyStore`) so tests can
-  # supply a stub holding a known signing key and exercise the full signature +
-  # claims pipeline.
+  @spec verify(String.t(), module()) :: {:ok, Claims.identity()} | :error
   def verify(token, key_store \\ KeyStore) do
     with {:ok, %{"kid" => kid}} <- Joken.peek_header(token),
          {:ok, key} <- key_store.fetch_key(kid),
@@ -30,15 +34,6 @@ defmodule RichardBurton.Auth.Google do
   rescue
     # A malformed token (bad header, unusable key, etc.) is just an auth failure.
     _ -> :error
-  end
-
-  @impl true
-  @spec authorize(subject_id :: String.t(), role :: atom()) :: :ok | :error
-  def authorize(subject_id, role) do
-    case User.get(subject_id) do
-      %{role: held} -> if User.at_least?(held, role), do: :ok, else: :error
-      _ -> :error
-    end
   end
 
   # The signing algorithm is taken from the trusted JWKS key (not the token

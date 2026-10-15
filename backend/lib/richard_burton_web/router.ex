@@ -1,8 +1,13 @@
 defmodule RichardBurtonWeb.Router do
   @moduledoc """
   The routes, grouped by what each pipeline requires: public reads, writes
-  behind a session and a role, and the development-only helpers that are never
-  mounted in production.
+  behind a session and a role, and the development routes, which are not
+  compiled in production.
+
+  Routes match in declaration order, across scopes too. The literal paths of
+  the contributor scope, such as `/publications/history`, are declared before
+  every `/:id` path, including those of the public scope, so that they are not
+  read as ids.
   """
 
   use RichardBurtonWeb, :router
@@ -21,14 +26,15 @@ defmodule RichardBurtonWeb.Router do
     plug(RichardBurtonWeb.Plugs.Authenticate.Bearer)
   end
 
-  # Keeping the database: a contributor, or an admin, who is also one.
+  # Admits a signed-in contributor or admin whose request carries the CSRF
+  # token.
   pipeline :authorize_contributor do
     plug(RichardBurtonWeb.Plugs.Authenticate.Cookie)
     plug(RichardBurtonWeb.Plugs.VerifyCsrf)
     plug(RichardBurtonWeb.Plugs.Authorize, role: :contributor)
   end
 
-  # Deciding who may keep it: an admin alone.
+  # Admits a signed-in admin whose request carries the CSRF token.
   pipeline :authorize_admin do
     plug(RichardBurtonWeb.Plugs.Authenticate.Cookie)
     plug(RichardBurtonWeb.Plugs.VerifyCsrf)
@@ -39,8 +45,7 @@ defmodule RichardBurtonWeb.Router do
     plug(RichardBurtonWeb.Plugs.Authorize.Recaptcha)
   end
 
-  # Who has access is the admin's alone; the database below is any
-  # contributor's. Declared first so "/users/:id" never binds a literal path.
+  # Managing users and invitations, which only an admin may do.
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)
     pipe_through(:authorize_admin)
@@ -55,15 +60,21 @@ defmodule RichardBurtonWeb.Router do
     delete("/invitations/:id", InvitationController, :delete)
   end
 
-  # Literal paths before "/:id" ones, so "history" and "deleted" never bind as
-  # ids. Routes match in declaration order *across* scopes, which is why this
-  # scope comes before the public one and its "/publications/:id".
+  # Reading and changing the database, which a contributor may do.
   scope "/api", RichardBurtonWeb do
     pipe_through(:api)
     pipe_through(:authorize_contributor)
 
-    get("/authors", AuthorController, :index)
-    get("/publishers", PublisherController, :index)
+    get("/authors", NameController, :index,
+      as: :author,
+      assigns: %{schema: RichardBurton.Author}
+    )
+
+    get("/publishers", NameController, :index,
+      as: :publisher,
+      assigns: %{schema: RichardBurton.Publisher}
+    )
+
     get("/original-books", OriginalBookController, :index)
 
     scope "/vocabulary" do
@@ -132,9 +143,9 @@ defmodule RichardBurtonWeb.Router do
     get("/publications", PublicationController, :export)
   end
 
-  # Developer conveniences, never mounted in production: the LiveDashboard
-  # (if you ever want it in production, put it behind admin authentication)
-  # and the credentials provider that mints an admin session without Google.
+  # The development routes: the LiveDashboard, the mail that
+  # `Swoosh.Adapters.Local` kept instead of sending it, and
+  # `RichardBurtonWeb.DevSessionController`, which signs in without Google.
   if Mix.env() in [:dev, :test, :e2e] do
     import Phoenix.LiveDashboard.Router
 
@@ -142,8 +153,6 @@ defmodule RichardBurtonWeb.Router do
       pipe_through([:fetch_session, :protect_from_forgery])
 
       live_dashboard("/dashboard", metrics: RichardBurtonWeb.Telemetry)
-
-      # What the local mailer kept instead of sending it.
       forward("/dev/mailbox", Plug.Swoosh.MailboxPreview)
     end
 
@@ -154,9 +163,9 @@ defmodule RichardBurtonWeb.Router do
     end
   end
 
-  # Destructive test plumbing, mounted ONLY in the e2e environment: resets the
-  # worker's database between Playwright tests (truncates every table). Keeping
-  # it out of :dev means a misconfigured harness can never wipe real data.
+  # The route that empties the database between end-to-end tests. It is
+  # compiled only in the e2e environment, so that it cannot empty a development
+  # database.
   if Mix.env() == :e2e do
     scope "/test", RichardBurtonWeb do
       pipe_through(:api)

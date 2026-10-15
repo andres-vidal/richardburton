@@ -6,6 +6,8 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
   use RichardBurtonWeb.ConnCase
   import Routes, only: [original_book_path: 2]
 
+  @moduletag role: :admin
+
   @books [
     %{"title" => "Dom Casmurro", "authors" => [%{"name" => "Machado de Assis"}]},
     %{
@@ -33,8 +35,6 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
 
     test "returns every book, with the authors each one holds",
          %{conn: conn} do
-      expect_auth_authorize_admin()
-
       assert [
                %{"title" => "Dom Casmurro", "authors" => ["Machado de Assis"]},
                %{"title" => "Iracema", "authors" => ["José de Alencar"]},
@@ -46,8 +46,6 @@ defmodule RichardBurtonWeb.OriginalBookControllerTest do
     end
 
     test "a search finds a book by its title or by one of its authors", %{conn: conn} do
-      expect_auth_authorize_admin(2)
-
       assert [%{"title" => "Dom Casmurro"}] =
                conn
                |> get(original_book_path(conn, :index), %{"search" => "Dom"})
