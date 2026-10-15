@@ -11,13 +11,13 @@ type Publication = {
   originalAuthors: string[];
   sources: string[];
   /**
-   * The publication's comments in Markdown (see `modules/comments`), or null
-   * when it has none. A page of the index leaves comments out, so a record read
-   * from one has no `comments` key, and neither has a new row nobody has
-   * commented on. A request without the key keeps the stored comments, and a
+   * The publication's notes in Markdown (see `modules/notes`), or null
+   * when it has none. A page of the index leaves notes out, so a record read
+   * from one has no `notes` key, and neither has a new row nobody has
+   * written notes on. A request without the key keeps the stored notes, and a
    * null clears them.
    */
-  comments?: string | null;
+  notes?: string | null;
   /**
    * The stored publication's id, or null for a row that is not stored. The
    * server never takes it from a request body.
@@ -43,11 +43,11 @@ type Publication = {
 
 /**
  * The name of an attribute: a field of a publication other than its id, its
- * sources, its comments and its search marks.
+ * sources, its notes and its search marks.
  */
 type PublicationKey = keyof Omit<
   Publication,
-  "id" | "sources" | "comments" | "excerpts" | "marked"
+  "id" | "sources" | "notes" | "excerpts" | "marked"
 >;
 
 /**
@@ -80,13 +80,13 @@ type PublicationListKey = {
 /**
  * What is wrong with a row: null when nothing is, the code of an error with the
  * whole row, or the code of an error with each field that has one, the
- * comments included.
+ * notes included.
  */
 type PublicationError =
-  null | string | (Record<PublicationKey, string> & { comments?: string });
+  null | string | (Record<PublicationKey, string> & { notes?: string });
 
-/** A field that can have an error of its own: an attribute or the comments. */
-type ErrorScope = PublicationKey | "comments";
+/** A field that can have an error of its own: an attribute or the notes. */
+type ErrorScope = PublicationKey | "notes";
 
 /**
  * What the look-alike check found for a row: the stored records it resembles,
@@ -140,13 +140,13 @@ type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
 
 /**
  * What an entry of the log changed: the old and new value of each field that
- * changed, the comments included, and the sources added, removed or
+ * changed, the notes included, and the sources added, removed or
  * reordered, or null when the sources did not change.
  */
 type SnapshotDiff = {
   fields: Partial<
     Record<PublicationKey, { from: unknown; to: unknown }> & {
-      comments: { from: string | null; to: string | null };
+      notes: { from: string | null; to: string | null };
     }
   >;
   sources: { added: string[]; removed: string[]; reordered: boolean } | null;
@@ -239,8 +239,8 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
 
 /**
  * Returns a publication with no id, an empty text in each text field and an
- * empty list in each list field. It has no `comments` key, which saves as no
- * comments.
+ * empty list in each list field. It has no `notes` key, which saves as no
+ * notes.
  */
 function empty(): Publication {
   return {
@@ -270,10 +270,10 @@ function idFromText(text: string): PublicationId {
 /**
  * What one record would look like with others folded into it: the survivor's
  * own fields, the countries and publishers of all of them, every source none
- * of the others already gave, and the survivor's comments followed by each
- * other record's comments, as further paragraphs. Comments that are empty, or
+ * of the others already gave, and the survivor's notes followed by each
+ * other record's notes, as further paragraphs. Notes that are empty, or
  * that repeat earlier ones, are left out. When no record has any, the result
- * has the survivor's. A record read from a page of the index has no comments
+ * has the survivor's. A record read from a page of the index has no notes
  * to add.
  *
  * The server merges the records itself and decides the result. This function
@@ -285,8 +285,8 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   const union = (attribute: "countries" | "publishers") =>
     Array.from(new Set(all.flatMap((p) => p[attribute]))).sort();
 
-  const comments = Array.from(
-    new Set(all.map((p) => p.comments?.trim() ?? "").filter(Boolean)),
+  const notes = Array.from(
+    new Set(all.map((p) => p.notes?.trim() ?? "").filter(Boolean)),
   );
 
   return {
@@ -294,7 +294,7 @@ function merged(winner: Publication, losers: Publication[]): Publication {
     countries: union("countries"),
     publishers: union("publishers"),
     sources: Array.from(new Set(all.flatMap((p) => p.sources))),
-    comments: comments.length > 0 ? comments.join("\n\n") : winner.comments,
+    notes: notes.length > 0 ? notes.join("\n\n") : winner.notes,
   };
 }
 

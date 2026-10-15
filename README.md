@@ -218,6 +218,6 @@ Each row of `data.csv` is one publication. The first line is a header that names
 | `original_title`              | The title of the original book                                               |
 | `original_authors`            | The authors of the original book, separated by `;`                           |
 | `sources`                     | The sources it cites, one per line                                           |
-| `comments` (or `comment`)     | Free text about the publication, written as Markdown, over one or more lines |
+| `notes` (or `note`)     | Free text about the publication, written as Markdown, over one or more lines |
 
 A cell that holds a comma, a quote or a line break is written inside double quotes. The CSV export writes the same columns, in the order of this table.

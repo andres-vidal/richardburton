@@ -244,28 +244,28 @@ describe("merged", () => {
     ]);
   });
 
-  test("appends the others' distinct comments to the survivor's as paragraphs", () => {
-    const winner = publication({ comments: "First edition." });
+  test("appends the others' distinct notes to the survivor's as paragraphs", () => {
+    const winner = publication({ notes: "First edition." });
     const losers = [
-      publication({ comments: "Reviewed in *The Athenaeum*." }),
-      publication({ comments: "First edition." }),
-      publication({ comments: null }),
-      publication({ comments: "  " }),
+      publication({ notes: "Reviewed in *The Athenaeum*." }),
+      publication({ notes: "First edition." }),
+      publication({ notes: null }),
+      publication({ notes: "  " }),
       publication({}),
     ];
 
-    expect(merged(winner, losers).comments).toBe(
+    expect(merged(winner, losers).notes).toBe(
       "First edition.\n\nReviewed in *The Athenaeum*.",
     );
   });
 
-  test("takes the others' comments when the survivor has none", () => {
-    const winner = publication({ comments: null });
+  test("takes the others' notes when the survivor has none", () => {
+    const winner = publication({ notes: null });
 
-    expect(
-      merged(winner, [publication({ comments: "- a list" })]).comments,
-    ).toBe("- a list");
-    expect(merged(winner, [publication({})]).comments).toBeNull();
+    expect(merged(winner, [publication({ notes: "- a list" })]).notes).toBe(
+      "- a list",
+    );
+    expect(merged(winner, [publication({})]).notes).toBeNull();
   });
 
   test("merging nothing in leaves the record as it stands", () => {

@@ -22,11 +22,11 @@ type SourcesChange = {
 };
 
 /**
- * The comments before and after the change, each in Markdown, or null where
+ * The notes before and after the change, each in Markdown, or null where
  * there were none.
  */
-type CommentsChange = {
-  kind: "comments";
+type NotesChange = {
+  kind: "notes";
   from: string | null;
   to: string | null;
 };
@@ -38,8 +38,8 @@ type AbsorbedRecord = {
   title: string;
   fields: { attribute: PublicationKey; value: string }[];
   sources: string[];
-  /** The record's comments in Markdown, or null when it had none. */
-  comments: string | null;
+  /** The record's notes in Markdown, or null when it had none. */
+  notes: string | null;
 };
 
 /**
@@ -67,7 +67,7 @@ type RelatedChange = {
 
 /** One change an entry of the log made. */
 type Change =
-  FieldChange | SourcesChange | CommentsChange | AbsorbedChange | RelatedChange;
+  FieldChange | SourcesChange | NotesChange | AbsorbedChange | RelatedChange;
 
 /** An entry with the changes its act made. */
 type WithChanges<T> = T & { changes: Change[] };
@@ -80,8 +80,8 @@ function keyOf(entry: FullHistoryEntry): string {
 /**
  * Returns the changes in the server's `diff`: one `FieldChange` for each field
  * that changed, in the order of `ATTRIBUTES`, with its values as text, then a
- * `SourcesChange` when the sources changed, and a `CommentsChange` when the
- * comments changed. Returns an empty list for a null diff.
+ * `SourcesChange` when the sources changed, and a `NotesChange` when the
+ * notes changed. Returns an empty list for a null diff.
  */
 function presentChanges(diff: SnapshotDiff | null): Change[] {
   if (diff === null) return [];
@@ -94,20 +94,20 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
     from: String(diff.fields[key]!.from),
     to: String(diff.fields[key]!.to),
   }));
-  const comments = diff.fields.comments;
+  const notes = diff.fields.notes;
 
   return [
     ...fields,
     ...(diff.sources === null
       ? []
       : [{ kind: "sources" as const, ...diff.sources }]),
-    ...(comments === undefined
+    ...(notes === undefined
       ? []
       : [
           {
-            kind: "comments" as const,
-            from: comments.from ?? null,
-            to: comments.to ?? null,
+            kind: "notes" as const,
+            from: notes.from ?? null,
+            to: notes.to ?? null,
           },
         ]),
   ];
@@ -116,7 +116,7 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
 /**
  * Returns the records a merge took in, or an un-merge gave back, as one
  * `AbsorbedChange`, each record with its title, every other field that has a
- * value, its sources and its comments. The records are the entry's `others`.
+ * value, its sources and its notes. The records are the entry's `others`.
  * Returns an empty list for an entry of any other action, or one that names no
  * records.
  */
@@ -137,7 +137,7 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
       }))
       .filter(({ value }) => value !== ""),
     sources: publication.sources ?? [],
-    comments: publication.comments ?? null,
+    notes: publication.notes ?? null,
   }));
 
   return [

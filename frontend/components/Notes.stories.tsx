@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, screen, within } from "storybook/test";
 
-import Comments from "./Comments";
+import Notes from "./Notes";
 
 const meta = {
-  title: "Publications/Comments",
-  component: Comments,
+  title: "Publications/Notes",
+  component: Notes,
   decorators: [
     (Story) => (
       <div className="p-6 w-lg max-w-full bg-white" data-testid="frame">
@@ -14,14 +14,14 @@ const meta = {
     ),
   ],
   parameters: { layout: "centered" },
-} satisfies Meta<typeof Comments>;
+} satisfies Meta<typeof Notes>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
 /**
- * Comments with every format they support: paragraphs, a line break, bold and
+ * Notes with every format they support: paragraphs, a line break, bold and
  * italic text, a bulleted list with a numbered list nested in it, and a link,
  * which opens in a new tab and passes on neither the page nor its address.
  */
@@ -65,7 +65,7 @@ export const BareLinks: Story = {
 };
 
 /**
- * Markdown that comments do not support keeps its text: raw HTML reads as
+ * Markdown that notes do not support keeps its text: raw HTML reads as
  * text rather than markup, a heading is a paragraph, and a link to anything
  * but a web or email address is its label alone.
  */
@@ -94,7 +94,7 @@ export const Small: Story = {
   },
 };
 
-/** Empty comments render nothing. */
+/** Empty notes render nothing. */
 export const Empty: Story = {
   args: { markdown: null },
   play: async () => {

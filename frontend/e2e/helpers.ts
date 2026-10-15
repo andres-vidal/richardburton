@@ -360,11 +360,11 @@ const CSV_HEADER =
 
 /**
  * Returns a CSV of `rows` under the suite's header, one line each. A cell that
- * holds a comma is quoted. With `comments`, the header ends with a
- * `comments` column, which each row fills last.
+ * holds a comma is quoted. With `notes`, the header ends with a
+ * `notes` column, which each row fills last.
  */
-export function csv(rows: string[], { comments = false } = {}): string {
-  const header = comments ? `${CSV_HEADER},comments` : CSV_HEADER;
+export function csv(rows: string[], { notes = false } = {}): string {
+  const header = notes ? `${CSV_HEADER},notes` : CSV_HEADER;
 
   return [header, ...rows].join("\n") + "\n";
 }

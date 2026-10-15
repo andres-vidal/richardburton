@@ -7,15 +7,15 @@ defmodule RichardBurton.Validation do
   `:required` or `:alpha2`, instead of a sentence.
   """
 
-  # The most characters a publication's comments may hold.
-  @comments_max_length 10_000
+  # The most characters a publication's notes may hold.
+  @notes_max_length 10_000
 
   @doc """
-  Adds a `:comments` error to `changeset` when its comments are longer than
+  Adds a `:notes` error to `changeset` when its notes are longer than
   10,000 characters. `get_errors/1` reports it as `:too_long`.
   """
-  def validate_comments(changeset) do
-    Ecto.Changeset.validate_length(changeset, :comments, max: @comments_max_length)
+  def validate_notes(changeset) do
+    Ecto.Changeset.validate_length(changeset, :notes, max: @notes_max_length)
   end
 
   @doc """

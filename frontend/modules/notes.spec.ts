@@ -6,14 +6,14 @@ import {
   plainText,
   safeUrl,
   serialize,
-  type CommentsValue,
-} from "./comments";
+  type NotesValue,
+} from "./notes";
 
 // Parses `markdown` and writes it back.
 const roundTrip = (markdown: string) => serialize(parse(markdown));
 
 describe("parse", () => {
-  it("reads empty comments as one empty paragraph", () => {
+  it("reads empty notes as one empty paragraph", () => {
     const empty = [{ type: "paragraph", children: [{ text: "" }] }];
 
     expect(parse(null)).toEqual(empty);
@@ -245,7 +245,7 @@ describe("serialize", () => {
   });
 
   it("writes marks, links and line breaks", () => {
-    const value: CommentsValue = [
+    const value: NotesValue = [
       {
         type: "paragraph",
         children: [
@@ -268,7 +268,7 @@ describe("serialize", () => {
   });
 
   it("writes nested lists from items of increasing depth", () => {
-    const value: CommentsValue = [
+    const value: NotesValue = [
       { type: "paragraph", children: [{ text: "Editions:" }] },
       {
         type: "list-item",
@@ -302,7 +302,7 @@ describe("serialize", () => {
   });
 
   it("takes an item that skips a level to be one level deeper", () => {
-    const value: CommentsValue = [
+    const value: NotesValue = [
       {
         type: "list-item",
         list: "bulleted",
@@ -321,7 +321,7 @@ describe("serialize", () => {
   });
 
   it("links the bare URLs left in the text", () => {
-    const value: CommentsValue = [
+    const value: NotesValue = [
       {
         type: "paragraph",
         children: [{ text: "At https://example.com/a_b and www.example.org." }],
@@ -334,7 +334,7 @@ describe("serialize", () => {
   });
 
   it("escapes text that would read as Markdown", () => {
-    const value: CommentsValue = [
+    const value: NotesValue = [
       {
         type: "paragraph",
         children: [{ text: "1. not a list, *not* italic, <b>" }],
@@ -345,7 +345,7 @@ describe("serialize", () => {
   });
 
   it("keeps the white space at the ends of a marked run outside the mark", () => {
-    const value: CommentsValue = [
+    const value: NotesValue = [
       {
         type: "paragraph",
         children: [
@@ -378,7 +378,7 @@ describe("round trips", () => {
   });
 
   it("keeps marks that start or end inside a word", () => {
-    const value: CommentsValue = [
+    const value: NotesValue = [
       {
         type: "paragraph",
         children: [
@@ -404,7 +404,7 @@ describe("round trips", () => {
 });
 
 describe("plainText", () => {
-  it("reads comments as one line of text", () => {
+  it("reads notes as one line of text", () => {
     expect(
       plainText("A **bold** [link](https://x.org).\\\nNext\n\n- item\n- other"),
     ).toBe("A bold link. Next item other");

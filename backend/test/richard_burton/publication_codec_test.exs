@@ -29,7 +29,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
           "sources" => [],
-          "comments" => nil
+          "notes" => nil
         },
         %{
           "authors" => ["J. T. W. Sadler"],
@@ -40,7 +40,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "1922",
           "sources" => [],
-          "comments" => nil
+          "notes" => nil
         },
         %{
           "authors" => [],
@@ -51,7 +51,7 @@ defmodule RichardBurton.Publication.CodecTest do
           "title" => "",
           "year" => "AAAA",
           "sources" => [],
-          "comments" => nil
+          "notes" => nil
         }
       ]
 
@@ -681,49 +681,49 @@ defmodule RichardBurton.Publication.CodecTest do
     end
   end
 
-  describe "comments" do
-    @comments "**First** edition, in English.\n\n- Bound in green cloth\n- Signed \"I. Burton\" on the title page"
+  describe "notes" do
+    @notes "**First** edition, in English.\n\n- Bound in green cloth\n- Signed \"I. Burton\" on the title page"
 
-    test "nest and flatten keep the comments at the top of both shapes" do
-      flat = %{"title" => "Iracema", "comments" => @comments}
+    test "nest and flatten keep the notes at the top of both shapes" do
+      flat = %{"title" => "Iracema", "notes" => @notes}
 
       nested = Publication.Codec.nest(flat)
 
-      assert nested["comments"] == @comments
+      assert nested["notes"] == @notes
       assert Publication.Codec.flatten(nested) == flat
     end
 
-    test "a publication flattens with its comments, and without any as nil" do
+    test "a publication flattens with its notes, and without any as nil" do
       publication =
-        Publication.Codec.nest(%FlatPublication{title: "Iracema", comments: @comments})
+        Publication.Codec.nest(%FlatPublication{title: "Iracema", notes: @notes})
 
-      assert %Publication{comments: @comments} = publication
-      assert %FlatPublication{comments: @comments} = Publication.Codec.flatten(publication)
+      assert %Publication{notes: @notes} = publication
+      assert %FlatPublication{notes: @notes} = Publication.Codec.flatten(publication)
 
-      assert %FlatPublication{comments: nil} =
+      assert %FlatPublication{notes: nil} =
                Publication.Codec.flatten(%Publication{title: "Iracema"})
     end
 
-    test "the error of the comments keeps its own key" do
-      assert %{"comments" => :too_long} ==
-               Publication.Codec.flatten_errors(%{comments: :too_long})
+    test "the error of the notes keeps its own key" do
+      assert %{"notes" => :too_long} ==
+               Publication.Codec.flatten_errors(%{notes: :too_long})
     end
 
     test "from_csv reads a quoted cell of several lines as one value, and a blank one as nil" do
       assert {:ok, [iracema, ubirajara]} =
-               Publication.Codec.from_csv("test/fixtures/data_with_comments.csv")
+               Publication.Codec.from_csv("test/fixtures/data_with_notes.csv")
 
-      assert iracema["comments"] == @comments
-      assert ubirajara["comments"] == nil
+      assert iracema["notes"] == @notes
+      assert ubirajara["notes"] == nil
     end
 
-    test "from_csv reads a file without a comments column as having no comments" do
+    test "from_csv reads a file without a notes column as having no notes" do
       assert {:ok, [row]} = Publication.Codec.from_csv("test/fixtures/data_with_sources.csv")
 
-      assert Map.fetch(row, "comments") == {:ok, nil}
+      assert Map.fetch(row, "notes") == {:ok, nil}
     end
 
-    test "to_csv writes the comments last, quoted, and from_csv reads them back" do
+    test "to_csv writes the notes last, quoted, and from_csv reads them back" do
       flat = %{
         "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
         "year" => "1886",
@@ -733,7 +733,7 @@ defmodule RichardBurton.Publication.CodecTest do
         "original_title" => "Iracema",
         "original_authors" => ["José de Alencar"],
         "sources" => [],
-        "comments" => @comments
+        "notes" => @notes
       }
 
       csv = [flat] |> Publication.Codec.to_csv() |> Enum.join()
@@ -741,14 +741,14 @@ defmodule RichardBurton.Publication.CodecTest do
       assert [header | _] = String.split(csv, "\n")
 
       assert header ==
-               "title,year,countries,publishers,authors,original_title,original_authors,sources,comments"
+               "title,year,countries,publishers,authors,original_title,original_authors,sources,notes"
 
-      path = Path.join(System.tmp_dir!(), "comments-#{System.unique_integer([:positive])}.csv")
+      path = Path.join(System.tmp_dir!(), "notes-#{System.unique_integer([:positive])}.csv")
       File.write!(path, csv)
       on_exit(fn -> File.rm(path) end)
 
       assert {:ok, [read]} = Publication.Codec.from_csv(path)
-      assert read["comments"] == @comments
+      assert read["notes"] == @notes
     end
   end
 end

@@ -8,8 +8,8 @@ import type { HistoryEditor } from "slate-history";
 import type { ReactEditor } from "slate-react";
 
 /**
- * Converts a publication's comments between the Markdown they are stored as
- * and the value the comments editor edits.
+ * Converts a publication's notes between the Markdown they are stored as
+ * and the value the notes editor edits.
  *
  * The **value** is a list of **blocks**, the shape Slate edits. A block is a
  * paragraph or a list item. A list item has a **kind**, bulleted or numbered,
@@ -20,7 +20,7 @@ import type { ReactEditor } from "slate-react";
  * both or neither, and links, each with a URL and runs of text of its own. A
  * `"\n"` in a run of text is a line break.
  *
- * Comments support only that subset of Markdown. `parse` reads any Markdown
+ * Notes support only that subset of Markdown. `parse` reads any Markdown
  * and keeps the text of what the subset lacks: a heading becomes a paragraph,
  * code and raw HTML become plain text, an image becomes its alternative text,
  * and a link to anything but an `http`, `https` or `mailto` URL becomes its
@@ -33,45 +33,45 @@ import type { ReactEditor } from "slate-react";
  */
 
 /** A formatting mark a run of text can carry. */
-type CommentsMark = "bold" | "italic";
+type NotesMark = "bold" | "italic";
 
 /** A run of text, with the marks it carries. */
-type CommentsText = { text: string; bold?: boolean; italic?: boolean };
+type NotesText = { text: string; bold?: boolean; italic?: boolean };
 
 /** A link: the URL it goes to, and the runs of text it shows. */
-type LinkElement = { type: "link"; url: string; children: CommentsText[] };
+type LinkElement = { type: "link"; url: string; children: NotesText[] };
 
 /** What a block holds: runs of text and links. */
-type CommentsInline = CommentsText | LinkElement;
+type NotesInline = NotesText | LinkElement;
 
 /** The kind of list an item belongs to. */
 type ListKind = "bulleted" | "numbered";
 
 /** A paragraph. */
-type ParagraphElement = { type: "paragraph"; children: CommentsInline[] };
+type ParagraphElement = { type: "paragraph"; children: NotesInline[] };
 
 /** An item of a list of `list` kind, `depth` levels deep. */
 type ListItemElement = {
   type: "list-item";
   list: ListKind;
   depth: number;
-  children: CommentsInline[];
+  children: NotesInline[];
 };
 
 /** A block of the value: a paragraph or a list item. */
-type CommentsBlock = ParagraphElement | ListItemElement;
+type NotesBlock = ParagraphElement | ListItemElement;
 
 /** Any element of the value. */
-type CommentsElement = CommentsBlock | LinkElement;
+type NotesElement = NotesBlock | LinkElement;
 
-/** The value of the comments editor: its blocks, in reading order. */
-type CommentsValue = CommentsBlock[];
+/** The value of the notes editor: its blocks, in reading order. */
+type NotesValue = NotesBlock[];
 
 declare module "slate" {
   interface CustomTypes {
     Editor: BaseEditor & ReactEditor & HistoryEditor;
-    Element: CommentsElement;
-    Text: CommentsText;
+    Element: NotesElement;
+    Text: NotesText;
   }
 }
 
@@ -103,7 +103,7 @@ const STYLE = {
  */
 const linkBareUrls = gfmAutolinkLiteralFromMarkdown().transforms![0];
 
-/** Returns an empty paragraph, the value of empty comments. */
+/** Returns an empty paragraph, the value of empty notes. */
 function emptyParagraph(): ParagraphElement {
   return { type: "paragraph", children: [{ text: "" }] };
 }
@@ -179,10 +179,10 @@ type Reading = { definitions: Map<string, string> };
 type Marks = { bold?: boolean; italic?: boolean };
 
 /**
- * Returns the value that `markdown` holds. Empty or missing comments give one
+ * Returns the value that `markdown` holds. Empty or missing notes give one
  * empty paragraph, since the editor needs a block to type in.
  */
-function parse(markdown: string | null | undefined): CommentsValue {
+function parse(markdown: string | null | undefined): NotesValue {
   const root = fromMarkdown(markdown ?? "", SYNTAX);
   const reading = { definitions: definitionsOf(root) };
   const blocks = blocksOf(root.children, reading);
@@ -213,8 +213,8 @@ function blocksOf(
   nodes: Mdast.Nodes[],
   reading: Reading,
   depth = 0,
-): CommentsBlock[] {
-  return nodes.flatMap((node): CommentsBlock[] => {
+): NotesBlock[] {
+  return nodes.flatMap((node): NotesBlock[] => {
     switch (node.type) {
       case "list":
         return itemsOf(node, reading, depth);
@@ -245,7 +245,7 @@ function itemsOf(
   list: Mdast.List,
   reading: Reading,
   depth: number,
-): CommentsBlock[] {
+): NotesBlock[] {
   const kind: ListKind = list.ordered ? "numbered" : "bulleted";
 
   return list.children.flatMap((item) => {
@@ -266,14 +266,14 @@ function itemsOf(
 }
 
 // Returns runs of inlines as one, with a line break between each two.
-function joinLines(lines: CommentsInline[][]): CommentsInline[] {
+function joinLines(lines: NotesInline[][]): NotesInline[] {
   return lines.flatMap((line, index) =>
     index === 0 ? line : [{ text: "\n" }, ...line],
   );
 }
 
 // Returns a paragraph of `inlines`.
-function paragraph(inlines: CommentsInline[]): ParagraphElement {
+function paragraph(inlines: NotesInline[]): ParagraphElement {
   return { type: "paragraph", children: tidy(inlines) };
 }
 
@@ -287,10 +287,10 @@ function inlinesOf(
   reading: Reading,
   marks: Marks = {},
   inLink = false,
-): CommentsInline[] {
-  const text = (value: string): CommentsText[] => [{ text: value, ...marks }];
+): NotesInline[] {
+  const text = (value: string): NotesText[] => [{ text: value, ...marks }];
 
-  return nodes.flatMap((node): CommentsInline[] => {
+  return nodes.flatMap((node): NotesInline[] => {
     switch (node.type) {
       case "text":
       case "inlineCode":
@@ -315,7 +315,7 @@ function inlinesOf(
         const label = inlinesOf(node.children, reading, marks, true);
         const safe = inLink ? null : safeUrl(url);
         const shown = label.some((inline) => !isLink(inline) && inline.text)
-          ? (label as CommentsText[])
+          ? (label as NotesText[])
           : text(linkLabel(url));
 
         return safe === null
@@ -333,7 +333,7 @@ function inlinesOf(
 }
 
 /** Returns whether two runs of text carry the same marks. */
-function sameMarks(one: CommentsText, other: CommentsText): boolean {
+function sameMarks(one: NotesText, other: NotesText): boolean {
   return (
     Boolean(one.bold) === Boolean(other.bold) &&
     Boolean(one.italic) === Boolean(other.italic)
@@ -344,8 +344,8 @@ function sameMarks(one: CommentsText, other: CommentsText): boolean {
 // joined, empty runs dropped, and a run of text, empty if need be, at the
 // start, at the end and between two links. Each link's own runs are tidied
 // the same way, and a link always holds at least one run.
-function tidy(inlines: CommentsInline[]): CommentsInline[] {
-  const joined = inlines.reduce<CommentsInline[]>((result, inline) => {
+function tidy(inlines: NotesInline[]): NotesInline[] {
+  const joined = inlines.reduce<NotesInline[]>((result, inline) => {
     const last = result[result.length - 1];
     const node = isLink(inline)
       ? { ...inline, children: tidyTexts(inline.children) }
@@ -373,9 +373,9 @@ function tidy(inlines: CommentsInline[]): CommentsInline[] {
 
 // Returns runs of text with adjacent runs of the same marks joined and empty
 // runs dropped, or one empty run when none is left.
-function tidyTexts(texts: CommentsText[]): CommentsText[] {
+function tidyTexts(texts: NotesText[]): NotesText[] {
   const tidied = tidy(texts).filter(
-    (inline): inline is CommentsText => !isLink(inline) && inline.text !== "",
+    (inline): inline is NotesText => !isLink(inline) && inline.text !== "",
   );
 
   return tidied.length > 0 ? tidied : [{ text: "" }];
@@ -399,7 +399,7 @@ type Piece =
  * out. A list item deeper than the one before it by more than one level is
  * taken to be one level deeper, as the nesting of Markdown lists allows.
  */
-function toTree(value: CommentsValue): Mdast.Root {
+function toTree(value: NotesValue): Mdast.Root {
   const children: Mdast.RootContent[] = [];
 
   value.forEach((block, index) => {
@@ -421,7 +421,7 @@ function toTree(value: CommentsValue): Mdast.Root {
 
 // Returns the run of list items that starts at `start`, without blank items,
 // with each item's depth at most one more than the item before it.
-function runFrom(value: CommentsValue, start: number): ListItemElement[] {
+function runFrom(value: NotesValue, start: number): ListItemElement[] {
   const end = value.findIndex(
     (block, index) => index > start && block.type !== "list-item",
   );
@@ -478,7 +478,7 @@ function listsOf(items: ListItemElement[], depth: number): Mdast.List[] {
 }
 
 // Returns whether a block holds nothing but white space.
-function isBlank(block: CommentsBlock): boolean {
+function isBlank(block: NotesBlock): boolean {
   return block.children.every((inline) =>
     isLink(inline) ? false : inline.text.trim() === "",
   );
@@ -486,12 +486,12 @@ function isBlank(block: CommentsBlock): boolean {
 
 // Returns the Markdown phrasing of a block's inlines. White space at either
 // end of the block is dropped, since Markdown drops it too.
-function phrasing(inlines: CommentsInline[]): Mdast.PhrasingContent[] {
+function phrasing(inlines: NotesInline[]): Mdast.PhrasingContent[] {
   return marked(edges(inlines.map(pieceOf)).inner, ["bold", "italic"]);
 }
 
 // Returns the piece an inline is laid out as.
-function pieceOf(inline: CommentsInline): Piece {
+function pieceOf(inline: NotesInline): Piece {
   return isLink(inline)
     ? { kind: "link", url: inline.url, pieces: inline.children.map(pieceOf) }
     : {
@@ -544,10 +544,7 @@ function edges(pieces: Piece[]): {
 // one strong node rather than two side by side. The white space at the ends of
 // a run is left outside its node, because Markdown does not open or close
 // emphasis next to white space.
-function marked(
-  pieces: Piece[],
-  marks: CommentsMark[],
-): Mdast.PhrasingContent[] {
+function marked(pieces: Piece[], marks: NotesMark[]): Mdast.PhrasingContent[] {
   const [mark, ...rest] = marks;
 
   if (mark === undefined) return pieces.flatMap(unmarked);
@@ -603,16 +600,16 @@ function unmarked(piece: Piece): Mdast.PhrasingContent[] {
 /**
  * Returns `value` as Markdown, or an empty string when it holds no text.
  */
-function serialize(value: CommentsValue): string {
+function serialize(value: NotesValue): string {
   return toMarkdown(toTree(value), STYLE).trim();
 }
 
 /**
- * Returns the text of comments in Markdown on one line: the text of every
+ * Returns the text of notes in Markdown on one line: the text of every
  * block, links included, with each block and line break as a space.
  */
 function plainText(markdown: string | null | undefined): string {
-  const textOf = (inline: CommentsInline): string =>
+  const textOf = (inline: NotesInline): string =>
     isLink(inline) ? inline.children.map(textOf).join("") : inline.text;
 
   return parse(markdown)
@@ -635,12 +632,12 @@ export {
   toTree,
 };
 export type {
-  CommentsBlock,
-  CommentsElement,
-  CommentsInline,
-  CommentsMark,
-  CommentsText,
-  CommentsValue,
+  NotesBlock,
+  NotesElement,
+  NotesInline,
+  NotesMark,
+  NotesText,
+  NotesValue,
   LinkElement,
   ListItemElement,
   ListKind,

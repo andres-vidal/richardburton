@@ -1221,7 +1221,7 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
-  describe "comments" do
+  describe "notes" do
     setup do
       [publication] =
         seed_index([
@@ -1233,7 +1233,7 @@ defmodule RichardBurton.Publication.IndexTest do
             authors: ["Harriet de Onís"],
             original_title: "Dona Flor e seus dois maridos",
             original_authors: ["Jorge Amado"],
-            comments: "Reviewed in *The New Yorker*, with a zanzibarian flourish."
+            notes: "Reviewed in *The New Yorker*, with a zanzibarian flourish."
           }
         ])
 
@@ -1243,25 +1243,25 @@ defmodule RichardBurton.Publication.IndexTest do
     test "a listed row leaves them out", %{publication: publication} do
       assert [row] = Publication.Index.details([publication.id])
       assert row.title == "Dona Flor and Her Two Husbands"
-      refute Map.has_key?(row, :comments)
+      refute Map.has_key?(row, :notes)
 
       assert [row] = Publication.Index.details([publication.id], "Flor")
       assert row.excerpts.title =~ "[[Flor]]"
-      refute Map.has_key?(row, :comments)
+      refute Map.has_key?(row, :notes)
 
       {:ok, unsourced} = Publication.Index.without_sources()
       assert Enum.any?(unsourced, &(&1.id == publication.id))
-      refute Enum.any?(unsourced, &Map.has_key?(&1, :comments))
+      refute Enum.any?(unsourced, &Map.has_key?(&1, :notes))
     end
 
     test "all/0 and search/1 return them", %{publication: publication} do
-      comments = "Reviewed in *The New Yorker*, with a zanzibarian flourish."
+      notes = "Reviewed in *The New Yorker*, with a zanzibarian flourish."
 
       {:ok, all} = Publication.Index.all()
-      assert %FlatPublication{comments: ^comments} = Enum.find(all, &(&1.id == publication.id))
+      assert %FlatPublication{notes: ^notes} = Enum.find(all, &(&1.id == publication.id))
 
       {:ok, found} = Publication.Index.search("Flor")
-      assert %FlatPublication{comments: ^comments} = Enum.find(found, &(&1.id == publication.id))
+      assert %FlatPublication{notes: ^notes} = Enum.find(found, &(&1.id == publication.id))
     end
 
     test "the search does not read them" do

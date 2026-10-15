@@ -28,8 +28,8 @@ defmodule RichardBurton.Publication do
       recorded entry. The compensating action is recorded as a new entry, which
       can be undone in turn.
 
-  A publication's `comments` are free text about it, written as Markdown, or nil
-  when it has none. Blank comments are stored as nil. The comments are not part
+  A publication's `notes` are free text about it, written as Markdown, or nil
+  when it has none. Blank notes are stored as nil. The notes are not part
   of the composite key, and the search does not read them.
 
   A publication's countries, publishers, translators and original authors are
@@ -63,13 +63,13 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Validation
 
-  @readable_attributes [:countries, :publishers, :title, :year, :comments, :translated_book]
+  @readable_attributes [:countries, :publishers, :title, :year, :notes, :translated_book]
 
   @derive {Jason.Encoder, only: @readable_attributes}
   schema "publications" do
     field(:title, :string)
     field(:year, :integer)
-    field(:comments, :string)
+    field(:notes, :string)
     # Written by the database from the linked countries and publishers.
     field(:countries_fingerprint, :string, writable: :never)
     field(:publishers_fingerprint, :string, writable: :never)
@@ -111,7 +111,7 @@ defmodule RichardBurton.Publication do
   @doc false
   def changeset(publication, attrs) do
     publication
-    |> cast(attrs, [:title, :year, :comments])
+    |> cast(attrs, [:title, :year, :notes])
     |> cast_assoc(:translated_book, required: true)
     |> cast_assoc(:countries, required: true)
     |> cast_assoc(:publishers, required: true)
@@ -120,7 +120,7 @@ defmodule RichardBurton.Publication do
     |> validate_no_duplicates(:countries, :code)
     |> validate_no_duplicates(:publishers, :name)
     |> validate_required([:title, :year])
-    |> validate_comments()
+    |> validate_notes()
   end
 
   @doc """
@@ -403,7 +403,7 @@ defmodule RichardBurton.Publication do
   `winner_id`, and records the merge with one `merged` entry by `actor` on the
   winner, in one transaction.
 
-  The winner keeps its title, year, comments, translated book and original
+  The winner keeps its title, year, notes, translated book and original
   book. It gains the countries and publishers of the losers, and their sources
   after its own, leaving out a source it already holds. The losers are then
   tombstoned, and their distinctions from each other and from the winner are

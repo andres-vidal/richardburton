@@ -26,7 +26,7 @@
     "title": "Title",
     "year": "Year",
     "sources": "Sources",
-    "comments": "Comments",
+    "notes": "Notes",
     "publications": "Publications",
     "status": "Status"
   },
@@ -347,11 +347,11 @@
     "gaveBack": "Gave back",
     "untitledRecord": "an untitled record",
     "sourceLabel": "Source: {source}",
-    "commentsEditor": "Edit comments",
-    "addComments": "Add comments",
-    "editComments": "Edit comments: {preview}",
-    "noCommentsPreview": "Comments",
-    "noComments": "(none)",
+    "notesEditor": "Edit notes",
+    "addNotes": "Add notes",
+    "editNotes": "Edit notes: {preview}",
+    "noNotesPreview": "Notes",
+    "noNotes": "(none)",
     "withErrors": "{count, plural, one {1 publication with errors} other {# publications with errors}}",
     "invalidPublications": "{count, plural, one {1 invalid publication} other {# invalid publications}}",
     "hideRowIds": "Hide row numbers",
@@ -516,7 +516,7 @@
     "summary": "Translation of <originalTitle></originalTitle> by <originalAuthors></originalAuthors>, published by <publishers></publishers>",
     "inCountry": "{article, select, the {in the <name></name>} other {in <name></name>}}"
   },
-  "comments": {
+  "notes": {
     "hint": "Shown to everyone on the publication's page.",
     "placeholder": "Notes about this publication",
     "toolbar": "Formatting",

@@ -1,35 +1,35 @@
 import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
-import * as CommentsEditorStories from "./CommentsEditor.stories";
+import * as NotesEditorStories from "./NotesEditor.stories";
 
-<Meta of={CommentsEditorStories} />
+<Meta of={NotesEditorStories} />
 
-# Comments editor
+# Notes editor
 
-Edits a publication's comments as rich text, with Slate. The comments are
+Edits a publication's notes as rich text, with Slate. The notes are
 stored as Markdown, and the editor reads and writes that Markdown through
-`parse` and `serialize` in `modules/comments`. It supports paragraphs and line
+`parse` and `serialize` in `modules/notes`. It supports paragraphs and line
 breaks, bold and italic text, bulleted and numbered lists, nested up to three
 levels, and links.
 
-<Description of={CommentsEditorStories.WithContent} />
-<Canvas of={CommentsEditorStories.WithContent} />
+<Description of={NotesEditorStories.WithContent} />
+<Canvas of={NotesEditorStories.WithContent} />
 
 ## Props
 
-- `value` — the comments in Markdown, or null for none. The editor reads it when
+- `value` — the notes in Markdown, or null for none. The editor reads it when
   it mounts, and again whenever it changes to Markdown other than what the
   editor last passed to `onChange`, as when another person edits the same
-  comments. Reading it again clears the editor's undo history.
+  notes. Reading it again clears the editor's undo history.
 - `onChange` — receives the Markdown the text is written as, each time that
   Markdown changes. An empty editor passes an empty string. A change of the
   selection alone calls nothing.
-- `error` — what is wrong with the comments, such as the server's
+- `error` — what is wrong with the notes, such as the server's
   `publicationError.too_long`. It is shown under the editor, describes the text
   area and marks it invalid.
 
-<Description of={CommentsEditorStories.WithError} />
-<Canvas of={CommentsEditorStories.WithError} />
+<Description of={NotesEditorStories.WithError} />
+<Canvas of={NotesEditorStories.WithError} />
 
 ## Formatting
 
@@ -42,15 +42,15 @@ Ctrl+B and Ctrl+I, or Cmd on a Mac, toggle bold and italic. Shift+Enter breaks
 the line within a paragraph or an item, and undo and redo use the usual
 shortcuts.
 
-<Description of={CommentsEditorStories.TypingBoldAndItalic} />
-<Canvas of={CommentsEditorStories.TypingBoldAndItalic} />
+<Description of={NotesEditorStories.TypingBoldAndItalic} />
+<Canvas of={NotesEditorStories.TypingBoldAndItalic} />
 
 In a list item, Tab and Shift+Tab move the item a level deeper or shallower,
 and Enter on an empty item, or Backspace at the start of an item, takes it out
 a level and then out of the list.
 
-<Description of={CommentsEditorStories.MakingAList} />
-<Canvas of={CommentsEditorStories.MakingAList} />
+<Description of={NotesEditorStories.MakingAList} />
+<Canvas of={NotesEditorStories.MakingAList} />
 
 ## Links
 
@@ -60,18 +60,18 @@ address, and for the text of a new link when no text is selected. In a link, it
 edits the link's address and offers Remove link. Escape closes it without
 closing a dialog around the editor.
 
-<Description of={CommentsEditorStories.AddingALink} />
-<Canvas of={CommentsEditorStories.AddingALink} />
+<Description of={NotesEditorStories.AddingALink} />
+<Canvas of={NotesEditorStories.AddingALink} />
 
-<Description of={CommentsEditorStories.EditingALink} />
-<Canvas of={CommentsEditorStories.EditingALink} />
+<Description of={NotesEditorStories.EditingALink} />
+<Canvas of={NotesEditorStories.EditingALink} />
 
 A URL or an email address typed into the text becomes a link once a space or a
 new line follows it, and one that is pasted becomes a link at once, or links
 the selected text.
 
-<Description of={CommentsEditorStories.TypingAUrl} />
-<Canvas of={CommentsEditorStories.TypingAUrl} />
+<Description of={NotesEditorStories.TypingAUrl} />
+<Canvas of={NotesEditorStories.TypingAUrl} />
 
-<Description of={CommentsEditorStories.Empty} />
-<Canvas of={CommentsEditorStories.Empty} />
+<Description of={NotesEditorStories.Empty} />
+<Canvas of={NotesEditorStories.Empty} />

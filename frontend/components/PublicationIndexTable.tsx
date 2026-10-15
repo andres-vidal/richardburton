@@ -201,7 +201,7 @@ const Column: FC<{
  * `name`, an `attributes` message, names its column for screen readers.
  */
 type TrailingColumn = {
-  name: "comments" | "sources";
+  name: "notes" | "sources";
   Cell: FC<{ rowId: RowId }>;
 };
 

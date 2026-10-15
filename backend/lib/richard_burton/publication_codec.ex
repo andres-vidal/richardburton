@@ -5,7 +5,7 @@ defmodule RichardBurton.Publication.Codec do
 
   The **flat** shape is the one `RichardBurton.FlatPublication` has: `title`,
   `year`, `countries`, `publishers`, `authors`, `original_title`,
-  `original_authors`, `sources` and `comments`, side by side, with each list
+  `original_authors`, `sources` and `notes`, side by side, with each list
   field holding names, codes or source texts.
 
   The **nested** shape is the one `RichardBurton.Publication.changeset/2`
@@ -16,7 +16,7 @@ defmodule RichardBurton.Publication.Codec do
       %{
         "title" => title,
         "year" => year,
-        "comments" => text,
+        "notes" => text,
         "countries" => [%{"code" => code}],
         "publishers" => [%{"name" => name}],
         "sources" => [%{"content" => text, "position" => 0}],
@@ -45,7 +45,7 @@ defmodule RichardBurton.Publication.Codec do
     "authors" => "",
     "original_title" => "",
     "original_authors" => "",
-    "comments" => nil
+    "notes" => nil
   }
 
   # The columns a file may carry, by the name its header gives them. Singular
@@ -62,8 +62,8 @@ defmodule RichardBurton.Publication.Codec do
     "original_title" => "original_title",
     "original_authors" => "original_authors",
     "sources" => "sources",
-    "comment" => "comments",
-    "comments" => "comments"
+    "note" => "notes",
+    "notes" => "notes"
   }
 
   # The order an exported file writes its columns in.
@@ -76,7 +76,7 @@ defmodule RichardBurton.Publication.Codec do
     "original_title",
     "original_authors",
     "sources",
-    "comments"
+    "notes"
   ]
 
   # The cells holding several values, and what separates them. A semicolon,
@@ -100,8 +100,8 @@ defmodule RichardBurton.Publication.Codec do
   and a column the file does not carry reads as empty. A name the table does not
   know is ignored, which is what lets a spreadsheet keep a column of its own.
 
-  A `comments` cell may hold several lines, inside quotes. A blank or missing
-  `comments` cell reads as nil.
+  A `notes` cell may hold several lines, inside quotes. A blank or missing
+  `notes` cell reads as nil.
   """
   def from_csv(path) do
     try do
@@ -112,7 +112,7 @@ defmodule RichardBurton.Publication.Codec do
         |> Enum.map(&rename_columns/1)
         |> Enum.map(&Util.deep_merge_maps(@empty_flat_attrs, &1))
         |> Enum.map(&parse_list_cells/1)
-        |> Enum.map(&parse_comments/1)
+        |> Enum.map(&parse_notes/1)
 
       {:ok, publications}
     rescue
@@ -131,7 +131,7 @@ defmodule RichardBurton.Publication.Codec do
   Writes publications as a CSV with a header, in the shape `from_csv/1` reads.
 
   The columns come in this order: `title`, `year`, `countries`, `publishers`,
-  `authors`, `original_title`, `original_authors`, `sources` and `comments`.
+  `authors`, `original_title`, `original_authors`, `sources` and `notes`.
   The file has a column for each of them that the first publication holds, so
   every publication must hold the same fields.
   """
@@ -190,10 +190,10 @@ defmodule RichardBurton.Publication.Codec do
 
   defp split_cell(_absent, _separator), do: []
 
-  # Returns a row with a blank `comments` cell as nil, the value a publication
-  # without comments holds. The cell is already trimmed.
-  defp parse_comments(row = %{"comments" => ""}), do: %{row | "comments" => nil}
-  defp parse_comments(row), do: row
+  # Returns a row with a blank `notes` cell as nil, the value a publication
+  # without notes holds. The cell is already trimmed.
+  defp parse_notes(row = %{"notes" => ""}), do: %{row | "notes" => nil}
+  defp parse_notes(row), do: row
 
   # Joins each list of the fields in `@csv_lists` into one cell. A field the
   # row does not hold is left out rather than written empty, because an

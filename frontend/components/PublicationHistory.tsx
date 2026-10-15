@@ -6,7 +6,7 @@ import type { PublicationHistoryEntry } from "modules/publication/model";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
-import Comments from "./Comments";
+import Notes from "./Notes";
 
 type HistoryEntry = WithChanges<PublicationHistoryEntry>;
 
@@ -67,7 +67,7 @@ const ActionBadge: FC<{
  * and the `plain` variant does neither.
  *
  * What it changed is listed from `entry.changes`: a field's old and new value,
- * the sources added and removed, the comments before and after, rendered from
+ * the sources added and removed, the notes before and after, rendered from
  * their Markdown, the records a merge took in or gave back, and the records a
  * duplicate decision was about. An update with no earlier
  * version to compare with says so.
@@ -197,18 +197,18 @@ const Entry: FC<{
                   ))}
                 </ul>
               </li>
-            ) : change.kind === "comments" ? (
-              <li key="comments" className="text-xs text-gray-600">
-                {attribute("comments")}:
+            ) : change.kind === "notes" ? (
+              <li key="notes" className="text-xs text-gray-600">
+                {attribute("notes")}:
                 <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 mt-0.5">
                   <span aria-hidden className="text-red-700">
                     −
                   </span>
                   <del className="text-gray-500 no-underline">
                     {change.from ? (
-                      <Comments markdown={change.from} size="small" />
+                      <Notes markdown={change.from} size="small" />
                     ) : (
-                      t("noComments")
+                      t("noNotes")
                     )}
                   </del>
                   <span aria-hidden className="text-emerald-700">
@@ -216,9 +216,9 @@ const Entry: FC<{
                   </span>
                   <ins className="no-underline">
                     {change.to ? (
-                      <Comments markdown={change.to} size="small" />
+                      <Notes markdown={change.to} size="small" />
                     ) : (
-                      t("noComments")
+                      t("noNotes")
                     )}
                   </ins>
                 </div>
@@ -267,10 +267,10 @@ const Entry: FC<{
                             {t("sourceLabel", { source })}
                           </li>
                         ))}
-                        {record.comments && (
+                        {record.notes && (
                           <li className="text-gray-500">
-                            {attribute("comments")}:
-                            <Comments markdown={record.comments} size="small" />
+                            {attribute("notes")}:
+                            <Notes markdown={record.notes} size="small" />
                           </li>
                         )}
                       </ul>

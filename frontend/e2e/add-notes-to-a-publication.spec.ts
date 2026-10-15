@@ -13,7 +13,7 @@ import {
   uploadCsv,
 } from "./helpers";
 
-test("an admin writes formatted comments that every reader sees, and a later save of the sources keeps them", async ({
+test("an admin writes formatted notes that every reader sees, and a later save of the sources keeps them", async ({
   page,
 }) => {
   await seedCorpus(page);
@@ -24,13 +24,13 @@ test("an admin writes formatted comments that every reader sees, and a later sav
   await dialog.getByRole("button", { name: "Edit" }).click();
 
   // A paragraph with a bold word, set with the toolbar.
-  const comments = dialog.getByRole("textbox", { name: "Comments" });
+  const notes = dialog.getByRole("textbox", { name: "Notes" });
   const tool = (name: string) =>
     dialog
       .getByRole("toolbar", { name: "Formatting" })
       .getByRole("button", { name });
 
-  await comments.click();
+  await notes.click();
   await page.keyboard.type("A classic of ");
   await tool("Bold").click();
   await expect(tool("Bold")).toHaveAttribute("aria-pressed", "true");
@@ -77,8 +77,8 @@ test("an admin writes formatted comments that every reader sees, and a later sav
     dialog.getByRole("heading", { name: "Edit publication" }),
   ).toHaveCount(0);
 
-  // The record shows the comments as they were formatted.
-  const shown = dialog.getByRole("region", { name: "Comments" });
+  // The record shows the notes as they were formatted.
+  const shown = dialog.getByRole("region", { name: "Notes" });
   await expect(shown.locator("strong")).toHaveText("regionalist");
   await expect(shown.getByRole("listitem")).toHaveText([
     "First published in 1938",
@@ -92,14 +92,14 @@ test("an admin writes formatted comments that every reader sees, and a later sav
   await expect(archive).toHaveAttribute("target", "_blank");
   await expect(archive).toHaveAttribute("rel", "noopener noreferrer");
 
-  // The history records the change, with the comments rendered.
+  // The history records the change, with the notes rendered.
   await dialog.getByText("History", { exact: true }).click();
   const update = dialog.locator('li[data-action="updated"]');
-  await expect(update).toContainText("Comments:");
+  await expect(update).toContainText("Notes:");
   await expect(update.locator("ins strong")).toHaveText("regionalist");
   await expect(update.locator("del")).toHaveText("(none)");
 
-  // Comments are not searchable: a word only they hold finds nothing.
+  // Notes are not searchable: a word only they hold finds nothing.
   await page.keyboard.press("Escape");
   await page
     .getByRole("textbox", { name: "Search publications" })
@@ -109,7 +109,7 @@ test("an admin writes formatted comments that every reader sees, and a later sav
   ).toBeVisible();
 
   // The sources backfill saves the record it read from the index, which leaves
-  // comments out. Adding a source keeps the comments.
+  // notes out. Adding a source keeps the notes.
   await page.goto("/admin/publications/sources");
   await page
     .getByRole("listbox", { name: "Publications missing sources" })
@@ -124,10 +124,10 @@ test("an admin writes formatted comments that every reader sees, and a later sav
     page.getByRole("option", { name: /Barren Lives.*sourced/ }),
   ).toBeVisible();
 
-  // A reader who is signed out sees the comments on the publication's page.
+  // A reader who is signed out sees the notes on the publication's page.
   await signOut(page);
   await page.goto(address);
-  const region = page.getByRole("region", { name: "Comments" });
+  const region = page.getByRole("region", { name: "Notes" });
   await expect(region.locator("strong")).toHaveText("regionalist");
   await expect(
     region.getByRole("link", { name: "the Internet Archive" }),
@@ -138,7 +138,7 @@ test("an admin writes formatted comments that every reader sees, and a later sav
   await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
 });
 
-test("comments come in with a CSV, are edited in the import document, and go out with the export", async ({
+test("notes come in with a CSV, are edited in the import document, and go out with the export", async ({
   page,
 }) => {
   await signInAsAdmin(page);
@@ -152,7 +152,7 @@ test("comments come in with a CSV, are edited in the import document, and go out
         `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,,`,
         `Barren Lives,1965,US,University of Texas Press,Ralph Dimmick,Vidas Secas,Graciliano Ramos,,${quoted("Two editions:\n- *1965*, cloth\n- 1971, paper")}`,
       ],
-      { comments: true },
+      { notes: true },
     ),
   );
 
@@ -160,23 +160,23 @@ test("comments come in with a CSV, are edited in the import document, and go out
   const row = (title: string) =>
     table.getByRole("row", { name: new RegExp(`^${title}`) });
 
-  // Each row's comments read as one line of text in its comments cell.
+  // Each row's notes read as one line of text in its notes cell.
   await expect(
     row("Iracema").getByRole("button", {
-      name: "Edit comments: Translated in 1886. See the scan.",
+      name: "Edit notes: Translated in 1886. See the scan.",
     }),
   ).toBeVisible();
   await expect(
     row("Barren Lives").getByRole("button", {
-      name: "Edit comments: Two editions: 1965, cloth 1971, paper",
+      name: "Edit notes: Two editions: 1965, cloth 1971, paper",
     }),
   ).toBeVisible();
 
-  // The editor opens on the comments with their link.
+  // The editor opens on the notes with their link.
   await row("Iracema")
-    .getByRole("button", { name: /^Edit comments/ })
+    .getByRole("button", { name: /^Edit notes/ })
     .click();
-  let editor = page.getByRole("dialog", { name: "Edit comments" });
+  let editor = page.getByRole("dialog", { name: "Edit notes" });
   await expect(editor.getByRole("link", { name: "the scan" })).toHaveAttribute(
     "href",
     "https://archive.org/details/iracema",
@@ -184,13 +184,11 @@ test("comments come in with a CSV, are edited in the import document, and go out
   await page.keyboard.press("Escape");
   await expect(editor).toHaveCount(0);
 
-  // A row without comments gets them in its own editor, bold set with the
+  // A row without notes gets them in its own editor, bold set with the
   // keyboard.
-  await row("Dom Casmurro")
-    .getByRole("button", { name: "Add comments" })
-    .click();
-  editor = page.getByRole("dialog", { name: "Edit comments" });
-  await editor.getByRole("textbox", { name: "Comments" }).click();
+  await row("Dom Casmurro").getByRole("button", { name: "Add notes" }).click();
+  editor = page.getByRole("dialog", { name: "Edit notes" });
+  await editor.getByRole("textbox", { name: "Notes" }).click();
   await page.keyboard.press("ControlOrMeta+b");
   await page.keyboard.type("Caldwell's own copy");
   await page.keyboard.press("ControlOrMeta+b");
@@ -198,13 +196,13 @@ test("comments come in with a CSV, are edited in the import document, and go out
   await page.keyboard.press("Escape");
   await expect(
     row("Dom Casmurro").getByRole("button", {
-      name: "Edit comments: Caldwell's own copy, with notes.",
+      name: "Edit notes: Caldwell's own copy, with notes.",
     }),
   ).toBeVisible();
 
   await submitWorkspace(page, 3);
 
-  // The inserted publications show their comments.
+  // The inserted publications show their notes.
   await page.goto("/");
   let publication = await openPublicationModal(page, "Iracema");
   await expect(
@@ -214,18 +212,18 @@ test("comments come in with a CSV, are edited in the import document, and go out
 
   publication = await openPublicationModal(page, "Dom Casmurro");
   await expect(
-    publication.getByRole("region", { name: "Comments" }).locator("strong"),
+    publication.getByRole("region", { name: "Notes" }).locator("strong"),
   ).toHaveText("Caldwell's own copy");
   await page.keyboard.press("Escape");
 
   publication = await openPublicationModal(page, "Barren Lives");
   const listed = publication
-    .getByRole("region", { name: "Comments" })
+    .getByRole("region", { name: "Notes" })
     .getByRole("listitem");
   await expect(listed).toHaveText(["1965, cloth", "1971, paper"]);
   await page.keyboard.press("Escape");
 
-  // The export carries every publication's comments as Markdown.
+  // The export carries every publication's notes as Markdown.
   const [response] = await Promise.all([
     page.waitForResponse(
       (r) =>
@@ -237,7 +235,7 @@ test("comments come in with a CSV, are edited in the import document, and go out
   ]);
   const exported = await response.text();
 
-  expect(exported.split("\n")[0]).toMatch(/,comments$/);
+  expect(exported.split("\n")[0]).toMatch(/,notes$/);
   expect(exported).toContain(
     "Translated in 1886. See [the scan](https://archive.org/details/iracema).",
   );

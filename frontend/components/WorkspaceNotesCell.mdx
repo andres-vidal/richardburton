@@ -1,0 +1,49 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as WorkspaceNotesCellStories from "./WorkspaceNotesCell.stories";
+
+<Meta of={WorkspaceNotesCellStories} />
+
+# Workspace notes cell
+
+The cell of a row in the import workspace that holds the row's notes. It
+sits before the sources cell, at the end of the row. Notes are rich text, so
+they are edited outside the attribute grid: a button shows them as one line of
+plain text, cut short to fit, and opens the
+[notes editor](?path=/docs/publications-notes-editor--docs) in a dialog.
+
+<Description of={WorkspaceNotesCellStories.WithNotes} />
+<Canvas of={WorkspaceNotesCellStories.WithNotes} />
+
+## Props
+
+- `rowId` — the workspace row the cell belongs to. It reads that row's notes
+  from the store (`usePublicationNotes`) and writes edits to the same row
+  (`setNotes`). The bulk insert saves the notes with the rest of the row,
+  so the cell has no save of its own.
+- `invalid`, `selected`, `focused` — optional row states, false by default,
+  that give the cell the row's background, as the attribute cells have it. The
+  workspace passes them for saved rows and leaves them out for the draft row.
+
+The button stops its click from reaching the row, so pressing it does not
+select the row.
+
+<Description of={WorkspaceNotesCellStories.Empty} />
+<Canvas of={WorkspaceNotesCellStories.Empty} />
+
+## Editing
+
+Edits in the dialog reach the row as they are typed, as the Markdown the editor
+writes. Closing the dialog leaves them in the row.
+
+<Description of={WorkspaceNotesCellStories.Editing} />
+<Canvas of={WorkspaceNotesCellStories.Editing} />
+
+## An error
+
+When validation finds something wrong with the notes, such as their being
+too long, the row is invalid, the button's tooltip gives the error, and the
+editor shows it under the text.
+
+<Description of={WorkspaceNotesCellStories.TooLong} />
+<Canvas of={WorkspaceNotesCellStories.TooLong} />

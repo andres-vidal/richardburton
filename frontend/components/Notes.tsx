@@ -1,5 +1,5 @@
 import type * as Mdast from "mdast";
-import { parse, toTree } from "modules/comments";
+import { parse, toTree } from "modules/notes";
 import { FC, Fragment, ReactNode } from "react";
 
 /**
@@ -65,19 +65,19 @@ function render(node: Mdast.Nodes, key: number): ReactNode {
 }
 
 /**
- * A publication's comments, read from their Markdown: paragraphs, bulleted
+ * A publication's notes, read from their Markdown: paragraphs, bulleted
  * and numbered lists, line breaks, bold and italic text, and links. A link
  * opens in a new tab and passes on neither the page nor its address. Renders
- * nothing when the comments are empty.
+ * nothing when the notes are empty.
  *
- * Only the subset of Markdown that comments support is rendered (see
- * `modules/comments`), and raw HTML is shown as text, so the Markdown cannot
+ * Only the subset of Markdown that notes support is rendered (see
+ * `modules/notes`), and raw HTML is shown as text, so the Markdown cannot
  * add markup of its own to the page.
  *
  * `size` sets the text: `base` for the publication's page, and `small` for a
  * denser place such as the history.
  */
-const Comments: FC<{
+const Notes: FC<{
   markdown: string | null | undefined;
   size?: "base" | "small";
 }> = ({ markdown, size = "base" }) => {
@@ -93,4 +93,4 @@ const Comments: FC<{
   );
 };
 
-export default Comments;
+export default Notes;

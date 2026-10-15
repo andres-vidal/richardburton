@@ -311,12 +311,12 @@ export const Decisions: Story = {
 };
 
 /**
- * Updates to the comments: the comments before and after each change, rendered
+ * Updates to the notes: the notes before and after each change, rendered
  * from their Markdown, with "(none)" where there were none. A merge lists the
- * comments of the record it took in. The play test checks the formatting
+ * notes of the record it took in. The play test checks the formatting
  * survives into the log.
  */
-export const Comments: Story = {
+export const Notes: Story = {
   args: {
     entries: withChanges([
       {
@@ -327,11 +327,11 @@ export const Comments: Story = {
         timestamp: "2026-10-14T12:00:00",
         snapshot: {
           ...SNAPSHOT,
-          comments: "A **first** translation.\n\nFrom the duplicate.",
+          notes: "A **first** translation.\n\nFrom the duplicate.",
         },
         diff: {
           fields: {
-            comments: {
+            notes: {
               from: "A **first** translation.",
               to: "A **first** translation.\n\nFrom the duplicate.",
             },
@@ -343,7 +343,7 @@ export const Comments: Story = {
             id: 7,
             ...SNAPSHOT,
             title: "Dom Casmuro",
-            comments: "From the duplicate.",
+            notes: "From the duplicate.",
           },
         ],
       },
@@ -353,10 +353,10 @@ export const Comments: Story = {
         action: "updated",
         actor: "curator@rb.test",
         timestamp: "2026-10-13T12:00:00",
-        snapshot: { ...SNAPSHOT, comments: "A **first** translation." },
+        snapshot: { ...SNAPSHOT, notes: "A **first** translation." },
         diff: {
           fields: {
-            comments: {
+            notes: {
               from: null,
               to: "A **first** translation.",
             },
@@ -373,7 +373,7 @@ export const Comments: Story = {
         snapshot: SNAPSHOT,
         diff: {
           fields: {
-            comments: {
+            notes: {
               from: "See [the scan](https://archive.org/details/x).",
               to: null,
             },
@@ -388,14 +388,12 @@ export const Comments: Story = {
       ...canvasElement.querySelectorAll("li[data-action]"),
     ] as HTMLElement[];
 
-    await expect(added).toHaveTextContent(
-      "Comments:−(none)+A first translation.",
-    );
+    await expect(added).toHaveTextContent("Notes:−(none)+A first translation.");
     await expect(added.querySelector("ins strong")).toHaveTextContent("first");
     await expect(removed.querySelector("del a")).toHaveAttribute(
       "href",
       "https://archive.org/details/x",
     );
-    await expect(merged).toHaveTextContent("Comments:From the duplicate.");
+    await expect(merged).toHaveTextContent("Notes:From the duplicate.");
   },
 };

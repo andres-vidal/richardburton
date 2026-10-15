@@ -1,47 +1,47 @@
 import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
-import * as CommentsStories from "./Comments.stories";
+import * as NotesStories from "./Notes.stories";
 
-<Meta of={CommentsStories} />
+<Meta of={NotesStories} />
 
-# Comments
+# Notes
 
-A publication's comments, rendered from the Markdown they are stored as. It
+A publication's notes, rendered from the Markdown they are stored as. It
 renders paragraphs, line breaks, bold and italic text, bulleted and numbered
 lists, nested lists included, and links. Every link opens in a new tab with
 `rel="noopener noreferrer"`.
 
 The Markdown is read with `parse` and laid out with `toTree` from
-`modules/comments`, the same conversion the comments editor writes with, so the
+`modules/notes`, the same conversion the notes editor writes with, so the
 page shows what the editor showed. The component builds React elements from
 that tree and sets no HTML of its own.
 
-<Description of={CommentsStories.Default} />
-<Canvas of={CommentsStories.Default} />
+<Description of={NotesStories.Default} />
+<Canvas of={NotesStories.Default} />
 
 ## Props
 
-- `markdown` — the comments in Markdown. Empty, null or missing comments render
+- `markdown` — the notes in Markdown. Empty, null or missing notes render
   nothing.
 - `size` — `base`, the default, for the publication's page, or `small` for a
   denser place such as the history.
 
-<Description of={CommentsStories.Small} />
-<Canvas of={CommentsStories.Small} />
+<Description of={NotesStories.Small} />
+<Canvas of={NotesStories.Small} />
 
 ## Bare addresses
 
 A URL or an email address written out in the text is a link, as GitHub reads
 one.
 
-<Description of={CommentsStories.BareLinks} />
-<Canvas of={CommentsStories.BareLinks} />
+<Description of={NotesStories.BareLinks} />
+<Canvas of={NotesStories.BareLinks} />
 
-## Markdown that comments do not support
+## Markdown that notes do not support
 
-Comments support a subset of Markdown. The rest keeps its text: a heading is a
+Notes support a subset of Markdown. The rest keeps its text: a heading is a
 paragraph, code and raw HTML are text, an image is its alternative text, and a
 link to anything but an `http`, `https` or `mailto` address is its label.
 
-<Description of={CommentsStories.UnsupportedMarkdown} />
-<Canvas of={CommentsStories.UnsupportedMarkdown} />
+<Description of={NotesStories.UnsupportedMarkdown} />
+<Canvas of={NotesStories.UnsupportedMarkdown} />

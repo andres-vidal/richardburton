@@ -6,8 +6,8 @@ import {
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
-  usePublicationComments,
-  usePublicationCommentsError,
+  usePublicationNotes,
+  usePublicationNotesError,
   usePublicationMarking,
   usePublicationSources,
 } from "modules/publication/hooks";
@@ -24,7 +24,7 @@ import { deletePublication, update } from "modules/publication/remote";
 import {
   discardEdit,
   remember,
-  setComments,
+  setNotes,
   setSources,
 } from "modules/publication/store";
 import {
@@ -47,7 +47,7 @@ import {
 } from "react";
 import { useMutation } from "utils/useMutation";
 import Button from "./Button";
-import Comments from "./Comments";
+import Notes from "./Notes";
 import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
 import Highlight from "./Highlight";
@@ -59,12 +59,12 @@ import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
 
 /**
- * The comments editor, loaded the first time the edit form renders. A reader
+ * The notes editor, loaded the first time the edit form renders. A reader
  * who never edits does not download the editor's code. Until the editor has
  * loaded, an empty box about its size holds its place, and the rest of the
  * form is already usable.
  */
-const CommentsEditor = dynamic(() => import("./CommentsEditor"), {
+const NotesEditor = dynamic(() => import("./NotesEditor"), {
   ssr: false,
   loading: () => (
     <div aria-hidden className="h-52 bg-white rounded border border-gray-200" />
@@ -220,38 +220,38 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
 };
 
 /**
- * The publication's comments under their heading, rendered from Markdown, as a
+ * The publication's notes under their heading, rendered from Markdown, as a
  * region named for them. It renders nothing for a publication without
- * comments.
+ * notes.
  */
-const PublicationComments: FC<{ comments: string | null | undefined }> = ({
-  comments,
+const PublicationNotes: FC<{ notes: string | null | undefined }> = ({
+  notes,
 }) => {
   const t = useTranslations("attributes");
 
-  return comments?.trim() ? (
-    <section aria-label={t("comments")} className="space-y-2">
-      <SectionHeading>{t("comments")}</SectionHeading>
-      <Comments markdown={comments} />
+  return notes?.trim() ? (
+    <section aria-label={t("notes")} className="space-y-2">
+      <SectionHeading>{t("notes")}</SectionHeading>
+      <Notes markdown={notes} />
     </section>
   ) : null;
 };
 
 /**
- * The comments editor for the publication `id` in the enclosing store, with
- * the error the comments have. Edits are written to the row with
- * `setComments`, and saved with the rest of it.
+ * The notes editor for the publication `id` in the enclosing store, with
+ * the error the notes have. Edits are written to the row with
+ * `setNotes`, and saved with the rest of it.
  */
-const EditComments: FC<{ id: PublicationId }> = ({ id }) => {
+const EditNotes: FC<{ id: PublicationId }> = ({ id }) => {
   const store = usePublicationStore();
-  const comments = usePublicationComments(id);
-  const error = usePublicationCommentsError(id);
+  const notes = usePublicationNotes(id);
+  const error = usePublicationNotesError(id);
 
   return (
-    <CommentsEditor
-      value={comments}
+    <NotesEditor
+      value={notes}
       error={error}
-      onChange={(markdown) => setComments(store, id, markdown)}
+      onChange={(markdown) => setNotes(store, id, markdown)}
     />
   );
 };
@@ -352,7 +352,7 @@ const PublicationEditForm: FC<{
         value={sources}
         onChange={(next) => setSources(store, id, next)}
       />
-      <EditComments id={id} />
+      <EditNotes id={id} />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 justify-end">
         <Button
@@ -391,7 +391,7 @@ type PublicationDetailProps = {
 };
 
 /**
- * A publication as a reader sees it: a sentence placing it, its comments and
+ * A publication as a reader sees it: a sentence placing it, its notes and
  * its sources.
  * Whoever may edit publications also gets the controls to edit, merge and
  * delete it, and `history`, when given, is shown in a collapsed section. The
@@ -468,7 +468,7 @@ const Detail: FC<PublicationDetailProps> = ({
       ) : (
         <>
           <PublicationDescription publication={publication} />
-          <PublicationComments comments={publication.comments} />
+          <PublicationNotes notes={publication.notes} />
           <PublicationSources
             sources={Publication.markedSources(publication)}
           />

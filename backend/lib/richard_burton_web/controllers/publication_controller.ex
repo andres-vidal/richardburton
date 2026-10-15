@@ -41,7 +41,7 @@ defmodule RichardBurtonWeb.PublicationController do
   Every response but the one for `ids` puts the number of publications in the
   index in the count header (see `Publication.Index.count_header/0`).
 
-  Each entry is a listed row, which holds every flat field but `comments` (see
+  Each entry is a listed row, which holds every flat field but `notes` (see
   `Publication.Index`).
   """
   def index(conn, params = %{"ids" => ids}) do
@@ -95,7 +95,7 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   @doc """
-  Responds with the publication `id`, flattened, with its comments. With a
+  Responds with the publication `id`, flattened, with its notes. With a
   `search`, the publication holds the excerpts and marks of that search, as in
   the index. A deleted publication is a 404.
   """

@@ -28,11 +28,11 @@ defmodule RichardBurton.Publication.Index do
       `ranking/1` are built from it, and it is the only thing that differs
       between the two ways of reading a term.
     * **listed row** — a publication as a page of the index holds it: a map of
-      the fields of a `RichardBurton.FlatPublication` other than `comments`,
-      with `excerpts` and `marked`. It has no `comments` key, so that a page
-      stays small however long the comments are. `details/3` and
+      the fields of a `RichardBurton.FlatPublication` other than `notes`,
+      with `excerpts` and `marked`. It has no `notes` key, so that a page
+      stays small however long the notes are. `details/3` and
       `without_sources/0` return listed rows. `all/1` and `search/2` return
-      whole `FlatPublication` structs, comments included.
+      whole `FlatPublication` structs, notes included.
 
   Each word is matched on its own: as a prefix when the index holds words
   beginning with it, and by resemblance when it does not. So a word matched by
@@ -69,7 +69,7 @@ defmodule RichardBurton.Publication.Index do
   @per_page Application.compile_env(:richard_burton, :publications_per_page, 50)
 
   # The fields a listed row reads from the view. See the module doc.
-  @listed FlatPublication.__schema__(:fields) -- [:comments]
+  @listed FlatPublication.__schema__(:fields) -- [:notes]
 
   # The keys of a listed row.
   @listed_keys [:excerpts, :marked | @listed]
@@ -326,7 +326,7 @@ defmodule RichardBurton.Publication.Index do
   end
 
   # A query for the publications in the index, each selected as a
-  # `FlatPublication` without its comments.
+  # `FlatPublication` without its notes.
   defp listed, do: from(fp in FlatPublication, select: struct(fp, ^@listed))
 
   # Returns a `FlatPublication` as a listed row: a map of its `@listed` fields,

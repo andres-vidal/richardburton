@@ -1,6 +1,6 @@
-defmodule RichardBurton.Repo.Migrations.AddCommentsToPublications do
+defmodule RichardBurton.Repo.Migrations.AddNotesToPublications do
   @moduledoc """
-  Adds `comments` to publications: free text about the publication, written
+  Adds `notes` to publications: free text about the publication, written
   as Markdown, or NULL when it has none. The `flat_publications` view carries
   it too.
 
@@ -8,26 +8,26 @@ defmodule RichardBurton.Repo.Migrations.AddCommentsToPublications do
   stack and builds it again with the column, and `down` builds it again
   without the column before dropping it. The search documents and the search
   keywords are built as `ComputeFingerprintsInTheDatabase` left them, so the
-  search does not read the comments.
+  search does not read the notes.
   """
 
   use Ecto.Migration
 
   def up do
     alter table(:publications) do
-      add(:comments, :text)
+      add(:notes, :text)
     end
 
     drop_views()
-    create_views(flat_publications_select(comments: true))
+    create_views(flat_publications_select(notes: true))
   end
 
   def down do
     drop_views()
-    create_views(flat_publications_select(comments: false))
+    create_views(flat_publications_select(notes: false))
 
     alter table(:publications) do
-      remove(:comments)
+      remove(:notes)
     end
   end
 
@@ -108,9 +108,9 @@ defmodule RichardBurton.Repo.Migrations.AddCommentsToPublications do
   end
 
   # The flattening join, with each set gathered into a sorted array. With
-  # `comments: true` it also carries `publications.comments`.
-  defp flat_publications_select(comments: comments) do
-    carried = fn column -> if comments, do: column, else: "" end
+  # `notes: true` it also carries `publications.notes`.
+  defp flat_publications_select(notes: notes) do
+    carried = fn column -> if notes, do: column, else: "" end
 
     """
     WITH
@@ -122,7 +122,7 @@ defmodule RichardBurton.Repo.Migrations.AddCommentsToPublications do
           authors.name AS original_author,
           translators.name AS translator,
           original_books.title AS original_title,
-          #{carried.("publications.comments AS comments,")}
+          #{carried.("publications.notes AS notes,")}
           countries.code AS country,
           publishers.name AS publisher
       FROM translated_books
@@ -179,7 +179,7 @@ defmodule RichardBurton.Repo.Migrations.AddCommentsToPublications do
       CTE_publications.original_title AS original_title,
       CTE_authors_distinct.original_authors AS original_authors,
       CTE_translators_distinct.translators AS authors,
-      #{carried.("CTE_publications.comments AS comments,")}
+      #{carried.("CTE_publications.notes AS notes,")}
       COALESCE(CTE_sources_distinct.refs, ARRAY[]::varchar[]) AS sources
     FROM CTE_publications
     INNER JOIN CTE_authors_distinct ON CTE_publications.id = CTE_authors_distinct.id
@@ -192,7 +192,7 @@ defmodule RichardBurton.Repo.Migrations.AddCommentsToPublications do
       CTE_publications.title,
       CTE_publications.year,
       CTE_publications.original_title,
-      #{carried.("CTE_publications.comments,")}
+      #{carried.("CTE_publications.notes,")}
       CTE_authors_distinct.original_authors,
       CTE_translators_distinct.translators,
       CTE_countries_distinct.countries,

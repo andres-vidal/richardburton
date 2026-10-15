@@ -4,16 +4,16 @@ import { Publication, type PublicationError } from "modules/publication/model";
 import { publicationFamily, resetAll, setAll } from "modules/publication/store";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
-import WorkspaceCommentsCell from "./WorkspaceCommentsCell";
+import WorkspaceNotesCell from "./WorkspaceNotesCell";
 
 // A mock of the row's click handler, which selects the row in the workspace.
 const selectRow = fn();
 
-// Fills the store with one row, `rowId`, holding `comments` and `errors`.
+// Fills the store with one row, `rowId`, holding `notes` and `errors`.
 const seed = (
   store: Store,
   rowId: number,
-  comments: string | null,
+  notes: string | null,
   errors: PublicationError = null,
 ) => {
   resetAll(store);
@@ -21,15 +21,15 @@ const seed = (
   setAll(store, [
     {
       id: rowId,
-      publication: { ...Publication.empty(), title: "Iracema", comments },
+      publication: { ...Publication.empty(), title: "Iracema", notes },
       errors,
     },
   ]);
 };
 
 const meta = {
-  title: "Publications/Workspace comments cell",
-  component: WorkspaceCommentsCell,
+  title: "Publications/Workspace notes cell",
+  component: WorkspaceNotesCell,
   args: { rowId: 1 },
   decorators: [
     (Story) => (
@@ -46,37 +46,37 @@ const meta = {
     // focusable.
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
   },
-} satisfies Meta<typeof WorkspaceCommentsCell>;
+} satisfies Meta<typeof WorkspaceNotesCell>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
 /**
- * A row without comments: the button reads "Comments" and is named "Add
- * comments". Pressing it opens the editor in a dialog without selecting the
+ * A row without notes: the button reads "Notes" and is named "Add
+ * notes". Pressing it opens the editor in a dialog without selecting the
  * row.
  */
 export const Empty: Story = {
   beforeEach: () => seed(store, 1, null),
   play: async () => {
-    const button = screen.getByRole("button", { name: "Add comments" });
-    await expect(button).toHaveTextContent("Comments");
+    const button = screen.getByRole("button", { name: "Add notes" });
+    await expect(button).toHaveTextContent("Notes");
 
     await userEvent.click(button);
-    const dialog = await screen.findByRole("dialog", { name: "Edit comments" });
+    const dialog = await screen.findByRole("dialog", { name: "Edit notes" });
     await expect(
-      within(dialog).getByRole("textbox", { name: "Comments" }),
+      within(dialog).getByRole("textbox", { name: "Notes" }),
     ).toBeInTheDocument();
     await expect(selectRow).not.toHaveBeenCalled();
   },
 };
 
 /**
- * A row with comments: the button shows them as one line of plain text, cut
+ * A row with notes: the button shows them as one line of plain text, cut
  * short to fit the cell, and is named with the whole of it.
  */
-export const WithComments: Story = {
+export const WithNotes: Story = {
   beforeEach: () =>
     seed(
       store,
@@ -86,55 +86,53 @@ export const WithComments: Story = {
   play: async () => {
     await expect(
       screen.getByRole("button", {
-        name: "Edit comments: Translated by Isabel Burton. See the scan for the plates. Reviewed in The Athenaeum Reprinted in 1922",
+        name: "Edit notes: Translated by Isabel Burton. See the scan for the plates. Reviewed in The Athenaeum Reprinted in 1922",
       }),
     ).toBeInTheDocument();
   },
 };
 
 /**
- * Editing in the dialog writes the comments to the row as Markdown, and the
+ * Editing in the dialog writes the notes to the row as Markdown, and the
  * button shows the new text once the dialog closes.
  */
 export const Editing: Story = {
   beforeEach: () => seed(store, 1, null),
   play: async () => {
-    await userEvent.click(screen.getByRole("button", { name: "Add comments" }));
-    const dialog = await screen.findByRole("dialog", { name: "Edit comments" });
+    await userEvent.click(screen.getByRole("button", { name: "Add notes" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit notes" });
 
     await userEvent.click(within(dialog).getByRole("textbox"));
     await userEvent.click(within(dialog).getByRole("button", { name: "Bold" }));
     await userEvent.keyboard("First edition");
 
     await waitFor(() =>
-      expect(store.get(publicationFamily(1)).comments).toBe(
-        "**First edition**",
-      ),
+      expect(store.get(publicationFamily(1)).notes).toBe("**First edition**"),
     );
 
     await userEvent.keyboard("{Escape}");
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Edit comments: First edition" }),
+        screen.getByRole("button", { name: "Edit notes: First edition" }),
       ).toBeVisible(),
     );
   },
 };
 
 /**
- * Comments the server refused, here for being too long: the editor shows the
+ * Notes the server refused, here for being too long: the editor shows the
  * error under the text.
  */
 export const TooLong: Story = {
   beforeEach: () =>
     seed(store, 1, "A very long note", {
-      comments: "too_long",
+      notes: "too_long",
     } as PublicationError),
   play: async () => {
     await userEvent.click(
-      screen.getByRole("button", { name: "Edit comments: A very long note" }),
+      screen.getByRole("button", { name: "Edit notes: A very long note" }),
     );
-    const dialog = await screen.findByRole("dialog", { name: "Edit comments" });
+    const dialog = await screen.findByRole("dialog", { name: "Edit notes" });
 
     await expect(
       within(dialog).getByRole("textbox"),

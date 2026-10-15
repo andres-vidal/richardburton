@@ -21,10 +21,10 @@ import {
   linkTarget,
   parse,
   serialize,
-  type CommentsMark,
-  type CommentsValue,
+  type NotesMark,
+  type NotesValue,
   type ListKind,
-} from "modules/comments";
+} from "modules/notes";
 import {
   activeLink,
   activeList,
@@ -35,8 +35,8 @@ import {
   replaceValue,
   toggleList,
   toggleMark,
-  withComments,
-} from "modules/comments-editor";
+  withNotes,
+} from "modules/notes-editor";
 import { useTranslations } from "next-intl";
 import {
   FC,
@@ -128,7 +128,7 @@ const LinkForm: FC<{
   onRemove,
   onCancel,
 }) => {
-  const t = useTranslations("comments");
+  const t = useTranslations("notes");
   const errorId = useId();
   const [address, setAddress] = useState(initialUrl);
   const [text, setText] = useState("");
@@ -223,7 +223,7 @@ const LinkControl: FC<{
   onOpen: () => void;
   onClose: (change?: (at: Range) => void) => void;
 }> = ({ at, onOpen, onClose }) => {
-  const t = useTranslations("comments");
+  const t = useTranslations("notes");
   const editor = useSlate();
   const urlRef = useRef<HTMLInputElement>(null);
   const open = at !== null;
@@ -304,11 +304,11 @@ const Toolbar: FC<{
   onLink: () => void;
   onLinked: (change?: (at: Range) => void) => void;
 }> = ({ linking, onLink, onLinked }) => {
-  const t = useTranslations("comments");
+  const t = useTranslations("notes");
   const editor = useSlate();
   const list = activeList(editor);
 
-  const mark = (name: CommentsMark) => ({
+  const mark = (name: NotesMark) => ({
     pressed: isMarkActive(editor, name),
     onToggle: () => toggleMark(editor, name),
   });
@@ -429,40 +429,40 @@ const EdgeSpacer: FC = () => (
 );
 
 /**
- * Edits a publication's comments: rich text with paragraphs and line breaks,
+ * Edits a publication's notes: rich text with paragraphs and line breaks,
  * bold and italic text, bulleted and numbered lists, and links. `value` is the
- * comments in Markdown, or null for none, and `onChange` receives the Markdown
+ * notes in Markdown, or null for none, and `onChange` receives the Markdown
  * the edited text is written as (see `serialize`), each time that Markdown
  * changes. Changing only the selection, or typing what Markdown cannot hold,
  * such as an empty paragraph, calls nothing.
  *
  * The editor keeps its own value while it is typed in. When `value` changes to
  * Markdown other than what it last passed to `onChange`, as when another
- * person edits the same comments, the editor shows the new value and forgets
+ * person edits the same notes, the editor shows the new value and forgets
  * its undo history.
  *
  * The toolbar's buttons, and Ctrl or Cmd with B, I and K, set bold and italic
  * and open the link dialog. In a list item, Tab and Shift+Tab move the item a
  * level deeper or shallower, and Enter on an empty item leaves the list. Undo
  * and redo are the editor's own, with the usual shortcuts. A bare URL or email
- * address that is typed or pasted becomes a link (see `withComments`).
+ * address that is typed or pasted becomes a link (see `withNotes`).
  *
  * The text area is a labelled multi-line textbox, described by the hint under
  * the label and by `error`, which is shown under the editor.
  */
-const CommentsEditor: FC<{
+const NotesEditor: FC<{
   value: string | null;
   onChange: (markdown: string) => void;
   error?: string;
 }> = ({ value, onChange, error }) => {
-  const t = useTranslations("comments");
+  const t = useTranslations("notes");
   const attribute = useTranslations("attributes");
   const labelId = useId();
   const hintId = useId();
   const errorId = useId();
 
   const [editor] = useState(() =>
-    withComments(withHistory(withReact(createEditor()))),
+    withNotes(withHistory(withReact(createEditor()))),
   );
   const [initialValue] = useState(() => parse(value));
   const reported = useRef(value ?? "");
@@ -478,7 +478,7 @@ const CommentsEditor: FC<{
   }, [editor, value]);
 
   function handleValueChange(next: Descendant[]) {
-    const markdown = serialize(next as CommentsValue);
+    const markdown = serialize(next as NotesValue);
 
     if (markdown !== reported.current) {
       reported.current = markdown;
@@ -535,7 +535,7 @@ const CommentsEditor: FC<{
       <section className="flex flex-col gap-2">
         <div className="flex flex-col gap-0.5">
           <span id={labelId} className="text-sm text-gray-600">
-            {attribute("comments")}
+            {attribute("notes")}
           </span>
           <span id={hintId} className="text-xs text-gray-500">
             {t("hint")}
@@ -570,4 +570,4 @@ const CommentsEditor: FC<{
   );
 };
 
-export default CommentsEditor;
+export default NotesEditor;

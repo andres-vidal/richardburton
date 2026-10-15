@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { FC, useState } from "react";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
-import CommentsEditor from "./CommentsEditor";
+import NotesEditor from "./NotesEditor";
 
 /**
  * The editor with its value held in state, as a form holds it, so an edit that
@@ -16,7 +16,7 @@ const Controlled: FC<{
   const [value, setValue] = useState(initial);
 
   return (
-    <CommentsEditor
+    <NotesEditor
       value={value}
       error={error}
       onChange={(markdown) => {
@@ -28,8 +28,8 @@ const Controlled: FC<{
 };
 
 const meta = {
-  title: "Publications/Comments editor",
-  component: CommentsEditor,
+  title: "Publications/Notes editor",
+  component: NotesEditor,
   args: { value: null, onChange: fn() },
   render: (args) => <Controlled {...args} />,
   decorators: [
@@ -40,14 +40,14 @@ const meta = {
     ),
   ],
   parameters: { layout: "centered" },
-} satisfies Meta<typeof CommentsEditor>;
+} satisfies Meta<typeof NotesEditor>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
 /** Returns the editor's text area. */
-const textbox = () => screen.getByRole("textbox", { name: "Comments" });
+const textbox = () => screen.getByRole("textbox", { name: "Notes" });
 
 /** Returns the button of the formatting toolbar named `name`. */
 const tool = (name: string) =>
@@ -96,7 +96,7 @@ export const Empty: Story = {
 };
 
 /**
- * Comments that already use every format: a paragraph with bold and italic
+ * Notes that already use every format: a paragraph with bold and italic
  * text and a link, and a list nested in a list.
  */
 export const WithContent: Story = {

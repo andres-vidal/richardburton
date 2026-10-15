@@ -54,7 +54,7 @@ import { useTranslations } from "next-intl";
 import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
 import PublicationResemblances from "./PublicationResemblances";
-import WorkspaceCommentsCell from "./WorkspaceCommentsCell";
+import WorkspaceNotesCell from "./WorkspaceNotesCell";
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 /**
@@ -88,7 +88,7 @@ const ExtendedColumn: typeof Column = (props) => {
  * invalid and focused state, so it shares the row's background.
  */
 const withRowState = (
-  Cell: typeof WorkspaceSourcesCell | typeof WorkspaceCommentsCell,
+  Cell: typeof WorkspaceSourcesCell | typeof WorkspaceNotesCell,
 ): FC<{ rowId: RowId }> =>
   function RowStateCell({ rowId }) {
     const isSelected = useIsSelected(rowId);
@@ -106,17 +106,17 @@ const withRowState = (
   };
 
 /**
- * The cells at the end of a saved row: its comments, then its sources with the
+ * The cells at the end of a saved row: its notes, then its sources with the
  * look-alike button, so that button ends the row.
  */
 const TRAILING_COLUMNS: TrailingColumn[] = [
-  { name: "comments", Cell: withRowState(WorkspaceCommentsCell) },
+  { name: "notes", Cell: withRowState(WorkspaceNotesCell) },
   { name: "sources", Cell: withRowState(WorkspaceSourcesCell) },
 ];
 
 /** The cells at the end of the draft row, which has no row state to show. */
 const DRAFT_TRAILING_COLUMNS: TrailingColumn[] = [
-  { name: "comments", Cell: WorkspaceCommentsCell },
+  { name: "notes", Cell: WorkspaceNotesCell },
   { name: "sources", Cell: WorkspaceSourcesCell },
 ];
 

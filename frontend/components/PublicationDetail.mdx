@@ -7,7 +7,7 @@ import * as PublicationDetailStories from "./PublicationDetail.stories";
 # Publication detail
 
 A publication as a reader sees it: a sentence placing the translation among its
-people and places, its comments, and the sources behind it. Every field a reader might want to
+people and places, its notes, and the sources behind it. Every field a reader might want to
 pivot on is a link back into the index — countries show their label but search
 by the stored code (`US`, not "United States of America").
 
@@ -36,8 +36,8 @@ so the same publication offers the same affordances wherever it is read.
 The Edit control opens `PublicationEditForm`, which the module also exports. It
 edits every field of a publication in the enclosing store. While it is open,
 `watchEdit` validates the publication shortly after each change, and each field
-writes its error under itself. The comments are edited in the
-[comments editor](?path=/docs/publications-comments-editor--docs), which
+writes its error under itself. The notes are edited in the
+[notes editor](?path=/docs/publications-notes-editor--docs), which
 writes them to the row as Markdown. The save button is disabled while the
 publication has errors. By default it saves with `update`. Its `save`, `heading` and
 `saveLabel` props replace the save action and the two labels, which is how the
@@ -47,9 +47,9 @@ a publication with changes.
 ## States
 
 - **Default** — a fully sourced record, read by anyone.
-- **With comments** — the comments, rendered from their Markdown, under the
+- **With notes** — the notes, rendered from their Markdown, under the
   sentence.
-- **Without comments** — no comments section at all.
+- **Without notes** — no notes section at all.
 - **Without sources** — the section states the absence rather than hiding.
 - **As admin** — the history section and the edit/merge/delete controls.
 - **Editing** — the form the Edit control opens, in place.
@@ -59,11 +59,11 @@ a publication with changes.
   the record that survives it.
 - **Search links** — every value in the sentence links to a search for it.
 
-The comments section renders the publication's Markdown with
-[`Comments`](?path=/docs/publications-comments--docs). Unlike the sources, it is
+The notes section renders the publication's Markdown with
+[`Notes`](?path=/docs/publications-notes--docs). Unlike the sources, it is
 left out when there are none.
 
-<Canvas of={PublicationDetailStories.WithComments} />
+<Canvas of={PublicationDetailStories.WithNotes} />
 
 A record nobody has sourced yet says so:
 

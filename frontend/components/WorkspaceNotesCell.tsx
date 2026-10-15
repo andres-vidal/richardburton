@@ -1,35 +1,35 @@
 "use client";
 
-import { plainText } from "modules/comments";
+import { plainText } from "modules/notes";
 import {
-  usePublicationComments,
-  usePublicationCommentsError,
+  usePublicationNotes,
+  usePublicationNotesError,
 } from "modules/publication/hooks";
-import { setComments } from "modules/publication/store";
+import { setNotes } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
 import { FC, MouseEvent } from "react";
 import { BUTTON_CLASS_NAME } from "./Button";
-import CommentsEditor from "./CommentsEditor";
+import NotesEditor from "./NotesEditor";
 import { Modal, useModal } from "./Modal";
 import type { RowId } from "./PublicationIndexTable";
 import Tooltip from "./Tooltip";
 
 /**
- * The cell of a workspace row that holds the row's comments: a button showing
- * them as one line of plain text, cut short to fit, which opens the comments
- * editor in a dialog. A row without comments shows "Comments" instead. Edits
- * are written to the row with `setComments`, and the bulk insert saves them
+ * The cell of a workspace row that holds the row's notes: a button showing
+ * them as one line of plain text, cut short to fit, which opens the notes
+ * editor in a dialog. A row without notes shows "Notes" instead. Edits
+ * are written to the row with `setNotes`, and the bulk insert saves them
  * with the rest of the row. A click on the button does not reach the row, so it
  * does not select the row.
  *
- * When the comments have an error, such as being too long, the button's
+ * When the notes have an error, such as being too long, the button's
  * tooltip says so, and the editor shows it under the text.
  *
  * `invalid`, `selected` and `focused` give the cell the background the row's
  * other cells have in those states. They default to false.
  */
-const WorkspaceCommentsCell: FC<{
+const WorkspaceNotesCell: FC<{
   rowId: RowId;
   invalid?: boolean;
   selected?: boolean;
@@ -37,10 +37,10 @@ const WorkspaceCommentsCell: FC<{
 }> = ({ rowId, invalid = false, selected = false, focused = false }) => {
   const t = useTranslations("admin");
   const store = usePublicationStore();
-  const comments = usePublicationComments(rowId);
-  const error = usePublicationCommentsError(rowId);
+  const notes = usePublicationNotes(rowId);
+  const error = usePublicationNotesError(rowId);
   const editor = useModal();
-  const preview = plainText(comments);
+  const preview = plainText(notes);
 
   const openEditor = (event: MouseEvent) => {
     event.stopPropagation();
@@ -59,9 +59,7 @@ const WorkspaceCommentsCell: FC<{
         <button
           type="button"
           onClick={openEditor}
-          aria-label={
-            preview ? t("editComments", { preview }) : t("addComments")
-          }
+          aria-label={preview ? t("editNotes", { preview }) : t("addNotes")}
           data-variant="outline"
           data-size="small"
           data-width="fit"
@@ -72,7 +70,7 @@ const WorkspaceCommentsCell: FC<{
             data-empty={preview === ""}
             className="max-w-48 truncate data-[empty=true]:text-gray-500"
           >
-            {preview || t("noCommentsPreview")}
+            {preview || t("noNotesPreview")}
           </span>
         </button>
       </Tooltip>
@@ -80,16 +78,16 @@ const WorkspaceCommentsCell: FC<{
       <Modal
         isOpen={editor.isOpen}
         onClose={editor.close}
-        heading={t("commentsEditor")}
+        heading={t("notesEditor")}
       >
-        <CommentsEditor
-          value={comments}
+        <NotesEditor
+          value={notes}
           error={error}
-          onChange={(markdown) => setComments(store, rowId, markdown)}
+          onChange={(markdown) => setNotes(store, rowId, markdown)}
         />
       </Modal>
     </div>
   );
 };
 
-export default WorkspaceCommentsCell;
+export default WorkspaceNotesCell;

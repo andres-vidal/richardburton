@@ -17,8 +17,8 @@ import {
   invalidIdsAtom,
   isValidFamily,
   publicationSourcesFamily,
-  publicationCommentsFamily,
-  commentsErrorCodeFamily,
+  publicationNotesFamily,
+  notesErrorCodeFamily,
   publicationExcerptsFamily,
   publicationCountAtom,
   publicationFamily,
@@ -121,14 +121,14 @@ function usePublicationSources(id: PublicationId) {
   return useAtomValue(publicationSourcesFamily(id));
 }
 
-/** A row's comments in Markdown, including unsaved edits, or null for none. */
-function usePublicationComments(id: PublicationId) {
-  return useAtomValue(publicationCommentsFamily(id));
+/** A row's notes in Markdown, including unsaved edits, or null for none. */
+function usePublicationNotes(id: PublicationId) {
+  return useAtomValue(publicationNotesFamily(id));
 }
 
-/** Returns what is wrong with a row's comments, in words. */
-function usePublicationCommentsError(id: PublicationId) {
-  return useErrorSentence(useAtomValue(commentsErrorCodeFamily(id)));
+/** Returns what is wrong with a row's notes, in words. */
+function usePublicationNotesError(id: PublicationId) {
+  return useErrorSentence(useAtomValue(notesErrorCodeFamily(id)));
 }
 
 /** The saved sources only, without unsaved edits. */
@@ -279,8 +279,8 @@ export {
   useMatchingCount,
   usePublicationIndexCount,
   usePublicationSources,
-  usePublicationComments,
-  usePublicationCommentsError,
+  usePublicationNotes,
+  usePublicationNotesError,
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationMarking,
