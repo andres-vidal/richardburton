@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { expect, screen } from "storybook/test";
+import { expectToFit, LONG_EMAIL } from "test/layout";
 
 import PublicationHistory from "./PublicationHistory";
 
@@ -307,5 +308,38 @@ export const Decisions: Story = {
     await expect(reopened).toHaveTextContent(
       "Back in the duplicate review withDom Casmuro (1954)",
     );
+  },
+};
+
+/**
+ * At a phone's width, an actor's address too long for its entry wraps inside
+ * the entry. The play test checks that the address does not run past the
+ * entry's edge.
+ */
+export const LongActor: Story = {
+  decorators: [
+    (Story) => (
+      <div className="w-80">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    entries: withChanges([
+      {
+        version: 1,
+        undoable: false,
+        action: "deleted",
+        actor: LONG_EMAIL,
+        timestamp: "2026-07-20T09:00:00",
+        snapshot: SNAPSHOT,
+        diff: null,
+      },
+    ]),
+  },
+  play: async () => {
+    const actor = screen.getByText(`by ${LONG_EMAIL}`);
+
+    await expectToFit(actor, actor.closest("li")!);
   },
 };

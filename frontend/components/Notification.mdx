@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as NotificationStories from "./Notification.stories";
 
@@ -46,3 +46,9 @@ remove itself. Omit it for a card that cannot be dismissed — the container use
 that for its "N more notifications" summary.
 
 <Canvas of={NotificationStories.NotDismissible} />
+
+## Long content
+
+<Description of={NotificationStories.LongContent} />
+
+<Canvas of={NotificationStories.LongContent} />

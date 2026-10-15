@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as PublicationDetailStories from "./PublicationDetail.stories";
 
@@ -55,3 +55,9 @@ a publication with changes.
 - **Search links** — every value in the sentence links to a search for it.
 
 <Canvas of={PublicationDetailStories.WithoutSources} />
+
+## Long sources
+
+<Description of={PublicationDetailStories.LongSource} />
+
+<Canvas of={PublicationDetailStories.LongSource} />
