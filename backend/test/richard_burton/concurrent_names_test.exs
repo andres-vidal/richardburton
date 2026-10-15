@@ -9,27 +9,9 @@ defmodule RichardBurton.ConcurrentNamesTest do
 
   alias RichardBurton.Publication
 
-  # Dom Casmurro, in Helen Caldwell's translation, published by Noonday Press
-  # in the United States.
-  @dom_casmurro %{
-    "title" => "Dom Casmurro",
-    "year" => 1953,
-    "countries" => [%{"code" => "US"}],
-    "publishers" => [%{"name" => "Noonday Press"}],
-    "translated_book" => %{
-      "authors" => [%{"name" => "Helen Caldwell"}],
-      "original_book" => %{
-        "title" => "Dom Casmurro",
-        "authors" => [%{"name" => "Machado de Assis"}]
-      }
-    }
-  }
-
-  # Another book by Machado de Assis with the same translator, publisher and
-  # country as `@dom_casmurro`.
-  @counselor_ayres @dom_casmurro
-                   |> Map.put("title", "Counselor Ayres' Memorial")
-                   |> put_in(["translated_book", "original_book", "title"], "Memorial de Aires")
+  # Another book by Machado de Assis, with the same translator, publisher and
+  # country as the publication `publication_attrs/1` starts from.
+  @counselor_ayres %{title: "Counselor Ayres' Memorial", original_title: "Memorial de Aires"}
 
   defp count(table), do: unboxed(fn -> Repo.query!("SELECT count(*) FROM #{table}").rows end)
 
@@ -37,8 +19,8 @@ defmodule RichardBurton.ConcurrentNamesTest do
     # None of the names is stored yet.
     assert %{first: {:ok, _}, second: {:ok, _}, waited: true} =
              race(
-               fn -> Publication.insert(@dom_casmurro) end,
-               fn -> Publication.insert(@counselor_ayres) end
+               fn -> Publication.insert(publication_attrs()) end,
+               fn -> Publication.insert(publication_attrs(@counselor_ayres)) end
              )
 
     assert count("publications") == [[2]]
@@ -51,8 +33,8 @@ defmodule RichardBurton.ConcurrentNamesTest do
     # None of the names is stored yet.
     assert %{first: {:ok, _}, second: {:ok, _}, waited: true} =
              race(
-               fn -> Publication.insert_all([@dom_casmurro]) end,
-               fn -> Publication.insert_all([@counselor_ayres]) end
+               fn -> Publication.insert_all([publication_attrs()]) end,
+               fn -> Publication.insert_all([publication_attrs(@counselor_ayres)]) end
              )
 
     assert count("publications") == [[2]]
@@ -62,12 +44,12 @@ defmodule RichardBurton.ConcurrentNamesTest do
   end
 
   test "an edit and an insert that add the same new publisher at once both get the one publisher" do
-    {:ok, stored} = unboxed(fn -> Publication.insert(@dom_casmurro) end)
-    with_knopf = &Map.put(&1, "publishers", [%{"name" => "Knopf"}])
+    stored = unboxed(fn -> publication_fixture() end)
+    with_knopf = &publication_attrs(Map.put(&1, :publishers, ["Knopf"]))
 
     assert %{first: {:ok, _}, second: {:ok, _}, waited: true} =
              race(
-               fn -> Publication.update(stored.id, with_knopf.(@dom_casmurro)) end,
+               fn -> Publication.update(stored.id, with_knopf.(%{})) end,
                fn -> Publication.insert(with_knopf.(@counselor_ayres)) end
              )
 
@@ -82,15 +64,11 @@ defmodule RichardBurton.ConcurrentNamesTest do
 
     rows = fn label, translators ->
       for {translator, i} <- Enum.with_index(translators) do
-        Map.merge(@dom_casmurro, %{
-          "title" => "#{label} #{i}",
-          "translated_book" => %{
-            "authors" => [%{"name" => translator}],
-            "original_book" => %{
-              "title" => "#{label} original #{i}",
-              "authors" => [%{"name" => "#{label} author #{i}"}]
-            }
-          }
+        publication_attrs(%{
+          title: "#{label} #{i}",
+          authors: [translator],
+          original_title: "#{label} original #{i}",
+          original_authors: ["#{label} author #{i}"]
         })
       end
     end

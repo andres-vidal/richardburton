@@ -180,18 +180,12 @@ defmodule RichardBurton.Publication.IndexTest do
   ]
 
   setup(_context) do
-    # Seed as plain flat maps, not FlatPublication structs: nesting a struct applies
-    # changes and turns sources into %Source{} structs that a second cast can't
-    # re-cast. Feeding the codec maps lets insert cast sources once. (Source-less
-    # seeds insert identically either way.)
+    # The seed is given as maps, because `Publication.Codec.nest/1` turns a
+    # `FlatPublication` struct into a `Publication` struct, whose sources a
+    # second cast cannot read.
     @publications
     |> Enum.map(&(&1 |> Map.from_struct() |> Map.delete(:__meta__)))
-    |> Publication.Codec.nest()
-    |> Enum.map(&Publication.insert/1)
-
-    # Single inserts don't signal the refresher (callers do, once per logical
-    # operation) — this seed is one such operation, and search needs the index.
-    Publication.Index.Refresher.refresh()
+    |> seed_index()
 
     []
   end
@@ -291,7 +285,6 @@ defmodule RichardBurton.Publication.IndexTest do
 
       expected =
         Publication.all()
-        |> Publication.preload()
         |> Publication.Codec.flatten()
         |> Util.stringify_keys()
         |> select_attrs(Enum.map(attributes, &Atom.to_string/1))
@@ -709,7 +702,7 @@ defmodule RichardBurton.Publication.IndexTest do
       assert Enum.any?(us, &("US" in &1.countries))
     end
 
-    test "a quoted name finds the country, which the literal path could not do before" do
+    test "a quoted name finds the country" do
       assert {:ok, publications} = Publication.Index.search(~s("United Kingdom"))
 
       assert Enum.any?(publications, &("GB" in &1.countries))
@@ -719,20 +712,16 @@ defmodule RichardBurton.Publication.IndexTest do
     # Indexing names rather than codes keeps such a word in a record's title
     # from dragging in an unrelated country.
     test "a country whose code spells a common word is not pulled by that word" do
-      {:ok, bait} =
-        %{
-          "title" => "A Certain Captain",
-          "original_title" => "Um Homem no Mundo",
-          "original_authors" => ["Autor Teste"],
-          "authors" => ["Test Translator"],
-          "year" => "1970",
-          "countries" => ["BR"],
-          "publishers" => ["Editora Teste"]
-        }
-        |> Publication.Codec.nest()
-        |> Publication.insert()
-
-      Publication.Index.Refresher.refresh()
+      bait =
+        publication_fixture(%{
+          title: "A Certain Captain",
+          original_title: "Um Homem no Mundo",
+          original_authors: ["Autor Teste"],
+          authors: ["Test Translator"],
+          year: 1970,
+          countries: ["BR"],
+          publishers: ["Editora Teste"]
+        })
 
       for term <- ["Norway", "United"] do
         assert {:ok, results} = Publication.Index.search(term)
@@ -741,32 +730,59 @@ defmodule RichardBurton.Publication.IndexTest do
     end
   end
 
-  describe "Keywords.standing_for/1" do
+  describe "Keywords.standings/1" do
     alias RichardBurton.Publication.Index.Keywords
 
+    defp standing(word), do: Map.fetch!(Keywords.standings([word]), word)
+
     test "a word the index holds stands for itself" do
-      assert Keywords.standing_for("night") == {:prefix, ["night"]}
+      assert standing("night") == {:prefix, ["night"]}
     end
 
     test "an incomplete word stands for what it begins" do
-      assert Keywords.standing_for("mach") == {:prefix, ["machado"]}
+      assert standing("mach") == {:prefix, ["machado"]}
     end
 
     test "a word the index does not hold stands for what it resembles" do
-      assert Keywords.standing_for("nigth") == {:fuzzy, ["night"]}
+      assert standing("nigth") == {:fuzzy, ["night"]}
     end
 
     test "a word resembling nothing stands for nothing, and says it fell back" do
       # The tag still matters here: the caller has to tell "matched as typed"
       # from "found nothing either way".
-      assert Keywords.standing_for("zzzzqqqx") == {:fuzzy, []}
+      assert standing("zzzzqqqx") == {:fuzzy, []}
     end
 
     test "an accent is not a difference, the index holding the word without one" do
       # Otherwise every accented word would look like the index answered it with
       # something other than what was typed.
-      assert Keywords.standing_for("Angústia") == {:prefix, ["angustia"]}
-      assert Keywords.standing_for("angustia") == {:prefix, ["angustia"]}
+      assert standing("Angústia") == {:prefix, ["angustia"]}
+      assert standing("angustia") == {:prefix, ["angustia"]}
+    end
+
+    test "answers several words at once, each as it would be answered alone" do
+      words = ["night", "mach", "nigth", "zzzzqqqx", "Angústia", "Maries", "night"]
+
+      assert Keywords.standings(words) == Map.new(words, &{&1, standing(&1)})
+    end
+
+    test "lists the words a word resembles most similar first" do
+      {:fuzzy, words} = standing("Maries")
+
+      similarities =
+        Enum.map(words, fn word ->
+          %{rows: [[similarity]]} =
+            Repo.query!("SELECT similarity($1, unaccent('Maries'))", [word])
+
+          similarity
+        end)
+
+      assert length(words) > 1
+      assert similarities == Enum.sort(similarities, :desc)
+    end
+
+    test "looks nothing up for no words" do
+      assert Keywords.standings([]) == %{}
     end
   end
 

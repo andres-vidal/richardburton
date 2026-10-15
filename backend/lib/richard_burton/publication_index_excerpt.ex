@@ -27,7 +27,7 @@ defmodule RichardBurton.Publication.Index.Excerpt do
       `resolution/1`.
   """
 
-  import Ecto.Query
+  import Ecto.Query, only: [select_merge: 3]
 
   alias RichardBurton.Country
   alias RichardBurton.Publication.Index.Keywords
@@ -147,18 +147,27 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   Postgres parses itself (see `RichardBurton.Publication.Index.Query`).
   """
   @spec resolution(String.t()) :: [widening]
-  def resolution(term) do
+  def resolution(term), do: resolution(term, Query.standings(term))
+
+  @doc """
+  Returns what `resolution/1` returns, reading the standings of the term's
+  words from `standings`, which `Query.standings/1` returned for the term.
+  """
+  @spec resolution(String.t(), %{String.t() => Keywords.standing()}) :: [widening]
+  def resolution(term, standings) do
     alternatives = Term.parse(term)
 
     if Term.plain?(alternatives) and Query.spelled_out?(term),
       do: [],
-      else: free_widenings(alternatives) ++ scoped_widenings(alternatives)
+      else: free_widenings(alternatives, standings) ++ scoped_widenings(alternatives, standings)
   end
 
   # The widenings among the free words, meaning the ones not attached to an
   # operator, which are searched in every field.
-  defp free_widenings(alternatives) do
-    alternatives |> Enum.flat_map(& &1.words) |> Enum.flat_map(&widening(nil, &1))
+  defp free_widenings(alternatives, standings) do
+    alternatives
+    |> Enum.flat_map(& &1.words)
+    |> Enum.flat_map(&widening(nil, &1, standings))
   end
 
   # The widenings among the words of each operator's value, reported under the name
@@ -170,14 +179,14 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # words, so reporting those words would describe a search that did not happen:
   # `country:us` reaches the United States, and has nothing to do with the
   # "useful" that "us" begins.
-  defp scoped_widenings(alternatives) do
+  defp scoped_widenings(alternatives, standings) do
     alternatives
     |> Enum.flat_map(& &1.filters)
     |> Enum.reject(&(&1.negated or &1.field in [:year, :countries] or &1.exact))
     |> Enum.flat_map(fn filter ->
       filter.value
       |> Keywords.words()
-      |> Enum.flat_map(&widening(Term.name(filter.field), &1))
+      |> Enum.flat_map(&widening(Term.name(filter.field), &1, standings))
     end)
   end
 
@@ -185,8 +194,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # either it found nothing spelled that way and fell back to similar words, or
   # the word is a prefix of more than one indexed word. A word that matches only
   # itself, and a word the index does not contain at all, are both left out.
-  defp widening(field, word) do
-    case Keywords.standing_for(word) do
+  defp widening(field, word, standings) do
+    case Map.fetch!(standings, word) do
       {_how, []} -> []
       {:prefix, [only]} -> if Term.fold(word) == only, do: [], else: report(field, word, [only])
       {_how, words} -> report(field, word, words)
@@ -198,22 +207,26 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   defp report(field, word, words), do: [%{field: field, typed: word, words: words}]
 
   @doc """
-  Adds the `excerpts` and `marked` maps to a query.
+  Adds the `excerpts` and `marked` maps to a query, reading the standings of
+  the term's words from `standings`, which `Query.standings/1` returned for the
+  term.
 
-  `excerpts` answers per field: the matching text of the whole field, or nil
-  where the search did not match it. `marked` answers per value: a list lined up
-  with the field's own, holding each value's matching text, or nil where that
-  value did not match.
+  `excerpts` holds a value for each field: the matching text of the whole
+  field, or nil where the search did not match it. `marked` holds a list for
+  each list field, lined up with the field's values, holding each value's
+  matching text, or nil where that value did not match.
 
-  Both come from the term alone, read the way the search read it. A field no part
-  of the term searched gets no tsquery, and so neither an excerpt nor marks.
+  Both come from the term alone, read the way the search reads it. A field no
+  part of the term searched gets no tsquery, and so neither an excerpt nor
+  marks.
 
-  `marked.countries` holds the matched country's code rather than marked text,
-  since naming a country needs a locale the index does not have.
+  `marked.countries` holds the code of each matched country rather than marked
+  text, because naming a country needs a locale.
   """
-  @spec select(Ecto.Query.t(), String.t()) :: Ecto.Query.t()
-  def select(query, term) do
-    queries = field_queries(term)
+  @spec select(Ecto.Query.t(), String.t(), %{String.t() => Keywords.standing()}) ::
+          Ecto.Query.t()
+  def select(query, term, standings) do
+    queries = field_queries(term, standings)
 
     select_merge(query, [p], %{
       excerpts: %{
@@ -235,12 +248,12 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   end
 
   # The tsquery to highlight each field with, or nil for a field nothing searched.
-  defp field_queries(term) do
+  defp field_queries(term, standings) do
     alternatives = Term.parse(term)
 
     if Term.plain?(alternatives) and Query.spelled_out?(term),
       do: spelled_out_queries(term),
-      else: parsed_queries(alternatives)
+      else: parsed_queries(alternatives, standings)
   end
 
   # The tsquery to highlight every field with, for a term Postgres parses rather
@@ -257,9 +270,17 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # The tsquery per field for a parsed term. Free words are searched in every
   # field; an operator's value only in the field it names, so a term made only of
   # operators highlights nothing outside those fields.
-  defp parsed_queries(alternatives) do
-    words = alternatives |> Enum.flat_map(& &1.words) |> Enum.map(&Query.word_query/1) |> any_of()
-    filters = alternatives |> Enum.flat_map(& &1.filters) |> Enum.reduce(%{}, &filter/2)
+  defp parsed_queries(alternatives, standings) do
+    words =
+      alternatives
+      |> Enum.flat_map(& &1.words)
+      |> Enum.map(&Query.word_query(&1, standings))
+      |> any_of()
+
+    filters =
+      alternatives
+      |> Enum.flat_map(& &1.filters)
+      |> Enum.reduce(%{}, &filter(&1, &2, standings))
 
     @fields
     |> Map.new(&{&1, any_of([words, filters[&1]])})
@@ -269,10 +290,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # The countries a term reaches: what its free words reach, plus what its
   # `country:` operators name.
   #
-  # Other fields mark whichever of the term's words appear, which is fine when
-  # the mark lands on the word itself. A country is marked whole, so a shared
-  # word would mark the wrong one — "Reino Unido" shares "Unido" with "Estados
-  # Unidos". `Country.reached_by/1` is what tells them apart.
+  # The other fields mark each of the term's words that appears in them. A
+  # country is marked whole, so a word that two countries' names share would
+  # mark both: "Reino Unido" shares "Unido" with "Estados Unidos".
+  # `Country.reached_by/1` tells them apart.
   defp country_codes(alternatives) do
     alternatives
     |> Enum.flat_map(fn alternative ->
@@ -292,30 +313,29 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # only the country it came from.
   defp codes_query(codes), do: codes |> Enum.map(&Query.lexeme/1) |> any_of()
 
-  # Adds an operator's value under the field it names. Negated operators are
-  # skipped, since the reader asked not to see those words and they cannot be why a
-  # row matched, and `year` is skipped for being a number with no text to
-  # highlight.
-  defp filter(%{negated: true}, acc), do: acc
-  defp filter(%{field: :year}, acc), do: acc
+  # Adds an operator's value under the field it names. A negated operator is
+  # skipped, because a row that matched did not match its words. A `year` is
+  # skipped, because it is a number with no text to highlight.
+  defp filter(%{negated: true}, acc, _standings), do: acc
+  defp filter(%{field: :year}, acc, _standings), do: acc
 
   # `country_codes/1` handles the country operator, resolving it to codes rather
   # than to words to mark.
-  defp filter(%{field: :countries}, acc), do: acc
+  defp filter(%{field: :countries}, acc, _standings), do: acc
 
-  defp filter(%{field: field, value: value, exact: exact}, acc) do
-    query = value_query(value, exact)
+  defp filter(%{field: field, value: value, exact: exact}, acc, standings) do
+    query = value_query(value, exact, standings)
     Map.update(acc, field, query, &any_of([&1, query]))
   end
 
   # A quoted value was matched as an exact phrase, so it highlights exactly the
   # words it contains. An unquoted value is highlighted word by word, the same
   # way a free word is.
-  defp value_query(value, true),
+  defp value_query(value, true, _standings),
     do: value |> Keywords.words() |> Enum.map(&Query.lexeme/1) |> any_of()
 
-  defp value_query(value, false),
-    do: value |> Keywords.words() |> Enum.map(&Query.word_query/1) |> any_of()
+  defp value_query(value, false, standings),
+    do: value |> Keywords.words() |> Enum.map(&Query.word_query(&1, standings)) |> any_of()
 
   # Combines tsqueries with `|` rather than `&`: highlighting asks whether any of
   # these words appears in the field, not whether all of them do. Returns nil when

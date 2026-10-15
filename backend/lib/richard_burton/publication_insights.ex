@@ -25,15 +25,6 @@ defmodule RichardBurton.Publication.Insights do
   alias RichardBurton.Publication.Index
   alias RichardBurton.Repo
 
-  # The fields that hold names. Each key is the key used in `totals`, and each
-  # value is the `FlatPublication` field it is read from.
-  @names [
-    original_authors: :original_authors,
-    translators: :authors,
-    publishers: :publishers,
-    countries: :countries
-  ]
-
   # What `describe/2` returns when no publication matches, apart from the chart.
   @nothing %{
     publications: 0,
@@ -61,19 +52,28 @@ defmodule RichardBurton.Publication.Insights do
   read from those publications. When it matches none, no other query runs.
   """
   @spec describe(String.t() | nil, Chart.t()) :: map
-  def describe(term \\ nil, chart \\ %Chart{}) do
-    base = term |> Index.matching() |> resolved(term)
+  def describe(term \\ nil, chart \\ %Chart{}),
+    do: describe(term, chart, term && Index.standings(term))
 
-    case summary(base) do
+  @doc """
+  Returns what `describe/2` returns, reading the standings of the term's words
+  from `standings`, which `RichardBurton.Publication.Index.standings/1` returned
+  for the term. `standings` is not read when the term is `nil`.
+  """
+  @spec describe(String.t() | nil, Chart.t(), map | nil) :: map
+  def describe(term, chart, standings) do
+    base = term |> Index.matching(standings) |> resolved(term)
+
+    case counts(base) do
       %{publications: 0} ->
         Map.put(@nothing, :chart, Chart.nothing(chart))
 
-      summary ->
+      counts ->
         %{
-          publications: summary.publications,
-          years: %{first: summary.first, last: summary.last},
-          totals: totals(base, summary.works),
-          sourced: summary.sourced,
+          publications: counts.publications,
+          years: %{first: counts.first, last: counts.last},
+          totals: Map.take(counts, Map.keys(@nothing.totals)),
+          sourced: counts.sourced,
           chart: Chart.draw(base, chart)
         }
     end
@@ -90,33 +90,40 @@ defmodule RichardBurton.Publication.Insights do
     from(fp in FlatPublication, where: fp.id in ^ids)
   end
 
-  # Returns the counts that one query can read for all the publications: how
-  # many there are, the first and last year, how many cite a source, and how
-  # many distinct works they hold.
-  defp summary(base) do
+  # Returns every count `describe/3` reports, read with one query: how many
+  # publications there are, the first and the last year, how many cite a
+  # source, and how many distinct works, original authors, translators,
+  # publishers and countries they hold.
+  #
+  # Each publication is joined to the rows of `unnest` over its four lists of
+  # names. `unnest` pads the shorter lists with nulls, and `count(DISTINCT ...)`
+  # skips nulls. The join repeats a publication once for each row, so the
+  # publications are counted by distinct id.
+  defp counts(base) do
     base
-    |> select([fp], %{
-      publications: count(),
+    |> join(
+      :left_lateral,
+      [fp],
+      n in fragment(
+        "SELECT * FROM unnest(?::text[], ?::text[], ?::text[], ?::text[]) AS n(original_author, translator, publisher, country)",
+        fp.original_authors,
+        fp.authors,
+        fp.publishers,
+        fp.countries
+      ),
+      on: true
+    )
+    |> select([fp, n], %{
+      publications: count(fp.id, :distinct),
       first: min(fp.year),
       last: max(fp.year),
-      sourced: filter(count(), fragment("cardinality(?) > 0", fp.sources)),
-      works: fragment("count(DISTINCT (?, ?))", fp.original_title, fp.original_authors)
+      sourced: filter(count(fp.id, :distinct), fragment("cardinality(?) > 0", fp.sources)),
+      works: fragment("count(DISTINCT (?, ?))", fp.original_title, fp.original_authors),
+      original_authors: count(n.original_author, :distinct),
+      translators: count(n.translator, :distinct),
+      publishers: count(n.publisher, :distinct),
+      countries: count(n.country, :distinct)
     })
     |> Repo.one()
-  end
-
-  # Counts the distinct names in each field of `@names`, and adds `works`, which
-  # is counted elsewhere.
-  defp totals(base, works) do
-    @names
-    |> Map.new(fn {name, field} ->
-      {name,
-       base
-       |> select([fp], %{name: fragment("unnest(?)", field(fp, ^field))})
-       |> distinct(true)
-       |> subquery()
-       |> Repo.aggregate(:count)}
-    end)
-    |> Map.put(:works, works)
   end
 end

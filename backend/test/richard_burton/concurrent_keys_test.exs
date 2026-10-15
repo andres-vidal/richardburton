@@ -11,29 +11,10 @@ defmodule RichardBurton.ConcurrentKeysTest do
   use RichardBurton.RaceCase
 
   alias RichardBurton.Publication
-  alias RichardBurton.Util
 
-  @dom_casmurro %{
-    "title" => "Dom Casmurro",
-    "year" => 1953,
-    "countries" => [%{"code" => "US"}],
-    "publishers" => [%{"name" => "Noonday Press"}],
-    "translated_book" => %{
-      "authors" => [%{"name" => "Helen Caldwell"}],
-      "original_book" => %{
-        "title" => "Dom Casmurro",
-        "authors" => [%{"name" => "Machado de Assis"}]
-      }
-    }
-  }
-
-  # Inserts `@dom_casmurro` with `attrs` merged in, and commits it.
-  defp stored(attrs \\ %{}) do
-    {:ok, publication} = unboxed(fn -> Publication.insert(dom_casmurro(attrs)) end)
-    publication
-  end
-
-  defp dom_casmurro(attrs), do: Util.deep_merge_maps(@dom_casmurro, attrs)
+  # Inserts the publication `publication_attrs/1` returns for `changes`, and
+  # commits it.
+  defp stored(changes \\ %{}), do: unboxed(fn -> publication_fixture(changes) end)
 
   # Returns the number of stored publications matching `where`, deleted ones
   # left out.
@@ -50,9 +31,9 @@ defmodule RichardBurton.ConcurrentKeysTest do
   end
 
   test "the same publication of a stored book, inserted twice at once, is stored once" do
-    stored(%{"year" => 1960})
+    stored(%{year: 1960})
 
-    insert = fn -> Publication.insert(@dom_casmurro) end
+    insert = fn -> Publication.insert(publication_attrs()) end
 
     assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
              race(insert, insert)
@@ -63,12 +44,9 @@ defmodule RichardBurton.ConcurrentKeysTest do
   test "the same publication of a new book, inserted twice at once, is stored once" do
     # The names are stored with another of Machado's books, so the race is over
     # the new original book and the publication.
-    stored(%{
-      "title" => "Philosopher or Dog?",
-      "translated_book" => %{"original_book" => %{"title" => "Quincas Borba"}}
-    })
+    stored(%{title: "Philosopher or Dog?", original_title: "Quincas Borba"})
 
-    insert = fn -> Publication.insert(@dom_casmurro) end
+    insert = fn -> Publication.insert(publication_attrs()) end
 
     assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
              race(insert, insert)
@@ -81,20 +59,15 @@ defmodule RichardBurton.ConcurrentKeysTest do
     # Both translators are stored, with another book, so the race is over the
     # new original book that both translations share.
     stored(%{
-      "title" => "Philosopher or Dog?",
-      "translated_book" => %{
-        "authors" => [%{"name" => "Helen Caldwell"}, %{"name" => "John Gledson"}],
-        "original_book" => %{"title" => "Quincas Borba"}
-      }
+      title: "Philosopher or Dog?",
+      authors: ["Helen Caldwell", "John Gledson"],
+      original_title: "Quincas Borba"
     })
-
-    by_gledson =
-      dom_casmurro(%{"translated_book" => %{"authors" => [%{"name" => "John Gledson"}]}})
 
     assert %{first: {:ok, _}, second: {:ok, _}, waited: true} =
              race(
-               fn -> Publication.insert(@dom_casmurro) end,
-               fn -> Publication.insert(by_gledson) end
+               fn -> Publication.insert(publication_attrs()) end,
+               fn -> Publication.insert(publication_attrs(%{authors: ["John Gledson"]})) end
              )
 
     assert count_rows("original_books WHERE title = 'Dom Casmurro'") == [[1]]
@@ -105,23 +78,19 @@ defmodule RichardBurton.ConcurrentKeysTest do
     # Both translators are stored with Quincas Borba, so the race is over the
     # new original book, Dom Casmurro.
     quincas_borba = %{
-      "title" => "Philosopher or Dog?",
-      "translated_book" => %{
-        "authors" => [%{"name" => "Helen Caldwell"}, %{"name" => "John Gledson"}],
-        "original_book" => %{"title" => "Quincas Borba"}
-      }
+      title: "Philosopher or Dog?",
+      authors: ["Helen Caldwell", "John Gledson"],
+      original_title: "Quincas Borba"
     }
 
     stored(quincas_borba)
 
-    reprinted = dom_casmurro(Map.put(quincas_borba, "year", 1960))
-
-    by_gledson =
-      dom_casmurro(%{"translated_book" => %{"authors" => [%{"name" => "John Gledson"}]}})
+    reprinted = publication_attrs(Map.put(quincas_borba, :year, 1960))
+    by_gledson = publication_attrs(%{authors: ["John Gledson"]})
 
     assert %{first: {:ok, _}, second: {:ok, _}, waited: true} =
              race(
-               fn -> Publication.insert_all([@dom_casmurro]) end,
+               fn -> Publication.insert_all([publication_attrs()]) end,
                fn -> Publication.insert_all([reprinted, by_gledson]) end
              )
 
@@ -131,25 +100,26 @@ defmodule RichardBurton.ConcurrentKeysTest do
   end
 
   test "two imports of the same publication at once store it once, and the second returns the row" do
-    stored(%{"year" => 1960})
+    stored(%{year: 1960})
+    attrs = publication_attrs()
 
-    assert %{first: {:ok, _}, second: {:error, {@dom_casmurro, :conflict}}, waited: true} =
+    assert %{first: {:ok, _}, second: {:error, {^attrs, :conflict}}, waited: true} =
              race(
-               fn -> Publication.insert_all([@dom_casmurro]) end,
-               fn -> Publication.insert_all([@dom_casmurro]) end
+               fn -> Publication.insert_all([attrs]) end,
+               fn -> Publication.insert_all([attrs]) end
              )
 
     assert count_live(title: "Dom Casmurro", year: 1953) == 1
   end
 
   test "two edits that would give two publications the same key at once leave the second unchanged" do
-    a = stored(%{"year" => 1953})
-    b = stored(%{"year" => 1954})
+    a = stored(%{year: 1953})
+    b = stored(%{year: 1954})
 
     assert %{first: {:ok, _}, second: {:error, :conflict}, waited: true} =
              race(
-               fn -> Publication.update(a.id, dom_casmurro(%{"year" => 1955})) end,
-               fn -> Publication.update(b.id, dom_casmurro(%{"year" => 1955})) end
+               fn -> Publication.update(a.id, publication_attrs(%{year: 1955})) end,
+               fn -> Publication.update(b.id, publication_attrs(%{year: 1955})) end
              )
 
     assert count_live(title: "Dom Casmurro", year: 1955) == 1
@@ -162,7 +132,7 @@ defmodule RichardBurton.ConcurrentKeysTest do
 
     assert %{first: {:ok, inserted}, second: {:error, {:conflict, twin}}, waited: true} =
              race(
-               fn -> Publication.insert(@dom_casmurro) end,
+               fn -> Publication.insert(publication_attrs()) end,
                fn -> Publication.restore(deleted.id) end
              )
 

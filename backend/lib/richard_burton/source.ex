@@ -1,9 +1,9 @@
 defmodule RichardBurton.Source do
   @moduledoc """
-  Schema for publication sources: free-text provenance entries that record how
-  a publication's data was collected, so a reader can verify the claim. Owned by a
-  single publication (deleted with it), ordered, and edited inline via the
-  publication update path — never shared or deduplicated across publications.
+  A source of a publication: a free-text entry that records where the
+  publication's data was collected, so a reader can check it. A publication's
+  sources are ordered by `position`, belong to it alone and are deleted with
+  it, and they change with the publication's own update.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -22,7 +22,7 @@ defmodule RichardBurton.Source do
     timestamps()
   end
 
-  @doc false
+  @doc "Casts a source's `content`, which is required, and its `position`."
   def changeset(source, attrs \\ %{}) do
     source
     |> cast(attrs, [:content, :position])
@@ -30,9 +30,10 @@ defmodule RichardBurton.Source do
   end
 
   @doc ~S"""
-  Turn the flat wire shape (an ordered list of free-text strings) into the nested
-  child maps `cast_assoc(:sources)` expects, assigning `position` from order.
-  Blank rows are dropped so an empty editor row doesn't fail validation.
+  Nests a flat publication's ordered list of sources into the maps
+  `cast_assoc(:sources)` casts, with each `position` taken from the order.
+  Blank entries are dropped instead of failing validation, and any value that
+  is not a list gives no sources.
 
   ## Examples
 
@@ -42,8 +43,8 @@ defmodule RichardBurton.Source do
     iex> RichardBurton.Source.nest(["A source", "  "])
     [%{"content" => "A source", "position" => 0}]
 
-    A blank in the middle is dropped and positions stay contiguous — the entry
-    after it is `1`, not `2`:
+    A blank in the middle is dropped, and the positions stay contiguous. The
+    entry after it is `1`, not `2`:
 
     iex> RichardBurton.Source.nest(["First", "", "Second"])
     [%{"content" => "First", "position" => 0}, %{"content" => "Second", "position" => 1}]
@@ -63,9 +64,10 @@ defmodule RichardBurton.Source do
   def nest(_), do: []
 
   @doc ~S"""
-  Reverse of `nest/1`: an ordered list of the source strings. Accepts loaded
-  child structs (ordered by `position`) or an already-flat list; anything else
-  (nil, `%NotLoaded{}`) flattens to an empty list.
+  Flattens sources to their contents, the reverse of `nest/1`. Takes loaded
+  `Source` structs, which it orders by `position`, or a list that is already
+  flat. Any other value, such as nil or an association that is not loaded,
+  gives an empty list.
 
   ## Examples
 
@@ -85,7 +87,7 @@ defmodule RichardBurton.Source do
   def flatten(sources) when is_list(sources), do: sources
   def flatten(_), do: []
 
-  # An empty editor row, which is dropped rather than failing validation.
+  # Whether a source is nil or only whitespace.
   defp blank?(value) do
     is_nil(value) or (is_binary(value) and String.trim(value) == "")
   end

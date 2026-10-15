@@ -1,21 +1,26 @@
 defmodule RichardBurton.Country do
   @moduledoc """
-  Schema for countries
+  A country a publication was published in, stored by its ISO 3166-1 alpha-2
+  code, and the table of every country the platform knows.
+
+  The table, `priv/countries.json`, holds each country's codes, its name in
+  each language the platform speaks, and the other names readers use for it.
+  A value **names** a country when it is one of those names or codes in full,
+  compared without case or accents. A value **reaches** the countries it
+  names, or, when it names none, the countries with a name that starts with
+  it.
   """
   use Ecto.Schema
   import Ecto.Changeset
-  import Ecto.Query, only: [order_by: 2]
 
-  alias RichardBurton.Country
-  alias RichardBurton.Repo
   alias RichardBurton.Publication
+  alias RichardBurton.Publication.Index.Term
 
-  # Every country, by ISO alpha-2 code: its alpha-3 code, its numeric code, the
-  # name it is shown by in each language the platform speaks, and the other
-  # names a reader might type for it. A country ISO assigns no numeric code,
-  # such as Kosovo, has none here. This is the one place countries are named — the editor's field
-  # and every page that shows a country read it from here, over the API, so a
-  # country is searchable by the very name it is shown under.
+  # Every country, by ISO alpha-2 code: its alpha-3 code, its numeric code, its
+  # name in each language the platform speaks, with the article the name takes,
+  # and the other names a reader might type for it. A country ISO assigns no
+  # numeric code, such as Kosovo, has none here. The API names countries from
+  # this table only, so a country can be searched by the name it is given.
   #
   # Read at compile time, since it is static data and every country insert asks
   # for it. `@external_resource` is what makes editing the file recompile this.
@@ -23,16 +28,18 @@ defmodule RichardBurton.Country do
   @external_resource @countries_path
   @countries @countries_path |> File.read!() |> Jason.decode!()
 
-  # The language countries are named in when the one asked for has no names.
+  # The languages the table names countries in, and the one used for a locale
+  # it has no names for.
+  @languages ["en", "pt"]
   @default_locale "en"
 
   @derive {Jason.Encoder, only: [:code]}
   schema "countries" do
     field(:code, :string)
 
-    # The names this country is searchable by, folded into the search index. Not
-    # user input: derived from the code, so the reader can search "Reino Unido"
-    # or "USA" and reach the record that stores "GB" or "US".
+    # The names this country is searchable by, as `names_for/1` derives them
+    # from the code, folded into the search index. A search for "Reino Unido"
+    # or "USA" finds the record that stores "GB" or "US".
     field(:names, {:array, :string}, default: [])
 
     many_to_many(:publications, Publication, join_through: "publication_countries")
@@ -40,16 +47,10 @@ defmodule RichardBurton.Country do
     timestamps()
   end
 
-  @doc false
-  def changeset(country, attrs \\ %{})
-
-  @doc false
-  def changeset(country, attrs = %Country{}) do
-    changeset(country, Map.from_struct(attrs))
-  end
-
-  @doc false
-  def changeset(country, attrs) do
+  @doc """
+  Casts a country's `code`, which must be an alpha-2 code the table holds.
+  """
+  def changeset(country, attrs \\ %{}) do
     country
     |> cast(attrs, [:code])
     |> validate_required([:code])
@@ -58,12 +59,12 @@ defmodule RichardBurton.Country do
   end
 
   @doc """
-  Every name a country is searchable by: both its ISO codes, the name it is
-  shown under in each language, and the other names a reader might type for it.
+  Every name a country is searchable by: both its ISO codes, its name in each
+  language, and the other names a reader might type for it.
 
-  Deduplicated, in no particular order — the search index folds them in, it does
-  not display them. A code the table does not hold answers with the code itself,
-  so a country is always searchable by what is stored.
+  The names are deduplicated and in no particular order. A code the table does
+  not hold gives the code itself, so a country can always be searched by the
+  code that is stored.
 
   ## Examples
 
@@ -82,11 +83,6 @@ defmodule RichardBurton.Country do
         |> Enum.uniq()
     end
   end
-
-  @doc """
-  Every country the platform knows, by ISO alpha-2 code, as the table holds it.
-  """
-  def all_known, do: @countries
 
   @doc """
   The ISO alpha-2 code a value names, or nil where it names no country.
@@ -114,30 +110,53 @@ defmodule RichardBurton.Country do
 
   def code_for(_value), do: nil
 
-  # The key `codes_by_name/0` keeps its map under. It includes a hash of the
-  # country table, so a recompiled table gets a new map.
-  @codes_by_name_key {__MODULE__, :codes_by_name, :erlang.phash2(@countries)}
+  # The key `folded/0` keeps its tables under. It includes a hash of the
+  # country table, so a recompiled table gets new ones.
+  @folded_key {__MODULE__, :folded, :erlang.phash2(@countries)}
 
-  # Returns a map from each name a country goes by, normalized, to the codes of
-  # the countries that go by it. The map is built on the first call and kept in
-  # `:persistent_term`, because `code_for/1` runs for every country of every
-  # publication written, and building it normalizes every name of every
-  # country.
-  defp codes_by_name do
-    case :persistent_term.get(@codes_by_name_key, nil) do
+  # Returns the country names in the forms the lookups compare them in, as a
+  # map with two keys:
+  #
+  #   * `:countries` — each country's code against its `names`, every name
+  #     `names_for/1` lists, normalized, its `called`, the folded words of each
+  #     name `called/1` lists, and its `codes`, the folded words of each code
+  #     `codes_for/1` lists;
+  #   * `:codes_by_name` — each normalized name against the codes of the
+  #     countries that go by it.
+  #
+  # The tables are built on the first call and kept in `:persistent_term`,
+  # because every search and every country written looks names up, and
+  # building them folds every name of every country.
+  defp folded do
+    case :persistent_term.get(@folded_key, nil) do
       nil ->
-        index =
-          for code <- Map.keys(@countries), name <- names_for(code), reduce: %{} do
-            index -> Map.update(index, normalize(name), [code], &Enum.uniq([code | &1]))
+        countries =
+          Map.new(@countries, fn {code, _country} ->
+            {code,
+             %{
+               names: Enum.map(names_for(code), &normalize/1),
+               called: Enum.map(called(code), &words/1),
+               codes: Enum.map(codes_for(code), &words/1)
+             }}
+          end)
+
+        codes_by_name =
+          for {code, %{names: names}} <- countries, name <- names, reduce: %{} do
+            index -> Map.update(index, name, [code], &Enum.uniq([code | &1]))
           end
 
-        :persistent_term.put(@codes_by_name_key, index)
-        index
+        tables = %{countries: countries, codes_by_name: codes_by_name}
+        :persistent_term.put(@folded_key, tables)
+        tables
 
-      index ->
-        index
+      tables ->
+        tables
     end
   end
+
+  # Returns a map from each name a country goes by, normalized, to the codes of
+  # the countries that go by it.
+  defp codes_by_name, do: folded().codes_by_name
 
   @doc """
   Replaces each country in a changeset with its ISO code: "UK" becomes `GB`,
@@ -195,9 +214,8 @@ defmodule RichardBurton.Country do
   # that merely contains it does not count.
   defp best_answering(normalized) do
     named =
-      @countries
-      |> Map.keys()
-      |> Enum.map(&{&1, rank(&1, normalized)})
+      folded().countries
+      |> Enum.map(fn {code, %{names: names}} -> {code, rank(names, normalized)} end)
       |> Enum.reject(fn {_code, rank} -> is_nil(rank) or rank > 1 end)
 
     case Enum.min_by(named, &elem(&1, 1), fn -> nil end) do
@@ -229,9 +247,9 @@ defmodule RichardBurton.Country do
     said = words(term)
     as_typed = split(term)
 
-    @countries
-    |> Map.keys()
-    |> Enum.filter(&named?(&1, said, as_typed))
+    folded().countries
+    |> Enum.filter(fn {code, folded} -> named?(code, folded, said, as_typed) end)
+    |> Enum.map(fn {code, _folded} -> code end)
     |> Enum.sort()
   end
 
@@ -266,21 +284,21 @@ defmodule RichardBurton.Country do
   def reached_by(_term), do: []
 
   # Whether the term names this country, either by one of its names appearing in
-  # `said` as a run of words, or by saying one of its codes.
-  defp named?(code, said, as_typed) do
-    Enum.any?(called(code), &consecutive_in?(words(&1), said)) or
-      code_written?(code, said, as_typed)
+  # `said` as a run of words, or by saying one of its codes. `folded` is the
+  # country's entry in `folded/0`.
+  defp named?(code, folded, said, as_typed) do
+    Enum.any?(folded.called, &consecutive_in?(&1, said)) or
+      code_written?(code, folded.codes, said, as_typed)
   end
 
   # Whether a term says one of this country's codes: written in capitals, or
-  # standing as the whole term in any case.
+  # standing as the whole term in any case. `folded_codes` are the folded words
+  # of each code.
   #
   # Two-letter codes spell common words, so capitals are what separate "machado
   # DE" from "machado de assis".
-  defp code_written?(code, said, as_typed) do
-    codes = codes_for(code)
-
-    Enum.any?(codes, &(&1 in as_typed)) or Enum.any?(codes, &(words(&1) == said))
+  defp code_written?(code, folded_codes, said, as_typed) do
+    Enum.any?(codes_for(code), &(&1 in as_typed)) or Enum.any?(folded_codes, &(&1 == said))
   end
 
   # The countries with a name beginning with all of `said`, which arrives folded.
@@ -293,11 +311,11 @@ defmodule RichardBurton.Country do
   defp beginning(said) do
     fragment = Enum.join(said, " ")
 
-    @countries
-    |> Map.keys()
-    |> Enum.filter(fn code ->
-      Enum.any?(called(code), &String.starts_with?(Enum.join(words(&1), " "), fragment))
+    folded().countries
+    |> Enum.filter(fn {_code, %{called: called}} ->
+      Enum.any?(called, &String.starts_with?(Enum.join(&1, " "), fragment))
     end)
+    |> Enum.map(fn {code, _folded} -> code end)
     |> Enum.sort()
   end
 
@@ -343,23 +361,24 @@ defmodule RichardBurton.Country do
   Each country is `%{id:, label:, article:, numeric:}`. `id` is the alpha-2 code
   a publication stores, `label` its name in `locale` and `article` the article
   that name takes. `numeric` is its ISO 3166-1 numeric code, as three digits,
-  or nil for a country ISO assigns none. A locale the table has no names for is
-  answered in the default one.
+  or nil for a country ISO assigns none. A locale the table has no names for,
+  or one that is not a string, gives the names in English.
   """
   def known(locale \\ @default_locale) do
     language = language(locale)
 
     @countries
-    |> Enum.map(fn {code, country} -> shown(code, country, language) end)
+    |> Enum.map(fn {code, country} -> labelled(code, country, language) end)
     |> Enum.sort_by(&normalize(&1.label))
   end
 
   @doc """
   The countries `term` finds, named in `locale`.
 
-  A country is found by either of its ISO codes, by the name it is shown under
-  in any language, or by one of the other names readers type for it — so "NL",
-  "NLD", "Netherlands", "Países Baixos" and "Holanda" all reach the same one.
+  A country is found by either of its ISO codes, by its name in any language,
+  or by one of the other names readers type for it. So "NL", "NLD",
+  "Netherlands", "Países Baixos" and "Holanda" all find the same one. Each
+  country is as `known/1` gives it.
 
   Names that begin with the term come before names that merely contain it, and
   a name matched in full comes before both: one country's name can begin
@@ -375,39 +394,40 @@ defmodule RichardBurton.Country do
 
       normalized ->
         language = language(locale)
+        %{countries: folded} = folded()
 
         @countries
         |> Enum.map(fn {code, country} ->
-          {code, country, rank(code, normalized)}
+          {code, country, rank(folded[code].names, normalized)}
         end)
         |> Enum.reject(fn {_, _, rank} -> is_nil(rank) end)
         |> Enum.sort_by(fn {_, country, rank} ->
           {rank, normalize(country[language]["name"])}
         end)
-        |> Enum.map(fn {code, country, _} -> shown(code, country, language) end)
+        |> Enum.map(fn {code, country, _} -> labelled(code, country, language) end)
     end
   end
 
-  # A country as the things that travel: the code a publication stores, the
-  # name a reader is shown, the article that name takes in a sentence, and the
-  # numeric code.
-  defp shown(code, country, language) do
+  # A country as `known/1` lists it: the code a publication stores, its name in
+  # `language`, the article that name takes in a sentence, and the numeric code.
+  defp labelled(code, country, language) do
     named = country[language]
     %{id: code, label: named["name"], article: named["article"], numeric: country["numeric"]}
   end
 
   # How well a country answers to a term, lower being better, or nil for one it
-  # does not answer to at all. Every name it goes by is tried and the best
-  # standing wins, so a country found by its code is not held back by an alias
-  # that merely contains the term.
-  defp rank(code, term) do
-    code
-    |> names_for()
-    |> Enum.map(&standing(normalize(&1), term))
+  # does not answer to at all. `names` are the country's names, normalized.
+  # Every name is tried and the best standing wins, so a country found by its
+  # code is not held back by an alias that merely contains the term.
+  defp rank(names, term) do
+    names
+    |> Enum.map(&standing(&1, term))
     |> Enum.reject(&is_nil/1)
     |> Enum.min(fn -> nil end)
   end
 
+  # How well one normalized name matches `term`: 0 when it equals the term, 1
+  # when it starts with it, 2 when it contains it, and nil otherwise.
   defp standing(name, term) do
     cond do
       name == term -> 0
@@ -417,83 +437,90 @@ defmodule RichardBurton.Country do
     end
   end
 
-  # A name as it compares: case folded, and stripped of the accents a reader
-  # will not always type. "Países" and "paises" are the same name to a search.
-  defp normalize(text) do
-    text
-    |> String.downcase()
-    |> :unicode.characters_to_nfd_binary()
-    |> String.replace(~r/[\x{0300}-\x{036f}]/u, "")
-    |> String.trim()
-  end
+  # A name as it compares: case folded, stripped of the accents a reader will
+  # not always type, and trimmed. "Países" and "paises" are the same name to a
+  # search.
+  defp normalize(text), do: text |> Term.fold() |> String.trim()
 
-  # The language to name countries in, falling back the way the catalogue does.
-  defp language(locale) when is_binary(locale) do
-    if Map.has_key?(@countries["BR"], locale), do: locale, else: @default_locale
-  end
+  # The language to name countries in: `locale` when the table has names in
+  # it, and the default language otherwise.
+  defp language(locale) when locale in @languages, do: locale
+  defp language(_locale), do: @default_locale
 
-  defp language(_), do: @default_locale
+  @doc """
+  Adds an `:alpha2` error to the changeset's `code` when the country table has
+  no country with that ISO alpha-2 code. Codes are compared as written, so a
+  lowercase code is refused.
 
+  ## Examples
+
+    iex> import Ecto.Changeset
+    iex> code = &(%RichardBurton.Country{} |> change(code: &1) |> RichardBurton.Country.validate_code())
+    iex> code.("BR").valid?
+    true
+    iex> code.("br").valid?
+    false
+    iex> code.("ZZ").valid?
+    false
+  """
   def validate_code(changeset) do
     validate_change(changeset, :code, fn :code, code ->
-      if Countries.exists?(:alpha2, code) do
+      if Map.has_key?(@countries, code) do
         []
       else
-        [code: {"Invalid ISO-3361-1 alpha2 country code: #{code}", [validation: :alpha2]}]
+        [code: {"is not an ISO 3166-1 alpha-2 code: #{code}", [validation: :alpha2]}]
       end
     end)
   end
 
+  @doc """
+  Validates the `countries` of a changeset, a list of codes or names: there
+  must be at least one, and each must name a country of the table, as
+  `code_for/1` reads names. Adds one `:alpha2` error to `countries` that lists
+  the values naming none.
+  """
   def validate_countries(changeset = %Ecto.Changeset{}) do
     changeset
     |> validate_required([:countries])
     |> validate_length(:countries, min: 1)
     |> validate_change(:countries, fn :countries, countries ->
-      case validate_countries(countries) do
-        {:ok} -> []
-        {:error, message} -> [countries: {message, [validation: :alpha2]}]
+      case Enum.reject(countries, &Map.has_key?(@countries, resolved(&1))) do
+        [] ->
+          []
+
+        invalid ->
+          [countries: {"Invalid countries: #{Enum.join(invalid, ", ")}", [validation: :alpha2]}]
       end
     end)
   end
 
-  def validate_countries(countries) when is_binary(countries) or is_list(countries) do
-    invalid =
-      countries
-      |> nest()
-      |> Enum.map(&changeset(%Country{}, &1))
-      |> Enum.reject(fn cset -> cset.valid? end)
-
-    message = "Invalid countries: #{Enum.map_join(invalid, ", ", &get_change(&1, :code))}"
-
-    case invalid do
-      [] -> {:ok}
-      _ -> {:error, message}
-    end
-  end
-
-  @doc "Returns every country, ordered by id, which is insertion order."
-  def all do
-    Country |> order_by(:id) |> Repo.all()
-  end
-
   @doc ~S"""
-  Nest country codes into the maps the schema casts.
+  Nests a flat publication's list of countries into the maps the schema casts,
+  with each name replaced by its code as `code_for/1` reads it. A value that is
+  not a list is returned unchanged, for the changeset to refuse.
 
-  Takes the list the client and the flat schema both speak in. Splitting a
-  written-down string into values is the CSV codec's, and is done before a value
-  reaches here.
+  Splitting a written-down string into values is done by the CSV codec, before
+  a value reaches here.
 
   ## Examples
 
-    iex> RichardBurton.Country.nest(["BR", "US"])
+    iex> RichardBurton.Country.nest(["BR", "Estados Unidos"])
     [%{"code" => "BR"}, %{"code" => "US"}]
+
+    iex> RichardBurton.Country.nest("BR")
+    "BR"
   """
   def nest(countries) when is_list(countries),
     do: Enum.map(countries, &%{"code" => resolved(get_code(&1))})
 
+  def nest(countries), do: countries
+
   @doc ~S"""
-  Flatten countries to the codes they are. A value that is not a list is
-  returned unchanged.
+  Flattens countries to their codes. A value that is not a list is returned
+  unchanged.
+
+  Each entry may be a code, a `Country`, or a map with a `"code"` or `:code`
+  key. A map with neither key gives nil.
 
   ## Examples
 
@@ -506,8 +533,11 @@ defmodule RichardBurton.Country do
   def flatten(countries) when is_list(countries), do: Enum.map(countries, &get_code/1)
   def flatten(countries), do: countries
 
-  def get_code(code) when is_binary(code), do: code
-  def get_code(%Country{code: code}), do: code
-  def get_code(%{"code" => code}), do: code
-  def get_code(%{code: code}), do: code
+  # The code of a `Country` or of a map with a `:code` or `"code"` key, nil for
+  # any other map, and any other value unchanged. It accepts anything, because
+  # `nest/1` reads entries as they arrive in a request.
+  defp get_code(%{code: code}), do: code
+  defp get_code(%{"code" => code}), do: code
+  defp get_code(value) when is_map(value), do: nil
+  defp get_code(value), do: value
 end

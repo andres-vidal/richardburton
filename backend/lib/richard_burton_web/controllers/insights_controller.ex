@@ -18,16 +18,19 @@ defmodule RichardBurtonWeb.InsightsController do
 
   alias RichardBurton.Publication
 
+  @doc "Responds with the counts, the chart and `matched`, as the module doc describes."
   def show(conn, params) do
-    search = Map.get(params, "search")
+    search = params["search"]
 
     with {:ok, chart} <- Publication.Chart.parse(params) do
+      standings = search && Publication.Index.standings(search)
+
       json(
         conn,
         Map.put(
-          Publication.Insights.describe(search, chart),
+          Publication.Insights.describe(search, chart, standings),
           :matched,
-          search && Publication.Index.Excerpt.resolution(search)
+          search && Publication.Index.Excerpt.resolution(search, standings)
         )
       )
     end

@@ -1,8 +1,8 @@
 defmodule RichardBurton.RaceCase do
   @moduledoc """
   The test case for writes that race each other. It imports `race/2`, which
-  runs two writes against each other, and `unboxed/1`, which runs anything else
-  the test needs on the database.
+  runs two writes against each other, `unboxed/1`, which runs anything else
+  the test needs on the database, and `RichardBurton.Fixtures`.
 
   Each write runs on its own connection outside the SQL sandbox, in a
   transaction that commits. `race/2` runs the first write and holds its
@@ -42,6 +42,7 @@ defmodule RichardBurton.RaceCase do
       alias RichardBurton.Repo
 
       import Ecto.Query
+      import RichardBurton.Fixtures
       import RichardBurton.RaceCase, only: [race: 2, unboxed: 1]
     end
   end

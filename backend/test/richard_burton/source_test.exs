@@ -29,8 +29,8 @@ defmodule RichardBurton.SourceTest do
     end
 
     test "when content is whitespace only, is invalid" do
-      # `validate_required` trims, so a whitespace-only entry is rejected at the
-      # schema level too — not only dropped upstream by `nest/1`.
+      # `validate_required` trims, so the changeset refuses a whitespace-only
+      # entry as well as `nest/1` dropping it.
       refute changeset(%{"content" => "   ", "position" => 0}).valid?
     end
   end

@@ -20,9 +20,9 @@ defmodule RichardBurton.Publication.Index.Term do
       title:"dom casmurro"    matches the words in that order
       title:(dom casmurro)    matches both words in any order
 
-  An operator's value is matched the same way a free word is — by prefix, falling
-  back to similar words — unless it is quoted, in which case it is matched
-  exactly as written.
+  An operator's value is matched the way a free word is, by prefix and else by
+  similar words, unless it is quoted. A quoted value is matched exactly as
+  written.
 
   Every operator answers to an English name and a Portuguese one. Case and accents
   are ignored when matching them, and a two-word name may be written with either a
@@ -304,8 +304,8 @@ defmodule RichardBurton.Publication.Index.Term do
     end
   end
 
-  # One side of a range: an absent bound is nil, an unparseable one `:invalid`,
-  # which are different answers — the first is open, the second is a mistake.
+  # Returns one bound of a range: nil for an absent bound, which leaves that
+  # end open, and `:invalid` for a bound that is not a year.
   defp edge(""), do: nil
 
   defp edge(value) do

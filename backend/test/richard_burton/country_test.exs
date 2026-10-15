@@ -39,10 +39,6 @@ defmodule RichardBurton.CountryTest do
     %Country{} |> Country.changeset(attrs) |> Repo.insert()
   end
 
-  defp insert!(attrs) do
-    attrs |> changeset() |> Repo.insert!()
-  end
-
   describe "changeset/2" do
     test "when valid attributes are provided, is valid" do
       assert changeset(@valid_attrs).valid?
@@ -68,6 +64,18 @@ defmodule RichardBurton.CountryTest do
       refute change_valid(%{"code" => "XX"}).valid?
     end
 
+    test "when code is a lowercase alpha2 code, is invalid" do
+      refute change_valid(%{"code" => "gb"}).valid?
+    end
+
+    # The country table decides which codes exist: Kosovo has a code there,
+    # and the Netherlands Antilles keep theirs for the records that name them.
+    test "when code is one the country table holds, is valid" do
+      for code <- ["XK", "AN"] do
+        assert change_valid(%{"code" => code}).valid?, code
+      end
+    end
+
     test "when a country with the provided attributes already exists, is invalid" do
       {:ok, _} = insert(@valid_attrs)
       {:error, changeset} = insert(@valid_attrs)
@@ -85,7 +93,7 @@ defmodule RichardBurton.CountryTest do
       assert "NLD" in names
     end
 
-    test "carries the name the country is shown under in each language" do
+    test "carries the country's name in each language" do
       names = Country.names_for("NL")
 
       assert "Netherlands" in names
@@ -110,7 +118,7 @@ defmodule RichardBurton.CountryTest do
       assert [%{id: "NL"} | _] = Country.search("NLD", "en")
     end
 
-    test "finds a country by the name it is shown under in either language" do
+    test "finds a country by its name in either language" do
       assert [%{id: "NL"} | _] = Country.search("Netherlands", "pt")
       assert [%{id: "NL"} | _] = Country.search("Pa\u00edses Baixos", "en")
     end
@@ -269,8 +277,13 @@ defmodule RichardBurton.CountryTest do
                Enum.find_index(labels, &(&1 == "Alb\u00e2nia"))
     end
 
-    test "a language it has no names for is answered in the default one" do
-      assert Country.known("de") == Country.known("en")
+    # The table's entries also hold keys such as "alpha3" and "aliases", which
+    # are not languages.
+    test "a locale that is not a language of the table is answered in English" do
+      for locale <- ["de", "alpha3", "aliases", "numeric", nil] do
+        assert Country.known(locale) == Country.known("en")
+        assert Country.search("NL", locale) == Country.search("NL", "en")
+      end
     end
 
     test "carries each country's numeric code, as three digits" do
@@ -306,8 +319,9 @@ defmodule RichardBurton.CountryTest do
       assert errors == []
     end
 
-    # No countries at all is an empty list, which is not "blank" — it is a
-    # length. `Validation` reports both to the client as `:required`.
+    # No countries at all is an empty list, which fails the length check rather
+    # than the required check. `Validation.get_errors/1` reports both as
+    # `:required`.
     test "when countries is blank, is invalid" do
       %Ecto.Changeset{errors: errors, valid?: valid} =
         %{"countries" => []}
@@ -374,21 +388,8 @@ defmodule RichardBurton.CountryTest do
     end
   end
 
-  describe "all/0" do
-    # Postgres writes an updated row as a new row version later in the table,
-    # so a query without ORDER BY can return it after rows inserted later.
-    test "lists countries in the order each was first entered, whatever has changed since" do
-      first = insert!(%{"code" => "GB"})
-      second = insert!(%{"code" => "US"})
-
-      Repo.update_all(from(c in Country, where: c.id == ^first.id), set: [names: first.names])
-
-      assert Enum.map(Country.all(), & &1.id) == [first.id, second.id]
-    end
-  end
-
   describe "flatten/1" do
-    test "with a list of maps with string keys, returns a list of maps with code key" do
+    test "with a list of maps with string keys, returns their codes" do
       countries = [
         %{"code" => "GB"},
         %{"code" => "US"}
@@ -397,7 +398,7 @@ defmodule RichardBurton.CountryTest do
       assert ["GB", "US"] = Country.flatten(countries)
     end
 
-    test "with a list of maps with atom keys, returns a list of maps with code key" do
+    test "with a list of maps with atom keys, returns their codes" do
       countries = [
         %{code: "GB"},
         %{code: "US"}
@@ -406,7 +407,7 @@ defmodule RichardBurton.CountryTest do
       assert ["GB", "US"] = Country.flatten(countries)
     end
 
-    test "with a list of Country structs, returns a list of maps with code key" do
+    test "with a list of Country structs, returns their codes" do
       countries = [
         %Country{code: "GB"},
         %Country{code: "US"}
@@ -419,6 +420,10 @@ defmodule RichardBurton.CountryTest do
   describe "nest/1" do
     test "returns a list of maps with a code key, filed under the code each names" do
       assert [%{"code" => "GB"}, %{"code" => "US"}] = Country.nest(["UK", "US"])
+    end
+
+    test "leaves an entry that is no country for the changeset to refuse" do
+      assert [%{"code" => nil}, %{"code" => 1}] = Country.nest([%{}, 1])
     end
   end
 end

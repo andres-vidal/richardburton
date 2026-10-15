@@ -9,24 +9,14 @@ defmodule RichardBurton.Publication.LinksTest do
   alias RichardBurton.Country
   alias RichardBurton.OriginalBook
   alias RichardBurton.Publication
-  alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.Links
   alias RichardBurton.TranslatedBook
 
-  @dom_casmurro %{
-    title: "Dom Casmurro",
-    year: 1953,
-    countries: ["US"],
-    publishers: ["Noonday Press"],
-    authors: ["Helen Caldwell"],
-    original_title: "Dom Casmurro",
-    original_authors: ["Machado de Assis"]
-  }
-
-  # Returns `@dom_casmurro`, with `changes` merged in, as an entry.
+  # Returns the publication `publication_attrs/1` returns for `changes`, as an
+  # entry.
   defp entry(changes \\ %{}) do
     %Publication{}
-    |> Publication.changeset(Codec.nest(Map.merge(@dom_casmurro, changes)))
+    |> Publication.changeset(publication_attrs(changes))
     |> apply_changes()
   end
 

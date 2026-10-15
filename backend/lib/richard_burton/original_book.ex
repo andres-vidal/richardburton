@@ -13,6 +13,7 @@ defmodule RichardBurton.OriginalBook do
   import RichardBurton.Validation
 
   alias RichardBurton.Author
+  alias RichardBurton.Name
   alias RichardBurton.OriginalBook
   alias RichardBurton.Repo
   alias RichardBurton.TranslatedBook
@@ -52,17 +53,16 @@ defmodule RichardBurton.OriginalBook do
     |> validate_no_duplicates(:authors, :name, as: :original_authors)
   end
 
-  def all() do
-    OriginalBook |> Repo.all() |> preload
+  @doc "Returns every original book, with its authors."
+  def all do
+    OriginalBook |> Repo.all() |> preload()
   end
 
   @doc """
-  The original books a term names, by their title or by one of their authors.
-
-  A book is entered as a unit — a title and who wrote it — and looking it up
-  should work from whichever half the person typing happens to know. Prefixes
-  first, so what someone is part-way through typing wins; only when nothing
-  starts that way does the search fall back to similar spellings.
+  Returns the original books whose title or one of whose authors' names
+  begins with `term`, as `search/2` with `:prefix` does. When none does, it
+  returns the ones whose title or author's name resembles `term`, as
+  `search/2` with `:fuzzy` does.
   """
   def search(term) when is_binary(term) do
     case search(term, :prefix) do
@@ -71,31 +71,26 @@ defmodule RichardBurton.OriginalBook do
     end
   end
 
+  @doc """
+  Returns the original books whose title or one of whose authors' names
+  begins with `term`, with `:prefix`, or resembles it, with `:fuzzy`, ordered
+  by title, with their authors.
+  """
   def search(term, :prefix) when is_binary(term) do
-    matching(dynamic(^starts_with(:book, :title, term) or ^starts_with(:author, :name, term)))
-  end
-
-  def search(term, :fuzzy) when is_binary(term) do
-    matching(dynamic(^similar_to(:book, :title, term) or ^similar_to(:author, :name, term)))
-  end
-
-  # Prefix match on one column of a named binding.
-  defp starts_with(binding, field, term) do
-    dynamic(ilike(field(as(^binding), ^field), ^"#{term}%"))
-  end
-
-  # How much of a name a misspelling has to share to still answer for it.
-  @similarity 0.3
-
-  # Trigram match on one column of a named binding, for the fuzzy pass.
-  defp similar_to(binding, field, term) do
-    dynamic(
-      fragment("similarity((?), (?)) > ?", field(as(^binding), ^field), ^term, ^@similarity)
+    matching(
+      dynamic(^Name.starts_with(:book, :title, term) or ^Name.starts_with(:author, :name, term))
     )
   end
 
-  # A book joined to its authors matches once per author, so the rows are
-  # deduplicated before they are counted as answers.
+  def search(term, :fuzzy) when is_binary(term) do
+    matching(
+      dynamic(^Name.similar_to(:book, :title, term) or ^Name.similar_to(:author, :name, term))
+    )
+  end
+
+  # Returns the original books that match `condition`, with their authors,
+  # ordered by title. A book is joined to each of its authors, so it is read
+  # once however many of its authors match.
   defp matching(condition) do
     from(b in OriginalBook,
       as: :book,
@@ -110,8 +105,8 @@ defmodule RichardBurton.OriginalBook do
   end
 
   @doc ~S"""
-  Flatten a book to the shape a form speaks of it in: a title, and the authors
-  it was written by.
+  Returns a map of a book's title and its authors' names. The authors must be
+  loaded.
 
   ## Examples
 
@@ -125,7 +120,8 @@ defmodule RichardBurton.OriginalBook do
     %{title: book.title, authors: Author.flatten(book.authors)}
   end
 
-  def preload(data) do
+  # Preloads the authors of a book or a list of them.
+  defp preload(data) do
     Repo.preload(data, :authors)
   end
 end
