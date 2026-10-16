@@ -136,6 +136,50 @@ defmodule RichardBurton.Publication.HistoryTest do
       assert Map.keys(diff.fields) == ["title"]
     end
 
+    test "a change to the notes is diffed like any other field", %{publication: publication} do
+      notes = [paragraph([run("Bound in "), run("green", %{"bold" => true}), run(" cloth.")])]
+
+      edit(publication, %{notes: notes})
+
+      assert [%History{diff: diff} | _] = History.of(publication.id)
+      assert diff.fields == %{"notes" => %{from: nil, to: notes}}
+    end
+
+    test "a change to the formatting of the notes alone is diffed", %{publication: publication} do
+      plain = paragraphs("Bound in green cloth.")
+
+      bold = [paragraph([run("Bound in green cloth.", %{"bold" => true})])]
+
+      edit(publication, %{notes: plain})
+      edit(publication, %{notes: bold})
+
+      assert [%History{diff: diff} | _] = History.of(publication.id)
+      assert diff.fields == %{"notes" => %{from: plain, to: bold}}
+    end
+
+    test "a snapshot without a notes key holds the same notes as one whose notes are nil",
+         %{publication: publication} do
+      [created] = History.of(publication.id)
+
+      snapshot =
+        created.snapshot
+        |> Map.delete("notes")
+        |> Map.put("title", "Dom Casmurro: A Novel")
+
+      %History{}
+      |> History.changeset(%{
+        publication_id: publication.id,
+        version: 2,
+        action: "updated",
+        snapshot: snapshot,
+        actor: "a@b.com"
+      })
+      |> Repo.insert!()
+
+      assert [%History{diff: diff} | _] = History.of(publication.id)
+      assert Map.keys(diff.fields) == ["title"]
+    end
+
     test "sources diff as the exact entries added and removed", %{publication: publication} do
       edit(publication, %{sources: ["Pontiero, Giovanni."]})
       edit(publication, %{sources: ["Moser, Benjamin."]})
@@ -281,6 +325,20 @@ defmodule RichardBurton.Publication.HistoryTest do
 
       assert ["restored", "deleted", "created"] = actions(publication)
       refute Enum.any?(Publication.all_deleted(), &(&1.id == publication.id))
+    end
+
+    test "undoing an update that added notes takes them away", %{publication: publication} do
+      {:ok, _} =
+        Publication.update(
+          publication.id,
+          publication_attrs(%{notes: paragraphs("A note.")}),
+          "a@b.com"
+        )
+
+      version = version_of(publication, "updated")
+
+      assert {:ok, reverted} = Publication.undo(publication.id, version, "a@b.com")
+      assert reverted.notes == nil
     end
 
     test "an update is undone by putting its fields back", %{publication: publication} do

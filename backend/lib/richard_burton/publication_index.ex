@@ -27,6 +27,14 @@ defmodule RichardBurton.Publication.Index do
       `{:spelled_out, term}` or `{:alternatives, alternatives}`. `matches/1` and
       `ranking/1` are built from it, and it is the only thing that differs
       between the two ways of reading a term.
+    * **listed row** — a publication as a page of the index holds it: a
+      `RichardBurton.FlatPublication` read from the view, with `excerpts` and
+      `marked`. Its `notes` are nil, whatever notes the publication has, and
+      its JSON has no `notes` key, so that a page stays small however long
+      the notes are. `details/3` and
+      `without_sources/0` return listed rows. `all/1` and `search/2` return
+      `FlatPublication` structs whose notes are read from the `publications`
+      table, or maps of the fields they are asked for.
 
   Each word is matched on its own: as a prefix when the index holds words
   beginning with it, and by resemblance when it does not. So a word matched by
@@ -49,6 +57,7 @@ defmodule RichardBurton.Publication.Index do
   import Ecto.Query
 
   alias RichardBurton.FlatPublication
+  alias RichardBurton.Publication
   alias RichardBurton.Publication.Index.SearchDocument
   alias RichardBurton.Publication.Index.Excerpt
   alias RichardBurton.Publication.Index.Query
@@ -66,19 +75,23 @@ defmodule RichardBurton.Publication.Index do
   @spec count_header() :: String.t()
   def count_header, do: @count_header
 
-  @doc "Returns `{:ok, publications}`, every publication in the index, whole."
+  @doc """
+  Returns `{:ok, publications}`, every publication in the index, whole, with
+  its notes.
+  """
   def all do
     all(select: [])
   end
 
   @doc """
   Returns `{:ok, publications}`, every publication in the index, as maps of
-  the fields in `attributes`, or whole when `attributes` is empty.
+  the fields in `attributes`, or whole, with their notes, when `attributes` is
+  empty. The notes are read from the `publications` table in the same query.
   """
   def all(select: attributes) when is_list(attributes) do
     results =
       from(fp in FlatPublication)
-      |> maybe_select(attributes)
+      |> selected(attributes)
       |> Repo.all()
 
     {:ok, results}
@@ -94,8 +107,8 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  Returns `{:ok, publications}`, the publications in the index that cite no
-  source, ordered by id, so the order is the same on every call.
+  Returns `{:ok, rows}`, the listed rows of the publications in the index that
+  cite no source, ordered by id, so the order is the same on every call.
   """
   def without_sources do
     results =
@@ -127,9 +140,10 @@ defmodule RichardBurton.Publication.Index do
   emptying the result.
 
   It returns `{:ok, publications}`, every match at once, in the order
-  `search_order/1` gives, as maps of the fields in `attributes`, or whole
-  when `attributes` is empty. `search_order/1` and `details/2` read the same
-  matches a page at a time.
+  `search_order/1` gives, as maps of the fields in `attributes`, or whole,
+  with their notes, when `attributes` is empty. The notes are read from the
+  `publications` table in the same query. `search_order/1` and `details/2`
+  read the same matches a page at a time.
   """
   def search(term, select: attributes) when is_binary(term) do
     case criteria(term, standings(term)) do
@@ -177,11 +191,12 @@ defmodule RichardBurton.Publication.Index do
   end
 
   @doc """
-  Returns the full rows for the given ids, in that order: one page of an
+  Returns the listed rows for the given ids, in that order: one page of an
   ordering that `search_order/1` or `all_order/0` returned earlier.
 
-  Pass `nil` as the term for a plain listing. Pass the term itself and each row
-  comes back with an excerpt of every field that matched it.
+  Pass `nil` as the term for a plain listing, whose rows hold nil `excerpts`
+  and `marked`. Pass the term itself and each row comes back with an excerpt
+  of every field that matched it.
 
   An id that is no longer in the database is left out. That is what a deletion
   looks like after the order was fixed: a gap in the page, rather than rows
@@ -292,21 +307,35 @@ defmodule RichardBurton.Publication.Index do
     )
   end
 
-  # The full rows a search matches, in the same order as `order_ids/1`, selected
-  # whole or narrowed to the named attributes. Used by the export, which takes the
-  # results all at once rather than a page at a time.
+  # The full rows a search matches, in the same order as `order_ids/1`,
+  # selected as `selected/2` selects them for `attributes`.
   defp asking(criteria, attributes) do
-    criteria |> ranked() |> maybe_select(attributes)
+    criteria |> ranked() |> selected(attributes)
   end
 
-  # An empty attribute list returns whole rows. Naming attributes narrows the
-  # export to just those columns.
-  defp maybe_select(query, []) do
-    query
+  # Returns `query`, a query of the view, selecting whole rows with their
+  # notes when `attributes` is empty, and maps of the fields in `attributes`
+  # otherwise. The notes, which the view does not hold, are read from the
+  # `publications` table by a join on the id, when the rows are whole or
+  # `attributes` holds `:notes`.
+  defp selected(query, []) do
+    query |> join_stored() |> select_merge([stored: p], %{notes: p.notes})
   end
 
-  defp maybe_select(query, attributes) do
-    select(query, [fp], map(fp, ^attributes))
+  defp selected(query, attributes) do
+    query = if :notes in attributes, do: join_stored(query), else: query
+    select(query, ^Map.new(attributes, &{&1, selected_field(&1)}))
+  end
+
+  # Returns what selects `field`: the notes of the `publications` row that
+  # `join_stored/1` joins, and any other field from the view.
+  defp selected_field(:notes), do: dynamic([stored: p], p.notes)
+  defp selected_field(field), do: dynamic([fp], field(fp, ^field))
+
+  # Returns `query`, a query of the view, joined to the row of the
+  # `publications` table with the same id, which it names `:stored`.
+  defp join_stored(query) do
+    join(query, :inner, [fp], p in Publication, as: :stored, on: p.id == fp.id)
   end
 
   # Puts rows into the order the given ids are in, dropping any id that is no longer

@@ -3,9 +3,11 @@
 import { useFormatDate } from "modules/dates";
 import type { WithChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
+import { isBlank, type RichTextValue } from "modules/rich-text";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
+import RichText from "./RichText";
 
 type HistoryEntry = WithChanges<PublicationHistoryEntry>;
 
@@ -61,14 +63,29 @@ const ActionBadge: FC<{
 };
 
 /**
+ * Notes as an entry of the log shows them: rendered with `RichText` in the
+ * small size, or the `admin.noNotes` message when they are null or blank.
+ */
+const NotesOrNone: FC<{ notes: RichTextValue | null }> = ({ notes }) => {
+  const t = useTranslations("admin");
+
+  return isBlank(notes) ? (
+    t("noNotes")
+  ) : (
+    <RichText value={notes} size="small" />
+  );
+};
+
+/**
  * One entry of a publication's log: its action, who made it and when, and what
  * it changed. The `card` variant names the publication and frames the entry,
  * and the `plain` variant does neither.
  *
  * What it changed is listed from `entry.changes`: a field's old and new value,
- * the sources added and removed, the records a merge took in or gave back, and
- * the records a duplicate decision was about. An update with no earlier
- * version to compare with says so.
+ * the sources added and removed, the notes before and after, rendered with
+ * `RichText`, the records a merge took in or gave back, and the records a
+ * duplicate decision was about. An update with no earlier
+ * version to compare with says so. Blank notes are shown as none.
  */
 const Entry: FC<{
   entry: HistoryEntry;
@@ -195,6 +212,24 @@ const Entry: FC<{
                   ))}
                 </ul>
               </li>
+            ) : change.kind === "notes" ? (
+              <li key="notes" className="text-xs text-gray-600">
+                {attribute("notes")}:
+                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 mt-0.5">
+                  <span aria-hidden className="text-red-700">
+                    −
+                  </span>
+                  <del className="text-gray-500 no-underline">
+                    <NotesOrNone notes={change.from} />
+                  </del>
+                  <span aria-hidden className="text-emerald-700">
+                    +
+                  </span>
+                  <ins className="no-underline">
+                    <NotesOrNone notes={change.to} />
+                  </ins>
+                </div>
+              </li>
             ) : change.kind === "related" ? (
               <li key="related" className="mt-1 text-xs text-gray-600">
                 {change.direction === "apart"
@@ -239,6 +274,12 @@ const Entry: FC<{
                             {t("sourceLabel", { source })}
                           </li>
                         ))}
+                        {!isBlank(record.notes) && (
+                          <li className="text-gray-500">
+                            {attribute("notes")}:
+                            <RichText value={record.notes} size="small" />
+                          </li>
+                        )}
                       </ul>
                     </li>
                   ))}

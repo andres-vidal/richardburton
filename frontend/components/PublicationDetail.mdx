@@ -7,7 +7,7 @@ import * as PublicationDetailStories from "./PublicationDetail.stories";
 # Publication detail
 
 A publication as a reader sees it: a sentence placing the translation among its
-people and places, and the sources behind it. Every field a reader might want to
+people and places, its notes, and the sources behind it. Every field a reader might want to
 pivot on is a link back into the index — countries show their label but search
 by the stored code (`US`, not "United States of America").
 
@@ -36,15 +36,21 @@ so the same publication offers the same affordances wherever it is read.
 The Edit control opens `PublicationEditForm`, which the module also exports. It
 edits every field of a publication in the enclosing store. While it is open,
 `watchEdit` validates the publication shortly after each change, and each field
-writes its error under itself. The save button is disabled while the
-publication has errors. By default it saves with `update`. Its `save`, `heading` and
-`saveLabel` props replace the save action and the two labels, which is how the
+writes its error under itself. The notes are edited in a
+[notes field](?path=/docs/publications-notes-field--docs), which writes their
+value to the row once the typing pauses, or null when the text is blank, and
+writes a waiting edit at once when it loses the focus. The save button is
+disabled while the publication has errors. By default it saves with `update`.
+Its `save`, `heading` and `saveLabel` props replace the save action and the
+two labels, which is how the
 [trash](?path=/docs/publications-deleted-publications--docs) uses it to restore
 a publication with changes.
 
 ## States
 
 - **Default** — a fully sourced record, read by anyone.
+- **With notes** — the notes, formatted, under the sentence.
+- **Without notes** — no notes section at all.
 - **Without sources** — the section states the absence rather than hiding.
 - **As admin** — the history section and the edit/merge/delete controls.
 - **Editing** — the form the Edit control opens, in place.
@@ -53,5 +59,13 @@ a publication with changes.
   [merge dialog](?path=/docs/publications-publication-merge--docs), opened over
   the record that survives it.
 - **Search links** — every value in the sentence links to a search for it.
+
+The notes section renders the publication's notes with
+[`RichText`](?path=/docs/components-rich-text--docs). Unlike the sources, it is
+left out when there are none, or when they are blank.
+
+<Canvas of={PublicationDetailStories.WithNotes} />
+
+A record nobody has sourced yet says so:
 
 <Canvas of={PublicationDetailStories.WithoutSources} />

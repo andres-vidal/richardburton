@@ -1,0 +1,74 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as RichTextStories from "./RichText.stories";
+
+<Meta of={RichTextStories} />
+
+# Rich text
+
+Renders rich text from its value, read-only. It renders paragraphs, line
+breaks, bold and italic text, bulleted and numbered lists, nested lists
+included, and links. Every link opens in a new tab with
+`rel="noopener noreferrer"`.
+
+The value is the list of blocks described in `modules/rich-text`, the same
+value the [rich text area](?path=/docs/components-rich-text-area--docs) edits,
+so the text reads as it did in the field. The component builds React elements
+from the value and sets no HTML of its own.
+
+<Description of={RichTextStories.Default} />
+<Canvas of={RichTextStories.Default} />
+
+## Props
+
+- `value` — the text's value. A null, missing or blank value renders nothing.
+  A value that is not rich text renders as the text it holds (see
+  [Values that are not rich text](#values-that-are-not-rich-text)).
+- `size` — `base`, the default, for running text, or `small` for smaller text
+  with less space between blocks.
+
+<Description of={RichTextStories.Small} />
+<Canvas of={RichTextStories.Small} />
+
+<Description of={RichTextStories.Empty} />
+<Canvas of={RichTextStories.Empty} />
+
+## Lists
+
+The value holds list items one after another, each with a depth. Each run of
+consecutive items renders as nested lists: an `ol` for numbered items and a
+`ul` for bulleted ones, with the deeper items after an item nested in it.
+Blank blocks render nothing.
+
+<Description of={RichTextStories.Lists} />
+<Canvas of={RichTextStories.Lists} />
+
+The component renders the depths it is given. Each item is nested in the
+closest item before it that is shallower than it, so a run that starts a level
+deep, or an item that skips a level, still shows every item. A nested list is
+one level deeper than the item that holds it.
+
+<Description of={RichTextStories.UnevenDepths} />
+<Canvas of={RichTextStories.UnevenDepths} />
+
+## Characters that look like markup
+
+Characters that Markdown or HTML would read as formatting, such as `*` or
+`<b>`, are shown as they are written. Only the links of the value render as
+links: a URL or an email address in a run of text is text. The rich text area
+links an address as it is typed or pasted, so it is a link in the value. A link
+to anything but an `http`, `https` or `mailto` address renders as its text.
+
+<Description of={RichTextStories.LiteralText} />
+<Canvas of={RichTextStories.LiteralText} />
+
+## Values that are not rich text
+
+The component renders any value without throwing. A string renders as a
+paragraph of its text, with its line breaks. A node of a type that rich text
+does not have renders as a paragraph of the text it holds: its `text`, then
+the text of its `children`. A node that holds no text renders nothing. The
+value is read by `readValue` in `modules/rich-text`.
+
+<Description of={RichTextStories.UnrecognisedValues} />
+<Canvas of={RichTextStories.UnrecognisedValues} />

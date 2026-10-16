@@ -49,9 +49,9 @@ defmodule RichardBurton.DocumentTest do
       assert %{name: :required} == Validation.get_errors(changeset)
     end
 
-    test "a name longer than 200 characters, or a negative row count, is invalid" do
+    test "a name longer than 200 characters is too long, and a negative row count is invalid" do
       assert {:error, changeset} = Document.create(%{"name" => String.duplicate("a", 201)})
-      assert %{name: :invalid} == Validation.get_errors(changeset)
+      assert %{name: :too_long} == Validation.get_errors(changeset)
 
       assert {:error, changeset} = Document.create(%{"name" => "Second pass", "rows" => -1})
       assert %{rows: :invalid} == Validation.get_errors(changeset)

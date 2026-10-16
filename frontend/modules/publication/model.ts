@@ -1,4 +1,6 @@
+import { isEqual, uniqWith } from "lodash";
 import type { CountryNaming } from "modules/country-names";
+import { isBlank, type RichTextValue } from "modules/rich-text";
 
 /** A publication as the API sends and takes it, one field per attribute. */
 type Publication = {
@@ -10,6 +12,14 @@ type Publication = {
   originalTitle: string;
   originalAuthors: string[];
   sources: string[];
+  /**
+   * The publication's notes as a rich-text value (see `modules/rich-text`),
+   * or null when it has none. A page of the index leaves notes out, so a record read
+   * from one has no `notes` key, and neither has a new row nobody has
+   * written notes on. A request without the key keeps the stored notes, and a
+   * null clears them.
+   */
+  notes?: RichTextValue | null;
   /**
    * The stored publication's id, or null for a row that is not stored. The
    * server never takes it from a request body.
@@ -35,11 +45,11 @@ type Publication = {
 
 /**
  * The name of an attribute: a field of a publication other than its id, its
- * sources and its search marks.
+ * sources, its notes and its search marks.
  */
 type PublicationKey = keyof Omit<
   Publication,
-  "id" | "sources" | "excerpts" | "marked"
+  "id" | "sources" | "notes" | "excerpts" | "marked"
 >;
 
 /**
@@ -71,9 +81,14 @@ type PublicationListKey = {
 
 /**
  * What is wrong with a row: null when nothing is, the code of an error with the
- * whole row, or the code of an error with each field that has one.
+ * whole row, or the code of an error with each field that has one, the
+ * notes included.
  */
-type PublicationError = null | string | Record<PublicationKey, string>;
+type PublicationError =
+  null | string | (Record<PublicationKey, string> & { notes?: string });
+
+/** A field that can have an error of its own: an attribute or the notes. */
+type ErrorScope = PublicationKey | "notes";
 
 /**
  * What the look-alike check found for a row: the stored records it resembles,
@@ -127,26 +142,37 @@ type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
 
 /**
  * What an entry of the log changed: the old and new value of each field that
- * changed, and the sources added, removed or reordered, or null when the
- * sources did not change.
+ * changed, the notes included, and the sources added, removed or
+ * reordered, or null when the sources did not change.
  */
 type SnapshotDiff = {
-  fields: Partial<Record<PublicationKey, { from: unknown; to: unknown }>>;
+  fields: Partial<
+    Record<PublicationKey, { from: unknown; to: unknown }> & {
+      notes: { from: RichTextValue | null; to: RichTextValue | null };
+    }
+  >;
   sources: { added: string[]; removed: string[]; reordered: boolean } | null;
 };
 
 /**
  * A publication as the log keeps it: the record's own fields, without the
- * surrogate id, and with the year as the number it is stored as.
+ * surrogate id and the notes, and with the year as the number it is stored as.
+ * A change to the notes is in the entry's `diff`.
  */
-type PublicationSnapshot = Omit<Publication, "id" | "year"> & { year: number };
+type PublicationSnapshot = Omit<Publication, "id" | "year" | "notes"> & {
+  year: number;
+};
 
 /**
  * A publication an entry of the log names besides its own, as it stood when
- * the entry was recorded. Identified, unlike a snapshot: an entry names several
- * of these at once, and two records that were merged may well share a title.
+ * the entry was recorded, its notes included. Identified, unlike a snapshot:
+ * an entry names several of these at once, and two records that were merged
+ * may well share a title.
  */
-type OtherPublication = PublicationSnapshot & { id: number };
+type OtherPublication = PublicationSnapshot & {
+  id: number;
+  notes?: RichTextValue | null;
+};
 
 /**
  * One entry of a publication's log: the act, who did it and when, the record as
@@ -221,8 +247,15 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
 };
 
 /**
+ * The most characters the notes of a publication can hold, counted by
+ * `textLength`. The server refuses longer notes with the code `too_long`.
+ */
+const NOTES_MAX_LENGTH = 10_000;
+
+/**
  * Returns a publication with no id, an empty text in each text field and an
- * empty list in each list field.
+ * empty list in each list field. It has no `notes` key, which saves as no
+ * notes.
  */
 function empty(): Publication {
   return {
@@ -251,8 +284,13 @@ function idFromText(text: string): PublicationId {
 
 /**
  * What one record would look like with others folded into it: the survivor's
- * own fields, the countries and publishers of all of them, and every source
- * none of the others already gave.
+ * own fields, the countries and publishers of all of them, every source none
+ * of the others already gave, and the survivor's notes followed by each
+ * other record's notes, as further blocks. Notes that are null or blank, or
+ * that equal earlier ones, are left out. Two notes are equal when lodash's
+ * `isEqual` finds them equal, which ignores the order of their objects' keys.
+ * When no record has any notes, the result has the survivor's. A record read
+ * from a page of the index has no notes to add.
  *
  * The server merges the records itself and decides the result. This function
  * repeats its rules, so the result can be shown before the merge is asked for.
@@ -263,11 +301,19 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   const union = (attribute: "countries" | "publishers") =>
     Array.from(new Set(all.flatMap((p) => p[attribute]))).sort();
 
+  const notes = uniqWith(
+    all
+      .map((p) => p.notes)
+      .filter((value): value is RichTextValue => !isBlank(value)),
+    isEqual,
+  );
+
   return {
     ...winner,
     countries: union("countries"),
     publishers: union("publishers"),
     sources: Array.from(new Set(all.flatMap((p) => p.sources))),
+    notes: notes.length > 0 ? notes.flat() : winner.notes,
   };
 }
 
@@ -504,13 +550,13 @@ function markedSources(publication: Publication): string[] {
  * The sentence for each code is in the `publicationError` messages. This module
  * runs outside React, where there is no locale to write a sentence in.
  */
-function errorCode(error: PublicationError, scope?: PublicationKey): string {
+function errorCode(error: PublicationError, scope?: ErrorScope): string {
   if (!error) {
     return "";
   } else if (!scope) {
     return typeof error === "string" ? error : "";
   } else {
-    return typeof error === "string" ? "" : error[scope];
+    return typeof error === "string" ? "" : (error[scope] ?? "");
   }
 }
 
@@ -571,11 +617,13 @@ export {
   idFromText,
   marking,
   merged,
+  NOTES_MAX_LENGTH,
   Publication,
   searchHref,
 };
 export type {
   Contrast,
+  ErrorScope,
   ContrastedKey,
   DeletedPublicationEntry,
   PublicationValue,

@@ -1,3 +1,4 @@
+import { paragraph } from "test/rich-text-fixtures";
 import type { FullHistoryEntry, SnapshotDiff } from "./model";
 import {
   keyOf,
@@ -75,6 +76,22 @@ describe("presentChanges", () => {
     }).map((change) => change.kind);
 
     expect(kinds).toEqual(["field", "sources"]);
+  });
+
+  test("gives the notes before and after, after the sources", () => {
+    const note = [paragraph({ text: "New", bold: true }, " note")];
+
+    expect(
+      presentChanges({
+        fields: {
+          notes: { from: null, to: note },
+          title: { from: "A", to: "B" },
+        },
+        sources: { added: ["x"], removed: [], reordered: false },
+      }).map(({ kind, ...change }) =>
+        kind === "notes" ? { kind, ...change } : kind,
+      ),
+    ).toEqual(["field", "sources", { kind: "notes", from: null, to: note }]);
   });
 
   test("nothing to diff renders nothing", () => {
@@ -161,13 +178,15 @@ describe("presentAbsorbed", () => {
     ).toEqual([]);
   });
 
-  test("the whole record travels with the entry, sources included", () => {
+  test("the whole record travels with the entry, sources and notes included", () => {
     const [change] = presentAbsorbed(
       absorbing("merged", [
         {
           id: 9,
           ...snapshot({ sources: ["Sousa, J. Bibliografia, 1955."] }),
+          notes: [paragraph("A ", { text: "rare", italic: true }, " copy.")],
         },
+        { id: 10, ...snapshot() },
       ]),
     );
 
@@ -175,6 +194,10 @@ describe("presentAbsorbed", () => {
       throw new Error("expected an absorbed change");
     expect(change.records[0].sources).toEqual([
       "Sousa, J. Bibliografia, 1955.",
+    ]);
+    expect(change.records.map((record) => record.notes)).toEqual([
+      [paragraph("A ", { text: "rare", italic: true }, " copy.")],
+      null,
     ]);
   });
 });

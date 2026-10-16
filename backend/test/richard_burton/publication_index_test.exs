@@ -1220,4 +1220,76 @@ defmodule RichardBurton.Publication.IndexTest do
       )
     end
   end
+
+  describe "notes" do
+    @notes [
+      paragraph([
+        run("Reviewed in "),
+        run("The New Yorker", %{"italic" => true}),
+        run(", with a zanzibarian flourish.")
+      ])
+    ]
+
+    setup do
+      [publication] =
+        seed_index([
+          %{
+            title: "Dona Flor and Her Two Husbands",
+            year: 1969,
+            countries: ["US"],
+            publishers: ["Knopf"],
+            authors: ["Harriet de Onís"],
+            original_title: "Dona Flor e seus dois maridos",
+            original_authors: ["Jorge Amado"],
+            notes: @notes
+          }
+        ])
+
+      [publication: publication]
+    end
+
+    # Returns the keys of the JSON object `row` is encoded as.
+    defp json_keys(row), do: row |> Jason.encode!() |> Jason.decode!() |> Map.keys()
+
+    test "a listed row does not hold them, and its JSON has no notes key",
+         %{publication: publication} do
+      assert [row] = Publication.Index.details([publication.id])
+      assert %FlatPublication{title: "Dona Flor and Her Two Husbands", notes: nil} = row
+      assert "title" in json_keys(row)
+      refute "notes" in json_keys(row)
+
+      assert [row] = Publication.Index.details([publication.id], "Flor")
+      assert row.excerpts.title =~ "[[Flor]]"
+      refute "notes" in json_keys(row)
+
+      {:ok, unsourced} = Publication.Index.without_sources()
+      assert [row] = Enum.filter(unsourced, &(&1.id == publication.id))
+      refute "notes" in json_keys(row)
+    end
+
+    test "all/0 and search/1 return them", %{publication: publication} do
+      {:ok, all} = Publication.Index.all()
+      assert %FlatPublication{notes: @notes} = Enum.find(all, &(&1.id == publication.id))
+
+      {:ok, found} = Publication.Index.search("Flor")
+      assert %FlatPublication{notes: @notes} = Enum.find(found, &(&1.id == publication.id))
+    end
+
+    test "all/1 and search/2 return them when asked for them, alone or with other fields" do
+      {:ok, rows} = Publication.Index.all(select: [:title, :notes])
+      assert Enum.all?(rows, &(Map.keys(&1) |> Enum.sort() == [:notes, :title]))
+      assert %{notes: @notes} = Enum.find(rows, &(&1.title == "Dona Flor and Her Two Husbands"))
+      assert rows |> Enum.map(& &1.notes) |> Enum.count(&(&1 != nil)) == 1
+
+      assert {:ok, [%{notes: @notes} = row]} = Publication.Index.search("Flor", select: [:notes])
+      assert Map.keys(row) == [:notes]
+
+      {:ok, rows} = Publication.Index.all(select: [:title])
+      refute Enum.any?(rows, &Map.has_key?(&1, :notes))
+    end
+
+    test "the search does not read them" do
+      assert Publication.Index.search_order("zanzibarian") == :none
+    end
+  end
 end

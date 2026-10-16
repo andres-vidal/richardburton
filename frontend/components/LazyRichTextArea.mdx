@@ -1,0 +1,34 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as LazyRichTextAreaStories from "./LazyRichTextArea.stories";
+
+<Meta of={LazyRichTextAreaStories} />
+
+# Lazy rich text area
+
+The [rich text area](?path=/docs/components-rich-text-area--docs), loaded with
+`next/dynamic` the first time it renders, and never rendered on the server. A
+page that holds it does not download the editor's code until it shows the
+field, so a reader who never edits does not download it at all.
+
+<Description of={LazyRichTextAreaStories.WithValue} />
+<Canvas of={LazyRichTextAreaStories.WithValue} />
+
+## Props
+
+The same as the rich text area's: `label`, `hint`, `placeholder`, `value`,
+`onChange` and `error`.
+
+## While it loads
+
+Until the code has loaded, an empty white box with a grey border holds the
+field's place. The box is hidden from assistive technology.
+
+The box is 247px tall, the height of the empty field with a one-line label and
+a one-line hint: 38px for the label and the hint, an 8px gap, and 201px for the
+toolbar and the 10rem text area in their border. The content under the field
+stays where it is when the field replaces the box. A longer label or hint, or a
+field with a value, makes the field taller than the box.
+
+<Description of={LazyRichTextAreaStories.Empty} />
+<Canvas of={LazyRichTextAreaStories.Empty} />

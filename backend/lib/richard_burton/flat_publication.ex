@@ -1,13 +1,26 @@
 defmodule RichardBurton.FlatPublication do
   @moduledoc """
   A publication in its flat shape: the title, year, countries, publishers,
-  translators (`authors`), original title, original authors and sources side
-  by side, each list holding names, country codes or source texts.
+  translators (`authors`), original title, original authors, sources and
+  notes side by side. Each list of countries, publishers, authors or sources
+  holds names, country codes or source texts. The notes are rich text, as
+  `RichardBurton.RichText` describes it, or nil.
 
   The schema reads the `flat_publications` materialized view, which holds one
   row for each publication that is not deleted, and which
   `RichardBurton.Publication.Index.Refresher` rebuilds after each write. It
   also validates a publication in this shape, without writing it.
+
+  The view does not hold the notes, so `notes` is a virtual field. A
+  publication read from the view has nil notes, whatever notes it has, unless
+  the query that read it selected them from the `publications` table.
+
+  A flat publication is encoded as JSON with its id, its writable fields,
+  `excerpts` and `marked`, as `json_fields/1` returns them. A publication
+  loaded from the database is encoded without `notes` when they are nil,
+  because a nil there may only mean that the query did not read them. Any
+  other publication, such as one that `RichardBurton.Publication.Codec.flatten/1`
+  returns, is encoded with its notes, nil included.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -15,6 +28,7 @@ defmodule RichardBurton.FlatPublication do
   alias RichardBurton.Country
   alias RichardBurton.FlatPublication
   alias RichardBurton.Identity
+  alias RichardBurton.RichText
   alias RichardBurton.Validation
 
   @required_attributes [
@@ -27,9 +41,9 @@ defmodule RichardBurton.FlatPublication do
     :original_authors
   ]
 
-  # Writable but not required: a publication may legitimately have no provenance,
-  # and the bulk CSV import doesn't carry it.
-  @writable_attributes [:sources | @required_attributes]
+  # Writable but not required: a publication may legitimately have no provenance
+  # or notes, and a CSV file may leave either column out.
+  @writable_attributes [:sources, :notes | @required_attributes]
 
   # The attributes that hold several values. An empty list is not "blank" to
   # `validate_required/2`, so saying a record has no countries at all takes a
@@ -40,7 +54,6 @@ defmodule RichardBurton.FlatPublication do
   # null outside a search.
   @readable_attributes [:id, :excerpts, :marked | @writable_attributes]
 
-  @derive {Jason.Encoder, only: @readable_attributes}
   schema "flat_publications" do
     field(:title, :string)
     field(:year, :integer)
@@ -50,6 +63,7 @@ defmodule RichardBurton.FlatPublication do
     field(:original_title, :string)
     field(:original_authors, {:array, :string})
     field(:sources, {:array, :string})
+    field(:notes, RichText, virtual: true)
 
     field(:excerpts, :map, virtual: true)
     field(:marked, :map, virtual: true)
@@ -61,6 +75,7 @@ defmodule RichardBurton.FlatPublication do
     |> cast(attrs, @writable_attributes)
     |> validate_required(@required_attributes)
     |> validate_any_values()
+    |> Validation.validate_notes()
     |> Country.resolve_countries()
     |> Country.validate_countries()
     |> validate_entries()
@@ -103,6 +118,24 @@ defmodule RichardBurton.FlatPublication do
   # Returns whether an entry is missing, empty or only whitespace, which is what
   # `validate_required/2` treats as missing.
   defp blank?(entry), do: is_nil(entry) or (is_binary(entry) and String.trim(entry) == "")
+
+  @doc """
+  Returns the fields of `publication` that its JSON holds, as a map, as the
+  module doc describes.
+  """
+  def json_fields(publication = %FlatPublication{__meta__: %{state: :loaded}, notes: nil}) do
+    Map.take(publication, @readable_attributes -- [:notes])
+  end
+
+  def json_fields(publication = %FlatPublication{}),
+    do: Map.take(publication, @readable_attributes)
+
+  # Encodes a flat publication as the map that `json_fields/1` returns.
+  defimpl Jason.Encoder do
+    def encode(publication, opts) do
+      publication |> RichardBurton.FlatPublication.json_fields() |> Jason.Encode.map(opts)
+    end
+  end
 
   @doc """
   Validates `attrs` as `validate_all/2` validates each entry of a list.

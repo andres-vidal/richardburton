@@ -498,12 +498,14 @@ const Review: FC<{
 
   function handleMerge(winner: Publication) {
     if (current)
-      answer(current, () =>
-        merge(store, {
+      answer(current, async () => {
+        const merging = await merge(store, {
           winner,
           losers: current.publications.filter((p) => p.id !== winner.id),
-        }),
-      );
+        });
+
+        return merging.outcome === "merged";
+      });
   }
 
   function handleDistinguish() {

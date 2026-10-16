@@ -19,12 +19,13 @@ import {
 } from "modules/publication/model";
 import { watchEdit } from "modules/publication/checks";
 import { deletePublication, update } from "modules/publication/remote";
-import { discardEdit, setSources, remember } from "modules/publication/store";
+import { discardEdit, remember, setSources } from "modules/publication/store";
 import {
   PublicationStoreProvider,
   usePublicationStore,
 } from "modules/publication/workspace";
 import { useCountryNaming } from "modules/country-names";
+import { isBlank, type RichTextValue } from "modules/rich-text";
 import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
 import { useFormatter, useTranslations } from "next-intl";
@@ -43,8 +44,10 @@ import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
 import Highlight from "./Highlight";
 import { useModal } from "./Modal";
+import NotesField from "./NotesField";
 import PublicationHistory from "./PublicationHistory";
 import PublicationMerge from "./PublicationMerge";
+import RichText from "./RichText";
 import SourcesEditor from "./SourcesEditor";
 import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
@@ -198,6 +201,24 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
 };
 
 /**
+ * The publication's notes under their heading, rendered with `RichText`, as a
+ * region named for them. It renders nothing for a publication whose notes are
+ * missing, null or blank.
+ */
+const PublicationNotes: FC<{ notes: RichTextValue | null | undefined }> = ({
+  notes,
+}) => {
+  const t = useTranslations("attributes");
+
+  return isBlank(notes) ? null : (
+    <section aria-label={t("notes")} className="space-y-2">
+      <SectionHeading>{t("notes")}</SectionHeading>
+      <RichText value={notes} />
+    </section>
+  );
+};
+
+/**
  * The record's mutation log, collapsed. The entries arrive with the record, so
  * expanding it costs nothing and shows everything at once.
  */
@@ -293,6 +314,7 @@ const PublicationEditForm: FC<{
         value={sources}
         onChange={(next) => setSources(store, id, next)}
       />
+      <NotesField id={id} />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 justify-end">
         <Button
@@ -331,7 +353,8 @@ type PublicationDetailProps = {
 };
 
 /**
- * A publication as a reader sees it: a sentence placing it and its sources.
+ * A publication as a reader sees it: a sentence placing it, its notes and
+ * its sources.
  * Whoever may edit publications also gets the controls to edit, merge and
  * delete it, and `history`, when given, is shown in a collapsed section. The
  * view keeps its edits in a publication store of its own, or in the enclosing
@@ -407,6 +430,7 @@ const Detail: FC<PublicationDetailProps> = ({
       ) : (
         <>
           <PublicationDescription publication={publication} />
+          <PublicationNotes notes={publication.notes} />
           <PublicationSources
             sources={Publication.markedSources(publication)}
           />
