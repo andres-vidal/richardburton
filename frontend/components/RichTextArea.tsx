@@ -17,10 +17,11 @@ import BulletedListIcon from "assets/bulleted-list.svg";
 import LinkIcon from "assets/link.svg";
 import NumberedListIcon from "assets/numbered-list.svg";
 import isHotkey from "is-hotkey";
+import { isEqual } from "lodash";
 import {
+  emptyValue,
+  isBlank,
   linkTarget,
-  parse,
-  serialize,
   type ListKind,
   type RichTextMark,
   type RichTextValue,
@@ -440,17 +441,19 @@ const EdgeSpacer: FC = () => (
 /**
  * A field that edits rich text: paragraphs and line breaks, bold and italic
  * text, bulleted and numbered lists, and links (see `modules/rich-text`).
- * `value` is the text in Markdown, or null for none, and `onChange` receives
- * the Markdown the edited text is written as (see `serialize`), each time that
- * Markdown changes. Changing only the selection, or typing what Markdown
- * cannot hold, such as an empty paragraph, calls nothing.
+ * `value` is the text's value, or null for none, and `onChange` receives the
+ * edited value each time it changes, or null when the edited text is blank.
+ * Changing only the selection calls nothing, and neither does an edit that
+ * leaves a blank text blank.
  *
  * The field keeps its own value while it is typed in. When `value` changes to
- * Markdown that the field did not pass to `onChange`, as when another person
+ * a value that the field did not pass to `onChange`, as when another person
  * edits the same text, the field shows the new value and forgets its undo
  * history. A `value` that the field did pass to `onChange` changes nothing,
- * even when the field has passed newer Markdown since, so a parent that
- * renders a keystroke behind does not undo what was typed after it.
+ * even when the field has passed newer values since, so a parent that renders
+ * a keystroke behind does not undo what was typed after it. Values are
+ * compared with lodash's `isEqual`, so a value whose objects list their keys
+ * in another order, as JSON from the API may, is the same value.
  *
  * The toolbar's buttons, and Ctrl or Cmd with B, I and K, set bold and italic
  * and open the link dialog. In a list item, Tab and Shift+Tab move the item a
@@ -468,8 +471,8 @@ const RichTextArea: FC<{
   label: string;
   hint?: string;
   placeholder?: string;
-  value: string | null;
-  onChange: (markdown: string) => void;
+  value: RichTextValue | null;
+  onChange: (value: RichTextValue | null) => void;
   error?: string;
 }> = ({ label, hint, placeholder, value, onChange, error }) => {
   const labelId = useId();
@@ -482,35 +485,38 @@ const RichTextArea: FC<{
   const [editor] = useState(() =>
     withRichText(withHistory(withReact(createEditor()))),
   );
-  const [initialValue] = useState(() => parse(value));
-  // The Markdown the editor holds: what it last passed to `onChange`, or the
-  // `value` it last took.
-  const reported = useRef(value ?? "");
-  // The Markdown passed to `onChange` that `value` has not yet held, oldest
+  const [initialValue] = useState(() => value ?? emptyValue());
+  // The value the editor holds, or null when it is blank: what it last passed
+  // to `onChange`, or the `value` it last took.
+  const reported = useRef(value);
+  // The values passed to `onChange` that `value` has not yet held, oldest
   // first.
-  const unconfirmed = useRef<string[]>([]);
+  const unconfirmed = useRef<(RichTextValue | null)[]>([]);
   const [linking, setLinking] = useState<RangeRef | null>(null);
 
   useEffect(() => {
-    const incoming = value ?? "";
-    const echoed = unconfirmed.current.lastIndexOf(incoming);
+    const echoed = unconfirmed.current.findLastIndex((passed) =>
+      isEqual(passed, value),
+    );
 
     if (echoed >= 0) {
       unconfirmed.current.splice(0, echoed + 1);
-    } else if (incoming !== reported.current) {
+    } else if (!isEqual(value, reported.current)) {
       unconfirmed.current = [];
-      reported.current = incoming;
-      replaceValue(editor, parse(incoming));
+      reported.current = value;
+      replaceValue(editor, value ?? emptyValue());
     }
   }, [editor, value]);
 
   function handleValueChange(next: Descendant[]) {
-    const markdown = serialize(next as RichTextValue);
+    const edited = isBlank(next as RichTextValue)
+      ? null
+      : (next as RichTextValue);
 
-    if (markdown !== reported.current) {
-      reported.current = markdown;
-      unconfirmed.current.push(markdown);
-      onChange(markdown);
+    if (!isEqual(edited, reported.current)) {
+      reported.current = edited;
+      unconfirmed.current.push(edited);
+      onChange(edited);
     }
   }
 

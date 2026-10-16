@@ -2,8 +2,9 @@ defmodule RichardBurton.FlatPublication do
   @moduledoc """
   A publication in its flat shape: the title, year, countries, publishers,
   translators (`authors`), original title, original authors, sources and
-  notes side by side, each list holding names, country codes or source
-  texts. The notes are Markdown text, or nil.
+  notes side by side. Each list of countries, publishers, authors or sources
+  holds names, country codes or source texts. The notes are rich text, as
+  `RichardBurton.RichText` describes it, or nil.
 
   The schema reads the `flat_publications` materialized view, which holds one
   row for each publication that is not deleted, and which
@@ -16,6 +17,7 @@ defmodule RichardBurton.FlatPublication do
   alias RichardBurton.Country
   alias RichardBurton.FlatPublication
   alias RichardBurton.Identity
+  alias RichardBurton.RichText
   alias RichardBurton.Validation
 
   @required_attributes [
@@ -51,7 +53,7 @@ defmodule RichardBurton.FlatPublication do
     field(:original_title, :string)
     field(:original_authors, {:array, :string})
     field(:sources, {:array, :string})
-    field(:notes, :string)
+    field(:notes, RichText)
 
     field(:excerpts, :map, virtual: true)
     field(:marked, :map, virtual: true)

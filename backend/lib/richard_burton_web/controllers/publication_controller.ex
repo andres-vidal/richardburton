@@ -254,7 +254,9 @@ defmodule RichardBurtonWeb.PublicationController do
 
   Merging a publication into itself, or naming no losers, is a 400, rather
   than the 409 that `self` is elsewhere. A merged publication with the
-  composite key of another publication is a 409 with `error: "conflict"`.
+  composite key of another publication is a 409 with `error: "conflict"`. A
+  merged publication that is invalid, such as one whose joined notes are too
+  long, is a 400 with its `errors`.
   """
   def merge(conn, %{"id" => id, "losers" => losers}) when is_list(losers) do
     with {:ok, id} <- Params.id(id),

@@ -137,10 +137,38 @@ defmodule RichardBurton.Publication.HistoryTest do
     end
 
     test "a change to the notes is diffed like any other field", %{publication: publication} do
-      edit(publication, %{notes: "Bound in **green** cloth."})
+      notes = [
+        %{
+          "type" => "paragraph",
+          "children" => [
+            %{"text" => "Bound in "},
+            %{"text" => "green", "bold" => true},
+            %{"text" => " cloth."}
+          ]
+        }
+      ]
+
+      edit(publication, %{notes: notes})
 
       assert [%History{diff: diff} | _] = History.of(publication.id)
-      assert diff.fields == %{"notes" => %{from: nil, to: "Bound in **green** cloth."}}
+      assert diff.fields == %{"notes" => %{from: nil, to: notes}}
+    end
+
+    test "a change to the formatting of the notes alone is diffed", %{publication: publication} do
+      plain = paragraphs("Bound in green cloth.")
+
+      bold = [
+        %{
+          "type" => "paragraph",
+          "children" => [%{"text" => "Bound in green cloth.", "bold" => true}]
+        }
+      ]
+
+      edit(publication, %{notes: plain})
+      edit(publication, %{notes: bold})
+
+      assert [%History{diff: diff} | _] = History.of(publication.id)
+      assert diff.fields == %{"notes" => %{from: plain, to: bold}}
     end
 
     test "a snapshot without a notes key holds the same notes as one whose notes are nil",
@@ -315,7 +343,11 @@ defmodule RichardBurton.Publication.HistoryTest do
 
     test "undoing an update that added notes takes them away", %{publication: publication} do
       {:ok, _} =
-        Publication.update(publication.id, publication_attrs(%{notes: "A note."}), "a@b.com")
+        Publication.update(
+          publication.id,
+          publication_attrs(%{notes: paragraphs("A note.")}),
+          "a@b.com"
+        )
 
       version = version_of(publication, "updated")
 

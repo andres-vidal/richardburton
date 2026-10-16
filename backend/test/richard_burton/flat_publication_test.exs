@@ -62,7 +62,7 @@ defmodule RichardBurton.FlatPublicationTest do
     end
 
     test "when notes are blank, casts them as nil" do
-      changeset = change_valid(%{"notes" => " \n "})
+      changeset = change_valid(%{"notes" => paragraphs([" \n ", ""])})
 
       assert changeset.valid?
       assert Ecto.Changeset.get_field(changeset, :notes) == nil
@@ -169,11 +169,24 @@ defmodule RichardBurton.FlatPublicationTest do
       assert {:error, %{year: :integer}} = validate(Map.put(@valid_attrs, "year", "A"))
     end
 
-    test "when notes are longer than 10,000 characters, reports them as too long" do
-      assert :ok == validate(Map.put(@valid_attrs, "notes", String.duplicate("a", 10_000)))
+    test "when the text of the notes is longer than 10,000 characters, reports it as too long" do
+      at_most = paragraphs([String.duplicate("a", 5_000), String.duplicate("a", 5_000)])
+      too_long = paragraphs([String.duplicate("a", 5_000), String.duplicate("a", 5_001)])
 
-      assert {:error, %{notes: :too_long}} ==
-               validate(Map.put(@valid_attrs, "notes", String.duplicate("a", 10_001)))
+      assert :ok == validate(Map.put(@valid_attrs, "notes", at_most))
+      assert {:error, %{notes: :too_long}} == validate(Map.put(@valid_attrs, "notes", too_long))
+    end
+
+    test "when the notes are not rich text, reports them as malformed" do
+      assert {:error, %{notes: :malformed}} ==
+               validate(Map.put(@valid_attrs, "notes", "A note written as **Markdown**"))
+
+      assert {:error, %{notes: :malformed}} ==
+               validate(
+                 Map.put(@valid_attrs, "notes", [
+                   %{"type" => "paragraph", "children" => [%{"text" => "A", "color" => "red"}]}
+                 ])
+               )
     end
 
     test "generates results analog to those of Publication.insert/2 on valid attrs" do

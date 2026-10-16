@@ -88,7 +88,7 @@ const WorkspaceNotesCell: FC<{
           placeholder={note("placeholder")}
           value={notes}
           error={error}
-          onChange={(markdown) => setNotes(store, rowId, markdown)}
+          onChange={(value) => setNotes(store, rowId, value)}
         />
       </Modal>
     </div>

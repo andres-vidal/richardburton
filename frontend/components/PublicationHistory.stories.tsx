@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { expect, screen } from "storybook/test";
+import { link, paragraph } from "test/rich-text-fixtures";
 
 import PublicationHistory from "./PublicationHistory";
 
@@ -15,6 +16,11 @@ const SNAPSHOT: PublicationHistoryEntry["snapshot"] = {
   publishers: ["Noonday Press"],
   sources: [],
 };
+
+// The notes a curator first wrote on the record, and the notes of the
+// duplicate merged into it, which the merge appends.
+const FIRST = [paragraph("A ", { text: "first", bold: true }, " translation.")];
+const DUPLICATE = [paragraph("From the duplicate.")];
 
 // A full lifecycle — imported, retitled (with a source added), the source
 // replaced by a better one, deleted by mistake, brought back — listed the way
@@ -311,8 +317,8 @@ export const Decisions: Story = {
 };
 
 /**
- * Updates to the notes: the notes before and after each change, rendered
- * from their Markdown, with "(none)" where there were none. A merge lists the
+ * Updates to the notes: the notes before and after each change, formatted,
+ * with "(none)" where there were none. A merge lists the
  * notes of the record it took in. The play test checks the formatting
  * survives into the log.
  */
@@ -325,16 +331,10 @@ export const Notes: Story = {
         action: "merged",
         actor: "curator@rb.test",
         timestamp: "2026-10-14T12:00:00",
-        snapshot: {
-          ...SNAPSHOT,
-          notes: "A **first** translation.\n\nFrom the duplicate.",
-        },
+        snapshot: { ...SNAPSHOT, notes: [...FIRST, ...DUPLICATE] },
         diff: {
           fields: {
-            notes: {
-              from: "A **first** translation.",
-              to: "A **first** translation.\n\nFrom the duplicate.",
-            },
+            notes: { from: FIRST, to: [...FIRST, ...DUPLICATE] },
           },
           sources: null,
         },
@@ -343,7 +343,7 @@ export const Notes: Story = {
             id: 7,
             ...SNAPSHOT,
             title: "Dom Casmuro",
-            notes: "From the duplicate.",
+            notes: DUPLICATE,
           },
         ],
       },
@@ -353,14 +353,9 @@ export const Notes: Story = {
         action: "updated",
         actor: "curator@rb.test",
         timestamp: "2026-10-13T12:00:00",
-        snapshot: { ...SNAPSHOT, notes: "A **first** translation." },
+        snapshot: { ...SNAPSHOT, notes: FIRST },
         diff: {
-          fields: {
-            notes: {
-              from: null,
-              to: "A **first** translation.",
-            },
-          },
+          fields: { notes: { from: null, to: FIRST } },
           sources: null,
         },
       },
@@ -374,7 +369,13 @@ export const Notes: Story = {
         diff: {
           fields: {
             notes: {
-              from: "See [the scan](https://archive.org/details/x).",
+              from: [
+                paragraph(
+                  "See ",
+                  link("https://archive.org/details/x", "the scan"),
+                  ".",
+                ),
+              ],
               to: null,
             },
           },

@@ -552,7 +552,8 @@
     "duplicate": "Este campo não pode repetir a mesma entrada",
     "repeated": "Outra linha desta importação é a mesma publicação",
     "invalid": "Uma publicação não é válida, então nada foi inserido",
-    "too_long": "Este texto é longo demais"
+    "too_long": "Este texto é longo demais",
+    "malformed": "Este texto não pôde ser lido"
   },
   "moving": {
     "moved": "{count, plural, one {# linha movida} other {# linhas movidas}}",

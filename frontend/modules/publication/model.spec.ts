@@ -11,6 +11,7 @@ import {
 import type { Publication } from "./model";
 import { routing } from "i18n/routing";
 import { messages } from "test/messages";
+import { item, link, paragraph } from "test/rich-text-fixtures";
 
 const COUNTRIES = messages.countryNames;
 
@@ -244,27 +245,35 @@ describe("merged", () => {
     ]);
   });
 
-  test("appends the others' distinct notes to the survivor's as paragraphs", () => {
-    const winner = publication({ notes: "First edition." });
+  test("appends the blocks of the others' distinct notes to the survivor's", () => {
+    const first = [paragraph("First edition.")];
+    const review = [
+      paragraph("Reviewed in ", { text: "The Athenaeum", italic: true }, "."),
+      item("bulleted", 0, "", link("https://example.com/r", "the review"), ""),
+    ];
     const losers = [
-      publication({ notes: "Reviewed in *The Athenaeum*." }),
-      publication({ notes: "First edition." }),
+      publication({ notes: review }),
+      // The survivor's notes again, with the keys of each object in another
+      // order, as JSON from the API may list them.
+      publication({
+        notes: [{ children: [{ text: "First edition." }], type: "paragraph" }],
+      }),
       publication({ notes: null }),
-      publication({ notes: "  " }),
+      publication({ notes: [paragraph("  "), item("numbered", 0, "")] }),
       publication({}),
     ];
 
-    expect(merged(winner, losers).notes).toBe(
-      "First edition.\n\nReviewed in *The Athenaeum*.",
-    );
+    expect(merged(publication({ notes: first }), losers).notes).toEqual([
+      ...first,
+      ...review,
+    ]);
   });
 
   test("takes the others' notes when the survivor has none", () => {
     const winner = publication({ notes: null });
+    const list = [item("bulleted", 0, "a list")];
 
-    expect(merged(winner, [publication({ notes: "- a list" })]).notes).toBe(
-      "- a list",
-    );
+    expect(merged(winner, [publication({ notes: list })]).notes).toEqual(list);
     expect(merged(winner, [publication({})]).notes).toBeNull();
   });
 

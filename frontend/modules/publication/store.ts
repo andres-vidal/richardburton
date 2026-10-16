@@ -3,6 +3,7 @@ import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
 import { isEqual } from "lodash";
+import { isBlank, type RichTextValue } from "modules/rich-text";
 import type { Store } from "modules/store";
 import * as Y from "yjs";
 import * as Doc from "./doc";
@@ -599,11 +600,13 @@ const publicationSourcesFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * A row's notes in Markdown, including unsaved edits, or null when it has
- * none or its record was read from a page of the index.
+ * A row's notes as a rich-text value, including unsaved edits, or null when it
+ * has none or its record was read from a page of the index.
  */
 const publicationNotesFamily = atomFamily((id: PublicationId) =>
-  atom<string | null>((get) => get(publicationFamily(id))?.notes ?? null),
+  atom<RichTextValue | null>(
+    (get) => get(publicationFamily(id))?.notes ?? null,
+  ),
 );
 
 /**
@@ -1094,11 +1097,15 @@ function setSources(store: Store, id: PublicationId, sources: string[]): void {
 }
 
 /**
- * Edits a row's notes: Markdown, or null for none. An empty text is written
- * as null.
+ * Edits a row's notes: a rich-text value, or null for none. A blank value is
+ * written as null.
  */
-function setNotes(store: Store, id: PublicationId, notes: string | null): void {
-  writeRow(store, id, { notes: notes || null });
+function setNotes(
+  store: Store,
+  id: PublicationId,
+  notes: RichTextValue | null,
+): void {
+  writeRow(store, id, { notes: isBlank(notes) ? null : notes });
 }
 
 /**

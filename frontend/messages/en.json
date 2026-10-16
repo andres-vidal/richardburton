@@ -552,7 +552,8 @@
     "duplicate": "This field cannot repeat the same entry",
     "repeated": "Another row of this import is the same publication",
     "invalid": "A publication is not valid, so nothing was inserted",
-    "too_long": "This text is too long"
+    "too_long": "This text is too long",
+    "malformed": "This text could not be read"
   },
   "moving": {
     "moved": "{count, plural, one {Moved # row} other {Moved # rows}}",

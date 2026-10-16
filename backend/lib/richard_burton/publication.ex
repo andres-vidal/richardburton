@@ -18,8 +18,8 @@ defmodule RichardBurton.Publication do
       importing the same publication again.
     * **winner** and **losers** — in a merge, the publication that is kept and
       the publications merged into it. The winner keeps its own fields. The
-      losers add their countries, publishers and sources to it, and are then
-      tombstoned.
+      losers add their countries, publishers, sources and notes to it, and are
+      then tombstoned.
     * **absorbed** — the state of a loser after the merge, as
       `Publication.History.absorbed/1` defines it. It is not in the trash, and
       `restore/3` refuses it with `{:error, :absorbed}`. Undoing the merge
@@ -28,9 +28,9 @@ defmodule RichardBurton.Publication do
       recorded entry. The compensating action is recorded as a new entry, which
       can be undone in turn.
 
-  A publication's `notes` are free text about it, written as Markdown, or nil
-  when it has none. Blank notes are stored as nil. The notes are not part
-  of the composite key, and the search does not read them.
+  A publication's `notes` are rich text about it, as `RichardBurton.RichText`
+  describes it, or nil when it has none. Blank notes are stored as nil. The
+  notes are not part of the composite key, and the search does not read them.
 
   A publication's countries, publishers, translators and original authors are
   sets. The link tables keep no order, and a preload reads each set sorted, by
@@ -60,6 +60,7 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.Publisher
   alias RichardBurton.Source
   alias RichardBurton.Repo
+  alias RichardBurton.RichText
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Validation
 
@@ -69,7 +70,7 @@ defmodule RichardBurton.Publication do
   schema "publications" do
     field(:title, :string)
     field(:year, :integer)
-    field(:notes, :string)
+    field(:notes, RichText)
     # Written by the database from the linked countries and publishers.
     field(:countries_fingerprint, :string, writable: :never)
     field(:publishers_fingerprint, :string, writable: :never)
@@ -403,18 +404,25 @@ defmodule RichardBurton.Publication do
   `winner_id`, and records the merge with one `merged` entry by `actor` on the
   winner, in one transaction.
 
-  The winner keeps its title, year, notes, translated book and original
-  book. It gains the countries and publishers of the losers, and their sources
-  after its own, leaving out a source it already holds. The losers are then
+  The winner keeps its title, year, translated book and original book. It
+  gains the countries and publishers of the losers, and their sources after
+  its own, leaving out a source it already holds. The losers are then
   tombstoned, and their distinctions from each other and from the winner are
   deleted (see `Publication.Duplicates.forget/1`). The entry names the losers, so `undo/3`
   can undo the whole merge.
 
+  The merged notes are the winner's notes followed by the blocks of each
+  loser's notes, in the order of `loser_ids`. A loser's notes are left out
+  when they are nil, blank, or equal to notes already included. When the
+  winner has no notes, the merged notes are the losers'.
+
   Returns `{:ok, winner}`, preloaded. Returns `{:error, :conflict}` when the
   merged publication would have the composite key of another publication,
   `{:error, :not_found}` when one of the publications is missing or deleted,
-  `{:error, :self}` when `loser_ids` holds `winner_id`, and
-  `{:error, :no_losers}` when `loser_ids` is empty.
+  `{:error, :self}` when `loser_ids` holds `winner_id`,
+  `{:error, :no_losers}` when `loser_ids` is empty, and `{:error, errors}`
+  when the merged publication is invalid, such as when the merged notes are
+  too long.
   """
   def merge(winner_id, loser_ids, actor \\ History.system_actor())
 
@@ -507,8 +515,8 @@ defmodule RichardBurton.Publication do
   end
 
   # Returns the nested attrs of the merged publication: the winner's fields,
-  # the countries and publishers of all of them, and the sources of all of
-  # them, each listed once.
+  # the countries and publishers of all of them, the sources of all of them,
+  # each listed once, and the notes `merge/3` describes.
   defp reconciled(winner, losers) do
     flat = Enum.map([winner | losers], &History.snapshot/1)
     [kept | _] = flat
@@ -518,9 +526,25 @@ defmodule RichardBurton.Publication do
     |> Map.merge(%{
       countries: union_of(flat, :countries),
       publishers: union_of(flat, :publishers),
-      sources: flat |> Enum.flat_map(& &1.sources) |> Enum.uniq()
+      sources: flat |> Enum.flat_map(& &1.sources) |> Enum.uniq(),
+      notes: joined_notes(flat)
     })
     |> Codec.nest()
+  end
+
+  # Returns the blocks of the notes of the snapshots `flat`, in order, leaving
+  # out blank notes and notes equal to an earlier snapshot's, or nil when
+  # none are left.
+  defp joined_notes(flat) do
+    flat
+    |> Enum.map(& &1.notes)
+    |> Enum.reject(&RichText.blank?/1)
+    |> Enum.uniq()
+    |> Enum.concat()
+    |> case do
+      [] -> nil
+      blocks -> blocks
+    end
   end
 
   # Returns the values of the list field `field` across the snapshots `flat`,

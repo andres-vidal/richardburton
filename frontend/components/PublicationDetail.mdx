@@ -38,17 +38,17 @@ edits every field of a publication in the enclosing store. While it is open,
 `watchEdit` validates the publication shortly after each change, and each field
 writes its error under itself. The notes are edited in a
 [rich text area](?path=/docs/components-rich-text-area--docs), which writes
-them to the row as Markdown. The save button is disabled while the
-publication has errors. By default it saves with `update`. Its `save`, `heading` and
-`saveLabel` props replace the save action and the two labels, which is how the
+their value to the row, or null when the text is blank. The save button is
+disabled while the publication has errors. By default it saves with `update`.
+Its `save`, `heading` and `saveLabel` props replace the save action and the
+two labels, which is how the
 [trash](?path=/docs/publications-deleted-publications--docs) uses it to restore
 a publication with changes.
 
 ## States
 
 - **Default** — a fully sourced record, read by anyone.
-- **With notes** — the notes, rendered from their Markdown, under the
-  sentence.
+- **With notes** — the notes, formatted, under the sentence.
 - **Without notes** — no notes section at all.
 - **Without sources** — the section states the absence rather than hiding.
 - **As admin** — the history section and the edit/merge/delete controls.
@@ -59,9 +59,9 @@ a publication with changes.
   the record that survives it.
 - **Search links** — every value in the sentence links to a search for it.
 
-The notes section renders the publication's Markdown with
+The notes section renders the publication's notes with
 [`RichText`](?path=/docs/components-rich-text--docs). Unlike the sources, it is
-left out when there are none.
+left out when there are none, or when they are blank.
 
 <Canvas of={PublicationDetailStories.WithNotes} />
 

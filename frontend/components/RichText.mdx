@@ -6,46 +6,54 @@ import * as RichTextStories from "./RichText.stories";
 
 # Rich text
 
-Renders rich text from its Markdown, read-only. It renders paragraphs, line
+Renders rich text from its value, read-only. It renders paragraphs, line
 breaks, bold and italic text, bulleted and numbered lists, nested lists
 included, and links. Every link opens in a new tab with
 `rel="noopener noreferrer"`.
 
-The Markdown is read with `parse` and laid out with `toTree` from
-`modules/rich-text`, the same conversion that the
-[rich text area](?path=/docs/components-rich-text-area--docs) writes with, so
-the text reads as it did in the field. The component builds React elements from
-that tree and sets no HTML of its own.
+The value is the list of blocks described in `modules/rich-text`, the same
+value the [rich text area](?path=/docs/components-rich-text-area--docs) edits,
+so the text reads as it did in the field. The component builds React elements
+from the value and sets no HTML of its own.
 
 <Description of={RichTextStories.Default} />
 <Canvas of={RichTextStories.Default} />
 
 ## Props
 
-- `markdown` — the text in Markdown. Empty, null or missing Markdown renders
-  nothing.
+- `value` — the text's value. A null, missing or blank value renders nothing.
 - `size` — `base`, the default, for running text, or `small` for smaller text
   with less space between blocks.
 
 <Description of={RichTextStories.Small} />
 <Canvas of={RichTextStories.Small} />
 
+<Description of={RichTextStories.Empty} />
+<Canvas of={RichTextStories.Empty} />
+
+## Lists
+
+The value holds list items one after another, each with a depth. Each run of
+consecutive items renders as nested lists: an `ol` for numbered items and a
+`ul` for bulleted ones, with the deeper items after an item nested in it.
+Blank blocks render nothing.
+
+<Description of={RichTextStories.Lists} />
+<Canvas of={RichTextStories.Lists} />
+
 ## Bare addresses
 
-A URL or an email address written out in the text is a link, as GitHub reads
-one.
+A URL or an email address written out in the text renders as a link, by the
+same rule that links one typed in the rich text area.
 
 <Description of={RichTextStories.BareLinks} />
 <Canvas of={RichTextStories.BareLinks} />
 
-## Markdown that rich text does not support
+## Characters that look like markup
 
-Rich text is a subset of Markdown. The rest keeps its text: a heading is a
-paragraph, code and raw HTML are text, an image is its alternative text, and a
-link to anything but an `http`, `https` or `mailto` address is its label.
+Characters that Markdown or HTML would read as formatting, such as `*` or
+`<b>`, are shown as they are written. A link to anything but an `http`, `https`
+or `mailto` address renders as its text.
 
-<Description of={RichTextStories.UnsupportedMarkdown} />
-<Canvas of={RichTextStories.UnsupportedMarkdown} />
-
-<Description of={RichTextStories.Empty} />
-<Canvas of={RichTextStories.Empty} />
+<Description of={RichTextStories.LiteralText} />
+<Canvas of={RichTextStories.LiteralText} />

@@ -7,11 +7,11 @@ import * as RichTextAreaStories from "./RichTextArea.stories";
 # Rich text area
 
 A labelled field that edits rich text with Slate. It takes and gives the text
-as Markdown, which it reads and writes through `parse` and `serialize` in
-`modules/rich-text`. It supports paragraphs and line breaks, bold and italic
-text, bulleted and numbered lists, nested up to three levels, and links. The
-[rich text](?path=/docs/components-rich-text--docs) component renders the same
-Markdown read-only.
+as its value: the list of blocks described in `modules/rich-text`, which is
+also the value Slate edits. It supports paragraphs and line breaks, bold and
+italic text, bulleted and numbered lists, nested up to three levels, and links.
+The [rich text](?path=/docs/components-rich-text--docs) component renders the
+same value read-only.
 
 <Description of={RichTextAreaStories.WithContent} />
 <Canvas of={RichTextAreaStories.WithContent} />
@@ -22,13 +22,15 @@ Markdown read-only.
   multi-line textbox.
 - `hint` — optional words under the label that describe the text area.
 - `placeholder` — optional text shown in the empty text area.
-- `value` — the text in Markdown, or null for none. The field reads it when it
-  mounts, and again whenever it changes to Markdown other than what the field
-  last passed to `onChange`, as when another person edits the same text.
-  Reading it again clears the field's undo history.
-- `onChange` — receives the Markdown the text is written as, each time that
-  Markdown changes. An empty field passes an empty string. A change of the
-  selection alone calls nothing.
+- `value` — the text's value, or null for none. The field reads it when it
+  mounts, and again whenever it changes to a value the field has not passed to
+  `onChange`, as when another person edits the same text. Reading it again
+  clears the field's undo history. A value the field passed earlier changes
+  nothing, even when it comes back after newer ones. Values are compared with
+  lodash's `isEqual`, so the order of the keys in their objects does not
+  matter.
+- `onChange` — receives the edited value each time it changes, or null when
+  the text is blank. A change of the selection alone calls nothing.
 - `error` — what is wrong with the text. It is shown under the field, describes
   the text area after the hint, and marks the text area invalid.
 
@@ -84,10 +86,25 @@ closing a dialog around the field.
 
 A URL or an email address typed into the text becomes a link once a space or a
 new line follows it, and one that is pasted becomes a link at once, or links
-the selected text.
+the selected text. Pasted text is inserted as plain text, one block per line,
+with each URL and email address in it linked.
 
 <Description of={RichTextAreaStories.TypingAUrl} />
 <Canvas of={RichTextAreaStories.TypingAUrl} />
 
+## Typing and clearing
+
 <Description of={RichTextAreaStories.Empty} />
 <Canvas of={RichTextAreaStories.Empty} />
+
+<Description of={RichTextAreaStories.Clearing} />
+<Canvas of={RichTextAreaStories.Clearing} />
+
+## A value that comes back late
+
+A parent may pass back each value the field gave it some time later, after
+more has been typed. The field ignores those values, so the text and the caret
+stay where the typing left them.
+
+<Description of={RichTextAreaStories.ValueComingBackLate} />
+<Canvas of={RichTextAreaStories.ValueComingBackLate} />

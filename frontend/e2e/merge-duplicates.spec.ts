@@ -1,3 +1,5 @@
+import type { Page } from "@playwright/test";
+
 import { test, expect } from "./fixtures";
 import {
   addPublicationRow,
@@ -38,15 +40,37 @@ const BRAZILIAN_PRINTING = {
   publisher: "Livraria Garnier",
 };
 
+// The notes each duplicate is entered with. The merge keeps both.
+const BRITISH_NOTES = "Bought from the publisher's remaindered stock.";
+const BRAZILIAN_NOTES = "Garnier's copy, stamped by the bookseller.";
+
+// Types `text` as the notes of the open document's row that names
+// `publisher`, in the row's notes editor, and closes the editor.
+async function writeNotes(page: Page, publisher: string, text: string) {
+  const row = indexTable(page).getByRole("row").filter({ hasText: publisher });
+
+  await row.getByRole("button", { name: "Add notes" }).click();
+  const editor = page.getByRole("dialog", { name: "Edit notes" });
+  await editor.getByRole("textbox", { name: "Notes" }).click();
+  await page.keyboard.type(text);
+  await page.keyboard.press("Escape");
+  await expect(
+    row.getByRole("button", { name: `Edit notes: ${text}` }),
+  ).toBeVisible();
+}
+
 test("an admin merges duplicate records into one; it keeps its place and gains what they held", async ({
   page,
 }) => {
   await seedCorpus(page);
 
-  // Two more records of the translation the corpus already holds.
+  // Two more records of the translation the corpus already holds, each with
+  // notes of its own.
   await openDocument(page);
   await addPublicationRow(page, BRITISH_PRINTING);
   await addPublicationRow(page, BRAZILIAN_PRINTING);
+  await writeNotes(page, BRITISH_PRINTING.publisher, BRITISH_NOTES);
+  await writeNotes(page, BRAZILIAN_PRINTING.publisher, BRAZILIAN_NOTES);
   await submitWorkspace(page, 2);
 
   await page.goto("/");
@@ -128,6 +152,13 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
   ]) {
     await expect(merged.getByRole("link", { name: value })).toBeVisible();
   }
+
+  // The record had no notes of its own, and now holds the notes of both
+  // records it took in, one paragraph each.
+  const notes = merged.getByRole("region", { name: "Notes" });
+  await expect(notes.locator("p")).toHaveCount(2);
+  await expect(notes).toContainText(BRITISH_NOTES);
+  await expect(notes).toContainText(BRAZILIAN_NOTES);
 
   // The record's own log carries the merge, on the record that survived it.
   await merged.getByText("History").click();

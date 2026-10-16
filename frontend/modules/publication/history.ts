@@ -1,3 +1,4 @@
+import type { RichTextValue } from "modules/rich-text";
 import type {
   FullHistoryEntry,
   PublicationHistoryEntry,
@@ -22,13 +23,13 @@ type SourcesChange = {
 };
 
 /**
- * The notes before and after the change, each in Markdown, or null where
- * there were none.
+ * The notes before and after the change, each a rich-text value, or null
+ * where there were none.
  */
 type NotesChange = {
   kind: "notes";
-  from: string | null;
-  to: string | null;
+  from: RichTextValue | null;
+  to: RichTextValue | null;
 };
 
 /** One record a merge took in, or an un-merge gave back, in full. */
@@ -38,8 +39,8 @@ type AbsorbedRecord = {
   title: string;
   fields: { attribute: PublicationKey; value: string }[];
   sources: string[];
-  /** The record's notes in Markdown, or null when it had none. */
-  notes: string | null;
+  /** The record's notes as a rich-text value, or null when it had none. */
+  notes: RichTextValue | null;
 };
 
 /**

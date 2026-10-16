@@ -1,8 +1,8 @@
 defmodule RichardBurton.Repo.Migrations.AddNotesToPublications do
   @moduledoc """
-  Adds `notes` to publications: free text about the publication, written
-  as Markdown, or NULL when it has none. The `flat_publications` view carries
-  it too.
+  Adds `notes` to publications: rich text about the publication, stored as
+  the JSON list of blocks that `RichardBurton.RichText` describes, or NULL
+  when it has none. The `flat_publications` view carries it too.
 
   Postgres cannot add a column to a materialized view, so `up` drops the view
   stack and builds it again with the column, and `down` builds it again
@@ -15,7 +15,7 @@ defmodule RichardBurton.Repo.Migrations.AddNotesToPublications do
 
   def up do
     alter table(:publications) do
-      add(:notes, :text)
+      add(:notes, :jsonb)
     end
 
     drop_views()

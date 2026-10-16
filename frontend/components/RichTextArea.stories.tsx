@@ -1,15 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { activeLink } from "modules/rich-text-editor";
 import { ComponentProps, FC, useState } from "react";
+import { Transforms } from "slate";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
-import { EVERY_FORMAT } from "test/rich-text-fixtures";
+import { EVERY_FORMAT, item, link, paragraph } from "test/rich-text-fixtures";
 import { editorOf, editorSelected, focusEditor } from "test/slate";
 
 import RichTextArea from "./RichTextArea";
 
 /**
  * The field with its value held in state, as a form holds it, so an edit that
- * passes new Markdown to `onChange` also reaches `value`.
+ * passes a new value to `onChange` also reaches `value`.
  */
 const Controlled: FC<ComponentProps<typeof RichTextArea>> = ({
   value: initial,
@@ -22,9 +23,9 @@ const Controlled: FC<ComponentProps<typeof RichTextArea>> = ({
     <RichTextArea
       {...props}
       value={value}
-      onChange={(markdown) => {
-        setValue(markdown);
-        onChange(markdown);
+      onChange={(next) => {
+        setValue(next);
+        onChange(next);
       }}
     />
   );
@@ -49,9 +50,9 @@ const Late: FC<ComponentProps<typeof RichTextArea>> = ({
     <RichTextArea
       {...props}
       value={value}
-      onChange={(markdown) => {
-        setTimeout(() => setValue(markdown), LATENESS);
-        onChange(markdown);
+      onChange={(next) => {
+        setTimeout(() => setValue(next), LATENESS);
+        onChange(next);
       }}
     />
   );
@@ -100,14 +101,14 @@ const MOD = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
   ? "Meta"
   : "Control";
 
-/** Returns the Markdown the field last passed to `onChange`. */
-const lastMarkdown = (onChange: unknown) =>
+/** Returns the value the field last passed to `onChange`. */
+const lastValue = (onChange: unknown) =>
   (onChange as ReturnType<typeof fn>).mock.lastCall?.[0];
 
 /**
  * An empty field: the label and the hint, which describes the text area, over
- * the toolbar and the placeholder. Typing passes the text to `onChange` as
- * Markdown.
+ * the toolbar and the placeholder. Typing passes the text's value to
+ * `onChange`.
  */
 export const Empty: Story = {
   play: async ({ args }) => {
@@ -121,7 +122,7 @@ export const Empty: Story = {
     await userEvent.keyboard("A first line.");
 
     await waitFor(() =>
-      expect(lastMarkdown(args.onChange)).toBe("A first line."),
+      expect(lastValue(args.onChange)).toEqual([paragraph("A first line.")]),
     );
   },
 };
@@ -236,7 +237,15 @@ export const TypingBoldAndItalic: Story = {
     await userEvent.keyboard(" claim");
 
     await waitFor(() =>
-      expect(lastMarkdown(args.onChange)).toBe("A **bold** and *italic* claim"),
+      expect(lastValue(args.onChange)).toEqual([
+        paragraph(
+          "A ",
+          { text: "bold", bold: true },
+          " and ",
+          { text: "italic", italic: true },
+          " claim",
+        ),
+      ]),
     );
   },
 };
@@ -258,9 +267,11 @@ export const MakingAList: Story = {
     await userEvent.keyboard("{Enter}{Enter}{Enter}After the list");
 
     await waitFor(() =>
-      expect(lastMarkdown(args.onChange)).toBe(
-        "- Fruit\n  - Apples\n\nAfter the list",
-      ),
+      expect(lastValue(args.onChange)).toEqual([
+        item("bulleted", 0, "Fruit"),
+        item("bulleted", 1, "Apples"),
+        paragraph("After the list"),
+      ]),
     );
     await waitFor(() =>
       expect(tool("Bulleted list")).toHaveAttribute("aria-pressed", "false"),
@@ -307,9 +318,9 @@ export const AddingALink: Story = {
       expect(screen.queryByRole("dialog", { name: "Link" })).toBeNull(),
     );
     await waitFor(() =>
-      expect(lastMarkdown(args.onChange)).toBe(
-        "See [the guide](https://example.com/guide)",
-      ),
+      expect(lastValue(args.onChange)).toEqual([
+        paragraph("See ", link("https://example.com/guide", "the guide"), ""),
+      ]),
     );
   },
 };
@@ -320,7 +331,15 @@ export const AddingALink: Story = {
  * dialog and changes nothing.
  */
 export const EditingALink: Story = {
-  args: { value: "Read [the record](https://example.com/record) first." },
+  args: {
+    value: [
+      paragraph(
+        "Read ",
+        link("https://example.com/record", "the record"),
+        " first.",
+      ),
+    ],
+  },
   play: async ({ args }) => {
     await focusEditor(textbox());
     await userEvent.click(within(textbox()).getByText("the record"));
@@ -346,7 +365,9 @@ export const EditingALink: Story = {
       await screen.findByRole("button", { name: "Remove link" }),
     );
     await waitFor(() =>
-      expect(lastMarkdown(args.onChange)).toBe("Read the record first."),
+      expect(lastValue(args.onChange)).toEqual([
+        paragraph("Read the record first."),
+      ]),
     );
   },
 };
@@ -371,9 +392,13 @@ export const TypingAUrl: Story = {
       ).toHaveAttribute("href", "https://example.com/guide"),
     );
     await waitFor(() =>
-      expect(lastMarkdown(args.onChange)).toBe(
-        "Read <https://example.com/guide>",
-      ),
+      expect(lastValue(args.onChange)).toEqual([
+        paragraph(
+          "Read ",
+          link("https://example.com/guide", "https://example.com/guide"),
+          " ",
+        ),
+      ]),
     );
   },
 };
@@ -396,9 +421,28 @@ export const ValueComingBackLate: Story = {
     await userEvent.keyboard(".");
 
     await waitFor(() =>
-      expect(lastMarkdown(args.onChange)).toBe("Typed ahead of the parent."),
+      expect(lastValue(args.onChange)).toEqual([
+        paragraph("Typed ahead of the parent."),
+      ]),
     );
     await expect(textbox()).toHaveTextContent("Typed ahead of the parent.");
+  },
+};
+
+/**
+ * Deleting all of the text passes null to `onChange`, as any edit that leaves
+ * the text blank does. The play test selects the whole text and deletes it
+ * with Backspace.
+ */
+export const Clearing: Story = {
+  args: { value: [paragraph("A draft to throw away")] },
+  play: async ({ args }) => {
+    Transforms.select(editorOf(textbox()), []);
+    await focusEditor(textbox());
+    await userEvent.keyboard("{Backspace}");
+
+    await waitFor(() => expect(args.onChange).toHaveBeenCalledWith(null));
+    await expect(lastValue(args.onChange)).toBeNull();
   },
 };
 
@@ -407,7 +451,10 @@ export const ValueComingBackLate: Story = {
  * marks it invalid.
  */
 export const WithError: Story = {
-  args: { value: "Far too long…", error: "This text is too long" },
+  args: {
+    value: [paragraph("Far too long…")],
+    error: "This text is too long",
+  },
   play: async () => {
     await expect(textbox()).toHaveAttribute("aria-invalid", "true");
     await expect(textbox()).toHaveAccessibleDescription(

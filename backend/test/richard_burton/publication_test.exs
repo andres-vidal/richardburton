@@ -122,7 +122,34 @@ defmodule RichardBurton.PublicationTest do
   end
 
   describe "notes" do
-    @notes "A note in **bold**, with a [link](https://example.com).\n\n1. One\n2. Two"
+    @notes [
+      %{
+        "type" => "paragraph",
+        "children" => [
+          %{"text" => "A note in "},
+          %{"text" => "bold", "bold" => true},
+          %{"text" => ", with a "},
+          %{
+            "type" => "link",
+            "url" => "https://example.com",
+            "children" => [%{"text" => "link"}]
+          },
+          %{"text" => "."}
+        ]
+      },
+      %{
+        "type" => "list-item",
+        "list" => "numbered",
+        "depth" => 0,
+        "children" => [%{"text" => "One"}]
+      },
+      %{
+        "type" => "list-item",
+        "list" => "numbered",
+        "depth" => 1,
+        "children" => [%{"text" => "One a"}]
+      }
+    ]
 
     test "are stored as written, and the flat view carries them" do
       publication = publication_fixture(%{notes: @notes})
@@ -131,14 +158,55 @@ defmodule RichardBurton.PublicationTest do
       assert [%FlatPublication{notes: @notes}] = Repo.all(FlatPublication)
     end
 
+    test "are stored with string keys when given with atom keys" do
+      notes = [%{type: "paragraph", children: [%{text: "A note.", italic: true}]}]
+      publication = publication_fixture(%{notes: notes})
+
+      assert Publication.find(publication.id).notes ==
+               [
+                 %{
+                   "type" => "paragraph",
+                   "children" => [%{"text" => "A note.", "italic" => true}]
+                 }
+               ]
+    end
+
     test "a blank value is stored as nil" do
       publication = publication_fixture(%{notes: @notes})
+      blank = paragraphs(["  \n ", ""])
 
       assert {:ok, updated} =
-               Publication.update(publication.id, publication_attrs(%{notes: "  \n "}))
+               Publication.update(publication.id, publication_attrs(%{notes: blank}))
 
       assert updated.notes == nil
       assert Publication.find(publication.id).notes == nil
+    end
+
+    test "an empty list is stored as nil" do
+      publication = publication_fixture(%{notes: []})
+
+      assert Publication.find(publication.id).notes == nil
+    end
+
+    test "a value of another shape is malformed" do
+      for notes <- [
+            "A note written as **Markdown**",
+            [%{"type" => "heading", "children" => [%{"text" => "A title"}]}],
+            [
+              %{
+                "type" => "paragraph",
+                "children" => [
+                  %{
+                    "type" => "link",
+                    "url" => "javascript:alert(1)",
+                    "children" => [%{"text" => "A link"}]
+                  }
+                ]
+              }
+            ]
+          ] do
+        assert %{notes: :malformed} == Validation.get_errors(change_valid(%{"notes" => notes}))
+      end
     end
 
     test "an update without notes keeps the stored ones" do
@@ -153,18 +221,33 @@ defmodule RichardBurton.PublicationTest do
       assert updated.notes == @notes
     end
 
-    test "notes longer than 10,000 characters are too long" do
-      assert change_valid(%{"notes" => String.duplicate("a", 10_000)}).valid?
+    test "notes whose text is longer than 10,000 characters are too long" do
+      half = String.duplicate("a", 4_999)
+      at_most = paragraphs([half <> "\n", half <> "a"])
+      too_long = paragraphs([half <> "\n", half <> "aa"])
 
-      assert %{notes: :too_long} ==
-               Validation.get_errors(change_valid(%{"notes" => String.duplicate("a", 10_001)}))
+      assert change_valid(%{"notes" => at_most}).valid?
+      assert %{notes: :too_long} == Validation.get_errors(change_valid(%{"notes" => too_long}))
+    end
+
+    test "the length counts the graphemes of the text, not its code points or the stored JSON" do
+      text = String.duplicate("e\u0301", 10_000)
+
+      notes = [
+        %{
+          "type" => "paragraph",
+          "children" => [%{"text" => text, "bold" => true, "italic" => true}]
+        }
+      ]
+
+      assert change_valid(%{"notes" => notes}).valid?
     end
 
     test "are not part of the composite key" do
       publication_fixture(%{notes: @notes})
 
       assert {:error, :conflict} ==
-               Publication.insert(publication_attrs(%{notes: "Another note."}))
+               Publication.insert(publication_attrs(%{notes: paragraphs("Another note.")}))
     end
 
     test "a batch may hold rows with notes and rows without" do
@@ -724,17 +807,72 @@ defmodule RichardBurton.PublicationTest do
                merged.sources |> Enum.map(& &1.content) |> Enum.sort()
     end
 
-    test "the winner keeps its notes, and the loser's are not added to them" do
-      winner = publication_fixture(%{notes: "The winner's note."})
+    test "the losers' notes follow the winner's, in the order of the losers, each once" do
+      winner = publication_fixture(%{notes: paragraphs(["The winner's note.", "Its second."])})
+      first = publication_fixture(%{title: "Dom Casmurro: First", notes: paragraphs("First.")})
+      second = publication_fixture(%{title: "Dom Casmurro: Second", notes: paragraphs("Second.")})
+      none = publication_fixture(%{title: "Dom Casmurro: Without Notes"})
+
+      same_as_winner =
+        publication_fixture(%{title: "Dom Casmurro: Same", notes: winner.notes})
+
+      same_as_first =
+        publication_fixture(%{title: "Dom Casmurro: Again", notes: paragraphs("First.")})
+
+      losers = [second, none, same_as_winner, first, same_as_first]
+
+      assert {:ok, merged} = Publication.merge(winner.id, Enum.map(losers, & &1.id))
+
+      assert merged.notes ==
+               paragraphs(["The winner's note.", "Its second.", "Second.", "First."])
+    end
+
+    test "when the winner has no notes, the merged notes are the losers'" do
+      winner = publication_fixture()
+      first = publication_fixture(%{title: "Dom Casmurro: First", notes: paragraphs("First.")})
+      second = publication_fixture(%{title: "Dom Casmurro: Second", notes: paragraphs("Second.")})
+
+      assert {:ok, merged} = Publication.merge(winner.id, [first.id, second.id])
+      assert merged.notes == paragraphs(["First.", "Second."])
+    end
+
+    test "when none of them has notes, the merged publication has none" do
+      winner = publication_fixture()
+      loser = publication_fixture(%{title: "Dom Casmurro: Another Printing"})
+
+      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
+      assert merged.notes == nil
+    end
+
+    test "a merge whose joined notes are too long is refused, and changes nothing" do
+      winner = publication_fixture(%{notes: paragraphs(String.duplicate("a", 6_000))})
 
       loser =
         publication_fixture(%{
           title: "Dom Casmurro: Another Printing",
-          notes: "The loser's note."
+          notes: paragraphs(String.duplicate("b", 5_000))
         })
 
-      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
-      assert merged.notes == "The winner's note."
+      assert {:error, %{notes: :too_long}} == Publication.merge(winner.id, [loser.id])
+      assert Publication.find(winner.id).notes == winner.notes
+      assert Publication.find(loser.id).notes == loser.notes
+    end
+
+    test "undoing the merge gives the winner back its own notes" do
+      winner = publication_fixture(%{notes: paragraphs("The winner's note.")})
+
+      loser =
+        publication_fixture(%{
+          title: "Dom Casmurro: Another Printing",
+          notes: paragraphs("The loser's note.")
+        })
+
+      {:ok, _} = Publication.merge(winner.id, [loser.id])
+      [merge | _] = History.of(winner.id)
+
+      assert {:ok, reverted} = Publication.undo(winner.id, merge.version)
+      assert reverted.notes == paragraphs("The winner's note.")
+      assert Publication.find(loser.id).notes == paragraphs("The loser's note.")
     end
 
     test "a source both of them recorded is recorded once" do

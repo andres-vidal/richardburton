@@ -13,6 +13,7 @@ import {
   MAX_DEPTH,
   bareUrl,
   isLink,
+  linkBareUrls,
   linkLabel,
   type LinkElement,
   type ListItemElement,
@@ -267,6 +268,10 @@ function replaceValue(editor: Editor, value: RichTextValue): void {
  *   paragraph.
  * - Typing a space or a line break after a bare URL or an email address links
  *   it, and pasting one links it, or links the selected text to it.
+ * - Pasted plain text is inserted as text, with each line after the first
+ *   starting a new block and each bare URL linked (see `linkBareUrls`). Inside
+ *   a link, pasted text becomes part of the link's text, and no URL in it is
+ *   linked.
  * - A list item's depth is kept between 0 and `MAX_DEPTH`.
  */
 function withRichText<T extends Editor>(editor: T): T {
@@ -275,6 +280,7 @@ function withRichText<T extends Editor>(editor: T): T {
     insertBreak,
     insertData,
     insertText,
+    insertTextData,
     isInline,
     normalizeNode,
   } = editor;
@@ -334,6 +340,31 @@ function withRichText<T extends Editor>(editor: T): T {
     } else {
       insertData(data);
     }
+  };
+
+  editor.insertTextData = (data) => {
+    const text = data.getData("text/plain");
+    const { selection } = editor;
+
+    if (!text || !selection || activeLink(editor)) return insertTextData(data);
+
+    if (Range.isExpanded(selection)) Editor.deleteFragment(editor);
+    text.split(/\r\n|\r|\n/).forEach((line, index) => {
+      if (index > 0) Transforms.splitNodes(editor, { always: true });
+
+      linkBareUrls([{ text: line }]).forEach((inline) =>
+        isLink(inline)
+          ? applyLink(
+              editor,
+              editor.selection!,
+              inline.url,
+              Node.string(inline),
+            )
+          : editor.insertText(inline.text),
+      );
+    });
+
+    return true;
   };
 
   editor.normalizeNode = (entry, options) => {

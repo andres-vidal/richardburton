@@ -1,3 +1,4 @@
+import { paragraph } from "test/rich-text-fixtures";
 import type { FullHistoryEntry, SnapshotDiff } from "./model";
 import {
   keyOf,
@@ -78,21 +79,19 @@ describe("presentChanges", () => {
   });
 
   test("gives the notes before and after, after the sources", () => {
+    const note = [paragraph({ text: "New", bold: true }, " note")];
+
     expect(
       presentChanges({
         fields: {
-          notes: { from: null, to: "**New** note" },
+          notes: { from: null, to: note },
           title: { from: "A", to: "B" },
         },
         sources: { added: ["x"], removed: [], reordered: false },
       }).map(({ kind, ...change }) =>
         kind === "notes" ? { kind, ...change } : kind,
       ),
-    ).toEqual([
-      "field",
-      "sources",
-      { kind: "notes", from: null, to: "**New** note" },
-    ]);
+    ).toEqual(["field", "sources", { kind: "notes", from: null, to: note }]);
   });
 
   test("nothing to diff renders nothing", () => {
@@ -186,7 +185,7 @@ describe("presentAbsorbed", () => {
           id: 9,
           ...snapshot({
             sources: ["Sousa, J. Bibliografia, 1955."],
-            notes: "A *rare* copy.",
+            notes: [paragraph("A ", { text: "rare", italic: true }, " copy.")],
           }),
         },
         { id: 10, ...snapshot() },
@@ -199,7 +198,7 @@ describe("presentAbsorbed", () => {
       "Sousa, J. Bibliografia, 1955.",
     ]);
     expect(change.records.map((record) => record.notes)).toEqual([
-      "A *rare* copy.",
+      [paragraph("A ", { text: "rare", italic: true }, " copy.")],
       null,
     ]);
   });

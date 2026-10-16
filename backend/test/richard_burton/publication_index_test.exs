@@ -1222,6 +1222,17 @@ defmodule RichardBurton.Publication.IndexTest do
   end
 
   describe "notes" do
+    @notes [
+      %{
+        "type" => "paragraph",
+        "children" => [
+          %{"text" => "Reviewed in "},
+          %{"text" => "The New Yorker", "italic" => true},
+          %{"text" => ", with a zanzibarian flourish."}
+        ]
+      }
+    ]
+
     setup do
       [publication] =
         seed_index([
@@ -1233,7 +1244,7 @@ defmodule RichardBurton.Publication.IndexTest do
             authors: ["Harriet de Onís"],
             original_title: "Dona Flor e seus dois maridos",
             original_authors: ["Jorge Amado"],
-            notes: "Reviewed in *The New Yorker*, with a zanzibarian flourish."
+            notes: @notes
           }
         ])
 
@@ -1255,13 +1266,11 @@ defmodule RichardBurton.Publication.IndexTest do
     end
 
     test "all/0 and search/1 return them", %{publication: publication} do
-      notes = "Reviewed in *The New Yorker*, with a zanzibarian flourish."
-
       {:ok, all} = Publication.Index.all()
-      assert %FlatPublication{notes: ^notes} = Enum.find(all, &(&1.id == publication.id))
+      assert %FlatPublication{notes: @notes} = Enum.find(all, &(&1.id == publication.id))
 
       {:ok, found} = Publication.Index.search("Flor")
-      assert %FlatPublication{notes: ^notes} = Enum.find(found, &(&1.id == publication.id))
+      assert %FlatPublication{notes: @notes} = Enum.find(found, &(&1.id == publication.id))
     end
 
     test "the search does not read them" do

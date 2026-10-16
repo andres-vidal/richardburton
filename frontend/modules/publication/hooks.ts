@@ -121,7 +121,10 @@ function usePublicationSources(id: PublicationId) {
   return useAtomValue(publicationSourcesFamily(id));
 }
 
-/** A row's notes in Markdown, including unsaved edits, or null for none. */
+/**
+ * A row's notes as a rich-text value, including unsaved edits, or null for
+ * none.
+ */
 function usePublicationNotes(id: PublicationId) {
   return useAtomValue(publicationNotesFamily(id));
 }

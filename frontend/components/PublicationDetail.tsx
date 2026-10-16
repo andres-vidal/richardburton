@@ -32,6 +32,7 @@ import {
   usePublicationStore,
 } from "modules/publication/workspace";
 import { useCountryNaming } from "modules/country-names";
+import { isBlank, type RichTextValue } from "modules/rich-text";
 import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
 import dynamic from "next/dynamic";
@@ -225,21 +226,21 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
 };
 
 /**
- * The publication's notes under their heading, rendered from Markdown, as a
- * region named for them. It renders nothing for a publication without
- * notes.
+ * The publication's notes under their heading, rendered with `RichText`, as a
+ * region named for them. It renders nothing for a publication whose notes are
+ * missing, null or blank.
  */
-const PublicationNotes: FC<{ notes: string | null | undefined }> = ({
+const PublicationNotes: FC<{ notes: RichTextValue | null | undefined }> = ({
   notes,
 }) => {
   const t = useTranslations("attributes");
 
-  return notes?.trim() ? (
+  return isBlank(notes) ? null : (
     <section aria-label={t("notes")} className="space-y-2">
       <SectionHeading>{t("notes")}</SectionHeading>
-      <RichText markdown={notes} />
+      <RichText value={notes} />
     </section>
-  ) : null;
+  );
 };
 
 /**
@@ -261,7 +262,7 @@ const EditNotes: FC<{ id: PublicationId }> = ({ id }) => {
       placeholder={t("placeholder")}
       value={notes}
       error={error}
-      onChange={(markdown) => setNotes(store, id, markdown)}
+      onChange={(value) => setNotes(store, id, value)}
     />
   );
 };

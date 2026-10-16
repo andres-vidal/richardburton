@@ -7,15 +7,28 @@ defmodule RichardBurton.Validation do
   `:required` or `:alpha2`, instead of a sentence.
   """
 
-  # The most characters a publication's notes may hold.
+  alias RichardBurton.RichText
+
+  # The most characters the text of a publication's notes may hold.
   @notes_max_length 10_000
 
   @doc """
-  Adds a `:notes` error to `changeset` when its notes are longer than
-  10,000 characters. `get_errors/1` reports it as `:too_long`.
+  Adds a `:notes` error to `changeset` when the text of its notes is longer
+  than 10,000 characters, as `RichardBurton.RichText.text_length/1` counts
+  them. `get_errors/1` reports it as `:too_long`.
   """
   def validate_notes(changeset) do
-    Ecto.Changeset.validate_length(changeset, :notes, max: @notes_max_length)
+    Ecto.Changeset.validate_change(changeset, :notes, fn :notes, notes ->
+      if RichText.text_length(notes) > @notes_max_length do
+        [
+          notes:
+            {"should be at most %{count} character(s)",
+             validation: :length, kind: :max, count: @notes_max_length, type: :string}
+        ]
+      else
+        []
+      end
+    end)
   end
 
   @doc """
@@ -64,8 +77,9 @@ defmodule RichardBurton.Validation do
   The codes are `:required`, `:array` for a list field given something other
   than a list, the type of a field that could not be cast to it, such as
   `:integer`, `:alpha2`, `:duplicate`, `:conflict`, `:too_long` for a value
-  longer than its field's maximum length, and `:invalid` for any other failed
-  validation.
+  longer than its field's maximum length, `:malformed` for a value whose
+  shape its type refuses, such as rich text with an unknown node (see
+  `RichardBurton.RichText`), and `:invalid` for any other failed validation.
   """
   def get_errors(changeset) do
     changeset
@@ -86,6 +100,7 @@ defmodule RichardBurton.Validation do
   defp get_description(%{validation: :assoc}), do: :required
   defp get_description(%{validation: :alpha2}), do: :alpha2
   defp get_description(%{validation: :duplicate}), do: :duplicate
+  defp get_description(%{validation: :malformed}), do: :malformed
   defp get_description(%{constraint: :unique}), do: :conflict
   defp get_description(_opts), do: :invalid
 

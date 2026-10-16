@@ -1,25 +1,67 @@
+import type {
+  LinkElement,
+  ListItemElement,
+  ListKind,
+  ParagraphElement,
+  RichTextInline,
+  RichTextRun,
+  RichTextValue,
+} from "modules/rich-text";
+
 /**
- * Markdown for the rich-text stories: samples of what `modules/rich-text`
- * reads and writes, and of what it leaves out.
+ * Builders and samples of rich-text values (see `modules/rich-text`) for the
+ * specs and stories. A builder takes each inline either as an object or as a
+ * string, which stands for a run of plain text.
  */
+
+/** Returns `inline`, or a run of plain text holding it when it is a string. */
+const inlineOf = <T extends RichTextInline>(
+  inline: T | string,
+): T | RichTextRun => (typeof inline === "string" ? { text: inline } : inline);
+
+/** Returns a paragraph holding `inlines`. */
+function paragraph(...inlines: (RichTextInline | string)[]): ParagraphElement {
+  return { type: "paragraph", children: inlines.map(inlineOf) };
+}
+
+/** Returns an item of a list of `list` kind, `depth` levels deep. */
+function item(
+  list: ListKind,
+  depth: number,
+  ...inlines: (RichTextInline | string)[]
+): ListItemElement {
+  return { type: "list-item", list, depth, children: inlines.map(inlineOf) };
+}
+
+/** Returns a link to `url` that shows `runs`. */
+function link(url: string, ...runs: (RichTextRun | string)[]): LinkElement {
+  return { type: "link", url, children: runs.map(inlineOf) };
+}
 
 /**
  * Rich text in every format it supports: a paragraph with bold and italic
  * text, a line break and a link, then a bulleted list with a numbered list
  * nested in its first item.
  */
-const EVERY_FORMAT =
-  "A **bold** claim and an *italic* aside.\\\nA second line, with [the guide](https://example.com/guide).\n\n- Fruit\n  1. *Apples*\n  2. *Pears*\n- Bread";
+const EVERY_FORMAT: RichTextValue = [
+  paragraph(
+    "A ",
+    { text: "bold", bold: true },
+    " claim and an ",
+    { text: "italic", italic: true },
+    " aside.\nA second line, with ",
+    link("https://example.com/guide", "the guide"),
+    ".",
+  ),
+  item("bulleted", 0, "Fruit"),
+  item("numbered", 1, { text: "Apples", italic: true }),
+  item("numbered", 1, { text: "Pears", italic: true }),
+  item("bulleted", 0, "Bread"),
+];
 
-/** A bare URL and a bare email address, which rich text reads as links. */
-const BARE_LINKS =
-  "Read https://example.com/guide, or write to help@example.org.";
+/** A bare URL and a bare email address in plain text. */
+const BARE_LINKS: RichTextValue = [
+  paragraph("Read https://example.com/guide, or write to help@example.org."),
+];
 
-/**
- * Markdown that rich text does not support: a heading, raw HTML, a link to a
- * script and an image.
- */
-const UNSUPPORTED_MARKDOWN =
-  "# A heading\n\n<img src=x onerror=alert(1)> and <b>tags</b>\n\n[a script](javascript:alert(1)) and ![a picture](https://example.com/p.png)";
-
-export { BARE_LINKS, EVERY_FORMAT, UNSUPPORTED_MARKDOWN };
+export { BARE_LINKS, EVERY_FORMAT, item, link, paragraph };

@@ -67,8 +67,8 @@ const ActionBadge: FC<{
  * and the `plain` variant does neither.
  *
  * What it changed is listed from `entry.changes`: a field's old and new value,
- * the sources added and removed, the notes before and after, rendered from
- * their Markdown, the records a merge took in or gave back, and the records a
+ * the sources added and removed, the notes before and after, rendered with
+ * `RichText`, the records a merge took in or gave back, and the records a
  * duplicate decision was about. An update with no earlier
  * version to compare with says so.
  */
@@ -206,7 +206,7 @@ const Entry: FC<{
                   </span>
                   <del className="text-gray-500 no-underline">
                     {change.from ? (
-                      <RichText markdown={change.from} size="small" />
+                      <RichText value={change.from} size="small" />
                     ) : (
                       t("noNotes")
                     )}
@@ -216,7 +216,7 @@ const Entry: FC<{
                   </span>
                   <ins className="no-underline">
                     {change.to ? (
-                      <RichText markdown={change.to} size="small" />
+                      <RichText value={change.to} size="small" />
                     ) : (
                       t("noNotes")
                     )}
@@ -270,7 +270,7 @@ const Entry: FC<{
                         {record.notes && (
                           <li className="text-gray-500">
                             {attribute("notes")}:
-                            <RichText markdown={record.notes} size="small" />
+                            <RichText value={record.notes} size="small" />
                           </li>
                         )}
                       </ul>

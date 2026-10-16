@@ -4,6 +4,7 @@ import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { resetAll } from "modules/publication/store";
 import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
+import { item, link, paragraph } from "test/rich-text-fixtures";
 import { asAdmin } from "test/session";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
@@ -79,15 +80,34 @@ export const Default: Story = {
 };
 
 /**
- * A record with notes shows them under the sentence, rendered from their
- * Markdown, with each link opening in a new tab.
+ * A record with notes shows them under the sentence, formatted, with each
+ * link opening in a new tab.
  */
 export const WithNotes: Story = {
   args: {
     publication: {
       ...DOM_CASMURRO,
-      notes:
-        "The first English translation. **Out of print** since 1966.\n\n- Reviewed in *The Nation*\n- Scanned at [the Internet Archive](https://archive.org/details/domcasmurro)",
+      notes: [
+        paragraph(
+          "The first English translation. ",
+          { text: "Out of print", bold: true },
+          " since 1966.",
+        ),
+        item("bulleted", 0, "Reviewed in ", {
+          text: "The Nation",
+          italic: true,
+        }),
+        item(
+          "bulleted",
+          0,
+          "Scanned at ",
+          link(
+            "https://archive.org/details/domcasmurro",
+            "the Internet Archive",
+          ),
+          "",
+        ),
+      ],
     },
   },
   play: async () => {
@@ -149,7 +169,10 @@ export const AsAdmin: Story = {
  */
 export const Editing: Story = {
   args: {
-    publication: { ...DOM_CASMURRO, notes: "A **first** translation." },
+    publication: {
+      ...DOM_CASMURRO,
+      notes: [paragraph("A ", { text: "first", bold: true }, " translation.")],
+    },
   },
   decorators: [asAdmin],
   beforeEach: () => resetAll(store),

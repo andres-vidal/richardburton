@@ -57,6 +57,16 @@ defmodule RichardBurton.Fixtures do
   end
 
   @doc """
+  Returns rich text with a paragraph for each of `texts`, a string or a list
+  of them. Each paragraph holds one run of text without marks.
+  """
+  def paragraphs(texts) do
+    texts
+    |> List.wrap()
+    |> Enum.map(&%{"type" => "paragraph", "children" => [%{"text" => &1}]})
+  end
+
+  @doc """
   Returns a flat publication with atom keys: Dom Casmurro in Helen Caldwell's
   translation, published by Noonday Press in the United States in 1953, with
   no source. The fields in `changes`, given with atom keys, replace its own.

@@ -1,4 +1,6 @@
+import { isEqual } from "lodash";
 import type { CountryNaming } from "modules/country-names";
+import { isBlank, type RichTextValue } from "modules/rich-text";
 
 /** A publication as the API sends and takes it, one field per attribute. */
 type Publication = {
@@ -11,13 +13,13 @@ type Publication = {
   originalAuthors: string[];
   sources: string[];
   /**
-   * The publication's notes in Markdown (see `modules/rich-text`), or null
-   * when it has none. A page of the index leaves notes out, so a record read
+   * The publication's notes as a rich-text value (see `modules/rich-text`),
+   * or null when it has none. A page of the index leaves notes out, so a record read
    * from one has no `notes` key, and neither has a new row nobody has
    * written notes on. A request without the key keeps the stored notes, and a
    * null clears them.
    */
-  notes?: string | null;
+  notes?: RichTextValue | null;
   /**
    * The stored publication's id, or null for a row that is not stored. The
    * server never takes it from a request body.
@@ -146,7 +148,7 @@ type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
 type SnapshotDiff = {
   fields: Partial<
     Record<PublicationKey, { from: unknown; to: unknown }> & {
-      notes: { from: string | null; to: string | null };
+      notes: { from: RichTextValue | null; to: RichTextValue | null };
     }
   >;
   sources: { added: string[]; removed: string[]; reordered: boolean } | null;
@@ -271,10 +273,11 @@ function idFromText(text: string): PublicationId {
  * What one record would look like with others folded into it: the survivor's
  * own fields, the countries and publishers of all of them, every source none
  * of the others already gave, and the survivor's notes followed by each
- * other record's notes, as further paragraphs. Notes that are empty, or
- * that repeat earlier ones, are left out. When no record has any, the result
- * has the survivor's. A record read from a page of the index has no notes
- * to add.
+ * other record's notes, as further blocks. Notes that are null or blank, or
+ * that equal earlier ones, are left out. Two notes are equal when lodash's
+ * `isEqual` finds them equal, which ignores the order of their objects' keys.
+ * When no record has any notes, the result has the survivor's. A record read
+ * from a page of the index has no notes to add.
  *
  * The server merges the records itself and decides the result. This function
  * repeats its rules, so the result can be shown before the merge is asked for.
@@ -285,16 +288,20 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   const union = (attribute: "countries" | "publishers") =>
     Array.from(new Set(all.flatMap((p) => p[attribute]))).sort();
 
-  const notes = Array.from(
-    new Set(all.map((p) => p.notes?.trim() ?? "").filter(Boolean)),
-  );
+  const notes = all
+    .map((p) => p.notes)
+    .filter((value): value is RichTextValue => !isBlank(value))
+    .filter(
+      (value, index, kept) =>
+        kept.findIndex((earlier) => isEqual(earlier, value)) === index,
+    );
 
   return {
     ...winner,
     countries: union("countries"),
     publishers: union("publishers"),
     sources: Array.from(new Set(all.flatMap((p) => p.sources))),
-    notes: notes.length > 0 ? notes.join("\n\n") : winner.notes,
+    notes: notes.length > 0 ? notes.flat() : winner.notes,
   };
 }
 
