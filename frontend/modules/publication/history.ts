@@ -1,3 +1,4 @@
+import type { RichTextValue } from "modules/rich-text";
 import type {
   FullHistoryEntry,
   PublicationHistoryEntry,
@@ -21,6 +22,16 @@ type SourcesChange = {
   reordered: boolean;
 };
 
+/**
+ * The notes before and after the change, each a rich-text value, or null
+ * where there were none.
+ */
+type NotesChange = {
+  kind: "notes";
+  from: RichTextValue | null;
+  to: RichTextValue | null;
+};
+
 /** One record a merge took in, or an un-merge gave back, in full. */
 type AbsorbedRecord = {
   /** The record's id, since two records a merge took in can share a title. */
@@ -28,6 +39,8 @@ type AbsorbedRecord = {
   title: string;
   fields: { attribute: PublicationKey; value: string }[];
   sources: string[];
+  /** The record's notes as a rich-text value, or null when it had none. */
+  notes: RichTextValue | null;
 };
 
 /**
@@ -54,7 +67,8 @@ type RelatedChange = {
 };
 
 /** One change an entry of the log made. */
-type Change = FieldChange | SourcesChange | AbsorbedChange | RelatedChange;
+type Change =
+  FieldChange | SourcesChange | NotesChange | AbsorbedChange | RelatedChange;
 
 /** An entry with the changes its act made. */
 type WithChanges<T> = T & { changes: Change[] };
@@ -66,9 +80,9 @@ function keyOf(entry: FullHistoryEntry): string {
 
 /**
  * Returns the changes in the server's `diff`: one `FieldChange` for each field
- * that changed, in the order of `ATTRIBUTES`, with its values as text, and then
- * a `SourcesChange` when the sources changed. Returns an empty list for a null
- * diff.
+ * that changed, in the order of `ATTRIBUTES`, with its values as text, then a
+ * `SourcesChange` when the sources changed, and a `NotesChange` when the
+ * notes changed. Returns an empty list for a null diff.
  */
 function presentChanges(diff: SnapshotDiff | null): Change[] {
   if (diff === null) return [];
@@ -81,17 +95,31 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
     from: String(diff.fields[key]!.from),
     to: String(diff.fields[key]!.to),
   }));
+  const notes = diff.fields.notes;
 
-  return diff.sources === null
-    ? fields
-    : [...fields, { kind: "sources", ...diff.sources }];
+  return [
+    ...fields,
+    ...(diff.sources === null
+      ? []
+      : [{ kind: "sources" as const, ...diff.sources }]),
+    ...(notes === undefined
+      ? []
+      : [
+          {
+            kind: "notes" as const,
+            from: notes.from ?? null,
+            to: notes.to ?? null,
+          },
+        ]),
+  ];
 }
 
 /**
  * Returns the records a merge took in, or an un-merge gave back, as one
  * `AbsorbedChange`, each record with its title, every other field that has a
- * value, and its sources. The records are the entry's `others`. Returns an
- * empty list for an entry of any other action, or one that names no records.
+ * value, its sources and its notes. The records are the entry's `others`.
+ * Returns an empty list for an entry of any other action, or one that names no
+ * records.
  */
 function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
   const absorbed =
@@ -110,6 +138,7 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
       }))
       .filter(({ value }) => value !== ""),
     sources: publication.sources ?? [],
+    notes: publication.notes ?? null,
   }));
 
   return [

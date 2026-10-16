@@ -221,6 +221,25 @@ export async function openPublicationModal(page: Page, title: string) {
 }
 
 /**
+ * Presses "Download .csv" on the index, and returns the response of the CSV
+ * export and the download the browser was offered. It waits for both, since a
+ * response alone does not show that a file was offered.
+ */
+export async function downloadCsv(page: Page) {
+  const [response, download] = await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        r.url().includes("files/publications") &&
+        r.request().method() === "GET",
+    ),
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download .csv" }).click(),
+  ]);
+
+  return { response, download };
+}
+
+/**
  * The stack of notifications. It is found by CSS rather than by role, because
  * an open dialog hides the rest of the page, the stack included, from the
  * accessibility tree.
@@ -363,10 +382,21 @@ const CSV_HEADER =
 
 /**
  * Returns a CSV of `rows` under the suite's header, one line each. A cell that
- * holds a comma is quoted.
+ * holds a comma is quoted. With `notes`, the header ends with a
+ * `notes` column, which each row fills last with its notes as plain text.
  */
-export function csv(rows: string[]): string {
-  return [CSV_HEADER, ...rows].join("\n") + "\n";
+export function csv(rows: string[], { notes = false } = {}): string {
+  const header = notes ? `${CSV_HEADER},notes` : CSV_HEADER;
+
+  return [header, ...rows].join("\n") + "\n";
+}
+
+/**
+ * Returns `text` as one quoted CSV cell, with each quote in it doubled, so it
+ * may hold commas, quotes and line breaks.
+ */
+export function quoted(text: string): string {
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 /**

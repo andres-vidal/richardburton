@@ -874,7 +874,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                    "id",
                    "sources",
                    "excerpts",
-                   "marked"
+                   "marked",
+                   "notes"
                  ])
                )
     end
@@ -974,7 +975,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                    "id",
                    "sources",
                    "excerpts",
-                   "marked"
+                   "marked",
+                   "notes"
                  ])
                )
     end
@@ -1059,7 +1061,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                    "id",
                    "sources",
                    "excerpts",
-                   "marked"
+                   "marked",
+                   "notes"
                  ])
                )
     end
@@ -1268,7 +1271,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => ["Isabel Burton", "Richard Burton"],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "sources" => []
+          "sources" => [],
+          "notes" => nil
         },
         "errors" => nil
       },
@@ -1281,7 +1285,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => ["J. T. W. Sadler"],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Ubirajara",
-          "sources" => []
+          "sources" => [],
+          "notes" => nil
         },
         "errors" => nil
       },
@@ -1294,7 +1299,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => [],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "sources" => []
+          "sources" => [],
+          "notes" => nil
         },
         "errors" => %{
           "year" => "integer",
@@ -1335,7 +1341,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
       expected_data =
-        "authors,countries,original_authors,original_title,publishers,sources,title,year\nIsabel Burton,GB,José de Alencar,Iracema,Bickers & Son,,Iraçéma the Honey-Lips: A Legend of Brazil,1886\n"
+        "title,year,countries,publishers,authors,original_title,original_authors,sources,notes\nIraçéma the Honey-Lips: A Legend of Brazil,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,,\n"
 
       expected_filename = "publications.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1387,7 +1393,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors,countries,original_authors,original_title,publishers,sources,title,year\nIsabel Burton,GB,José de Alencar,Iracema,Bickers & Son,,Iraçéma the Honey-Lips: A Legend of Brazil,1886\n"
+        "title,year,countries,publishers,authors,original_title,original_authors,sources,notes\nIraçéma the Honey-Lips: A Legend of Brazil,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,,\n"
 
       expected_filename = "publications-#{search}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1413,7 +1419,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors,original_title,title\nIsabel Burton,Iracema,Iraçéma the Honey-Lips: A Legend of Brazil\n"
+        "title,authors,original_title\nIraçéma the Honey-Lips: A Legend of Brazil,Isabel Burton,Iracema\n"
 
       expected_filename = "publications-#{search}-#{Enum.join(attributes, "-")}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1439,7 +1445,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       conn = get(meta.conn, path)
 
       expected_data =
-        "authors,original_title,title\nIsabel Burton,Iracema,Iraçéma the Honey-Lips: A Legend of Brazil\n"
+        "title,authors,original_title\nIraçéma the Honey-Lips: A Legend of Brazil,Isabel Burton,Iracema\n"
 
       expected_filename = "publications-#{Enum.join(attributes, "-")}.csv"
       expected_content_disposition = ["attachment; filename=\"#{expected_filename}\""]
@@ -1580,6 +1586,380 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       meta.conn
       |> post("/api/publications/abc/validate", @iracema)
       |> json_response(404)
+    end
+  end
+
+  describe "notes" do
+    @notes [
+      paragraph([run("First", %{"bold" => true}), run(" edition, in English.")]),
+      item("bulleted", 0, "Bound in green cloth"),
+      item("numbered", 1, [
+        run("Signed \"I. Burton\" on the "),
+        link("https://example.com/title-page", [run("title page", %{"italic" => true})]),
+        run("")
+      ])
+    ]
+
+    test "GET /publications/:id carries them, and null for a publication without any", meta do
+      with_notes = publication_fixture(Map.put(@iracema, :notes, @notes))
+      without_notes = publication_fixture(%{@iracema | title: "Iracema"})
+
+      assert %{"notes" => @notes} =
+               meta.conn
+               |> get(publication_path(meta.conn, :show, with_notes.id))
+               |> json_response(200)
+
+      assert %{"notes" => nil} =
+               meta.conn
+               |> get(publication_path(meta.conn, :show, without_notes.id))
+               |> json_response(200)
+    end
+
+    test "the rows of the index leave them out", meta do
+      publication = publication_fixture(Map.put(@iracema, :notes, @notes))
+
+      first_page =
+        meta.conn |> get(publication_path(meta.conn, :index)) |> json_response(200)
+
+      later_page =
+        meta.conn
+        |> get("#{publication_path(meta.conn, :index)}?ids[]=#{publication.id}&search=Honey")
+        |> json_response(200)
+
+      unsourced =
+        meta.conn
+        |> get("#{publication_path(meta.conn, :index)}?unsourced=true")
+        |> json_response(200)
+
+      for %{"entries" => [entry]} <- [first_page, later_page, unsourced] do
+        assert entry["id"] == publication.id
+        refute Map.has_key?(entry, "notes")
+      end
+    end
+
+    test "the publications of the duplicate review leave them out", meta do
+      one = publication_fixture(Map.put(@iracema, :notes, @notes))
+
+      other =
+        %{@iracema | title: "Iraçéma the Honey-Lips"}
+        |> Map.put(:notes, paragraphs("Another note."))
+        |> publication_fixture()
+
+      assert %{"entries" => [%{"publications" => clustered}]} =
+               meta.conn |> get(publication_path(meta.conn, :duplicates)) |> json_response(200)
+
+      row = %{@iracema | title: "Iracema the Honey-Lips: A Legend of Brazil"}
+
+      assert %{"entries" => [%{"stored" => resembled}]} =
+               meta.conn
+               |> post(publication_path(meta.conn, :resemblances), %{"_json" => [row]})
+               |> json_response(200)
+
+      meta.conn
+      |> post(publication_path(meta.conn, :distinguish), %{"publications" => [one.id, other.id]})
+      |> response(204)
+
+      assert %{"entries" => [%{"publications" => distinguished}]} =
+               meta.conn |> get(publication_path(meta.conn, :distinctions)) |> json_response(200)
+
+      for listed <- [clustered, resembled, distinguished] do
+        assert listed |> Enum.map(& &1["id"]) |> Enum.sort() == Enum.sort([one.id, other.id])
+        refute Enum.any?(listed, &Map.has_key?(&1, "notes"))
+      end
+    end
+
+    test "PUT /publications/:id sets them, clears them when blank, and keeps them when left out",
+         meta do
+      publication = publication_fixture(@iracema)
+      path = publication_path(meta.conn, :update, publication.id)
+
+      assert %{"notes" => @notes} =
+               meta.conn
+               |> put(path, Map.put(@iracema, :notes, @notes))
+               |> json_response(200)
+
+      assert %{"notes" => @notes} =
+               meta.conn |> put(path, %{@iracema | year: "1887"}) |> json_response(200)
+
+      assert %{"notes" => nil} =
+               meta.conn
+               |> put(path, Map.put(@iracema, :notes, paragraphs([" \n ", ""])))
+               |> json_response(200)
+    end
+
+    test "PUT /publications/:id refuses notes whose text is longer than 10,000 characters",
+         meta do
+      publication = publication_fixture(@iracema)
+      attrs = Map.put(@iracema, :notes, paragraphs(String.duplicate("a", 10_001)))
+
+      conn = put(meta.conn, publication_path(meta.conn, :update, publication.id), attrs)
+
+      assert json_response(conn, 400) == %{"errors" => %{"notes" => "too_long"}}
+    end
+
+    test "PUT /publications/:id refuses notes that are not rich text as malformed", meta do
+      publication = publication_fixture(@iracema)
+      path = publication_path(meta.conn, :update, publication.id)
+
+      unsafe_link = %{
+        "type" => "paragraph",
+        "children" => [
+          %{"type" => "link", "url" => "javascript:alert(1)", "children" => [%{"text" => "A"}]}
+        ]
+      }
+
+      for notes <- [
+            "A note written as **Markdown**",
+            [%{"type" => "heading", "children" => [%{"text" => "A title"}]}],
+            [unsafe_link],
+            [
+              %{
+                "type" => "list-item",
+                "list" => "bulleted",
+                "depth" => 3,
+                "children" => [%{"text" => "A"}]
+              }
+            ]
+          ] do
+        conn = put(meta.conn, path, Map.put(@iracema, :notes, notes))
+
+        assert json_response(conn, 400) == %{"errors" => %{"notes" => "malformed"}}
+      end
+
+      assert Publication.find(publication.id).notes == nil
+    end
+
+    test "POST /publications/bulk stores them and returns them", meta do
+      input = %{
+        "_json" => [
+          Map.put(@iracema, :notes, @notes),
+          %{@iracema | title: "Iracema"}
+        ]
+      }
+
+      assert [%{"notes" => @notes}, %{"notes" => nil}] =
+               meta.conn
+               |> post(publication_path(meta.conn, :create_all), input)
+               |> json_response(201)
+
+      assert [@notes, nil] ==
+               Publication |> Repo.all() |> Enum.sort_by(& &1.id) |> Enum.map(& &1.notes)
+    end
+
+    test "POST /publications/bulk refuses malformed notes, and stores nothing", meta do
+      input = %{
+        "_json" => [
+          Map.put(@iracema, :notes, @notes),
+          %{@iracema | title: "Iracema"} |> Map.put(:notes, "A note written as **Markdown**")
+        ]
+      }
+
+      assert %{"error" => "invalid", "errors" => %{"notes" => "malformed"}} =
+               meta.conn
+               |> post(publication_path(meta.conn, :create_all), input)
+               |> json_response(400)
+
+      assert [] == Repo.all(FlatPublication)
+    end
+
+    test "POST /publications/validate reports notes that are too long or malformed", meta do
+      rows = [
+        Map.put(@iracema, :notes, @notes),
+        %{@iracema | title: "Iracema"}
+        |> Map.put(:notes, paragraphs(String.duplicate("a", 10_001))),
+        %{@iracema | title: "Iracema, the Honey-Lips"}
+        |> Map.put(:notes, [%{"type" => "paragraph", "children" => []}])
+      ]
+
+      assert [
+               %{"publication" => %{"notes" => @notes}, "errors" => nil},
+               %{"errors" => %{"notes" => "too_long"}},
+               %{"errors" => %{"notes" => "malformed"}}
+             ] =
+               meta.conn
+               |> post(publication_path(meta.conn, :validate), %{"_json" => rows})
+               |> json_response(200)
+    end
+
+    test "POST /publications/validate reads a CSV cell of several lines as paragraphs", meta do
+      input = uploaded_csv_fixture("test/fixtures/data_with_notes.csv")
+
+      notes =
+        paragraphs([
+          "First edition, in English.",
+          "Bound in green cloth,\nsigned \"I. Burton\" on the title page."
+        ])
+
+      assert [
+               %{"publication" => %{"notes" => ^notes}, "errors" => nil},
+               %{"publication" => %{"notes" => nil}, "errors" => nil}
+             ] =
+               meta.conn
+               |> post(publication_path(meta.conn, :validate), input)
+               |> json_response(200)
+    end
+
+    test "GET /files/publications writes them in the last column, as plain text", meta do
+      publication_fixture(Map.put(@iracema, :notes, @notes))
+
+      csv = meta.conn |> get(publication_path(meta.conn, :export)) |> response(200)
+
+      assert csv ==
+               "title,year,countries,publishers,authors,original_title,original_authors,sources,notes\n" <>
+                 "Iraçéma the Honey-Lips: A Legend of Brazil,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,," <>
+                 "\"First edition, in English.\n\n- Bound in green cloth\n" <>
+                 "  1. Signed \"\"I. Burton\"\" on the title page (https://example.com/title-page)\"\n"
+    end
+
+    test "POST /publications/:id/merge returns the winner with the loser's notes after its own",
+         meta do
+      winner = publication_fixture(Map.put(@iracema, :notes, @notes))
+
+      loser =
+        %{@iracema | countries: ["US"], publishers: ["Noonday Press"]}
+        |> Map.put(:notes, paragraphs("The loser's note."))
+        |> publication_fixture()
+
+      assert %{"id" => id, "notes" => notes} =
+               meta.conn
+               |> post(publication_path(meta.conn, :merge, winner.id), %{"losers" => [loser.id]})
+               |> json_response(200)
+
+      assert id == winner.id
+      assert notes == @notes ++ paragraphs("The loser's note.")
+    end
+
+    test "POST /publications/:id/merge with notes gives the winner those notes instead",
+         meta do
+      winner = publication_fixture(Map.put(@iracema, :notes, @notes))
+
+      loser =
+        %{@iracema | countries: ["US"], publishers: ["Noonday Press"]}
+        |> Map.put(:notes, paragraphs("The loser's note."))
+        |> publication_fixture()
+
+      notes = paragraphs("Rewritten for the merge.")
+      body = %{"losers" => [loser.id], "notes" => notes}
+
+      assert %{"id" => id, "notes" => ^notes} =
+               meta.conn
+               |> post(publication_path(meta.conn, :merge, winner.id), body)
+               |> json_response(200)
+
+      assert id == winner.id
+      assert Publication.find(winner.id).notes == notes
+      assert Publication.find(loser.id) == nil
+    end
+
+    test "POST /publications/:id/merge with null notes leaves the winner without notes", meta do
+      winner = publication_fixture(Map.put(@iracema, :notes, @notes))
+
+      loser =
+        %{@iracema | countries: ["US"], publishers: ["Noonday Press"]}
+        |> Map.put(:notes, paragraphs("The loser's note."))
+        |> publication_fixture()
+
+      body = %{"losers" => [loser.id], "notes" => nil}
+
+      assert %{"notes" => nil} =
+               meta.conn
+               |> post(publication_path(meta.conn, :merge, winner.id), body)
+               |> json_response(200)
+
+      assert Publication.find(winner.id).notes == nil
+    end
+
+    test "POST /publications/:id/merge refuses notes that are too long or malformed, and merges nothing",
+         meta do
+      winner = publication_fixture(Map.put(@iracema, :notes, @notes))
+
+      loser =
+        %{@iracema | countries: ["US"], publishers: ["Noonday Press"]}
+        |> Map.put(:notes, paragraphs("The loser's note."))
+        |> publication_fixture()
+
+      path = publication_path(meta.conn, :merge, winner.id)
+
+      for {notes, code} <- [
+            {paragraphs(String.duplicate("a", 10_001)), "too_long"},
+            {"A note written as **Markdown**", "malformed"},
+            {[%{"type" => "heading", "children" => [%{"text" => "A title"}]}], "malformed"}
+          ] do
+        conn = post(meta.conn, path, %{"losers" => [loser.id], "notes" => notes})
+
+        assert json_response(conn, 400) == %{"errors" => %{"notes" => code}}
+      end
+
+      assert Publication.find(winner.id).notes == @notes
+      assert Publication.find(loser.id).notes == paragraphs("The loser's note.")
+    end
+
+    test "the history reports a change to them in the diff, and leaves them out of the snapshots",
+         meta do
+      publication = publication_fixture(@iracema)
+
+      meta.conn
+      |> put(
+        publication_path(meta.conn, :update, publication.id),
+        Map.put(@iracema, :notes, @notes)
+      )
+      |> json_response(200)
+
+      assert %{"entries" => [updated, created]} =
+               meta.conn
+               |> get(publication_path(meta.conn, :history, publication.id))
+               |> json_response(200)
+
+      assert updated["diff"]["fields"] == %{"notes" => %{"from" => nil, "to" => @notes}}
+
+      assert %{"entries" => feed} =
+               meta.conn |> get(publication_path(meta.conn, :history)) |> json_response(200)
+
+      for entry <- [updated, created | feed] do
+        assert entry["snapshot"]["title"] == @iracema.title
+        refute Map.has_key?(entry["snapshot"], "notes")
+      end
+    end
+
+    test "the history keeps them in the snapshots of the publications a merge took in", meta do
+      winner = publication_fixture(@iracema)
+
+      loser =
+        %{@iracema | countries: ["US"], publishers: ["Noonday Press"]}
+        |> Map.put(:notes, @notes)
+        |> publication_fixture()
+
+      meta.conn
+      |> post(publication_path(meta.conn, :merge, winner.id), %{"losers" => [loser.id]})
+      |> json_response(200)
+
+      assert %{"entries" => [merged | _]} =
+               meta.conn
+               |> get(publication_path(meta.conn, :history, winner.id))
+               |> json_response(200)
+
+      assert %{"action" => "merged", "others" => [taken_in]} = merged
+      refute Map.has_key?(merged["snapshot"], "notes")
+      assert taken_in["id"] == loser.id
+      assert taken_in["notes"] == @notes
+    end
+
+    test "a restore with changes sets them, and the trash lists them", meta do
+      deleted_notes = paragraphs("Deleted with a note.")
+      publication = publication_fixture(Map.put(@iracema, :notes, deleted_notes))
+      {:ok, _} = Publication.delete(publication.id)
+
+      assert %{"entries" => [%{"publication" => %{"notes" => ^deleted_notes}}]} =
+               meta.conn |> get(publication_path(meta.conn, :index_deleted)) |> json_response(200)
+
+      meta.conn
+      |> post(
+        publication_path(meta.conn, :restore, publication.id),
+        Map.put(@iracema, :notes, @notes)
+      )
+      |> response(204)
+
+      assert Publication.find(publication.id).notes == @notes
     end
   end
 end

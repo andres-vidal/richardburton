@@ -28,7 +28,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => ["Bickers & Son"],
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
-          "sources" => []
+          "sources" => [],
+          "notes" => nil
         },
         %{
           "authors" => ["J. T. W. Sadler"],
@@ -38,7 +39,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => ["Ronald Massey"],
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "1922",
-          "sources" => []
+          "sources" => [],
+          "notes" => nil
         },
         %{
           "authors" => [],
@@ -48,7 +50,8 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => ["Bickers & Son"],
           "title" => "",
           "year" => "AAAA",
-          "sources" => []
+          "sources" => [],
+          "notes" => nil
         }
       ]
 
@@ -675,6 +678,161 @@ defmodule RichardBurton.Publication.CodecTest do
 
       # The newline lives inside a quoted field, so the row stays intact.
       assert csv =~ "\"First source\nSecond source\""
+    end
+  end
+
+  describe "notes" do
+    @notes [
+      paragraph([run("First", %{"bold" => true}), run(" edition, in English.")]),
+      item("bulleted", 0, "Bound in green cloth"),
+      item("bulleted", 0, "Signed \"I. Burton\" on the title page")
+    ]
+
+    # Returns a flat publication of Iracema, with `notes`.
+    defp iracema(notes) do
+      %{
+        "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
+        "year" => "1886",
+        "countries" => ["GB"],
+        "publishers" => ["Bickers & Son"],
+        "authors" => ["Isabel Burton"],
+        "original_title" => "Iracema",
+        "original_authors" => ["José de Alencar"],
+        "sources" => [],
+        "notes" => notes
+      }
+    end
+
+    # Writes `flat_publications` to a CSV file with `to_csv/1`, and returns
+    # the rows `from_csv/1` reads from it.
+    defp written_and_read(flat_publications) do
+      path = Path.join(System.tmp_dir!(), "notes-#{System.unique_integer([:positive])}.csv")
+      File.write!(path, Publication.Codec.to_csv(flat_publications))
+      on_exit(fn -> File.rm(path) end)
+
+      {:ok, rows} = Publication.Codec.from_csv(path)
+      rows
+    end
+
+    test "nest and flatten keep the notes at the top of both shapes" do
+      flat = %{"title" => "Iracema", "notes" => @notes}
+
+      nested = Publication.Codec.nest(flat)
+
+      assert nested["notes"] == @notes
+      assert Publication.Codec.flatten(nested) == flat
+    end
+
+    test "a publication flattens with its notes, and without any as nil" do
+      publication =
+        Publication.Codec.nest(%FlatPublication{title: "Iracema", notes: @notes})
+
+      assert %Publication{notes: @notes} = publication
+      assert %FlatPublication{notes: @notes} = Publication.Codec.flatten(publication)
+
+      assert %FlatPublication{notes: nil} =
+               Publication.Codec.flatten(%Publication{title: "Iracema"})
+    end
+
+    test "the error of the notes keeps its own key" do
+      assert %{"notes" => :too_long} ==
+               Publication.Codec.flatten_errors(%{notes: :too_long})
+
+      assert %{"notes" => :malformed} ==
+               Publication.Codec.flatten_errors(%{notes: :malformed})
+    end
+
+    test "from_csv reads a cell of several lines as plain text, with a paragraph between blank lines" do
+      assert {:ok, [iracema, ubirajara]} =
+               Publication.Codec.from_csv("test/fixtures/data_with_notes.csv")
+
+      assert iracema["notes"] ==
+               paragraphs([
+                 "First edition, in English.",
+                 "Bound in green cloth,\nsigned \"I. Burton\" on the title page."
+               ])
+
+      assert ubirajara["notes"] == nil
+    end
+
+    test "from_csv reads a file without a notes column as having no notes" do
+      assert {:ok, [row]} = Publication.Codec.from_csv("test/fixtures/data_with_sources.csv")
+
+      assert Map.fetch(row, "notes") == {:ok, nil}
+    end
+
+    test "to_csv writes the notes last, as plain text, quoted" do
+      csv = [iracema(@notes)] |> Publication.Codec.to_csv() |> Enum.join()
+
+      assert [header | _] = String.split(csv, "\n")
+
+      assert header ==
+               "title,year,countries,publishers,authors,original_title,original_authors,sources,notes"
+
+      assert String.ends_with?(
+               csv,
+               ~s(,"First edition, in English.\n\n- Bound in green cloth\n- Signed ""I. Burton"" on the title page"\n)
+             )
+    end
+
+    test "to_csv writes nil notes as an empty cell" do
+      assert ["title,notes\n", "Iracema,\n"] ==
+               Publication.Codec.to_csv([%{"title" => "Iracema", "notes" => nil}])
+    end
+
+    test "from_csv reads back the paragraphs and line breaks to_csv writes" do
+      notes = paragraphs(["First edition, in English.", "Bound in green cloth,\nsigned."])
+
+      assert [%{"notes" => ^notes}] = written_and_read([iracema(notes)])
+    end
+
+    test "from_csv reads back as links the links to_csv writes as their URL" do
+      notes = [
+        paragraph([
+          run("See "),
+          link("https://example.com/catalogue", "https://example.com/catalogue"),
+          run(", or write to "),
+          link("mailto:isabel@example.com", "isabel@example.com"),
+          run(".")
+        ])
+      ]
+
+      assert [%{"notes" => ^notes}] = written_and_read([iracema(notes)])
+    end
+
+    test "from_csv makes links of the web and email addresses in a cell" do
+      path = Path.join(System.tmp_dir!(), "notes-#{System.unique_integer([:positive])}.csv")
+      on_exit(fn -> File.rm(path) end)
+
+      File.write!(path, """
+      title,notes
+      Iracema,"Listed at www.example.com/iracema.
+      Ask isabel@example.com (or https://example.com/contact)."
+      """)
+
+      assert {:ok, [%{"notes" => notes}]} = Publication.Codec.from_csv(path)
+
+      assert notes == [
+               paragraph([
+                 run("Listed at "),
+                 link("https://www.example.com/iracema", "www.example.com/iracema"),
+                 run(".\nAsk "),
+                 link("mailto:isabel@example.com", "isabel@example.com"),
+                 run(" (or "),
+                 link("https://example.com/contact", "https://example.com/contact"),
+                 run(").")
+               ])
+             ]
+    end
+
+    test "from_csv reads the formatting to_csv drops as plain text" do
+      assert [%{"notes" => read}] = written_and_read([iracema(@notes)])
+
+      assert read ==
+               paragraphs([
+                 "First edition, in English.",
+                 "- Bound in green cloth\n- Signed \"I. Burton\" on the title page"
+               ])
     end
   end
 end

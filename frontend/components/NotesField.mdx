@@ -1,0 +1,58 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as NotesFieldStories from "./NotesField.stories";
+
+<Meta of={NotesFieldStories} />
+
+# Notes field
+
+The field that edits the notes of one row of the enclosing publication store. It
+is a [lazy rich text area](?path=/docs/components-lazy-rich-text-area--docs)
+with the notes' label, hint and placeholder. It shows the row's notes, and the
+error the row has with its notes under the text.
+
+<Description of={NotesFieldStories.WithNotes} />
+<Canvas of={NotesFieldStories.WithNotes} />
+
+## Props
+
+- `id` — the row whose notes the field edits. The field reads the row's notes
+  with `usePublicationNotes` and their error with `usePublicationFieldError`,
+  and writes edits to the row with `setNotes`. The notes are saved with the
+  rest of the row, so the field has no save of its own.
+
+<Description of={NotesFieldStories.Empty} />
+<Canvas of={NotesFieldStories.Empty} />
+
+<Description of={NotesFieldStories.WithError} />
+<Canvas of={NotesFieldStories.WithError} />
+
+## Writing to the row
+
+The field does not write each keystroke to the row. It writes an edit once the
+typing pauses for `SETTLE` milliseconds (500, from
+`modules/publication/checks`), so a burst of typing is one write of the last
+value. The row is in a document that other people may share, so each write is
+a change they receive.
+
+<Description of={NotesFieldStories.WrittenAfterAPause} />
+<Canvas of={NotesFieldStories.WrittenAfterAPause} />
+
+When the field loses the focus, it writes a waiting edit at once. Pressing a
+button such as Save takes the focus, so the row holds what was typed before
+the button's own handler runs.
+
+<Description of={NotesFieldStories.WrittenOnBlur} />
+<Canvas of={NotesFieldStories.WrittenOnBlur} />
+
+When the field unmounts, as when the dialog it is in closes, it also writes a
+waiting edit at once. It writes it in a layout effect's cleanup, which React
+runs before the `useEffect` cleanups of the components around the field, so the
+write lands before any of them reads or resets the row.
+
+<Description of={NotesFieldStories.WrittenOnClose} />
+<Canvas of={NotesFieldStories.WrittenOnClose} />
+
+Until a write lands, the row's notes are behind the text in the field. The rich
+text area ignores a value it passed to `onChange` earlier when that value comes
+back late, so the text typed after it stays in the field.

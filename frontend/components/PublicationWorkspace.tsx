@@ -11,6 +11,7 @@ import {
   RowId,
   RowProps,
   SignalColumn,
+  TrailingColumn,
 } from "components/PublicationIndexTable";
 import ClearSelection from "listeners/ClearSelection";
 import WarningIcon from "assets/warning.svg";
@@ -53,6 +54,7 @@ import { useTranslations } from "next-intl";
 import DataInput from "./DataInput";
 import Tooltip from "./Tooltip";
 import PublicationResemblances from "./PublicationResemblances";
+import WorkspaceNotesCell from "./WorkspaceNotesCell";
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 /**
@@ -82,23 +84,41 @@ const ExtendedColumn: typeof Column = (props) => {
 };
 
 /**
- * The sources cell at the end of a saved row, with the row's selected, invalid
- * and focused state, so it shares the row's background.
+ * Returns a cell of a saved row that renders `Cell` with the row's selected,
+ * invalid and focused state, so it shares the row's background.
  */
-const ExtendedTrailingColumn: FC<{ rowId: RowId }> = ({ rowId }) => {
-  const isSelected = useIsSelected(rowId);
-  const isValid = useIsPublicationValid(rowId);
-  const isFocused = useIsPublicationFocused(rowId);
+const withRowState = (
+  Cell: typeof WorkspaceSourcesCell | typeof WorkspaceNotesCell,
+): FC<{ rowId: RowId }> =>
+  function RowStateCell({ rowId }) {
+    const isSelected = useIsSelected(rowId);
+    const isValid = useIsPublicationValid(rowId);
+    const isFocused = useIsPublicationFocused(rowId);
 
-  return (
-    <WorkspaceSourcesCell
-      rowId={rowId}
-      invalid={!isValid}
-      focused={isFocused}
-      selected={isSelected}
-    />
-  );
-};
+    return (
+      <Cell
+        rowId={rowId}
+        invalid={!isValid}
+        focused={isFocused}
+        selected={isSelected}
+      />
+    );
+  };
+
+/**
+ * The cells at the end of a saved row: its notes, then its sources with the
+ * look-alike button, so that button ends the row.
+ */
+const TRAILING_COLUMNS: TrailingColumn[] = [
+  { name: "notes", Cell: withRowState(WorkspaceNotesCell) },
+  { name: "sources", Cell: withRowState(WorkspaceSourcesCell) },
+];
+
+/** The cells at the end of the draft row, which has no row state to show. */
+const DRAFT_TRAILING_COLUMNS: TrailingColumn[] = [
+  { name: "notes", Cell: WorkspaceNotesCell },
+  { name: "sources", Cell: WorkspaceSourcesCell },
+];
 
 /**
  * The leading cell of a saved row, which is its selection handle. It shows an
@@ -244,7 +264,7 @@ const NewPublicationRow: FC = () => {
       Column={Column}
       Content={SubmittableData}
       SignalColumn={NewPublicationSignalColumn}
-      TrailingColumn={WorkspaceSourcesCell}
+      TrailingColumns={DRAFT_TRAILING_COLUMNS}
       collapsible={false}
     />
   );
@@ -293,7 +313,7 @@ const PublicationWorkspace: FC = () => {
         ExtendedColumn={ExtendedColumn}
         ExtendedContent={ExtendedContent}
         ExtendedSignalColumn={ExtendedSignalColumn}
-        ExtendedTrailingColumn={ExtendedTrailingColumn}
+        ExtendedTrailingColumns={TRAILING_COLUMNS}
         ExtraRow={NewPublicationRow}
         onRowClick={toggleSelection}
         selectable={isSelectionEmpty}

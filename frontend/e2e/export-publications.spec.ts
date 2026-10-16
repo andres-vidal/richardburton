@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { seedCorpus, indexTable } from "./helpers";
+import { downloadCsv, seedCorpus, indexTable } from "./helpers";
 
 test("an admin exports the corpus as a CSV, sources included", async ({
   page,
@@ -9,17 +9,8 @@ test("an admin exports the corpus as a CSV, sources included", async ({
   // The button disables while the count is 0 — wait for the index to load.
   await expect(indexTable(page).getByText("Barren Lives")).toBeVisible();
 
-  // Clicking Download drives the admin-only CSV export endpoint *and* saves
-  // what comes back — the response alone does not prove a file was offered.
-  const [response, download] = await Promise.all([
-    page.waitForResponse(
-      (r) =>
-        r.url().includes("files/publications") &&
-        r.request().method() === "GET",
-    ),
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download .csv" }).click(),
-  ]);
+  // Download reads the admin-only CSV export, and offers the file it returns.
+  const { response, download } = await downloadCsv(page);
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toMatch(/csv/);
 
