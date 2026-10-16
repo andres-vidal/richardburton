@@ -18,8 +18,12 @@ defmodule RichardBurton.Repo do
   has no `:returning`, and sends no statement when `entries` is empty.
 
   When `schema_or_source` is a schema, each entry gets the values the schema
-  generates on insert, such as its timestamps, as `insert/2` gives them. Every
-  entry must have the same keys.
+  generates on insert, such as its timestamps, as `insert/2` gives them. The
+  entries may have different keys, and a column that an entry has no key for
+  gets the column's default.
+
+  Each statement holds as many entries as fit when every entry has as many
+  keys as the entry with the most keys.
   """
   def insert_in_chunks(schema_or_source, entries, opts \\ [])
 
@@ -28,8 +32,10 @@ defmodule RichardBurton.Repo do
   def insert_in_chunks(schema_or_source, entries, opts) do
     entries = with_generated(schema_or_source, entries)
 
+    widest = entries |> Enum.map(&map_size/1) |> Enum.max()
+
     entries
-    |> Enum.chunk_every(div(@max_parameters, map_size(hd(entries))))
+    |> Enum.chunk_every(div(@max_parameters, widest))
     |> Enum.flat_map(fn chunk ->
       {_count, returned} = insert_all(schema_or_source, chunk, opts)
       returned || []

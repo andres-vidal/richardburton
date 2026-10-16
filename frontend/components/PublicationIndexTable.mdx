@@ -53,8 +53,9 @@ seedIndex(store);
 
 The table accepts pieces that replace its own: `ExtendedRow`, `ExtendedColumn`
 and `ExtendedContent`, which default to the read-only row, cell and cell
-content. `ExtendedSignalColumn` and `ExtendedTrailingColumn` add a cell before
-and after the attributes of every row, and `ExtraRow` adds a row at the end.
+content. `ExtendedSignalColumn` adds a cell before the attributes of every row,
+`ExtendedTrailingColumns` add cells after them, each with a column named for
+screen readers, and `ExtraRow` adds a row at the end.
 [`PublicationWorkspace`](?path=/docs/publications-workspace--docs) builds the
 editable table from these.
 

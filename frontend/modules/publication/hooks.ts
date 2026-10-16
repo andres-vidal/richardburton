@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useCountryNaming } from "modules/country-names";
 import { Publication, PublicationId, PublicationKey, marking } from "./model";
-import type { Marking } from "./model";
+import type { ErrorScope, Marking } from "./model";
 import {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
@@ -17,6 +17,7 @@ import {
   invalidIdsAtom,
   isValidFamily,
   publicationSourcesFamily,
+  publicationNotesFamily,
   publicationExcerptsFamily,
   publicationCountAtom,
   publicationFamily,
@@ -119,6 +120,14 @@ function usePublicationSources(id: PublicationId) {
   return useAtomValue(publicationSourcesFamily(id));
 }
 
+/**
+ * A row's notes as a rich-text value, including unsaved edits, or null for
+ * none.
+ */
+function usePublicationNotes(id: PublicationId) {
+  return useAtomValue(publicationNotesFamily(id));
+}
+
 /** The saved sources only, without unsaved edits. */
 function useStoredPublicationSources(id: PublicationId) {
   return useAtomValue(storedSourcesFamily(id));
@@ -148,8 +157,11 @@ function usePublicationErrorDescription(id: PublicationId) {
   return useErrorSentence(useAtomValue(errorCodeFamily(id)));
 }
 
-/** Returns what is wrong with one field of a row, in words. */
-function usePublicationFieldError(id: PublicationId, key: PublicationKey) {
+/**
+ * Returns what is wrong with one field of a row, an attribute or the notes, in
+ * words.
+ */
+function usePublicationFieldError(id: PublicationId, key: ErrorScope) {
   return useErrorSentence(useAtomValue(fieldErrorCodeFamily({ id, key })));
 }
 
@@ -254,6 +266,7 @@ export {
   usePublicationIds,
   useAreRowIdsVisible,
   useBatchNames,
+  useErrorSentence,
   useHiddenAttributes,
   useIsAttributeVisible,
   useInvalidPublicationIds,
@@ -267,6 +280,7 @@ export {
   useMatchingCount,
   usePublicationIndexCount,
   usePublicationSources,
+  usePublicationNotes,
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationMarking,

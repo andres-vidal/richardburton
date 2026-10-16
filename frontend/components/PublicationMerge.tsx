@@ -1,14 +1,20 @@
 "use client";
 
-import { usePublicationMarking } from "modules/publication/hooks";
-import { Publication } from "modules/publication/model";
-import { useTranslations } from "next-intl";
-import { merge, search } from "modules/publication/remote";
+import { isEqual } from "lodash";
+import {
+  useErrorSentence,
+  usePublicationMarking,
+} from "modules/publication/hooks";
+import { NOTES_MAX_LENGTH, Publication } from "modules/publication/model";
+import { loadPublication, merge, search } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
-import { ChangeEventHandler, FC, useState } from "react";
+import { isBlank, isLongerThan, type RichTextValue } from "modules/rich-text";
+import { useTranslations } from "next-intl";
+import { ChangeEventHandler, FC, ReactNode, useMemo, useState } from "react";
 import useLookup from "utils/useLookup";
 import Button from "./Button";
 import Highlight from "./Highlight";
+import LazyRichTextArea from "./LazyRichTextArea";
 import { Modal } from "./Modal";
 import ModalHeading from "./ModalHeading";
 import { SEARCH_INPUT_CLASS_NAME } from "./PublicationSearch";
@@ -26,21 +32,32 @@ type Props = {
    * to searching the database.
    */
   find?: (term: string) => Promise<Publication[]>;
+  /**
+   * Reads the stored publication `id` in full, its notes included. Defaults to
+   * reading it from the database.
+   */
+  read?: (id: number) => Promise<Publication>;
 };
 
-// Everything but the two the heading already carries.
+/**
+ * A record picked to merge in: `publication`, the record as the search found
+ * it, and `read`, the record read in full, `reading` while it is being read, or
+ * `failed` when reading it failed.
+ */
+type Picked = {
+  publication: Publication;
+  read: Publication | "reading" | "failed";
+};
+
+// Every attribute but the title and the year, which `Summary` shows first.
 const DETAILED = Publication.ATTRIBUTES.filter(
   (key) => key !== "title" && key !== "year",
 );
 
 /**
- * One publication in full.
- *
- * A merge is irreversible in the reader's mind long before it is in the
- * database — the question it asks is whether two records are the same book, and
- * that is decided on the details that near-identical records differ in. So
- * nothing here is summarised away or truncated: every field the record holds,
- * and every source, is on the page while the choice is being made.
+ * One publication in full: its title and year, every other attribute it
+ * holds, and its sources. Nothing is cut short, since records that look alike
+ * are told apart by the details they differ in.
  */
 const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
   const t = useTranslations("attributes");
@@ -111,18 +128,21 @@ const Gained: FC<{ label: string; kept: string[]; gained: string[] }> = ({
 );
 
 /**
- * What the merge produces, before it is asked for: the survivor's countries,
- * publishers and sources with everything the others bring marked as gained.
- * A merge that adds nothing says so — picking a record that holds nothing new
- * still removes it, and that should not look like an accident.
+ * The Result section: the countries, publishers and sources of `result`, the
+ * merged record, with everything that `winner`, the survivor, did not hold
+ * marked as gained, followed by `children`. When `notesGained` is false and
+ * nothing else is gained, it says that the others bring nothing new and that
+ * merging still removes them. `notesGained` is null while it is not known yet,
+ * and the section then says nothing about it.
  */
-const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
-  winner,
-  losers,
-}) => {
+const Preview: FC<{
+  winner: Publication;
+  result: Publication;
+  notesGained: boolean | null;
+  children?: ReactNode;
+}> = ({ winner, result, notesGained, children }) => {
   const attribute = useTranslations("attributes");
   const t = useTranslations("merge");
-  const result = Publication.merged(winner, losers);
 
   const rows = [
     {
@@ -150,11 +170,13 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
           <Gained key={row.label} {...row} />
         ))}
       </div>
-      {rows.every((row) => row.gained.length === 0) && (
-        <p className="text-xs text-gray-500">
-          {t("nothingNew", { title: winner.title })}
-        </p>
-      )}
+      {notesGained === false &&
+        rows.every((row) => row.gained.length === 0) && (
+          <p className="text-xs text-gray-500">
+            {t("nothingNew", { title: winner.title })}
+          </p>
+        )}
+      {children}
     </section>
   );
 };
@@ -164,10 +186,29 @@ const Preview: FC<{ winner: Publication; losers: Publication[] }> = ({
  * record becomes, and confirm.
  *
  * The search runs through `useLookup`, so it waits for typing to pause and
- * only the newest search fills the list. A merge is not undoable, so the
- * dialog shows the outcome rather than describing it: everything the survivor
- * gains is marked before the question is asked. Closing the dialog clears the
- * search and the picks.
+ * only the newest search fills the list. The search finds records without
+ * their notes, so each record picked is read in full with `read`. While a
+ * picked record is being read, or when reading it failed, Merge is disabled,
+ * and a record that could not be read says so.
+ *
+ * The Result shows what the survivor gains before the merge is asked for.
+ * When the survivor or a picked record has notes, the Result also has a Notes
+ * field, prefilled with the proposed notes: the survivor's notes, then each
+ * picked record's notes in the order they were picked, without notes that are
+ * blank or that equal earlier ones (see `Publication.merged`). The field is
+ * shown once every picked record is read. The notes in the field are the
+ * notes the merge sends, and the merged record keeps them. When the field is
+ * not shown, the merge sends no notes.
+ *
+ * Until the notes are edited, picking or removing a record proposes the notes
+ * again. Once they are edited, the field keeps the edited notes, whatever is
+ * picked or removed, until the dialog closes. The field then stays shown even
+ * when no record left has notes, since the edited notes are what the merge
+ * sends.
+ *
+ * Notes longer than `NOTES_MAX_LENGTH` characters, and notes the server
+ * refuses, have their error under the field, and Merge is disabled until they
+ * are edited. Closing the dialog clears the search, the picks and the notes.
  */
 const PublicationMerge: FC<Props> = ({
   publication,
@@ -175,13 +216,22 @@ const PublicationMerge: FC<Props> = ({
   onClose,
   onMerged,
   find: findPublications = search,
+  read: readPublication = loadPublication,
 }) => {
   const t = useTranslations("merge");
+  const attribute = useTranslations("attributes");
+  const note = useTranslations("notes");
   const store = usePublicationStore();
 
   const [term, setTerm] = useState("");
   const [candidates, setCandidates] = useState<Publication[]>([]);
-  const [chosen, setChosen] = useState<Publication[]>([]);
+  // The records picked to merge in, in the order they were picked.
+  const [picks, setPicks] = useState<Picked[]>([]);
+  // The notes as they were edited, or undefined until they are edited.
+  const [edited, setEdited] = useState<RichTextValue | null | undefined>();
+  // The code of the server's refusal of the notes, or an empty string when it
+  // has not refused them since they were last edited.
+  const [refusal, setRefusal] = useState("");
   const [merging, setMerging] = useState(false);
   const {
     lookup,
@@ -203,14 +253,69 @@ const PublicationMerge: FC<Props> = ({
   const offered = candidates.filter(
     (candidate) =>
       candidate.id !== publication.id &&
-      !chosen.some((picked) => picked.id === candidate.id),
+      !picks.some((picked) => picked.publication.id === candidate.id),
   );
+
+  const allRead = picks.every(({ read }) => typeof read !== "string");
+  // The survivor with the picked records merged in, each as it was read in
+  // full, or as the search found it while it is not read.
+  const result = useMemo(
+    () =>
+      Publication.merged(
+        publication,
+        picks.map(({ publication: found, read }) =>
+          typeof read === "string" ? found : read,
+        ),
+      ),
+    [publication, picks],
+  );
+
+  const proposal = result.notes ?? null;
+  const notes =
+    edited !== undefined ? edited : isBlank(proposal) ? null : proposal;
+  const showsNotes = allRead && (!isBlank(proposal) || edited !== undefined);
+  const notesGained = allRead
+    ? !isEqual(proposal, publication.notes ?? null)
+    : null;
+  const notesCode =
+    showsNotes && isLongerThan(notes, NOTES_MAX_LENGTH) ? "too_long" : refusal;
+  const notesError = useErrorSentence(notesCode);
+
+  // Picks `candidate`, and reads it in full, so its notes are known.
+  async function pick(candidate: Publication) {
+    const id = candidate.id!;
+
+    setPicks((before) => [
+      ...before,
+      { publication: candidate, read: "reading" },
+    ]);
+
+    const read = await readPublication(id).catch(() => "failed" as const);
+    setPicks((before) =>
+      before.map((picked) =>
+        picked.publication.id === id ? { ...picked, read } : picked,
+      ),
+    );
+  }
+
+  function unpick(picked: Publication) {
+    setPicks((before) =>
+      before.filter((other) => other.publication.id !== picked.id),
+    );
+  }
+
+  function handleNotes(value: RichTextValue | null) {
+    setEdited(value);
+    setRefusal("");
+  }
 
   function reset() {
     cancel();
     setTerm("");
     setCandidates([]);
-    setChosen([]);
+    setPicks([]);
+    setEdited(undefined);
+    setRefusal("");
   }
 
   function handleClose() {
@@ -220,12 +325,18 @@ const PublicationMerge: FC<Props> = ({
 
   async function handleMerge() {
     setMerging(true);
-    const merged = await merge(store, { winner: publication, losers: chosen });
+    const answer = await merge(store, {
+      winner: publication,
+      losers: picks.map((picked) => picked.publication),
+      ...(showsNotes ? { notes } : {}),
+    });
     setMerging(false);
 
-    if (merged) {
+    if (answer.outcome === "merged") {
       reset();
       onMerged();
+    } else if (answer.outcome === "refused") {
+      setRefusal(answer.notes);
     }
   }
 
@@ -276,38 +387,58 @@ const PublicationMerge: FC<Props> = ({
                   variant="outline-primary"
                   width="fit"
                   size="small"
-                  onClick={() => setChosen([...chosen, candidate])}
+                  onClick={() => pick(candidate)}
                 />
               </li>
             ))}
           </ul>
 
-          {chosen.length > 0 && (
+          {picks.length > 0 && (
             <>
               <section className="space-y-2">
                 <SectionHeading>{t("mergingIn")}</SectionHeading>
                 <ul className="space-y-1">
-                  {chosen.map((picked) => (
+                  {picks.map(({ publication: picked, read }) => (
                     <li
                       key={picked.id}
                       className="flex gap-3 justify-between items-start py-1.5 px-3 rounded border border-indigo-200 bg-indigo-50"
                     >
-                      <Summary publication={picked} />
+                      <div className="min-w-0">
+                        <Summary publication={picked} />
+                        {read === "failed" && (
+                          <p role="alert" className="mt-1 text-xs text-red-600">
+                            {t("readFailed")}
+                          </p>
+                        )}
+                      </div>
                       <Button
                         label={t("remove")}
                         variant="outline"
                         width="fit"
                         size="small"
-                        onClick={() =>
-                          setChosen(chosen.filter((p) => p.id !== picked.id))
-                        }
+                        onClick={() => unpick(picked)}
                       />
                     </li>
                   ))}
                 </ul>
               </section>
 
-              <Preview winner={publication} losers={chosen} />
+              <Preview
+                winner={publication}
+                result={result}
+                notesGained={notesGained}
+              >
+                {showsNotes && (
+                  <LazyRichTextArea
+                    label={attribute("notes")}
+                    hint={t("notesHint")}
+                    placeholder={note("placeholder")}
+                    value={notes}
+                    error={notesError}
+                    onChange={handleNotes}
+                  />
+                )}
+              </Preview>
             </>
           )}
         </div>
@@ -321,12 +452,12 @@ const PublicationMerge: FC<Props> = ({
             onClick={handleClose}
           />
           <Button
-            label={t("confirm", { count: chosen.length })}
+            label={t("confirm", { count: picks.length })}
             variant="danger"
             width="fit"
             size="medium"
             loading={merging}
-            disabled={chosen.length === 0}
+            disabled={picks.length === 0 || !allRead || notesCode !== ""}
             onClick={handleMerge}
           />
         </div>

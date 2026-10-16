@@ -5,6 +5,7 @@ import { notify } from "components/Notifications";
 import { RESET } from "jotai/utils";
 import { attempt } from "modules/attempt";
 import { ApiError } from "modules/http";
+import type { RichTextValue } from "modules/rich-text";
 import type { Store } from "modules/store";
 
 import type {
@@ -83,6 +84,17 @@ async function loadDetails(
     }),
   );
   return data.entries;
+}
+
+/**
+ * Returns the stored publication `id` in full, its notes included. A failure
+ * is thrown and not notified.
+ */
+async function loadPublication(id: number): Promise<Publication> {
+  const { data } = await request((http) =>
+    http.get<Publication>(`publications/${id}`),
+  );
+  return data;
 }
 
 /**
@@ -286,33 +298,66 @@ async function search(term: string): Promise<Publication[]> {
 }
 
 /**
- * Merges `losers` into `winner`, removes the losers from the store, and
- * returns whether the merge succeeded. The winner keeps its identity and gains
- * what the losers hold, and the losers are recorded as merged. The server
- * refuses the merge with a conflict when the merged record would be one that
- * already exists.
+ * What a merge came to. `refused` means the server refused the notes sent for
+ * the merged record, and `notes` is the code of what is wrong with them, such
+ * as `too_long`. Nothing was merged then.
  */
-function merge(
+type Merging =
+  | { outcome: "merged" }
+  | { outcome: "refused"; notes: string }
+  | { outcome: "failed" };
+
+/**
+ * Returns the code of what is wrong with the notes when `error` is the
+ * server's refusal of them, and undefined otherwise.
+ */
+function notesRefusal(error: unknown): string | undefined {
+  const code = error instanceof ApiError ? error.errors?.notes : undefined;
+
+  return typeof code === "string" ? code : undefined;
+}
+
+/**
+ * Merges `losers` into `winner`, removes the losers from the store, and
+ * returns what the merge came to. The winner keeps its identity and gains what
+ * the losers hold, and the losers are recorded as merged.
+ *
+ * When `notes` is given, the merged record's notes become `notes`, and null
+ * clears them. Without `notes`, the server adds the losers' notes to the
+ * winner's.
+ *
+ * The server refuses the merge with a conflict when the merged record would be
+ * one that already exists, and refuses `notes` that are too long or that it
+ * cannot read. A success and a failure are notified. A refusal of the notes is
+ * not, and the result is `refused` with the code the server gave.
+ */
+async function merge(
   store: Store,
-  { winner, losers }: { winner: Publication; losers: Publication[] },
-): Promise<boolean> {
+  {
+    winner,
+    losers,
+    notes,
+  }: {
+    winner: Publication;
+    losers: Publication[];
+    notes?: RichTextValue | null;
+  },
+): Promise<Merging> {
   const ids = losers.map((loser) => loser.id!);
 
-  return attempt(
-    async () => {
-      await request((http) =>
-        http.post(`publications/${winner.id}/merge`, { losers: ids }),
-      );
+  try {
+    await request((http) =>
+      http.post(
+        `publications/${winner.id}/merge`,
+        notes === undefined ? { losers: ids } : { losers: ids, notes },
+      ),
+    );
+  } catch (error) {
+    const refusal = notesRefusal(error);
 
-      ids.forEach((id) => removePublication(store, id));
-      notify({
-        message: "notify.merged",
-        detail: "notify.mergedDetail",
-        values: { count: ids.length, title: winner.title },
-        level: "success",
-      });
-    },
-    (error) => ({
+    if (refusal !== undefined) return { outcome: "refused", notes: refusal };
+
+    notify({
       message: isConflict(error)
         ? "notify.mergeOutpaced"
         : "notify.mergeFailed",
@@ -320,8 +365,18 @@ function merge(
         ? "notify.mergeOutpacedDetail"
         : "notify.nothingChanged",
       level: "warning",
-    }),
-  );
+    });
+    return { outcome: "failed" };
+  }
+
+  ids.forEach((id) => removePublication(store, id));
+  notify({
+    message: "notify.merged",
+    detail: "notify.mergedDetail",
+    values: { count: ids.length, title: winner.title },
+    level: "success",
+  });
+  return { outcome: "merged" };
 }
 
 /**
@@ -528,6 +583,7 @@ export {
   deletePublication,
   distinguish,
   loadDetails,
+  loadPublication,
   merge,
   reconsider,
   resemblances,

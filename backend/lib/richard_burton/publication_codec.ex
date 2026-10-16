@@ -5,8 +5,9 @@ defmodule RichardBurton.Publication.Codec do
 
   The **flat** shape is the one `RichardBurton.FlatPublication` has: `title`,
   `year`, `countries`, `publishers`, `authors`, `original_title`,
-  `original_authors` and `sources`, side by side, with each list field holding
-  names, codes or source texts.
+  `original_authors`, `sources` and `notes`, side by side. Each list of
+  countries, publishers, authors or sources holds names, codes or source
+  texts, and the notes are rich text (see `RichardBurton.RichText`).
 
   The **nested** shape is the one `RichardBurton.Publication.changeset/2`
   casts. Its list fields hold child maps, such as `%{"name" => name}`, and the
@@ -16,6 +17,7 @@ defmodule RichardBurton.Publication.Codec do
       %{
         "title" => title,
         "year" => year,
+        "notes" => blocks,
         "countries" => [%{"code" => code}],
         "publishers" => [%{"name" => name}],
         "sources" => [%{"content" => text, "position" => 0}],
@@ -31,6 +33,7 @@ defmodule RichardBurton.Publication.Codec do
   alias RichardBurton.Util
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
+  alias RichardBurton.RichText
   alias RichardBurton.Source
   alias RichardBurton.FlatPublication
 
@@ -43,7 +46,8 @@ defmodule RichardBurton.Publication.Codec do
     "publishers" => "",
     "authors" => "",
     "original_title" => "",
-    "original_authors" => ""
+    "original_authors" => "",
+    "notes" => nil
   }
 
   # The columns a file may carry, by the name its header gives them. Singular
@@ -59,7 +63,9 @@ defmodule RichardBurton.Publication.Codec do
     "translators" => "authors",
     "original_title" => "original_title",
     "original_authors" => "original_authors",
-    "sources" => "sources"
+    "sources" => "sources",
+    "note" => "notes",
+    "notes" => "notes"
   }
 
   # The order an exported file writes its columns in.
@@ -71,7 +77,8 @@ defmodule RichardBurton.Publication.Codec do
     "authors",
     "original_title",
     "original_authors",
-    "sources"
+    "sources",
+    "notes"
   ]
 
   # The cells holding several values, and what separates them. A semicolon,
@@ -94,6 +101,12 @@ defmodule RichardBurton.Publication.Codec do
   The header decides which column is which, so they may be written in any order
   and a column the file does not carry reads as empty. A name the table does not
   know is ignored, which is what lets a spreadsheet keep a column of its own.
+
+  A `notes` cell holds plain text, which may run over several lines inside
+  quotes, and reads as the rich text `RichardBurton.RichText.from_plain_text/1`
+  returns for it: a paragraph for each part of the text between blank lines,
+  with a link for each web address or email address in it. A blank or
+  missing `notes` cell reads as nil.
   """
   def from_csv(path) do
     try do
@@ -104,6 +117,7 @@ defmodule RichardBurton.Publication.Codec do
         |> Enum.map(&rename_columns/1)
         |> Enum.map(&Util.deep_merge_maps(@empty_flat_attrs, &1))
         |> Enum.map(&parse_list_cells/1)
+        |> Enum.map(&parse_notes/1)
 
       {:ok, publications}
     rescue
@@ -120,15 +134,29 @@ defmodule RichardBurton.Publication.Codec do
 
   @doc """
   Writes publications as a CSV with a header, in the shape `from_csv/1` reads.
+
+  The columns come in this order: `title`, `year`, `countries`, `publishers`,
+  `authors`, `original_title`, `original_authors`, `sources` and `notes`.
+  The file has a column for each of them that the first publication holds, so
+  every publication must hold the same fields. The notes are written as the
+  plain text `RichardBurton.RichText.to_plain_text/1` returns for them.
   """
   def to_csv(flat_publications) do
-    flat_publications
-    |> Enum.map(&Util.stringify_keys/1)
-    |> Enum.map(&join_list_cells/1)
-    |> Enum.map(&Map.take(&1, @csv_headers))
-    |> CSV.encode(delimiter: "\n", headers: true)
+    rows =
+      flat_publications
+      |> Enum.map(&Util.stringify_keys/1)
+      |> Enum.map(&join_list_cells/1)
+      |> Enum.map(&write_notes/1)
+
+    rows
+    |> CSV.encode(delimiter: "\n", headers: columns(rows))
     |> Enum.to_list()
   end
+
+  # Returns the fields of `@csv_headers` that the first of `rows` holds, in
+  # the order `@csv_headers` lists them.
+  defp columns([]), do: []
+  defp columns([row | _]), do: Enum.filter(@csv_headers, &Map.has_key?(row, &1))
 
   # Returns a row with its columns renamed to the flat fields `@csv_columns`
   # maps them to, and its values trimmed, leaving out the columns it does not
@@ -169,6 +197,10 @@ defmodule RichardBurton.Publication.Codec do
 
   defp split_cell(_absent, _separator), do: []
 
+  # Returns a row with its `notes` cell read as rich text, which is nil for a
+  # blank or missing cell.
+  defp parse_notes(row), do: Map.update!(row, "notes", &RichText.from_plain_text/1)
+
   # Joins each list of the fields in `@csv_lists` into one cell. A field the
   # row does not hold is left out rather than written empty, because an
   # export of some columns leaves the others out.
@@ -180,6 +212,13 @@ defmodule RichardBurton.Publication.Codec do
       end
     end)
   end
+
+  # Returns a row with its notes written as plain text. A row without a
+  # `notes` field is returned unchanged.
+  defp write_notes(row = %{"notes" => notes}),
+    do: %{row | "notes" => RichText.to_plain_text(notes)}
+
+  defp write_notes(row), do: row
 
   @doc ~S"""
   Nests a flat publication into the nested shape. Takes a `FlatPublication`

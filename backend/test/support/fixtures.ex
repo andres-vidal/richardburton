@@ -1,6 +1,7 @@
 defmodule RichardBurton.Fixtures do
   @moduledoc """
-  Records a test needs to exist but is not the subject of it.
+  Records a test needs to exist but is not the subject of it, and builders of
+  the nodes of rich text, as `RichardBurton.RichText` describes them.
   """
 
   alias RichardBurton.Author
@@ -55,6 +56,42 @@ defmodule RichardBurton.Fixtures do
     |> Ecto.Changeset.put_assoc(:authors, Enum.map(translators, &author_fixture/1))
     |> Repo.insert!()
   end
+
+  @doc """
+  Returns rich text with a paragraph for each of `texts`, a string or a list
+  of them. Each paragraph holds one run of text without marks.
+  """
+  def paragraphs(texts), do: texts |> List.wrap() |> Enum.map(&paragraph/1)
+
+  @doc """
+  Returns a run of rich text that holds `text`, with the marks in `marks`,
+  such as `%{"bold" => true}`.
+  """
+  def run(text, marks \\ %{}), do: Map.merge(%{"text" => text}, marks)
+
+  @doc """
+  Returns a paragraph that holds `inlines`, or one run of `text` without marks
+  when given a string.
+  """
+  def paragraph(text) when is_binary(text), do: paragraph([run(text)])
+  def paragraph(inlines), do: %{"type" => "paragraph", "children" => inlines}
+
+  @doc """
+  Returns a list item of `kind`, `"bulleted"` or `"numbered"`, at `depth`,
+  that holds `inlines`, or one run of `text` without marks when given a
+  string.
+  """
+  def item(kind, depth, text) when is_binary(text), do: item(kind, depth, [run(text)])
+
+  def item(kind, depth, inlines),
+    do: %{"type" => "list-item", "list" => kind, "depth" => depth, "children" => inlines}
+
+  @doc """
+  Returns a link to `url` that holds `runs`, or one run of `text` without
+  marks when given a string.
+  """
+  def link(url, text) when is_binary(text), do: link(url, [run(text)])
+  def link(url, runs), do: %{"type" => "link", "url" => url, "children" => runs}
 
   @doc """
   Returns a flat publication with atom keys: Dom Casmurro in Helen Caldwell's

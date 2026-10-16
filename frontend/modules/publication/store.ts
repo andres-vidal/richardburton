@@ -3,12 +3,14 @@ import { Atom, atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { RESET, atomWithReset } from "jotai/utils";
 import { isEqual } from "lodash";
+import type { RichTextValue } from "modules/rich-text";
 import type { Store } from "modules/store";
 import * as Y from "yjs";
 import * as Doc from "./doc";
 import {
   ATTRIBUTES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
+  ErrorScope,
   Matched,
   Publication,
   PublicationEntry,
@@ -599,6 +601,16 @@ const publicationSourcesFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
+ * A row's notes as a rich-text value, including unsaved edits, or null when it
+ * has none or its record was read from a page of the index.
+ */
+const publicationNotesFamily = atomFamily((id: PublicationId) =>
+  atom<RichTextValue | null>(
+    (get) => get(publicationFamily(id))?.notes ?? null,
+  ),
+);
+
+/**
  * The matching text of each of a publication's fields, with the matched words
  * wrapped in `[[ ]]`. It is undefined outside a search, and null for any field
  * the search did not match.
@@ -664,12 +676,13 @@ const errorCodeFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * Which cell an atom belongs to: the publication, and the attribute of it.
+ * Which cell an atom belongs to: the publication, and the field of it, an
+ * attribute or the notes.
  */
-type FieldKey = { id: PublicationId; key: PublicationKey };
+type FieldKey = { id: PublicationId; key: ErrorScope };
 
-/** A cell written as one string, `<id>:<attribute>`. */
-type CellKey = `${PublicationId}:${PublicationKey}`;
+/** A cell written as one string, `<id>:<field>`. */
+type CellKey = `${PublicationId}:${ErrorScope}`;
 
 /** Returns the string a cell is cached under. */
 const cellKey = ({ id, key }: FieldKey): CellKey => `${id}:${key}`;
@@ -680,7 +693,7 @@ const fieldKey = (cell: CellKey): FieldKey => {
 
   return {
     id: idFromText(cell.slice(0, separator)),
-    key: cell.slice(separator + 1) as PublicationKey,
+    key: cell.slice(separator + 1) as ErrorScope,
   };
 };
 
@@ -717,7 +730,10 @@ const fieldValueFamily = cellFamily(({ id, key }) =>
   atom((get) => get(publicationFamily(id))?.[key]),
 );
 
-/** The code of what is wrong with a single cell's field (see `errorCode`). */
+/**
+ * The code of what is wrong with a single cell's field, an attribute or the
+ * notes (see `errorCode`).
+ */
 const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
   atom((get) => errorCode(get(rowErrorFamily(id)), key)),
 );
@@ -739,6 +755,7 @@ const PUBLICATION_FAMILIES = [
   rowContentKeyFamily,
   isCheckedFamily,
   publicationSourcesFamily,
+  publicationNotesFamily,
   publicationExcerptsFamily,
   storedSourcesFamily,
   isValidFamily,
@@ -817,32 +834,37 @@ function step<T>(store: Store, change: (doc: Y.Doc) => T): T {
 }
 
 /** The fields a person can edit. `isEdited` compares only these. */
-const EDITED_FIELDS = [...ATTRIBUTES, "sources"] as const;
+const EDITED_FIELDS = [...ATTRIBUTES, "sources", "notes"] as const;
 
 /**
- * Returns a publication's editable fields as JSON in a fixed order, so that two
- * copies can be compared as strings.
+ * Returns the values of a publication's editable fields, in the order of
+ * `EDITED_FIELDS`. A field the publication does not hold, such as the notes of
+ * a record read from a page of the index, is null.
  */
-function contentOf(publication: Publication): string {
+function editedValues(publication: Publication): unknown[] {
   const complete = { ...empty(), ...publication };
 
-  return JSON.stringify(EDITED_FIELDS.map((field) => complete[field]));
+  return EDITED_FIELDS.map((field) => complete[field] ?? null);
 }
 
 /**
  * Returns the key a validation result is stored with: the digest of the
- * publication's editable fields. Two copies with the same content have the
- * same key, whichever other fields they carry. A row's current key is cached
- * in `rowContentKeyFamily`.
+ * publication's editable fields, written as JSON (see `editedValues`). Two
+ * copies with the same content have the same key, whichever other fields they
+ * carry. A row's current key is cached in `rowContentKeyFamily`.
  */
 function contentKey(publication: Publication): string {
-  return digest(contentOf(publication));
+  return digest(JSON.stringify(editedValues(publication)));
 }
 
 /**
  * Returns whether a row has an edit the database does not have yet, meaning
  * its document copy differs from its saved copy in one of `EDITED_FIELDS`.
  * A row with no saved copy is never counted as edited.
+ *
+ * The fields are compared with lodash's `isEqual`, so notes whose objects list
+ * their keys in another order, as JSON from the API may, are the same notes. A
+ * field one copy does not hold equals a null in the other.
  */
 function isEdited(store: Store, id: PublicationId): boolean {
   const saved = store.get(savedFamily(id));
@@ -851,7 +873,7 @@ function isEdited(store: Store, id: PublicationId): boolean {
   return (
     saved !== undefined &&
     row !== undefined &&
-    contentOf(row) !== contentOf(saved)
+    !isEqual(editedValues(row), editedValues(saved))
   );
 }
 
@@ -1073,6 +1095,15 @@ function setField<K extends PublicationKey>(
  */
 function setSources(store: Store, id: PublicationId, sources: string[]): void {
   writeRow(store, id, { sources });
+}
+
+/** Edits a row's notes: a rich-text value, or null for none. */
+function setNotes(
+  store: Store,
+  id: PublicationId,
+  notes: RichTextValue | null,
+): void {
+  writeRow(store, id, { notes });
 }
 
 /**
@@ -1343,6 +1374,7 @@ export {
   publicationCountAtom,
   publicationIdsAtom,
   publicationSourcesFamily,
+  publicationNotesFamily,
   receiveIndex,
   moveOut,
   remove,
@@ -1363,6 +1395,7 @@ export {
   savedFamily,
   setAll,
   setAttributesVisible,
+  setNotes,
   setErrors,
   setField,
   setFocusedRowId,

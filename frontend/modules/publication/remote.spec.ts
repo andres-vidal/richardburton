@@ -3,12 +3,14 @@ import { notify } from "components/Notifications";
 import { ApiError } from "modules/http";
 import type { Store } from "modules/store";
 import { httpError, networkError, stubHttp } from "test/http";
+import { paragraph } from "test/rich-text-fixtures";
 
 import type { Publication, PublicationId } from "./model";
 import { empty } from "./model";
 import {
   bulk,
   deletePublication,
+  loadPublication,
   merge,
   resemblances,
   restore,
@@ -334,9 +336,9 @@ describe("merge", () => {
     hydrate(store, [winner, ...losers]);
     http.post.mockResolvedValue({});
 
-    const ok = await merge(store, { winner, losers });
+    const merging = await merge(store, { winner, losers });
 
-    expect(ok).toBe(true);
+    expect(merging).toEqual({ outcome: "merged" });
     expect(http.post).toHaveBeenCalledWith("publications/1/merge", {
       losers: [2, 3],
     });
@@ -346,18 +348,69 @@ describe("merge", () => {
     );
   });
 
+  test("sends the notes the merged record keeps, null included", async () => {
+    http.post.mockResolvedValue({});
+    const notes = [paragraph("Kept.")];
+
+    await merge(store, { winner, losers, notes });
+    await merge(store, { winner, losers, notes: null });
+
+    expect(http.post).toHaveBeenNthCalledWith(1, "publications/1/merge", {
+      losers: [2, 3],
+      notes,
+    });
+    expect(http.post).toHaveBeenNthCalledWith(2, "publications/1/merge", {
+      losers: [2, 3],
+      notes: null,
+    });
+  });
+
+  test("a refusal of the notes answers with its code and notifies nothing", async () => {
+    hydrate(store, [winner, ...losers]);
+    http.post.mockRejectedValue(
+      httpError(400, { errors: { notes: "too_long" } }),
+    );
+
+    const merging = await merge(store, {
+      winner,
+      losers,
+      notes: [paragraph("Far too long…")],
+    });
+
+    expect(merging).toEqual({ outcome: "refused", notes: "too_long" });
+    expect(store.get(publicationIdsAtom)).toEqual([1, 2, 3]);
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
   test("a 409 explains the merged record would already exist", async () => {
     http.post.mockRejectedValue(httpError(409, { error: "conflict" }));
 
-    const ok = await merge(store, { winner, losers });
+    const merging = await merge(store, { winner, losers });
 
-    expect(ok).toBe(false);
+    expect(merging).toEqual({ outcome: "failed" });
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({
         level: "warning",
         detail: "notify.mergeOutpacedDetail",
       }),
     );
+  });
+});
+
+describe("loadPublication", () => {
+  test("reads the stored publication by its id", async () => {
+    const stored = { ...pub({ title: "Iracema", notes: null }), id: 4 };
+    http.get.mockResolvedValue({ data: stored });
+
+    expect(await loadPublication(4)).toBe(stored);
+    expect(http.get).toHaveBeenCalledWith("publications/4");
+  });
+
+  test("throws a failure without notifying it", async () => {
+    http.get.mockRejectedValue(httpError(404, { error: "not_found" }));
+
+    await expect(loadPublication(4)).rejects.toMatchObject({ status: 404 });
+    expect(mockNotify).not.toHaveBeenCalled();
   });
 });
 

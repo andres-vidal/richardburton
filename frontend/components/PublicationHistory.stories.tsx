@@ -3,6 +3,7 @@ import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { expect, screen } from "storybook/test";
 import { expectToFit, LONG_EMAIL } from "test/layout";
+import { link, paragraph } from "test/rich-text-fixtures";
 
 import PublicationHistory from "./PublicationHistory";
 
@@ -16,6 +17,11 @@ const SNAPSHOT: PublicationHistoryEntry["snapshot"] = {
   publishers: ["Noonday Press"],
   sources: [],
 };
+
+// The notes a curator first wrote on the record, and the notes of the
+// duplicate merged into it, which the merge appends.
+const FIRST = [paragraph("A ", { text: "first", bold: true }, " translation.")];
+const DUPLICATE = [paragraph("From the duplicate.")];
 
 // A full lifecycle — imported, retitled (with a source added), the source
 // replaced by a better one, deleted by mistake, brought back — listed the way
@@ -308,6 +314,89 @@ export const Decisions: Story = {
     await expect(reopened).toHaveTextContent(
       "Back in the duplicate review withDom Casmuro (1954)",
     );
+  },
+};
+
+/**
+ * Updates to the notes: the notes before and after each change, formatted,
+ * with "(none)" where there were none. A merge lists the
+ * notes of the record it took in. The play test checks the formatting
+ * survives into the log.
+ */
+export const Notes: Story = {
+  args: {
+    entries: withChanges([
+      {
+        version: 4,
+        undoable: true,
+        action: "merged",
+        actor: "curator@rb.test",
+        timestamp: "2026-10-14T12:00:00",
+        snapshot: SNAPSHOT,
+        diff: {
+          fields: {
+            notes: { from: FIRST, to: [...FIRST, ...DUPLICATE] },
+          },
+          sources: null,
+        },
+        others: [
+          {
+            id: 7,
+            ...SNAPSHOT,
+            title: "Dom Casmuro",
+            notes: DUPLICATE,
+          },
+        ],
+      },
+      {
+        version: 3,
+        undoable: false,
+        action: "updated",
+        actor: "curator@rb.test",
+        timestamp: "2026-10-13T12:00:00",
+        snapshot: SNAPSHOT,
+        diff: {
+          fields: { notes: { from: null, to: FIRST } },
+          sources: null,
+        },
+      },
+      {
+        version: 2,
+        undoable: false,
+        action: "updated",
+        actor: "curator@rb.test",
+        timestamp: "2026-10-12T12:00:00",
+        snapshot: SNAPSHOT,
+        diff: {
+          fields: {
+            notes: {
+              from: [
+                paragraph(
+                  "See ",
+                  link("https://archive.org/details/x", "the scan"),
+                  ".",
+                ),
+              ],
+              to: null,
+            },
+          },
+          sources: null,
+        },
+      },
+    ]),
+  },
+  play: async ({ canvasElement }) => {
+    const [merged, added, removed] = [
+      ...canvasElement.querySelectorAll("li[data-action]"),
+    ] as HTMLElement[];
+
+    await expect(added).toHaveTextContent("Notes:−(none)+A first translation.");
+    await expect(added.querySelector("ins strong")).toHaveTextContent("first");
+    await expect(removed.querySelector("del a")).toHaveAttribute(
+      "href",
+      "https://archive.org/details/x",
+    );
+    await expect(merged).toHaveTextContent("Notes:From the duplicate.");
   },
 };
 

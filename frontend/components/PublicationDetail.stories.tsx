@@ -4,8 +4,9 @@ import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { resetAll } from "modules/publication/store";
 import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
+import { item, link, paragraph } from "test/rich-text-fixtures";
 import { asAdmin } from "test/session";
-import { expect, screen, userEvent, waitFor } from "storybook/test";
+import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 import { expectToFit, LONG_URL } from "test/layout";
 
 import PublicationDetail from "./PublicationDetail";
@@ -80,6 +81,54 @@ export const Default: Story = {
 };
 
 /**
+ * A record with notes shows them under the sentence, formatted, with each
+ * link opening in a new tab.
+ */
+export const WithNotes: Story = {
+  args: {
+    publication: {
+      ...DOM_CASMURRO,
+      notes: [
+        paragraph(
+          "The first English translation. ",
+          { text: "Out of print", bold: true },
+          " since 1966.",
+        ),
+        item("bulleted", 0, "Reviewed in ", {
+          text: "The Nation",
+          italic: true,
+        }),
+        item(
+          "bulleted",
+          0,
+          "Scanned at ",
+          link(
+            "https://archive.org/details/domcasmurro",
+            "the Internet Archive",
+          ),
+          "",
+        ),
+      ],
+    },
+  },
+  play: async () => {
+    await expect(screen.getByText("Notes")).toBeVisible();
+    await expect(screen.getByText("Out of print").tagName).toBe("STRONG");
+    await expect(
+      screen.getByRole("link", { name: "the Internet Archive" }),
+    ).toHaveAttribute("target", "_blank");
+  },
+};
+
+/** A record without notes has no notes section. */
+export const WithoutNotes: Story = {
+  args: { publication: { ...DOM_CASMURRO, notes: null } },
+  play: async () => {
+    await expect(screen.queryByText("Notes")).toBeNull();
+  },
+};
+
+/**
  * A record nobody has sourced yet says so: for a database whose worth is its
  * provenance, an absent source is worth stating.
  */
@@ -116,9 +165,16 @@ export const AsAdmin: Story = {
 
 /**
  * Editing happens in place, over the record it is about to change — there is no
- * separate screen to navigate to and come back from.
+ * separate screen to navigate to and come back from. The notes open in a
+ * rich text area, which loads with the form, formatted as they are stored.
  */
 export const Editing: Story = {
+  args: {
+    publication: {
+      ...DOM_CASMURRO,
+      notes: [paragraph("A ", { text: "first", bold: true }, " translation.")],
+    },
+  },
   decorators: [asAdmin],
   beforeEach: () => resetAll(store),
   play: async () => {
@@ -128,6 +184,12 @@ export const Editing: Story = {
     await waitFor(() =>
       expect(screen.getByLabelText("Title")).toHaveValue("Dom Casmurro"),
     );
+    // The rich text area loads when the form first renders.
+    await expect(
+      within(await screen.findByRole("textbox", { name: "Notes" })).getByText(
+        "first",
+      ),
+    ).toBeVisible();
     await expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 
     // Backing out returns the reader's view untouched.

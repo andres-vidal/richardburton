@@ -9,6 +9,12 @@ defmodule RichardBurtonWeb.PublicationController do
   matches, in reading order, and the rows of the first page. A later page is
   requested by the ids it holds.
 
+  A publication read from the index, such as a row of a listing, a publication
+  in a duplicate cluster, or a stored publication that a row resembles, has no
+  `notes` key (see `RichardBurton.FlatPublication`). A publication that
+  `show/2`, `index_deleted/2` or a write responds with holds its notes, or
+  `null` when it has none.
+
   A path id that is not a whole number is a 404, as `RichardBurtonWeb.Params.id/1`
   says. A write that would give a publication the composite key of another is a
   409 whose body holds `error: "conflict"` and, when the response names it,
@@ -40,6 +46,9 @@ defmodule RichardBurtonWeb.PublicationController do
 
   Every response but the one for `ids` puts the number of publications in the
   index in the count header (see `Publication.Index.count_header/0`).
+
+  Each entry is a listed row, which holds every flat field but `notes` (see
+  `Publication.Index`).
   """
   def index(conn, params = %{"ids" => ids}) do
     entries = Publication.Index.details(Params.integers(ids), params["search"])
@@ -92,9 +101,9 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   @doc """
-  Responds with the publication `id`, flattened into the shape the index lists.
-  With a `search`, the publication holds the excerpts and marks of that search,
-  as in the index. A deleted publication is a 404.
+  Responds with the publication `id`, flattened, with its notes. With a
+  `search`, the publication holds the excerpts and marks of that search, as in
+  the index. A deleted publication is a 404.
   """
   def show(conn, params = %{"id" => id}) do
     with {:ok, id} <- Params.id(id),
@@ -247,15 +256,25 @@ defmodule RichardBurtonWeb.PublicationController do
   @doc """
   Merges the publications with the ids in `losers` into the publication `id`,
   and responds with the merged publication, flattened. See
-  `Publication.merge/3`.
+  `Publication.merge/4`.
+
+  When the body holds `notes`, they become the merged publication's notes.
+  They are validated as the notes of an update are, and `null` or blank notes
+  leave the merged publication without notes. Without `notes`, the merged
+  notes are the winner's followed by the losers', as `Publication.merge/4`
+  describes.
 
   Merging a publication into itself, or naming no losers, is a 400, rather
   than the 409 that `self` is elsewhere. A merged publication with the
-  composite key of another publication is a 409 with `error: "conflict"`.
+  composite key of another publication is a 409 with `error: "conflict"`. A
+  merged publication that is invalid is a 400 with its `errors`. They are
+  `{notes: "malformed"}` for notes that are not rich text, and
+  `{notes: "too_long"}` for notes whose text is longer than 10,000
+  characters, whether the body gave them or the merge joined them.
   """
-  def merge(conn, %{"id" => id, "losers" => losers}) when is_list(losers) do
+  def merge(conn, params = %{"id" => id, "losers" => losers}) when is_list(losers) do
     with {:ok, id} <- Params.id(id),
-         {:ok, publication} <- Publication.merge(id, losers, actor(conn)) do
+         {:ok, publication} <- Publication.merge(id, losers, actor(conn), merge_opts(params)) do
       json(conn, Publication.Codec.flatten(publication))
     else
       {:error, reason} when reason in [:self, :no_losers] -> {:error, :bad_request, reason}
@@ -264,6 +283,12 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   def merge(_conn, _params), do: {:error, :losers_required}
+
+  # Returns the options of `Publication.merge/4` that the merge `params` give:
+  # `[notes: value]` when they hold a `notes` key, even one whose value is nil,
+  # and `[]` when they do not.
+  defp merge_opts(%{"notes" => notes}), do: [notes: notes]
+  defp merge_opts(_params), do: []
 
   @doc "Deletes the publication `id`. See `Publication.delete/2`."
   def delete(conn, %{"id" => id}) do
@@ -276,6 +301,10 @@ defmodule RichardBurtonWeb.PublicationController do
   @doc """
   Responds with `entries`, the history entries of the publication `id`, or of
   every publication when there is no `id`, newest first.
+
+  Each entry's `snapshot` holds the publication's fields after the change,
+  except its notes. A change to the notes is in the entry's `diff`. The
+  snapshots in `others` are whole.
   """
   def history(conn, %{"id" => id}) do
     with {:ok, id} <- Params.id(id) do
@@ -349,17 +378,18 @@ defmodule RichardBurtonWeb.PublicationController do
     |> json(%{error: :conflict, publication: Publication.Codec.flatten(publication)})
   end
 
-  # Returns a history entry as a map for a response. Besides the entry's own
-  # fields, it holds `others`, the other publications the entry is about: the
-  # ones a merge took in, an undone merge gave back, or a duplicate decision is
-  # about. See `Publication.History.other_records/1`.
+  # Returns a history entry as a map for a response: the entry's own fields,
+  # with its snapshot without the `"notes"` key, and `others`, the other
+  # publications the entry is about: the ones a merge took in, an undone merge
+  # gave back, or a duplicate decision is about. See
+  # `Publication.History.other_records/1`.
   defp serialize_history(entry) do
     %{
       publication_id: entry.publication_id,
       version: entry.version,
       action: entry.action,
       actor: entry.actor,
-      snapshot: entry.snapshot,
+      snapshot: Map.delete(entry.snapshot, "notes"),
       diff: entry.diff,
       undoable: entry.undoable,
       others: Publication.History.other_records(entry),

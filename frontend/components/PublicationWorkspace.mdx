@@ -26,7 +26,8 @@ Each injected piece overrides one part of the read-only table:
   view when focused. The tooltip gives the row new event handlers whenever it
   renders, so `ExtendedRow` is memoised and renders only when the row's own
   state changes.
-- **`ExtendedTrailingColumn`** — the sources cell, with the look-alike button.
+- **`ExtendedTrailingColumns`** — the notes cell, then the sources cell with
+  the look-alike button.
 - **`ExtraRow`** — the always-present **new-publication** row at the bottom.
 
 Because it shares the table's structure, everything from the read-only view —

@@ -77,6 +77,17 @@ field and has no undo here: it is taken back in the duplicate review.
 
 <Canvas of={PublicationHistoryStories.Decisions} />
 
+## Notes
+
+A change to the notes lists them before and after, each rendered with
+[`RichText`](?path=/docs/components-rich-text--docs), and "(none)" for a side
+that had none. A merge lists the notes of each record it took in with the rest
+of that record.
+
+<Description of={PublicationHistoryStories.Notes} />
+
+<Canvas of={PublicationHistoryStories.Notes} />
+
 ## Long addresses
 
 <Description of={PublicationHistoryStories.LongActor} />

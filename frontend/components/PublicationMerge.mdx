@@ -6,18 +6,20 @@ import * as PublicationMergeStories from "./PublicationMerge.stories";
 
 # Publication merge
 
-Collapses duplicates of a publication into it. The record the dialog is opened
+Merges duplicates of a publication into it. The record the dialog is opened
 from is the one that survives: it keeps its identity, its address and its own
 fields, and gains the countries, publishers and sources the others hold. The
-records folded in leave the database, recorded as merged rather than deleted.
+merged record keeps the notes shown in the dialog's Notes field. The records
+merged in leave the database, recorded as merged rather than deleted.
 
+<Description of={PublicationMergeStories.Previewing} />
 <Canvas of={PublicationMergeStories.Previewing} />
 
 ## Usage
 
 Controlled by the caller, like every dialog here: pair `isOpen` with
-`useModal()`, close it on `onClose`, and re-read the record on `onMerged` — the
-publication the caller is showing has changed.
+`useModal()`, close it on `onClose`, and read the record again on `onMerged`,
+since the publication the caller is showing has changed.
 
 ```tsx
 <PublicationMerge
@@ -33,34 +35,86 @@ publication the caller is showing has changed.
 
 ## Props
 
-- `publication` — the record the others are merged into.
+- `publication` — the record the others are merged into, with its notes.
 - `isOpen` and `onClose` — whether the dialog is open, and what closes it.
-  Closing clears the search and the picks.
+  Closing clears the search, the picks and the notes.
 - `onMerged` — called once the merge has happened.
 - `find` — looks up candidates for a term. It defaults to searching the
   database. The dialog calls it through `useLookup`, which waits for typing to
   pause, passes the term in lower case, and lets only the newest search fill
   the list.
+- `read` — reads a stored publication in full, its notes included, by its id.
+  It defaults to reading it from the database. The dialog reads each record
+  when it is picked, since the records a search finds have no notes.
 
-## Why it previews
+## Finding and picking
 
-A merge cannot be undone: putting a record back would leave what it brought
-with the survivor, and there would be two of everything again. So the dialog
-shows the outcome instead of describing it — everything gained is marked before
-the question is asked, and a merge that takes nothing says so.
-
-<Canvas of={PublicationMergeStories.NothingGained} />
-
-## States
-
-Nothing picked yet — the dialog names what survives and refuses to merge.
+Nothing picked yet: the dialog names what survives, and Merge is disabled.
 
 <Canvas of={PublicationMergeStories.Default} />
 
-Searching offers every other record it finds, never the survivor itself and
+A search offers every other record it finds, never the survivor itself and
 never one already picked.
 
 <Canvas of={PublicationMergeStories.Searching} />
+
+Merge stays disabled until every picked record is read.
+
+<Description of={PublicationMergeStories.Reading} />
+<Canvas of={PublicationMergeStories.Reading} />
+
+<Description of={PublicationMergeStories.ReadFailed} />
+<Canvas of={PublicationMergeStories.ReadFailed} />
+
+## The result
+
+The Result shows what the survivor becomes before the merge is asked for:
+everything it gains is marked, and a merge that takes nothing new says so.
+
+<Description of={PublicationMergeStories.NothingGained} />
+<Canvas of={PublicationMergeStories.NothingGained} />
+
+## Notes
+
+When the survivor or a picked record has notes, the Result has a Notes field.
+It is prefilled with the proposed notes: the survivor's notes, then each picked
+record's notes in the order they were picked, without notes that are blank or
+that equal earlier ones. The field is shown once every picked record is read.
+The merge sends the notes in the field, and the merged record keeps them. Blank
+notes are sent as none.
+
+<Description of={PublicationMergeStories.NotesProposed} />
+<Canvas of={PublicationMergeStories.NotesProposed} />
+
+The notes can be edited in the field. Until they are edited, picking or
+removing a record proposes them again. Once they are edited, the field keeps
+the edited notes, whatever is picked or removed, until the dialog closes.
+
+<Description of={PublicationMergeStories.EditingNotes} />
+<Canvas of={PublicationMergeStories.EditingNotes} />
+
+Notes longer than 10,000 characters, counted as graphemes, have an error under
+the field, and Merge is disabled until they are shorter.
+
+<Description of={PublicationMergeStories.NotesTooLong} />
+<Canvas of={PublicationMergeStories.NotesTooLong} />
+
+When the server refuses the notes, its error is under the field, and Merge is
+disabled until the notes are edited.
+
+<Description of={PublicationMergeStories.NotesRefused} />
+<Canvas of={PublicationMergeStories.NotesRefused} />
+
+When no record has notes, the Result has no Notes field, and the merge sends no
+notes.
+
+<Description of={PublicationMergeStories.WithoutNotes} />
+<Canvas of={PublicationMergeStories.WithoutNotes} />
+
+## Cancelling
+
+<Description of={PublicationMergeStories.Cancelled} />
+<Canvas of={PublicationMergeStories.Cancelled} />
 
 ## Long sources
 
