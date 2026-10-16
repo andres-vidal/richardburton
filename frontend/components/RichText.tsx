@@ -1,8 +1,7 @@
 import {
-  MAX_DEPTH,
   isBlank,
   isLink,
-  linkBareUrls,
+  readValue,
   safeUrl,
   type ListItemElement,
   type RichTextBlock,
@@ -23,44 +22,40 @@ function renderBlocks(blocks: RichTextValue): ReactNode[] {
     block.type === "paragraph"
       ? isBlank([block])
         ? []
-        : [<p key={index}>{renderInlines(linkBareUrls(block.children))}</p>]
+        : [<p key={index}>{renderInlines(block.children)}</p>]
       : blocks[index - 1]?.type === "list-item"
         ? []
-        : renderLists(runFrom(blocks, index), 0).map((list, at) => (
+        : renderLists(runFrom(blocks, index)).map((list, at) => (
             <Fragment key={`${index}-${at}`}>{list}</Fragment>
           )),
   );
 }
 
-// Returns the run of list items that starts at `start`, without blank items,
-// with each item's depth at most one more than the item before it and at most
-// `MAX_DEPTH`. The first item of the run is at depth 0.
+// Returns the run of list items that starts at `start`, without blank items.
 function runFrom(blocks: RichTextBlock[], start: number): ListItemElement[] {
   const end = blocks.findIndex(
     (block, index) => index > start && block.type !== "list-item",
   );
-  const run = blocks
+
+  return blocks
     .slice(start, end === -1 ? undefined : end)
     .filter(
       (block): block is ListItemElement =>
         block.type === "list-item" && !isBlank([block]),
     );
-
-  return run.reduce<ListItemElement[]>((items, item) => {
-    const before = items[items.length - 1]?.depth ?? -1;
-    const depth = Math.max(0, Math.min(item.depth, before + 1, MAX_DEPTH));
-
-    return [...items, { ...item, depth }];
-  }, []);
 }
 
-// Returns the lists that `items` form at `depth`, as React elements. Each item
-// at `depth` holds the deeper items after it as its nested lists, and
-// consecutive items of the same kind share a list: an `ol` for numbered items
-// and a `ul` for bulleted ones.
-function renderLists(items: ListItemElement[], depth: number): ReactNode[] {
+// Returns the lists that a run of list items forms, as React elements. The
+// items of the outer lists are the first item and every item that is no deeper
+// than any item before it. Each of them holds, as its nested lists, the items
+// after it up to the next of them, so that an item is nested in the closest
+// item before it that is shallower than it. Consecutive outer items of the same
+// kind share a list: an `ol` for numbered items and a `ul` for bulleted ones.
+function renderLists(items: ListItemElement[]): ReactNode[] {
   const starts = items.flatMap((item, index) =>
-    item.depth === depth ? [index] : [],
+    items.slice(0, index).every((before) => item.depth <= before.depth)
+      ? [index]
+      : [],
   );
   const entries = starts.map((start, at) => ({
     item: items[start],
@@ -77,8 +72,8 @@ function renderLists(items: ListItemElement[], depth: number): ReactNode[] {
   return lists.map((list, index) => {
     const listItems = list.map(({ item, nested }, at) => (
       <li key={at} className="pl-0.5">
-        {renderInlines(linkBareUrls(item.children))}
-        {renderLists(nested, depth + 1)}
+        {renderInlines(item.children)}
+        {renderLists(nested)}
       </li>
     ));
 
@@ -178,12 +173,20 @@ function renderInline(inline: RichTextInline, key: number): ReactNode {
  * A link opens in a new tab and passes on neither the page nor its address.
  * Renders nothing when the value is null or blank.
  *
- * A run of list items renders as nested lists, one level of nesting per level
- * of depth. An item deeper than the item before it by more than one level is
- * rendered one level deeper. Blank blocks render nothing. A bare URL in the
- * text renders as a link (see `linkBareUrls`), and a link to anything but an
- * `http`, `https` or `mailto` URL renders as its text. The text is set as text,
- * so characters such as `<` or `*` in it are shown as they are.
+ * A run of list items renders as nested lists. Each item is nested in the
+ * closest item before it that is shallower than it, and an item with no
+ * shallower item before it is in an outer list. A nested list is one level
+ * deeper than the item that holds it, whatever the depths of its items, since
+ * a list cannot skip a level. Blank blocks render nothing.
+ *
+ * Only the links of the value render as links: a URL written in a run of text
+ * is text. A link to anything but an `http`, `https` or `mailto` URL renders
+ * as its text. The text is set as text, so characters such as `<` or `*` in
+ * it are shown as they are.
+ *
+ * `value` is rich text, or null or undefined for none. A stored value that is
+ * not rich text, such as a string or a node of a type rich text does not
+ * define, renders as the text it holds (see `readValue`).
  *
  * `size` sets the size of the text: `base`, the default, is small body text,
  * and `small` is a size smaller, with less space between blocks.
@@ -191,14 +194,17 @@ function renderInline(inline: RichTextInline, key: number): ReactNode {
 const RichText: FC<{
   value: RichTextValue | null | undefined;
   size?: "base" | "small";
-}> = ({ value, size = "base" }) =>
-  value && !isBlank(value) ? (
+}> = ({ value, size = "base" }) => {
+  const blocks = readValue(value);
+
+  return isBlank(blocks) ? null : (
     <div
       data-size={size}
       className="space-y-2 text-gray-700 break-words data-[size=base]:text-sm data-[size=small]:text-xs data-[size=small]:space-y-1"
     >
-      {renderBlocks(value)}
+      {renderBlocks(blocks)}
     </div>
-  ) : null;
+  );
+};
 
 export default RichText;

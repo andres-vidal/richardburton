@@ -640,8 +640,10 @@
     "add": "Adicionar",
     "mergingIn": "Unindo",
     "remove": "Remover",
+    "readFailed": "Não foi possível ler este registro. Remova-o e adicione-o de novo.",
     "result": "Resultado",
     "nothingNew": "Nada de novo a acrescentar — “{title}” já diz tudo o que as outras dizem. A união mesmo assim as remove.",
+    "notesHint": "Estas são as notas que a publicação unida mantém. Você pode editá-las antes de unir.",
     "cancel": "Cancelar",
     "confirm": "{count, plural, =0 {Unir publicação} one {Unir publicação} other {Unir # publicações}}"
   },

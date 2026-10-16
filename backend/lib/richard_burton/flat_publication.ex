@@ -10,6 +10,17 @@ defmodule RichardBurton.FlatPublication do
   row for each publication that is not deleted, and which
   `RichardBurton.Publication.Index.Refresher` rebuilds after each write. It
   also validates a publication in this shape, without writing it.
+
+  The view does not hold the notes, so `notes` is a virtual field. A
+  publication read from the view has nil notes, whatever notes it has, unless
+  the query that read it selected them from the `publications` table.
+
+  A flat publication is encoded as JSON with its id, its writable fields,
+  `excerpts` and `marked`, as `json_fields/1` returns them. A publication
+  loaded from the database is encoded without `notes` when they are nil,
+  because a nil there may only mean that the query did not read them. Any
+  other publication, such as one that `RichardBurton.Publication.Codec.flatten/1`
+  returns, is encoded with its notes, nil included.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -43,7 +54,6 @@ defmodule RichardBurton.FlatPublication do
   # null outside a search.
   @readable_attributes [:id, :excerpts, :marked | @writable_attributes]
 
-  @derive {Jason.Encoder, only: @readable_attributes}
   schema "flat_publications" do
     field(:title, :string)
     field(:year, :integer)
@@ -53,7 +63,7 @@ defmodule RichardBurton.FlatPublication do
     field(:original_title, :string)
     field(:original_authors, {:array, :string})
     field(:sources, {:array, :string})
-    field(:notes, RichText)
+    field(:notes, RichText, virtual: true)
 
     field(:excerpts, :map, virtual: true)
     field(:marked, :map, virtual: true)
@@ -108,6 +118,24 @@ defmodule RichardBurton.FlatPublication do
   # Returns whether an entry is missing, empty or only whitespace, which is what
   # `validate_required/2` treats as missing.
   defp blank?(entry), do: is_nil(entry) or (is_binary(entry) and String.trim(entry) == "")
+
+  @doc """
+  Returns the fields of `publication` that its JSON holds, as a map, as the
+  module doc describes.
+  """
+  def json_fields(publication = %FlatPublication{__meta__: %{state: :loaded}, notes: nil}) do
+    Map.take(publication, @readable_attributes -- [:notes])
+  end
+
+  def json_fields(publication = %FlatPublication{}),
+    do: Map.take(publication, @readable_attributes)
+
+  # Encodes a flat publication as the map that `json_fields/1` returns.
+  defimpl Jason.Encoder do
+    def encode(publication, opts) do
+      publication |> RichardBurton.FlatPublication.json_fields() |> Jason.Encode.map(opts)
+    end
+  end
 
   @doc """
   Validates `attrs` as `validate_all/2` validates each entry of a list.

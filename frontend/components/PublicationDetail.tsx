@@ -6,8 +6,6 @@ import {
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
-  usePublicationNotes,
-  usePublicationNotesError,
   usePublicationMarking,
   usePublicationSources,
 } from "modules/publication/hooks";
@@ -21,12 +19,7 @@ import {
 } from "modules/publication/model";
 import { watchEdit } from "modules/publication/checks";
 import { deletePublication, update } from "modules/publication/remote";
-import {
-  discardEdit,
-  remember,
-  setNotes,
-  setSources,
-} from "modules/publication/store";
+import { discardEdit, remember, setSources } from "modules/publication/store";
 import {
   PublicationStoreProvider,
   usePublicationStore,
@@ -35,7 +28,6 @@ import { useCountryNaming } from "modules/country-names";
 import { isBlank, type RichTextValue } from "modules/rich-text";
 import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
-import dynamic from "next/dynamic";
 import { useFormatter, useTranslations } from "next-intl";
 import { Link, useRouter } from "i18n/navigation";
 import {
@@ -52,30 +44,13 @@ import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
 import Highlight from "./Highlight";
 import { useModal } from "./Modal";
+import NotesField from "./NotesField";
 import PublicationHistory from "./PublicationHistory";
 import PublicationMerge from "./PublicationMerge";
 import RichText from "./RichText";
 import SourcesEditor from "./SourcesEditor";
 import SectionHeading, { SECTION_HEADING } from "./SectionHeading";
 import Tooltip from "./Tooltip";
-
-/**
- * The rich-text field, loaded the first time the edit form renders. A reader
- * who never edits does not download the field's code. Until the field has
- * loaded, an empty box holds its place, and the rest of the form is already
- * usable. The box is 247px tall, the height of the empty field with a one-line
- * label and hint: 38px for them, an 8px gap, and 201px for the toolbar and
- * the 10rem text area in their border.
- */
-const RichTextArea = dynamic(() => import("./RichTextArea"), {
-  ssr: false,
-  loading: () => (
-    <div
-      aria-hidden
-      className="h-61.75 bg-white rounded border border-gray-200"
-    />
-  ),
-});
 
 /** `label`, marked where the search matched, as a link to a search for `value`. */
 const Searchable: FC<{ label: string; value: string }> = ({ value, label }) => (
@@ -244,30 +219,6 @@ const PublicationNotes: FC<{ notes: RichTextValue | null | undefined }> = ({
 };
 
 /**
- * The notes field for the publication `id` in the enclosing store, with
- * the error the notes have. Edits are written to the row with
- * `setNotes`, and saved with the rest of it.
- */
-const EditNotes: FC<{ id: PublicationId }> = ({ id }) => {
-  const t = useTranslations("notes");
-  const attribute = useTranslations("attributes");
-  const store = usePublicationStore();
-  const notes = usePublicationNotes(id);
-  const error = usePublicationNotesError(id);
-
-  return (
-    <RichTextArea
-      label={attribute("notes")}
-      hint={t("hint")}
-      placeholder={t("placeholder")}
-      value={notes}
-      error={error}
-      onChange={(value) => setNotes(store, id, value)}
-    />
-  );
-};
-
-/**
  * The record's mutation log, collapsed. The entries arrive with the record, so
  * expanding it costs nothing and shows everything at once.
  */
@@ -363,7 +314,7 @@ const PublicationEditForm: FC<{
         value={sources}
         onChange={(next) => setSources(store, id, next)}
       />
-      <EditNotes id={id} />
+      <NotesField id={id} />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 justify-end">
         <Button

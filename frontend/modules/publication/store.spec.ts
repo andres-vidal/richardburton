@@ -34,6 +34,7 @@ import {
   setAttributesVisible,
   setErrors,
   setField,
+  setNotes,
   setResemblances,
   setSources,
   validCountAtom,
@@ -48,6 +49,7 @@ import {
 } from "./store";
 
 import type { Store } from "modules/store";
+import { paragraph } from "test/rich-text-fixtures";
 
 // A store per test: publication state belongs to a workspace, so a spec makes
 // its own rather than resetting one everybody shares.
@@ -435,6 +437,35 @@ describe("family lifecycle", () => {
     expect(store.get(savedFamily(1))?.title).toBe(
       "Dom Casmurro, as someone else saved it",
     );
+  });
+
+  test("notes with the same content, their keys in another order, are not an edit", () => {
+    hydrate(store, [{ ...saved(1), notes: [paragraph("First edition.")] }]);
+    setNotes(store, 1, [
+      { children: [{ text: "First edition." }], type: "paragraph" },
+    ]);
+
+    hydrate(store, [saved(1, "As someone else saved it")]);
+
+    expect(store.get(publicationFamily(1)).title).toBe(
+      "As someone else saved it",
+    );
+  });
+
+  test("no notes and null notes are not an edit, and other notes are", () => {
+    hydrate(store, [saved(1), saved(2)]);
+    setNotes(store, 1, null);
+    setNotes(store, 2, [paragraph("New notes.")]);
+
+    hydrate(store, [
+      saved(1, "As someone else saved it"),
+      saved(2, "As someone else saved it"),
+    ]);
+
+    expect(store.get(publicationFamily(1)).title).toBe(
+      "As someone else saved it",
+    );
+    expect(store.get(publicationFamily(2)).title).toBe("Title 2");
   });
 
   test("a row without edits takes what a load returns", () => {

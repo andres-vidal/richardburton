@@ -23,13 +23,26 @@ defmodule RichardBurton.RichText do
       something after that, and holds no whitespace.
 
   Every list of children holds at least one node, and a node holds no keys
-  other than the ones listed for it. A value is **blank** when the text of its
-  runs, the runs of its links included, is empty or only whitespace.
+  other than the ones listed for it. A value or a block is **blank** when the
+  text of its runs, the runs of its links included, is empty or only
+  whitespace.
 
-  Casting a value checks this shape, turns atom keys into strings, and returns
-  nil for a blank value or an empty list. A value of any other shape, or one
-  with more than 10,000 nodes, fails to cast with the validation
-  `:malformed`.
+  A value is **normalized** when none of its lists skips a level. The first
+  list item that is not blank after the start of the value, or after a block
+  that is not a list item, blank or not, is at depth 0. Every other list item
+  that is not blank is at most one level deeper than the last list item before
+  it that is not blank. A blank list item may be at any depth.
+
+  Casting a value checks the shape these terms describe, and returns nil for a
+  blank value or an empty list. Any other value is returned normalized.
+  Casting goes through the list items that are not blank in order, and lowers
+  each one that is too deep to the deepest depth a normalized value allows.
+  Blank blocks are kept as they are. A value of any other shape, such as one
+  whose nodes have atom keys, or one with more than 10,000 nodes, fails to
+  cast with the validation `:malformed`.
+
+  A **bare URL** is a word of plain text that `from_plain_text/1` reads as a
+  link: a web address or an email address, as that function describes.
   """
 
   use Ecto.Type
@@ -52,16 +65,12 @@ defmodule RichardBurton.RichText do
   def type, do: {:array, :map}
 
   @impl true
-  def cast([]), do: {:ok, nil}
-
-  def cast(value) when is_list(value) do
-    blocks = stringified(value)
-
+  def cast(blocks) when is_list(blocks) do
     cond do
       not Enum.all?(blocks, &block?/1) -> {:error, validation: :malformed}
       node_count(blocks) > @max_nodes -> {:error, validation: :malformed}
       blank?(blocks) -> {:ok, nil}
-      true -> {:ok, blocks}
+      true -> {:ok, normalized(blocks)}
     end
   end
 
@@ -74,18 +83,6 @@ defmodule RichardBurton.RichText do
   @impl true
   def dump(blocks) when is_list(blocks), do: {:ok, blocks}
   def dump(_value), do: :error
-
-  # Returns a term with the atom keys of every map in it turned into strings.
-  defp stringified(map) when is_map(map) and not is_struct(map) do
-    Map.new(map, fn {key, value} -> {key_string(key), stringified(value)} end)
-  end
-
-  defp stringified(list) when is_list(list), do: Enum.map(list, &stringified/1)
-  defp stringified(term), do: term
-
-  # Returns an atom key as a string, and any other key as it is.
-  defp key_string(key) when is_atom(key), do: Atom.to_string(key)
-  defp key_string(key), do: key
 
   # Returns whether `node` is a well-formed block.
   defp block?(block = %{"type" => "paragraph", "children" => children})
@@ -139,6 +136,30 @@ defmodule RichardBurton.RichText do
     end)
   end
 
+  # Returns well-formed `blocks` normalized, as the module doc describes. The
+  # depth of each list item that is not blank is lowered to at most one more
+  # than the depth of the last list item before it that is not blank. When
+  # there is no such item, or a block that is not a list item comes after it,
+  # the limit is depth 0. Blank list items and every other block are returned
+  # unchanged.
+  defp normalized(blocks) do
+    {normalized, _before} =
+      Enum.map_reduce(blocks, -1, fn
+        item = %{"type" => "list-item", "depth" => depth}, before ->
+          if blank?([item]) do
+            {item, before}
+          else
+            depth = min(depth, before + 1)
+            {%{item | "depth" => depth}, depth}
+          end
+
+        block, _before ->
+          {block, -1}
+      end)
+
+    normalized
+  end
+
   @doc """
   Returns whether `value` is nil, or holds no text other than whitespace.
   """
@@ -172,10 +193,10 @@ defmodule RichardBurton.RichText do
   line after a line break.
 
   A list item is written after `- ` when it is bulleted, and after `N. ` when
-  it is numbered, indented by two spaces for each level of depth. The first
-  item of a run of items is written at depth 0, and each item after it at
-  most one level deeper than the item before it. The lines after a line break
-  in a list item are indented to line up with the item's text.
+  it is numbered, indented by two spaces for each level of its depth. The
+  lines after a line break in a list item are indented to line up with the
+  item's text. Each item is written at the depth it holds, so `value` must be
+  normalized, as every value that `cast/1` returns is.
 
   A numbered item's `N` is its place in its list. A list ends at any block
   other than a list item, blank or not, at an item less deep than its own
@@ -231,26 +252,8 @@ defmodule RichardBurton.RichText do
   defp written_section(blocks) do
     blocks
     |> Enum.reject(&blank?([&1]))
-    |> leveled()
     |> numbered()
     |> Enum.map_join("\n", &written_block/1)
-  end
-
-  # Returns blocks with the depth of each list item lowered to at most one
-  # more than the depth of the item before it, which puts the first item at
-  # depth 0.
-  defp leveled(blocks) do
-    {leveled, _before} =
-      Enum.map_reduce(blocks, -1, fn
-        item = %{"type" => "list-item", "depth" => depth}, before ->
-          depth = min(depth, before + 1)
-          {%{item | "depth" => depth}, depth}
-
-        block, before ->
-          {block, before}
-      end)
-
-    leveled
   end
 
   # Returns the lines of a block's inlines as plain text: the text split at
@@ -329,8 +332,30 @@ defmodule RichardBurton.RichText do
   Line endings are read as `"\n"`, whether written as `"\r\n"`, `"\r"` or
   `"\n"`. One or more blank lines start a new paragraph, and a single line
   break inside a paragraph is a line break in its text. Each paragraph is
-  trimmed, and the whitespace at the end of each line is dropped. No other
-  formatting is read: every block is a paragraph with a single run of text.
+  trimmed, and the whitespace at the end of each line is dropped.
+
+  Each bare URL in the text becomes a link. Words are separated by
+  whitespace, line breaks included. A word is a bare URL when, without the
+  punctuation at its end, any of `.,;:!?)]'"`, it starts with `http://`,
+  `https://` or `www.`, in any case, followed by a character other than a
+  full stop, or it is an email address. An email address is text, `@`, and a
+  domain with a full stop inside it, none of which holds whitespace, `@`,
+  `<`, `>`, parentheses or square brackets.
+
+  The link's text is the bare URL as written, and the punctuation after it
+  stays in the text that follows the link. The link goes to:
+
+    * the bare URL itself, when it starts with `http://`, `https://` or
+      `mailto:`, in any case.
+    * the bare URL after `mailto:`, when it is any other email address.
+    * the bare URL after `https://`, when it is a web address: names of
+      ASCII letters, digits, `_` and `-` joined by full stops, followed by
+      nothing, or by a path, query or fragment that starts with `/`, `?` or
+      `#`.
+
+  A bare URL that is none of these stays text. No other formatting is read:
+  every block is a paragraph, and the text around the links is in runs
+  without marks.
 
   ## Examples
 
@@ -338,6 +363,16 @@ defmodule RichardBurton.RichText do
       [
         %{"type" => "paragraph", "children" => [%{"text" => "First edition,\nin English."}]},
         %{"type" => "paragraph", "children" => [%{"text" => "Bound in cloth."}]}
+      ]
+
+      iex> RichardBurton.RichText.from_plain_text("See www.example.com/catalogue.")
+      [
+        %{"type" => "paragraph", "children" => [
+          %{"text" => "See "},
+          %{"type" => "link", "url" => "https://www.example.com/catalogue",
+            "children" => [%{"text" => "www.example.com/catalogue"}]},
+          %{"text" => "."}
+        ]}
       ]
 
       iex> RichardBurton.RichText.from_plain_text(" \n ")
@@ -359,10 +394,78 @@ defmodule RichardBurton.RichText do
     end
   end
 
-  # Returns a paragraph of one run of text: `lines` joined by line breaks,
-  # trimmed.
+  # Returns a paragraph of `lines` joined by line breaks and trimmed, with
+  # each bare URL in it made a link.
   defp paragraph(lines) do
     text = lines |> Enum.join("\n") |> String.trim()
-    %{"type" => "paragraph", "children" => [%{"text" => text}]}
+    %{"type" => "paragraph", "children" => linked(text)}
+  end
+
+  # The punctuation at the end of a word that is not part of a bare URL, the
+  # start of a word that is a bare URL, and an email address. See
+  # `from_plain_text/1`.
+  @trailing_punctuation ~r/[.,;:!?)\]'"]+\z/u
+  @url_start ~r/\A(https?:\/\/|www\.)[^\s.]/iu
+  @email ~r/\A[^\s@<>()\[\]]+@[^\s@<>()\[\]]+\.[^\s@<>()\[\]]+\z/u
+
+  # A bare URL that a link goes to as it is written, and a web address that a
+  # link goes to after `https://`.
+  @scheme_url ~r/\A(https?:\/\/|mailto:)\S/iu
+  @web_address ~r/\A[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+([\/?#]\S*)?\z/u
+
+  # Returns the inlines of trimmed `text`: a link for each bare URL in it, and
+  # runs of the text before, between and after the links. No run is empty.
+  defp linked(text) do
+    ~r/\s+/u
+    |> Regex.split(text, include_captures: true)
+    |> Enum.reduce([], &add_word/2)
+    |> Enum.reject(&(&1 == %{"text" => ""}))
+    |> Enum.reverse()
+  end
+
+  # Adds `word`, a word or the whitespace between two words, to `inlines`,
+  # which are in reverse order. A bare URL adds its link, and then a run of
+  # the punctuation after it, which may be empty. Anything else is added to
+  # the end of the run at the head of `inlines`, or as a new run when the head
+  # is a link or there is none.
+  defp add_word(word, inlines) do
+    case {bare_url(word), inlines} do
+      {{text, url}, inlines} ->
+        after_url = binary_part(word, byte_size(text), byte_size(word) - byte_size(text))
+        link = %{"type" => "link", "url" => url, "children" => [%{"text" => text}]}
+        [%{"text" => after_url}, link | inlines]
+
+      {nil, [%{"text" => before} | earlier]} ->
+        [%{"text" => before <> word} | earlier]
+
+      {nil, inlines} ->
+        [%{"text" => word} | inlines]
+    end
+  end
+
+  # Returns `{text, url}` when `word` is a bare URL: the text of its link,
+  # which is the word without the punctuation at its end, and the URL the link
+  # goes to. Returns nil when the word is not a bare URL, or is one that
+  # `from_plain_text/1` leaves as text.
+  defp bare_url(word) do
+    text = String.replace(word, @trailing_punctuation, "")
+
+    if Regex.match?(@url_start, text) or Regex.match?(@email, text) do
+      case link_target(text) do
+        nil -> nil
+        url -> {text, url}
+      end
+    end
+  end
+
+  # Returns the URL a link to the bare URL `text` goes to, as
+  # `from_plain_text/1` lists them, or nil when it is none of those.
+  defp link_target(text) do
+    cond do
+      Regex.match?(@scheme_url, text) -> text
+      Regex.match?(@email, text) -> "mailto:" <> text
+      Regex.match?(@web_address, text) -> "https://" <> text
+      true -> nil
+    end
   end
 end

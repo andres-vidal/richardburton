@@ -683,22 +683,9 @@ defmodule RichardBurton.Publication.CodecTest do
 
   describe "notes" do
     @notes [
-      %{
-        "type" => "paragraph",
-        "children" => [%{"text" => "First", "bold" => true}, %{"text" => " edition, in English."}]
-      },
-      %{
-        "type" => "list-item",
-        "list" => "bulleted",
-        "depth" => 0,
-        "children" => [%{"text" => "Bound in green cloth"}]
-      },
-      %{
-        "type" => "list-item",
-        "list" => "bulleted",
-        "depth" => 0,
-        "children" => [%{"text" => "Signed \"I. Burton\" on the title page"}]
-      }
+      paragraph([run("First", %{"bold" => true}), run(" edition, in English.")]),
+      item("bulleted", 0, "Bound in green cloth"),
+      item("bulleted", 0, "Signed \"I. Burton\" on the title page")
     ]
 
     # Returns a flat publication of Iracema, with `notes`.
@@ -797,6 +784,45 @@ defmodule RichardBurton.Publication.CodecTest do
       notes = paragraphs(["First edition, in English.", "Bound in green cloth,\nsigned."])
 
       assert [%{"notes" => ^notes}] = written_and_read([iracema(notes)])
+    end
+
+    test "from_csv reads back as links the links to_csv writes as their URL" do
+      notes = [
+        paragraph([
+          run("See "),
+          link("https://example.com/catalogue", "https://example.com/catalogue"),
+          run(", or write to "),
+          link("mailto:isabel@example.com", "isabel@example.com"),
+          run(".")
+        ])
+      ]
+
+      assert [%{"notes" => ^notes}] = written_and_read([iracema(notes)])
+    end
+
+    test "from_csv makes links of the web and email addresses in a cell" do
+      path = Path.join(System.tmp_dir!(), "notes-#{System.unique_integer([:positive])}.csv")
+      on_exit(fn -> File.rm(path) end)
+
+      File.write!(path, """
+      title,notes
+      Iracema,"Listed at www.example.com/iracema.
+      Ask isabel@example.com (or https://example.com/contact)."
+      """)
+
+      assert {:ok, [%{"notes" => notes}]} = Publication.Codec.from_csv(path)
+
+      assert notes == [
+               paragraph([
+                 run("Listed at "),
+                 link("https://www.example.com/iracema", "www.example.com/iracema"),
+                 run(".\nAsk "),
+                 link("mailto:isabel@example.com", "isabel@example.com"),
+                 run(" (or "),
+                 link("https://example.com/contact", "https://example.com/contact"),
+                 run(").")
+               ])
+             ]
     end
 
     test "from_csv reads the formatting to_csv drops as plain text" do

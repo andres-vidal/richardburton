@@ -104,8 +104,9 @@ defmodule RichardBurton.Publication.Codec do
 
   A `notes` cell holds plain text, which may run over several lines inside
   quotes, and reads as the rich text `RichardBurton.RichText.from_plain_text/1`
-  returns for it: a paragraph for each part of the text between blank lines.
-  A blank or missing `notes` cell reads as nil.
+  returns for it: a paragraph for each part of the text between blank lines,
+  with a link for each web address or email address in it. A blank or
+  missing `notes` cell reads as nil.
   """
   def from_csv(path) do
     try do

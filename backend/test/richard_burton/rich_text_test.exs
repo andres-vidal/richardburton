@@ -7,22 +7,9 @@ defmodule RichardBurton.RichTextTest do
   use ExUnit.Case, async: true
   doctest RichardBurton.RichText
 
+  import RichardBurton.Fixtures, only: [run: 1, run: 2, paragraph: 1, item: 3, link: 2]
+
   alias RichardBurton.RichText
-
-  # Returns a run of `text` with the marks in `marks`.
-  defp run(text, marks \\ %{}), do: Map.merge(%{"text" => text}, marks)
-
-  # Returns a paragraph of `inlines`, or of one run when given a string.
-  defp paragraph(text) when is_binary(text), do: paragraph([run(text)])
-  defp paragraph(inlines), do: %{"type" => "paragraph", "children" => inlines}
-
-  # Returns a list item of `kind` at `depth`, holding one run of `text`.
-  defp item(kind, depth, text) do
-    %{"type" => "list-item", "list" => kind, "depth" => depth, "children" => [run(text)]}
-  end
-
-  # Returns a link to `url` showing one run of `text`.
-  defp link(url, text), do: %{"type" => "link", "url" => url, "children" => [run(text)]}
 
   # Returns whether `value` fails to cast as malformed.
   defp malformed?(value), do: RichText.cast(value) == {:error, validation: :malformed}
@@ -53,28 +40,13 @@ defmodule RichardBurton.RichTextTest do
       assert RichText.cast(value) == {:ok, value}
     end
 
-    test "turns atom keys into strings" do
-      value = [
-        %{type: "paragraph", children: [%{text: "A note", bold: true}]},
-        %{
-          type: "list-item",
-          list: "numbered",
-          depth: 0,
-          children: [%{type: "link", url: "https://example.com", children: [%{text: "A link"}]}]
-        }
-      ]
+    test "refuses a value whose nodes have atom keys" do
+      assert malformed?([%{type: "paragraph", children: [%{text: "A note"}]}])
+      assert malformed?([paragraph([%{text: "A note", bold: true}])])
 
-      assert RichText.cast(value) ==
-               {:ok,
-                [
-                  paragraph([run("A note", %{"bold" => true})]),
-                  %{
-                    "type" => "list-item",
-                    "list" => "numbered",
-                    "depth" => 0,
-                    "children" => [link("https://example.com", "A link")]
-                  }
-                ]}
+      assert malformed?([
+               paragraph([%{type: "link", url: "https://a.com", children: [run("A")]}])
+             ])
     end
 
     test "returns nil for an empty list and for a value with nothing but whitespace" do
@@ -86,6 +58,88 @@ defmodule RichardBurton.RichTextTest do
                item("bulleted", 0, "\t"),
                paragraph([link("https://example.com", " ")])
              ]) == {:ok, nil}
+    end
+
+    test "lowers a list item that is more than one level deeper than the item before it" do
+      value = [
+        item("bulleted", 0, "a"),
+        item("bulleted", 2, "b"),
+        item("bulleted", 2, "c")
+      ]
+
+      assert RichText.cast(value) ==
+               {:ok,
+                [
+                  item("bulleted", 0, "a"),
+                  item("bulleted", 1, "b"),
+                  item("bulleted", 2, "c")
+                ]}
+    end
+
+    test "lowers the first item of a run of list items to depth 0" do
+      value = [item("numbered", 1, "a"), item("numbered", 2, "b")]
+
+      assert RichText.cast(value) == {:ok, [item("numbered", 0, "a"), item("numbered", 1, "b")]}
+    end
+
+    test "starts a new run of list items after a paragraph, blank or not" do
+      value = [
+        item("bulleted", 0, "a"),
+        item("bulleted", 1, "b"),
+        paragraph("A paragraph."),
+        item("bulleted", 1, "c"),
+        item("bulleted", 2, "d"),
+        paragraph(" "),
+        item("numbered", 2, "e")
+      ]
+
+      assert RichText.cast(value) ==
+               {:ok,
+                [
+                  item("bulleted", 0, "a"),
+                  item("bulleted", 1, "b"),
+                  paragraph("A paragraph."),
+                  item("bulleted", 0, "c"),
+                  item("bulleted", 1, "d"),
+                  paragraph(" "),
+                  item("numbered", 0, "e")
+                ]}
+    end
+
+    test "keeps blank list items as they are, and compares an item with the last one that is not blank" do
+      value = [
+        item("bulleted", 2, " "),
+        item("bulleted", 1, "a"),
+        item("bulleted", 2, ""),
+        item("bulleted", 1, "\n"),
+        item("bulleted", 2, "b")
+      ]
+
+      assert RichText.cast(value) ==
+               {:ok,
+                [
+                  item("bulleted", 2, " "),
+                  item("bulleted", 0, "a"),
+                  item("bulleted", 2, ""),
+                  item("bulleted", 1, "\n"),
+                  item("bulleted", 1, "b")
+                ]}
+    end
+
+    test "leaves a normalized value unchanged" do
+      value = [
+        item("bulleted", 0, "a"),
+        item("bulleted", 1, "b"),
+        item("numbered", 2, "c"),
+        item("numbered", 1, "d"),
+        item("bulleted", 2, "e"),
+        item("numbered", 0, "f"),
+        paragraph("A paragraph."),
+        item("numbered", 0, "g"),
+        item("numbered", 1, "h")
+      ]
+
+      assert RichText.cast(value) == {:ok, value}
     end
 
     test "refuses a value that is not a list of blocks" do
@@ -305,15 +359,16 @@ defmodule RichardBurton.RichTextTest do
                """
     end
 
-    test "writes the first item of a run at depth 0, and each item at most one level deeper than the one before" do
-      value = [
-        item("bulleted", 1, "a"),
-        item("bulleted", 2, "b"),
-        item("numbered", 0, "c"),
-        item("numbered", 2, "d"),
-        item("numbered", 1, "e"),
-        item("numbered", 2, "f")
-      ]
+    test "writes a value cast from items that skip levels without skipping any" do
+      {:ok, value} =
+        RichText.cast([
+          item("bulleted", 1, "a"),
+          item("bulleted", 2, "b"),
+          item("numbered", 0, "c"),
+          item("numbered", 2, "d"),
+          item("numbered", 1, "e"),
+          item("numbered", 2, "f")
+        ])
 
       assert RichText.to_plain_text(value) ==
                "- a\n  - b\n1. c\n  1. d\n  2. e\n    1. f"
@@ -385,14 +440,100 @@ defmodule RichardBurton.RichTextTest do
                [paragraph("1. One\n  2. Two"), paragraph("A paragraph.")]
     end
 
-    test "reads no formatting" do
+    test "reads no formatting other than bare URLs" do
       text = "**Bold** and [a link](https://example.com)\n- not a list"
 
       assert RichText.from_plain_text(text) == [paragraph(text)]
     end
 
+    test "makes a link of each URL in the middle of a sentence, which shows the URL as written" do
+      text = "See https://example.com/catalogue?page=2#top and HTTP://EXAMPLE.COM for it."
+
+      assert RichText.from_plain_text(text) == [
+               paragraph([
+                 run("See "),
+                 link(
+                   "https://example.com/catalogue?page=2#top",
+                   "https://example.com/catalogue?page=2#top"
+                 ),
+                 run(" and "),
+                 link("HTTP://EXAMPLE.COM", "HTTP://EXAMPLE.COM"),
+                 run(" for it.")
+               ])
+             ]
+    end
+
+    test "leaves the punctuation at the end of a URL out of its link" do
+      text = "At https://a.com. Or https://b.com/x), https://c.com/?q=1!? and https://d.com/'\""
+
+      assert RichText.from_plain_text(text) == [
+               paragraph([
+                 run("At "),
+                 link("https://a.com", "https://a.com"),
+                 run(". Or "),
+                 link("https://b.com/x", "https://b.com/x"),
+                 run("), "),
+                 link("https://c.com/?q=1", "https://c.com/?q=1"),
+                 run("!? and "),
+                 link("https://d.com/", "https://d.com/"),
+                 run("'\"")
+               ])
+             ]
+    end
+
+    test "makes a link to https of an address that starts with www." do
+      assert RichText.from_plain_text("At www.example.com/catalogue, or WWW.Example-Books.org.") ==
+               [
+                 paragraph([
+                   run("At "),
+                   link("https://www.example.com/catalogue", "www.example.com/catalogue"),
+                   run(", or "),
+                   link("https://WWW.Example-Books.org", "WWW.Example-Books.org"),
+                   run(".")
+                 ])
+               ]
+    end
+
+    test "makes a link to mailto of an email address, and keeps a mailto URL as written" do
+      assert RichText.from_plain_text(
+               "Write to isabel@example.com; or mailto:richard@example.co.uk."
+             ) ==
+               [
+                 paragraph([
+                   run("Write to "),
+                   link("mailto:isabel@example.com", "isabel@example.com"),
+                   run("; or "),
+                   link("mailto:richard@example.co.uk", "mailto:richard@example.co.uk"),
+                   run(".")
+                 ])
+               ]
+    end
+
+    test "leaves as text a word that is not a URL, or does not start as one" do
+      text =
+        "example.com ftp://example.com (https://example.com) \"https://example.com\" " <>
+          "http://. www..example.com www.exa*mple.com a@b isabel@example <isabel@example.com>"
+
+      assert RichText.from_plain_text(text) == [paragraph(text)]
+    end
+
+    test "makes links of the URLs next to line breaks, and keeps the line breaks in the text" do
+      text = "https://a.com\nwww.b.com,\nthen c@d.com\n\nhttps://e.com"
+
+      assert RichText.from_plain_text(text) == [
+               paragraph([
+                 link("https://a.com", "https://a.com"),
+                 run("\n"),
+                 link("https://www.b.com", "www.b.com"),
+                 run(",\nthen "),
+                 link("mailto:c@d.com", "c@d.com")
+               ]),
+               paragraph([link("https://e.com", "https://e.com")])
+             ]
+    end
+
     test "returns rich text that casts to itself" do
-      value = RichText.from_plain_text("One.\n\nTwo,\nthree.")
+      value = RichText.from_plain_text("One.\n\nTwo,\nthree, at www.example.com or a@b.com.")
 
       assert RichText.cast(value) == {:ok, value}
     end

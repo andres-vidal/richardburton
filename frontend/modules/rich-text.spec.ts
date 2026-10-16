@@ -1,13 +1,22 @@
-import { describe, expect, it } from "vitest";
-import { EVERY_FORMAT, item, link, paragraph } from "test/rich-text-fixtures";
+import { describe, expect, it, vi } from "vitest";
+import {
+  EVERY_FORMAT,
+  item,
+  link,
+  paragraph,
+  unchecked,
+} from "test/rich-text-fixtures";
 import {
   bareUrl,
   emptyValue,
   isBlank,
+  isLongerThan,
   linkBareUrls,
   linkTarget,
   plainText,
+  readValue,
   safeUrl,
+  textLength,
 } from "./rich-text";
 
 describe("emptyValue", () => {
@@ -29,6 +38,124 @@ describe("plainText", () => {
     expect(plainText(undefined)).toBe("");
     expect(plainText([paragraph(" \n "), item("bulleted", 0, "")])).toBe("");
   });
+
+  it("reads a value that is not rich text as the text it holds", () => {
+    expect(plainText(unchecked("Two editions:\n- *1965*"))).toBe(
+      "Two editions: - *1965*",
+    );
+    expect(
+      plainText(
+        unchecked([
+          paragraph("Before."),
+          { type: "block-quote", children: [{ text: "Quoted." }] },
+        ]),
+      ),
+    ).toBe("Before. Quoted.");
+    expect(plainText(unchecked(42))).toBe("");
+  });
+});
+
+describe("readValue", () => {
+  it("returns a value of rich text as it is", () => {
+    expect(readValue(EVERY_FORMAT)).toEqual(EVERY_FORMAT);
+    expect(readValue([paragraph(""), item("bulleted", 3, "deep")])).toEqual([
+      paragraph(""),
+      item("bulleted", 3, "deep"),
+    ]);
+  });
+
+  it("reads null as an empty value", () => {
+    expect(readValue(null)).toEqual([]);
+    expect(readValue(undefined)).toEqual([]);
+  });
+
+  it("reads a string as a paragraph of its text, line breaks kept", () => {
+    expect(readValue("# Title\n\n*Two* lines")).toEqual([
+      paragraph("# Title\n\n*Two* lines"),
+    ]);
+    expect(readValue("")).toEqual([]);
+  });
+
+  it("reads a node of another type as a paragraph of the text it holds", () => {
+    expect(
+      readValue([
+        {
+          type: "block-quote",
+          children: [paragraph("A quoted "), { text: "line." }],
+        },
+        { type: "divider", children: [] },
+        "A string block.",
+        7,
+      ]),
+    ).toEqual([paragraph("A quoted line."), paragraph("A string block.")]);
+    expect(readValue({ type: "heading", text: "Notes" })).toEqual([
+      paragraph("Notes"),
+    ]);
+  });
+
+  it("reads an inline of another type as a run of the text it holds", () => {
+    expect(
+      readValue([
+        paragraph(
+          "See ",
+          { type: "mention", children: [{ text: "Ana" }] } as never,
+          link("https://example.com", { type: "code", text: "x" } as never),
+        ),
+        { type: "paragraph", children: [] },
+      ]),
+    ).toEqual([
+      paragraph("See ", "Ana", link("https://example.com", "x")),
+      paragraph(""),
+    ]);
+  });
+});
+
+describe("textLength", () => {
+  it("counts the characters of the runs, links included, with nothing between blocks", () => {
+    expect(
+      textLength([
+        paragraph("ab\nc", link("https://example.com", "de")),
+        item("bulleted", 0, "f"),
+      ]),
+    ).toBe(7);
+    expect(textLength(null)).toBe(0);
+    expect(textLength(emptyValue())).toBe(0);
+  });
+
+  it("counts a grapheme of several code points as one character", () => {
+    // An "e" and a combining acute accent, a family emoji of seven code
+    // points, and a flag of two regional indicators.
+    expect(textLength([paragraph("e\u0301", "👨‍👩‍👧‍👦", "🇧🇷")])).toBe(3);
+  });
+
+  it("counts the text a value that is not rich text holds", () => {
+    expect(textLength(unchecked("café"))).toBe(4);
+  });
+});
+
+describe("isLongerThan", () => {
+  it("holds when the text has more characters than the limit", () => {
+    expect(isLongerThan([paragraph("abc")], 3)).toBe(false);
+    expect(isLongerThan([paragraph("ab"), item("bulleted", 0, "cd")], 3)).toBe(
+      true,
+    );
+    expect(isLongerThan(null, 0)).toBe(false);
+  });
+
+  it("counts characters, not code units, past the limit", () => {
+    // Two letters, each an "e" and a combining acute accent: four code units.
+    expect(isLongerThan([paragraph("e\u0301e\u0301")], 3)).toBe(false);
+    expect(isLongerThan([paragraph("e\u0301e\u0301")], 1)).toBe(true);
+  });
+
+  it("splits no text into graphemes when it has no more code units than the limit", () => {
+    const segment = vi.spyOn(Intl.Segmenter.prototype, "segment");
+
+    expect(isLongerThan([paragraph("A short note.")], 100)).toBe(false);
+    expect(segment).not.toHaveBeenCalled();
+
+    segment.mockRestore();
+  });
 });
 
 describe("isBlank", () => {
@@ -43,6 +170,15 @@ describe("isBlank", () => {
     expect(isBlank([paragraph(""), paragraph("a")])).toBe(false);
     expect(
       isBlank([paragraph("", link("https://example.com", "site"), "")]),
+    ).toBe(false);
+  });
+
+  it("reads a value that is not rich text by the text it holds", () => {
+    expect(isBlank(unchecked(" \n "))).toBe(true);
+    expect(isBlank(unchecked({ type: "divider" }))).toBe(true);
+    expect(isBlank(unchecked("A note"))).toBe(false);
+    expect(
+      isBlank(unchecked([{ type: "quote", children: [{ text: "A" }] }])),
     ).toBe(false);
   });
 });

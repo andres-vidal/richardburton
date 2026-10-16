@@ -21,6 +21,11 @@ import type { ReactEditor } from "slate-react";
  * A value is **blank** when its text, the text of its links included, is
  * nothing but white space. A **bare URL** is a word of the text, outside any
  * link, that is a web address or an email address (see `bareUrl`).
+ *
+ * The functions that read a value, such as `plainText`, take a value of rich
+ * text, or null or undefined for none. They do not throw on a value that is
+ * not rich text, such as a string or a node of a type this module does not
+ * define, and read such a value as `readValue` returns it.
  */
 
 /** A formatting mark a run of text can carry. */
@@ -82,10 +87,121 @@ function isLink(node: unknown): node is LinkElement {
   return (node as LinkElement | undefined)?.type === "link";
 }
 
-// Returns the text of an inline: a run's own text, or the text of a link's
-// runs.
-function textOf(inline: RichTextInline): string {
-  return isLink(inline) ? inline.children.map(textOf).join("") : inline.text;
+// Returns whether `node` is an object other than an array.
+function isRecord(node: unknown): node is Record<string, unknown> {
+  return typeof node === "object" && node !== null && !Array.isArray(node);
+}
+
+// Returns whether `node` is a paragraph or a list item with a list of
+// children, whatever its children are.
+function isBlockShaped(
+  node: unknown,
+): node is Record<string, unknown> & { children: unknown[] } {
+  return (
+    isRecord(node) &&
+    (node.type === "paragraph" || node.type === "list-item") &&
+    Array.isArray(node.children)
+  );
+}
+
+// Returns the text `node` holds. A string is its own text, a list holds the
+// text of its items in order, and an object holds its `text`, when that is a
+// string, followed by the text of its `children`. Anything else holds no text.
+function textIn(node: unknown): string {
+  return typeof node === "string"
+    ? node
+    : Array.isArray(node)
+      ? node.map(textIn).join("")
+      : isRecord(node)
+        ? (typeof node.text === "string" ? node.text : "") +
+          textIn(node.children)
+        : "";
+}
+
+// Returns whether `node` holds text other than white space, read as `textIn`
+// reads it. It stops at the first character that is not white space.
+function hasText(node: unknown): boolean {
+  return typeof node === "string"
+    ? /\S/.test(node)
+    : Array.isArray(node)
+      ? node.some(hasText)
+      : isRecord(node) &&
+        ((typeof node.text === "string" && hasText(node.text)) ||
+          hasText(node.children));
+}
+
+// Returns `inlines`, or one empty run of text when there are none, since an
+// element of a value holds at least one run.
+function withARun<T extends RichTextInline>(inlines: T[]): (T | RichTextRun)[] {
+  return inlines.length > 0 ? inlines : [{ text: "" }];
+}
+
+// Returns `node` when it is a run of text, an object whose `text` is a string
+// and that has neither a `type` nor `children`, and otherwise a run of the
+// text it holds.
+function runIn(node: unknown): RichTextRun {
+  return isRecord(node) &&
+    typeof node.text === "string" &&
+    !("type" in node) &&
+    !("children" in node)
+    ? (node as RichTextRun)
+    : { text: textIn(node) };
+}
+
+// Returns `node` as an inline: a link, with each of its children read as a run
+// of text, when it is a link with a URL and a list of children, and otherwise
+// a run of text (see `runIn`).
+function inlineIn(node: unknown): RichTextInline {
+  return isRecord(node) &&
+    node.type === "link" &&
+    typeof node.url === "string" &&
+    Array.isArray(node.children)
+    ? {
+        type: "link",
+        url: node.url,
+        children: withARun(node.children.map(runIn)),
+      }
+    : runIn(node);
+}
+
+// Returns the blocks `node` makes: the node itself when it is a paragraph or a
+// list item, with each of its children read as an inline, and otherwise a
+// paragraph of the text the node holds, or no block when it holds none.
+function blocksIn(node: unknown): RichTextBlock[] {
+  return isBlockShaped(node)
+    ? [
+        {
+          ...node,
+          children: withARun(node.children.map(inlineIn)),
+        } as RichTextBlock,
+      ]
+    : paragraphOf(textIn(node));
+}
+
+// Returns a paragraph of `text` alone, or no block when `text` is empty.
+function paragraphOf(text: string): RichTextBlock[] {
+  return text === "" ? [] : [{ type: "paragraph", children: [{ text }] }];
+}
+
+/**
+ * Returns `value` as a value of rich text, whatever `value` is. Paragraphs and
+ * list items are kept, and so are the runs of text and the links in them. Any
+ * other part of `value` is read as the text it holds, where the text of a node
+ * is its `text` followed by the text of its `children`:
+ *
+ * - a string becomes a paragraph of that text, with its line breaks;
+ * - any other block, or any other object, becomes a paragraph of its text;
+ * - any other inline becomes a run of its text.
+ *
+ * A node that holds no text makes no block, and null makes an empty value.
+ * When `value` is rich text, the result equals it.
+ *
+ * It does not check that `value` has the shape this module describes. It
+ * gives the functions that read a value something they can read, so that they
+ * do not throw on a value that is not rich text.
+ */
+function readValue(value: unknown): RichTextValue {
+  return Array.isArray(value) ? value.flatMap(blocksIn) : blocksIn(value);
 }
 
 /**
@@ -94,16 +210,48 @@ function textOf(inline: RichTextInline): string {
  * for null, and for a blank value.
  */
 function plainText(value: RichTextValue | null | undefined): string {
-  return (value ?? [])
-    .map((block) => block.children.map(textOf).join(""))
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return readValue(value).map(textIn).join(" ").replace(/\s+/g, " ").trim();
 }
 
-/** Returns whether `value` is null or blank. */
+/**
+ * Returns whether `value` is null or blank. It reads the text only until it
+ * finds a character that is not white space.
+ */
 function isBlank(value: RichTextValue | null | undefined): boolean {
-  return plainText(value) === "";
+  return !hasText(readValue(value));
+}
+
+/** Splits text into graphemes, the characters a reader sees. */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+// Returns the number of graphemes in `text`.
+function graphemeCount(text: string): number {
+  return Array.from(GRAPHEMES.segment(text)).length;
+}
+
+/**
+ * Returns the number of characters in the text of `value`: the text of its
+ * runs, links included, in order, with nothing between blocks. A line break is
+ * one character. A character is a grapheme, so a letter with an accent, or an
+ * emoji made of several code points, counts as one. Returns 0 for null.
+ */
+function textLength(value: RichTextValue | null | undefined): number {
+  return graphemeCount(textIn(value));
+}
+
+/**
+ * Returns whether the text of `value` has more than `max` characters, counted
+ * as `textLength` counts them. It splits the text into graphemes only when the
+ * text has more than `max` UTF-16 code units, since a text has no more
+ * characters than code units.
+ */
+function isLongerThan(
+  value: RichTextValue | null | undefined,
+  max: number,
+): boolean {
+  const text = textIn(value);
+
+  return text.length > max && graphemeCount(text) > max;
 }
 
 /**
@@ -202,11 +350,14 @@ export {
   emptyValue,
   isBlank,
   isLink,
+  isLongerThan,
   linkBareUrls,
   linkLabel,
   linkTarget,
   plainText,
+  readValue,
   safeUrl,
+  textLength,
 };
 export type {
   LinkElement,
@@ -214,7 +365,6 @@ export type {
   ListKind,
   ParagraphElement,
   RichTextBlock,
-  RichTextElement,
   RichTextInline,
   RichTextMark,
   RichTextRun,

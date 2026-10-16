@@ -137,16 +137,7 @@ defmodule RichardBurton.Publication.HistoryTest do
     end
 
     test "a change to the notes is diffed like any other field", %{publication: publication} do
-      notes = [
-        %{
-          "type" => "paragraph",
-          "children" => [
-            %{"text" => "Bound in "},
-            %{"text" => "green", "bold" => true},
-            %{"text" => " cloth."}
-          ]
-        }
-      ]
+      notes = [paragraph([run("Bound in "), run("green", %{"bold" => true}), run(" cloth.")])]
 
       edit(publication, %{notes: notes})
 
@@ -157,12 +148,7 @@ defmodule RichardBurton.Publication.HistoryTest do
     test "a change to the formatting of the notes alone is diffed", %{publication: publication} do
       plain = paragraphs("Bound in green cloth.")
 
-      bold = [
-        %{
-          "type" => "paragraph",
-          "children" => [%{"text" => "Bound in green cloth.", "bold" => true}]
-        }
-      ]
+      bold = [paragraph([run("Bound in green cloth.", %{"bold" => true})])]
 
       edit(publication, %{notes: plain})
       edit(publication, %{notes: bold})

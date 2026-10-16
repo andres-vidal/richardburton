@@ -50,7 +50,7 @@ defmodule RichardBurton.Vocabulary do
   In that case `rename/5` rolls back and returns
   `{:error, {:would_collide, publications}}`, listing the two publications. It
   does not merge them. Merging publications is done by
-  `RichardBurton.Publication.merge/3`, which takes the publication to keep and
+  `RichardBurton.Publication.merge/4`, which takes the publication to keep and
   can be undone.
 
   Deleted publications follow the rename as well, so a restored publication

@@ -37,8 +37,9 @@ The Edit control opens `PublicationEditForm`, which the module also exports. It
 edits every field of a publication in the enclosing store. While it is open,
 `watchEdit` validates the publication shortly after each change, and each field
 writes its error under itself. The notes are edited in a
-[rich text area](?path=/docs/components-rich-text-area--docs), which writes
-their value to the row, or null when the text is blank. The save button is
+[notes field](?path=/docs/publications-notes-field--docs), which writes their
+value to the row once the typing pauses, or null when the text is blank, and
+writes a waiting edit at once when it loses the focus. The save button is
 disabled while the publication has errors. By default it saves with `update`.
 Its `save`, `heading` and `saveLabel` props replace the save action and the
 two labels, which is how the

@@ -19,7 +19,8 @@ defmodule RichardBurton.Publication do
     * **winner** and **losers** — in a merge, the publication that is kept and
       the publications merged into it. The winner keeps its own fields. The
       losers add their countries, publishers, sources and notes to it, and are
-      then tombstoned.
+      then tombstoned. A merge given notes of its own sets the winner's notes
+      to them instead of adding the losers' (see `merge/4`).
     * **absorbed** — the state of a loser after the merge, as
       `Publication.History.absorbed/1` defines it. It is not in the trash, and
       `restore/3` refuses it with `{:error, :absorbed}`. Undoing the merge
@@ -294,6 +295,9 @@ defmodule RichardBurton.Publication do
   Returns the result of that action. Returns `{:error, :not_found}` when there
   is no such entry, and `{:error, :conflict}` when the entry is not undoable
   (see `Publication.History.undoable?/3`).
+
+  An un-merge is undone by merging the same publications again, with the
+  notes that the merge it undid left on the winner.
   """
   def undo(id, version, actor \\ History.system_actor()) do
     stream = History.of(id)
@@ -314,7 +318,8 @@ defmodule RichardBurton.Publication do
 
   # Applies the action that compensates `entry`: a delete for an import or a
   # restore, a restore for a delete, the reverted snapshot for an update,
-  # `unmerge/4` for a merge, and the merge again for an un-merge.
+  # `unmerge/4` for a merge, and the merge again for an un-merge, with the
+  # notes the first merge left on the winner.
   defp compensate(%{action: action, publication_id: id}, _previous, _head, actor)
        when action in ["created", "restored"] do
     delete(id, actor)
@@ -340,8 +345,22 @@ defmodule RichardBurton.Publication do
     unmerge(entry, previous, head, actor)
   end
 
-  defp compensate(entry = %{action: "unmerged", publication_id: id}, _previous, _head, actor) do
-    merge(id, History.other_ids(entry), actor)
+  defp compensate(entry = %{action: "unmerged", publication_id: id}, previous, _head, actor) do
+    merge(id, History.other_ids(entry), actor, merged_notes(previous))
+  end
+
+  # Returns the options that make a merge again give the winner the notes in
+  # the snapshot of `previous`, the entry before an un-merge: `[notes: notes]`,
+  # or `[]` when the snapshot has no notes key, so the merge joins the notes.
+  #
+  # That entry is the merge the un-merge undid, or a decision recorded after
+  # the merge. A decision changes no field, so either snapshot holds the
+  # winner as the merge left it.
+  defp merged_notes(%History{snapshot: snapshot}) do
+    case Map.fetch(snapshot, "notes") do
+      {:ok, notes} -> [notes: notes]
+      :error -> []
+    end
   end
 
   # Undoes the merge `entry`, in one transaction: clears the tombstones of the
@@ -402,7 +421,8 @@ defmodule RichardBurton.Publication do
   @doc """
   Merges the publications with the ids `loser_ids` into the one with the id
   `winner_id`, and records the merge with one `merged` entry by `actor` on the
-  winner, in one transaction.
+  winner, in one transaction. `actor` must be a string and `opts` a keyword
+  list, so a call that passes options passes the actor before them.
 
   The winner keeps its title, year, translated book and original book. It
   gains the countries and publishers of the losers, and their sources after
@@ -411,10 +431,13 @@ defmodule RichardBurton.Publication do
   deleted (see `Publication.Duplicates.forget/1`). The entry names the losers, so `undo/3`
   can undo the whole merge.
 
-  The merged notes are the winner's notes followed by the blocks of each
-  loser's notes, in the order of `loser_ids`. A loser's notes are left out
-  when they are nil, blank, or equal to notes already included. When the
-  winner has no notes, the merged notes are the losers'.
+  The merged notes are the value of the `:notes` option when `opts` holds it,
+  cast and validated as the notes of an update are, so nil or a blank value
+  leaves the winner without notes. Without that option, the merged notes are
+  the winner's notes followed by the blocks of each loser's notes, in the
+  order of `loser_ids`. A loser's notes are left out when they are nil,
+  blank, or equal to notes already included. When the winner has no notes,
+  the merged notes are the losers'.
 
   Returns `{:ok, winner}`, preloaded. Returns `{:error, :conflict}` when the
   merged publication would have the composite key of another publication,
@@ -422,15 +445,17 @@ defmodule RichardBurton.Publication do
   `{:error, :self}` when `loser_ids` holds `winner_id`,
   `{:error, :no_losers}` when `loser_ids` is empty, and `{:error, errors}`
   when the merged publication is invalid, such as when the merged notes are
-  too long.
+  too long, or the `:notes` value is not rich text. Nothing is written when
+  it returns an error.
   """
-  def merge(winner_id, loser_ids, actor \\ History.system_actor())
+  def merge(winner_id, loser_ids, actor \\ History.system_actor(), opts \\ [])
 
-  def merge(_winner_id, [], _actor), do: {:error, :no_losers}
+  def merge(_winner_id, [], actor, opts) when is_binary(actor) and is_list(opts),
+    do: {:error, :no_losers}
 
-  def merge(winner_id, loser_ids, actor) do
+  def merge(winner_id, loser_ids, actor, opts) when is_binary(actor) and is_list(opts) do
     with {:ok, winner, losers} <- assemble(winner_id, loser_ids),
-         {:ok, merged} <- merge_and_record(winner, losers, actor) do
+         {:ok, merged} <- merge_and_record(winner, losers, actor, opts) do
       Index.Refresher.refresh()
       {:ok, merged}
     end
@@ -467,9 +492,10 @@ defmodule RichardBurton.Publication do
     end
   end
 
-  # Writes the merge and records it, in one transaction.
-  defp merge_and_record(winner, losers, actor) do
-    attrs = reconciled(winner, losers)
+  # Writes the merge and records it, in one transaction. `opts` are the
+  # options of `merge/4`.
+  defp merge_and_record(winner, losers, actor, opts) do
+    attrs = reconciled(winner, losers, opts)
 
     Repo.transaction(fn ->
       winner
@@ -516,8 +542,8 @@ defmodule RichardBurton.Publication do
 
   # Returns the nested attrs of the merged publication: the winner's fields,
   # the countries and publishers of all of them, the sources of all of them,
-  # each listed once, and the notes `merge/3` describes.
-  defp reconciled(winner, losers) do
+  # each listed once, and the notes `merge/4` describes for `opts`.
+  defp reconciled(winner, losers, opts) do
     flat = Enum.map([winner | losers], &History.snapshot/1)
     [kept | _] = flat
 
@@ -527,24 +553,20 @@ defmodule RichardBurton.Publication do
       countries: union_of(flat, :countries),
       publishers: union_of(flat, :publishers),
       sources: flat |> Enum.flat_map(& &1.sources) |> Enum.uniq(),
-      notes: joined_notes(flat)
+      notes: Keyword.get_lazy(opts, :notes, fn -> joined_notes(flat) end)
     })
     |> Codec.nest()
   end
 
   # Returns the blocks of the notes of the snapshots `flat`, in order, leaving
-  # out blank notes and notes equal to an earlier snapshot's, or nil when
-  # none are left.
+  # out blank notes and notes equal to an earlier snapshot's. The list is
+  # empty when none are left, and `changeset/2` casts an empty list to nil.
   defp joined_notes(flat) do
     flat
     |> Enum.map(& &1.notes)
     |> Enum.reject(&RichText.blank?/1)
     |> Enum.uniq()
     |> Enum.concat()
-    |> case do
-      [] -> nil
-      blocks -> blocks
-    end
   end
 
   # Returns the values of the list field `field` across the snapshots `flat`,

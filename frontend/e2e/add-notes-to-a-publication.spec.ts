@@ -1,6 +1,8 @@
+import type { Locator } from "@playwright/test";
 import { test, expect } from "./fixtures";
 import {
   csv,
+  downloadCsv,
   indexTable,
   notifications,
   openDocument,
@@ -12,6 +14,12 @@ import {
   submitWorkspace,
   uploadCsv,
 } from "./helpers";
+
+/** The button named `name` of the formatting toolbar in `scope`. */
+const tool = (scope: Locator, name: string) =>
+  scope
+    .getByRole("toolbar", { name: "Formatting" })
+    .getByRole("button", { name });
 
 test("an admin writes formatted notes that every reader sees, and a later save of the sources keeps them", async ({
   page,
@@ -25,33 +33,32 @@ test("an admin writes formatted notes that every reader sees, and a later save o
 
   // A paragraph with a bold word, set with the toolbar.
   const notes = dialog.getByRole("textbox", { name: "Notes" });
-  const tool = (name: string) =>
-    dialog
-      .getByRole("toolbar", { name: "Formatting" })
-      .getByRole("button", { name });
 
   await notes.click();
   await page.keyboard.type("A classic of ");
-  await tool("Bold").click();
-  await expect(tool("Bold")).toHaveAttribute("aria-pressed", "true");
+  await tool(dialog, "Bold").click();
+  await expect(tool(dialog, "Bold")).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.type("regionalist");
-  await tool("Bold").click();
+  await tool(dialog, "Bold").click();
   await page.keyboard.type(" fiction.");
 
   // A bulleted list of two items, left with Enter on an empty item.
   await page.keyboard.press("Enter");
-  await tool("Bulleted list").click();
+  await tool(dialog, "Bulleted list").click();
   await page.keyboard.type("First published in 1938");
   await page.keyboard.press("Enter");
   await page.keyboard.type("Translated in 1965");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
-  await expect(tool("Bulleted list")).toHaveAttribute("aria-pressed", "false");
+  await expect(tool(dialog, "Bulleted list")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
 
   // A link added through the link dialog, which takes a bare address. Escape
   // in it closes the link dialog and leaves the publication open.
   await page.keyboard.type("Read more at ");
-  await tool("Link").click();
+  await tool(dialog, "Link").click();
   const link = page.getByRole("dialog", { name: "Link" });
   await expect(
     link.getByRole("textbox", { name: "Link address" }),
@@ -60,7 +67,7 @@ test("an admin writes formatted notes that every reader sees, and a later save o
   await expect(link).toHaveCount(0);
   await expect(dialog).toBeVisible();
 
-  await tool("Link").click();
+  await tool(dialog, "Link").click();
   await link
     .getByRole("textbox", { name: "Link address" })
     .fill("archive.org/details/barrenlives");
@@ -194,17 +201,23 @@ test("notes come in with a CSV as plain text, are formatted in the import docume
     }),
   ).toBeVisible();
 
-  // The editor opens on the imported notes as two paragraphs of plain text.
+  // The editor opens on the imported notes as two paragraphs of plain text,
+  // with the bare address in them made a link when the CSV was read. The
+  // editor pads a link with spacers, so the first paragraph's spacing around
+  // the address is not compared.
   await row("Iracema")
     .getByRole("button", { name: /^Edit notes/ })
     .click();
   let editor = page.getByRole("dialog", { name: "Edit notes" });
   const imported = editor.getByRole("textbox", { name: "Notes" }).locator("p");
   await expect(imported).toHaveText([
-    "Translated in 1886. See the scan at https://archive.org/details/iracema.",
+    /^Translated in 1886\.\s+See the scan at\s+https:\/\/archive\.org\/details\/iracema\s*\.$/,
     "Reprinted in 1922.",
   ]);
   await expect(editor.locator("[data-bold=true], [data-list]")).toHaveCount(0);
+  await expect(
+    editor.getByRole("link", { name: "https://archive.org/details/iracema" }),
+  ).toHaveAttribute("href", "https://archive.org/details/iracema");
   await page.keyboard.press("Escape");
   await expect(editor).toHaveCount(0);
 
@@ -214,10 +227,6 @@ test("notes come in with a CSV as plain text, are formatted in the import docume
   // linked as it is typed.
   await row("Dom Casmurro").getByRole("button", { name: "Add notes" }).click();
   editor = page.getByRole("dialog", { name: "Edit notes" });
-  const tool = (name: string) =>
-    editor
-      .getByRole("toolbar", { name: "Formatting" })
-      .getByRole("button", { name });
 
   await editor.getByRole("textbox", { name: "Notes" }).click();
   await page.keyboard.press("ControlOrMeta+b");
@@ -226,22 +235,34 @@ test("notes come in with a CSV as plain text, are formatted in the import docume
   await page.keyboard.type(", with notes.");
 
   await page.keyboard.press("Enter");
-  await tool("Numbered list").click();
-  await expect(tool("Numbered list")).toHaveAttribute("aria-pressed", "true");
+  await tool(editor, "Numbered list").click();
+  await expect(tool(editor, "Numbered list")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await page.keyboard.type("Noonday Press, 1953");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Tab");
-  await tool("Bulleted list").click();
-  await expect(tool("Bulleted list")).toHaveAttribute("aria-pressed", "true");
+  await tool(editor, "Bulleted list").click();
+  await expect(tool(editor, "Bulleted list")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await page.keyboard.type("signed by the translator");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Shift+Tab");
-  await tool("Numbered list").click();
-  await expect(tool("Numbered list")).toHaveAttribute("aria-pressed", "true");
+  await tool(editor, "Numbered list").click();
+  await expect(tool(editor, "Numbered list")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await page.keyboard.type("Reprinted in 1997");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
-  await expect(tool("Numbered list")).toHaveAttribute("aria-pressed", "false");
+  await expect(tool(editor, "Numbered list")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
 
   await page.keyboard.type("See ");
   await page.keyboard.press("ControlOrMeta+k");
@@ -304,15 +325,7 @@ test("notes come in with a CSV as plain text, are formatted in the import docume
 
   // The export carries every publication's notes as plain text. Imported
   // notes go out as they came in.
-  const [response] = await Promise.all([
-    page.waitForResponse(
-      (r) =>
-        r.url().includes("files/publications") &&
-        r.request().method() === "GET",
-    ),
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download .csv" }).click(),
-  ]);
+  const { response } = await downloadCsv(page);
   const exported = await response.text();
 
   expect(exported.split("\n")[0]).toMatch(/,notes$/);

@@ -1,4 +1,4 @@
-import { isEqual } from "lodash";
+import { isEqual, uniqWith } from "lodash";
 import type { CountryNaming } from "modules/country-names";
 import { isBlank, type RichTextValue } from "modules/rich-text";
 
@@ -156,16 +156,23 @@ type SnapshotDiff = {
 
 /**
  * A publication as the log keeps it: the record's own fields, without the
- * surrogate id, and with the year as the number it is stored as.
+ * surrogate id and the notes, and with the year as the number it is stored as.
+ * A change to the notes is in the entry's `diff`.
  */
-type PublicationSnapshot = Omit<Publication, "id" | "year"> & { year: number };
+type PublicationSnapshot = Omit<Publication, "id" | "year" | "notes"> & {
+  year: number;
+};
 
 /**
  * A publication an entry of the log names besides its own, as it stood when
- * the entry was recorded. Identified, unlike a snapshot: an entry names several
- * of these at once, and two records that were merged may well share a title.
+ * the entry was recorded, its notes included. Identified, unlike a snapshot:
+ * an entry names several of these at once, and two records that were merged
+ * may well share a title.
  */
-type OtherPublication = PublicationSnapshot & { id: number };
+type OtherPublication = PublicationSnapshot & {
+  id: number;
+  notes?: RichTextValue | null;
+};
 
 /**
  * One entry of a publication's log: the act, who did it and when, the record as
@@ -240,6 +247,12 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
 };
 
 /**
+ * The most characters the notes of a publication can hold, counted by
+ * `textLength`. The server refuses longer notes with the code `too_long`.
+ */
+const NOTES_MAX_LENGTH = 10_000;
+
+/**
  * Returns a publication with no id, an empty text in each text field and an
  * empty list in each list field. It has no `notes` key, which saves as no
  * notes.
@@ -288,13 +301,12 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   const union = (attribute: "countries" | "publishers") =>
     Array.from(new Set(all.flatMap((p) => p[attribute]))).sort();
 
-  const notes = all
-    .map((p) => p.notes)
-    .filter((value): value is RichTextValue => !isBlank(value))
-    .filter(
-      (value, index, kept) =>
-        kept.findIndex((earlier) => isEqual(earlier, value)) === index,
-    );
+  const notes = uniqWith(
+    all
+      .map((p) => p.notes)
+      .filter((value): value is RichTextValue => !isBlank(value)),
+    isEqual,
+  );
 
   return {
     ...winner,
@@ -605,6 +617,7 @@ export {
   idFromText,
   marking,
   merged,
+  NOTES_MAX_LENGTH,
   Publication,
   searchHref,
 };

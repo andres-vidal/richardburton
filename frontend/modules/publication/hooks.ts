@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useCountryNaming } from "modules/country-names";
 import { Publication, PublicationId, PublicationKey, marking } from "./model";
-import type { Marking } from "./model";
+import type { ErrorScope, Marking } from "./model";
 import {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
@@ -18,7 +18,6 @@ import {
   isValidFamily,
   publicationSourcesFamily,
   publicationNotesFamily,
-  notesErrorCodeFamily,
   publicationExcerptsFamily,
   publicationCountAtom,
   publicationFamily,
@@ -129,11 +128,6 @@ function usePublicationNotes(id: PublicationId) {
   return useAtomValue(publicationNotesFamily(id));
 }
 
-/** Returns what is wrong with a row's notes, in words. */
-function usePublicationNotesError(id: PublicationId) {
-  return useErrorSentence(useAtomValue(notesErrorCodeFamily(id)));
-}
-
 /** The saved sources only, without unsaved edits. */
 function useStoredPublicationSources(id: PublicationId) {
   return useAtomValue(storedSourcesFamily(id));
@@ -163,8 +157,11 @@ function usePublicationErrorDescription(id: PublicationId) {
   return useErrorSentence(useAtomValue(errorCodeFamily(id)));
 }
 
-/** Returns what is wrong with one field of a row, in words. */
-function usePublicationFieldError(id: PublicationId, key: PublicationKey) {
+/**
+ * Returns what is wrong with one field of a row, an attribute or the notes, in
+ * words.
+ */
+function usePublicationFieldError(id: PublicationId, key: ErrorScope) {
   return useErrorSentence(useAtomValue(fieldErrorCodeFamily({ id, key })));
 }
 
@@ -269,6 +266,7 @@ export {
   usePublicationIds,
   useAreRowIdsVisible,
   useBatchNames,
+  useErrorSentence,
   useHiddenAttributes,
   useIsAttributeVisible,
   useInvalidPublicationIds,
@@ -283,7 +281,6 @@ export {
   usePublicationIndexCount,
   usePublicationSources,
   usePublicationNotes,
-  usePublicationNotesError,
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationMarking,

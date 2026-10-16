@@ -27,12 +27,14 @@ defmodule RichardBurton.Publication.Index do
       `{:spelled_out, term}` or `{:alternatives, alternatives}`. `matches/1` and
       `ranking/1` are built from it, and it is the only thing that differs
       between the two ways of reading a term.
-    * **listed row** — a publication as a page of the index holds it: a map of
-      the fields of a `RichardBurton.FlatPublication` other than `notes`,
-      with `excerpts` and `marked`. It has no `notes` key, so that a page
-      stays small however long the notes are. `details/3` and
+    * **listed row** — a publication as a page of the index holds it: a
+      `RichardBurton.FlatPublication` read from the view, with `excerpts` and
+      `marked`. Its `notes` are nil, whatever notes the publication has, and
+      its JSON has no `notes` key, so that a page stays small however long
+      the notes are. `details/3` and
       `without_sources/0` return listed rows. `all/1` and `search/2` return
-      whole `FlatPublication` structs, notes included.
+      `FlatPublication` structs whose notes are read from the `publications`
+      table, or maps of the fields they are asked for.
 
   Each word is matched on its own: as a prefix when the index holds words
   beginning with it, and by resemblance when it does not. So a word matched by
@@ -55,6 +57,7 @@ defmodule RichardBurton.Publication.Index do
   import Ecto.Query
 
   alias RichardBurton.FlatPublication
+  alias RichardBurton.Publication
   alias RichardBurton.Publication.Index.SearchDocument
   alias RichardBurton.Publication.Index.Excerpt
   alias RichardBurton.Publication.Index.Query
@@ -68,29 +71,27 @@ defmodule RichardBurton.Publication.Index do
   # suffices, small enough that it arrives in one response.
   @per_page Application.compile_env(:richard_burton, :publications_per_page, 50)
 
-  # The fields a listed row reads from the view. See the module doc.
-  @listed FlatPublication.__schema__(:fields) -- [:notes]
-
-  # The keys of a listed row.
-  @listed_keys [:excerpts, :marked | @listed]
-
   @doc "Name of the response header carrying the index's total count."
   @spec count_header() :: String.t()
   def count_header, do: @count_header
 
-  @doc "Returns `{:ok, publications}`, every publication in the index, whole."
+  @doc """
+  Returns `{:ok, publications}`, every publication in the index, whole, with
+  its notes.
+  """
   def all do
     all(select: [])
   end
 
   @doc """
   Returns `{:ok, publications}`, every publication in the index, as maps of
-  the fields in `attributes`, or whole when `attributes` is empty.
+  the fields in `attributes`, or whole, with their notes, when `attributes` is
+  empty. The notes are read from the `publications` table in the same query.
   """
   def all(select: attributes) when is_list(attributes) do
     results =
       from(fp in FlatPublication)
-      |> maybe_select(attributes)
+      |> selected(attributes)
       |> Repo.all()
 
     {:ok, results}
@@ -111,12 +112,11 @@ defmodule RichardBurton.Publication.Index do
   """
   def without_sources do
     results =
-      from(fp in listed(),
+      from(fp in FlatPublication,
         where: fragment("cardinality(?) = 0", fp.sources),
         order_by: [asc: fp.id]
       )
       |> Repo.all()
-      |> Enum.map(&listed_row/1)
 
     {:ok, results}
   end
@@ -140,9 +140,10 @@ defmodule RichardBurton.Publication.Index do
   emptying the result.
 
   It returns `{:ok, publications}`, every match at once, in the order
-  `search_order/1` gives, as maps of the fields in `attributes`, or whole
-  when `attributes` is empty. `search_order/1` and `details/2` read the same
-  matches a page at a time.
+  `search_order/1` gives, as maps of the fields in `attributes`, or whole,
+  with their notes, when `attributes` is empty. The notes are read from the
+  `publications` table in the same query. `search_order/1` and `details/2`
+  read the same matches a page at a time.
   """
   def search(term, select: attributes) when is_binary(term) do
     case criteria(term, standings(term)) do
@@ -204,9 +205,8 @@ defmodule RichardBurton.Publication.Index do
   def details(ids, term \\ nil)
 
   def details(ids, nil) when is_list(ids) do
-    from(fp in listed(), where: fp.id in ^ids)
+    from(fp in FlatPublication, where: fp.id in ^ids)
     |> Repo.all()
-    |> Enum.map(&listed_row/1)
     |> in_order(ids)
   end
 
@@ -221,10 +221,9 @@ defmodule RichardBurton.Publication.Index do
   def details(ids, nil, _standings), do: details(ids, nil)
 
   def details(ids, term, standings) when is_list(ids) and is_binary(term) do
-    from(fp in listed(), where: fp.id in ^ids)
+    from(fp in FlatPublication, where: fp.id in ^ids)
     |> Excerpt.select(term, standings)
     |> Repo.all()
-    |> Enum.map(&listed_row/1)
     |> in_order(ids)
   end
 
@@ -308,30 +307,36 @@ defmodule RichardBurton.Publication.Index do
     )
   end
 
-  # The full rows a search matches, in the same order as `order_ids/1`, selected
-  # whole or narrowed to the named attributes. Used by the export, which takes the
-  # results all at once rather than a page at a time.
+  # The full rows a search matches, in the same order as `order_ids/1`,
+  # selected as `selected/2` selects them for `attributes`.
   defp asking(criteria, attributes) do
-    criteria |> ranked() |> maybe_select(attributes)
+    criteria |> ranked() |> selected(attributes)
   end
 
-  # An empty attribute list returns whole rows. Naming attributes narrows the
-  # export to just those columns.
-  defp maybe_select(query, []) do
-    query
+  # Returns `query`, a query of the view, selecting whole rows with their
+  # notes when `attributes` is empty, and maps of the fields in `attributes`
+  # otherwise. The notes, which the view does not hold, are read from the
+  # `publications` table by a join on the id, when the rows are whole or
+  # `attributes` holds `:notes`.
+  defp selected(query, []) do
+    query |> join_stored() |> select_merge([stored: p], %{notes: p.notes})
   end
 
-  defp maybe_select(query, attributes) do
-    select(query, [fp], map(fp, ^attributes))
+  defp selected(query, attributes) do
+    query = if :notes in attributes, do: join_stored(query), else: query
+    select(query, ^Map.new(attributes, &{&1, selected_field(&1)}))
   end
 
-  # A query for the publications in the index, each selected as a
-  # `FlatPublication` without its notes.
-  defp listed, do: from(fp in FlatPublication, select: struct(fp, ^@listed))
+  # Returns what selects `field`: the notes of the `publications` row that
+  # `join_stored/1` joins, and any other field from the view.
+  defp selected_field(:notes), do: dynamic([stored: p], p.notes)
+  defp selected_field(field), do: dynamic([fp], field(fp, ^field))
 
-  # Returns a `FlatPublication` as a listed row: a map of its `@listed` fields,
-  # its `excerpts` and its `marked`.
-  defp listed_row(publication), do: Map.take(publication, @listed_keys)
+  # Returns `query`, a query of the view, joined to the row of the
+  # `publications` table with the same id, which it names `:stored`.
+  defp join_stored(query) do
+    join(query, :inner, [fp], p in Publication, as: :stored, on: p.id == fp.id)
+  end
 
   # Puts rows into the order the given ids are in, dropping any id that is no longer
   # in the database. The database returns them in whatever order it likes.

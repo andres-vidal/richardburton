@@ -22,6 +22,8 @@ from the value and sets no HTML of its own.
 ## Props
 
 - `value` — the text's value. A null, missing or blank value renders nothing.
+  A value that is not rich text renders as the text it holds (see
+  [Values that are not rich text](#values-that-are-not-rich-text)).
 - `size` — `base`, the default, for running text, or `small` for smaller text
   with less space between blocks.
 
@@ -41,19 +43,32 @@ Blank blocks render nothing.
 <Description of={RichTextStories.Lists} />
 <Canvas of={RichTextStories.Lists} />
 
-## Bare addresses
+The component renders the depths it is given. Each item is nested in the
+closest item before it that is shallower than it, so a run that starts a level
+deep, or an item that skips a level, still shows every item. A nested list is
+one level deeper than the item that holds it.
 
-A URL or an email address written out in the text renders as a link, by the
-same rule that links one typed in the rich text area.
-
-<Description of={RichTextStories.BareLinks} />
-<Canvas of={RichTextStories.BareLinks} />
+<Description of={RichTextStories.UnevenDepths} />
+<Canvas of={RichTextStories.UnevenDepths} />
 
 ## Characters that look like markup
 
 Characters that Markdown or HTML would read as formatting, such as `*` or
-`<b>`, are shown as they are written. A link to anything but an `http`, `https`
-or `mailto` address renders as its text.
+`<b>`, are shown as they are written. Only the links of the value render as
+links: a URL or an email address in a run of text is text. The rich text area
+links an address as it is typed or pasted, so it is a link in the value. A link
+to anything but an `http`, `https` or `mailto` address renders as its text.
 
 <Description of={RichTextStories.LiteralText} />
 <Canvas of={RichTextStories.LiteralText} />
+
+## Values that are not rich text
+
+The component renders any value without throwing. A string renders as a
+paragraph of its text, with its line breaks. A node of a type that rich text
+does not have renders as a paragraph of the text it holds: its `text`, then
+the text of its `children`. A node that holds no text renders nothing. The
+value is read by `readValue` in `modules/rich-text`.
+
+<Description of={RichTextStories.UnrecognisedValues} />
+<Canvas of={RichTextStories.UnrecognisedValues} />

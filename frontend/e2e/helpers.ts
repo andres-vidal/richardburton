@@ -218,6 +218,25 @@ export async function openPublicationModal(page: Page, title: string) {
 }
 
 /**
+ * Presses "Download .csv" on the index, and returns the response of the CSV
+ * export and the download the browser was offered. It waits for both, since a
+ * response alone does not show that a file was offered.
+ */
+export async function downloadCsv(page: Page) {
+  const [response, download] = await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        r.url().includes("files/publications") &&
+        r.request().method() === "GET",
+    ),
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download .csv" }).click(),
+  ]);
+
+  return { response, download };
+}
+
+/**
  * The stack of notifications. It is found by CSS rather than by role, because
  * an open dialog hides the rest of the page, the stack included, from the
  * accessibility tree.

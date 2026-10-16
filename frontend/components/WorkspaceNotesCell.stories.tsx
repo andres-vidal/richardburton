@@ -69,7 +69,7 @@ export const Empty: Story = {
     await userEvent.click(button);
     const dialog = await screen.findByRole("dialog", { name: "Edit notes" });
     await expect(
-      within(dialog).getByRole("textbox", { name: "Notes" }),
+      await within(dialog).findByRole("textbox", { name: "Notes" }),
     ).toBeInTheDocument();
     await expect(selectRow).not.toHaveBeenCalled();
   },
@@ -105,8 +105,8 @@ export const WithNotes: Story = {
 };
 
 /**
- * Editing in the dialog writes the notes' value to the row, and the button
- * shows the new text once the dialog closes.
+ * Editing in the dialog writes the notes' value to the row once the typing
+ * pauses, and the button shows the new text once the dialog closes.
  */
 export const Editing: Story = {
   beforeEach: () => seed(store, 1, null),
@@ -114,7 +114,7 @@ export const Editing: Story = {
     await userEvent.click(screen.getByRole("button", { name: "Add notes" }));
     const dialog = await screen.findByRole("dialog", { name: "Edit notes" });
 
-    await focusEditor(within(dialog).getByRole("textbox"));
+    await focusEditor(await within(dialog).findByRole("textbox"));
     await userEvent.click(within(dialog).getByRole("button", { name: "Bold" }));
     await userEvent.keyboard("First edition");
 
@@ -149,7 +149,7 @@ export const TooLong: Story = {
     const dialog = await screen.findByRole("dialog", { name: "Edit notes" });
 
     await expect(
-      within(dialog).getByRole("textbox"),
+      await within(dialog).findByRole("textbox"),
     ).toHaveAccessibleDescription(/This text is too long/);
   },
 };

@@ -331,7 +331,7 @@ export const Notes: Story = {
         action: "merged",
         actor: "curator@rb.test",
         timestamp: "2026-10-14T12:00:00",
-        snapshot: { ...SNAPSHOT, notes: [...FIRST, ...DUPLICATE] },
+        snapshot: SNAPSHOT,
         diff: {
           fields: {
             notes: { from: FIRST, to: [...FIRST, ...DUPLICATE] },
@@ -353,7 +353,7 @@ export const Notes: Story = {
         action: "updated",
         actor: "curator@rb.test",
         timestamp: "2026-10-13T12:00:00",
-        snapshot: { ...SNAPSHOT, notes: FIRST },
+        snapshot: SNAPSHOT,
         diff: {
           fields: { notes: { from: null, to: FIRST } },
           sources: null,

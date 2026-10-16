@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { test, expect } from "./fixtures";
 import {
@@ -40,9 +40,12 @@ const BRAZILIAN_PRINTING = {
   publisher: "Livraria Garnier",
 };
 
-// The notes each duplicate is entered with. The merge keeps both.
+// The notes each duplicate is entered with. The merge dialog proposes both,
+// and the journey edits them into `EDITED_NOTES` before merging: the second
+// sentence goes, and the first gains a word.
 const BRITISH_NOTES = "Bought from the publisher's remaindered stock.";
 const BRAZILIAN_NOTES = "Garnier's copy, stamped by the bookseller.";
+const EDITED_NOTES = "Bought from the publisher's remaindered stock, signed.";
 
 // Types `text` as the notes of the open document's row that names
 // `publisher`, in the row's notes editor, and closes the editor.
@@ -57,6 +60,16 @@ async function writeNotes(page: Page, publisher: string, text: string) {
   await expect(
     row.getByRole("button", { name: `Edit notes: ${text}` }),
   ).toBeVisible();
+}
+
+// Picks, in the merge dialog `merge`, the record on offer that names
+// `publisher`.
+async function pick(merge: Locator, publisher: string) {
+  await merge
+    .getByRole("listitem")
+    .filter({ hasText: publisher })
+    .getByRole("button", { name: "Add" })
+    .click();
 }
 
 test("an admin merges duplicate records into one; it keeps its place and gains what they held", async ({
@@ -124,8 +137,28 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
     .getByRole("textbox", { name: "Search for publications to merge" })
     .fill(CANONICAL);
   await expect(merge.getByRole("button", { name: "Add" })).toHaveCount(2);
-  await merge.getByRole("button", { name: "Add" }).first().click();
-  await merge.getByRole("button", { name: "Add" }).first().click();
+  await pick(merge, BRITISH_PRINTING.publisher);
+  await pick(merge, BRAZILIAN_PRINTING.publisher);
+
+  // The survivor has no notes of its own, so the dialog proposes the notes of
+  // the two records it takes in, one paragraph each, in the order they were
+  // picked.
+  const proposed = merge.getByRole("textbox", { name: "Notes" });
+  await expect(proposed.locator("p")).toHaveText([
+    BRITISH_NOTES,
+    BRAZILIAN_NOTES,
+  ]);
+
+  // The notes are edited before the merge. A triple click selects the second
+  // paragraph. Backspace deletes its text, then the empty paragraph, then the
+  // full stop of the first paragraph, and the typing adds a word.
+  await proposed.locator("p").nth(1).click({ clickCount: 3 });
+  await page.keyboard.press("Backspace");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.type(", signed.");
+  await expect(proposed.locator("p")).toHaveText([EDITED_NOTES]);
+
   await merge.getByRole("button", { name: "Merge 2 publications" }).click();
 
   await expect(notifications(page)).toContainText(/Merged 2 publications/);
@@ -153,12 +186,10 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
     await expect(merged.getByRole("link", { name: value })).toBeVisible();
   }
 
-  // The record had no notes of its own, and now holds the notes of both
-  // records it took in, one paragraph each.
+  // The record holds the notes as they were edited in the dialog, and nothing
+  // else of the notes the two records held.
   const notes = merged.getByRole("region", { name: "Notes" });
-  await expect(notes.locator("p")).toHaveCount(2);
-  await expect(notes).toContainText(BRITISH_NOTES);
-  await expect(notes).toContainText(BRAZILIAN_NOTES);
+  await expect(notes.locator("p")).toHaveText([EDITED_NOTES]);
 
   // The record's own log carries the merge, on the record that survived it.
   await merged.getByText("History").click();
@@ -211,4 +242,18 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
   await expect(
     indexTable(page).getByRole("row").filter({ hasText: CANONICAL }),
   ).toHaveCount(3);
+
+  // The survivor, the only one of the three that Noonday Press published, had
+  // no notes before the merge, and has none again.
+  await indexTable(page)
+    .getByRole("row")
+    .filter({ hasText: CANONICAL })
+    .filter({ hasText: "Noonday Press" })
+    .click();
+  const restored = page.getByRole("dialog", { name: "Publication details" });
+  await expect(restored).toBeVisible();
+  await expect(
+    restored.getByRole("link", { name: "Noonday Press" }),
+  ).toBeVisible();
+  await expect(restored.getByRole("region", { name: "Notes" })).toHaveCount(0);
 });

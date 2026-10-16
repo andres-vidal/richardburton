@@ -3,6 +3,7 @@
 import { useFormatDate } from "modules/dates";
 import type { WithChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
+import { isBlank, type RichTextValue } from "modules/rich-text";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
@@ -62,6 +63,20 @@ const ActionBadge: FC<{
 };
 
 /**
+ * Notes as an entry of the log shows them: rendered with `RichText` in the
+ * small size, or the `admin.noNotes` message when they are null or blank.
+ */
+const NotesOrNone: FC<{ notes: RichTextValue | null }> = ({ notes }) => {
+  const t = useTranslations("admin");
+
+  return isBlank(notes) ? (
+    t("noNotes")
+  ) : (
+    <RichText value={notes} size="small" />
+  );
+};
+
+/**
  * One entry of a publication's log: its action, who made it and when, and what
  * it changed. The `card` variant names the publication and frames the entry,
  * and the `plain` variant does neither.
@@ -70,7 +85,7 @@ const ActionBadge: FC<{
  * the sources added and removed, the notes before and after, rendered with
  * `RichText`, the records a merge took in or gave back, and the records a
  * duplicate decision was about. An update with no earlier
- * version to compare with says so.
+ * version to compare with says so. Blank notes are shown as none.
  */
 const Entry: FC<{
   entry: HistoryEntry;
@@ -205,21 +220,13 @@ const Entry: FC<{
                     −
                   </span>
                   <del className="text-gray-500 no-underline">
-                    {change.from ? (
-                      <RichText value={change.from} size="small" />
-                    ) : (
-                      t("noNotes")
-                    )}
+                    <NotesOrNone notes={change.from} />
                   </del>
                   <span aria-hidden className="text-emerald-700">
                     +
                   </span>
                   <ins className="no-underline">
-                    {change.to ? (
-                      <RichText value={change.to} size="small" />
-                    ) : (
-                      t("noNotes")
-                    )}
+                    <NotesOrNone notes={change.to} />
                   </ins>
                 </div>
               </li>
@@ -267,7 +274,7 @@ const Entry: FC<{
                             {t("sourceLabel", { source })}
                           </li>
                         ))}
-                        {record.notes && (
+                        {!isBlank(record.notes) && (
                           <li className="text-gray-500">
                             {attribute("notes")}:
                             <RichText value={record.notes} size="small" />

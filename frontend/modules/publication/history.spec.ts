@@ -183,10 +183,8 @@ describe("presentAbsorbed", () => {
       absorbing("merged", [
         {
           id: 9,
-          ...snapshot({
-            sources: ["Sousa, J. Bibliografia, 1955."],
-            notes: [paragraph("A ", { text: "rare", italic: true }, " copy.")],
-          }),
+          ...snapshot({ sources: ["Sousa, J. Bibliografia, 1955."] }),
+          notes: [paragraph("A ", { text: "rare", italic: true }, " copy.")],
         },
         { id: 10, ...snapshot() },
       ]),

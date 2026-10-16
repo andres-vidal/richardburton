@@ -77,6 +77,13 @@ function activeList(editor: Editor): ListKind | null {
     : null;
 }
 
+// Turns the block at `path` into a paragraph, without the list and depth of a
+// list item.
+function makeParagraph(editor: Editor, path: Path): void {
+  Transforms.setNodes(editor, { type: "paragraph" }, { at: path });
+  Transforms.unsetNodes(editor, ["list", "depth"], { at: path });
+}
+
 /**
  * Makes the selected blocks items of a list of `kind`, or paragraphs when they
  * already are. An item of a list of the other kind keeps its depth.
@@ -88,8 +95,7 @@ function toggleList(editor: Editor, kind: ListKind): void {
   Editor.withoutNormalizing(editor, () =>
     blocks.forEach(([block, path]) => {
       if (off) {
-        Transforms.setNodes(editor, { type: "paragraph" }, { at: path });
-        Transforms.unsetNodes(editor, ["list", "depth"], { at: path });
+        makeParagraph(editor, path);
       } else {
         const depth = block.type === "list-item" ? block.depth : 0;
         Transforms.setNodes(
@@ -133,8 +139,7 @@ function outdent(editor: Editor, [item, path]: NodeEntry<ListItemElement>) {
   if (item.depth > 0) {
     Transforms.setNodes(editor, { depth: item.depth - 1 }, { at: path });
   } else {
-    Transforms.setNodes(editor, { type: "paragraph" }, { at: path });
-    Transforms.unsetNodes(editor, ["list", "depth"], { at: path });
+    makeParagraph(editor, path);
   }
 }
 

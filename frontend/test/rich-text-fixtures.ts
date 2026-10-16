@@ -59,9 +59,12 @@ const EVERY_FORMAT: RichTextValue = [
   item("bulleted", 0, "Bread"),
 ];
 
-/** A bare URL and a bare email address in plain text. */
-const BARE_LINKS: RichTextValue = [
-  paragraph("Read https://example.com/guide, or write to help@example.org."),
-];
+/**
+ * Returns `value` typed as rich text, so that a test can pass a value that is
+ * not rich text, such as a string, to a function that takes rich text.
+ */
+function unchecked(value: unknown): RichTextValue {
+  return value as RichTextValue;
+}
 
-export { BARE_LINKS, EVERY_FORMAT, item, link, paragraph };
+export { EVERY_FORMAT, item, link, paragraph, unchecked };
