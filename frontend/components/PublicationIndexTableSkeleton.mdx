@@ -1,0 +1,61 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as TableSkeletonStories from "./PublicationIndexTableSkeleton.stories";
+
+<Meta of={TableSkeletonStories} />
+
+# Publication index table skeleton
+
+A header row and twelve placeholder rows that stand in for the
+[index table](?path=/docs/publications-index-table--docs) while its
+publications load. The skeleton is laid out in the table's grid, with the
+column template that `gridTemplateColumns` in `publicationIndexColumns` gives
+the table, so each placeholder sits where its column will be.
+
+The header row holds each column's label as plain text. In each placeholder
+row, a cell holds the shapes of its attribute's value, chosen by the
+attribute's type in `Publication.ATTRIBUTE_TYPES` and by the `cells` prop,
+which says what the table's cells show:
+
+- **Titles** (`text` and `book`) — one long line.
+- **Year** (`number`) — one short line.
+- **Names** (`array`) and **countries** (`enumArray`) — in `text` cells, one
+  line, or two lines side by side like names joined by a comma. In `fields`
+  cells, one or two pills, as a field shows each item of the list.
+
+The lengths cycle by row and column, without randomness, so the server and the
+browser render the same markup. In a column too narrow for its shapes, the
+shapes shrink to fit.
+
+The skeleton is built with [`Skeleton`](?path=/docs/components-skeleton--docs),
+so it fades in after 150ms, its lower half fades out, and its pulse moves down
+the rows while motion is allowed.
+
+<Description of={TableSkeletonStories.IndexColumns} />
+<Canvas of={TableSkeletonStories.IndexColumns} />
+
+## Props
+
+- `attributes` — the attribute columns, in order. An attribute that is not in
+  the list has no header cell, no cells and no track.
+- `cells` — what the table's cells show: `text`, each value written as text
+  with the items of a list joined by commas, or `fields`, the inputs that edit
+  each value. Defaults to `text`.
+- `signal` — whether each row starts with a signal cell. The signal cell is
+  empty.
+- `trailing` — how many cells follow the attributes in each row. Each holds a
+  muted button shape, like the notes and sources buttons of an import
+  document.
+
+## States
+
+<Description of={TableSkeletonStories.HiddenColumns} />
+<Canvas of={TableSkeletonStories.HiddenColumns} />
+
+<Description of={TableSkeletonStories.ImportDocument} />
+<Canvas of={TableSkeletonStories.ImportDocument} />
+
+## Accessibility
+
+The skeleton is a `status` named "Loading", so assistive technology announces
+that the table is loading. The header and the placeholders are hidden from it.

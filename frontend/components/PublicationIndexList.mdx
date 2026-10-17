@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as IndexListStories from "./PublicationIndexList.stories";
 
@@ -60,6 +60,9 @@ The list resolves to one of three states from the store alone:
 - **Empty** — ids loaded and none to show, because the database is empty or
   the search matched nothing; renders `EmptySearchResults`. See the
   [Empty](?path=/story/publications-index-list--empty) story.
-- **Loading** — ids not loaded yet (`undefined`); renders a `ListSkeleton`
-  placeholder. See the [Loading](?path=/story/publications-index-list--loading)
-  story.
+- **Loading** — ids not loaded yet (`undefined`); renders a
+  [`PublicationIndexListSkeleton`](?path=/docs/publications-index-list-skeleton--docs),
+  ten placeholder entries in the shape of the list's entries.
+
+<Description of={IndexListStories.Loading} />
+<Canvas of={IndexListStories.Loading} />

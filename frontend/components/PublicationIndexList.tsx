@@ -16,7 +16,7 @@ import useVisible from "utils/useVisible";
 import { EmptySearchResults } from "./EmptySearchResults";
 import { Link } from "i18n/navigation";
 import Highlight from "./Highlight";
-import { ListSkeleton } from "./ListSkeleton";
+import { PublicationIndexListSkeleton } from "./PublicationIndexListSkeleton";
 
 /** A field of the record as the index marked it, for the sentence below. */
 const Marked: FC<{ publication: Publication; attribute: PublicationKey }> = ({
@@ -138,7 +138,8 @@ const Entry = memo(function Entry({
  * publication's title, translators, original book, publishers, year and
  * countries. Each entry draws its publication only once it nears the viewport,
  * as `Entry` describes. The list shows `EmptySearchResults` when the store
- * holds no publications, and a skeleton while it has not loaded them yet.
+ * holds no publications, and a `PublicationIndexListSkeleton` while it has not
+ * loaded them yet.
  */
 const PublicationIndexList: FC<Props> = ({ onItemClick, itemHref }) => {
   const ids = usePublicationIds();
@@ -152,7 +153,7 @@ const PublicationIndexList: FC<Props> = ({ onItemClick, itemHref }) => {
   ) : ids ? (
     <EmptySearchResults />
   ) : (
-    <ListSkeleton rows={10} />
+    <PublicationIndexListSkeleton />
   );
 };
 
