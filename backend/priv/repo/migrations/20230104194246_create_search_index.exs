@@ -133,7 +133,7 @@ defmodule RichardBurton.Repo.Migrations.CreateSearchIndex do
       SELECT
         word
       FROM
-        ts_stat('SELECT document FROM search_documents');
+        ts_stat('SELECT document FROM public.search_documents');
       ",
       "--Down
       DROP MATERIALIZED VIEW search_keywords;
