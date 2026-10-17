@@ -535,11 +535,18 @@ const RichTextArea: FC<{
   }
 
   // Opens the link dialog for the selection, or for the end of the text when
-  // the editor has none.
+  // the editor has none, and blurs the editor first.
+  //
+  // Slate ignores a blur that follows its own change of the selection, as the
+  // one Ctrl or Cmd with K makes, and goes on treating the editor as focused.
+  // Its next render then puts the DOM selection back in the editor, which takes
+  // the focus from the dialog's address field. Blurring the editor through
+  // Slate keeps the focus in the dialog.
   function openLink() {
     const end = Editor.end(editor, []);
     const at = editor.selection ?? { anchor: end, focus: end };
 
+    ReactEditor.blur(editor);
     setLinking(Editor.rangeRef(editor, at));
   }
 
