@@ -2,6 +2,7 @@
 
 import {
   FloatingFocusManager,
+  FloatingNode,
   FloatingPortal,
   autoUpdate,
   flip,
@@ -9,6 +10,7 @@ import {
   shift,
   useDismiss,
   useFloating,
+  useFloatingNodeId,
   useInteractions,
 } from "@floating-ui/react";
 import BoldIcon from "assets/format-bold.svg";
@@ -218,6 +220,10 @@ const LinkForm: FC<{
  * the selection is in, or adds one, and closes through `onClose`, which
  * receives the change to make, or nothing when the dialog was cancelled. A
  * press outside the dialog cancels it.
+ *
+ * The dialog is rendered in a portal, as a child node of the floating tree it
+ * opens in, so a modal the field sits in counts the dialog as part of itself
+ * and lets focus move into it (see `Modal`).
  */
 const LinkControl: FC<{
   at: RangeRef | null;
@@ -231,7 +237,9 @@ const LinkControl: FC<{
   const range = at?.current ?? null;
   const link = activeLink(editor, range ?? editor.selection);
 
+  const nodeId = useFloatingNodeId();
   const { refs, floatingStyles, context } = useFloating({
+    nodeId,
     open,
     onOpenChange: (next) => (next ? onOpen() : onClose()),
     placement: "bottom-start",
@@ -260,37 +268,43 @@ const LinkControl: FC<{
         onMouseDown={keepSelection}
         onClick={() => (open ? onClose() : onOpen())}
       />
-      <FloatingPortal>
-        {open && (
-          <FloatingFocusManager
-            context={context}
-            modal={false}
-            initialFocus={urlRef}
-            returnFocus={false}
-          >
-            <div
-              ref={refs.setFloating}
-              style={floatingStyles}
-              {...getFloatingProps()}
-              role="dialog"
-              aria-label={t("linkDialog")}
-              className="z-50 p-3 w-80 max-w-[calc(100vw-1rem)] bg-white rounded border border-gray-200 shadow-md"
+      <FloatingNode id={nodeId}>
+        <FloatingPortal>
+          {open && (
+            <FloatingFocusManager
+              context={context}
+              modal={false}
+              initialFocus={urlRef}
+              returnFocus={false}
             >
-              <LinkForm
-                initialUrl={link?.[0].url ?? ""}
-                asksText={!link && (range === null || Range.isCollapsed(range))}
-                canRemove={Boolean(link)}
-                urlRef={urlRef}
-                onApply={(url, text) =>
-                  onClose((target) => applyLink(editor, target, url, text))
-                }
-                onRemove={() => onClose((target) => removeLink(editor, target))}
-                onCancel={() => onClose()}
-              />
-            </div>
-          </FloatingFocusManager>
-        )}
-      </FloatingPortal>
+              <div
+                ref={refs.setFloating}
+                style={floatingStyles}
+                {...getFloatingProps()}
+                role="dialog"
+                aria-label={t("linkDialog")}
+                className="z-50 p-3 w-80 max-w-[calc(100vw-1rem)] bg-white rounded border border-gray-200 shadow-md"
+              >
+                <LinkForm
+                  initialUrl={link?.[0].url ?? ""}
+                  asksText={
+                    !link && (range === null || Range.isCollapsed(range))
+                  }
+                  canRemove={Boolean(link)}
+                  urlRef={urlRef}
+                  onApply={(url, text) =>
+                    onClose((target) => applyLink(editor, target, url, text))
+                  }
+                  onRemove={() =>
+                    onClose((target) => removeLink(editor, target))
+                  }
+                  onCancel={() => onClose()}
+                />
+              </div>
+            </FloatingFocusManager>
+          )}
+        </FloatingPortal>
+      </FloatingNode>
     </>
   );
 };
@@ -521,11 +535,18 @@ const RichTextArea: FC<{
   }
 
   // Opens the link dialog for the selection, or for the end of the text when
-  // the editor has none.
+  // the editor has none, and blurs the editor first.
+  //
+  // Slate ignores a blur that follows its own change of the selection, as the
+  // one Ctrl or Cmd with K makes, and goes on treating the editor as focused.
+  // Its next render then puts the DOM selection back in the editor, which takes
+  // the focus from the dialog's address field. Blurring the editor through
+  // Slate keeps the focus in the dialog.
   function openLink() {
     const end = Editor.end(editor, []);
     const at = editor.selection ?? { anchor: end, focus: end };
 
+    ReactEditor.blur(editor);
     setLinking(Editor.rangeRef(editor, at));
   }
 
