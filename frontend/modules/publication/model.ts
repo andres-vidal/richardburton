@@ -124,6 +124,36 @@ type PublicationId = number | string;
 
 /** The kind of input an attribute is edited with. */
 type PublicationKeyType = "array" | "text" | "enumArray" | "number" | "book";
+
+/**
+ * Where a publication stands among the publications of its work, compared by
+ * year only. A publication of the year the work was first translated is a
+ * `first_translation`. A publication of the first year of a later translation
+ * of the work is a `retranslation`. A publication of a later year than its
+ * translation's first year is a `reissue`.
+ *
+ * Publications of the same year count as published at the same time, so a
+ * work can have several first translations, and a translation several first
+ * editions. The server judges the kind over every publication in the
+ * database.
+ */
+type PublicationKind = "first_translation" | "retranslation" | "reissue";
+
+/**
+ * An earlier publication that a retranslation or a reissue follows, with its
+ * translators as `authors` and its countries as codes. A retranslation
+ * follows every publication of the year its work was first translated. A
+ * reissue follows every publication of its translation's first year.
+ */
+type FollowedPublication = {
+  id: number;
+  title: string;
+  year: number;
+  authors: string[];
+  publishers: string[];
+  countries: string[];
+};
+
 /** Every act the log records, in the order a reader meets them. */
 const HISTORY_ACTIONS = [
   "created",
@@ -626,6 +656,7 @@ export type {
   ErrorScope,
   ContrastedKey,
   DeletedPublicationEntry,
+  FollowedPublication,
   PublicationValue,
   FullHistoryEntry,
   PublicationEntry,
@@ -637,6 +668,7 @@ export type {
   Matched,
   PublicationKey,
   PublicationKeyType,
+  PublicationKind,
   PublicationListKey,
   Resemblance,
   SnapshotDiff,

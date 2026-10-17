@@ -165,7 +165,10 @@ export async function expectPublicationCount(page: Page, n: number) {
 
 /** Waits until the index says a search found `n` publications. */
 export async function expectMatchCount(page: Page, n: number) {
-  const said = n === 0 ? "No publications found" : `${n} publications found`;
+  const said =
+    n === 0
+      ? "No publications found"
+      : `${n} publication${n === 1 ? "" : "s"} found`;
 
   await expect(page.getByText(new RegExp(`^${said}$`))).toBeVisible();
 }

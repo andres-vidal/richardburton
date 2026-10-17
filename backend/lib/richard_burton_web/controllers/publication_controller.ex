@@ -101,16 +101,38 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   @doc """
-  Responds with the publication `id`, flattened, with its notes. With a
-  `search`, the publication holds the excerpts and marks of that search, as in
-  the index. A deleted publication is a 404.
+  Responds with the publication `id`, flattened, with its notes, its `kind`
+  and `follows`. With a `search`, the publication holds the excerpts and marks
+  of that search, as in the index. A deleted publication is a 404.
+
+  `kind` is `"first_translation"`, `"retranslation"` or `"reissue"`, and
+  `follows` lists the publications a retranslation or a reissue follows, in
+  ascending order of id. Each of them holds its `id`, `title`, `year`,
+  `authors` (its translators), `publishers` and `countries`. `follows` is an
+  empty list for a first translation. `Publication.Kind` defines both.
   """
   def show(conn, params = %{"id" => id}) do
     with {:ok, id} <- Params.id(id),
          {:ok, publication} <- found(Publication.find(id)) do
-      flat = Publication.Codec.flatten(publication)
-      json(conn, excerpted(flat, params["search"]))
+      flat = publication |> Publication.Codec.flatten() |> excerpted(params["search"])
+      json(conn, Map.merge(FlatPublication.json_fields(flat), kind(publication)))
     end
+  end
+
+  # Returns the `kind` and `follows` that `show/2` responds with for
+  # `publication`.
+  defp kind(publication) do
+    %{kind: kind, follows: follows} = Publication.Kind.of(publication)
+
+    %{
+      kind: kind,
+      follows:
+        Enum.map(follows, fn followed ->
+          followed
+          |> Publication.Codec.flatten()
+          |> Map.take([:id, :title, :year, :authors, :publishers, :countries])
+        end)
+    }
   end
 
   # Returns `flat` with the excerpts and marks of `search`, read from the

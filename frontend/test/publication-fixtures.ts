@@ -10,6 +10,7 @@ import {
   PublicationError,
   PublicationKey,
   empty,
+  type FollowedPublication,
   type PublicationEntry,
 } from "modules/publication/model";
 import type { PresenceList } from "modules/publication/document-live";
@@ -177,6 +178,56 @@ const LOOK_ALIKE_RECORD: Publication = {
 };
 
 /**
+ * `LOOK_ALIKE_RECORD` as a later publication of Dom Casmurro names it: Helen
+ * Caldwell's translation of 1953, published by Noonday Press in the United
+ * States, a first translation of the work.
+ */
+const FIRST_DOM_CASMURRO: FollowedPublication = {
+  id: LOOK_ALIKE_RECORD.id!,
+  title: LOOK_ALIKE_RECORD.title,
+  year: Number(LOOK_ALIKE_RECORD.year),
+  authors: LOOK_ALIKE_RECORD.authors,
+  publishers: LOOK_ALIKE_RECORD.publishers,
+  countries: LOOK_ALIKE_RECORD.countries,
+};
+
+/**
+ * Helen Caldwell's translation of Dom Casmurro as published by W. H. Allen in
+ * the United Kingdom, also in 1953, as a later publication names it. It is a
+ * first translation of the work, like `FIRST_DOM_CASMURRO`.
+ */
+const LONDON_DOM_CASMURRO: FollowedPublication = {
+  ...FIRST_DOM_CASMURRO,
+  id: 10,
+  publishers: ["W. H. Allen"],
+  countries: ["GB"],
+};
+
+/**
+ * Helen Caldwell's translation of Dom Casmurro, published again in 1966. It is
+ * a reissue that follows `FIRST_DOM_CASMURRO`.
+ */
+const REISSUED_DOM_CASMURRO: Publication = {
+  ...LOOK_ALIKE_RECORD,
+  id: 8,
+  year: "1966",
+  publishers: ["University of California Press"],
+};
+
+/**
+ * John Gledson's translation of Dom Casmurro, of 1997. It is a retranslation
+ * that follows `FIRST_DOM_CASMURRO`.
+ */
+const RETRANSLATED_DOM_CASMURRO: Publication = {
+  ...LOOK_ALIKE_RECORD,
+  id: 9,
+  authors: ["John Gledson"],
+  year: "1997",
+  countries: ["GB", "US"],
+  publishers: ["Oxford University Press"],
+};
+
+/**
  * Three rows being imported. The first is a near-copy of `LOOK_ALIKE_RECORD`,
  * and the other two are near-copies of each other.
  */
@@ -253,7 +304,11 @@ export {
   sampleManyPublications,
   seed,
   seedIndex,
+  FIRST_DOM_CASMURRO,
+  LONDON_DOM_CASMURRO,
   LOOK_ALIKE_IDS,
   LOOK_ALIKE_RECORD,
+  REISSUED_DOM_CASMURRO,
+  RETRANSLATED_DOM_CASMURRO,
   seedLookAlikes,
 };

@@ -25,11 +25,20 @@ so the same publication offers the same affordances wherever it is read.
 ## Props
 
 - `publication` — the record to show.
+- `kind` and `follows` — the publication's kind and the publications it
+  follows, read with the record. A retranslation or a reissue opens with a
+  [line that says so](?path=/docs/publications-publication-kind--docs).
 - `history` — the record's log, read with it. It is given only to an admin,
   and the section is absent without it.
 - `onDeleted` — called once the record is gone. Defaults to leaving for the
   index, which is what a page showing only this publication has to do; an
   overlay closes instead and leaves the database behind it in place.
+
+## Retranslations and reissues
+
+<Description of={PublicationDetailStories.Retranslation} />
+
+<Canvas of={PublicationDetailStories.Retranslation} />
 
 ## The edit form
 
@@ -49,6 +58,7 @@ a publication with changes.
 ## States
 
 - **Default** — a fully sourced record, read by anyone.
+- **Retranslation** — the line about its kind, above the description.
 - **With notes** — the notes, formatted, under the sentence.
 - **Without notes** — no notes section at all.
 - **Without sources** — the section states the absence rather than hiding.

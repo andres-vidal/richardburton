@@ -141,6 +141,28 @@ defmodule RichardBurton.Publication.ChartTest do
              ]
     end
 
+    test "counts every publication of a work's first year as a first translation" do
+      # Caldwell's Dom Casmurro is also published in London in 1953, and
+      # Scott-Buccleuch's translation of the work appears the same year. Both
+      # are entered after the corpus.
+      seed_index([
+        flat_publication_attrs(%{countries: ["GB"], publishers: ["Peter Owen"]}),
+        flat_publication_attrs(%{
+          authors: ["R. L. Scott-Buccleuch"],
+          countries: ["GB"],
+          publishers: ["Peter Owen"]
+        })
+      ])
+
+      assert counted(draw(by: :decade, split: :kind)) == [
+               %{key: 1880, total: 1, counts: [1, 0, 0]},
+               %{key: 1950, total: 4, counts: [4, 0, 0]},
+               %{key: 1960, total: 1, counts: [0, 0, 1]},
+               %{key: 1980, total: 2, counts: [2, 0, 0]},
+               %{key: 1990, total: 1, counts: [0, 1, 0]}
+             ]
+    end
+
     test "tells kinds of publication apart over the whole index, not the search" do
       # The 1966 Dom Casmurro is a reissue even though the search leaves out
       # the 1953 edition.

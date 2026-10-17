@@ -83,7 +83,7 @@ export default async function PublicationPage({
     );
   }
 
-  const [t, { publication, history }] = await Promise.all([
+  const [t, { publication, kind, follows, history }] = await Promise.all([
     getTranslations("admin"),
     read(id, query.search),
   ]);
@@ -105,7 +105,12 @@ export default async function PublicationPage({
         </>
       }
       content={
-        <PublicationDetail publication={publication} history={history} />
+        <PublicationDetail
+          publication={publication}
+          kind={kind}
+          follows={follows}
+          history={history}
+        />
       }
     />
   );

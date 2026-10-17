@@ -86,6 +86,8 @@ const Opened: FC<{
       content={
         <PublicationDetail
           publication={opened.publication}
+          kind={opened.kind}
+          follows={opened.follows}
           history={opened.history}
           onDeleted={onClose}
         />

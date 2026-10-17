@@ -10,10 +10,12 @@ import {
   usePublicationSources,
 } from "modules/publication/hooks";
 import {
+  type FollowedPublication,
   Publication,
   type PublicationHistoryEntry,
   type PublicationId,
   type PublicationKey,
+  type PublicationKind as Kind,
   type PublicationListKey,
   searchHref,
 } from "modules/publication/model";
@@ -46,6 +48,7 @@ import Highlight from "./Highlight";
 import { useModal } from "./Modal";
 import NotesField from "./NotesField";
 import PublicationHistory from "./PublicationHistory";
+import PublicationKind from "./PublicationKind";
 import PublicationMerge from "./PublicationMerge";
 import RichText from "./RichText";
 import SourcesEditor from "./SourcesEditor";
@@ -339,6 +342,10 @@ const PublicationEditForm: FC<{
 
 type PublicationDetailProps = {
   publication: Publication;
+  /** The publication's kind, read with it. */
+  kind: Kind;
+  /** The publications it follows, read with it, none for a first translation. */
+  follows: FollowedPublication[];
   /**
    * The record's mutation log, read alongside it. Present only for an admin,
    * who is the only reader allowed it.
@@ -353,17 +360,18 @@ type PublicationDetailProps = {
 };
 
 /**
- * A publication as a reader sees it: a sentence placing it, its notes and
- * its sources.
+ * A publication as a reader sees it: a line that says whether it is a
+ * retranslation or a reissue, a sentence placing it, its notes and its
+ * sources.
  * Whoever may edit publications also gets the controls to edit, merge and
  * delete it, and `history`, when given, is shown in a collapsed section. The
  * view keeps its edits in a publication store of its own, or in the enclosing
  * one.
  *
- * It takes the record and its log rather than an id, so it reads nothing and
- * is complete when it first renders. A save or a merge reads the page again
- * from the server, so the heading and the page title, which are drawn from the
- * same record elsewhere on the page, agree with it.
+ * It takes the record, its kind and its log rather than an id, so it reads
+ * nothing and is complete when it first renders. A save or a merge reads the
+ * page again from the server, so the heading and the page title, which are
+ * drawn from the same record elsewhere on the page, agree with it.
  */
 const PublicationDetail: FC<PublicationDetailProps> = (props) => (
   <PublicationStoreProvider>
@@ -375,6 +383,8 @@ const PublicationDetail: FC<PublicationDetailProps> = (props) => (
 // editing, and the merge and delete dialogs.
 const Detail: FC<PublicationDetailProps> = ({
   publication,
+  kind,
+  follows,
   history,
   onDeleted,
 }) => {
@@ -429,6 +439,7 @@ const Detail: FC<PublicationDetailProps> = ({
         />
       ) : (
         <>
+          <PublicationKind kind={kind} follows={follows} />
           <PublicationDescription publication={publication} />
           <PublicationNotes notes={publication.notes} />
           <PublicationSources

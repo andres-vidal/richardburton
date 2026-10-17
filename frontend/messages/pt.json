@@ -54,7 +54,7 @@
       "years": "Os anos da primeira e da última publicação.",
       "sourced": "As publicações que citam ao menos uma fonte para seus dados.",
       "perYear": "Cada coluna conta as publicações de um ano, divididas pelo país em que foram publicadas.",
-      "byDecade": "Uma primeira tradução é a primeira edição da primeira tradução de uma obra. Uma retradução é a primeira edição de uma tradução posterior da mesma obra. Uma reedição é qualquer edição posterior de uma tradução.",
+      "byDecade": "Uma primeira tradução é uma edição publicada no ano em que a obra foi traduzida pela primeira vez. Uma retradução é uma edição publicada no primeiro ano de uma tradução posterior da mesma obra. Uma reedição é uma edição publicada em um ano posterior ao da primeira edição de sua tradução.",
       "leadingAuthors": "Os autores dos livros originais com mais publicações.",
       "debuts": "Cada autor é contado na década de sua primeira publicação em inglês.",
       "leadingTranslators": "Cada ponto é um ano em que o tradutor teve publicações, com tamanho conforme a quantidade.",
@@ -517,7 +517,18 @@
     "discardMessage": "Suas alterações nesta publicação não foram salvas. Ao descartá-las, a publicação fica como estava.",
     "notHereDetail": "Ela foi removida da base de dados, ou o link nomeia um registro que nunca existiu.",
     "summary": "Tradução de <originalTitle></originalTitle>, de <originalAuthors></originalAuthors>, publicada por <publishers></publishers>",
-    "inCountry": "{article, select, o {no <name></name>} a {na <name></name>} os {nos <name></name>} as {nas <name></name>} other {em <name></name>}}"
+    "inCountry": "{article, select, o {no <name></name>} a {na <name></name>} os {nos <name></name>} as {nas <name></name>} other {em <name></name>}}",
+    "kind": {
+      "retranslation": "Retradução",
+      "reissue": "Reedição",
+      "about": "{kind, select, retranslation {Sobre retraduções} other {Sobre reedições}}",
+      "retranslationOf": "A obra foi traduzida pela primeira vez por {translators} como <link>{title} ({year})</link>.",
+      "reissueOf": "Esta tradução foi publicada pela primeira vez como <link>{title} ({year})</link>.",
+      "retranslationOfSeveral": "A obra foi traduzida pela primeira vez em {year}: <editions></editions>.",
+      "reissueOfSeveral": "Esta tradução foi publicada pela primeira vez em {year}: <editions></editions>.",
+      "retranslatedEdition": "por {translators} como <link>{title} ({publishers}, {countries})</link>",
+      "reissuedEdition": "como <link>{title} ({publishers}, {countries})</link>"
+    }
   },
   "notes": {
     "hint": "Visível para todos na página da publicação.",

@@ -54,7 +54,7 @@
       "years": "The years of the earliest and the latest publication.",
       "sourced": "The publications that cite at least one source for their data.",
       "perYear": "Each column counts the publications of one year, split by the country they were published in.",
-      "byDecade": "A first translation is the first edition of a work's first translation. A retranslation is the first edition of a later translation of the same work. A reissue is any later edition of a translation.",
+      "byDecade": "A first translation is an edition published in the year the work was first translated. A retranslation is an edition published in the first year of a later translation of the same work. A reissue is an edition published in a later year than its translation's first edition.",
       "leadingAuthors": "The authors of the original books with the most publications.",
       "debuts": "Each author is counted in the decade of their first publication in English.",
       "leadingTranslators": "Each dot is a year in which the translator had publications, sized by how many.",
@@ -517,7 +517,18 @@
     "discardMessage": "Your changes to this publication have not been saved. Discarding them leaves the publication as it was.",
     "notHereDetail": "It has been removed from the database, or the link names a record that never existed.",
     "summary": "Translation of <originalTitle></originalTitle> by <originalAuthors></originalAuthors>, published by <publishers></publishers>",
-    "inCountry": "{article, select, the {in the <name></name>} other {in <name></name>}}"
+    "inCountry": "{article, select, the {in the <name></name>} other {in <name></name>}}",
+    "kind": {
+      "retranslation": "Retranslation",
+      "reissue": "Reissue",
+      "about": "{kind, select, retranslation {About retranslations} other {About reissues}}",
+      "retranslationOf": "The work was first translated by {translators} as <link>{title} ({year})</link>.",
+      "reissueOf": "This translation was first published as <link>{title} ({year})</link>.",
+      "retranslationOfSeveral": "The work was first translated in {year}: <editions></editions>.",
+      "reissueOfSeveral": "This translation was first published in {year}: <editions></editions>.",
+      "retranslatedEdition": "by {translators} as <link>{title} ({publishers}, {countries})</link>",
+      "reissuedEdition": "as <link>{title} ({publishers}, {countries})</link>"
+    }
   },
   "notes": {
     "hint": "Shown to everyone on the publication's page.",

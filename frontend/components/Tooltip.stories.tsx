@@ -215,7 +215,7 @@ export const LongMessage: Story = {
   args: {
     variant: "info",
     message:
-      "A first translation is the first edition of a work's first translation. A retranslation is the first edition of a later translation of the same work. A reissue is any later edition of a translation.",
+      "A first translation is an edition published in the year the work was first translated. A retranslation is an edition published in the first year of a later translation of the same work. A reissue is an edition published in a later year than its translation's first edition.",
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

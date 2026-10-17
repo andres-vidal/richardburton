@@ -67,6 +67,8 @@ defmodule RichardBurton.Publication do
 
   @readable_attributes [:countries, :publishers, :title, :year, :notes, :translated_book]
 
+  @type t :: %__MODULE__{}
+
   @derive {Jason.Encoder, only: @readable_attributes}
   schema "publications" do
     field(:title, :string)

@@ -1,0 +1,74 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as PublicationKindStories from "./PublicationKind.stories";
+
+<Meta of={PublicationKindStories} />
+
+# Publication kind
+
+One line that says a publication is a retranslation or a reissue. It shows a
+badge that names the kind, an [info hint](?path=/docs/components-info-hint--docs)
+that defines the kinds, and a sentence that links to each earlier publication
+this one follows. It renders nothing for a first translation.
+
+The server decides the kind of a publication and the publications it follows,
+and `GET /publications/:id` returns both with the publication. It compares
+publications by year only, so publications of the same year count as published
+at the same time. A publication of the year the work was first translated is a
+first translation. A publication of the first year of a later translation of
+the work is a retranslation. A publication of a later year than its
+translation's first year is a reissue. The hint shows the same definitions as
+the insights charts.
+
+A retranslation follows every publication of the year the work was first
+translated, and a reissue every publication of its translation's first year.
+With one, the sentence names its title and year. With several, the sentence
+names their year once, and then each one's title with its publishers and
+countries, which tell apart publications of the same title.
+
+<Description of={PublicationKindStories.Retranslation} />
+
+<Canvas of={PublicationKindStories.Retranslation} />
+
+## Props
+
+- `kind` — `"first_translation"`, `"retranslation"` or `"reissue"`.
+- `follows` — the publications this one follows, each with its id, title,
+  year, translators, publishers and country codes. It is empty for a first
+  translation.
+
+## Retranslation of several
+
+<Description of={PublicationKindStories.RetranslationOfSeveral} />
+
+<Canvas of={PublicationKindStories.RetranslationOfSeveral} />
+
+## Reissue
+
+<Description of={PublicationKindStories.Reissue} />
+
+<Canvas of={PublicationKindStories.Reissue} />
+
+## Reissue of several
+
+<Description of={PublicationKindStories.ReissueOfSeveral} />
+
+<Canvas of={PublicationKindStories.ReissueOfSeveral} />
+
+## The definitions
+
+<Description of={PublicationKindStories.Explained} />
+
+<Canvas of={PublicationKindStories.Explained} />
+
+## Several translators
+
+<Description of={PublicationKindStories.SeveralTranslators} />
+
+<Canvas of={PublicationKindStories.SeveralTranslators} />
+
+## First translation
+
+<Description of={PublicationKindStories.FirstTranslation} />
+
+<Canvas of={PublicationKindStories.FirstTranslation} />

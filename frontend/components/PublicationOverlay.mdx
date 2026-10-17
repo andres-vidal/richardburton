@@ -45,11 +45,19 @@ very address the overlay is at.
 
 <Canvas of={PublicationOverlayStories.Default} />
 
+A retranslation or a reissue opens with a
+[line that says so](?path=/docs/publications-publication-kind--docs), under the
+heading. Its links go to the earlier publications' addresses, and following
+one from the overlay opens that publication in the overlay.
+
+<Canvas of={PublicationOverlayStories.Reissue} />
+
 ## Props
 
-- `view` — a promise of the record read for its address, or of `null` when there
-  is nothing there. Unawaited on purpose; the overlay suspends on it, showing a
-  placeholder in the record's shape so the dialog barely moves when it lands.
+- `view` — a promise of the record read for its address, with its kind and the
+  publications it follows, or of `null` when there is nothing there. Unawaited
+  on purpose; the overlay suspends on it, showing a placeholder in the record's
+  shape so the dialog barely moves when it lands.
 - `closeTo` — where closing goes when there is no history to go back through (a
   reader who reloaded). Left out when the overlay was followed from the
   database.
@@ -57,6 +65,8 @@ very address the overlay is at.
 ## States
 
 - **Default** — the record, as a reader sees it (above).
+- **Reissue** — the line about its kind, with the link to the earlier
+  publication.
 - **Streaming** — the read still in flight: the placeholder holds the record's
   place, within a few pixels of the size it will take.
 - **With history** — an admin's read brings the mutation log with the record.
