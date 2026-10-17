@@ -189,7 +189,7 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
                 aria-hidden
                 className="size-1.5 rounded-full shrink-0 bg-indigo-400 ring-2 ring-indigo-100"
               />
-              <span className="wrap-break-words">
+              <span className="min-w-0 wrap-break-word">
                 <Highlight>{source}</Highlight>
               </span>
             </li>

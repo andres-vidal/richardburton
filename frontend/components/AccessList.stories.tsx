@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { SessionProvider } from "modules/session";
 import type { UserRecord } from "modules/users";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
+import { expectToFit, LONG_EMAIL } from "test/layout";
 
 import AccessList from "./AccessList";
 
@@ -112,5 +113,35 @@ export const RevokingAsksFirst: Story = {
       within(dialog).getByRole("button", { name: "Cancel" }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  },
+};
+
+/**
+ * At a phone's width, an address too long for its row wraps inside the row.
+ * The play test checks that the address does not run past the row's edge.
+ */
+export const LongAddress: Story = {
+  decorators: [
+    (Story) => (
+      <div className="w-80">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    users: [
+      ME,
+      {
+        id: 4,
+        email: LONG_EMAIL,
+        role: "reader",
+        insertedAt: "2026-08-19T10:00:00",
+      },
+    ],
+  },
+  play: async () => {
+    const address = screen.getByText(LONG_EMAIL);
+
+    await expectToFit(address, address.closest("li")!);
   },
 };

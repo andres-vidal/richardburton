@@ -39,7 +39,7 @@ const Entry: FC<{ user: UserRecord }> = ({ user }) => {
   return (
     <li className="flex flex-wrap gap-3 items-center p-4 bg-white rounded-lg border border-gray-200">
       <div className="min-w-0 grow">
-        <p className="font-medium text-gray-800 wrap-break-words">
+        <p className="font-medium text-gray-800 wrap-break-word">
           {user.email}
           {isSelf && (
             <span className="ml-2 text-xs text-gray-500">{t("you")}</span>

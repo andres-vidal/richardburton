@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, fn, userEvent, within } from "storybook/test";
+import { LONG_EMAIL } from "test/layout";
 
 import Notification from "./Notification";
 
@@ -138,8 +139,7 @@ export const LongContent: Story = {
   args: {
     level: "success",
     message: "Publication updated",
-    detail:
-      "“Memoirs of a Militia Sergeant: A Chronicle of the Seventeenth Century in Rio de Janeiro” is saved, edited by averyverylongaddress@richardburton.example.com.",
+    detail: `“Memoirs of a Militia Sergeant: A Chronicle of the Seventeenth Century in Rio de Janeiro” is saved, edited by ${LONG_EMAIL}.`,
   },
   play: async ({ canvasElement }) => {
     const detail = within(canvasElement).getByText(/Memoirs of a Militia/);
