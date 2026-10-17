@@ -75,7 +75,7 @@ const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
           return value ? (
             <div key={key} className="flex gap-1">
               <dt className="text-gray-600 shrink-0">{t(key)}:</dt>
-              <dd className="wrap-break-words">
+              <dd className="min-w-0 wrap-break-word">
                 <Highlight>{value}</Highlight>
               </dd>
             </div>
@@ -84,7 +84,7 @@ const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
         {p.sources?.length > 0 && (
           <div className="flex gap-1">
             <dt className="text-gray-600 shrink-0">{t("sources")}:</dt>
-            <dd className="wrap-break-words">
+            <dd className="min-w-0 wrap-break-word">
               <ul>
                 {p.sources.map((source) => (
                   <li key={source}>{source}</li>

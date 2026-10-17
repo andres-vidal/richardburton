@@ -129,12 +129,12 @@ const Entry: FC<{
       <div className="flex gap-2 items-baseline">
         <ActionBadge action={entry.action} variant={variant} />
         {subject ? (
-          <span className="font-medium text-gray-800 wrap-break-words">
+          <span className="min-w-0 font-medium text-gray-800 wrap-break-word">
             “{subject}”
           </span>
         ) : (
           <>
-            <span className="text-gray-600 wrap-break-words">
+            <span className="min-w-0 text-gray-600 wrap-break-word">
               {t("byActor", { actor: entry.actor })}
             </span>
             <span className="ml-auto text-gray-500 whitespace-nowrap shrink-0">
@@ -159,7 +159,7 @@ const Entry: FC<{
       {subject && (
         <p
           data-variant={variant}
-          className="mt-0.5 text-gray-500 wrap-break-words data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
+          className="mt-0.5 text-gray-500 wrap-break-word data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
         >
           {t("byActorOn", {
             actor: entry.actor,
