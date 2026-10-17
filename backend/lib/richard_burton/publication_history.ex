@@ -18,8 +18,10 @@ defmodule RichardBurton.Publication.History do
       `head/1`.
     * **others** — the other publications an entry is about, each with its
       snapshot when the entry was recorded. The entry's action says how they
-      are involved: a merge absorbed them, an un-merge gave them back, or a
-      decision is about them. An entry of any other action has none.
+      are involved: a merge absorbed them, an un-merge gave them back, a
+      decision is about them, or the same rename changed them. A rename's
+      entries are stored without them, and `of/1` and `all/0` read them from
+      the rename's other entries. An entry of any other action has none.
     * **absorbed** — the state of a publication held inside another by a
       merge. A `"merged"` entry is on the publication that survived the merge,
       and names the publications it absorbed in its `others`. An `"unmerged"`
@@ -37,7 +39,22 @@ defmodule RichardBurton.Publication.History do
   A `"renamed"` entry records a change of name made in names management, on
   each publication that credits the name. It is diffed like an update, but it
   is not undone from the publication's history. Renaming the name again takes
-  the change back for every publication at once.
+  the change back for every publication at once. A fold of one name into
+  another is recorded the same way, so the log does not tell the two apart.
+
+  Terms for renames:
+
+    * **rename** — the `"renamed"` entries that one call of
+      `RichardBurton.Vocabulary.rename/5` recorded, one for each publication
+      it changed. They share a `rename_id` that no other rename has.
+      `all/0` returns each rename as one entry.
+    * **name change** — what a rename changed in the fields that hold names,
+      `authors`, `original_authors` and `publishers`: for each of those fields
+      that changed, the names removed, under `from`, and the names added,
+      under `to`. A rename onto a free name removes the old name and adds the
+      new one. A fold into a name that a publication already credits only
+      removes the old name, so `to` is empty for that publication. See
+      `annotate/2`.
   """
 
   use Ecto.Schema
@@ -55,7 +72,7 @@ defmodule RichardBurton.Publication.History do
   @actions ["created", "updated", "deleted", "restored", "merged", "unmerged", "renamed"] ++
              @decisions
 
-  # The actions as the atoms that `record/4` and `record_all/3` take.
+  # The actions as the atoms that `record/4` takes.
   @action_atoms Enum.map(@actions, &String.to_atom/1)
 
   # The actor of a change made outside a request, such as by a seed or a mix
@@ -75,6 +92,10 @@ defmodule RichardBurton.Publication.History do
   # two snapshots are compared on the members of each set.
   @sets ~w[authors original_authors countries publishers]
 
+  # The fields that hold the names a rename changes. See the name change in the
+  # module doc.
+  @names ~w[authors original_authors publishers]
+
   schema "publication_history" do
     field(:publication_id, :integer)
     field(:version, :integer)
@@ -84,12 +105,21 @@ defmodule RichardBurton.Publication.History do
 
     # The other publications this entry is about, as a map from each one's id
     # to its snapshot at the time: the ones a merge absorbed, an un-merge gave
-    # back, or a decision is about. Nil on every other entry.
+    # back, or a decision is about. Nil on every other entry when it is
+    # stored. `of/1` and `all/0` fill it on a rename's entry with the other
+    # publications of its rename.
     field(:others, :map)
+
+    # The id that the entries of one rename share. Nil on the entries of every
+    # other action.
+    field(:rename_id, Ecto.UUID)
 
     # What this entry changed in its publication, against the entry before it
     # in the stream.
     field(:diff, :map, virtual: true)
+
+    # What a rename's entry changed in the names, or nil. See the module doc.
+    field(:name_change, :map, virtual: true)
 
     # Whether `RichardBurton.Publication.undo/3` can undo this entry now.
     field(:undoable, :boolean, virtual: true)
@@ -100,7 +130,7 @@ defmodule RichardBurton.Publication.History do
   @doc false
   def changeset(history, attrs) do
     history
-    |> cast(attrs, [:publication_id, :version, :action, :snapshot, :actor, :others])
+    |> cast(attrs, [:publication_id, :version, :action, :snapshot, :actor, :others, :rename_id])
     |> validate_required([:publication_id, :version, :action, :snapshot, :actor])
     |> validate_inclusion(:action, @actions)
     |> unique_constraint([:publication_id, :version])
@@ -120,19 +150,23 @@ defmodule RichardBurton.Publication.History do
   end
 
   @doc """
-  Appends an entry that records `action` for each of `publications`, inside
-  the caller's transaction. It reads the publications' current versions with
-  one query and inserts the entries with one insert per chunk, so the number of
-  queries does not depend on the number of publications.
+  Appends a `"renamed"` entry for each of `publications`, inside the caller's
+  transaction. The entries share a new `rename_id`. It reads the
+  publications' current versions with one query and inserts the entries with
+  one insert per chunk, so the number of queries does not depend on the number
+  of publications.
   """
-  def record_all(action, publications, actor) when action in @action_atoms do
-    append(publications, &entry(action, &1, actor, &2))
+  def record_rename(publications, actor) do
+    rename_id = Ecto.UUID.generate()
+
+    append(publications, &Map.put(entry(:renamed, &1, actor, &2), :rename_id, rename_id))
   end
 
   @doc """
   Appends a decision's entry for each of `publications`, inside the caller's
-  transaction, as `record_all/3` does. `action` is `:distinguished` or
-  `:reconsidered`, and each entry names the other publications in `others`.
+  transaction, with the same queries as `record_rename/2`. `action` is
+  `:distinguished` or `:reconsidered`, and each entry names the other
+  publications in `others`.
   """
   def record_decision(action, publications, actor)
       when action in [:distinguished, :reconsidered] do
@@ -218,15 +252,66 @@ defmodule RichardBurton.Publication.History do
     |> Enum.sort_by(& &1["id"])
   end
 
-  @doc "Returns the stream of one publication, annotated by `annotate/2`."
+  @doc """
+  Returns the stream of one publication, annotated by `annotate/2`.
+
+  Each rename's entry holds, in `others`, the other publications its rename
+  changed, each with the snapshot of its own entry of the rename. Those
+  entries are read with one more query, made only when the stream holds a
+  rename's entry.
+  """
   def of(publication_id) do
-    from(h in History, where: h.publication_id == ^publication_id, order_by: [desc: h.version])
-    |> Repo.all()
-    |> annotate(absorbed([publication_id]))
+    stream =
+      from(h in History, where: h.publication_id == ^publication_id, order_by: [desc: h.version])
+      |> Repo.all()
+      |> annotate(absorbed([publication_id]))
+
+    others = renamed_with(stream, publication_id)
+
+    Enum.map(stream, fn entry ->
+      case Map.get(others, entry.rename_id) do
+        nil -> entry
+        entries -> %{entry | others: snapshots_by_publication(entries)}
+      end
+    end)
   end
 
+  # Returns a map from the `rename_id` of each rename's entry in `stream` to
+  # the entries of the same rename that other publications than
+  # `publication_id` hold. A rename that changed only this publication is not
+  # in the map.
+  defp renamed_with(stream, publication_id) do
+    ids = for %History{rename_id: id} when not is_nil(id) <- stream, do: id
+
+    case ids do
+      [] ->
+        %{}
+
+      ids ->
+        from(h in History,
+          where: h.rename_id in ^ids and h.publication_id != ^publication_id,
+          order_by: h.id
+        )
+        |> Repo.all()
+        |> Enum.group_by(& &1.rename_id)
+    end
+  end
+
+  # Returns a map from the publication id of each of `entries`, as a string,
+  # to the entry's snapshot, the shape of `others`.
+  defp snapshots_by_publication(entries),
+    do: Map.new(entries, &{to_string(&1.publication_id), &1.snapshot})
+
   @doc """
-  Returns every entry in the log, newest first, annotated by `annotate/2`.
+  Returns every entry in the log, newest first, annotated by `annotate/2`,
+  with each rename as one entry.
+
+  The entry that stands for a rename is the rename's newest entry, in the
+  place of that entry. Its `others` hold the other publications the rename
+  changed, each with the snapshot of its own entry, and its `name_change`
+  covers every entry of the rename: each field that any of them changed, with
+  every name removed and every name added, each once and sorted. Entries of
+  every other action are returned as they are.
 
   It reads the log with one query. The publications that are absorbed are
   found from the merge and un-merge entries among the ones it read.
@@ -234,13 +319,62 @@ defmodule RichardBurton.Publication.History do
   def all do
     entries = from(h in History, order_by: [desc: h.id]) |> Repo.all()
 
-    annotate(entries, held(entries))
+    entries |> annotate(held(entries)) |> collapse_renames()
   end
 
+  # Returns `entries`, which come newest first, with the entries of each
+  # rename replaced by one entry, as `all/0` describes.
+  defp collapse_renames(entries) do
+    renames = entries |> Enum.filter(& &1.rename_id) |> Enum.group_by(& &1.rename_id)
+
+    Enum.flat_map(entries, fn
+      entry = %History{rename_id: nil} ->
+        [entry]
+
+      entry ->
+        case Map.fetch!(renames, entry.rename_id) do
+          [%History{id: id} | rest] when id == entry.id -> [collapsed(entry, rest)]
+          _later -> []
+        end
+    end)
+  end
+
+  # Returns the entry that stands for a rename, as `all/0` describes, given
+  # the rename's newest entry and its other entries, `rest`.
+  defp collapsed(newest, []), do: newest
+
+  defp collapsed(newest, rest) do
+    %{
+      newest
+      | others: snapshots_by_publication(rest),
+        name_change: [newest | rest] |> Enum.map(& &1.name_change) |> merge_name_changes()
+    }
+  end
+
+  # Returns one name change that holds every field of `changes`, each with the
+  # names removed and the names added in any of them, each once and sorted.
+  # Returns nil when none of `changes` holds a field.
+  defp merge_name_changes(changes) do
+    merged =
+      changes
+      |> Enum.flat_map(&Map.to_list(&1 || %{}))
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+      |> Map.new(fn {field, changes} ->
+        {field, %{from: names_in(changes, :from), to: names_in(changes, :to)}}
+      end)
+
+    if merged == %{}, do: nil, else: merged
+  end
+
+  # Returns the names under `key` in any of `changes`, each once and sorted.
+  defp names_in(changes, key),
+    do: changes |> Enum.flat_map(&Map.fetch!(&1, key)) |> Enum.uniq() |> Enum.sort()
+
   @doc """
-  Sets the `diff` and `undoable` fields of each entry, and returns the entries
-  in the order given. `entries` come newest first within each publication's
-  stream, and may hold the streams of several publications, interleaved.
+  Sets the `diff`, `undoable` and `name_change` fields of each entry, and
+  returns the entries in the order given. `entries` come newest first within
+  each publication's stream, and may hold the streams of several
+  publications, interleaved.
   `absorbed` holds the ids of the publications that are absorbed.
 
   An update, a rename, a merge and an un-merge get a diff, which compares the
@@ -253,6 +387,10 @@ defmodule RichardBurton.Publication.History do
   An entry is undoable when `undoable?/3` says so, and never while its
   publication is absorbed, because only undoing the merge gives that
   publication back.
+
+  A rename's entry gets its name change (see the module doc), computed from
+  its diff. It is nil when the diff is nil or changed no field that holds
+  names. Every other entry gets a nil name change.
 
   ## Examples
 
@@ -296,9 +434,26 @@ defmodule RichardBurton.Publication.History do
         not MapSet.member?(absorbed, entry.publication_id) and
           undoable?(entry, previous, head)
 
-      %{entry | diff: diff(previous, entry), undoable: undoable}
+      diff = diff(previous, entry)
+
+      %{entry | diff: diff, undoable: undoable, name_change: name_change(entry, diff)}
     end)
   end
+
+  # Returns the name change of `entry`, given its diff: for each field of
+  # `@names` that the diff changed, the names removed under `from` and the
+  # names added under `to`. Returns nil for an entry that is not a rename's,
+  # and for a diff that is nil or changed none of those fields.
+  defp name_change(%History{action: "renamed"}, %{fields: fields}) do
+    change =
+      Map.new(Map.take(fields, @names), fn {field, %{from: from, to: to}} ->
+        {field, %{from: (from || []) -- (to || []), to: (to || []) -- (from || [])}}
+      end)
+
+    if change == %{}, do: nil, else: change
+  end
+
+  defp name_change(_entry, _diff), do: nil
 
   @doc """
   Returns the latest entry of a stream that is not a decision, or the latest

@@ -5,9 +5,12 @@ defmodule RichardBurton.Publication.HistoryTest do
 
   use RichardBurton.DataCase
 
+  alias RichardBurton.Author
   alias RichardBurton.Publication
   alias RichardBurton.Publication.History
   alias RichardBurton.Publisher
+  alias RichardBurton.Repo
+  alias RichardBurton.Vocabulary
 
   doctest RichardBurton.Publication.History
 
@@ -262,6 +265,130 @@ defmodule RichardBurton.Publication.HistoryTest do
       winner = publication_fixture()
       loser = publication_fixture(%{title: "Dom Casmurro: Another Printing"})
       {:ok, _} = Publication.merge(winner.id, [loser.id])
+
+      assert {_entries, 1} = count_queries(&History.all/0)
+    end
+  end
+
+  describe "renames" do
+    # Renames the name of `kind` called `name` to `new_name` as
+    # editor@example.com, folding it into a name that already exists.
+    defp rename(kind, name, new_name) do
+      schema = if kind == "publishers", do: Publisher, else: Author
+      id = Repo.get_by!(schema, name: name).id
+
+      Vocabulary.rename(kind, id, new_name, true, "editor@example.com")
+    end
+
+    # Returns the entries of `entries` that record a rename.
+    defp renames(entries), do: Enum.filter(entries, &(&1.action == "renamed"))
+
+    test "all/0 returns a rename as one entry that names the other publications it changed" do
+      dom = publication_fixture()
+      epitaph = publication_fixture(%{title: "Epitaph of a Small Winner", year: 1952})
+      publication_fixture(%{title: "Iracema", publishers: ["Bickers & Son"]})
+
+      {:ok, :renamed} = rename("publishers", "Noonday Press", "Noonday")
+
+      assert [renamed] = renames(History.all())
+      assert renamed.actor == "editor@example.com"
+      assert renamed.undoable == false
+
+      assert Enum.sort([renamed.publication_id | History.other_ids(renamed)]) ==
+               Enum.sort([dom.id, epitaph.id])
+
+      assert renamed.name_change == %{"publishers" => %{from: ["Noonday Press"], to: ["Noonday"]}}
+
+      # The imports are listed one by one, as before.
+      assert length(Enum.filter(History.all(), &(&1.action == "created"))) == 3
+    end
+
+    test "a publication's own entry names the other publications of its rename" do
+      dom = publication_fixture()
+      epitaph = publication_fixture(%{title: "Epitaph of a Small Winner", year: 1952})
+      iracema = publication_fixture(%{title: "Iracema", publishers: ["Bickers & Son"]})
+
+      {:ok, :renamed} = rename("publishers", "Noonday Press", "Noonday")
+      {:ok, :renamed} = rename("publishers", "Bickers & Son", "Bickers and Son")
+
+      assert [%History{action: "renamed"} = renamed, _created] = History.of(dom.id)
+      assert History.other_ids(renamed) == [epitaph.id]
+
+      assert [%{"title" => "Epitaph of a Small Winner", "year" => 1952}] =
+               History.other_records(renamed)
+
+      assert renamed.name_change == %{"publishers" => %{from: ["Noonday Press"], to: ["Noonday"]}}
+
+      # A rename that changed one publication names no other.
+      assert [%History{action: "renamed", others: nil}, _created] = History.of(iracema.id)
+    end
+
+    test "a name renamed in two roles has a name change with both fields" do
+      translated = publication_fixture(%{authors: ["Ana Lessa"]})
+
+      written =
+        publication_fixture(%{
+          title: "Iracema",
+          original_title: "Iracema",
+          original_authors: ["Ana Lessa"],
+          authors: ["Isabel Burton"]
+        })
+
+      {:ok, :renamed} = rename("authors", "Ana Lessa", "Ana Lessa Bastos")
+
+      change = %{from: ["Ana Lessa"], to: ["Ana Lessa Bastos"]}
+
+      assert [renamed] = renames(History.all())
+      assert renamed.name_change == %{"authors" => change, "original_authors" => change}
+
+      # Each publication's own entry holds the role the name has there.
+      assert [%History{name_change: %{"authors" => ^change} = translator} | _] =
+               History.of(translated.id)
+
+      assert map_size(translator) == 1
+
+      assert [%History{name_change: %{"original_authors" => ^change} = author} | _] =
+               History.of(written.id)
+
+      assert map_size(author) == 1
+    end
+
+    test "a fold into a name a publication already credits adds no name to that publication" do
+      both = publication_fixture(%{publishers: ["Penguin Books", "Penguin books"]})
+      publication_fixture(%{title: "Iracema", publishers: ["Penguin books"]})
+
+      {:ok, :merged} = rename("publishers", "Penguin books", "Penguin Books")
+
+      assert [%History{name_change: %{"publishers" => %{from: ["Penguin books"], to: []}}} | _] =
+               History.of(both.id)
+
+      # The rename as a whole names the name it was folded into.
+      assert [renamed] = renames(History.all())
+
+      assert renamed.name_change == %{
+               "publishers" => %{from: ["Penguin books"], to: ["Penguin Books"]}
+             }
+    end
+
+    test "two renames by the same user stay two entries, however close together" do
+      publication = publication_fixture()
+
+      {:ok, :renamed} = rename("publishers", "Noonday Press", "Noonday")
+      {:ok, :renamed} = rename("authors", "Helen Caldwell", "Helen Caldwell Bastos")
+
+      assert [translator, publisher] = renames(History.all())
+
+      assert {translator.publication_id, publisher.publication_id} ==
+               {publication.id, publication.id}
+
+      assert Map.keys(translator.name_change) == ["authors"]
+      assert Map.keys(publisher.name_change) == ["publishers"]
+    end
+
+    test "all/0 reads the log with one query when it holds renames" do
+      publication_fixture()
+      publication_fixture(%{title: "Epitaph of a Small Winner", year: 1952})
+      {:ok, :renamed} = rename("publishers", "Noonday Press", "Noonday")
 
       assert {_entries, 1} = count_queries(&History.all/0)
     end

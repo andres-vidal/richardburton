@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
-import { expect, screen } from "storybook/test";
+import { expect, screen, within } from "storybook/test";
 import { expectToFit, LONG_EMAIL } from "test/layout";
 import { link, paragraph } from "test/rich-text-fixtures";
 
@@ -215,44 +215,192 @@ export const WithoutABaseline: Story = {
 };
 
 /**
- * A name corrected in names management. The entry shows the publisher's old
- * and new spelling, and says where to change the name again, since it offers
- * no undo of its own. The play test checks the badge, the change and the note.
+ * Returns a publication's log in which a rename changed the names, with
+ * `nameChange` and the `others` the server sends for the rename's entry, and
+ * `snapshot` as the publication after it.
+ */
+function renamedLog(
+  nameChange: PublicationHistoryEntry["nameChange"],
+  snapshot: PublicationHistoryEntry["snapshot"],
+  others: PublicationHistoryEntry["others"] = [],
+): PublicationHistoryEntry[] {
+  return [
+    {
+      version: 2,
+      undoable: false,
+      action: "renamed",
+      actor: "curator@rb.test",
+      timestamp: "2026-10-13T10:00:00",
+      snapshot,
+      diff: null,
+      nameChange,
+      others,
+    },
+    {
+      version: 1,
+      undoable: false,
+      action: "created",
+      actor: "importer@rb.test",
+      timestamp: "2026-07-01T10:00:00",
+      snapshot: SNAPSHOT,
+      diff: null,
+    },
+  ];
+}
+
+/** The rename entry in the canvas. */
+const renamedIn = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector('[data-action="renamed"]') as HTMLElement;
+
+/**
+ * A publisher renamed in names management, which changed this publication and
+ * two others. The entry states the name change, says it was made in Names, and
+ * links to the other publications. The play test checks the heading, the
+ * links, and that no field diff or note repeats the change.
  */
 export const Renamed: Story = {
   args: {
+    entries: withChanges(
+      renamedLog(
+        { publishers: { from: ["Noonday Press"], to: ["Noonday"] } },
+        { ...SNAPSHOT, publishers: ["Noonday"] },
+        [
+          {
+            id: 4,
+            ...SNAPSHOT,
+            title: "Philosopher or Dog?",
+            year: 1954,
+            publishers: ["Noonday"],
+          },
+          {
+            id: 3,
+            ...SNAPSHOT,
+            title: "Epitaph of a Small Winner",
+            year: 1952,
+            publishers: ["Noonday"],
+          },
+        ],
+      ),
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const renamed = renamedIn(canvasElement);
+
+    await expect(renamed).toHaveTextContent("Renamed");
+    await expect(renamed).toHaveTextContent(
+      "Publisher “Noonday Press” renamed “Noonday” in Names",
+    );
+    await expect(renamed).toHaveTextContent("Also in:");
+
+    const links = within(renamed).getAllByRole("link");
+    await expect(links.map((link) => link.textContent)).toEqual([
+      "Epitaph of a Small Winner (1952)",
+      "Philosopher or Dog? (1954)",
+    ]);
+    await expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/en/publications/3",
+      "/en/publications/4",
+    ]);
+
+    await expect(renamed).not.toHaveTextContent("Publishers:");
+    await expect(renamed).not.toHaveTextContent("A name was changed");
+  },
+};
+
+/**
+ * A translator renamed on this publication alone. The entry states the change
+ * and lists no other publication. The play test checks both.
+ */
+export const RenamedAlone: Story = {
+  args: {
+    entries: withChanges(
+      renamedLog(
+        { authors: { from: ["Helen Caldwel"], to: ["Helen Caldwell"] } },
+        SNAPSHOT,
+      ),
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const renamed = renamedIn(canvasElement);
+
+    await expect(renamed).toHaveTextContent(
+      "Translator “Helen Caldwel” renamed “Helen Caldwell” in Names",
+    );
+    await expect(renamed).not.toHaveTextContent("Also in");
+    await expect(within(renamed).queryAllByRole("link")).toHaveLength(0);
+  },
+};
+
+/**
+ * A person who translated a book of their own, renamed in both roles. The
+ * entry calls it a name. The play test checks the heading.
+ */
+export const RenamedInSeveralRoles: Story = {
+  args: {
+    entries: withChanges(
+      renamedLog(
+        {
+          authors: { from: ["Ana Lessa"], to: ["Ana Lessa Bastos"] },
+          originalAuthors: { from: ["Ana Lessa"], to: ["Ana Lessa Bastos"] },
+        },
+        {
+          ...SNAPSHOT,
+          authors: ["Ana Lessa Bastos"],
+          originalAuthors: ["Ana Lessa Bastos"],
+        },
+      ),
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    await expect(renamedIn(canvasElement)).toHaveTextContent(
+      "Name “Ana Lessa” renamed “Ana Lessa Bastos” in Names",
+    );
+  },
+};
+
+/**
+ * A publisher folded into another name that this publication already credits,
+ * so the rename added no name to it. The entry says the name was folded. The
+ * play test checks the heading.
+ */
+export const FoldedIntoACreditedName: Story = {
+  args: {
+    entries: withChanges(
+      renamedLog(
+        { publishers: { from: ["Penguin books"], to: [] } },
+        { ...SNAPSHOT, publishers: ["Penguin Books"] },
+      ),
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    await expect(renamedIn(canvasElement)).toHaveTextContent(
+      "Publisher “Penguin books” folded in Names into a name already credited",
+    );
+  },
+};
+
+/**
+ * A rename whose entry has no name change, because the log holds nothing
+ * earlier to compare it with. The entry says only that a name was changed in
+ * Names. The play test checks the note.
+ */
+export const RenamedWithoutANameChange: Story = {
+  args: {
     entries: withChanges([
       {
-        version: 2,
+        version: 1,
         undoable: false,
         action: "renamed",
         actor: "curator@rb.test",
         timestamp: "2026-10-13T10:00:00",
         snapshot: { ...SNAPSHOT, publishers: ["Noonday"] },
-        diff: {
-          fields: { publishers: { from: ["Noonday Press"], to: ["Noonday"] } },
-          sources: null,
-        },
-      },
-      {
-        version: 1,
-        undoable: false,
-        action: "created",
-        actor: "importer@rb.test",
-        timestamp: "2026-07-01T10:00:00",
-        snapshot: SNAPSHOT,
         diff: null,
+        nameChange: null,
       },
     ]),
   },
   play: async ({ canvasElement }) => {
-    const renamed = canvasElement.querySelector(
-      '[data-action="renamed"]',
-    ) as HTMLElement;
-
-    await expect(renamed).toHaveTextContent("Renamed");
-    await expect(renamed).toHaveTextContent("Noonday Press → Noonday");
-    await expect(renamed).toHaveTextContent(
+    await expect(renamedIn(canvasElement)).toHaveTextContent(
       "A name was changed in Names, for every publication that credits it.",
     );
   },

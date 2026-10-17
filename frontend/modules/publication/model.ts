@@ -184,6 +184,18 @@ type SnapshotDiff = {
   sources: { added: string[]; removed: string[]; reordered: boolean } | null;
 };
 
+/** The fields of a publication that hold the names a rename changes. */
+type NameField = "authors" | "originalAuthors" | "publishers";
+
+/**
+ * What a rename changed in the fields that hold names: for each of those fields
+ * that changed, the names the rename removed (`from`) and the names it added
+ * (`to`). A rename onto a free name removes the old name and adds the new one.
+ * A fold into a name that a publication already credits only removes the old
+ * name, so `to` is empty for that publication.
+ */
+type NameChange = Partial<Record<NameField, { from: string[]; to: string[] }>>;
+
 /**
  * A publication as the log keeps it: the record's own fields, without the
  * surrogate id and the notes, and with the year as the number it is stored as.
@@ -218,12 +230,23 @@ type PublicationHistoryEntry = {
   undoable: boolean;
   /**
    * The other publications this entry is about. The action says how: a merge
-   * took them in (`merged`), an un-merge gave them back (`unmerged`), or a
+   * took them in (`merged`), an un-merge gave them back (`unmerged`), a
    * duplicate reviewer's decision ruled them not to be the same record
    * (`distinguished`) or put them back among the possible duplicates
-   * (`reconsidered`). Empty or absent on entries of any other action.
+   * (`reconsidered`), or the same rename changed them too (`renamed`).
+   * Empty or absent on entries of any other action.
    */
   others?: OtherPublication[] | null;
+  /**
+   * What a `renamed` entry changed in the names. It is null on a rename whose
+   * diff is null or changed no field that holds names, and null or absent on
+   * entries of any other action.
+   *
+   * The log of the whole database lists each rename as one entry, whose
+   * `others` are every other publication the rename changed, and whose name
+   * change covers all of them.
+   */
+  nameChange?: NameChange | null;
 };
 
 /** An entry of the log of the whole database, with its publication's id. */
@@ -659,6 +682,8 @@ export type {
   FollowedPublication,
   PublicationValue,
   FullHistoryEntry,
+  NameChange,
+  NameField,
   PublicationEntry,
   PublicationError,
   PublicationHistoryAction,
