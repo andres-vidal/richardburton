@@ -13,6 +13,7 @@ import {
   waitFor,
   within,
 } from "storybook/test";
+import { expectToFit, LONG_URL } from "test/layout";
 import { paragraph } from "test/rich-text-fixtures";
 import { editorOf, focusEditor } from "test/slate";
 
@@ -431,5 +432,26 @@ export const Cancelled: Story = {
 
     await expect(args.onClose).toHaveBeenCalled();
     await expect(args.onMerged).not.toHaveBeenCalled();
+  },
+};
+
+/**
+ * A record on offer with a source too long for its line, such as a web
+ * address: the source wraps inside the record's details. The play test
+ * searches for the record and checks that the source does not run past the
+ * details' edge.
+ */
+export const LongSource: Story = {
+  args: { find: async () => [{ ...DUPLICATES[0], sources: [LONG_URL] }] },
+  play: async () => {
+    await screen.findByRole("dialog", { name: "Merge publications" });
+    await userEvent.type(
+      screen.getByLabelText("Search for publications to merge"),
+      "casmurro",
+    );
+
+    const sources = (await screen.findByText(LONG_URL)).closest("dd")!;
+
+    await expectToFit(sources, sources.closest("dl")!);
   },
 };

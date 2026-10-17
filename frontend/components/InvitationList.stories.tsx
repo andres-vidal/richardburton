@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import type { Invitation } from "modules/access/model";
 import { expect, screen } from "storybook/test";
+import { expectToFit, LONG_EMAIL } from "test/layout";
 
 import InvitationList from "./InvitationList";
 
@@ -56,5 +57,35 @@ export const Empty: Story = {
   args: { invitations: [] },
   play: async () => {
     await expect(screen.getByText(/No invitations yet/)).toBeInTheDocument();
+  },
+};
+
+/**
+ * At a phone's width, an address too long for its row wraps inside the row.
+ * The play test checks that the address does not run past the row's edge.
+ */
+export const LongAddress: Story = {
+  decorators: [
+    (Story) => (
+      <div className="w-80">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    invitations: [
+      {
+        id: 3,
+        email: LONG_EMAIL,
+        role: "reader",
+        acceptedAt: null,
+        insertedAt: "2026-08-19T09:00:00",
+      },
+    ],
+  },
+  play: async () => {
+    const address = screen.getByText(LONG_EMAIL);
+
+    await expectToFit(address, address.closest("li")!);
   },
 };

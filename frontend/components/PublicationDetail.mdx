@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as PublicationDetailStories from "./PublicationDetail.stories";
 
@@ -69,3 +69,9 @@ left out when there are none, or when they are blank.
 A record nobody has sourced yet says so:
 
 <Canvas of={PublicationDetailStories.WithoutSources} />
+
+## Long sources
+
+<Description of={PublicationDetailStories.LongSource} />
+
+<Canvas of={PublicationDetailStories.LongSource} />
