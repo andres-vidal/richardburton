@@ -2,9 +2,13 @@
 
 import {
   FloatingFocusManager,
+  FloatingNode,
   FloatingOverlay,
   FloatingPortal,
+  FloatingTree,
   useFloating,
+  useFloatingNodeId,
+  useFloatingParentNodeId,
 } from "@floating-ui/react";
 import { Key } from "app";
 import CloseIcon from "assets/close.svg";
@@ -130,6 +134,95 @@ type Props = PropsWithChildren<{
   );
 
 /**
+ * The modal of `Modal`, as a node of the floating tree it is rendered in (see
+ * `FloatingTree` in `@floating-ui/react`).
+ */
+const ModalNode: FC<Props> = ({
+  children,
+  isOpen,
+  onClose,
+  label,
+  heading,
+  subheading,
+  aside,
+}) => {
+  const headingId = useId();
+  const nodeId = useFloatingNodeId();
+  const { context, refs } = useFloating({ nodeId });
+
+  useHotkey(Key.ESCAPE, onClose, isOpen);
+
+  function handleOverlayMouseDown(event: MouseEvent) {
+    if (event.target === event.currentTarget) onClose();
+  }
+
+  return (
+    <FloatingNode id={nodeId}>
+      <AnimatePresence>
+        {isOpen && (
+          <FloatingPortal>
+            <FloatingOverlay lockScroll className="z-50">
+              <FloatingFocusManager
+                context={context}
+                initialFocus={refs.floating}
+                getInsideElements={liveRegions}
+              >
+                <motion.div
+                  ref={refs.setFloating}
+                  className="fixed inset-0 z-50 bg-indigo-900/30"
+                  onMouseDown={handleOverlayMouseDown}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <Header onClose={onClose} />
+                  <motion.dialog
+                    open
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={label}
+                    aria-labelledby={
+                      label === undefined && heading !== undefined
+                        ? headingId
+                        : undefined
+                    }
+                    tabIndex={0}
+                    className={`
+                    mb-5 sm:rounded-lg bg-white text-gray-900 shadow-lg scrollbar-thin scrollbar-thumb-indigo-600
+                    overflow-y-auto overflow-x-clip overscroll-none
+                    absolute left-1/2 absolute-center-x top-0 sm:top-[12%]
+                    w-full sm:w-11/12 lg:w-2/3 xl:w-1/2
+                    h-full sm:h-auto sm:max-h-[85%] lg:max-h-[80%] min-h-0
+                  `}
+                    initial={{ scale: 0.9 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0.9 }}
+                  >
+                    {heading === undefined ? (
+                      children
+                    ) : (
+                      <div className="flex flex-col gap-6 p-8 min-h-full">
+                        <ModalHeading
+                          id={headingId}
+                          heading={heading}
+                          subheading={subheading}
+                          aside={aside}
+                        />
+                        {children}
+                      </div>
+                    )}
+                  </motion.dialog>
+                </motion.div>
+              </FloatingFocusManager>
+            </FloatingOverlay>
+          </FloatingPortal>
+        )}
+      </AnimatePresence>
+    </FloatingNode>
+  );
+};
+
+/**
  * A dialog over a dimmed overlay, rendered in a portal while `isOpen`. It calls
  * `onClose` on Escape and on a press on the overlay outside the dialog, keeps
  * focus inside the dialog and locks the page's scroll. On a small screen the
@@ -146,91 +239,23 @@ type Props = PropsWithChildren<{
  * open, except the elements marked `data-live-region`, such as the stack of
  * notifications, so what they announce is still read.
  *
+ * The modal is a node of a floating tree, and starts one when it is not inside
+ * one. A floating element opened from its content that registers as a child
+ * node, such as a popover with its own portal, is part of the dialog: focus may
+ * move into it, and the rest of the page is hidden without it.
+ *
  * The dialog scrolls when its content is taller than the dialog, so it takes
  * focus with `tabIndex={0}` for the keyboard to reach that scrolling region.
  * Its overscroll is turned off, because the overscroll bounce moves the pinned
  * heading along with the content.
  */
-const Modal: FC<Props> = ({
-  children,
-  isOpen,
-  onClose,
-  label,
-  heading,
-  subheading,
-  aside,
-}) => {
-  const headingId = useId();
-  const { context, refs } = useFloating();
-
-  useHotkey(Key.ESCAPE, onClose, isOpen);
-
-  function handleOverlayMouseDown(event: MouseEvent) {
-    if (event.target === event.currentTarget) onClose();
-  }
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <FloatingPortal>
-          <FloatingOverlay lockScroll className="z-50">
-            <FloatingFocusManager
-              context={context}
-              initialFocus={refs.floating}
-              getInsideElements={liveRegions}
-            >
-              <motion.div
-                ref={refs.setFloating}
-                className="fixed inset-0 z-50 bg-indigo-900/30"
-                onMouseDown={handleOverlayMouseDown}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <Header onClose={onClose} />
-                <motion.dialog
-                  open
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label={label}
-                  aria-labelledby={
-                    label === undefined && heading !== undefined
-                      ? headingId
-                      : undefined
-                  }
-                  tabIndex={0}
-                  className={`
-                    mb-5 sm:rounded-lg bg-white text-gray-900 shadow-lg scrollbar-thin scrollbar-thumb-indigo-600
-                    overflow-y-auto overflow-x-clip overscroll-none
-                    absolute left-1/2 absolute-center-x top-0 sm:top-[12%]
-                    w-full sm:w-11/12 lg:w-2/3 xl:w-1/2
-                    h-full sm:h-auto sm:max-h-[85%] lg:max-h-[80%] min-h-0
-                  `}
-                  initial={{ scale: 0.9 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0.9 }}
-                >
-                  {heading === undefined ? (
-                    children
-                  ) : (
-                    <div className="flex flex-col gap-6 p-8 min-h-full">
-                      <ModalHeading
-                        id={headingId}
-                        heading={heading}
-                        subheading={subheading}
-                        aside={aside}
-                      />
-                      {children}
-                    </div>
-                  )}
-                </motion.dialog>
-              </motion.div>
-            </FloatingFocusManager>
-          </FloatingOverlay>
-        </FloatingPortal>
-      )}
-    </AnimatePresence>
+const Modal: FC<Props> = (props) =>
+  useFloatingParentNodeId() === null ? (
+    <FloatingTree>
+      <ModalNode {...props} />
+    </FloatingTree>
+  ) : (
+    <ModalNode {...props} />
   );
-};
 
 export { Modal, useModal, useURLQueryModal };
