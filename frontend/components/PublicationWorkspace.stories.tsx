@@ -1,7 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { fieldErrors, seed } from "test/publication-fixtures";
-import { areRowIdsVisibleAtom } from "modules/publication/store";
+import { areRowIdsVisibleAtom, resetAll } from "modules/publication/store";
+import {
+  COLUMN_LABELS,
+  LIST_COLUMN_LABELS,
+  expectColumnShapes,
+  expectTableSkeleton,
+} from "test/skeleton";
 import {
   expect,
   fireEvent,
@@ -251,5 +257,19 @@ export const EnterThatPicksAnOptionStaysInTheField: Story = {
 
     await userEvent.keyboard("{Enter}");
     await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(3));
+  },
+};
+
+/**
+ * The rows have not loaded, so the table shows a skeleton with the signal
+ * cell, every attribute and the notes and sources cells. The play test checks
+ * the skeleton's header, and that the lists of names and countries are pills,
+ * as the fields show them.
+ */
+export const Loading: Story = {
+  beforeEach: () => resetAll(store),
+  play: async ({ canvasElement }) => {
+    await expectColumnShapes(canvasElement, LIST_COLUMN_LABELS, "pill");
+    await expectTableSkeleton(canvasElement, ["", ...COLUMN_LABELS, "", ""]);
   },
 };

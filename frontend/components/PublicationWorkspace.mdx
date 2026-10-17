@@ -64,6 +64,16 @@ the edits settle, and stores the result in the document for everyone.
 <Description of={WorkspaceStories.EnterThatPicksAnOptionStaysInTheField} />
 <Canvas of={WorkspaceStories.EnterThatPicksAnOptionStaysInTheField} />
 
+## Loading
+
+While the rows have not loaded, the table shows its skeleton with a signal
+cell, every attribute and the notes and sources cells. `ExtendedContent`
+replaces the read-only cells, so the skeleton draws its cells as fields: the
+lists of names and countries are pills, as the fields show them.
+
+<Description of={WorkspaceStories.Loading} />
+<Canvas of={WorkspaceStories.Loading} />
+
 ## Errors
 
 Validation errors render at two levels, both from the store:

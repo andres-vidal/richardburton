@@ -8,7 +8,11 @@ import {
 } from "modules/publication/store";
 import { store } from "modules/store";
 import { sampleManyPublications, seedIndex } from "test/publication-fixtures";
-import { COLUMN_LABELS, expectTableSkeleton } from "test/skeleton";
+import {
+  COLUMN_LABELS,
+  expectColumnShapes,
+  expectTableSkeleton,
+} from "test/skeleton";
 import { expect, within } from "storybook/test";
 
 import { PublicationIndexTable, SignalColumn } from "./PublicationIndexTable";
@@ -78,42 +82,47 @@ export const Empty: Story = {
 /**
  * The publications have not loaded, so the table shows a skeleton in its own
  * columns. The play test checks that the skeleton's header holds the label of
- * every column.
+ * every column, and that every column holds lines, as the cells write each
+ * value as text.
  */
 export const Loading: Story = {
   beforeEach: () => {
     resetAll(store);
     resetAttributes(store);
   },
-  play: ({ canvasElement }) =>
-    expectTableSkeleton(canvasElement, COLUMN_LABELS),
+  play: async ({ canvasElement }) => {
+    await expectColumnShapes(canvasElement, COLUMN_LABELS, "line");
+    await expectTableSkeleton(canvasElement, COLUMN_LABELS);
+  },
 };
 
 /**
  * The publications have not loaded while the column menu hides the Publishers
  * and Year columns. The play test checks that the skeleton leaves those
- * columns out too.
+ * columns out too, and that the columns it shows hold lines.
  */
 export const LoadingWithHiddenColumns: Story = {
   beforeEach: () => {
     resetAll(store);
     setAttributesVisible(store, ["publishers", "year"], false);
   },
-  play: ({ canvasElement }) =>
-    expectTableSkeleton(
-      canvasElement,
-      COLUMN_LABELS.filter(
-        (label) => label !== "Publishers" && label !== "Year",
-      ),
-    ),
+  play: async ({ canvasElement }) => {
+    const shown = COLUMN_LABELS.filter(
+      (label) => label !== "Publishers" && label !== "Year",
+    );
+
+    await expectColumnShapes(canvasElement, shown, "line");
+    await expectTableSkeleton(canvasElement, shown);
+  },
 };
 
 /**
- * The publications of an import document's table have not loaded. The table
- * has a signal column and the notes and sources columns, so the skeleton has
+ * The publications have not loaded in a table with a signal column and the
+ * notes and sources columns, which keeps the read-only cells. The skeleton has
  * an empty cell before the attributes and a button shape in each of the two
  * cells after them. The play test checks that the skeleton's header has an
- * empty cell before the labels and two after them.
+ * empty cell before the labels and two after them, and that the columns still
+ * hold lines, because the cells are text.
  */
 export const LoadingWithSignalAndTrailingColumns: Story = {
   args: {
@@ -128,8 +137,10 @@ export const LoadingWithSignalAndTrailingColumns: Story = {
     resetAll(store);
     resetAttributes(store);
   },
-  play: ({ canvasElement }) =>
-    expectTableSkeleton(canvasElement, ["", ...COLUMN_LABELS, "", ""]),
+  play: async ({ canvasElement }) => {
+    await expectColumnShapes(canvasElement, COLUMN_LABELS, "line");
+    await expectTableSkeleton(canvasElement, ["", ...COLUMN_LABELS, "", ""]);
+  },
 };
 
 /**

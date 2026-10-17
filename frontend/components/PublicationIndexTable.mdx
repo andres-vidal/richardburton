@@ -55,7 +55,10 @@ seedIndex(store);
 While the ids have not loaded, the table renders a skeleton in its grid, with
 the same column template as its rows. The skeleton's header holds the labels
 of the columns the table shows, and its cells have the shapes of their
-attributes' values.
+attributes' values as the cells show them. With the read-only `Content`, the
+cells write each value as text, so every value is a line, the lists of names
+and countries included. When `ExtendedContent` replaces `Content`, the cells
+are fields, and the skeleton draws each item of a list as a pill.
 
 <Description of={IndexTableStories.Loading} />
 <Canvas of={IndexTableStories.Loading} />
@@ -66,7 +69,8 @@ A column that the column menu hides is left out of the skeleton too.
 <Canvas of={IndexTableStories.LoadingWithHiddenColumns} />
 
 With `ExtendedSignalColumn` and `ExtendedTrailingColumns`, the skeleton has a
-cell for the signal column and one for each trailing column.
+cell for the signal column and one for each trailing column. The cells are
+still text here, because `Content` is not replaced.
 
 <Description of={IndexTableStories.LoadingWithSignalAndTrailingColumns} />
 <Canvas of={IndexTableStories.LoadingWithSignalAndTrailingColumns} />

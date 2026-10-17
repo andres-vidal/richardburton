@@ -14,17 +14,18 @@ the table, so each placeholder sits where its column will be.
 
 The header row holds each column's label as plain text. In each placeholder
 row, a cell holds the shapes of its attribute's value, chosen by the
-attribute's type in `Publication.ATTRIBUTE_TYPES`:
+attribute's type in `Publication.ATTRIBUTE_TYPES` and by the `cells` prop,
+which says what the table's cells show:
 
 - **Titles** (`text` and `book`) — one long line.
 - **Year** (`number`) — one short line.
-- **Names** (`array`) — one or two pills, as a list of translators, authors or
-  publishers.
-- **Countries** (`enumArray`) — one or two short pills.
+- **Names** (`array`) and **countries** (`enumArray`) — in `text` cells, one
+  line, or two lines side by side like names joined by a comma. In `fields`
+  cells, one or two pills, as a field shows each item of the list.
 
 The lengths cycle by row and column, without randomness, so the server and the
-browser render the same markup. In a column too narrow for its pills, the pills
-shrink to fit.
+browser render the same markup. In a column too narrow for its shapes, the
+shapes shrink to fit.
 
 The skeleton is built with [`Skeleton`](?path=/docs/components-skeleton--docs),
 so it fades in after 150ms, its lower half fades out, and its pulse moves down
@@ -37,6 +38,9 @@ the rows while motion is allowed.
 
 - `attributes` — the attribute columns, in order. An attribute that is not in
   the list has no header cell, no cells and no track.
+- `cells` — what the table's cells show: `text`, each value written as text
+  with the items of a list joined by commas, or `fields`, the inputs that edit
+  each value. Defaults to `text`.
 - `signal` — whether each row starts with a signal cell. The signal cell is
   empty.
 - `trailing` — how many cells follow the attributes in each row. Each holds a

@@ -15,6 +15,17 @@ const COLUMN_LABELS = [
 ];
 
 /**
+ * The English labels of the columns that hold a list: the translators, the
+ * original authors, the countries and the publishers.
+ */
+const LIST_COLUMN_LABELS = [
+  "Translators",
+  "Original Authors",
+  "Countries",
+  "Publishers",
+];
+
+/**
  * Resolves once the skeleton status `status` has faded in.
  *
  * The accessibility check measures the contrast of the text in a skeleton,
@@ -43,6 +54,37 @@ function skeletonHeader(element: HTMLElement): string[] {
 }
 
 /**
+ * Returns the shapes in the column of the table skeleton in `element` whose
+ * header is `label`: the distinct `data-shape` values of its placeholder
+ * cells, sorted.
+ */
+function skeletonShapes(element: HTMLElement, label: string): string[] {
+  const column = skeletonHeader(element).indexOf(label);
+  const shapes = skeletonRows(element).flatMap((row) =>
+    Array.from(
+      row.children[column].querySelectorAll<HTMLElement>("[data-shape]"),
+      (shape) => shape.dataset.shape ?? "",
+    ),
+  );
+
+  return [...new Set(shapes)].sort();
+}
+
+/**
+ * Checks that every placeholder in the columns of the table skeleton in
+ * `element` whose headers are `labels` has the shape `shape`.
+ */
+async function expectColumnShapes(
+  element: HTMLElement,
+  labels: string[],
+  shape: string,
+): Promise<void> {
+  for (const label of labels) {
+    await expect(skeletonShapes(element, label)).toEqual([shape]);
+  }
+}
+
+/**
  * Checks the table skeleton in `canvasElement`. It expects a status named
  * "Loading" whose header cells hold the text in `header`, and twelve
  * placeholder rows, each with its index in `--row` and a cell for every header
@@ -68,8 +110,11 @@ async function expectTableSkeleton(
 
 export {
   COLUMN_LABELS,
+  LIST_COLUMN_LABELS,
+  expectColumnShapes,
   expectTableSkeleton,
   skeletonAppeared,
   skeletonHeader,
   skeletonRows,
+  skeletonShapes,
 };

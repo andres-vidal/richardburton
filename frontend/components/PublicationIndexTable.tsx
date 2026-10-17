@@ -321,6 +321,11 @@ const SignalColumn: FC<{
 interface Props {
   ExtendedRow?: FC<RowProps>;
   ExtendedColumn?: typeof Column;
+  /**
+   * The content of each attribute cell in place of the read-only `Content`,
+   * such as a field that edits the value. While the publications load, the
+   * skeleton draws the cells as fields when this replaces `Content`.
+   */
   ExtendedContent?: typeof Content;
   ExtendedSignalColumn?: typeof SignalColumn;
   /**
@@ -346,7 +351,9 @@ interface Props {
  * publication, and `ExtraRow` at the end. It shows `EmptySearchResults` when
  * the store holds no publications and there is no `ExtraRow`. While the
  * publications have not loaded, it shows a `PublicationIndexTableSkeleton`
- * with the table's columns.
+ * with the table's columns. The skeleton draws the cells as text while they
+ * hold the read-only `Content`, and as fields when `ExtendedContent` replaces
+ * it.
  *
  * The table is a CSS grid, not a `<table>`, with ARIA roles that give it a
  * table's semantics. Each column has a maximum width, which
@@ -372,6 +379,7 @@ const PublicationIndexTable: FC<Props> = ({
   const hasSignal = Boolean(ExtendedSignalColumn);
   const visibleAttributes = useColumns(collapsible);
   const trailing = ExtendedTrailingColumns.length;
+  const cells = ExtendedContent === Content ? "text" : "fields";
   const template = useMemo(
     () =>
       gridTemplateColumns({
@@ -425,6 +433,7 @@ const PublicationIndexTable: FC<Props> = ({
   ) : (
     <PublicationIndexTableSkeleton
       attributes={visibleAttributes}
+      cells={cells}
       signal={hasSignal}
       trailing={trailing}
     />
