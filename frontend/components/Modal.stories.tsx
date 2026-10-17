@@ -3,7 +3,7 @@ import { useState } from "react";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 
 import Button from "./Button";
-import { Modal } from "./Modal";
+import { Modal, useModal } from "./Modal";
 
 const LINES = Array.from(
   { length: 30 },
@@ -37,6 +37,32 @@ const OpenableModal = () => {
         heading="Modal title"
       >
         <p>This content lives inside the dialog, rendered in a portal.</p>
+      </Modal>
+    </div>
+  );
+};
+
+/**
+ * A button that opens a modal, and in it a button that opens a second modal
+ * over the first.
+ */
+const NestedModals = () => {
+  const outer = useModal();
+  const inner = useModal();
+
+  return (
+    <div className="p-8">
+      <Button label="Open modal" width="fit" onClick={outer.open} />
+      <Modal isOpen={outer.isOpen} onClose={outer.close} heading="Edit record">
+        <p>The record being edited.</p>
+        <Button label="Delete record" width="fit" onClick={inner.open} />
+        <Modal
+          isOpen={inner.isOpen}
+          onClose={inner.close}
+          heading="Delete this record?"
+        >
+          <p>A second modal, opened over the first.</p>
+        </Modal>
       </Modal>
     </div>
   );
@@ -110,5 +136,40 @@ export const WithoutAHeading: Story = {
     await expect(
       await screen.findByRole("dialog", { name: "Publication details" }),
     ).toHaveTextContent("Content that brings its own padding and heading.");
+  },
+};
+
+/**
+ * A modal opened from the content of another. Escape closes the one on top
+ * and leaves the other open. The play test opens both, presses Escape and
+ * checks that only the second closed, then presses Escape again and checks
+ * that the first closed.
+ */
+export const Nested: Story = {
+  render: () => <NestedModals />,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: "Open modal" }),
+    );
+    const outer = await screen.findByRole("dialog", { name: "Edit record" });
+    await userEvent.click(
+      within(outer).getByRole("button", { name: "Delete record" }),
+    );
+    await screen.findByRole("dialog", { name: "Delete this record?" });
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Delete this record?" }),
+      ).not.toBeInTheDocument(),
+    );
+    await expect(
+      screen.getByRole("dialog", { name: "Edit record" }),
+    ).toBeInTheDocument();
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
   },
 };

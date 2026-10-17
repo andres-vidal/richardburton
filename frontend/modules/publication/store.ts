@@ -878,6 +878,14 @@ function isEdited(store: Store, id: PublicationId): boolean {
 }
 
 /**
+ * Returns whether any row of the store has an edit the database does not have
+ * yet (see `isEdited`).
+ */
+function hasUnsavedEdit(store: Store): boolean {
+  return [...knownIds()].some((id) => isEdited(store, id));
+}
+
+/**
  * Writes publications as the database returned them: each one's saved copy in
  * `savedFamily`, and its row in the document. Run it inside `Doc.hold`,
  * together with the matching change to the reading order.
@@ -1356,6 +1364,7 @@ export {
   fieldValueFamily,
   focusedRowIdAtom,
   forget,
+  hasUnsavedEdit,
   hiddenAttributesAtom,
   hydrate,
   invalidIdsAtom,

@@ -45,6 +45,13 @@ the button's own handler runs.
 <Description of={NotesFieldStories.WrittenOnBlur} />
 <Canvas of={NotesFieldStories.WrittenOnBlur} />
 
+Escape pressed in the field also writes a waiting edit at once, before the
+handlers around the field receive the key press. A dialog that checks for an
+unsaved edit before it closes on Escape then finds the notes in the row.
+
+<Description of={NotesFieldStories.WrittenOnEscape} />
+<Canvas of={NotesFieldStories.WrittenOnEscape} />
+
 When the field unmounts, as when the dialog it is in closes, it also writes a
 waiting edit at once. It writes it in a layout effect's cleanup, which React
 runs before the `useEffect` cleanups of the components around the field, so the

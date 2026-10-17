@@ -27,6 +27,10 @@ const written = fn();
 // store holds them when the button is pressed.
 const saved = fn();
 
+// A mock called with the row's notes as the store holds them when Escape
+// reaches the element around the field.
+const escaped = fn();
+
 /**
  * Returns a story's `beforeEach` that fills the store with one row, 1, holding
  * `notes` and `errors`. Until the story ends, `written` is called with the
@@ -38,6 +42,7 @@ const seed =
     resetAll(store);
     written.mockClear();
     saved.mockClear();
+    escaped.mockClear();
     setAll(store, [
       {
         id: 1,
@@ -179,6 +184,41 @@ export const WrittenOnBlur: Story = {
     await expect(saved).toHaveBeenCalledWith([
       paragraph("Signed by the translator"),
     ]);
+    await pause();
+    await expect(written).toHaveBeenCalledTimes(1);
+  },
+};
+
+/**
+ * The field inside an element that reads the row when Escape reaches it, as a
+ * dialog does that asks before it closes on an unsaved edit. The play test
+ * types, presses Escape at once, and checks that the row held the typed notes
+ * when the element read it, and that they were written once.
+ */
+export const WrittenOnEscape: Story = {
+  beforeEach: seed(null),
+  decorators: [
+    (Story) => (
+      <div
+        onKeyDown={(event) =>
+          event.key === "Escape" &&
+          escaped(store.get(publicationNotesFamily(1)))
+        }
+      >
+        <Story />
+      </div>
+    ),
+  ],
+  play: async () => {
+    await focusEditor(await notesBox());
+    await userEvent.keyboard("Signed by the translator");
+    await expect(written).not.toHaveBeenCalled();
+
+    await userEvent.keyboard("{Escape}");
+    await expect(escaped).toHaveBeenCalledWith([
+      paragraph("Signed by the translator"),
+    ]);
+
     await pause();
     await expect(written).toHaveBeenCalledTimes(1);
   },

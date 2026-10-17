@@ -512,6 +512,9 @@
     "cancel": "Cancel",
     "deleteTitle": "Delete this publication?",
     "deleteMessage": "“{title}” ({year}) will be removed from the database, its index, and search results.",
+    "discard": "Discard",
+    "discardTitle": "Discard your changes?",
+    "discardMessage": "Your changes to this publication have not been saved. Discarding them leaves the publication as it was.",
     "notHereDetail": "It has been removed from the database, or the link names a record that never existed.",
     "summary": "Translation of <originalTitle></originalTitle> by <originalAuthors></originalAuthors>, published by <publishers></publishers>",
     "inCountry": "{article, select, the {in the <name></name>} other {in <name></name>}}"

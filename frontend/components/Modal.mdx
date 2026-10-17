@@ -11,6 +11,9 @@ A dialog over a dimmed overlay, rendered in a portal while `isOpen`. It calls
 keeps focus inside the dialog, and locks the page's scroll. On a small screen
 the dialog fills the screen, under a bar with the app's name and a close button.
 
+When the modal opens, focus moves to the overlay that holds the dialog, so the
+keyboard starts inside the modal. The overlay draws no focus ring.
+
 <Description of={ModalStories.Default} />
 <Canvas of={ModalStories.Default} />
 
@@ -49,6 +52,24 @@ and starts one when it is not inside one. A popover opened from the dialog's
 content that registers as a child node, with `useFloatingNodeId` and
 `FloatingNode`, is part of the dialog even though its portal is outside it:
 focus may move into it, and it is not hidden with the rest of the page.
+
+## Escape
+
+<kbd>Esc</kbd> closes the modal through `useDismiss` from `@floating-ui/react`,
+and only when nothing inside the modal takes the key press first.
+
+- A child node of the modal's floating tree that is open, such as a modal
+  opened from this one's content, closes on <kbd>Esc</kbd> instead of this
+  modal.
+- A floating element that closes on <kbd>Esc</kbd>, such as the menu of a
+  [select](?path=/docs/components-select--docs) or the link dialog of a
+  [rich text area](?path=/docs/components-rich-text-area--docs), stops the key
+  press, so the modal does not receive it.
+- While a key is being composed, as with an input method or a dead key, the
+  modal ignores <kbd>Esc</kbd>.
+
+<Description of={ModalStories.Nested} />
+<Canvas of={ModalStories.Nested} />
 
 ## Hooks
 

@@ -2,11 +2,12 @@
 
 import type { PublicationView } from "app/publications/read";
 import { usePathname, useRouter } from "i18n/navigation";
+import { PublicationStoreProvider } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
 import { FC, Suspense, use } from "react";
 import { Article } from "./Article";
 import CopyLink from "./CopyLink";
-import { Modal } from "./Modal";
+import EditModal from "./EditModal";
 import ModalHeading from "./ModalHeading";
 import PublicationDetail, { PublicationHeading } from "./PublicationDetail";
 
@@ -103,6 +104,11 @@ const Opened: FC<{
  *
  * The record streams in, so the overlay opens on the click and holds the
  * record's place until it lands.
+ *
+ * The overlay gives the view a publication store of its own, and its modal is
+ * an `EditModal`. Closing the overlay while the view's edit form holds an
+ * unsaved edit therefore asks first whether to discard it. The view drops the
+ * edit as it closes.
  */
 const PublicationOverlay: FC<{
   view: Promise<PublicationView | null>;
@@ -124,11 +130,13 @@ const PublicationOverlay: FC<{
   // over the new page. Gate on the URL instead: show it only while the path is
   // still a publication's.
   return pathname.startsWith("/publications/") ? (
-    <Modal isOpen onClose={close} label={t("details")}>
-      <Suspense fallback={<Loading />}>
-        <Opened view={view} onClose={close} />
-      </Suspense>
-    </Modal>
+    <PublicationStoreProvider>
+      <EditModal isOpen onClose={close} label={t("details")}>
+        <Suspense fallback={<Loading />}>
+          <Opened view={view} onClose={close} />
+        </Suspense>
+      </EditModal>
+    </PublicationStoreProvider>
   ) : null;
 };
 

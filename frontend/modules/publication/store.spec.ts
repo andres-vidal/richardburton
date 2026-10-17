@@ -17,6 +17,7 @@ import {
   duplicate,
   fieldValueFamily,
   forget,
+  hasUnsavedEdit,
   hydrate,
   knownIds,
   lastValidatedFamily,
@@ -307,6 +308,33 @@ describe("edits", () => {
       "Dom Casmurro",
     );
     expect(store.get(isValidFamily(1))).toBe(true);
+  });
+
+  test("hasUnsavedEdit is true while a saved row differs from its saved copy", () => {
+    hydrate(store, [saved(1, "Dom Casmurro"), saved(2, "Iracema")]);
+    expect(hasUnsavedEdit(store)).toBe(false);
+
+    setField(store, 2, "title", "Iracema (rev.)");
+    expect(hasUnsavedEdit(store)).toBe(true);
+
+    // Typing the saved value back leaves nothing unsaved.
+    setField(store, 2, "title", "Iracema");
+    expect(hasUnsavedEdit(store)).toBe(false);
+
+    setField(store, 1, "title", "Dom Casmurro (rev.)");
+    discardEdit(store, 1);
+    expect(hasUnsavedEdit(store)).toBe(false);
+  });
+
+  test("hasUnsavedEdit reads only the store it is given", () => {
+    hydrate(store, [saved(1, "Dom Casmurro")]);
+    setField(store, 1, "title", "Dom Casmurro (rev.)");
+
+    const other = createStore();
+    hydrate(other, [saved(1, "Dom Casmurro")]);
+
+    expect(hasUnsavedEdit(store)).toBe(true);
+    expect(hasUnsavedEdit(other)).toBe(false);
   });
 
   test("a row that was never saved keeps its edit when it is discarded", () => {

@@ -56,7 +56,8 @@ test("an admin writes formatted notes that every reader sees, and a later save o
   );
 
   // A link added through the link dialog, which takes a bare address. Escape
-  // in it closes the link dialog and leaves the publication open.
+  // in it closes the link dialog and leaves the publication open, without
+  // asking about the notes typed so far.
   await page.keyboard.type("Read more at ");
   await tool(dialog, "Link").click();
   const link = page.getByRole("dialog", { name: "Link" });
@@ -66,6 +67,9 @@ test("an admin writes formatted notes that every reader sees, and a later save o
   await page.keyboard.press("Escape");
   await expect(link).toHaveCount(0);
   await expect(dialog).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Discard your changes?" }),
+  ).toHaveCount(0);
 
   // The link dialog takes the focus when it opens and gives it back to the
   // editor when it closes. The journey waits for each before typing, as a

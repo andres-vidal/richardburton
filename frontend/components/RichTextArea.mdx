@@ -76,7 +76,8 @@ The Link button, or Ctrl+K, opens a small dialog under the button. It asks for
 the address, which can be a URL, a web address without `https://`, or an email
 address, and for the text of a new link when no text is selected. In a link, it
 edits the link's address and offers Remove link. Escape closes it without
-closing a dialog around the field.
+closing a dialog around the field, and does nothing while a key is being
+composed, as with an input method.
 
 <Description of={RichTextAreaStories.AddingALink} />
 <Canvas of={RichTextAreaStories.AddingALink} />

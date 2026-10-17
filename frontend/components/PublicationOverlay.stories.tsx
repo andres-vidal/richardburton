@@ -1,9 +1,10 @@
+import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
 import type { Meta, StoryObj } from "@storybook/react";
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { store } from "modules/store";
 import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
-import { setAll } from "modules/publication/store";
+import { publicationFamily, setAll } from "modules/publication/store";
 import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
 import { asAdmin } from "test/session";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
@@ -66,6 +67,39 @@ const StreamingOverlay: FC = () => {
 
   return <PublicationOverlay view={view} />;
 };
+
+/**
+ * The overlay until the router goes back, and then a line that says it closed.
+ * Closing the overlay goes back. On the database's page, going back leaves the
+ * publication's address and unmounts the overlay, and this router unmounts it
+ * too.
+ */
+const UntilClosed: FC<{ view: typeof ADMIN_VIEW }> = ({ view }) => {
+  const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    getRouter().back.mockImplementation(() => setOpen(false));
+  }, []);
+
+  return open ? <PublicationOverlay view={view} /> : <p>Closed</p>;
+};
+
+/**
+ * Opens the edit form of the overlay, adds ` (abandoned)` to the title, and
+ * returns the title field.
+ */
+async function editTheTitle() {
+  await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+  const title = await screen.findByRole("textbox", { name: "Title" });
+  await userEvent.type(title, " (abandoned)");
+  await expect(title).toHaveValue("Dom Casmurro (abandoned)");
+
+  return title;
+}
+
+/** Returns the confirmation that asks whether to discard an edit, once open. */
+const discardConfirmation = () =>
+  screen.findByRole("dialog", { name: "Discard your changes?" });
 
 const meta = {
   title: "Publications/Publication overlay",
@@ -368,5 +402,97 @@ export const LongHeading: Story = {
         clipped + 1,
       );
     });
+  },
+};
+
+/**
+ * Closing the overlay with an unsaved edit asks first, and backing out keeps
+ * the edit. The play test changes the title and presses Escape, then cancels
+ * the confirmation with its Cancel button, and the second time with Escape.
+ * Each time the form keeps the typed title and the overlay stays open.
+ */
+export const KeepingAnEdit: Story = {
+  beforeEach: () => setAll(store, [DOM_CASMURRO]),
+  decorators: [asAdmin],
+  parameters: {
+    docs: { story: { inline: false, height: "40rem" } },
+  },
+  play: async () => {
+    const title = await editTheTitle();
+
+    await userEvent.keyboard("{Escape}");
+    const confirmation = await discardConfirmation();
+    await expect(confirmation).toHaveTextContent(
+      "Your changes to this publication have not been saved.",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Discard your changes?" }),
+      ).not.toBeInTheDocument(),
+    );
+    await expect(title).toHaveValue("Dom Casmurro (abandoned)");
+
+    await userEvent.keyboard("{Escape}");
+    await discardConfirmation();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Discard your changes?" }),
+      ).not.toBeInTheDocument(),
+    );
+    await expect(title).toHaveValue("Dom Casmurro (abandoned)");
+    await expect(getRouter().back).not.toHaveBeenCalled();
+  },
+};
+
+/**
+ * Discard closes the overlay, and the edit goes with it. The play test changes
+ * the title, presses Escape and confirms the discard, and checks that the
+ * overlay closed and that the row is back to its saved title.
+ */
+export const DiscardingAnEdit: Story = {
+  beforeEach: () => setAll(store, [DOM_CASMURRO]),
+  decorators: [asAdmin],
+  render: () => <UntilClosed view={ADMIN_VIEW} />,
+  parameters: {
+    docs: { story: { inline: false, height: "40rem" } },
+  },
+  play: async () => {
+    await editTheTitle();
+
+    await userEvent.keyboard("{Escape}");
+    await discardConfirmation();
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    await expect(await screen.findByText("Closed")).toBeVisible();
+    await expect(getRouter().back).toHaveBeenCalledTimes(1);
+    await expect(store.get(publicationFamily(1))?.title).toBe("Dom Casmurro");
+  },
+};
+
+/**
+ * With nothing changed, closing the edit form's overlay asks nothing. The play
+ * test opens the form and presses Escape, and checks that the overlay closed
+ * without a confirmation.
+ */
+export const ClosingWithoutChanges: Story = {
+  beforeEach: () => setAll(store, [DOM_CASMURRO]),
+  decorators: [asAdmin],
+  render: () => <UntilClosed view={ADMIN_VIEW} />,
+  parameters: {
+    docs: { story: { inline: false, height: "40rem" } },
+  },
+  play: async () => {
+    await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    await screen.findByRole("button", { name: "Save" });
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect(await screen.findByText("Closed")).toBeVisible();
+    await expect(getRouter().back).toHaveBeenCalledTimes(1);
+    await expect(
+      screen.queryByRole("dialog", { name: "Discard your changes?" }),
+    ).not.toBeInTheDocument();
   },
 };
