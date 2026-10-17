@@ -322,11 +322,14 @@ defmodule RichardBurtonWeb.PublicationController do
 
   @doc """
   Responds with `entries`, the history entries of the publication `id`, or of
-  every publication when there is no `id`, newest first.
+  every publication when there is no `id`, newest first. Without an `id`, each
+  rename is one entry (see `Publication.History.all/0`).
 
   Each entry's `snapshot` holds the publication's fields after the change,
   except its notes. A change to the notes is in the entry's `diff`. The
-  snapshots in `others` are whole.
+  snapshots in `others` are whole. `name_change` holds the name change of a
+  rename's entry (see `Publication.History`), and is null on the entries of
+  every other action.
   """
   def history(conn, %{"id" => id}) do
     with {:ok, id} <- Params.id(id) do
@@ -401,10 +404,10 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   # Returns a history entry as a map for a response: the entry's own fields,
-  # with its snapshot without the `"notes"` key, and `others`, the other
-  # publications the entry is about: the ones a merge took in, an undone merge
-  # gave back, or a duplicate decision is about. See
-  # `Publication.History.other_records/1`.
+  # with its snapshot without the `"notes"` key, its name change, and `others`,
+  # the other publications the entry is about: the ones a merge took in, an
+  # undone merge gave back, a duplicate decision is about, or the same rename
+  # changed. See `Publication.History.other_records/1`.
   defp serialize_history(entry) do
     %{
       publication_id: entry.publication_id,
@@ -414,6 +417,7 @@ defmodule RichardBurtonWeb.PublicationController do
       snapshot: Map.delete(entry.snapshot, "notes"),
       diff: entry.diff,
       undoable: entry.undoable,
+      name_change: entry.name_change,
       others: Publication.History.other_records(entry),
       timestamp: entry.inserted_at
     }

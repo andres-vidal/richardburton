@@ -25,6 +25,17 @@ const names = (page: Page) =>
  */
 const alert = (page: Page) => page.getByRole("main").getByRole("alert");
 
+/** The dialog that shows a publication over the page it was opened from. */
+const publicationDialog = (page: Page) =>
+  page.getByRole("dialog", { name: "Publication details" });
+
+/** The corpus's publications that Noonday Press published, by title. */
+const NOONDAY_PUBLICATIONS = [
+  "Dom Casmurro (1953)",
+  "Epitaph of a Small Winner (1952)",
+  "Philosopher or Dog? (1954)",
+];
+
 /** Two publications, each with a different spelling of one publisher. */
 const SPELLINGS_CSV = csv([
   `Dom Casmurro,1953,US,Penguin Books,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
@@ -58,18 +69,65 @@ test("an admin folds two spellings of a publisher into one", async ({
     page.getByLabel("Name, currently Noonday", { exact: true }),
   ).toBeVisible();
 
-  // The rename is in the history of each of the three publications, under the
-  // admin who made it. It has no undo of its own: the name is changed back
-  // here, in Names.
+  // The history feed shows the rename as one item about the name, under the
+  // admin who made it, listing the three publications it changed. It has no
+  // undo of its own: the name is changed back here, in Names.
   await page.goto("/admin/publications/history");
   const renamed = historyEntries(page, "renamed");
-  await expect(renamed).toHaveCount(3);
-  for (const entry of await renamed.all()) {
-    await expect(entry).toContainText("Publishers: Noonday Press → Noonday");
-    await expect(entry).toContainText("by dev-admin@localhost");
-    await expect(entry).toContainText("A name was changed in Names");
-  }
+  await expect(renamed).toHaveCount(1);
+  await expect(renamed).toContainText(
+    "Publisher “Noonday Press” renamed “Noonday”",
+  );
+  await expect(renamed).toContainText("by dev-admin@localhost");
+  await expect(renamed).toContainText("In 3 publications:");
+  await expect(renamed.getByRole("link")).toHaveText(NOONDAY_PUBLICATIONS);
   await expect(renamed.getByRole("button", { name: "Undo" })).toHaveCount(0);
+
+  // The text filter finds the rename by any publication it changed, as it
+  // finds that publication's import.
+  const filter = page.getByRole("textbox", { name: "Filter by title or user" });
+  await filter.fill("Philosopher");
+  await expect(renamed).toHaveCount(1);
+  await expect(historyEntries(page, "created")).toHaveCount(1);
+  await filter.fill("");
+
+  // Each publication links to its page, which opens over the feed and credits
+  // the new name. Its own history shows the change as one of the name, made in
+  // Names, and links to the other two publications.
+  await renamed
+    .getByRole("link", { name: "Epitaph of a Small Winner (1952)" })
+    .click();
+  await expect(page).toHaveURL(/\/publications\/\d+$/);
+  const epitaph = publicationDialog(page);
+  await expect(
+    epitaph.getByRole("heading", { name: "Epitaph of a Small Winner" }),
+  ).toBeVisible();
+  await expect(
+    epitaph.getByRole("link", { name: "Noonday", exact: true }),
+  ).toBeVisible();
+
+  await epitaph.getByText("History", { exact: true }).click();
+  const own = historyEntries(epitaph, "renamed");
+  await expect(own).toContainText(
+    "Publisher “Noonday Press” renamed “Noonday” in Names",
+  );
+  await expect(own).toContainText("Also in:");
+  await expect(own.getByRole("link")).toHaveText([
+    "Dom Casmurro (1953)",
+    "Philosopher or Dog? (1954)",
+  ]);
+
+  // Those links lead on to the other publications, whose history names
+  // Epitaph of a Small Winner among the others.
+  await own.getByRole("link", { name: "Philosopher or Dog? (1954)" }).click();
+  const philosopher = publicationDialog(page);
+  await expect(
+    philosopher.getByRole("heading", { name: "Philosopher or Dog?" }),
+  ).toBeVisible();
+  await philosopher.getByText("History", { exact: true }).click();
+  await expect(
+    historyEntries(philosopher, "renamed").getByRole("link"),
+  ).toHaveText(["Dom Casmurro (1953)", "Epitaph of a Small Winner (1952)"]);
 });
 
 test("renaming onto a name already taken folds the two together", async ({
@@ -129,11 +187,16 @@ test("renaming onto a name already taken folds the two together", async ({
   await expect(names(page)).toHaveCount(1);
   await expect(names(page)).toContainText("2 publications");
 
-  // Only the publication that moved to the kept spelling records the change.
+  // The feed shows the fold as the stray spelling renamed to the kept one, on
+  // the one publication that moved to it.
   await page.goto("/admin/publications/history");
-  await expect(historyEntries(page, "renamed")).toHaveText([
-    /“Iracema”[\s\S]*Publishers: Penguin books → Penguin Books/,
-  ]);
+  const folded = historyEntries(page, "renamed");
+  await expect(folded).toHaveCount(1);
+  await expect(folded).toContainText(
+    "Publisher “Penguin books” renamed “Penguin Books”",
+  );
+  await expect(folded).toContainText("In 1 publication:");
+  await expect(folded.getByRole("link")).toHaveText(["Iracema (1886)"]);
 });
 
 test("a fold can be called off, and nothing moves", async ({ page }) => {
@@ -240,4 +303,14 @@ test("a rename that would leave two publications identical is refused", async ({
   ).toBeVisible();
   await expect(names(page)).toHaveCount(1);
   await expect(names(page)).toContainText("1 publication");
+
+  // The merged publication already credited the kept spelling, so the feed
+  // says the stray one was folded into a name it already credits.
+  await page.goto("/admin/publications/history");
+  const folded = historyEntries(page, "renamed");
+  await expect(folded).toHaveCount(1);
+  await expect(folded).toContainText(
+    "Publisher “Penguin books” folded into a name already credited",
+  );
+  await expect(folded.getByRole("link")).toHaveText(["Dom Casmurro (1953)"]);
 });

@@ -20,14 +20,29 @@ type FeedEntry = WithChanges<FullHistoryEntry>;
 type Filter = { actions: PublicationHistoryAction[]; query: string };
 
 /**
+ * Returns the titles the text filter matches an entry by: its publication's,
+ * and for a rename, those of the other publications the rename changed.
+ */
+function titlesOf(entry: FeedEntry): string[] {
+  return entry.action === "renamed"
+    ? [entry.snapshot.title, ...(entry.others ?? []).map(({ title }) => title)]
+    : [entry.snapshot.title];
+}
+
+/**
  * Every recorded change across the database, newest first, each entry naming
  * its publication. Each entry arrives with its changes, which the server
  * compared with the previous version of the same record, so the filters only
  * narrow which entries are shown.
  *
+ * The server sends each rename made in names management as one entry, so a
+ * rename is one item that names the old and the new name and lists every
+ * publication it changed.
+ *
  * The filters are a toggle per action and a text that matches the
- * publication's title or the person who made the change. They are kept in the
- * component and not in the address.
+ * publication's title or the person who made the change. A rename matches the
+ * title of any publication it changed. The filters are kept in the component
+ * and not in the address.
  *
  * Every entry the server marks `undoable` has an Undo button, which calls
  * `onUndo` with the entry. `onUndo` defaults to `undo`, which asks the server
@@ -66,7 +81,7 @@ const PublicationHistoryFeed: FC<{
     (entry) =>
       (filter.actions.length === 0 || filter.actions.includes(entry.action)) &&
       (query === "" ||
-        entry.snapshot.title.toLowerCase().includes(query) ||
+        titlesOf(entry).some((title) => title.toLowerCase().includes(query)) ||
         entry.actor.toLowerCase().includes(query)),
   );
 

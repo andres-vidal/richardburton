@@ -1,7 +1,8 @@
 "use client";
 
+import { Link } from "i18n/navigation";
 import { useFormatDate } from "modules/dates";
-import type { WithChanges } from "modules/publication/history";
+import type { RenameChange, WithChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { isBlank, type RichTextValue } from "modules/rich-text";
 import { useTranslations } from "next-intl";
@@ -63,6 +64,46 @@ const ActionBadge: FC<{
 };
 
 /**
+ * The message that heads a rename's entry in each variant, for a rename that
+ * gave the publications a new name (`renamed`) and for a fold into a name
+ * they already credit (`folded`). The `plain` variant, in a publication's
+ * own log, also says that the change was made in Names.
+ */
+const RENAME_HEADINGS = {
+  card: { renamed: "nameRenamed", folded: "nameFolded" },
+  plain: { renamed: "nameRenamedInNames", folded: "nameFoldedInNames" },
+} as const;
+
+/**
+ * The publications a rename changed, each as a link to its page that reads its
+ * title and year, under `label`.
+ */
+const RenamedPublications: FC<{
+  label: string;
+  publications: RenameChange["publications"];
+}> = ({ label, publications }) => {
+  const t = useTranslations("admin");
+
+  return (
+    <>
+      {label}
+      <ul className="mt-1 space-y-0.5">
+        {publications.map((publication) => (
+          <li
+            key={publication.id}
+            className="pl-2 border-l-2 border-violet-200"
+          >
+            <Link href={`/publications/${publication.id}`} className="anchor">
+              {publication.title || t("untitledRecord")} ({publication.year})
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+};
+
+/**
  * Notes as an entry of the log shows them: rendered with `RichText` in the
  * small size, or the `admin.noNotes` message when they are null or blank.
  */
@@ -86,6 +127,14 @@ const NotesOrNone: FC<{ notes: RichTextValue | null }> = ({ notes }) => {
  * `RichText`, the records a merge took in or gave back, and the records a
  * duplicate decision was about. An update with no earlier
  * version to compare with says so. Blank notes are shown as none.
+ *
+ * A rename's entry with a `RenameChange` reads as a change of the name, not
+ * of the publication. The `card` variant heads it with the name before and
+ * after, in place of the publication's title, and lists every publication the
+ * rename changed. The `plain` variant states the change, says it was made in
+ * Names, and lists the other publications the rename changed. Each listed
+ * publication links to its page. A rename's entry without a `RenameChange`
+ * is shown like an update, with a note that a name was changed in Names.
  */
 const Entry: FC<{
   entry: HistoryEntry;
@@ -102,7 +151,19 @@ const Entry: FC<{
   const formatDate = useFormatDate();
   const [undoing, setUndoing] = useState(false);
 
-  const subject = variant === "card" ? entry.snapshot.title : null;
+  const rename = entry.changes.find(
+    (change): change is RenameChange => change.kind === "rename",
+  );
+  const heading =
+    rename === undefined
+      ? null
+      : t(RENAME_HEADINGS[variant][rename.to === null ? "folded" : "renamed"], {
+          role: rename.role,
+          from: rename.from,
+          to: rename.to ?? "",
+        });
+  const subject =
+    variant !== "card" ? null : (heading ?? `“${entry.snapshot.title}”`);
   const disabled = undoing || onUndo === UNDO_DISABLED;
 
   async function handleUndo() {
@@ -130,7 +191,7 @@ const Entry: FC<{
         <ActionBadge action={entry.action} variant={variant} />
         {subject ? (
           <span className="min-w-0 font-medium text-gray-800 wrap-break-word">
-            “{subject}”
+            {subject}
           </span>
         ) : (
           <>
@@ -175,7 +236,7 @@ const Entry: FC<{
           {t("noBaseline")}
         </p>
       )}
-      {entry.action === "renamed" ? (
+      {entry.action === "renamed" && rename === undefined ? (
         <p
           data-variant={variant}
           className="mt-2 text-xs text-gray-500 data-[variant=card]:pl-22 data-[variant=plain]:pl-18"
@@ -229,6 +290,29 @@ const Entry: FC<{
                     <NotesOrNone notes={change.to} />
                   </ins>
                 </div>
+              </li>
+            ) : change.kind === "rename" ? (
+              <li key="rename" className="text-xs text-gray-600">
+                {variant === "card" ? (
+                  <RenamedPublications
+                    label={t("renamedIn", {
+                      count: change.publications.length,
+                    })}
+                    publications={change.publications}
+                  />
+                ) : (
+                  <>
+                    <p className="text-gray-700">{heading}</p>
+                    {change.others.length === 0 ? null : (
+                      <div className="mt-1">
+                        <RenamedPublications
+                          label={t("renamedAlsoIn")}
+                          publications={change.others}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
               </li>
             ) : change.kind === "related" ? (
               <li key="related" className="mt-1 text-xs text-gray-600">

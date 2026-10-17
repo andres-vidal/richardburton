@@ -486,6 +486,76 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert oldest["publication_id"] == first.id
       assert oldest["snapshot"]["title"] =~ "Honey-Lips"
     end
+
+    test "returns a rename as one entry, with its name change and the other publications it changed",
+         %{conn: conn} do
+      {:ok, first} = @iracema |> publication_attrs() |> Publication.insert("a@example.com")
+
+      {:ok, second} =
+        %{@iracema | title: "Iracema, again"}
+        |> publication_attrs()
+        |> Publication.insert("a@example.com")
+
+      rename_publisher("Bickers & Son", "Bickers and Son")
+
+      conn = get(conn, publication_path(conn, :history))
+
+      assert %{"entries" => [renamed | created]} = json_response(conn, 200)
+
+      assert %{
+               "action" => "renamed",
+               "actor" => "editor@example.com",
+               "undoable" => false,
+               "name_change" => %{
+                 "publishers" => %{"from" => ["Bickers & Son"], "to" => ["Bickers and Son"]}
+               },
+               "others" => [other]
+             } = renamed
+
+      assert Enum.sort([renamed["publication_id"], other["id"]]) ==
+               Enum.sort([first.id, second.id])
+
+      assert other["publishers"] == ["Bickers and Son"]
+
+      # The imports are entries of their own, with no name change.
+      assert [%{"action" => "created", "name_change" => nil}, %{"action" => "created"}] = created
+    end
+  end
+
+  describe "GET /publications/:id/history of a renamed publication" do
+    test "names the other publications the rename changed", %{conn: conn} do
+      {:ok, first} = @iracema |> publication_attrs() |> Publication.insert("a@example.com")
+
+      %{@iracema | title: "Iracema, again"}
+      |> publication_attrs()
+      |> Publication.insert("a@example.com")
+
+      rename_publisher("Bickers & Son", "Bickers and Son")
+
+      conn = get(conn, publication_path(conn, :history, first.id))
+
+      assert %{"entries" => [renamed, _created]} = json_response(conn, 200)
+
+      assert %{
+               "action" => "renamed",
+               "name_change" => %{"publishers" => %{"from" => ["Bickers & Son"]}},
+               "others" => [%{"title" => "Iracema, again", "year" => 1886}]
+             } = renamed
+    end
+  end
+
+  # Renames the publisher called `name` to `new_name`, as editor@example.com.
+  defp rename_publisher(name, new_name) do
+    publisher = Repo.get_by!(Publisher, name: name)
+
+    {:ok, :renamed} =
+      RichardBurton.Vocabulary.rename(
+        "publishers",
+        publisher.id,
+        new_name,
+        false,
+        "editor@example.com"
+      )
   end
 
   describe "POST /publications/:id/history/:version/undo" do

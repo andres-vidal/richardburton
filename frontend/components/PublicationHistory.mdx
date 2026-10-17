@@ -57,14 +57,42 @@ the same entries as full cards, where they _are_ the page's subject.
 ## Renamed
 
 A renamed entry records a name corrected in
-[names management](?path=/docs/admin-names--docs), on each
-publication that credits the name. It shows the change like an update, but it
-has no undo: the name changed for every publication at once, so it is changed
-back in names management, and the entry says so.
+[names management](?path=/docs/admin-names--docs), on each publication that
+credits the name. It reads as a change of the name, not of the publication:
+the role of the name here, the name before and after, and that the change was
+made in Names. The role comes from the fields the name changed in. For a
+person renamed both as translator and as original author, the entry says
+"Name". The entry links to the other publications the same rename changed,
+which the server sends in its `others`. It has no undo: the name changed for
+every publication at once, so it is changed back in names management.
 
 <Description of={PublicationHistoryStories.Renamed} />
 
 <Canvas of={PublicationHistoryStories.Renamed} />
+
+<Description of={PublicationHistoryStories.RenamedAlone} />
+
+<Canvas of={PublicationHistoryStories.RenamedAlone} />
+
+<Description of={PublicationHistoryStories.RenamedInSeveralRoles} />
+
+<Canvas of={PublicationHistoryStories.RenamedInSeveralRoles} />
+
+A fold into a name the publication already credits removes the old name and
+adds none, so the entry says the name was folded into a name already
+credited.
+
+<Description of={PublicationHistoryStories.FoldedIntoACreditedName} />
+
+<Canvas of={PublicationHistoryStories.FoldedIntoACreditedName} />
+
+When the entry has no name change, because the log holds nothing earlier to
+compare it with, it says that a name was changed in Names, for every
+publication that credits it.
+
+<Description of={PublicationHistoryStories.RenamedWithoutANameChange} />
+
+<Canvas of={PublicationHistoryStories.RenamedWithoutANameChange} />
 
 ## Duplicate decisions
 

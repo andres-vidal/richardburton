@@ -563,6 +563,10 @@ defmodule RichardBurton.VocabularyTest do
                }
       end
 
+      # The two entries belong to one rename.
+      assert latest(first).rename_id == latest(second).rename_id
+      refute is_nil(latest(first).rename_id)
+
       # A publication that does not credit the name is untouched.
       assert %{action: "created"} = latest(other)
     end

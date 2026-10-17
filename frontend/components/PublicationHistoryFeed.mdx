@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as PublicationHistoryFeedStories from "./PublicationHistoryFeed.stories";
 
@@ -56,6 +56,33 @@ set of records presently in the trash.
   action is still reconcilable.
 - **Filtered by action** — chips narrowing the view.
 - **Text filter** — narrowing by title or acting user.
+- **Renames** — one item per rename, naming the old and the new name and
+  linking to each publication it changed (below).
 - **Empty** — a fresh log states its emptiness.
 
 <Canvas of={PublicationHistoryFeedStories.FilteredByAction} />
+
+## Renames
+
+A rename in [names management](?path=/docs/admin-names--docs) records an
+entry on every publication that credits the name, but the server sends the
+whole rename as **one entry**: the newest of them, whose `others` are the
+other publications the rename changed and whose `nameChange` covers them all.
+The feed shows it as one item about the name, not about a publication. Its
+heading names the role, taken from the fields the name changed in (publisher,
+translator, original author, or simply name when it changed in more than one
+role), with the name before and after. It lists every publication the rename
+changed, each linking to its page, and it has no Undo. The text filter finds a
+rename by the title of any of those publications.
+
+<Description of={PublicationHistoryFeedStories.RenamedName} />
+
+<Canvas of={PublicationHistoryFeedStories.RenamedName} />
+
+<Description of={PublicationHistoryFeedStories.RenamedInOnePublication} />
+
+<Canvas of={PublicationHistoryFeedStories.RenamedInOnePublication} />
+
+<Description of={PublicationHistoryFeedStories.RenamedInSeveralRoles} />
+
+<Canvas of={PublicationHistoryFeedStories.RenamedInSeveralRoles} />

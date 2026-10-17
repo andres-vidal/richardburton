@@ -5,6 +5,7 @@ import {
   presentAbsorbed,
   presentChanges,
   presentRelated,
+  presentRename,
   withChanges,
 } from "./history";
 
@@ -247,5 +248,115 @@ describe("presentRelated", () => {
     expect(presentRelated(reopened)[0]).toMatchObject({ direction: "again" });
     expect(presentRelated(entry(1, 1, "created"))).toEqual([]);
     expect(presentRelated(merge)).toEqual([]);
+  });
+});
+
+describe("presentRename", () => {
+  // Returns the rename entry of Dom Casmurro, publication 1, with
+  // `nameChange` and the other publications the rename changed.
+  const renamed = (
+    nameChange: FullHistoryEntry["nameChange"],
+    others: FullHistoryEntry["others"] = [],
+  ) => ({ ...entry(1, 2, "renamed"), nameChange, others });
+
+  const EPITAPH = {
+    id: 3,
+    ...snapshot({ title: "Epitaph of a Small Winner", year: 1952 }),
+  };
+  const PHILOSOPHER = {
+    id: 2,
+    ...snapshot({ title: "Philosopher or Dog?", year: 1954 }),
+  };
+
+  test("names the role, the old and the new name, and every publication the rename changed", () => {
+    expect(
+      presentRename(
+        renamed({ publishers: { from: ["Noonday Press"], to: ["Noonday"] } }, [
+          PHILOSOPHER,
+          EPITAPH,
+        ]),
+      ),
+    ).toEqual([
+      {
+        kind: "rename",
+        role: "publisher",
+        from: "Noonday Press",
+        to: "Noonday",
+        others: [
+          { id: 3, title: "Epitaph of a Small Winner", year: 1952 },
+          { id: 2, title: "Philosopher or Dog?", year: 1954 },
+        ],
+        publications: [
+          { id: 1, title: "Dom Casmurro", year: 1953 },
+          { id: 3, title: "Epitaph of a Small Winner", year: 1952 },
+          { id: 2, title: "Philosopher or Dog?", year: 1954 },
+        ],
+      },
+    ]);
+  });
+
+  test("a translator or an original author is named by the role, and a person in both is a name", () => {
+    const role = (nameChange: FullHistoryEntry["nameChange"]) =>
+      presentRename(renamed(nameChange)).map(
+        (change) => change.kind === "rename" && change.role,
+      );
+    const change = { from: ["Helen Caldwel"], to: ["Helen Caldwell"] };
+
+    expect(role({ authors: change })).toEqual(["translator"]);
+    expect(role({ originalAuthors: change })).toEqual(["originalAuthor"]);
+    expect(role({ authors: change, originalAuthors: change })).toEqual([
+      "name",
+    ]);
+  });
+
+  test("a fold into a name already credited has no new name", () => {
+    const [change] = presentRename(
+      renamed({ publishers: { from: ["Penguin books"], to: [] } }),
+    );
+
+    expect(change).toMatchObject({ from: "Penguin books", to: null });
+  });
+
+  test("without its publication's id, the rename lists only the other publications", () => {
+    const { publicationId: _, ...own } = renamed(
+      { publishers: { from: ["Noonday Press"], to: ["Noonday"] } },
+      [EPITAPH],
+    );
+
+    expect(presentRename(own)).toMatchObject([
+      {
+        others: [{ id: 3 }],
+        publications: [{ id: 3 }],
+      },
+    ]);
+  });
+
+  test("a rename with no name change, and any other entry, add nothing", () => {
+    expect(presentRename(renamed(null))).toEqual([]);
+    expect(
+      presentRename({
+        ...entry(1, 2, "updated"),
+        nameChange: { publishers: { from: ["A"], to: ["B"] } },
+      }),
+    ).toEqual([]);
+  });
+
+  test("withChanges gives a rename its name change instead of its diff", () => {
+    const diff = {
+      fields: { publishers: { from: ["Noonday Press"], to: ["Noonday"] } },
+      sources: null,
+    };
+    const [withName, withoutName] = withChanges([
+      {
+        ...entry(1, 2, "renamed", {}, diff),
+        nameChange: {
+          publishers: { from: ["Noonday Press"], to: ["Noonday"] },
+        },
+      },
+      { ...entry(2, 2, "renamed", {}, diff), nameChange: null },
+    ]);
+
+    expect(withName.changes.map((change) => change.kind)).toEqual(["rename"]);
+    expect(withoutName.changes.map((change) => change.kind)).toEqual(["field"]);
   });
 });

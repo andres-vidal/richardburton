@@ -61,10 +61,11 @@ defmodule RichardBurton.Vocabulary do
 
   A rename records a `"renamed"` entry in the history of each publication that
   credits the renamed name and is not deleted, under the user who renamed it,
-  in the same transaction (see `RichardBurton.Publication.History`). A
-  publication whose snapshot the rename leaves unchanged gets no entry. A
-  deleted publication gets none either: its history ends with its deletion,
-  and restoring it records it with its current names.
+  in the same transaction (see `RichardBurton.Publication.History`). The
+  entries of one rename share a `rename_id`. A fold records the same entries
+  as a rename onto a free name. A publication whose snapshot the rename leaves
+  unchanged gets no entry. A deleted publication gets none either: its history
+  ends with its deletion, and restoring it records it with its current names.
 
   ## Checking names before they are entered
 
@@ -436,12 +437,13 @@ defmodule RichardBurton.Vocabulary do
   end
 
   # Records a `"renamed"` entry for each of the publications with these ids
-  # whose snapshot differs from the one in `before`.
+  # whose snapshot differs from the one in `before`. The entries share one
+  # `rename_id`.
   defp record_renames(ids, before, actor) do
     ids
     |> Publication.with_ids()
     |> Enum.filter(&(History.snapshot(&1) != Map.fetch!(before, &1.id)))
-    |> then(&History.record_all(:renamed, &1, actor))
+    |> then(&History.record_rename(&1, actor))
   end
 
   # Returns `record` as `%{id:, name:, publications:}`, with the number of

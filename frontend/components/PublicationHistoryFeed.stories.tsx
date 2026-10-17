@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { withChanges } from "modules/publication/history";
 import type { FullHistoryEntry } from "modules/publication/model";
-import { expect, fn, screen, userEvent } from "storybook/test";
+import { expect, fn, screen, userEvent, within } from "storybook/test";
 
 import PublicationHistoryFeed from "./PublicationHistoryFeed";
 
@@ -105,6 +105,48 @@ const FEED: FullHistoryEntry[] = [
     diff: null,
   },
 ];
+
+// Two more publications of Noonday Press, which a rename of the publisher
+// changes together with Dom Casmurro.
+const EPITAPH: FullHistoryEntry["snapshot"] = {
+  ...DOM_CASMURRO,
+  title: "Epitaph of a Small Winner",
+  authors: ["William Grossman"],
+  originalTitle: "Memórias Póstumas de Brás Cubas",
+  year: 1952,
+};
+
+const PHILOSOPHER: FullHistoryEntry["snapshot"] = {
+  ...DOM_CASMURRO,
+  title: "Philosopher or Dog?",
+  authors: ["Clotilde Wilson"],
+  originalTitle: "Quincas Borba",
+  year: 1954,
+};
+
+/**
+ * Returns the entry the server sends for one rename: the rename's entry on
+ * Dom Casmurro, publication 1, with `nameChange` covering the whole rename and
+ * `others` holding the other publications it changed.
+ */
+function renameEntry(
+  nameChange: FullHistoryEntry["nameChange"],
+  snapshot: FullHistoryEntry["snapshot"],
+  others: FullHistoryEntry["others"] = [],
+): FullHistoryEntry {
+  return {
+    publicationId: 1,
+    version: 4,
+    undoable: false,
+    action: "renamed",
+    actor: "curator@rb.test",
+    timestamp: "2026-10-16T10:00:00",
+    snapshot,
+    diff: null,
+    nameChange,
+    others,
+  };
+}
 
 const meta = {
   title: "Publications/Publication history feed",
@@ -245,5 +287,133 @@ export const Empty: Story = {
     await expect(
       screen.getByText("No changes recorded yet."),
     ).toBeInTheDocument();
+  },
+};
+
+/**
+ * A publisher renamed in names management, which changed three publications.
+ * The feed shows the rename as one item that names the old and the new name
+ * and links to each publication. The play test checks the item, its links, that
+ * it has no undo, and that the text filter finds it by any of its titles.
+ */
+export const RenamedName: Story = {
+  args: {
+    entries: withChanges([
+      renameEntry(
+        { publishers: { from: ["Noonday Press"], to: ["Noonday"] } },
+        { ...DOM_CASMURRO, publishers: ["Noonday"] },
+        [
+          { id: 4, ...PHILOSOPHER, publishers: ["Noonday"] },
+          { id: 3, ...EPITAPH, publishers: ["Noonday"] },
+        ],
+      ),
+      ...FEED,
+    ]),
+  },
+  play: async ({ canvasElement }) => {
+    const renames = () =>
+      canvasElement.querySelectorAll<HTMLElement>('[data-action="renamed"]');
+    const [renamed] = renames();
+
+    await expect(renames()).toHaveLength(1);
+    await expect(renamed).toHaveTextContent(
+      "Publisher “Noonday Press” renamed “Noonday”",
+    );
+    await expect(renamed).toHaveTextContent("by curator@rb.test");
+    await expect(renamed).toHaveTextContent("In 3 publications:");
+    await expect(renamed).not.toHaveTextContent("Publishers:");
+
+    const links = within(renamed).getAllByRole("link");
+    await expect(links.map((link) => link.textContent)).toEqual([
+      "Dom Casmurro (1953)",
+      "Epitaph of a Small Winner (1952)",
+      "Philosopher or Dog? (1954)",
+    ]);
+    await expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/en/publications/1",
+      "/en/publications/3",
+      "/en/publications/4",
+    ]);
+    await expect(
+      within(renamed).queryByRole("button", { name: "Undo" }),
+    ).not.toBeInTheDocument();
+
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Filter by title or user" }),
+      "Philosopher",
+    );
+    await expect(renames()).toHaveLength(1);
+    await expect(canvasElement.querySelectorAll("[data-action]")).toHaveLength(
+      1,
+    );
+  },
+};
+
+/**
+ * A translator's name corrected on the one publication that credits it. The
+ * play test checks that the item names the role and counts one publication.
+ */
+export const RenamedInOnePublication: Story = {
+  args: {
+    entries: withChanges([
+      renameEntry(
+        { authors: { from: ["Helen Caldwel"], to: ["Helen Caldwell"] } },
+        DOM_CASMURRO,
+      ),
+    ]),
+  },
+  play: async ({ canvasElement }) => {
+    const renamed = canvasElement.querySelector(
+      '[data-action="renamed"]',
+    ) as HTMLElement;
+
+    await expect(renamed).toHaveTextContent(
+      "Translator “Helen Caldwel” renamed “Helen Caldwell”",
+    );
+    await expect(renamed).toHaveTextContent("In 1 publication:");
+    await expect(within(renamed).getByRole("link")).toHaveTextContent(
+      "Dom Casmurro (1953)",
+    );
+  },
+};
+
+/**
+ * A person renamed who translated one publication and wrote the original of
+ * another. The item calls it a name, since it changed in both roles. The play
+ * test checks the heading and the two publications.
+ */
+export const RenamedInSeveralRoles: Story = {
+  args: {
+    entries: withChanges([
+      renameEntry(
+        {
+          authors: { from: ["Ana Lessa"], to: ["Ana Lessa Bastos"] },
+          originalAuthors: { from: ["Ana Lessa"], to: ["Ana Lessa Bastos"] },
+        },
+        { ...DOM_CASMURRO, authors: ["Ana Lessa Bastos"] },
+        [
+          {
+            id: 2,
+            ...IRACEMA,
+            originalAuthors: ["Ana Lessa Bastos"],
+          },
+        ],
+      ),
+    ]),
+  },
+  play: async ({ canvasElement }) => {
+    const renamed = canvasElement.querySelector(
+      '[data-action="renamed"]',
+    ) as HTMLElement;
+
+    await expect(renamed).toHaveTextContent(
+      "Name “Ana Lessa” renamed “Ana Lessa Bastos”",
+    );
+    await expect(renamed).toHaveTextContent("In 2 publications:");
+    await expect(
+      within(renamed)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Dom Casmurro (1953)", "Iraçéma the Honey-Lips (1886)"]);
   },
 };

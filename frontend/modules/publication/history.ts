@@ -1,6 +1,8 @@
+import { sortBy, uniq } from "lodash";
 import type { RichTextValue } from "modules/rich-text";
 import type {
   FullHistoryEntry,
+  NameField,
   PublicationHistoryEntry,
   SnapshotDiff,
 } from "./model";
@@ -66,9 +68,43 @@ type RelatedChange = {
   records: { id: number; title: string; year: number; authors: string }[];
 };
 
+/**
+ * The role of a renamed name in the publications it is credited on: the
+ * publisher, the translator or the original author. A person renamed in more
+ * than one role is a `name`.
+ */
+type NameRole = "publisher" | "translator" | "originalAuthor" | "name";
+
+/** A publication a rename changed, named by its title and year. */
+type RenamedPublication = { id: number; title: string; year: number };
+
+/**
+ * A name changed in names management: its role, the name before (`from`) and
+ * the name after (`to`), and the publications the rename changed, sorted by
+ * title and year. `to` is null when the name was folded into a name that the
+ * publications already credit, since the rename then added no name to them.
+ *
+ * `others` are the publications the rename changed besides the entry's own.
+ * `publications` are all of them, the entry's own included when the entry
+ * carries its publication's id.
+ */
+type RenameChange = {
+  kind: "rename";
+  role: NameRole;
+  from: string;
+  to: string | null;
+  others: RenamedPublication[];
+  publications: RenamedPublication[];
+};
+
 /** One change an entry of the log made. */
 type Change =
-  FieldChange | SourcesChange | NotesChange | AbsorbedChange | RelatedChange;
+  | FieldChange
+  | SourcesChange
+  | NotesChange
+  | AbsorbedChange
+  | RelatedChange
+  | RenameChange;
 
 /** An entry with the changes its act made. */
 type WithChanges<T> = T & { changes: Change[] };
@@ -178,22 +214,104 @@ function presentRelated(entry: PublicationHistoryEntry): Change[] {
       ];
 }
 
+/** The role a name has in each field that holds names. */
+const ROLES: Record<NameField, Exclude<NameRole, "name">> = {
+  publishers: "publisher",
+  authors: "translator",
+  originalAuthors: "originalAuthor",
+};
+
+/** Returns `publications` sorted by title, then year, then id. */
+function byTitle(publications: RenamedPublication[]): RenamedPublication[] {
+  return sortBy(publications, ["title", "year", "id"]);
+}
+
 /**
- * Returns each entry with its changes. It is meant to run once, where the log
- * is read, so no component computes the changes while it renders.
+ * Returns the name change of a rename's entry as one `RenameChange`. The role
+ * comes from the fields the name changed in, and the names before and after
+ * are every name the rename removed and added, joined with commas. The other
+ * publications are the entry's `others`, and `publications` adds the entry's
+ * own publication when the entry carries its id.
+ *
+ * Returns an empty list for an entry that is not a rename's, and for a rename
+ * whose name change is null or removed no name.
+ */
+function presentRename(
+  entry: PublicationHistoryEntry & { publicationId?: number },
+): Change[] {
+  const changed = (Object.keys(ROLES) as NameField[]).flatMap((field) => {
+    const change = entry.nameChange?.[field];
+    return change === undefined ? [] : [{ field, ...change }];
+  });
+  const from = uniq(changed.flatMap((change) => change.from));
+  const to = uniq(changed.flatMap((change) => change.to));
+  const others = (entry.others ?? []).map(({ id, title, year }) => ({
+    id,
+    title,
+    year,
+  }));
+  const own =
+    entry.publicationId === undefined
+      ? []
+      : [
+          {
+            id: entry.publicationId,
+            title: entry.snapshot.title,
+            year: entry.snapshot.year,
+          },
+        ];
+
+  return entry.action !== "renamed" || from.length === 0
+    ? []
+    : [
+        {
+          kind: "rename",
+          role: changed.length === 1 ? ROLES[changed[0].field] : "name",
+          from: from.join(", "),
+          to: to.length === 0 ? null : to.join(", "),
+          others: byTitle(others),
+          publications: byTitle([...own, ...others]),
+        },
+      ];
+}
+
+/**
+ * Returns the changes of one entry. A rename with a name change has only its
+ * `RenameChange`, which already says what changed in the names. Any other
+ * entry has the changes of its diff, then the records a merge took in or gave
+ * back, then the publications a decision is about.
+ */
+function changesOf(
+  entry: PublicationHistoryEntry & { publicationId?: number },
+): Change[] {
+  const rename = presentRename(entry);
+
+  return rename.length > 0
+    ? rename
+    : [
+        ...presentChanges(entry.diff),
+        ...presentAbsorbed(entry),
+        ...presentRelated(entry),
+      ];
+}
+
+/**
+ * Returns each entry with its changes (see `changesOf`). It is meant to run
+ * once, where the log is read, so no component computes the changes while it
+ * renders.
  */
 function withChanges<T extends PublicationHistoryEntry>(
   entries: T[],
 ): WithChanges<T>[] {
-  return entries.map((entry) => ({
-    ...entry,
-    changes: [
-      ...presentChanges(entry.diff),
-      ...presentAbsorbed(entry),
-      ...presentRelated(entry),
-    ],
-  }));
+  return entries.map((entry) => ({ ...entry, changes: changesOf(entry) }));
 }
 
-export { keyOf, presentAbsorbed, presentChanges, presentRelated, withChanges };
-export type { WithChanges };
+export {
+  keyOf,
+  presentAbsorbed,
+  presentChanges,
+  presentRelated,
+  presentRename,
+  withChanges,
+};
+export type { NameRole, RenameChange, WithChanges };
