@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Publication.History — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-519B5A61.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Publication.<wbr />History</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>The append-only log of changes to publications. Each row records one change
+to one publication: the action, a flat snapshot of the publication after it,
+the actor, and a version that numbers the publication's entries in order.</p><p>The database keeps the log append-only: a trigger rejects every UPDATE and
+DELETE on the table (see the migration <code class="inline">SoftDeletePublications</code>). Every
+change goes through the <a href="RichardBurton.Publication.html"><code class="inline">RichardBurton.Publication</code></a> functions, or through
+<a href="RichardBurton.Vocabulary.html#rename/5"><code class="inline">RichardBurton.Vocabulary.rename/5</code></a> for a change of name, and each records
+its entries inside the transaction that makes the change. So a change and its
+entries commit or roll back together.</p><p>Terms used here:</p><ul><li><strong>stream</strong> — the entries of one publication, newest first.</li><li><strong>head</strong> — the latest entry of a stream that is not a decision. See
+<a href="#head/1"><code class="inline">head/1</code></a>.</li><li><strong>others</strong> — the other publications an entry is about, each with its
+snapshot when the entry was recorded. The entry's action says how they
+are involved: a merge absorbed them, an un-merge gave them back, a
+decision is about them, or the same rename changed them. A rename's
+entries are stored without them, and <a href="#of/1"><code class="inline">of/1</code></a> and <a href="#all/0"><code class="inline">all/0</code></a> read them from
+the rename's other entries. An entry of any other action has none.</li><li><strong>absorbed</strong> — the state of a publication held inside another by a
+merge. A <code class="inline">&quot;merged&quot;</code> entry is on the publication that survived the merge,
+and names the publications it absorbed in its <code class="inline">others</code>. An <code class="inline">&quot;unmerged&quot;</code>
+entry names the ones it gave back. See <a href="#absorbed/1"><code class="inline">absorbed/1</code></a>.</li><li><strong>decision</strong> — a duplicate reviewer's answer about publications that look
+alike, recorded by <a href="RichardBurton.Publication.Duplicates.html"><code class="inline">RichardBurton.Publication.Duplicates</code></a>. A
+<code class="inline">&quot;distinguished&quot;</code> entry records that the publications are not the same
+record twice, and a <code class="inline">&quot;reconsidered&quot;</code> entry that the answer was taken
+back. Each publication the decision is about gets an entry, which names
+the other publications in its <code class="inline">others</code>. A decision changes no field, so
+its entry has no diff. It is not undone from the history, and <a href="#head/1"><code class="inline">head/1</code></a>
+and <a href="#undoable?/3"><code class="inline">undoable?/3</code></a> skip it, so it does not stop the entries before it from
+being undone.</li></ul><p>A <code class="inline">&quot;renamed&quot;</code> entry records a change of name made in names management, on
+each publication that credits the name. It is diffed like an update, but it
+is not undone from the publication's history. Renaming the name again takes
+the change back for every publication at once. A fold of one name into
+another is recorded the same way, so the log does not tell the two apart.</p><p>Terms for renames:</p><ul><li><strong>rename</strong> — the <code class="inline">&quot;renamed&quot;</code> entries that one call of
+<a href="RichardBurton.Vocabulary.html#rename/5"><code class="inline">RichardBurton.Vocabulary.rename/5</code></a> recorded, one for each publication
+it changed. They share a <code class="inline">rename_id</code> that no other rename has.
+<a href="#all/0"><code class="inline">all/0</code></a> returns each rename as one entry.</li><li><strong>name change</strong> — what a rename changed in the fields that hold names,
+<code class="inline">authors</code>, <code class="inline">original_authors</code> and <code class="inline">publishers</code>: for each of those fields
+that changed, the names removed, under <code class="inline">from</code>, and the names added,
+under <code class="inline">to</code>. A rename onto a free name removes the old name and adds the
+new one. A fold into a name that a publication already credits only
+removes the old name, so <code class="inline">to</code> is empty for that publication. See
+<a href="#annotate/2"><code class="inline">annotate/2</code></a>.</li></ul>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#absorbed/1" data-no-tooltip="" translate="no">absorbed(ids)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the ids among <code class="inline">ids</code> of the publications that are absorbed now.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#all/0" data-no-tooltip="" translate="no">all()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns every entry in the log, newest first, annotated by <a href="#annotate/2"><code class="inline">annotate/2</code></a>,
+with each rename as one entry.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#annotate/2" data-no-tooltip="" translate="no">annotate(entries, absorbed)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Sets the <code class="inline">diff</code>, <code class="inline">undoable</code> and <code class="inline">name_change</code> fields of each entry, and
+returns the entries in the order given. <code class="inline">entries</code> come newest first within
+each publication's stream, and may hold the streams of several
+publications, interleaved.
+<code class="inline">absorbed</code> holds the ids of the publications that are absorbed.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#head/1" data-no-tooltip="" translate="no">head(stream)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the latest entry of a stream that is not a decision, or the latest
+entry when every entry is one. A decision changes no field, so the entries
+before it are undone as if it were not there.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#of/1" data-no-tooltip="" translate="no">of(publication_id)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the stream of one publication, annotated by <a href="#annotate/2"><code class="inline">annotate/2</code></a>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#other_ids/1" data-no-tooltip="" translate="no">other_ids(history)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the ids of the other publications an entry is about.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#other_records/1" data-no-tooltip="" translate="no">other_records(history)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the snapshots of the other publications an entry is about, ordered
+by id. Each snapshot keeps its <code class="inline">&quot;id&quot;</code> and leaves out the fingerprints.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#record/4" data-no-tooltip="" translate="no">record(action, publication, actor, others \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Appends the entry that records <code class="inline">action</code> on <code class="inline">publication</code>, inside the
+caller's transaction. <code class="inline">others</code> names the publications a merge absorbed, or
+an un-merge gave back.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#record_created/2" data-no-tooltip="" translate="no">record_created(publications, actor)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Appends a <code class="inline">&quot;created&quot;</code> entry for each of <code class="inline">publications</code>, with one insert per
+chunk, inside the caller's transaction. The publications must be ones the
+transaction inserted, so each entry is its publication's first version.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#record_decision/3" data-no-tooltip="" translate="no">record_decision(action, publications, actor)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Appends a decision's entry for each of <code class="inline">publications</code>, inside the caller's
+transaction, with the same queries as <a href="#record_rename/2"><code class="inline">record_rename/2</code></a>. <code class="inline">action</code> is
+<code class="inline">:distinguished</code> or <code class="inline">:reconsidered</code>, and each entry names the other
+publications in <code class="inline">others</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#record_rename/2" data-no-tooltip="" translate="no">record_rename(publications, actor)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Appends a <code class="inline">&quot;renamed&quot;</code> entry for each of <code class="inline">publications</code>, inside the caller's
+transaction. The entries share a new <code class="inline">rename_id</code>. It reads the
+publications' current versions with one query and inserts the entries with
+one insert per chunk, so the number of queries does not depend on the number
+of publications.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#reverted_snapshot/3" data-no-tooltip="" translate="no">reverted_snapshot(entry, previous, head)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the snapshot that undoing the update <code class="inline">entry</code> writes: the head's
+snapshot, with the fields the update changed put back to their values in
+<code class="inline">previous</code>, and without the keys no editor writes. For the head itself, that
+is the snapshot of <code class="inline">previous</code>. For an older update, the later changes to
+other fields are kept.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#snapshot/1" data-no-tooltip="" translate="no">snapshot(publication)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the snapshot a history entry stores for <code class="inline">publication</code>: the flat
+fields <a href="RichardBurton.Publication.Codec.html#flatten/1"><code class="inline">RichardBurton.Publication.Codec.flatten/1</code></a> returns for it, with
+atom keys and each set of names sorted. The publication's associations must
+be loaded.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#system_actor/0" data-no-tooltip="" translate="no">system_actor()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the actor recorded for a change made outside a request.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#undoable?/3" data-no-tooltip="" translate="no">undoable?(entry, previous, head)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns whether undoing <code class="inline">entry</code> would leave its publication as if the entry
+had never happened, with every later change kept. <code class="inline">previous</code> is the entry
+before it in its stream, or nil, and <code class="inline">head</code> is the stream's head (see
+<a href="#head/1"><code class="inline">head/1</code></a>).</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="absorbed/1">
+
+  <div class="detail-header">
+    <a href="#absorbed/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">absorbed(ids)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> absorbed([<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">pos_integer</a>()]) :: <a href="https://elixir.hexdocs.pm/MapSet.html#t:t/1">MapSet.t</a>(<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">pos_integer</a>())</pre>
+
+      </div>
+
+<p>Returns the ids among <code class="inline">ids</code> of the publications that are absorbed now.</p><p>A publication is absorbed when the latest <code class="inline">&quot;merged&quot;</code> or <code class="inline">&quot;unmerged&quot;</code> entry
+that names it in <code class="inline">others</code> is a <code class="inline">&quot;merged&quot;</code> one. That entry is in the stream
+of the publication that survived the merge, not in the absorbed
+publication's own stream. The query reads only the ids that <code class="inline">others</code> holds,
+and at most one entry for each of <code class="inline">ids</code>.</p>
+  </section>
+</section>
+<section class="detail" id="all/0">
+
+  <div class="detail-header">
+    <a href="#all/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">all()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns every entry in the log, newest first, annotated by <a href="#annotate/2"><code class="inline">annotate/2</code></a>,
+with each rename as one entry.</p><p>The entry that stands for a rename is the rename's newest entry, in the
+place of that entry. Its <code class="inline">others</code> hold the other publications the rename
+changed, each with the snapshot of its own entry, and its <code class="inline">name_change</code>
+covers every entry of the rename: each field that any of them changed, with
+every name removed and every name added, each once and sorted. Entries of
+every other action are returned as they are.</p><p>It reads the log with one query. The publications that are absorbed are
+found from the merge and un-merge entries among the ones it read.</p>
+  </section>
+</section>
+<section class="detail" id="annotate/2">
+
+  <div class="detail-header">
+    <a href="#annotate/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">annotate(entries, absorbed)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Sets the <code class="inline">diff</code>, <code class="inline">undoable</code> and <code class="inline">name_change</code> fields of each entry, and
+returns the entries in the order given. <code class="inline">entries</code> come newest first within
+each publication's stream, and may hold the streams of several
+publications, interleaved.
+<code class="inline">absorbed</code> holds the ids of the publications that are absorbed.</p><p>An update, a rename, a merge and an un-merge get a diff, which compares the
+entry's snapshot with the snapshot of the next older entry in its own
+stream. It holds <code class="inline">fields</code>, each changed field with its value <code class="inline">from</code> before
+and <code class="inline">to</code> after, and <code class="inline">sources</code>, the sources added and removed, or nil when
+the sources did not change. Every other entry, and the oldest entry of a
+stream, gets a nil diff.</p><p>An entry is undoable when <a href="#undoable?/3"><code class="inline">undoable?/3</code></a> says so, and never while its
+publication is absorbed, because only undoing the merge gives that
+publication back.</p><p>A rename's entry gets its name change (see the module doc), computed from
+its diff. It is nil when the diff is nil or changed no field that holds
+names. Every other entry gets a nil name change.</p><h2 id="annotate/2-examples" class="section-heading"><a href="#annotate/2-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples</span></h2><p>An update and the import before it, newest first:</p><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">alias</span><span class="w"> </span><span class="nc">RichardBurton.Publication.History</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="group-1">[</span><span class="n">update</span><span class="p">,</span><span class="w"> </span><span class="kn">import</span><span class="p" data-group-id="group-1">]</span><span class="w"> </span><span class="o">=</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="nc">History</span><span class="o">.</span><span class="n">annotate</span><span class="p" data-group-id="group-2">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="group-3">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="group-4">%</span><span class="nc" data-group-id="group-4">History</span><span class="p" data-group-id="group-4">{</span><span class="ss">publication_id</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">version</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="ss">action</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;updated&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">snapshot</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-5">%{</span><span class="s">&quot;title&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s">&quot;New&quot;</span><span class="p" data-group-id="group-5">}</span><span class="p" data-group-id="group-4">}</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="group-6">%</span><span class="nc" data-group-id="group-6">History</span><span class="p" data-group-id="group-6">{</span><span class="ss">publication_id</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">version</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">action</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;created&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">snapshot</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-7">%{</span><span class="s">&quot;title&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s">&quot;Old&quot;</span><span class="p" data-group-id="group-7">}</span><span class="p" data-group-id="group-6">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="group-3">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="nc">MapSet</span><span class="o">.</span><span class="n">new</span><span class="p" data-group-id="group-8">(</span><span class="p" data-group-id="group-8">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="p" data-group-id="group-2">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">update</span><span class="o">.</span><span class="n">diff</span><span class="o">.</span><span class="n">fields</span><span class="w">
+</span><span class="p" data-group-id="group-9">%{</span><span class="s">&quot;title&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="group-10">%{</span><span class="ss">from</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Old&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">to</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;New&quot;</span><span class="p" data-group-id="group-10">}</span><span class="p" data-group-id="group-9">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="group-11">{</span><span class="n">update</span><span class="o">.</span><span class="n">undoable</span><span class="p">,</span><span class="w"> </span><span class="kn">import</span><span class="o">.</span><span class="n">diff</span><span class="p">,</span><span class="w"> </span><span class="kn">import</span><span class="o">.</span><span class="n">undoable</span><span class="p" data-group-id="group-11">}</span><span class="w">
+</span><span class="p" data-group-id="group-12">{</span><span class="no">true</span><span class="p">,</span><span class="w"> </span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="no">false</span><span class="p" data-group-id="group-12">}</span></code></pre><p>The update is the head, so it is undoable. The import has no older entry to
+compare with, and it is not undoable once a later entry exists.</p>
+  </section>
+</section>
+<section class="detail" id="head/1">
+
+  <div class="detail-header">
+    <a href="#head/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">head(stream)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the latest entry of a stream that is not a decision, or the latest
+entry when every entry is one. A decision changes no field, so the entries
+before it are undone as if it were not there.</p>
+  </section>
+</section>
+<section class="detail" id="of/1">
+
+  <div class="detail-header">
+    <a href="#of/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">of(publication_id)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the stream of one publication, annotated by <a href="#annotate/2"><code class="inline">annotate/2</code></a>.</p><p>Each rename's entry holds, in <code class="inline">others</code>, the other publications its rename
+changed, each with the snapshot of its own entry of the rename. Those
+entries are read with one more query, made only when the stream holds a
+rename's entry.</p>
+  </section>
+</section>
+<section class="detail" id="other_ids/1">
+
+  <div class="detail-header">
+    <a href="#other_ids/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">other_ids(history)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the ids of the other publications an entry is about.</p>
+  </section>
+</section>
+<section class="detail" id="other_records/1">
+
+  <div class="detail-header">
+    <a href="#other_records/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">other_records(history)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the snapshots of the other publications an entry is about, ordered
+by id. Each snapshot keeps its <code class="inline">&quot;id&quot;</code> and leaves out the fingerprints.</p>
+  </section>
+</section>
+<section class="detail" id="record/4">
+
+    <span id="record/3"></span>
+
+  <div class="detail-header">
+    <a href="#record/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">record(action, publication, actor, others \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Appends the entry that records <code class="inline">action</code> on <code class="inline">publication</code>, inside the
+caller's transaction. <code class="inline">others</code> names the publications a merge absorbed, or
+an un-merge gave back.</p>
+  </section>
+</section>
+<section class="detail" id="record_created/2">
+
+  <div class="detail-header">
+    <a href="#record_created/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">record_created(publications, actor)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Appends a <code class="inline">&quot;created&quot;</code> entry for each of <code class="inline">publications</code>, with one insert per
+chunk, inside the caller's transaction. The publications must be ones the
+transaction inserted, so each entry is its publication's first version.</p>
+  </section>
+</section>
+<section class="detail" id="record_decision/3">
+
+  <div class="detail-header">
+    <a href="#record_decision/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">record_decision(action, publications, actor)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Appends a decision's entry for each of <code class="inline">publications</code>, inside the caller's
+transaction, with the same queries as <a href="#record_rename/2"><code class="inline">record_rename/2</code></a>. <code class="inline">action</code> is
+<code class="inline">:distinguished</code> or <code class="inline">:reconsidered</code>, and each entry names the other
+publications in <code class="inline">others</code>.</p>
+  </section>
+</section>
+<section class="detail" id="record_rename/2">
+
+  <div class="detail-header">
+    <a href="#record_rename/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">record_rename(publications, actor)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Appends a <code class="inline">&quot;renamed&quot;</code> entry for each of <code class="inline">publications</code>, inside the caller's
+transaction. The entries share a new <code class="inline">rename_id</code>. It reads the
+publications' current versions with one query and inserts the entries with
+one insert per chunk, so the number of queries does not depend on the number
+of publications.</p>
+  </section>
+</section>
+<section class="detail" id="reverted_snapshot/3">
+
+  <div class="detail-header">
+    <a href="#reverted_snapshot/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">reverted_snapshot(entry, previous, head)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the snapshot that undoing the update <code class="inline">entry</code> writes: the head's
+snapshot, with the fields the update changed put back to their values in
+<code class="inline">previous</code>, and without the keys no editor writes. For the head itself, that
+is the snapshot of <code class="inline">previous</code>. For an older update, the later changes to
+other fields are kept.</p>
+  </section>
+</section>
+<section class="detail" id="snapshot/1">
+
+  <div class="detail-header">
+    <a href="#snapshot/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">snapshot(publication)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the snapshot a history entry stores for <code class="inline">publication</code>: the flat
+fields <a href="RichardBurton.Publication.Codec.html#flatten/1"><code class="inline">RichardBurton.Publication.Codec.flatten/1</code></a> returns for it, with
+atom keys and each set of names sorted. The publication's associations must
+be loaded.</p><p>Two snapshots are equal when the publication holds the same values, which a
+changeset cannot tell, because it replaces the sources on every save.</p><h2 id="snapshot/1-examples" class="section-heading"><a href="#snapshot/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">alias</span><span class="w"> </span><span class="nc">RichardBurton</span><span class="o">.</span><span class="p" data-group-id="group-1">{</span><span class="nc">Author</span><span class="p">,</span><span class="w"> </span><span class="nc">Country</span><span class="p">,</span><span class="w"> </span><span class="nc">OriginalBook</span><span class="p">,</span><span class="w"> </span><span class="nc">Publication</span><span class="p">,</span><span class="w"> </span><span class="nc">Publisher</span><span class="p">,</span><span class="w"> </span><span class="nc">TranslatedBook</span><span class="p" data-group-id="group-1">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">publication</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="group-2">%</span><span class="nc" data-group-id="group-2">Publication</span><span class="p" data-group-id="group-2">{</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">title</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Dom Casmurro&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">year</span><span class="p">:</span><span class="w"> </span><span class="mi">1953</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">countries</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-3">[</span><span class="p" data-group-id="group-4">%</span><span class="nc" data-group-id="group-4">Country</span><span class="p" data-group-id="group-4">{</span><span class="ss">code</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;US&quot;</span><span class="p" data-group-id="group-4">}</span><span class="p" data-group-id="group-3">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">publishers</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-5">[</span><span class="p" data-group-id="group-6">%</span><span class="nc" data-group-id="group-6">Publisher</span><span class="p" data-group-id="group-6">{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Noonday Press&quot;</span><span class="p" data-group-id="group-6">}</span><span class="p" data-group-id="group-5">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">sources</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-7">[</span><span class="p" data-group-id="group-7">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="ss">translated_book</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-8">%</span><span class="nc" data-group-id="group-8">TranslatedBook</span><span class="p" data-group-id="group-8">{</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="ss">authors</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-9">[</span><span class="p" data-group-id="group-10">%</span><span class="nc" data-group-id="group-10">Author</span><span class="p" data-group-id="group-10">{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Helen Caldwell&quot;</span><span class="p" data-group-id="group-10">}</span><span class="p" data-group-id="group-9">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="ss">original_book</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-11">%</span><span class="nc" data-group-id="group-11">OriginalBook</span><span class="p" data-group-id="group-11">{</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="ss">title</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Dom Casmurro&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="ss">authors</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-12">[</span><span class="p" data-group-id="group-13">%</span><span class="nc" data-group-id="group-13">Author</span><span class="p" data-group-id="group-13">{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Machado de Assis&quot;</span><span class="p" data-group-id="group-13">}</span><span class="p" data-group-id="group-12">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="group-11">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">  </span><span class="p" data-group-id="group-8">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="p" data-group-id="group-2">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">snapshot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Publication.History</span><span class="o">.</span><span class="n">snapshot</span><span class="p" data-group-id="group-14">(</span><span class="n">publication</span><span class="p" data-group-id="group-14">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="group-15">{</span><span class="n">snapshot</span><span class="p" data-group-id="group-16">[</span><span class="ss">:title</span><span class="p" data-group-id="group-16">]</span><span class="p">,</span><span class="w"> </span><span class="n">snapshot</span><span class="p" data-group-id="group-17">[</span><span class="ss">:authors</span><span class="p" data-group-id="group-17">]</span><span class="p">,</span><span class="w"> </span><span class="n">snapshot</span><span class="p" data-group-id="group-18">[</span><span class="ss">:countries</span><span class="p" data-group-id="group-18">]</span><span class="p" data-group-id="group-15">}</span><span class="w">
+</span><span class="p" data-group-id="group-19">{</span><span class="s">&quot;Dom Casmurro&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-20">[</span><span class="s">&quot;Helen Caldwell&quot;</span><span class="p" data-group-id="group-20">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-21">[</span><span class="s">&quot;US&quot;</span><span class="p" data-group-id="group-21">]</span><span class="p" data-group-id="group-19">}</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="system_actor/0">
+
+  <div class="detail-header">
+    <a href="#system_actor/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">system_actor()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the actor recorded for a change made outside a request.</p>
+  </section>
+</section>
+<section class="detail" id="undoable?/3">
+
+  <div class="detail-header">
+    <a href="#undoable?/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">undoable?(entry, previous, head)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns whether undoing <code class="inline">entry</code> would leave its publication as if the entry
+had never happened, with every later change kept. <code class="inline">previous</code> is the entry
+before it in its stream, or nil, and <code class="inline">head</code> is the stream's head (see
+<a href="#head/1"><code class="inline">head/1</code></a>).</p><ul><li>The head is undoable. The action that undoes it applies directly: a
+restore undoes a delete, a delete undoes an import or a restore, and an
+update is reverted.</li><li>An older update is undoable while the publication is not deleted and
+every field the update changed still holds the value it set. Undoing it
+then changes only those fields, and keeps later changes to the others.</li><li>An older entry of any other action is not undoable. A later restore
+already undid an older delete, and undoing an older import or restore
+would discard the changes that followed it. A merge or an un-merge
+changes several publications at once, and the changes after an older
+one were made to the merged publication.</li><li>A rename is not undoable. It changed a name for every publication that
+credits it, and renaming the name again takes it back.</li><li>A decision is not undoable. It is taken back in the duplicate review.</li></ul>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

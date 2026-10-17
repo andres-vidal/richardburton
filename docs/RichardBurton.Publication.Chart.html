@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Publication.Chart — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-519B5A61.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Publication.<wbr />Chart</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Describes a chart of publications, and counts what the chart shows.</p><p>A chart counts <strong>items</strong> in <strong>groups</strong>. An item is what <code class="inline">count</code> names, and a
+group is what <code class="inline">by</code> names. A group counts each item once, however many of its
+publications hold it. A chart can also split each group into <strong>series</strong>, or
+into <strong>steps</strong> of time. <a href="#parse/1"><code class="inline">parse/1</code></a> reads a chart from request parameters, and
+<a href="#draw/2"><code class="inline">draw/2</code></a> counts it.</p><p>A chart has these fields:</p><ul><li><code class="inline">count</code> — the items: <code class="inline">:publications</code>, <code class="inline">:works</code>, <code class="inline">:translations</code>,
+<code class="inline">:original_authors</code>, <code class="inline">:translators</code> or <code class="inline">:publishers</code>. Works
+and translations are those <a href="RichardBurton.Publication.Insights.html"><code class="inline">RichardBurton.Publication.Insights</code></a> defines.</li><li><code class="inline">by</code> — the groups: <code class="inline">:year</code>, <code class="inline">:decade</code>, <code class="inline">:kind</code>, <code class="inline">:country</code>,
+<code class="inline">:original_author</code>, <code class="inline">:translator</code>, <code class="inline">:publisher</code>, <code class="inline">:work</code>, or <code class="inline">:pair</code>,
+which is an original author and a translator together. A publication is
+in one year, decade, kind and work, and in one group for each country,
+name or pair it holds. A decade is named by its first year.</li><li><code class="inline">split</code> — the series: <code class="inline">nil</code> for none, <code class="inline">:kind</code>, or <code class="inline">:country</code>. A
+publication is in one series. With <code class="inline">:country</code>, the series are the
+leading countries and one more for every other country, and a
+publication is in the first leading country it holds. Items other than
+publications can be in several series of a group, so the counts of a
+group's series can add up to more than its total.</li><li><code class="inline">over</code> — the steps: <code class="inline">nil</code> for none, <code class="inline">:year</code> or <code class="inline">:decade</code>. It needs a <code class="inline">by</code>
+that is not a year or a decade, and no <code class="inline">split</code>.</li><li><code class="inline">first</code> — when true, each item is counted at its first appearance only:
+in the group and step of its earliest publication in the whole index, by
+year and then by id, and in that publication's series. Within a group of
+names, works, pairs or countries, an item's earliest publication is the
+earliest in that group. Only the items the counted publications hold are
+counted, even when their first appearance is outside them. It needs <code class="inline">by</code>
+or <code class="inline">over</code> to be a year or a decade.</li><li><code class="inline">top</code> — how many groups to keep, or <code class="inline">nil</code> to keep them all.</li><li><code class="inline">least</code> — the fewest items a group needs to be kept, or <code class="inline">nil</code> to keep
+groups of any size.</li></ul><p>Groups by year or decade are listed by time, and groups by kind in the order
+of <a href="RichardBurton.Publication.Kind.html#all/0"><code class="inline">RichardBurton.Publication.Kind.all/0</code></a>. They cannot take <code class="inline">top</code> or <code class="inline">least</code>.
+Every other group is ranked, with the most items first. Groups with as many
+items are sorted by their number of publications, most first, and then by
+their names.</p><p>Terms used here:</p><ul><li><strong>kind</strong> — whether a publication is a first translation, a
+retranslation or a reissue, as <a href="RichardBurton.Publication.Kind.html"><code class="inline">RichardBurton.Publication.Kind</code></a> defines
+them. Kinds are judged over the whole index, so a search does not turn a
+reissue into a first translation.</li><li><strong>leading countries</strong> — the two countries with the most publications
+among those counted. Countries with the same count are sorted by code.</li></ul>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-types summary">
+  <h3>
+    <a href="#types">Types</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#t:t/0" data-no-tooltip="" translate="no">t()</a>
+
+      </div>
+
+    </div>
+
+</div>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#draw/2" data-no-tooltip="" translate="no">draw(base, chart)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Counts <code class="inline">chart</code> over the publications <code class="inline">base</code> selects, a query of
+<code class="inline">FlatPublication</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#nothing/1" data-no-tooltip="" translate="no">nothing(chart)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns what <a href="#draw/2"><code class="inline">draw/2</code></a> returns for <code class="inline">chart</code> when no publication is counted,
+without reading the database.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#parse/1" data-no-tooltip="" translate="no">parse(params)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Reads a chart from request parameters, with string keys. A missing field
+takes its default, and parameters that are not fields are ignored.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="types" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#types">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Types</span>
+    </h2>
+
+    <div class="types-list">
+<section class="detail" id="t:t/0">
+
+  <div class="detail-header">
+    <a href="#t:t/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">t()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@type</span> t() :: %RichardBurton.Publication.Chart{
+  by: <a href="https://elixir.hexdocs.pm/typespecs.html#built-in-types">term</a>(),
+  count: <a href="https://elixir.hexdocs.pm/typespecs.html#built-in-types">term</a>(),
+  first: <a href="https://elixir.hexdocs.pm/typespecs.html#built-in-types">term</a>(),
+  least: <a href="https://elixir.hexdocs.pm/typespecs.html#built-in-types">term</a>(),
+  over: <a href="https://elixir.hexdocs.pm/typespecs.html#built-in-types">term</a>(),
+  split: <a href="https://elixir.hexdocs.pm/typespecs.html#built-in-types">term</a>(),
+  top: <a href="https://elixir.hexdocs.pm/typespecs.html#built-in-types">term</a>()
+}</pre>
+
+      </div>
+
+
+  </section>
+</section>
+
+    </div>
+  </section>
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="draw/2">
+
+  <div class="detail-header">
+    <a href="#draw/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">draw(base, chart)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> draw(<a href="https://ecto.hexdocs.pm/3.14.2/Ecto.Queryable.html#t:t/0">Ecto.Queryable.t</a>(), <a href="#t:t/0">t</a>()) :: <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()</pre>
+
+      </div>
+
+<p>Counts <code class="inline">chart</code> over the publications <code class="inline">base</code> selects, a query of
+<code class="inline">FlatPublication</code>.</p><p>Returns a map with these keys:</p><ul><li><code class="inline">series</code> — the series, in order. They are <code class="inline">[nil]</code> without a split, the
+kinds with <code class="inline">split: :kind</code>, and the codes of the leading countries
+followed by <code class="inline">nil</code> for every other country with <code class="inline">split: :country</code>.</li><li><code class="inline">groups</code> — the groups, in the order the module doc gives. Groups by year
+or decade run from the earliest to the latest, including those with no
+items, and groups by kind include all three kinds. Each group has <code class="inline">key</code>,
+<code class="inline">total</code>, the number of distinct items in the group, and <code class="inline">counts</code>, the
+number in each series, in the order of <code class="inline">series</code>. With <code class="inline">over</code>, it also
+has <code class="inline">steps</code>.</li><li><code class="inline">hidden</code> — the number of ranked groups that <code class="inline">top</code> leaves out.</li></ul><p>A group's <code class="inline">key</code> is a year or a decade as an integer, a kind, a country code
+or a name as a string, <code class="inline">%{title: title, authors: authors}</code> for a work, and
+<code class="inline">%{author: author, translator: translator}</code> for a pair.</p><p>Each step has <code class="inline">at</code>, its year or decade, <code class="inline">total</code>, the number of distinct items
+in the group in that step, and <code class="inline">items</code>, the names of those items. An item's
+names are a publication's title, a work's original title, a translation's
+translators, or the one name or country code it is. Items with the same
+names are listed once. A group's steps are only those with items, earliest
+first.</p>
+  </section>
+</section>
+<section class="detail" id="nothing/1">
+
+  <div class="detail-header">
+    <a href="#nothing/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">nothing(chart)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> nothing(<a href="#t:t/0">t</a>()) :: <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()</pre>
+
+      </div>
+
+<p>Returns what <a href="#draw/2"><code class="inline">draw/2</code></a> returns for <code class="inline">chart</code> when no publication is counted,
+without reading the database.</p>
+  </section>
+</section>
+<section class="detail" id="parse/1">
+
+  <div class="detail-header">
+    <a href="#parse/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">parse(params)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> parse(<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()) :: {:ok, <a href="#t:t/0">t</a>()} | {:error, %{required(<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">atom</a>()) =&gt; :invalid}}</pre>
+
+      </div>
+
+<p>Reads a chart from request parameters, with string keys. A missing field
+takes its default, and parameters that are not fields are ignored.</p><p>Returns <code class="inline">{:ok, chart}</code>, or <code class="inline">{:error, errors}</code> with <code class="inline">:invalid</code> for each field
+whose value is not one of its values, or does not go with the other fields.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
