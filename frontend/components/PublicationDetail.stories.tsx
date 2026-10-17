@@ -7,6 +7,7 @@ import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
 import { item, link, paragraph } from "test/rich-text-fixtures";
 import { asAdmin } from "test/session";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
+import { expectToFit, LONG_URL } from "test/layout";
 
 import PublicationDetail from "./PublicationDetail";
 
@@ -255,5 +256,19 @@ export const Merging: Story = {
         screen.queryByRole("dialog", { name: "Merge publications" }),
       ).not.toBeInTheDocument(),
     );
+  },
+};
+
+/**
+ * A source too long for its line, such as a web address, wraps inside the
+ * list. The play test checks that the source does not run past the list's
+ * edge.
+ */
+export const LongSource: Story = {
+  args: { publication: { ...DOM_CASMURRO, sources: [LONG_URL] } },
+  play: async () => {
+    const source = screen.getByText(LONG_URL);
+
+    await expectToFit(source, source.closest("li")!);
   },
 };

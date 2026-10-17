@@ -33,7 +33,7 @@ const Entry: FC<{ invitation: Invitation }> = ({ invitation }) => {
       className="flex flex-wrap gap-3 items-center p-4 rounded-lg border data-[pending=true]:bg-white data-[pending=true]:border-gray-200 data-[pending=false]:bg-gray-50 data-[pending=false]:border-gray-100"
     >
       <div className="min-w-0 grow">
-        <p className="font-medium text-gray-800 wrap-break-words">
+        <p className="font-medium text-gray-800 wrap-break-word">
           {invitation.email}
         </p>
         <p className="text-xs text-gray-500">

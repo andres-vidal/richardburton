@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as AccessListStories from "./AccessList.stories";
 
@@ -44,3 +44,9 @@ Revoking asks for confirmation first, and ends the person's sessions, so they
 are signed out at once.
 
 <Canvas of={AccessListStories.RevokingAsksFirst} />
+
+## Long addresses
+
+<Description of={AccessListStories.LongAddress} />
+
+<Canvas of={AccessListStories.LongAddress} />

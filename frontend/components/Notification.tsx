@@ -48,11 +48,11 @@ const Notification: FC<Props> = ({ level, message, detail, onDismiss }) => {
     "
     >
       <div className="flex flex-col gap-0.5 grow min-w-0">
-        <span className="font-medium text-gray-900 wrap-break-words">
+        <span className="font-medium text-gray-900 wrap-break-word">
           {message}
         </span>
         {detail && (
-          <span className="text-xs text-gray-600 wrap-break-words">
+          <span className="text-xs text-gray-600 wrap-break-word">
             {detail}
           </span>
         )}
