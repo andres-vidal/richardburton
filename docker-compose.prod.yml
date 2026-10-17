@@ -50,11 +50,9 @@ services:
       # Set user/password for Postgres.
       POSTGRES_USER: $PGUSER
       POSTGRES_PASSWORD: $PGPASSWORD
-      # Set a path where Postgres should store the data.
-      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata18:/var/lib/postgresql
     restart: always
 
 volumes:
-  pgdata:
+  pgdata18:

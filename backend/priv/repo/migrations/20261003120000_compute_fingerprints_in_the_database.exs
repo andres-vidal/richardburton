@@ -398,7 +398,7 @@ defmodule RichardBurton.Repo.Migrations.ComputeFingerprintsInTheDatabase do
 
     execute("""
     CREATE MATERIALIZED VIEW search_keywords AS
-    SELECT word FROM ts_stat('SELECT document FROM search_documents')
+    SELECT word FROM ts_stat('SELECT document FROM public.search_documents')
     """)
 
     execute("CREATE INDEX search_trigram_index ON search_keywords USING gin(word gin_trgm_ops)")
