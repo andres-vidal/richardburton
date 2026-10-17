@@ -46,8 +46,30 @@ seedIndex(store);
 - **Empty** — ids loaded and none to show, because the database is empty or
   the search matched nothing; renders `EmptySearchResults`
   ([Empty](?path=/story/publications-index-table--empty) story).
-- **Loading** — ids not loaded; renders a `ListSkeleton`
-  ([Loading](?path=/story/publications-index-table--loading) story).
+- **Loading** — ids not loaded; renders a
+  [`PublicationIndexTableSkeleton`](?path=/docs/publications-index-table-skeleton--docs)
+  in the table's own columns.
+
+## Loading
+
+While the ids have not loaded, the table renders a skeleton in its grid, with
+the same column template as its rows. The skeleton's header holds the labels
+of the columns the table shows, and its cells have the shapes of their
+attributes' values.
+
+<Description of={IndexTableStories.Loading} />
+<Canvas of={IndexTableStories.Loading} />
+
+A column that the column menu hides is left out of the skeleton too.
+
+<Description of={IndexTableStories.LoadingWithHiddenColumns} />
+<Canvas of={IndexTableStories.LoadingWithHiddenColumns} />
+
+With `ExtendedSignalColumn` and `ExtendedTrailingColumns`, the skeleton has a
+cell for the signal column and one for each trailing column.
+
+<Description of={IndexTableStories.LoadingWithSignalAndTrailingColumns} />
+<Canvas of={IndexTableStories.LoadingWithSignalAndTrailingColumns} />
 
 ## Extension points
 

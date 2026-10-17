@@ -1,0 +1,32 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as ListSkeletonStories from "./PublicationIndexListSkeleton.stories";
+
+<Meta of={ListSkeletonStories} />
+
+# Publication index list skeleton
+
+Ten placeholder entries that stand in for the
+[index list](?path=/docs/publications-index-list--docs) while its publications
+load. Each entry is a card with the same border and corners as a real entry.
+On the left, the card has a line for the title, a shorter line for the
+translators, and two muted lines for the summary of the original book. On the
+right, it has a line for the year and a muted line for the countries.
+
+The skeleton is built with [`Skeleton`](?path=/docs/components-skeleton--docs),
+so it fades in after 150ms, the lower half of the list fades out, and the pulse
+moves down the list, one entry after the other, while motion is allowed. The
+lengths of the lines cycle by entry, without randomness, so the server and the
+browser render the same markup.
+
+<Description of={ListSkeletonStories.Default} />
+<Canvas of={ListSkeletonStories.Default} />
+
+## Props
+
+The skeleton takes no props.
+
+## Accessibility
+
+The skeleton is a `status` named "Loading", so assistive technology announces
+that the list is loading. The entries are hidden from it.

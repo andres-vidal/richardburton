@@ -8,9 +8,12 @@ import {
 } from "modules/publication/store";
 import { store } from "modules/store";
 import { sampleManyPublications, seedIndex } from "test/publication-fixtures";
+import { COLUMN_LABELS, expectTableSkeleton } from "test/skeleton";
 import { expect, within } from "storybook/test";
 
-import { PublicationIndexTable } from "./PublicationIndexTable";
+import { PublicationIndexTable, SignalColumn } from "./PublicationIndexTable";
+import WorkspaceNotesCell from "./WorkspaceNotesCell";
+import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
 const meta = {
   title: "Publications/Index table",
@@ -72,12 +75,61 @@ export const Empty: Story = {
   beforeEach: () => seedIndex(store, []),
 };
 
-/** Ids not loaded yet — the skeleton placeholder. */
+/**
+ * The publications have not loaded, so the table shows a skeleton in its own
+ * columns. The play test checks that the skeleton's header holds the label of
+ * every column.
+ */
 export const Loading: Story = {
   beforeEach: () => {
     resetAll(store);
     resetAttributes(store);
   },
+  play: ({ canvasElement }) =>
+    expectTableSkeleton(canvasElement, COLUMN_LABELS),
+};
+
+/**
+ * The publications have not loaded while the column menu hides the Publishers
+ * and Year columns. The play test checks that the skeleton leaves those
+ * columns out too.
+ */
+export const LoadingWithHiddenColumns: Story = {
+  beforeEach: () => {
+    resetAll(store);
+    setAttributesVisible(store, ["publishers", "year"], false);
+  },
+  play: ({ canvasElement }) =>
+    expectTableSkeleton(
+      canvasElement,
+      COLUMN_LABELS.filter(
+        (label) => label !== "Publishers" && label !== "Year",
+      ),
+    ),
+};
+
+/**
+ * The publications of an import document's table have not loaded. The table
+ * has a signal column and the notes and sources columns, so the skeleton has
+ * an empty cell before the attributes and a button shape in each of the two
+ * cells after them. The play test checks that the skeleton's header has an
+ * empty cell before the labels and two after them.
+ */
+export const LoadingWithSignalAndTrailingColumns: Story = {
+  args: {
+    ExtendedSignalColumn: SignalColumn,
+    ExtendedTrailingColumns: [
+      { name: "notes", Cell: WorkspaceNotesCell },
+      { name: "sources", Cell: WorkspaceSourcesCell },
+    ],
+    collapsible: false,
+  },
+  beforeEach: () => {
+    resetAll(store);
+    resetAttributes(store);
+  },
+  play: ({ canvasElement }) =>
+    expectTableSkeleton(canvasElement, ["", ...COLUMN_LABELS, "", ""]),
 };
 
 /**
