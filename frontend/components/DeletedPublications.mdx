@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as DeletedPublicationsStories from "./DeletedPublications.stories";
 
@@ -36,6 +36,26 @@ the changes as they are made.
 
 <Canvas of={DeletedPublicationsStories.WhenAnIdenticalOneExists} />
 
+The dialog is an [edit modal](?path=/docs/publications-edit-modal--docs).
+Closing it, with <kbd>Esc</kbd>, its close button or a press outside it, closes
+it at once while the form holds no change, and nothing is restored.
+
+<Description of={DeletedPublicationsStories.ClosingTheOffer} />
+<Canvas of={DeletedPublicationsStories.ClosingTheOffer} />
+
+With a change in the form, closing the dialog asks first whether to discard
+the change. Cancel goes back to the form with the change as it was typed.
+
+<Description of={DeletedPublicationsStories.KeepingAChange} />
+<Canvas of={DeletedPublicationsStories.KeepingAChange} />
+
+Discard closes the dialog and drops the change, so the next restore starts
+again from the deleted publication. The form's own Cancel button closes the
+dialog without asking.
+
+<Description of={DeletedPublicationsStories.DiscardingAChange} />
+<Canvas of={DeletedPublicationsStories.DiscardingAChange} />
+
 ## States
 
 - **Default** — tombstones with one-click restore.
@@ -44,6 +64,9 @@ the changes as they are made.
   reads the list again from the server.
 - **When an identical one exists** — the dialog that offers to restore with
   changes.
+- **Closing the offer**, **Keeping a change** and **Discarding a change** —
+  closing that dialog, at once without a change, and after a confirmation with
+  one.
 - **Empty** — an empty trash says so.
 
 <Canvas of={DeletedPublicationsStories.Empty} />

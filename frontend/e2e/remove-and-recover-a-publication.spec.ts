@@ -134,10 +134,32 @@ test("an admin deletes a publication; it leaves the index and search, and the sa
   await expect(offer).toHaveCount(0);
   await expect(trashed).toHaveCount(1);
 
-  // Given another year, the tombstone is a later printing, and the restore goes
-  // through. The twin's card highlights the year it no longer shares.
+  // A change thought better of is asked about before the dialog closes. Cancel
+  // goes back to the form with the change, and Discard closes the dialog
+  // without restoring anything.
   await trashed.getByRole("button", { name: "Restore" }).click();
   const year = offer.getByRole("textbox", { name: "Year" });
+  await year.fill("1890");
+  await year.blur();
+
+  const discard = page.getByRole("dialog", { name: "Discard your changes?" });
+  await page.keyboard.press("Escape");
+  await expect(discard).toBeVisible();
+  await discard.getByRole("button", { name: "Cancel" }).click();
+  await expect(discard).toHaveCount(0);
+  await expect(year).toHaveValue("1890");
+
+  await page.keyboard.press("Escape");
+  await discard.getByRole("button", { name: "Discard" }).click();
+  await expect(offer).toHaveCount(0);
+  await expect(trashed).toHaveCount(1);
+  await expect(page.getByText("Publication restored")).toHaveCount(0);
+
+  // Given another year, the tombstone is a later printing, and the restore goes
+  // through. The form starts from the tombstone's year again, and the twin's
+  // card highlights the year it no longer shares.
+  await trashed.getByRole("button", { name: "Restore" }).click();
+  await expect(year).toHaveValue("1886");
   await year.fill("1887");
   await year.blur();
 

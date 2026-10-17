@@ -282,3 +282,4 @@ const Modal: FC<Props> = (props) =>
   );
 
 export { Modal, useModal, useURLQueryModal };
+export type { Props as ModalProps };

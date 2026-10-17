@@ -1,0 +1,38 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as EditModalStories from "./EditModal.stories";
+
+<Meta of={EditModalStories} />
+
+# Edit modal
+
+A [modal](?path=/docs/components-modal--docs) for editing publications in the
+enclosing publication store, which asks before it closes on an unsaved edit.
+Closing it, with <kbd>Esc</kbd>, its close button or a press outside the
+dialog, closes it at once while the store has no edit the database does not
+have yet (see `hasUnsavedEdit` in `modules/publication/store`).
+
+<Description of={EditModalStories.Default} />
+<Canvas of={EditModalStories.Default} />
+
+## Props
+
+The props of `Modal`. `onClose` is called when the modal closes, at once or
+after the discard is confirmed, and must drop the edit, for instance by
+unmounting the store that holds it. A control that discards on purpose, such as
+a form's Cancel button, calls it directly and asks nothing.
+
+## Closing with an unsaved edit
+
+With an unsaved edit, closing the modal leaves it open and a
+[confirmation](?path=/docs/components-confirmation-modal--docs) asks whether to
+discard the edit. Cancel, <kbd>Esc</kbd> or a press outside the confirmation
+goes back to the modal with the edit as it was.
+
+<Description of={EditModalStories.KeepingAnEdit} />
+<Canvas of={EditModalStories.KeepingAnEdit} />
+
+Discard calls `onClose`.
+
+<Description of={EditModalStories.DiscardingAnEdit} />
+<Canvas of={EditModalStories.DiscardingAnEdit} />
