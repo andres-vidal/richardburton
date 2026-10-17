@@ -106,9 +106,10 @@ defmodule RichardBurtonWeb.PublicationController do
   of that search, as in the index. A deleted publication is a 404.
 
   `kind` is `"first_translation"`, `"retranslation"` or `"reissue"`, and
-  `follows` is the publication a retranslation or a reissue follows, with its
-  `id`, `title`, `year` and `authors`, its translators. `follows` is nil for a
-  first translation. `Publication.Kind` defines both.
+  `follows` lists the publications a retranslation or a reissue follows, in
+  ascending order of id. Each of them holds its `id`, `title`, `year`,
+  `authors` (its translators), `publishers` and `countries`. `follows` is an
+  empty list for a first translation. `Publication.Kind` defines both.
   """
   def show(conn, params = %{"id" => id}) do
     with {:ok, id} <- Params.id(id),
@@ -126,8 +127,11 @@ defmodule RichardBurtonWeb.PublicationController do
     %{
       kind: kind,
       follows:
-        follows &&
-          follows |> Publication.Codec.flatten() |> Map.take([:id, :title, :year, :authors])
+        Enum.map(follows, fn followed ->
+          followed
+          |> Publication.Codec.flatten()
+          |> Map.take([:id, :title, :year, :authors, :publishers, :countries])
+        end)
     }
   end
 

@@ -1,6 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 import {
+  chooseOption,
   CORPUS_SIZE,
   csv,
   expectMatchCount,
@@ -24,16 +25,40 @@ const FIRST_PUBLISHED =
   "This translation was first published as Dom Casmurro (1953).";
 
 /**
+ * The sentence a reissue of Helen Caldwell's Dom Casmurro says when her
+ * translation was published twice in 1953, by Noonday Press in the United
+ * States and by W. H. Allen in the United Kingdom.
+ */
+const BOTH_FIRST_PUBLISHED =
+  "This translation was first published in 1953: as Dom Casmurro (Noonday Press, United States) and as Dom Casmurro (W. H. Allen, United Kingdom).";
+
+/**
+ * The sentence a retranslation of Dom Casmurro says about the work when Helen
+ * Caldwell's translation was published twice in 1953.
+ */
+const BOTH_FIRST_TRANSLATED =
+  "The work was first translated in 1953: by Helen Caldwell as Dom Casmurro (Noonday Press, United States) and by Helen Caldwell as Dom Casmurro (W. H. Allen, United Kingdom).";
+
+/** The link to the London edition of 1953 in a sentence that names both. */
+const LONDON_EDITION = "Dom Casmurro (W. H. Allen, United Kingdom)";
+
+/**
  * Opens the publication translated by `translator` in `year` from its row in
  * the index, and returns its dialog once it is visible. The corpus has several
- * Dom Casmurros, so the row is found by its translator and year.
+ * Dom Casmurros, so the row is found by its translator and year, and by
+ * `publisher` when one is given.
  */
-async function openEdition(page: Page, translator: string, year: string) {
-  await indexTable(page)
+async function openEdition(
+  page: Page,
+  translator: string,
+  year: string,
+  publisher?: string,
+) {
+  const rows = indexTable(page)
     .getByRole("row")
     .filter({ hasText: translator })
-    .filter({ hasText: year })
-    .click();
+    .filter({ hasText: year });
+  await (publisher ? rows.filter({ hasText: publisher }) : rows).click();
 
   const dialog = page.getByRole("dialog", { name: "Publication details" });
   await expect(dialog.getByRole("heading", { level: 1 })).toContainText(
@@ -103,7 +128,7 @@ test("a publication says whether it is a retranslation or a reissue, links to th
     page,
     dialog,
     "About retranslations",
-    "A retranslation is the first edition of a later translation of the same work.",
+    "A retranslation is an edition published in the first year of a later translation of the same work.",
   );
 
   // Following the link opens the first translation in the overlay. It is a
@@ -136,7 +161,7 @@ test("a publication says whether it is a retranslation or a reissue, links to th
     page,
     reissue,
     "About reissues",
-    "A reissue is any later edition of a translation.",
+    "A reissue is an edition published in a later year than its translation's first edition.",
   );
 
   // The publication it follows is outside the search, and opens all the same.
@@ -198,4 +223,121 @@ test("a publication says whether it is a retranslation or a reissue, links to th
 
   const reissued = await openEdition(page, "Helen Caldwell", "1966");
   await expect(reissued).toContainText(FIRST_PUBLISHED);
+});
+
+test("a translation published twice in its first year has two first editions, which a reissue and a retranslation both name, and the insights count both as first translations", async ({
+  page,
+}) => {
+  test.slow();
+
+  // The corpus holds Helen Caldwell's Dom Casmurro of 1953, published by
+  // Noonday Press in the United States. W. H. Allen published her translation
+  // in London the same year, and that edition is entered after it. Her
+  // translation is published again in 1966, and John Gledson's of 1997 is a
+  // second translation of the work.
+  await seedCorpus(page);
+  await openDocument(page, "Editions of 1953");
+  await uploadCsv(
+    page,
+    csv([
+      `Dom Casmurro,1953,GB,W. H. Allen,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+      `Dom Casmurro,1966,US,University of California Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
+      `Dom Casmurro,1997,GB,Oxford University Press,John Gledson,Dom Casmurro,Machado de Assis,`,
+    ]),
+    "editions-of-1953.csv",
+  );
+  await submitWorkspace(page, 3);
+
+  await signOut(page);
+  await page.goto("/");
+  await expectPublicationCount(page, CORPUS_SIZE + 3);
+
+  // Both publications of 1953 are first editions, so neither says anything
+  // about its kind, although the London edition was entered later.
+  for (const publisher of ["Noonday Press", "W. H. Allen"]) {
+    const first = await openEdition(page, "Helen Caldwell", "1953", publisher);
+    await expect(first).toContainText(`in 1953 by ${publisher}`);
+    await expectFirstTranslation(first);
+    await page.keyboard.press("Escape");
+    await expect(first).toHaveCount(0);
+  }
+
+  // The 1966 publication is a reissue of both. The sentence names their year
+  // once, and tells them apart by publisher and country.
+  const reissue = await openEdition(page, "Helen Caldwell", "1966");
+  await expect(reissue.getByText("Reissue", { exact: true })).toBeVisible();
+  await expect(reissue).toContainText(BOTH_FIRST_PUBLISHED);
+  await expectHint(
+    page,
+    reissue,
+    "About reissues",
+    "A reissue is an edition published in a later year than its translation's first edition.",
+  );
+
+  // Each first edition has its own link. The London one opens that edition.
+  await expect(
+    reissue.getByRole("link", {
+      name: "Dom Casmurro (Noonday Press, United States)",
+    }),
+  ).toBeVisible();
+  await reissue.getByRole("link", { name: LONDON_EDITION }).click();
+  await expect(reissue).toContainText("in 1953 by W. H. Allen");
+  await expectFirstTranslation(reissue);
+  await page.keyboard.press("Escape");
+  await expect(reissue).toContainText(BOTH_FIRST_PUBLISHED);
+  await page.keyboard.press("Escape");
+  await expect(reissue).toHaveCount(0);
+
+  // Gledson's translation follows both first editions of the work's first
+  // translation.
+  const retranslation = await openEdition(page, "John Gledson", "1997");
+  const retranslationPath = new URL(page.url()).pathname;
+  await expect(
+    retranslation.getByText("Retranslation", { exact: true }),
+  ).toBeVisible();
+  await expect(retranslation).toContainText(BOTH_FIRST_TRANSLATED);
+  await page.keyboard.press("Escape");
+  await expect(retranslation).toHaveCount(0);
+
+  // The Portuguese page says the same, with the countries in Portuguese.
+  await page.goto(retranslationPath.replace(/^\/en\//, "/pt/"));
+  await expect(page.getByText("Retradução", { exact: true })).toBeVisible();
+  await expect(page.getByRole("main")).toContainText(
+    "A obra foi traduzida pela primeira vez em 1953: por Helen Caldwell como Dom Casmurro (Noonday Press, Estados Unidos) e por Helen Caldwell como Dom Casmurro (W. H. Allen, Reino Unido).",
+  );
+
+  // The English insights page counts both editions of 1953 as first
+  // translations, beside the corpus's two other publications of the 1950s.
+  await page.goto("/en/insights");
+  await chooseOption(page, "Preset", "Publications by decade");
+  const decades = page
+    .getByRole("table", { name: "Publications by decade" })
+    .getByRole("row");
+  await expect(decades.filter({ hasText: /^1950s/ })).toHaveText("1950s4004");
+  await expect(decades.filter({ hasText: /^1960s/ })).toHaveText("1960s2013");
+  await expect(decades.filter({ hasText: /^1990s/ })).toHaveText("1990s0101");
+
+  // Once the Noonday Press edition is deleted, the London edition is the only
+  // first edition, and the reissue names it alone.
+  await signInAsAdmin(page);
+  const noonday = await openEdition(
+    page,
+    "Helen Caldwell",
+    "1953",
+    "Noonday Press",
+  );
+  await noonday.getByRole("button", { name: "Delete" }).click();
+  await page
+    .getByRole("dialog", { name: "Delete this publication?" })
+    .getByRole("button", { name: "Delete" })
+    .click();
+  await expect(notifications(page)).toContainText("Publication deleted");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expectPublicationCount(page, CORPUS_SIZE + 2);
+
+  const alone = await openEdition(page, "Helen Caldwell", "1966");
+  await expect(alone).toContainText(FIRST_PUBLISHED);
+  await alone.getByRole("link", { name: "Dom Casmurro (1953)" }).click();
+  await expect(alone).toContainText("in 1953 by W. H. Allen");
+  await expectFirstTranslation(alone);
 });

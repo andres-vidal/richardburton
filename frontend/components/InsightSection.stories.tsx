@@ -8,7 +8,7 @@ const meta = {
   component: InsightSection,
   args: {
     title: "Publications by decade",
-    hint: "A first translation is the first edition of a work's first translation.",
+    hint: "A first translation is an edition published in the year the work was first translated.",
     children: (
       <p className="text-sm text-gray-700">The content of the section.</p>
     ),

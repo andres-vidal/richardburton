@@ -55,7 +55,7 @@ const LOG: PublicationHistoryEntry[] = [
 const READ: PublicationView = {
   publication: PUBLICATION,
   kind: "first_translation",
-  follows: null,
+  follows: [],
 };
 const READER_VIEW = Promise.resolve(READ);
 const ADMIN_VIEW = Promise.resolve({ ...READ, history: withChanges(LOG) });
@@ -186,7 +186,7 @@ export const Reissue: Story = {
     view: Promise.resolve({
       publication: REISSUED_DOM_CASMURRO,
       kind: "reissue",
-      follows: FIRST_DOM_CASMURRO,
+      follows: [FIRST_DOM_CASMURRO],
     }),
   },
   parameters: {

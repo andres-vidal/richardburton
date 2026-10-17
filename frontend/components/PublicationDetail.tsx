@@ -344,8 +344,8 @@ type PublicationDetailProps = {
   publication: Publication;
   /** The publication's kind, read with it. */
   kind: Kind;
-  /** The publication it follows, read with it, or null for a first translation. */
-  follows: FollowedPublication | null;
+  /** The publications it follows, read with it, none for a first translation. */
+  follows: FollowedPublication[];
   /**
    * The record's mutation log, read alongside it. Present only for an admin,
    * who is the only reader allowed it.

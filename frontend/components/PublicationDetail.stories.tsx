@@ -50,7 +50,7 @@ const LOG: PublicationHistoryEntry[] = [
 const meta = {
   title: "Publications/Publication detail",
   component: PublicationDetail,
-  args: { publication: DOM_CASMURRO, kind: "first_translation", follows: null },
+  args: { publication: DOM_CASMURRO, kind: "first_translation", follows: [] },
   decorators: [
     (Story) => (
       <div className="p-8 max-w-2xl bg-white">
@@ -98,7 +98,7 @@ export const Retranslation: Story = {
   args: {
     publication: RETRANSLATED_DOM_CASMURRO,
     kind: "retranslation",
-    follows: FIRST_DOM_CASMURRO,
+    follows: [FIRST_DOM_CASMURRO],
   },
   decorators: [asAdmin],
   beforeEach: () => resetAll(store),

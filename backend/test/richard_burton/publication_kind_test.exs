@@ -1,7 +1,7 @@
 defmodule RichardBurton.Publication.KindTest do
   @moduledoc """
   Tests `RichardBurton.Publication.Kind`: the kind of each publication of a
-  query, and the kind of one publication with the publication it follows.
+  query, and the kind of one publication with the publications it follows.
   """
 
   use RichardBurton.DataCase
@@ -32,15 +32,15 @@ defmodule RichardBurton.Publication.KindTest do
     end)
   end
 
-  # Returns the kind of the publication `id` and the id of the publication it
+  # Returns the kind of the publication `id` and the ids of the publications it
   # follows, read with `Kind.of/1`.
   defp kind_of(id) do
     %{kind: kind, follows: follows} = id |> Publication.find() |> Kind.of()
-    {kind, follows && follows.id}
+    {kind, Enum.map(follows, & &1.id)}
   end
 
   # Returns a map from the id of each publication of `source` to its kind and
-  # the id of the publication it follows, read with `Kind.ranked/1`.
+  # the ids of the publications it follows, read with `Kind.ranked/1`.
   defp ranked(source) do
     source |> Kind.ranked() |> Repo.all() |> Map.new(&{&1.id, {&1.kind, &1.follows}})
   end
@@ -57,36 +57,70 @@ defmodule RichardBurton.Publication.KindTest do
       ranked = ranked(FlatPublication)
 
       assert map_size(ranked) == 7
-      assert ranked[meta.caldwell.id] == {"first_translation", nil}
-      assert ranked[meta.reissue.id] == {"reissue", meta.caldwell.id}
-      assert ranked[meta.gledson.id] == {"retranslation", meta.caldwell.id}
+      assert ranked[meta.caldwell.id] == {"first_translation", []}
+      assert ranked[meta.reissue.id] == {"reissue", [meta.caldwell.id]}
+      assert ranked[meta.gledson.id] == {"retranslation", [meta.caldwell.id]}
 
       # The other works have one publication each.
       assert ranked
              |> Map.drop([meta.caldwell.id, meta.reissue.id, meta.gledson.id])
              |> Map.values()
-             |> Enum.all?(&(&1 == {"first_translation", nil}))
+             |> Enum.all?(&(&1 == {"first_translation", []}))
     end
 
     test "compares the publications of the source with each other only", meta do
       ranked = ranked(from(fp in FlatPublication, where: fp.year > 1960))
 
       assert ranked[meta.caldwell.id] == nil
-      assert ranked[meta.reissue.id] == {"first_translation", nil}
-      assert ranked[meta.gledson.id] == {"retranslation", meta.reissue.id}
+      assert ranked[meta.reissue.id] == {"first_translation", []}
+      assert ranked[meta.gledson.id] == {"retranslation", [meta.reissue.id]}
     end
 
-    test "orders the publications of the same year by id", meta do
-      london =
-        publication_fixture(%{countries: ["GB"], publishers: ["Peter Owen"]})
+    test "counts every publication of a translation's first year as a first edition", meta do
+      # Caldwell's translation is also published in London in 1953. It is
+      # entered last, and is a first edition all the same.
+      london = publication_fixture(%{countries: ["GB"], publishers: ["Peter Owen"]})
+      ranked = ranked(FlatPublication)
+      first_editions = Enum.sort([meta.caldwell.id, london.id])
 
-      assert ranked(FlatPublication)[london.id] == {"reissue", meta.caldwell.id}
+      assert ranked[meta.caldwell.id] == {"first_translation", []}
+      assert ranked[london.id] == {"first_translation", []}
+      assert ranked[meta.reissue.id] == {"reissue", first_editions}
+      assert ranked[meta.gledson.id] == {"retranslation", first_editions}
+    end
+
+    test "counts every translation of a work's first year as a first translation", meta do
+      # A second translation of Dom Casmurro is published in 1953, the year of
+      # Caldwell's.
+      scott = publication_fixture(%{authors: ["R. L. Scott-Buccleuch"], countries: ["GB"]})
+      ranked = ranked(FlatPublication)
+
+      assert ranked[meta.caldwell.id] == {"first_translation", []}
+      assert ranked[scott.id] == {"first_translation", []}
+      assert ranked[meta.reissue.id] == {"reissue", [meta.caldwell.id]}
+
+      assert ranked[meta.gledson.id] ==
+               {"retranslation", Enum.sort([meta.caldwell.id, scott.id])}
+    end
+
+    test "makes a publication a reissue only when its translation appeared in an earlier year",
+         meta do
+      # Gledson's translation is published again in 1997, and once more in
+      # 1998.
+      again = publication_fixture(%{year: 1997, authors: ["John Gledson"], countries: ["US"]})
+      later = publication_fixture(%{year: 1998, authors: ["John Gledson"]})
+      ranked = ranked(FlatPublication)
+      first_editions = Enum.sort([meta.gledson.id, again.id])
+
+      assert ranked[meta.gledson.id] == {"retranslation", [meta.caldwell.id]}
+      assert ranked[again.id] == {"retranslation", [meta.caldwell.id]}
+      assert ranked[later.id] == {"reissue", first_editions}
     end
   end
 
   describe "of/1" do
     test "names the work's first publication for a retranslation", meta do
-      assert %{kind: "retranslation", follows: follows} =
+      assert %{kind: "retranslation", follows: [follows]} =
                meta.gledson.id |> Publication.find() |> Kind.of()
 
       assert follows.id == meta.caldwell.id
@@ -96,18 +130,29 @@ defmodule RichardBurton.Publication.KindTest do
     end
 
     test "names the first publication of the translation for a reissue", meta do
-      assert kind_of(meta.reissue.id) == {"reissue", meta.caldwell.id}
+      assert kind_of(meta.reissue.id) == {"reissue", [meta.caldwell.id]}
+    end
+
+    test "names every first edition of the translation, in id order, for a reissue", meta do
+      london = publication_fixture(%{countries: ["GB"], publishers: ["Peter Owen"]})
+
+      assert %{kind: "reissue", follows: [first, second]} =
+               meta.reissue.id |> Publication.find() |> Kind.of()
+
+      assert [first.id, second.id] == [meta.caldwell.id, london.id]
+      assert [%{name: "Noonday Press"}] = first.publishers
+      assert [%{name: "Peter Owen"}] = second.publishers
     end
 
     test "names none for a first translation", meta do
-      assert kind_of(meta.caldwell.id) == {"first_translation", nil}
+      assert kind_of(meta.caldwell.id) == {"first_translation", []}
     end
 
     test "leaves out deleted publications, so the next one becomes the first", meta do
       {:ok, _} = Publication.delete(meta.caldwell.id)
 
-      assert kind_of(meta.reissue.id) == {"first_translation", nil}
-      assert kind_of(meta.gledson.id) == {"retranslation", meta.reissue.id}
+      assert kind_of(meta.reissue.id) == {"first_translation", []}
+      assert kind_of(meta.gledson.id) == {"retranslation", [meta.reissue.id]}
     end
 
     test "leaves out a record a merge absorbed", meta do
@@ -115,14 +160,14 @@ defmodule RichardBurton.Publication.KindTest do
       # earliest publication of the work until it is merged into the right one.
       misdated = publication_fixture(%{year: 1952})
 
-      assert kind_of(misdated.id) == {"first_translation", nil}
-      assert kind_of(meta.caldwell.id) == {"reissue", misdated.id}
-      assert kind_of(meta.gledson.id) == {"retranslation", misdated.id}
+      assert kind_of(misdated.id) == {"first_translation", []}
+      assert kind_of(meta.caldwell.id) == {"reissue", [misdated.id]}
+      assert kind_of(meta.gledson.id) == {"retranslation", [misdated.id]}
 
       {:ok, _} = Publication.merge(meta.caldwell.id, [misdated.id])
 
-      assert kind_of(meta.caldwell.id) == {"first_translation", nil}
-      assert kind_of(meta.gledson.id) == {"retranslation", meta.caldwell.id}
+      assert kind_of(meta.caldwell.id) == {"first_translation", []}
+      assert kind_of(meta.gledson.id) == {"retranslation", [meta.caldwell.id]}
     end
   end
 end

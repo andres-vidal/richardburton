@@ -179,13 +179,28 @@ const LOOK_ALIKE_RECORD: Publication = {
 
 /**
  * `LOOK_ALIKE_RECORD` as a later publication of Dom Casmurro names it: Helen
- * Caldwell's translation of 1953, the work's first translation.
+ * Caldwell's translation of 1953, published by Noonday Press in the United
+ * States, a first translation of the work.
  */
 const FIRST_DOM_CASMURRO: FollowedPublication = {
   id: LOOK_ALIKE_RECORD.id!,
   title: LOOK_ALIKE_RECORD.title,
   year: Number(LOOK_ALIKE_RECORD.year),
   authors: LOOK_ALIKE_RECORD.authors,
+  publishers: LOOK_ALIKE_RECORD.publishers,
+  countries: LOOK_ALIKE_RECORD.countries,
+};
+
+/**
+ * Helen Caldwell's translation of Dom Casmurro as published by W. H. Allen in
+ * the United Kingdom, also in 1953, as a later publication names it. It is a
+ * first translation of the work, like `FIRST_DOM_CASMURRO`.
+ */
+const LONDON_DOM_CASMURRO: FollowedPublication = {
+  ...FIRST_DOM_CASMURRO,
+  id: 10,
+  publishers: ["W. H. Allen"],
+  countries: ["GB"],
 };
 
 /**
@@ -290,6 +305,7 @@ export {
   seed,
   seedIndex,
   FIRST_DOM_CASMURRO,
+  LONDON_DOM_CASMURRO,
   LOOK_ALIKE_IDS,
   LOOK_ALIKE_RECORD,
   REISSUED_DOM_CASMURRO,

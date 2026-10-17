@@ -126,27 +126,32 @@ type PublicationId = number | string;
 type PublicationKeyType = "array" | "text" | "enumArray" | "number" | "book";
 
 /**
- * Where a publication stands among the publications of its work. The first
- * publication of the work's first translation is a `first_translation`. The
- * first publication of any later translation of the work is a
- * `retranslation`, and any later publication of a translation is a `reissue`.
+ * Where a publication stands among the publications of its work, compared by
+ * year only. A publication of the year the work was first translated is a
+ * `first_translation`. A publication of the first year of a later translation
+ * of the work is a `retranslation`. A publication of a later year than its
+ * translation's first year is a `reissue`.
  *
- * The server orders the publications of a work by year, and by id within a
- * year, and judges the kind over every publication in the database.
+ * Publications of the same year count as published at the same time, so a
+ * work can have several first translations, and a translation several first
+ * editions. The server judges the kind over every publication in the
+ * database.
  */
 type PublicationKind = "first_translation" | "retranslation" | "reissue";
 
 /**
- * The earlier publication that a retranslation or a reissue follows, with its
- * translators as `authors`. A retranslation follows the first publication of
- * its work's first translation. A reissue follows the first publication of its
- * translation.
+ * An earlier publication that a retranslation or a reissue follows, with its
+ * translators as `authors` and its countries as codes. A retranslation
+ * follows every publication of the year its work was first translated. A
+ * reissue follows every publication of its translation's first year.
  */
 type FollowedPublication = {
   id: number;
   title: string;
   year: number;
   authors: string[];
+  publishers: string[];
+  countries: string[];
 };
 
 /** Every act the log records, in the order a reader meets them. */

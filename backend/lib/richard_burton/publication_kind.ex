@@ -1,26 +1,34 @@
 defmodule RichardBurton.Publication.Kind do
   @moduledoc """
-  Tells whether a publication is the first translation of its work, a
-  retranslation or a reissue, and which earlier publication it follows.
+  Tells whether a publication is a first translation of its work, a
+  retranslation or a reissue, and which earlier publications it follows.
 
   Works and translations are those `RichardBurton.Publication.Insights`
-  defines. The publications of a work are ordered by year, and by id within a
-  year. Terms used here:
+  defines. Publications are compared by year only. Two publications of the
+  same year count as published at the same time, whatever order they were
+  entered in. Terms used here:
 
-    * **kind** — a publication is a `"reissue"` when an earlier publication of
-      its translation exists. Otherwise it is the first publication of its
-      translation, which is a `"first_translation"` when its translation is
-      the translation of the work's earliest publication, and a
-      `"retranslation"` when the work had an earlier translation.
-    * **follows** — the earlier publication that a retranslation or a reissue
-      comes after. A reissue follows the first publication of its translation.
-      A retranslation follows the work's earliest publication, which is the
-      first publication of the work's first translation. A first translation
+    * **first year** — the year of the earliest publication of a work, or of a
+      translation.
+    * **first edition** — a publication of a translation in that translation's
+      first year. A translation published several times in its first year has
+      several first editions.
+    * **kind** — a publication is a `"reissue"` when it was published in a
+      later year than its translation's first year. Otherwise it is a first
+      edition, which is a `"first_translation"` when its translation's first
+      year is the work's first year, and a `"retranslation"` when its
+      translation's first year is later. A work has as many first translations
+      as it has publications in its first year.
+    * **follows** — the earlier publications that a retranslation or a reissue
+      comes after. A reissue follows every first edition of its translation. A
+      retranslation follows every publication of its work in the work's first
+      year, which are the work's first translations. A first translation
       follows none.
 
   A publication's kind depends on the publications it is compared with.
   `ranked/1` compares the publications of a query with each other, and `of/1`
-  compares one publication with every publication that is not deleted.
+  compares one publication with every publication of its work that is not
+  deleted.
   """
 
   import Ecto.Query
@@ -41,8 +49,9 @@ defmodule RichardBurton.Publication.Kind do
 
   @doc """
   Returns a query with one row for each publication of `source`. Each row has
-  the publication's `id`, its `kind`, and `follows`, the id of the publication
-  it follows, or nil for a first translation.
+  the publication's `id`, its `kind`, and `follows`, the ids of the
+  publications it follows in ascending order. `follows` is an empty list for a
+  first translation.
 
   `source` is a queryable of publications whose rows have an `id` and a
   `year`, such as `RichardBurton.FlatPublication` or a query of
@@ -51,58 +60,85 @@ defmodule RichardBurton.Publication.Kind do
   """
   @spec ranked(Ecto.Queryable.t()) :: Ecto.Query.t()
   def ranked(source) do
-    # `edition` numbers the publications of a translation from 1, and
-    # `first_edition` is the id of the translation's first publication.
-    # `first_translation` is the translation of the work's earliest
-    # publication, and `earliest` is the id of that publication.
-    ordered =
+    # `translation_year` and `work_year` are the first years of the
+    # publication's translation and of its work.
+    dated =
       from(s in source,
         join: p in Publication,
         on: p.id == s.id,
         join: tb in TranslatedBook,
         on: tb.id == p.translated_book_id,
         windows: [
-          translation: [partition_by: p.translated_book_id, order_by: [s.year, s.id]],
-          work: [partition_by: tb.original_book_id, order_by: [s.year, s.id]]
+          translation: [partition_by: p.translated_book_id],
+          work: [partition_by: tb.original_book_id]
         ],
         select: %{
           id: s.id,
+          year: s.year,
           translation: p.translated_book_id,
-          edition: over(row_number(), :translation),
-          first_edition: over(first_value(s.id), :translation),
-          first_translation: over(first_value(p.translated_book_id), :work),
-          earliest: over(first_value(s.id), :work)
+          work: tb.original_book_id,
+          translation_year: over(min(s.year), :translation),
+          work_year: over(min(s.year), :work)
         }
       )
 
-    from(r in subquery(ordered),
+    # `first_editions` holds the ids of the first editions of the publication's
+    # translation, and `work_firsts` the ids of the publications of its work in
+    # the work's first year. Each window orders its partition by id and spans
+    # all of it, so each list is in ascending order.
+    kinded =
+      from(d in subquery(dated),
+        windows: [
+          translation: [
+            partition_by: d.translation,
+            order_by: d.id,
+            frame: fragment("ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING")
+          ],
+          work: [
+            partition_by: d.work,
+            order_by: d.id,
+            frame: fragment("ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING")
+          ]
+        ],
+        select: %{
+          id: d.id,
+          kind:
+            fragment(
+              "CASE WHEN ? > ? THEN 'reissue' WHEN ? > ? THEN 'retranslation' ELSE 'first_translation' END",
+              d.year,
+              d.translation_year,
+              d.translation_year,
+              d.work_year
+            ),
+          first_editions:
+            over(
+              filter(fragment("array_agg(?)", d.id), d.year == d.translation_year),
+              :translation
+            ),
+          work_firsts: over(filter(fragment("array_agg(?)", d.id), d.year == d.work_year), :work)
+        }
+      )
+
+    from(k in subquery(kinded),
       select: %{
-        id: r.id,
-        kind:
-          fragment(
-            "CASE WHEN ? > 1 THEN 'reissue' WHEN ? = ? THEN 'first_translation' ELSE 'retranslation' END",
-            r.edition,
-            r.translation,
-            r.first_translation
-          ),
+        id: k.id,
+        kind: k.kind,
         follows:
           fragment(
-            "CASE WHEN ? > 1 THEN ? WHEN ? <> ? THEN ? END",
-            r.edition,
-            r.first_edition,
-            r.translation,
-            r.first_translation,
-            r.earliest
+            "CASE ? WHEN 'reissue' THEN ? WHEN 'retranslation' THEN ? ELSE '{}' END",
+            k.kind,
+            k.first_editions,
+            k.work_firsts
           )
       }
     )
   end
 
   @doc """
-  Returns the kind of `publication` and the publication it follows, as a map
-  with `kind` and `follows`. `follows` is a publication preloaded as
-  `RichardBurton.Publication.with_ids/1` preloads it, or nil for a first
-  translation.
+  Returns the kind of `publication` and the publications it follows, as a map
+  with `kind` and `follows`. `follows` lists publications preloaded as
+  `RichardBurton.Publication.with_ids/1` preloads them, in ascending order of
+  id, and is empty for a first translation.
 
   `publication` is compared with every publication of its work that is not
   deleted. They are read from the publications table rather than from the
@@ -110,7 +146,7 @@ defmodule RichardBurton.Publication.Kind do
   counted. `publication` must not be deleted, and needs its translated book
   loaded.
   """
-  @spec of(Publication.t()) :: %{kind: String.t(), follows: Publication.t() | nil}
+  @spec of(Publication.t()) :: %{kind: String.t(), follows: [Publication.t()]}
   def of(publication = %Publication{translated_book: %TranslatedBook{original_book_id: work}}) do
     live =
       from(p in Publication,
@@ -123,6 +159,6 @@ defmodule RichardBurton.Publication.Kind do
       from(r in subquery(ranked(live)), where: r.id == ^publication.id)
       |> Repo.one!()
 
-    %{kind: kind, follows: follows && hd(Publication.with_ids([follows]))}
+    %{kind: kind, follows: Publication.with_ids(follows)}
   end
 end

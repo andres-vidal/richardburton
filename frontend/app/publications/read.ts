@@ -16,14 +16,14 @@ import { cache } from "react";
 
 /**
  * One publication with what its reader may see of it: the record, its kind and
- * the publication it follows, and for a user who can edit publications, the
+ * the publications it follows, and for a user who can edit publications, the
  * record's history.
  */
 export type PublicationView = {
   publication: Publication;
   kind: PublicationKind;
-  /** The publication this one follows, or null for a first translation. */
-  follows: FollowedPublication | null;
+  /** The publications this one follows, none for a first translation. */
+  follows: FollowedPublication[];
   /** The record's history, present only for a user who can edit publications. */
   history?: WithChanges<PublicationHistoryEntry>[];
 };

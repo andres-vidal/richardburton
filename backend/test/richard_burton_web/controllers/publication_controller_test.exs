@@ -228,7 +228,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> json_response(200)
 
       assert body["kind"] == "first_translation"
-      assert body["follows"] == nil
+      assert body["follows"] == []
     end
 
     test "names the publication a reissue or a retranslation follows", meta do
@@ -248,7 +248,9 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         "id" => caldwell.id,
         "title" => "Dom Casmurro",
         "year" => 1953,
-        "authors" => ["Helen Caldwell"]
+        "authors" => ["Helen Caldwell"],
+        "publishers" => ["Noonday Press"],
+        "countries" => ["US"]
       }
 
       for {publication, kind} <- [{reissue, "reissue"}, {gledson, "retranslation"}] do
@@ -259,8 +261,34 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
         assert body["title"] == "Dom Casmurro"
         assert body["kind"] == kind
-        assert body["follows"] == first
+        assert body["follows"] == [first]
       end
+    end
+
+    test "names every first edition of a translation published twice in its first year",
+         meta do
+      caldwell = publication_fixture()
+      london = publication_fixture(%{countries: ["GB"], publishers: ["Peter Owen"]})
+
+      reissue =
+        publication_fixture(%{year: 1966, publishers: ["University of California Press"]})
+
+      read = fn publication ->
+        meta.conn
+        |> get(publication_path(meta.conn, :show, publication.id))
+        |> json_response(200)
+      end
+
+      for first_edition <- [caldwell, london] do
+        assert %{"kind" => "first_translation", "follows" => []} = read.(first_edition)
+      end
+
+      assert %{"kind" => "reissue", "follows" => follows} = read.(reissue)
+
+      assert Enum.map(follows, &Map.take(&1, ["id", "publishers", "countries"])) == [
+               %{"id" => caldwell.id, "publishers" => ["Noonday Press"], "countries" => ["US"]},
+               %{"id" => london.id, "publishers" => ["Peter Owen"], "countries" => ["GB"]}
+             ]
     end
 
     test "returns 404 for a publication that never existed", meta do
