@@ -150,18 +150,61 @@ test("an edit thought better of changes nothing, in the editor or the database b
   await dialog.getByRole("button", { name: "Edit" }).click();
   await expect(title).toHaveValue("The Hour of the Star");
 
-  // Closing the dialog with Escape during an edit also discards the edit.
   await title.fill("The Hour of the Star (abandoned again)");
   await title.blur();
+
+  // Escape in an open menu of the form closes the menu and nothing else: the
+  // form stays open, and nothing asks about the unsaved title. The menu's
+  // focus manager hides the dialog from the accessibility tree while the menu
+  // is open, so the menu is found on the page.
+  const discard = page.getByRole("dialog", { name: "Discard your changes?" });
+  await dialog.getByRole("combobox", { name: "Countries" }).click();
+  await page.keyboard.type("United");
+  await expect(page.getByRole("listbox")).toBeVisible();
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(
+    dialog.getByRole("heading", { name: "Edit publication" }),
+  ).toBeVisible();
+  await expect(discard).toHaveCount(0);
+
+  // Escape with the menu closed asks before closing the dialog on the unsaved
+  // title. Cancel goes back to the form with the title as it was typed.
+  await page.keyboard.press("Escape");
+  await expect(discard).toBeVisible();
+  await expect(discard).toContainText("have not been saved");
+  await discard.getByRole("button", { name: "Cancel" }).click();
+  await expect(discard).toHaveCount(0);
+  await expect(title).toHaveValue("The Hour of the Star (abandoned again)");
+
+  // Escape in the confirmation closes the confirmation alone, and the form
+  // keeps the title.
+  await page.keyboard.press("Escape");
+  await discard.getByText(/have not been saved/).click();
+  await page.keyboard.press("Escape");
+  await expect(discard).toHaveCount(0);
+  await expect(title).toHaveValue("The Hour of the Star (abandoned again)");
+
+  // Discard closes the dialog and drops the edit: the index shows the saved
+  // title, and the form opens on it again.
+  await page.keyboard.press("Escape");
+  await discard.getByRole("button", { name: "Discard" }).click();
   await expect(dialog).toHaveCount(0);
+  await expect(
+    indexTable(page).getByText("The Hour of the Star", { exact: true }),
+  ).toBeVisible();
+  await expect(indexTable(page).getByText(/abandoned/)).toHaveCount(0);
 
   const reopened = await openPublicationModal(page, "The Hour of the Star");
   await reopened.getByRole("button", { name: "Edit" }).click();
   await expect(
     reopened.getByRole("textbox", { name: "Title", exact: true }),
   ).toHaveValue("The Hour of the Star");
+
+  // With nothing changed, Escape closes the dialog without asking.
   await page.keyboard.press("Escape");
+  await expect(reopened).toHaveCount(0);
+  await expect(discard).toHaveCount(0);
 
   // Neither edit was sent to the server. After a reload the record has its
   // original title, and its history has only the Created entry from the import.

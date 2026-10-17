@@ -2,11 +2,17 @@
 
 import type { PublicationView } from "app/publications/read";
 import { usePathname, useRouter } from "i18n/navigation";
+import { hasUnsavedEdit } from "modules/publication/store";
+import {
+  PublicationStoreProvider,
+  usePublicationStore,
+} from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
-import { FC, Suspense, use } from "react";
+import { FC, ReactNode, Suspense, use } from "react";
 import { Article } from "./Article";
+import ConfirmationModal from "./ConfirmationModal";
 import CopyLink from "./CopyLink";
-import { Modal } from "./Modal";
+import { Modal, useModal } from "./Modal";
 import ModalHeading from "./ModalHeading";
 import PublicationDetail, { PublicationHeading } from "./PublicationDetail";
 
@@ -94,6 +100,42 @@ const Opened: FC<{
 };
 
 /**
+ * The modal of the overlay, with `children` in it. Closing the modal, with
+ * Escape, its close button or a press outside the dialog, calls `close`. When
+ * the publication store has an unsaved edit (see `hasUnsavedEdit`), the modal
+ * stays open instead, and a `ConfirmationModal` asks whether to discard the
+ * edit. Discard calls `close`, and the edit is dropped as the view closes.
+ * Cancel, and Escape in the confirmation, keep the edit as it was.
+ */
+const OverlayModal: FC<{ close: () => void; children: ReactNode }> = ({
+  close,
+  children,
+}) => {
+  const t = useTranslations("publication");
+  const store = usePublicationStore();
+  const discarding = useModal();
+
+  function handleClose() {
+    if (hasUnsavedEdit(store)) discarding.open();
+    else close();
+  }
+
+  return (
+    <Modal isOpen onClose={handleClose} label={t("details")}>
+      {children}
+      <ConfirmationModal
+        isOpen={discarding.isOpen}
+        title={t("discardTitle")}
+        message={t("discardMessage")}
+        confirmLabel={t("discard")}
+        onConfirm={close}
+        onCancel={discarding.close}
+      />
+    </Modal>
+  );
+};
+
+/**
  * A publication read over the page the reader came from.
  *
  * Being its own route rather than a query on the database's is what keeps it
@@ -103,6 +145,10 @@ const Opened: FC<{
  *
  * The record streams in, so the overlay opens on the click and holds the
  * record's place until it lands.
+ *
+ * The overlay gives the view a publication store of its own. Closing the
+ * overlay while the view's edit form holds an unsaved edit asks first whether
+ * to discard it (see `OverlayModal`).
  */
 const PublicationOverlay: FC<{
   view: Promise<PublicationView | null>;
@@ -113,7 +159,6 @@ const PublicationOverlay: FC<{
    */
   closeTo?: string;
 }> = ({ view, closeTo }) => {
-  const t = useTranslations("publication");
   const router = useRouter();
   const pathname = usePathname();
 
@@ -124,11 +169,13 @@ const PublicationOverlay: FC<{
   // over the new page. Gate on the URL instead: show it only while the path is
   // still a publication's.
   return pathname.startsWith("/publications/") ? (
-    <Modal isOpen onClose={close} label={t("details")}>
-      <Suspense fallback={<Loading />}>
-        <Opened view={view} onClose={close} />
-      </Suspense>
-    </Modal>
+    <PublicationStoreProvider>
+      <OverlayModal close={close}>
+        <Suspense fallback={<Loading />}>
+          <Opened view={view} onClose={close} />
+        </Suspense>
+      </OverlayModal>
+    </PublicationStoreProvider>
   ) : null;
 };
 

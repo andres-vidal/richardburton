@@ -6,11 +6,12 @@ import {
   FloatingOverlay,
   FloatingPortal,
   FloatingTree,
+  useDismiss,
   useFloating,
   useFloatingNodeId,
   useFloatingParentNodeId,
+  useInteractions,
 } from "@floating-ui/react";
-import { Key } from "app";
 import CloseIcon from "assets/close.svg";
 import Logo from "assets/logo.svg";
 import { AnimatePresence, motion } from "framer-motion";
@@ -26,7 +27,6 @@ import {
   useId,
   useState,
 } from "react";
-import { useHotkey } from "utils/useHotkey";
 import ModalHeading from "./ModalHeading";
 
 /** Whether a modal is open, and the functions that open and close it. */
@@ -135,7 +135,12 @@ type Props = PropsWithChildren<{
 
 /**
  * The modal of `Modal`, as a node of the floating tree it is rendered in (see
- * `FloatingTree` in `@floating-ui/react`).
+ * `FloatingTree` in `@floating-ui/react`). `useDismiss` calls `onClose` on
+ * Escape, and a mousedown on the overlay itself calls it too.
+ *
+ * The floating element is the overlay, which covers the page, so a press
+ * outside the dialog is a press inside the floating element. `useDismiss`
+ * cannot tell it apart, and its outside press is turned off.
  */
 const ModalNode: FC<Props> = ({
   children,
@@ -148,9 +153,16 @@ const ModalNode: FC<Props> = ({
 }) => {
   const headingId = useId();
   const nodeId = useFloatingNodeId();
-  const { context, refs } = useFloating({ nodeId });
-
-  useHotkey(Key.ESCAPE, onClose, isOpen);
+  const { context, refs } = useFloating({
+    nodeId,
+    open: isOpen,
+    onOpenChange: (open) => {
+      if (!open) onClose();
+    },
+  });
+  const { getFloatingProps } = useInteractions([
+    useDismiss(context, { outsidePress: false }),
+  ]);
 
   function handleOverlayMouseDown(event: MouseEvent) {
     if (event.target === event.currentTarget) onClose();
@@ -169,8 +181,8 @@ const ModalNode: FC<Props> = ({
               >
                 <motion.div
                   ref={refs.setFloating}
-                  className="fixed inset-0 z-50 bg-indigo-900/30"
-                  onMouseDown={handleOverlayMouseDown}
+                  {...getFloatingProps({ onMouseDown: handleOverlayMouseDown })}
+                  className="fixed inset-0 z-50 bg-indigo-900/30 outline-none"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -243,6 +255,17 @@ const ModalNode: FC<Props> = ({
  * one. A floating element opened from its content that registers as a child
  * node, such as a popover with its own portal, is part of the dialog: focus may
  * move into it, and the rest of the page is hidden without it.
+ *
+ * Escape closes the modal through `useDismiss` from `@floating-ui/react`, and
+ * only when nothing inside the modal takes the key press first. A child node
+ * that is open, such as a modal opened from this one's content, closes on
+ * Escape instead of this modal. A floating element inside the modal that
+ * closes on Escape, such as the menu of a combobox, stops the key press, so the
+ * modal does not see it. Escape is ignored while a key is being composed, as
+ * with an input method or a dead key.
+ *
+ * When the modal opens, focus moves to the overlay, which holds the dialog, so
+ * the keyboard starts inside the modal. The overlay draws no focus ring.
  *
  * The dialog scrolls when its content is taller than the dialog, so it takes
  * focus with `tabIndex={0}` for the keyboard to reach that scrolling region.
