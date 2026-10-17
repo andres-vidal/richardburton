@@ -42,6 +42,14 @@ names the dialog.
 
 <Canvas of={ModalStories.WithoutAHeading} />
 
+## Popovers inside the dialog
+
+The modal is a node of a floating tree (`FloatingTree` in `@floating-ui/react`),
+and starts one when it is not inside one. A popover opened from the dialog's
+content that registers as a child node, with `useFloatingNodeId` and
+`FloatingNode`, is part of the dialog even though its portal is outside it:
+focus may move into it, and it is not hidden with the rest of the page.
+
 ## Hooks
 
 - `useModal()` keeps the open state in component state. It returns `isOpen`,

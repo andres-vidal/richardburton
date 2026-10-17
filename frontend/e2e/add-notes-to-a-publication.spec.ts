@@ -67,7 +67,13 @@ test("an admin writes formatted notes that every reader sees, and a later save o
   await expect(link).toHaveCount(0);
   await expect(dialog).toBeVisible();
 
+  // The link dialog takes the focus when it opens and gives it back to the
+  // editor when it closes. The journey waits for each before typing, as a
+  // person does.
   await tool(dialog, "Link").click();
+  await expect(
+    link.getByRole("textbox", { name: "Link address" }),
+  ).toBeFocused();
   await link
     .getByRole("textbox", { name: "Link address" })
     .fill("archive.org/details/barrenlives");
@@ -76,6 +82,7 @@ test("an admin writes formatted notes that every reader sees, and a later save o
     .fill("the Internet Archive");
   await link.getByRole("button", { name: "Apply" }).click();
   await expect(link).toHaveCount(0);
+  await expect(notes).toBeFocused();
   await page.keyboard.type(".");
 
   await dialog.getByRole("button", { name: "Save" }).click();
@@ -267,12 +274,16 @@ test("notes come in with a CSV as plain text, are formatted in the import docume
   await page.keyboard.type("See ");
   await page.keyboard.press("ControlOrMeta+k");
   const link = page.getByRole("dialog", { name: "Link" });
+  await expect(
+    link.getByRole("textbox", { name: "Link address" }),
+  ).toBeFocused();
   await link
     .getByRole("textbox", { name: "Link address" })
     .fill("archive.org/details/domcasmurro");
   await link.getByRole("textbox", { name: "Link text" }).fill("the scan");
   await link.getByRole("button", { name: "Apply" }).click();
   await expect(link).toHaveCount(0);
+  await expect(editor.getByRole("textbox", { name: "Notes" })).toBeFocused();
   await page.keyboard.type(", or ask curator@example.org for it.");
   await expect(
     editor.getByRole("link", { name: "curator@example.org" }),
