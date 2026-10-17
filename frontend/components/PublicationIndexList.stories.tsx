@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
 import { resetAll } from "modules/publication/store";
 import { sampleManyPublications, seedIndex } from "test/publication-fixtures";
+import { skeletonAppeared, skeletonRows } from "test/skeleton";
 import { expect, waitFor, within } from "storybook/test";
 
 import { PublicationIndexList } from "./PublicationIndexList";
@@ -82,7 +83,19 @@ export const Empty: Story = {
   beforeEach: () => seedIndex(store, []),
 };
 
-/** Ids not loaded yet — the skeleton placeholder. */
+/**
+ * The publications have not loaded, so the list shows a skeleton of ten
+ * entries. The play test checks that the entries sit in a status named
+ * "Loading".
+ */
 export const Loading: Story = {
   beforeEach: () => resetAll(store),
+  play: async ({ canvasElement }) => {
+    const status = within(canvasElement).getByRole("status", {
+      name: "Loading",
+    });
+
+    await expect(skeletonRows(status)).toHaveLength(10);
+    await skeletonAppeared(status);
+  },
 };

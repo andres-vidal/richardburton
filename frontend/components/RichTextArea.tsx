@@ -110,9 +110,8 @@ const ToggleButton: FC<{
  * says so under the field when the address is neither. Remove link is offered
  * when `canRemove`.
  *
- * Escape cancels, and goes no further than the form, so a dialog the editor
- * sits in stays open. The form is in a portal, and its submit event stops at
- * the form, so it does not submit a form the editor sits in.
+ * The form is in a portal, and its submit event stops at the form, so it does
+ * not submit a form the editor sits in.
  */
 const LinkForm: FC<{
   initialUrl: string;
@@ -147,20 +146,8 @@ const LinkForm: FC<{
     else onApply(url, text);
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
-    if (event.key === "Escape") {
-      event.stopPropagation();
-      event.nativeEvent.stopImmediatePropagation();
-      onCancel();
-    }
-  }
-
   return (
-    <form
-      onSubmit={handleSubmit}
-      onKeyDown={handleKeyDown}
-      className="flex flex-col gap-2"
-    >
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
       <TextInput
         bordered
         inputRef={urlRef}
@@ -218,12 +205,14 @@ const LinkForm: FC<{
  * The Link button of the toolbar, and the link dialog it opens under itself
  * while `at` holds the selection the link is for. The dialog edits the link
  * the selection is in, or adds one, and closes through `onClose`, which
- * receives the change to make, or nothing when the dialog was cancelled. A
- * press outside the dialog cancels it.
+ * receives the change to make, or nothing when the dialog was cancelled.
+ * Escape and a press outside the dialog cancel it. Escape is ignored while a
+ * key is being composed.
  *
  * The dialog is rendered in a portal, as a child node of the floating tree it
- * opens in, so a modal the field sits in counts the dialog as part of itself
- * and lets focus move into it (see `Modal`).
+ * opens in, so a modal the field sits in counts the dialog as part of itself.
+ * The modal lets focus move into the dialog, and Escape in the dialog closes
+ * the dialog and leaves the modal open (see `Modal`).
  */
 const LinkControl: FC<{
   at: RangeRef | null;
@@ -249,7 +238,7 @@ const LinkControl: FC<{
   });
 
   const { getReferenceProps, getFloatingProps } = useInteractions([
-    useDismiss(context, { escapeKey: false }),
+    useDismiss(context),
   ]);
 
   return (

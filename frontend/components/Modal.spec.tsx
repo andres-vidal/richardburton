@@ -1,8 +1,9 @@
 import { act, fireEvent, renderHook } from "@testing-library/react";
-import { render, screen, within } from "test/render";
+import { render, screen, waitFor, within } from "test/render";
 import { Key } from "app";
-import React from "react";
+import React, { FC } from "react";
 import { Modal, useModal, useURLQueryModal } from "./Modal";
+import Select from "./Select";
 
 // A minimal reactive `next/navigation` mock: `router.replace` updates the shared
 // search params and notifies subscribers so `useSearchParams()` re-renders — the
@@ -46,6 +47,33 @@ vi.mock("next/navigation", () => ({
 }));
 
 beforeEach(() => nav.reset());
+
+/**
+ * A modal named Outer with a button that opens a modal named Inner from its
+ * content. Each close is reported to its spy, and Inner's also closes it.
+ */
+const NestedModals: FC<{
+  onOuterClose: () => void;
+  onInnerClose: () => void;
+}> = ({ onOuterClose, onInnerClose }) => {
+  const inner = useModal();
+
+  return (
+    <Modal isOpen onClose={onOuterClose} label="Outer">
+      <button type="button" onClick={inner.open}>
+        Open inner
+      </button>
+      <Modal
+        isOpen={inner.isOpen}
+        onClose={() => {
+          onInnerClose();
+          inner.close();
+        }}
+        label="Inner"
+      />
+    </Modal>
+  );
+};
 
 describe("Modal", () => {
   it("renders a dialog named by its label", () => {
@@ -97,13 +125,106 @@ describe("Modal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("closes when the escape key is pressed", () => {
+  it("closes when Escape is pressed in the dialog", () => {
+    const onClose = vi.fn();
+    render(<Modal isOpen onClose={onClose} label="Test dialog" />);
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: Key.ESCAPE });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes when Escape is pressed with the focus outside the dialog", () => {
     const onClose = vi.fn();
     render(<Modal isOpen onClose={onClose} label="Test dialog" />);
 
     fireEvent.keyDown(document, { key: Key.ESCAPE });
 
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not close on Escape while a key is being composed", async () => {
+    const onClose = vi.fn();
+    render(
+      <Modal isOpen onClose={onClose} label="Test dialog">
+        <input aria-label="Name" />
+      </Modal>,
+    );
+    const input = screen.getByRole("textbox", { name: "Name" });
+
+    // Escape while a key is being composed, as with an input method, leaves
+    // the modal open.
+    fireEvent.compositionStart(input);
+    fireEvent.keyDown(input, { key: Key.ESCAPE, isComposing: true });
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Once the composition has ended, Escape closes the modal again.
+    fireEvent.compositionEnd(input);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    fireEvent.keyDown(input, { key: Key.ESCAPE });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes only the modal opened over it on Escape", () => {
+    const onOuterClose = vi.fn();
+    const onInnerClose = vi.fn();
+    render(
+      <NestedModals onOuterClose={onOuterClose} onInnerClose={onInnerClose} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open inner" }));
+
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Inner" }), {
+      key: Key.ESCAPE,
+    });
+
+    expect(onInnerClose).toHaveBeenCalledTimes(1);
+    expect(onOuterClose).not.toHaveBeenCalled();
+
+    // With the inner modal closed, the next Escape closes the outer one.
+    fireEvent.keyDown(document, { key: Key.ESCAPE });
+
+    expect(onOuterClose).toHaveBeenCalledTimes(1);
+    expect(onInnerClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes only the modal opened over it when Escape is pressed outside both", () => {
+    const onOuterClose = vi.fn();
+    const onInnerClose = vi.fn();
+    render(
+      <NestedModals onOuterClose={onOuterClose} onInnerClose={onInnerClose} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open inner" }));
+
+    fireEvent.keyDown(document, { key: Key.ESCAPE });
+
+    expect(onInnerClose).toHaveBeenCalledTimes(1);
+    expect(onOuterClose).not.toHaveBeenCalled();
+  });
+
+  it("leaves Escape to an open menu inside it", async () => {
+    const onClose = vi.fn();
+    render(
+      <Modal isOpen onClose={onClose} label="Test dialog">
+        <Select
+          aria-label="Country"
+          error=""
+          onChange={vi.fn()}
+          getOptions={async () => [{ id: "BR", label: "Brazil" }]}
+        />
+      </Modal>,
+    );
+    const combobox = screen.getByRole("combobox", { name: "Country" });
+
+    fireEvent.focus(combobox);
+    await screen.findByRole("option", { name: "Brazil" });
+    fireEvent.keyDown(combobox, { key: Key.ESCAPE });
+
+    await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+    expect(onClose).not.toHaveBeenCalled();
+
+    // With the menu closed, Escape closes the modal.
+    fireEvent.keyDown(combobox, { key: Key.ESCAPE });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("closes from the named button of its small-screen bar", () => {

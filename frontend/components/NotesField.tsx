@@ -1,5 +1,6 @@
 "use client";
 
+import { Key } from "app";
 import { SETTLE } from "modules/publication/checks";
 import {
   usePublicationFieldError,
@@ -21,9 +22,11 @@ import LazyRichTextArea from "./LazyRichTextArea";
  *
  * The field writes an edit to the row with `setNotes` once the typing pauses
  * for `SETTLE` milliseconds, so a burst of typing makes one write, of the last
- * value. When the field loses the focus or unmounts, it makes a pending write
- * at once. An edit typed just before a button such as Save is pressed, or just
- * before the field is closed, therefore reaches the row.
+ * value. When the field loses the focus or unmounts, or when Escape is pressed
+ * in it, it makes a pending write at once. An edit typed just before a button
+ * such as Save is pressed, before Escape is pressed, or before the field is
+ * closed, therefore reaches the row. The write on Escape runs before the
+ * handlers around the field receive the key press.
  *
  * The write on unmount runs in a layout effect's cleanup. React runs it before
  * the `useEffect` cleanups of the components around the field, so the write
@@ -44,7 +47,10 @@ const NotesField: FC<{ id: PublicationId }> = ({ id }) => {
   useLayoutEffect(() => () => write.flush(), [write]);
 
   return (
-    <div onBlur={() => write.flush()}>
+    <div
+      onBlur={() => write.flush()}
+      onKeyDownCapture={(event) => event.key === Key.ESCAPE && write.flush()}
+    >
       <LazyRichTextArea
         label={attribute("notes")}
         hint={t("hint")}

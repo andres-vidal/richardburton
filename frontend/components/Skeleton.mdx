@@ -1,0 +1,71 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as SkeletonStories from "./Skeleton.stories";
+
+<Meta of={SkeletonStories} />
+
+# Skeleton
+
+The pieces that a loading placeholder is built from. `Skeleton` is the status
+around the placeholder, `SkeletonBar` is one grey shape, and `skeletonRow`
+gives a placeholder row its index. The
+[table skeleton](?path=/docs/publications-index-table-skeleton--docs) and the
+[list skeleton](?path=/docs/publications-index-list-skeleton--docs) are built
+from them.
+
+<Description of={SkeletonStories.Shapes} />
+<Canvas of={SkeletonStories.Shapes} />
+
+## Appearing late
+
+`Skeleton` has the `animate-skeleton-appear` animation from
+`styles/globals.css`. The animation has a 150ms delay and the `both` fill mode,
+so the status is transparent for its first 150ms and then fades in over
+200ms. A load that finishes within 150ms therefore never shows the skeleton.
+
+## Fading out
+
+`Skeleton` has a `mask-b-from-50%` mask, a linear gradient that is opaque in
+the top half and fades to transparent at the bottom edge. The rows in the
+lower half get paler towards the bottom, and the last row is nearly
+transparent.
+
+## The wave
+
+`SkeletonBar` has the `animate-skeleton-wave` animation, which pulses its
+opacity every 2s. The animation's delay is `calc(var(--row, 0) * 90ms)`, so a
+shape starts its pulse 90ms later for each step of the `--row` custom property.
+A placeholder row sets `--row` to its index with `skeletonRow`, and the pulse
+moves down the rows.
+
+The animation is under the `motion-safe` variant. When the browser asks for
+reduced motion, the shapes are still. The appearance is a fade without
+movement, so it plays either way.
+
+<Description of={SkeletonStories.Wave} />
+<Canvas of={SkeletonStories.Wave} />
+
+## Props
+
+`Skeleton` takes `children`, the placeholder, which it hides from assistive
+technology.
+
+`SkeletonBar` takes:
+
+- `shape` — `line` for a line of text, `pill` for a tag that holds one name,
+  and `button` for a small button. Defaults to `line`.
+- `length` — how long the shape is. A line takes a share of the width it is
+  in: `short` a third, `medium` a half, `long` three quarters and `full` all of
+  it. A pill or a button has a fixed length: `short` 3rem, `medium` 5rem and
+  `long` 7rem, and `full` takes all of the width. Defaults to `full`. In a
+  flex container that is too narrow for its shapes, a shape shrinks below its
+  length.
+- `muted` — whether the shape is paler, for secondary text.
+
+`skeletonRow(index)` returns a `style` that sets `--row` to `index`.
+
+## Accessibility
+
+The status has the `status` role and is named "Loading", so assistive
+technology announces that something is loading. The placeholder is hidden from
+it.

@@ -26,7 +26,7 @@ import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import { useMutation } from "utils/useMutation";
 import Button from "./Button";
-import { Modal } from "./Modal";
+import EditModal from "./EditModal";
 import SectionHeading from "./SectionHeading";
 
 type Restore = (
@@ -41,21 +41,27 @@ type Restore = (
 type Refused = { deleted: Publication; twin: Publication };
 
 /**
- * Offers to restore `deleted` with changes, after a restore was refused
- * because `twin`, a publication that is not deleted, has the same identity.
+ * A dialog that offers to restore `deleted` with changes, after a restore was
+ * refused because `twin`, a publication that is not deleted, has the same
+ * identity.
  *
  * It shows `twin` compared with the deleted publication as it is edited, so
  * the words that come to differ are highlighted, and the edit form for the
  * deleted publication in a store of its own. The form starts with the conflict
  * as its error, so it can be saved only once a change has passed validation.
- * Saving restores the publication with the changes. When the server answers
- * that another publication is identical, that one is shown instead.
+ * Saving restores the publication with the changes and calls `onRestored`.
+ * When the server answers that another publication is identical, that one is
+ * shown instead.
  *
- * It renders a section and a form as siblings, for a column that spaces them.
+ * The dialog is an `EditModal` on that store. Closing it while the form holds
+ * a change asks first whether to discard the change, and Discard calls
+ * `onClose`. The form's Cancel button calls `onClose` at once. `onClose`
+ * must unmount the dialog, which drops the store and the change.
  */
 const RestoreWithChanges: FC<
   Refused & { onRestore: Restore; onRestored: () => void; onClose: () => void }
 > = ({ deleted, ...props }) => {
+  const t = useTranslations("restoring");
   // The edit is kept in a store of its own, passed explicitly so that it never
   // joins the store of the page around it.
   const [store] = useState(() => {
@@ -71,12 +77,20 @@ const RestoreWithChanges: FC<
 
   return (
     <PublicationStoreProvider store={store}>
-      <Changing deleted={deleted} {...props} />
+      <EditModal
+        isOpen
+        onClose={props.onClose}
+        heading={t("identical")}
+        subheading={t("identicalDetail")}
+      >
+        <Changing deleted={deleted} {...props} />
+      </EditModal>
     </PublicationStoreProvider>
   );
 };
 
-// The body of `RestoreWithChanges`, inside the store that holds the edit.
+// The body of `RestoreWithChanges`, inside the store that holds the edit: a
+// section and a form as siblings, for the dialog's column that spaces them.
 const Changing: FC<
   Refused & { onRestore: Restore; onRestored: () => void; onClose: () => void }
 > = ({ deleted, twin: refusedBy, onRestore, onRestored, onClose }) => {
@@ -124,6 +138,7 @@ const Changing: FC<
  * A restore is refused when another publication that is not deleted has the
  * same identity. The list then opens `RestoreWithChanges`, where the
  * publication can be changed so the two differ, and restored with the changes.
+ * The list unmounts that dialog when it closes, which drops the changes.
  *
  * A successful restore asks the server to render the list again rather than
  * editing it here.
@@ -133,7 +148,6 @@ const DeletedPublications: FC<{
   onRestore?: Restore;
 }> = ({ entries, onRestore = restore }) => {
   const t = useTranslations("admin");
-  const restoring = useTranslations("restoring");
   const marked = usePublicationMarking();
   const formatDate = useFormatDate();
   const [restoringId, setRestoringId] = useState<PublicationId>();
@@ -194,23 +208,16 @@ const DeletedPublications: FC<{
           ))}
         </ul>
       )}
-      <Modal
-        isOpen={refused !== null}
-        onClose={() => setRefused(null)}
-        heading={restoring("identical")}
-        subheading={restoring("identicalDetail")}
-      >
-        {refused ? (
-          <RestoreWithChanges
-            key={refused.deleted.id}
-            deleted={refused.deleted}
-            twin={refused.twin}
-            onRestore={onRestore}
-            onRestored={() => setRefused(null)}
-            onClose={() => setRefused(null)}
-          />
-        ) : null}
-      </Modal>
+      {refused ? (
+        <RestoreWithChanges
+          key={refused.deleted.id}
+          deleted={refused.deleted}
+          twin={refused.twin}
+          onRestore={onRestore}
+          onRestored={() => setRefused(null)}
+          onClose={() => setRefused(null)}
+        />
+      ) : null}
     </div>
   );
 };

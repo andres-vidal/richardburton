@@ -31,7 +31,8 @@ import useVisible from "utils/useVisible";
 import Highlight from "./Highlight";
 import { EmptySearchResults } from "./EmptySearchResults";
 import CellPresence from "./CellPresence";
-import { ListSkeleton } from "./ListSkeleton";
+import { gridTemplateColumns } from "./publicationIndexColumns";
+import { PublicationIndexTableSkeleton } from "./PublicationIndexTableSkeleton";
 
 type RowId = PublicationId;
 type ColId = PublicationKey;
@@ -66,17 +67,6 @@ const Aria = {
   Cell: roleDiv("cell"),
   ColumnHeader: roleDiv("columnheader"),
 };
-
-// The widest each column grows. The table aligns its columns to the left
-// rather than stretching them, so hiding columns leaves the others at a
-// readable width. A column can still shrink below its maximum to share the
-// width when every column is shown.
-const COLUMN_MAX_WIDTH: Partial<Record<ColId, string>> = {
-  year: "5.5rem",
-  originalTitle: "20rem",
-  title: "24rem",
-};
-const DEFAULT_COLUMN_MAX_WIDTH = "14rem";
 
 // Returns the columns a table renders: every attribute when `collapsible` is
 // false, and otherwise the attributes the column menu leaves visible. Toggling a
@@ -331,6 +321,11 @@ const SignalColumn: FC<{
 interface Props {
   ExtendedRow?: FC<RowProps>;
   ExtendedColumn?: typeof Column;
+  /**
+   * The content of each attribute cell in place of the read-only `Content`,
+   * such as a field that edits the value. While the publications load, the
+   * skeleton draws the cells as fields when this replaces `Content`.
+   */
   ExtendedContent?: typeof Content;
   ExtendedSignalColumn?: typeof SignalColumn;
   /**
@@ -354,14 +349,18 @@ interface Props {
 /**
  * The publications of the enclosing store as a table: a header row, a row per
  * publication, and `ExtraRow` at the end. It shows `EmptySearchResults` when
- * the store holds no publications and there is no `ExtraRow`, and a skeleton
- * while the publications have not loaded.
+ * the store holds no publications and there is no `ExtraRow`. While the
+ * publications have not loaded, it shows a `PublicationIndexTableSkeleton`
+ * with the table's columns. The skeleton draws the cells as text while they
+ * hold the read-only `Content`, and as fields when `ExtendedContent` replaces
+ * it.
  *
  * The table is a CSS grid, not a `<table>`, with ARIA roles that give it a
- * table's semantics. Each column has a maximum width (`COLUMN_MAX_WIDTH`), and
- * the columns align to the left. The `Extended*` props replace the read-only
- * pieces of the table. `ExtendedSignalColumn` adds a cell before the attributes
- * of every row, and `ExtendedTrailingColumns` add cells after them.
+ * table's semantics. Each column has a maximum width, which
+ * `gridTemplateColumns` sets, and the columns align to the left. The
+ * `Extended*` props replace the read-only pieces of the table.
+ * `ExtendedSignalColumn` adds a cell before the attributes of every row, and
+ * `ExtendedTrailingColumns` add cells after them.
  */
 const PublicationIndexTable: FC<Props> = ({
   ExtendedRow = Row,
@@ -379,19 +378,16 @@ const PublicationIndexTable: FC<Props> = ({
   const ids = usePublicationIds();
   const hasSignal = Boolean(ExtendedSignalColumn);
   const visibleAttributes = useColumns(collapsible);
-  const gridTemplateColumns = useMemo(
+  const trailing = ExtendedTrailingColumns.length;
+  const cells = ExtendedContent === Content ? "text" : "fields";
+  const template = useMemo(
     () =>
-      [
-        hasSignal ? "2.5rem" : null,
-        ...visibleAttributes.map(
-          (col) =>
-            `minmax(0, ${COLUMN_MAX_WIDTH[col] ?? DEFAULT_COLUMN_MAX_WIDTH})`,
-        ),
-        ...ExtendedTrailingColumns.map(() => "auto"),
-      ]
-        .filter(Boolean)
-        .join(" "),
-    [visibleAttributes, hasSignal, ExtendedTrailingColumns],
+      gridTemplateColumns({
+        signal: hasSignal,
+        attributes: visibleAttributes,
+        trailing,
+      }),
+    [visibleAttributes, hasSignal, trailing],
   );
 
   return ids && (ids.length > 0 || ExtraRow) ? (
@@ -399,7 +395,7 @@ const PublicationIndexTable: FC<Props> = ({
       <Aria.Table
         aria-label={t("publications")}
         data-selectable={selectable}
-        style={{ gridTemplateColumns }}
+        style={{ gridTemplateColumns: template }}
         className="grid relative justify-start w-full h-fit data-[selectable=false]:select-none"
       >
         <Aria.Row className="grid sticky top-(--app-header-h) z-20 col-span-full bg-gray-100 grid-cols-subgrid">
@@ -435,7 +431,12 @@ const PublicationIndexTable: FC<Props> = ({
   ) : ids ? (
     <EmptySearchResults />
   ) : (
-    <ListSkeleton rows={12} />
+    <PublicationIndexTableSkeleton
+      attributes={visibleAttributes}
+      cells={cells}
+      signal={hasSignal}
+      trailing={trailing}
+    />
   );
 };
 

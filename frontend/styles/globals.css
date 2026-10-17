@@ -162,3 +162,31 @@ body {
 @utility bg-stripes-diagonal {
   @apply bg-[repeating-linear-gradient(45deg,#e1e1e1_0,#e1e1e1_1px,transparent_0,transparent_50%)] bg-size-[10px_10px];
 }
+
+/*
+  The animations of a loading skeleton. `animate-skeleton-appear` keeps an
+  element transparent for 150ms and then fades it in over 200ms.
+  `animate-skeleton-wave` pulses an element's opacity every 2s. The pulse
+  starts 90ms later for each step of `--row`, a custom property that the
+  element's placeholder row sets to the row's index.
+*/
+@keyframes skeleton-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@utility animate-skeleton-appear {
+  animation: skeleton-appear 200ms ease-out 150ms both;
+}
+
+@utility animate-skeleton-wave {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: calc(var(--row, 0) * 90ms);
+}

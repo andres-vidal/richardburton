@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as PublicationOverlayStories from "./PublicationOverlay.stories";
 
@@ -28,8 +28,9 @@ where instead.
 The record is **read on the server** for that address and handed over unawaited,
 so the overlay opens on the click and the record streams into it — the dialog
 grows into the record when it arrives. A link to a publication outside the
-current search opens it all the same, since the overlay reads nothing from the
-publication store.
+current search opens it all the same, since the overlay reads the record from
+the server rather than from the database's publication store. The overlay
+gives the view a publication store of its own.
 
 ## What it renders
 
@@ -89,3 +90,28 @@ index. An admin also gets a collapsed **History** section — the record's
 with the record rather than fetched on expand.
 
 <Canvas of={PublicationOverlayStories.DeleteConfirmation} />
+
+## Closing with an unsaved edit
+
+Closing the overlay, with <kbd>Esc</kbd>, the close button or a press outside
+the dialog, closes it at once, unless the edit form holds changes that are not
+saved. The overlay is an [edit modal](?path=/docs/publications-edit-modal--docs),
+so it then stays open and a
+[confirmation](?path=/docs/components-confirmation-modal--docs) asks whether to
+discard them. Cancel, or <kbd>Esc</kbd> in the confirmation, goes back to the
+form with the changes as they were typed. The form's own Cancel button discards
+the changes without asking.
+
+<Description of={PublicationOverlayStories.KeepingAnEdit} />
+<Canvas of={PublicationOverlayStories.KeepingAnEdit} />
+
+Discard closes the overlay, and the view drops the edit as it closes, so
+nothing reaches the database.
+
+<Description of={PublicationOverlayStories.DiscardingAnEdit} />
+<Canvas of={PublicationOverlayStories.DiscardingAnEdit} />
+
+With nothing changed, or once the changes are saved, closing asks nothing.
+
+<Description of={PublicationOverlayStories.ClosingWithoutChanges} />
+<Canvas of={PublicationOverlayStories.ClosingWithoutChanges} />
