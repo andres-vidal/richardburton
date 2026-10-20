@@ -141,11 +141,15 @@ test("opening a publication does not read the database again", async ({
   await page.goto("/");
   await expect(indexTable(page).getByText("Barren Lives")).toBeVisible();
 
+  // Collects the body of every server-component payload the router fetches
+  // from here on. The bodies are read through `page.route`, because the
+  // browser does not keep them for `response.text()`.
   const payloads: string[] = [];
-  page.on("response", async (response) => {
-    if (response.url().includes("_rsc")) {
-      payloads.push(await response.text().catch(() => ""));
-    }
+  await page.route(/[?&]_rsc=/, async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    payloads.push(body);
+    await route.fulfill({ response, body });
   });
 
   await openPublicationModal(page, "Barren Lives");
