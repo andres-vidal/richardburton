@@ -11,8 +11,14 @@ import {
 } from "modules/rich-text";
 import { FC, Fragment, ReactNode } from "react";
 
-/** The marks of a run of text, outermost first: bold wraps italic. */
-const MARKS: RichTextMark[] = ["bold", "italic"];
+/** A mark a run of text can carry: a formatting mark, or the highlight. */
+type RenderedMark = RichTextMark | "highlight";
+
+/**
+ * The marks of a run of text, outermost first: bold wraps italic, and both
+ * wrap the highlight.
+ */
+const MARKS: RenderedMark[] = ["bold", "italic", "highlight"];
 
 // Returns the blocks of a value as React elements: a paragraph for each
 // paragraph, and nested lists for each run of consecutive list items. Blank
@@ -90,7 +96,7 @@ function renderLists(items: ListItemElement[]): ReactNode[] {
 }
 
 // Returns whether an inline is a run of text that carries `mark`.
-function carries(inline: RichTextInline, mark: RichTextMark): boolean {
+function carries(inline: RichTextInline, mark: RenderedMark): boolean {
   return !isLink(inline) && inline[mark] === true;
 }
 
@@ -98,7 +104,7 @@ function carries(inline: RichTextInline, mark: RichTextMark): boolean {
 // or all do not, in order.
 function stretchesOf(
   inlines: RichTextInline[],
-  mark: RichTextMark,
+  mark: RenderedMark,
 ): RichTextInline[][] {
   return inlines.reduce<RichTextInline[][]>((result, inline) => {
     const last = result[result.length - 1];
@@ -112,11 +118,12 @@ function stretchesOf(
 
 // Returns inlines as React elements. Each stretch of consecutive runs of text
 // that carry the first of `marks` is wrapped in one element for it, `strong`
-// for bold and `em` for italic, and the inlines inside each stretch, and
-// between stretches, are wrapped by the rest of `marks`.
+// for bold, `em` for italic and `mark` for the highlight, and the inlines
+// inside each stretch, and between stretches, are wrapped by the rest of
+// `marks`.
 function renderInlines(
   inlines: RichTextInline[],
-  marks: RichTextMark[] = MARKS,
+  marks: RenderedMark[] = MARKS,
 ): ReactNode[] {
   const [mark, ...rest] = marks;
 
@@ -129,8 +136,12 @@ function renderInlines(
           <strong key={index} className="font-semibold">
             {renderInlines(stretch, rest)}
           </strong>
-        ) : (
+        ) : mark === "italic" ? (
           <em key={index}>{renderInlines(stretch, rest)}</em>
+        ) : (
+          <mark key={index} className="text-inherit bg-amber-100">
+            {renderInlines(stretch, rest)}
+          </mark>
         ),
       );
 }
@@ -171,7 +182,8 @@ function renderInline(inline: RichTextInline, key: number): ReactNode {
  * Renders rich text from its value (see `modules/rich-text`): paragraphs,
  * bulleted and numbered lists, line breaks, bold and italic text, and links.
  * A link opens in a new tab and passes on neither the page nor its address.
- * Renders nothing when the value is null or blank.
+ * Highlighted text, the words a search matched, renders in a `mark` with the
+ * highlight `Highlight` uses. Renders nothing when the value is null or blank.
  *
  * A run of list items renders as nested lists. Each item is nested in the
  * closest item before it that is shallower than it, and an item with no

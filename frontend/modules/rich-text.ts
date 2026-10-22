@@ -22,6 +22,10 @@ import type { ReactEditor } from "slate-react";
  * nothing but white space. A **bare URL** is a word of the text, outside any
  * link, that is a web address or an email address (see `bareUrl`).
  *
+ * A run of text can also be **highlighted**, as the words a search matched
+ * are. Highlighting is not formatting. Only a value built from a search
+ * excerpt carries it (see `markedParagraph`), and a stored value never does.
+ *
  * The functions that read a value, such as `plainText`, take a value of rich
  * text, or null or undefined for none. They do not throw on a value that is
  * not rich text, such as a string or a node of a type this module does not
@@ -31,8 +35,13 @@ import type { ReactEditor } from "slate-react";
 /** A formatting mark a run of text can carry. */
 type RichTextMark = "bold" | "italic";
 
-/** A run of text, with the marks it carries. */
-type RichTextRun = { text: string; bold?: boolean; italic?: boolean };
+/** A run of text, with the marks it carries, and whether it is highlighted. */
+type RichTextRun = {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  highlight?: boolean;
+};
 
 /** A link: the URL it goes to, and the runs of text it shows. */
 type LinkElement = { type: "link"; url: string; children: RichTextRun[] };
@@ -344,6 +353,101 @@ function linkBareUrls(inlines: RichTextInline[]): RichTextInline[] {
   });
 }
 
+// Returns `run`, which starts at `offset` in its text, split at the edges of
+// the highlighted `stretches` of that text. Each part keeps the marks of `run`,
+// and is highlighted when a stretch covers it. A stretch is the start and the
+// end of a highlighted part of the text.
+function highlightIn(
+  run: RichTextRun,
+  offset: number,
+  stretches: [number, number][],
+): RichTextRun[] {
+  const cuts = [
+    ...new Set([
+      0,
+      run.text.length,
+      ...stretches
+        .flat()
+        .map((edge) => edge - offset)
+        .filter((cut) => cut > 0 && cut < run.text.length),
+    ]),
+  ].sort((a, b) => a - b);
+
+  return cuts.slice(0, -1).map((start, index) => {
+    const end = cuts[index + 1];
+    const text = run.text.slice(start, end);
+
+    return stretches.some(
+      ([from, to]) => from <= offset + start && offset + end <= to,
+    )
+      ? { ...run, text, highlight: true }
+      : { ...run, text };
+  });
+}
+
+// Returns `runs`, which start at `offset` in their text, with the `stretches`
+// highlighted as `highlightIn` highlights them, and the offset where the runs
+// end.
+function highlightRuns(
+  runs: RichTextRun[],
+  offset: number,
+  stretches: [number, number][],
+): { runs: RichTextRun[]; end: number } {
+  return runs.reduce<{ runs: RichTextRun[]; end: number }>(
+    (result, run) => ({
+      runs: [...result.runs, ...highlightIn(run, result.end, stretches)],
+      end: result.end + run.text.length,
+    }),
+    { runs: [], end: offset },
+  );
+}
+
+/**
+ * Returns `text` as a value of one paragraph, for display. `text` may carry
+ * the `[[ ]]` markers of a search excerpt around the words the search matched.
+ * Its bare URLs are links, as `linkBareUrls` makes them, and the words between
+ * markers are highlighted. The URLs are found in the text without its markers,
+ * so a matched word inside a URL is highlighted inside the link, and the link
+ * goes to the whole URL.
+ */
+function markedParagraph(text: string): RichTextValue {
+  const pieces = text.split(/\[\[|\]\]/);
+  const { stretches } = pieces.reduce<{
+    at: number;
+    stretches: [number, number][];
+  }>(
+    ({ at, stretches }, piece, index) => ({
+      at: at + piece.length,
+      stretches:
+        index % 2 === 1 ? [...stretches, [at, at + piece.length]] : stretches,
+    }),
+    { at: 0, stretches: [] },
+  );
+  const { inlines } = linkBareUrls([{ text: pieces.join("") }]).reduce<{
+    inlines: RichTextInline[];
+    end: number;
+  }>(
+    (result, inline) => {
+      const { runs, end } = highlightRuns(
+        isLink(inline) ? inline.children : [inline],
+        result.end,
+        stretches,
+      );
+
+      return {
+        inlines: [
+          ...result.inlines,
+          ...(isLink(inline) ? [{ ...inline, children: runs }] : runs),
+        ],
+        end,
+      };
+    },
+    { inlines: [], end: 0 },
+  );
+
+  return [{ type: "paragraph", children: withARun(inlines) }];
+}
+
 export {
   MAX_DEPTH,
   bareUrl,
@@ -354,6 +458,7 @@ export {
   linkBareUrls,
   linkLabel,
   linkTarget,
+  markedParagraph,
   plainText,
   readValue,
   safeUrl,

@@ -27,7 +27,11 @@ import {
   usePublicationStore,
 } from "modules/publication/workspace";
 import { useCountryNaming } from "modules/country-names";
-import { isBlank, type RichTextValue } from "modules/rich-text";
+import {
+  isBlank,
+  markedParagraph,
+  type RichTextValue,
+} from "modules/rich-text";
 import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
 import { useFormatter, useTranslations } from "next-intl";
@@ -170,7 +174,9 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
 };
 
 /**
- * Where the record says it comes from.
+ * Where the record says it comes from. Each source renders as rich text, as
+ * `markedParagraph` builds it from the source, so a URL in a source is a link
+ * and the words a search matched are highlighted.
  *
  * A record with no sources says so rather than leaving the section out: for a
  * database whose worth is its provenance, an absent source is worth stating.
@@ -192,9 +198,9 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
                 aria-hidden
                 className="size-1.5 rounded-full shrink-0 bg-indigo-400 ring-2 ring-indigo-100"
               />
-              <span className="min-w-0 wrap-break-word">
-                <Highlight>{source}</Highlight>
-              </span>
+              <div className="min-w-0">
+                <RichText value={markedParagraph(source)} />
+              </div>
             </li>
           ))}
         </ul>

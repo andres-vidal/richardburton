@@ -8,6 +8,7 @@ import {
   indexTable,
   expectPublicationCount,
   CORPUS_SIZE,
+  CORPUS_CATALOG_RECORD,
   copiedLink,
   csv,
   expectMatchCount,
@@ -345,6 +346,7 @@ test("a signed-out reader sees publication details read-only, sources included",
 }) => {
   await seedCorpus(page);
   await signOut(page);
+  await page.goto("/");
 
   const dialog = await openPublicationModal(page, "The Hour of the Star");
   // Provenance is public: the source shows in the read view…
@@ -353,6 +355,30 @@ test("a signed-out reader sees publication details read-only, sources included",
   ).toBeVisible();
   // …but editing is admin-only.
   await expect(dialog.getByRole("button", { name: "Edit" })).toHaveCount(0);
+
+  // A source that cites a web page links to it. Following the link opens the
+  // page in a new tab, and the publication stays open behind it. The page is
+  // answered here, so the journey does not depend on the catalog being up.
+  await page.keyboard.press("Escape");
+  const philosopher = await openPublicationModal(page, "Philosopher or Dog?");
+  await expect(
+    philosopher.getByText("Caldwell, Helen. Machado de Assis.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  await page.context().route(CORPUS_CATALOG_RECORD, (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: "<title>Catalog record</title>",
+    }),
+  );
+  const [catalog] = await Promise.all([
+    page.waitForEvent("popup"),
+    philosopher.getByRole("link", { name: CORPUS_CATALOG_RECORD }).click(),
+  ]);
+  await expect(catalog).toHaveURL(CORPUS_CATALOG_RECORD);
+  await expect(philosopher).toBeVisible();
 });
 
 test("a reader takes a publication's link, and the link stands on its own", async ({

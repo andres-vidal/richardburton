@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { markedParagraph } from "modules/rich-text";
 import { expect, screen, within } from "storybook/test";
 import {
   EVERY_FORMAT,
@@ -192,6 +193,33 @@ export const UnrecognisedValues: Story = {
       within(frame).getByText("A quoted line, and its end."),
     ).toBeVisible();
     await expect(within(frame).getByText("Before the quote.")).toBeVisible();
+  },
+};
+
+/**
+ * The words a search matched, highlighted, in a value that `markedParagraph`
+ * builds from a search excerpt. The play test checks that a match inside a URL
+ * is highlighted inside the link, and that the link goes to the whole URL.
+ */
+export const Highlighted: Story = {
+  args: {
+    value: markedParagraph(
+      "[[Burton]], Isabel. Scan at https://archive.org/details/[[iracema]]00alen.",
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const marks = canvasElement.querySelectorAll("mark");
+    const link = screen.getByRole("link");
+
+    await expect([...marks].map((mark) => mark.textContent)).toEqual([
+      "Burton",
+      "iracema",
+    ]);
+    await expect(link).toHaveAttribute(
+      "href",
+      "https://archive.org/details/iracema00alen",
+    );
+    await expect(link).toContainElement(marks[1]);
   },
 };
 

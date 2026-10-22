@@ -62,6 +62,19 @@ to anything but an `http`, `https` or `mailto` address renders as its text.
 <Description of={RichTextStories.LiteralText} />
 <Canvas of={RichTextStories.LiteralText} />
 
+## Highlighting
+
+A run of text can be highlighted, as the words a search matched are. A stored
+value never carries a highlight: `markedParagraph` builds a value from a search
+excerpt, with its URLs as links and the words between its `[[ ]]` markers
+highlighted. The publication page renders each source this way. The highlight
+renders in a `mark`, like [`Highlight`](?path=/docs/components-highlight--docs),
+inside bold, italic and links.
+
+<Description of={RichTextStories.Highlighted} />
+
+<Canvas of={RichTextStories.Highlighted} />
+
 ## Values that are not rich text
 
 The component renders any value without throwing. A string renders as a

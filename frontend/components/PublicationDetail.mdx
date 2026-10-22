@@ -85,3 +85,14 @@ A record nobody has sourced yet says so:
 <Description of={PublicationDetailStories.LongSource} />
 
 <Canvas of={PublicationDetailStories.LongSource} />
+
+## Links in sources
+
+Each source renders through [`RichText`](?path=/docs/components-rich-text--docs),
+as a paragraph that `markedParagraph` builds from the source. A URL or an email
+address in a source is a link, as in notes, and the words a search matched are
+highlighted, inside a link too.
+
+<Description of={PublicationDetailStories.SourceWithALink} />
+
+<Canvas of={PublicationDetailStories.SourceWithALink} />
