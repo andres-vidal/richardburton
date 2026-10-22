@@ -315,3 +315,31 @@ export const LongSource: Story = {
     await expectToFit(source, source.closest("li")!);
   },
 };
+
+/**
+ * A source that cites a web page links to it, in a new tab, and the full stop
+ * that ends the source stays outside the link. The play test checks the link's
+ * address.
+ */
+export const SourceWithALink: Story = {
+  args: {
+    publication: {
+      ...DOM_CASMURRO,
+      sources: [
+        "Caldwell, Helen. Introduction, 1953.",
+        "Catalog record, https://catalog.hathitrust.org/Record/001270334.",
+      ],
+    },
+  },
+  play: async () => {
+    const link = screen.getByRole("link", {
+      name: "https://catalog.hathitrust.org/Record/001270334",
+    });
+
+    await expect(link).toHaveAttribute(
+      "href",
+      "https://catalog.hathitrust.org/Record/001270334",
+    );
+    await expect(link).toHaveAttribute("target", "_blank");
+  },
+};

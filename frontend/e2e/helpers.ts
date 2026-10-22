@@ -434,14 +434,19 @@ export const PUBLICATIONS: PublicationInput[] = [
   },
 ];
 
+/** The web address of the catalog record one of the corpus's sources cites. */
+export const CORPUS_CATALOG_RECORD =
+  "https://catalog.hathitrust.org/Record/001270334";
+
 // The corpus: seven publications, imported with one upload. Three works share
 // an author, Machado de Assis, so a search for him narrows to several rows.
 // Three rows cite a source and four do not, so the sources backfill has a
-// queue.
+// queue. Philosopher or Dog? cites two, one of them a catalog record with its
+// web address.
 const CORPUS_ROWS = [
   `Dom Casmurro,1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,`,
   `Epitaph of a Small Winner,1952,US,Noonday Press,William Grossman,Memórias Póstumas,Machado de Assis,`,
-  `Philosopher or Dog?,1954,US,Noonday Press,Clotilde Wilson,Quincas Borba,Machado de Assis,"Caldwell, Helen. Machado de Assis."`,
+  `Philosopher or Dog?,1954,US,Noonday Press,Clotilde Wilson,Quincas Borba,Machado de Assis,"Caldwell, Helen. Machado de Assis.\nCatalog record, ${CORPUS_CATALOG_RECORD}."`,
   `Iraçéma the Honey-Lips,1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,"Burton, Isabel. Preface, 1886."`,
   `"Gabriela, Clove and Cinnamon",1962,US,Knopf,James Taylor,"Gabriela, Cravo e Canela",Jorge Amado,`,
   `The Hour of the Star,1986,GB,Carcanet,Giovanni Pontiero,A Hora da Estrela,Clarice Lispector,"Pontiero, Giovanni. Afterword."`,

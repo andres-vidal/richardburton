@@ -45,6 +45,7 @@ import Button from "./Button";
 import ConfirmationModal from "./ConfirmationModal";
 import DataInput from "./DataInput";
 import Highlight from "./Highlight";
+import LinkedText from "./LinkedText";
 import { useModal } from "./Modal";
 import NotesField from "./NotesField";
 import PublicationHistory from "./PublicationHistory";
@@ -170,7 +171,8 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
 };
 
 /**
- * Where the record says it comes from.
+ * Where the record says it comes from. A URL in a source is a link to it, as
+ * `LinkedText` renders it.
  *
  * A record with no sources says so rather than leaving the section out: for a
  * database whose worth is its provenance, an absent source is worth stating.
@@ -193,7 +195,7 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
                 className="size-1.5 rounded-full shrink-0 bg-indigo-400 ring-2 ring-indigo-100"
               />
               <span className="min-w-0 wrap-break-word">
-                <Highlight>{source}</Highlight>
+                <LinkedText>{source}</LinkedText>
               </span>
             </li>
           ))}
