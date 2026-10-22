@@ -13,6 +13,7 @@ import {
   isLongerThan,
   linkBareUrls,
   linkTarget,
+  markedParagraph,
   plainText,
   readValue,
   safeUrl,
@@ -220,6 +221,66 @@ describe("linkBareUrls", () => {
     ];
 
     expect(linkBareUrls(inlines)).toEqual(inlines);
+  });
+});
+
+describe("markedParagraph", () => {
+  it("makes a paragraph of the text, with its bare URLs as links", () => {
+    expect(
+      markedParagraph(
+        "Catalog record, https://catalog.hathitrust.org/Record/001270334.",
+      ),
+    ).toEqual([
+      paragraph(
+        "Catalog record, ",
+        link(
+          "https://catalog.hathitrust.org/Record/001270334",
+          "https://catalog.hathitrust.org/Record/001270334",
+        ),
+        ".",
+      ),
+    ]);
+  });
+
+  it("highlights the words between markers", () => {
+    expect(markedParagraph("Pontiero, Giovanni. [[Afterword]].")).toEqual([
+      paragraph(
+        "Pontiero, Giovanni. ",
+        { text: "Afterword", highlight: true },
+        ".",
+      ),
+    ]);
+  });
+
+  it("keeps a URL whole when a matched word is inside it", () => {
+    expect(
+      markedParagraph("Scan: https://[[archive]].org/details/iracema, p. 7"),
+    ).toEqual([
+      paragraph(
+        "Scan: ",
+        link(
+          "https://archive.org/details/iracema",
+          "https://",
+          { text: "archive", highlight: true },
+          ".org/details/iracema",
+        ),
+        ", p. 7",
+      ),
+    ]);
+  });
+
+  it("highlights a stretch that runs into a link and out of it", () => {
+    expect(markedParagraph("[[see www.x.org]] now")).toEqual([
+      paragraph(
+        { text: "see ", highlight: true },
+        link("https://www.x.org", { text: "www.x.org", highlight: true }),
+        " now",
+      ),
+    ]);
+  });
+
+  it("makes a paragraph with one empty run of empty text", () => {
+    expect(markedParagraph("")).toEqual([paragraph("")]);
   });
 });
 
