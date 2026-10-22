@@ -346,6 +346,7 @@ test("a signed-out reader sees publication details read-only, sources included",
 }) => {
   await seedCorpus(page);
   await signOut(page);
+  await page.goto("/");
 
   const dialog = await openPublicationModal(page, "The Hour of the Star");
   // Provenance is public: the source shows in the read view…
