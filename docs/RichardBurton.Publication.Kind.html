@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Publication.Kind — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-519B5A61.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Publication.<wbr />Kind</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Tells whether a publication is a first translation of its work, a
+retranslation or a reissue, and which earlier publications it follows.</p><p>Works and translations are those <a href="RichardBurton.Publication.Insights.html"><code class="inline">RichardBurton.Publication.Insights</code></a>
+defines. Publications are compared by year only. Two publications of the
+same year count as published at the same time, whatever order they were
+entered in. Terms used here:</p><ul><li><strong>first year</strong> — the year of the earliest publication of a work, or of a
+translation.</li><li><strong>first edition</strong> — a publication of a translation in that translation's
+first year. A translation published several times in its first year has
+several first editions.</li><li><strong>kind</strong> — a publication is a <code class="inline">&quot;reissue&quot;</code> when it was published in a
+later year than its translation's first year. Otherwise it is a first
+edition, which is a <code class="inline">&quot;first_translation&quot;</code> when its translation's first
+year is the work's first year, and a <code class="inline">&quot;retranslation&quot;</code> when its
+translation's first year is later. A work has as many first translations
+as it has publications in its first year.</li><li><strong>follows</strong> — the earlier publications that a retranslation or a reissue
+comes after. A reissue follows every first edition of its translation. A
+retranslation follows every publication of its work in the work's first
+year, which are the work's first translations. A first translation
+follows none.</li></ul><p>A publication's kind depends on the publications it is compared with.
+<a href="#ranked/1"><code class="inline">ranked/1</code></a> compares the publications of a query with each other, and <a href="#of/1"><code class="inline">of/1</code></a>
+compares one publication with every publication of its work that is not
+deleted.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#all/0" data-no-tooltip="" translate="no">all()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the kinds: <code class="inline">&quot;first_translation&quot;</code>, <code class="inline">&quot;retranslation&quot;</code> and
+<code class="inline">&quot;reissue&quot;</code>, in that order.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#of/1" data-no-tooltip="" translate="no">of(publication)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the kind of <code class="inline">publication</code> and the publications it follows, as a map
+with <code class="inline">kind</code> and <code class="inline">follows</code>. <code class="inline">follows</code> lists publications preloaded as
+<a href="RichardBurton.Publication.html#with_ids/1"><code class="inline">RichardBurton.Publication.with_ids/1</code></a> preloads them, in ascending order of
+id, and is empty for a first translation.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#ranked/1" data-no-tooltip="" translate="no">ranked(source)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns a query with one row for each publication of <code class="inline">source</code>. Each row has
+the publication's <code class="inline">id</code>, its <code class="inline">kind</code>, and <code class="inline">follows</code>, the ids of the
+publications it follows in ascending order. <code class="inline">follows</code> is an empty list for a
+first translation.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="all/0">
+
+  <div class="detail-header">
+    <a href="#all/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">all()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> all() :: [<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()]</pre>
+
+      </div>
+
+<p>Returns the kinds: <code class="inline">&quot;first_translation&quot;</code>, <code class="inline">&quot;retranslation&quot;</code> and
+<code class="inline">&quot;reissue&quot;</code>, in that order.</p>
+  </section>
+</section>
+<section class="detail" id="of/1">
+
+  <div class="detail-header">
+    <a href="#of/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">of(publication)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> of(<a href="RichardBurton.Publication.html#t:t/0">RichardBurton.Publication.t</a>()) :: %{
+  kind: <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(),
+  follows: [<a href="RichardBurton.Publication.html#t:t/0">RichardBurton.Publication.t</a>()]
+}</pre>
+
+      </div>
+
+<p>Returns the kind of <code class="inline">publication</code> and the publications it follows, as a map
+with <code class="inline">kind</code> and <code class="inline">follows</code>. <code class="inline">follows</code> lists publications preloaded as
+<a href="RichardBurton.Publication.html#with_ids/1"><code class="inline">RichardBurton.Publication.with_ids/1</code></a> preloads them, in ascending order of
+id, and is empty for a first translation.</p><p><code class="inline">publication</code> is compared with every publication of its work that is not
+deleted. They are read from the publications table rather than from the
+index, so a publication written since the index was last refreshed is
+counted. <code class="inline">publication</code> must not be deleted, and needs its translated book
+loaded.</p>
+  </section>
+</section>
+<section class="detail" id="ranked/1">
+
+  <div class="detail-header">
+    <a href="#ranked/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">ranked(source)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> ranked(<a href="https://ecto.hexdocs.pm/3.14.2/Ecto.Queryable.html#t:t/0">Ecto.Queryable.t</a>()) :: <a href="https://ecto.hexdocs.pm/3.14.2/Ecto.Query.html#t:t/0">Ecto.Query.t</a>()</pre>
+
+      </div>
+
+<p>Returns a query with one row for each publication of <code class="inline">source</code>. Each row has
+the publication's <code class="inline">id</code>, its <code class="inline">kind</code>, and <code class="inline">follows</code>, the ids of the
+publications it follows in ascending order. <code class="inline">follows</code> is an empty list for a
+first translation.</p><p><code class="inline">source</code> is a queryable of publications whose rows have an <code class="inline">id</code> and a
+<code class="inline">year</code>, such as <a href="RichardBurton.FlatPublication.html"><code class="inline">RichardBurton.FlatPublication</code></a> or a query of
+<a href="RichardBurton.Publication.html"><code class="inline">RichardBurton.Publication</code></a>. Each publication is compared only with the
+other publications of <code class="inline">source</code>.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
