@@ -176,7 +176,8 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
 /**
  * Where the record says it comes from. Each source renders as rich text, as
  * `markedParagraph` builds it from the source, so a URL in a source is a link
- * and the words a search matched are highlighted.
+ * and the words a search matched are highlighted. Each source's bullet is
+ * centred on its first line.
  *
  * A record with no sources says so rather than leaving the section out: for a
  * database whose worth is its provenance, an absent source is worth stating.
@@ -193,11 +194,10 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
       ) : (
         <ul className="space-y-1.5 text-sm text-gray-700">
           {sources.map((source, index) => (
-            <li key={index} className="flex gap-2.5 items-baseline">
-              <span
-                aria-hidden
-                className="size-1.5 rounded-full shrink-0 bg-indigo-400 ring-2 ring-indigo-100"
-              />
+            <li key={index} className="flex gap-2.5 items-start">
+              <span aria-hidden className="flex shrink-0 items-center h-[1lh]">
+                <span className="size-1.5 rounded-full bg-indigo-400 ring-2 ring-indigo-100" />
+              </span>
               <div className="min-w-0">
                 <RichText value={markedParagraph(source)} />
               </div>
