@@ -36,11 +36,11 @@ const Loading: FC = () => {
         <div className="space-y-2">
           <div className="w-28 h-3 bg-gray-100 rounded" />
           <ul className="space-y-1.5">
-            <li className="flex gap-2.5 items-baseline">
+            <li className="flex gap-2.5 items-center">
               <span className="size-1.5 rounded-full shrink-0 bg-gray-200" />
               <span className="w-4/5 h-4 bg-gray-200 rounded" />
             </li>
-            <li className="flex gap-2.5 items-baseline">
+            <li className="flex gap-2.5 items-center">
               <span className="size-1.5 rounded-full shrink-0 bg-gray-200" />
               <span className="w-3/5 h-4 bg-gray-200 rounded" />
             </li>
