@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.4">
+    <meta name="project" content="richard_burton v0.1.0">
+
+
+    <title>RichardBurton.Publication.Index — richard_burton v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-519B5A61.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-MI33G4N7.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="api-reference.html" class="sidebar-projectName" translate="no">
+richard_burton
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of richard_burton</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">RichardBurton.<wbr />Publication.<wbr />Index</span> 
+      <small class="app-vsn" translate="no">(richard_burton v0.1.0)</small>
+
+    </h1>
+
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Full-text search over the publication index.</p><p>A term is split on <code class="inline">:or</code> (or <code class="inline">:ou</code>) into <strong>alternatives</strong>, and a publication
+matches if it satisfies any one of them.</p><p>Each alternative contains free words and operators. Free words are matched one
+at a time and combined with AND, so every word has to match. An operator
+restricts its value to a single field:</p><pre><code class="makeup elixir" translate="no"><span class="n">title</span><span class="ss">:casmurro</span><span class="w">            </span><span class="n">search</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">title</span><span class="w"> </span><span class="n">only</span><span class="w">
+</span><span class="n">autor</span><span class="ss">:machado</span><span class="w">             </span><span class="n">search</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">author</span><span class="p">,</span><span class="w"> </span><span class="n">written</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">Portuguese</span><span class="w">
+</span><span class="n">year</span><span class="p">:</span><span class="mi">1950</span><span class="o">-</span><span class="mi">1960</span><span class="w">            </span><span class="n">a</span><span class="w"> </span><span class="n">range</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">years</span><span class="w">
+</span><span class="o">-</span><span class="n">country</span><span class="ss">:US</span><span class="w">               </span><span class="n">exclude</span><span class="w">
+</span><span class="n">title</span><span class="ss">:&quot;dom casmurro&quot;</span><span class="w">      </span><span class="n">these</span><span class="w"> </span><span class="n">words</span><span class="p">,</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">order</span></code></pre><p>An alternative matches when both its words and its operators match.</p><p>Terms used here, which also appear as tags in the code:</p><ul><li><strong>spelled out</strong> — a term that uses quotes or a leading <code class="inline">-</code> but contains no
+operator. Postgres already understands that syntax, so the term is handed
+to <code class="inline">websearch_to_tsquery</code> as written instead of being parsed here. Tagged
+<code class="inline">{:spelled_out, term}</code>.</li><li><strong>criteria</strong> — what a term becomes once it has been read: either
+<code class="inline">{:spelled_out, term}</code> or <code class="inline">{:alternatives, alternatives}</code>. <code class="inline">matches/1</code> and
+<code class="inline">ranking/1</code> are built from it, and it is the only thing that differs
+between the two ways of reading a term.</li><li><strong>listed row</strong> — a publication as a page of the index holds it: a
+<a href="RichardBurton.FlatPublication.html"><code class="inline">RichardBurton.FlatPublication</code></a> read from the view, with <code class="inline">excerpts</code> and
+<code class="inline">marked</code>. Its <code class="inline">notes</code> are nil, whatever notes the publication has, and
+its JSON has no <code class="inline">notes</code> key, so that a page stays small however long
+the notes are. <a href="#details/3"><code class="inline">details/3</code></a> and
+<a href="#without_sources/0"><code class="inline">without_sources/0</code></a> return listed rows. <a href="#all/1"><code class="inline">all/1</code></a> and <a href="#search/2"><code class="inline">search/2</code></a> return
+<code class="inline">FlatPublication</code> structs whose notes are read from the <code class="inline">publications</code>
+table, or maps of the fields they are asked for.</li></ul><p>Each word is matched on its own: as a prefix when the index holds words
+beginning with it, and by resemblance when it does not. So a word matched by
+resemblance does not change how the words beside it match, and the query is
+run once.</p><p>How each word matched is its <strong>standing</strong> (see
+<a href="RichardBurton.Publication.Index.Keywords.html"><code class="inline">RichardBurton.Publication.Index.Keywords</code></a>). <a href="#standings/1"><code class="inline">standings/1</code></a> looks up the
+standings of all of a term's words with one query. <a href="#search_order/2"><code class="inline">search_order/2</code></a>,
+<a href="#details/3"><code class="inline">details/3</code></a> and <a href="#matching/2"><code class="inline">matching/2</code></a> take those standings along with the term, so
+that several of them can read one lookup. Given the term alone, each of them
+looks the standings up itself.</p><p>Both ways of reading a term match against a <code class="inline">tsvector</code> whose accents have been
+stripped, so the term has its accents stripped too before it is compared. See
+<a href="RichardBurton.Publication.Index.Term.html"><code class="inline">RichardBurton.Publication.Index.Term</code></a> for the vocabulary a term is written in
+and the names each operator answers to.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#all/0" data-no-tooltip="" translate="no">all()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns <code class="inline">{:ok, publications}</code>, every publication in the index, whole, with
+its notes.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#all/1" data-no-tooltip="" translate="no">all(list)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns <code class="inline">{:ok, publications}</code>, every publication in the index, as maps of
+the fields in <code class="inline">attributes</code>, or whole, with their notes, when <code class="inline">attributes</code> is
+empty. The notes are read from the <code class="inline">publications</code> table in the same query.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#all_order/0" data-no-tooltip="" translate="no">all_order()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The ids of every publication, in the order the index lists them: by title, then
+by id. The equivalent of <a href="#search_order/1"><code class="inline">search_order/1</code></a> for a reader who is browsing rather
+than searching.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#count/0" data-no-tooltip="" translate="no">count()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the number of publications in the index. It counts the rows the
+index lists, so it includes a write only once the refresher has rebuilt the
+index, as the search does.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#count_header/0" data-no-tooltip="" translate="no">count_header()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Name of the response header carrying the index's total count.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#detail/2" data-no-tooltip="" translate="no">detail(id, term)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns what <a href="#details/2"><code class="inline">details/2</code></a> returns for the one id <code class="inline">id</code>: a list of its row, or
+an empty list when the index does not hold it.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#details/2" data-no-tooltip="" translate="no">details(ids, term \\ nil)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the listed rows for the given ids, in that order: one page of an
+ordering that <a href="#search_order/1"><code class="inline">search_order/1</code></a> or <a href="#all_order/0"><code class="inline">all_order/0</code></a> returned earlier.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#details/3" data-no-tooltip="" translate="no">details(ids, term, standings)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns what <a href="#details/2"><code class="inline">details/2</code></a> returns, reading the standings of the term's words
+from <code class="inline">standings</code>, which <a href="#standings/1"><code class="inline">standings/1</code></a> returned for the term. <code class="inline">standings</code> is
+not read when the term is <code class="inline">nil</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#matching/1" data-no-tooltip="" translate="no">matching(term)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns a query for the publications a term matches, or for every publication
+when the term is <code class="inline">nil</code>. The query has no ordering.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#matching/2" data-no-tooltip="" translate="no">matching(term, standings)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns what <a href="#matching/1"><code class="inline">matching/1</code></a> returns, reading the standings of the term's words
+from <code class="inline">standings</code>, which <a href="#standings/1"><code class="inline">standings/1</code></a> returned for the term. <code class="inline">standings</code> is
+not read when the term is <code class="inline">nil</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#per_page/0" data-no-tooltip="" translate="no">per_page()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>How many publications a page holds.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#search/1" data-no-tooltip="" translate="no">search(term)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns what <a href="#search/2"><code class="inline">search/2</code></a> returns for <code class="inline">term</code>, with whole rows.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#search/2" data-no-tooltip="" translate="no">search(term, list)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the publications a term matches.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#search_order/1" data-no-tooltip="" translate="no">search_order(term)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>The ids of every publication a term matches, in the order they should be read,
+or <code class="inline">:none</code> if the term matches nothing at all.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#search_order/2" data-no-tooltip="" translate="no">search_order(term, standings)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns what <a href="#search_order/1"><code class="inline">search_order/1</code></a> returns, reading the standings of the term's
+words from <code class="inline">standings</code>, which <a href="#standings/1"><code class="inline">standings/1</code></a> returned for the term.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#standings/1" data-no-tooltip="" translate="no">standings(term)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns the standing of each word of <code class="inline">term</code> that the search looks up, keyed
+by the word, with one query. See <a href="RichardBurton.Publication.Index.Query.html#standings/1"><code class="inline">RichardBurton.Publication.Index.Query.standings/1</code></a>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#without_sources/0" data-no-tooltip="" translate="no">without_sources()</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns <code class="inline">{:ok, rows}</code>, the listed rows of the publications in the index that
+cite no source, ordered by id, so the order is the same on every call.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="all/0">
+
+  <div class="detail-header">
+    <a href="#all/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">all()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns <code class="inline">{:ok, publications}</code>, every publication in the index, whole, with
+its notes.</p>
+  </section>
+</section>
+<section class="detail" id="all/1">
+
+  <div class="detail-header">
+    <a href="#all/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">all(list)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns <code class="inline">{:ok, publications}</code>, every publication in the index, as maps of
+the fields in <code class="inline">attributes</code>, or whole, with their notes, when <code class="inline">attributes</code> is
+empty. The notes are read from the <code class="inline">publications</code> table in the same query.</p>
+  </section>
+</section>
+<section class="detail" id="all_order/0">
+
+  <div class="detail-header">
+    <a href="#all_order/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">all_order()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>The ids of every publication, in the order the index lists them: by title, then
+by id. The equivalent of <a href="#search_order/1"><code class="inline">search_order/1</code></a> for a reader who is browsing rather
+than searching.</p>
+  </section>
+</section>
+<section class="detail" id="count/0">
+
+  <div class="detail-header">
+    <a href="#count/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">count()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the number of publications in the index. It counts the rows the
+index lists, so it includes a write only once the refresher has rebuilt the
+index, as the search does.</p>
+  </section>
+</section>
+<section class="detail" id="count_header/0">
+
+  <div class="detail-header">
+    <a href="#count_header/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">count_header()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@spec</span> count_header() :: <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()</pre>
+
+      </div>
+
+<p>Name of the response header carrying the index's total count.</p>
+  </section>
+</section>
+<section class="detail" id="detail/2">
+
+  <div class="detail-header">
+    <a href="#detail/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">detail(id, term)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns what <a href="#details/2"><code class="inline">details/2</code></a> returns for the one id <code class="inline">id</code>: a list of its row, or
+an empty list when the index does not hold it.</p>
+  </section>
+</section>
+<section class="detail" id="details/2">
+
+    <span id="details/1"></span>
+
+  <div class="detail-header">
+    <a href="#details/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">details(ids, term \\ nil)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the listed rows for the given ids, in that order: one page of an
+ordering that <a href="#search_order/1"><code class="inline">search_order/1</code></a> or <a href="#all_order/0"><code class="inline">all_order/0</code></a> returned earlier.</p><p>Pass <code class="inline">nil</code> as the term for a plain listing, whose rows hold nil <code class="inline">excerpts</code>
+and <code class="inline">marked</code>. Pass the term itself and each row comes back with an excerpt
+of every field that matched it.</p><p>An id that is no longer in the database is left out. That is what a deletion
+looks like after the order was fixed: a gap in the page, rather than rows
+shifting up or repeating.</p>
+  </section>
+</section>
+<section class="detail" id="details/3">
+
+  <div class="detail-header">
+    <a href="#details/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">details(ids, term, standings)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns what <a href="#details/2"><code class="inline">details/2</code></a> returns, reading the standings of the term's words
+from <code class="inline">standings</code>, which <a href="#standings/1"><code class="inline">standings/1</code></a> returned for the term. <code class="inline">standings</code> is
+not read when the term is <code class="inline">nil</code>.</p>
+  </section>
+</section>
+<section class="detail" id="matching/1">
+
+  <div class="detail-header">
+    <a href="#matching/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">matching(term)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns a query for the publications a term matches, or for every publication
+when the term is <code class="inline">nil</code>. The query has no ordering.</p><p>It always returns a query. When the term has nothing to search for, the query
+returns no rows, so callers can count over it without a separate check.</p>
+  </section>
+</section>
+<section class="detail" id="matching/2">
+
+  <div class="detail-header">
+    <a href="#matching/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">matching(term, standings)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns what <a href="#matching/1"><code class="inline">matching/1</code></a> returns, reading the standings of the term's words
+from <code class="inline">standings</code>, which <a href="#standings/1"><code class="inline">standings/1</code></a> returned for the term. <code class="inline">standings</code> is
+not read when the term is <code class="inline">nil</code>.</p>
+  </section>
+</section>
+<section class="detail" id="per_page/0">
+
+  <div class="detail-header">
+    <a href="#per_page/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">per_page()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>How many publications a page holds.</p>
+  </section>
+</section>
+<section class="detail" id="search/1">
+
+  <div class="detail-header">
+    <a href="#search/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">search(term)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns what <a href="#search/2"><code class="inline">search/2</code></a> returns for <code class="inline">term</code>, with whole rows.</p>
+  </section>
+</section>
+<section class="detail" id="search/2">
+
+  <div class="detail-header">
+    <a href="#search/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">search(term, list)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the publications a term matches.</p><p>The term is split on <code class="inline">:or</code> (or <code class="inline">:ou</code>) into alternatives, and a publication
+matches if it satisfies any one of them. Within an alternative, words are
+combined with AND, so every word has to match. So searching a full title
+returns only that title, while &quot;one title :or another&quot; returns both.</p><p>A word matches the indexed words it begins, so a half-typed word matches
+every word it might become. A word that begins none matches the indexed
+words it resembles, and a word that resembles none is dropped rather than
+emptying the result.</p><p>It returns <code class="inline">{:ok, publications}</code>, every match at once, in the order
+<a href="#search_order/1"><code class="inline">search_order/1</code></a> gives, as maps of the fields in <code class="inline">attributes</code>, or whole,
+with their notes, when <code class="inline">attributes</code> is empty. The notes are read from the
+<code class="inline">publications</code> table in the same query. <a href="#search_order/1"><code class="inline">search_order/1</code></a> and <a href="#details/2"><code class="inline">details/2</code></a>
+read the same matches a page at a time.</p>
+  </section>
+</section>
+<section class="detail" id="search_order/1">
+
+  <div class="detail-header">
+    <a href="#search_order/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">search_order(term)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>The ids of every publication a term matches, in the order they should be read,
+or <code class="inline">:none</code> if the term matches nothing at all.</p><p>The order is decided once, here. The reader then pages through those ids with
+<a href="#details/2"><code class="inline">details/2</code></a> and sees a stable list, because the order was fixed at the moment
+the search ran. Without that, rows could shift, be skipped or appear twice as
+the database changed between one page and the next.</p>
+  </section>
+</section>
+<section class="detail" id="search_order/2">
+
+  <div class="detail-header">
+    <a href="#search_order/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">search_order(term, standings)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns what <a href="#search_order/1"><code class="inline">search_order/1</code></a> returns, reading the standings of the term's
+words from <code class="inline">standings</code>, which <a href="#standings/1"><code class="inline">standings/1</code></a> returned for the term.</p>
+  </section>
+</section>
+<section class="detail" id="standings/1">
+
+  <div class="detail-header">
+    <a href="#standings/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">standings(term)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the standing of each word of <code class="inline">term</code> that the search looks up, keyed
+by the word, with one query. See <a href="RichardBurton.Publication.Index.Query.html#standings/1"><code class="inline">RichardBurton.Publication.Index.Query.standings/1</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="without_sources/0">
+
+  <div class="detail-header">
+    <a href="#without_sources/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">without_sources()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns <code class="inline">{:ok, rows}</code>, the listed rows of the publications in the index that
+cite no source, ordered by id, so the order is the same on every call.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
