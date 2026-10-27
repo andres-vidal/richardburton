@@ -394,7 +394,9 @@
     "notDuplicateOf": "Not a duplicate of",
     "reviewAgainWith": "Back in the duplicate review with",
     "noBaseline": "Nothing earlier to compare with — this is where the record's log starts.",
-    "reordered": "reordered"
+    "reordered": "reordered",
+    "sourcesLanguages": "Language of the sources",
+    "draftSourcesFrom": "Draft the sources from {language, select, pt {Portuguese} other {English}}"
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
@@ -534,11 +536,18 @@
       "reissueOfSeveral": "This translation was first published in {year}: <editions></editions>.",
       "retranslatedEdition": "by {translators} as <link>{title} ({publishers}, {countries})</link>",
       "reissuedEdition": "as <link>{title} ({publishers}, {countries})</link>"
-    }
+    },
+    "writtenIn": "Written in {language, select, pt {Portuguese} other {English}}"
   },
   "notes": {
     "hint": "Shown to everyone on the publication's page.",
-    "placeholder": "Notes about this publication"
+    "placeholder": "Notes about this publication",
+    "field": "Notes in {language, select, pt {Portuguese} other {English}}",
+    "languages": "Language of the notes",
+    "replaceTitle": "Replace the notes in {language, select, pt {Portuguese} other {English}}?",
+    "replaceMessage": "The draft takes the place of the notes this tab holds now. You can still edit it before saving.",
+    "replace": "Replace",
+    "draftFrom": "Draft the notes from {language, select, pt {Portuguese} other {English}}"
   },
   "richText": {
     "toolbar": "Formatting",
@@ -573,7 +582,8 @@
     "repeated": "Another row of this import is the same publication",
     "invalid": "A publication is not valid, so nothing was inserted",
     "too_long": "This text is too long",
-    "malformed": "This text could not be read"
+    "malformed": "This text could not be read",
+    "misaligned": "The sources in Portuguese and in English have different numbers of lines, so they cannot be paired"
   },
   "moving": {
     "moved": "{count, plural, one {Moved # row} other {Moved # rows}}",
@@ -777,5 +787,11 @@
     "disconnectedDetail": "Other people's changes are not arriving. Yours are still being saved.",
     "unsaved": "Not saved",
     "unsavedDetail": "What you typed is on this computer and has not reached the server. Trying again."
+  },
+  "draft": {
+    "downloading": "Downloading the translation model… {loaded, number, percent}",
+    "drafting": "Drafting…",
+    "failed": "The draft could not be made. Try again.",
+    "checkTitles": "Check the titles in the drafted sources. A machine translation may have translated them, and a title must stay as written."
   }
 }

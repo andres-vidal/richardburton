@@ -1,0 +1,46 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as LanguageTabsStories from "./LanguageTabs.stories";
+
+<Meta of={LanguageTabsStories} />
+
+# Language tabs
+
+A tab for each language a publication's notes and sources are written in,
+Português and English, and a panel for each. Only the selected panel shows.
+The [notes editor](?path=/docs/publications-notes-editor--docs) and the
+[sources editor](?path=/docs/publications-sources-editor--docs) put the text of
+each language in its panel.
+
+<Description of={LanguageTabsStories.Default} />
+<Canvas of={LanguageTabsStories.Default} />
+
+## Props
+
+- `label` — the accessible name of the tab list, such as "Language of the
+  notes".
+- `selected` and `onSelect` — the selected language, and the function that
+  receives a language when its tab is chosen. The caller keeps the selection.
+- `invalid` — the languages whose panel holds an error. Their tab is shown in
+  red.
+- `actions` — content shown at the end of the row of tabs, such as a button
+  that acts on the selected panel.
+- `children` — a function that renders the content of a language's panel.
+  Both panels stay mounted, so a field in the hidden panel keeps its state.
+
+## Keyboard
+
+The tabs follow the tab pattern of the WAI-ARIA Authoring Practices. Only the
+selected tab is in the tab order, and the arrow keys, Home and End select a tab
+and move the focus to it.
+
+<Description of={LanguageTabsStories.Keyboard} />
+<Canvas of={LanguageTabsStories.Keyboard} />
+
+## States
+
+<Description of={LanguageTabsStories.WithAnError} />
+<Canvas of={LanguageTabsStories.WithAnError} />
+
+<Description of={LanguageTabsStories.WithActions} />
+<Canvas of={LanguageTabsStories.WithActions} />

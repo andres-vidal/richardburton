@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store } from "modules/store";
-import { Publication, type PublicationId } from "modules/publication/model";
+import {
+  Publication,
+  type PublicationId,
+  type Source,
+} from "modules/publication/model";
 import {
   discardEdit,
   hydrate,
@@ -10,6 +14,7 @@ import {
 } from "modules/publication/store";
 import { ComponentProps, FC, useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
+import { source } from "test/publication-fixtures";
 
 import {
   BackfillStep,
@@ -17,7 +22,7 @@ import {
   SourcesQueue,
 } from "./SourcesBackfill";
 
-const publication = (id: number, title: string, sources: string[] = []) => ({
+const publication = (id: number, title: string, sources: Source[] = []) => ({
   ...Publication.empty(),
   id,
   title,
@@ -34,7 +39,7 @@ const seedQueue = () => {
   resetAll(store);
   hydrate(store, [
     publication(1, "Dom Casmurro"),
-    publication(2, "The Hour of the Star", ["A source"]),
+    publication(2, "The Hour of the Star", [source(null, "A source")]),
     publication(3, "The Devil to Pay"),
   ]);
 };

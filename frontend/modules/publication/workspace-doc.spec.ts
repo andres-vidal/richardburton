@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import * as Y from "yjs";
 
 import type { Store } from "modules/store";
+import { source } from "test/publication-fixtures";
 import { empty, type Publication, type PublicationId } from "./model";
 import {
   DRAFT_ID,
@@ -131,13 +132,13 @@ describe("a store working in a document", () => {
     const { store, doc } = opened();
 
     setAll(store, [entry("a", { title: "Dom Casmurro", sources: [] })]);
-    setSources(store, "a", ["Caldwell, Helen. Introduction, 1953."]);
+    setSources(store, "a", [source("Caldwell, Helen. Introduction, 1953.")]);
 
     expect(
       doc.getMap<Y.Map<unknown>>("rows").get("a")?.get("sources"),
     ).toBeInstanceOf(Y.Array);
     expect(store.get(publicationFamily("a")).sources).toEqual([
-      "Caldwell, Helen. Introduction, 1953.",
+      source("Caldwell, Helen. Introduction, 1953."),
     ]);
   });
 
@@ -211,8 +212,12 @@ describe("two people in one workspace", () => {
     setAll(mine.store, [entry("a", { title: "Dom Casmurro", sources: [] })]);
     sync(mine.doc, yours.doc);
 
-    setSources(mine.store, "a", ["Caldwell, Helen. Introduction, 1953."]);
-    setSources(yours.store, "a", ["Gledson, John. Deceptive Realism, 1984."]);
+    setSources(mine.store, "a", [
+      source("Caldwell, Helen. Introduction, 1953."),
+    ]);
+    setSources(yours.store, "a", [
+      source("Gledson, John. Deceptive Realism, 1984."),
+    ]);
     sync(mine.doc, yours.doc);
 
     const kept = mine.store.get(publicationFamily("a")).sources;

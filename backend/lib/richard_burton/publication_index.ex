@@ -29,9 +29,9 @@ defmodule RichardBurton.Publication.Index do
       between the two ways of reading a term.
     * **listed row** — a publication as a page of the index holds it: a
       `RichardBurton.FlatPublication` read from the view, with `excerpts` and
-      `marked`. Its `notes` are nil, whatever notes the publication has, and
-      its JSON has no `notes` key, so that a page stays small however long
-      the notes are. `details/3` and
+      `marked`. Its notes are nil in both languages, whatever notes the
+      publication has, and its JSON has no `notes_pt` or `notes_en` key, so
+      that a page stays small however long the notes are. `details/3` and
       `without_sources/0` return listed rows. `all/1` and `search/2` return
       `FlatPublication` structs whose notes are read from the `publications`
       table, or maps of the fields they are asked for.
@@ -70,6 +70,9 @@ defmodule RichardBurton.Publication.Index do
   # How many publications a page holds: large enough that a first page usually
   # suffices, small enough that it arrives in one response.
   @per_page Application.compile_env(:richard_burton, :publications_per_page, 50)
+
+  # The notes in each language, which the view does not hold.
+  @notes [:notes_pt, :notes_en]
 
   @doc "Name of the response header carrying the index's total count."
   @spec count_header() :: String.t()
@@ -113,7 +116,7 @@ defmodule RichardBurton.Publication.Index do
   def without_sources do
     results =
       from(fp in FlatPublication,
-        where: fragment("cardinality(?) = 0", fp.sources),
+        where: fragment("cardinality(?) = 0", fp.sources_pt),
         order_by: [asc: fp.id]
       )
       |> Repo.all()
@@ -317,19 +320,22 @@ defmodule RichardBurton.Publication.Index do
   # notes when `attributes` is empty, and maps of the fields in `attributes`
   # otherwise. The notes, which the view does not hold, are read from the
   # `publications` table by a join on the id, when the rows are whole or
-  # `attributes` holds `:notes`.
+  # `attributes` holds `:notes_pt` or `:notes_en`.
   defp selected(query, []) do
-    query |> join_stored() |> select_merge([stored: p], %{notes: p.notes})
+    query
+    |> join_stored()
+    |> select_merge([stored: p], %{notes_pt: p.notes_pt, notes_en: p.notes_en})
   end
 
   defp selected(query, attributes) do
-    query = if :notes in attributes, do: join_stored(query), else: query
+    query = if Enum.any?(@notes, &(&1 in attributes)), do: join_stored(query), else: query
     select(query, ^Map.new(attributes, &{&1, selected_field(&1)}))
   end
 
-  # Returns what selects `field`: the notes of the `publications` row that
-  # `join_stored/1` joins, and any other field from the view.
-  defp selected_field(:notes), do: dynamic([stored: p], p.notes)
+  # Returns what selects `field`: the notes in a language from the
+  # `publications` row that `join_stored/1` joins, and any other field from the
+  # view.
+  defp selected_field(field) when field in @notes, do: dynamic([stored: p], field(p, ^field))
   defp selected_field(field), do: dynamic([fp], field(fp, ^field))
 
   # Returns `query`, a query of the view, joined to the row of the

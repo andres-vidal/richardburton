@@ -32,7 +32,7 @@ test("an admin writes formatted notes that every reader sees, and a later save o
   await dialog.getByRole("button", { name: "Edit" }).click();
 
   // A paragraph with a bold word, set with the toolbar.
-  const notes = dialog.getByRole("textbox", { name: "Notes" });
+  const notes = dialog.getByRole("textbox", { name: "Notes in English" });
 
   await notes.click();
   await page.keyboard.type("A classic of ");
@@ -113,7 +113,7 @@ test("an admin writes formatted notes that every reader sees, and a later save o
   // The history records the change, with the notes rendered.
   await dialog.getByText("History", { exact: true }).click();
   const update = dialog.locator('li[data-action="updated"]');
-  await expect(update).toContainText("Notes:");
+  await expect(update).toContainText("Notes in English:");
   await expect(update.locator("ins strong")).toHaveText("regionalist");
   await expect(update.locator("del")).toHaveText("(none)");
 
@@ -220,7 +220,9 @@ test("notes come in with a CSV as plain text, are formatted in the import docume
     .getByRole("button", { name: /^Edit notes/ })
     .click();
   let editor = page.getByRole("dialog", { name: "Edit notes" });
-  const imported = editor.getByRole("textbox", { name: "Notes" }).locator("p");
+  const imported = editor
+    .getByRole("textbox", { name: "Notes in English" })
+    .locator("p");
   await expect(imported).toHaveText([
     /^Translated in 1886\.\s+See the scan at\s+https:\/\/archive\.org\/details\/iracema\s*\.$/,
     "Reprinted in 1922.",
@@ -239,7 +241,7 @@ test("notes come in with a CSV as plain text, are formatted in the import docume
   await row("Dom Casmurro").getByRole("button", { name: "Add notes" }).click();
   editor = page.getByRole("dialog", { name: "Edit notes" });
 
-  await editor.getByRole("textbox", { name: "Notes" }).click();
+  await editor.getByRole("textbox", { name: "Notes in English" }).click();
   await page.keyboard.press("ControlOrMeta+b");
   await page.keyboard.type("Caldwell's own copy");
   await page.keyboard.press("ControlOrMeta+b");
@@ -287,7 +289,9 @@ test("notes come in with a CSV as plain text, are formatted in the import docume
   await link.getByRole("textbox", { name: "Link text" }).fill("the scan");
   await link.getByRole("button", { name: "Apply" }).click();
   await expect(link).toHaveCount(0);
-  await expect(editor.getByRole("textbox", { name: "Notes" })).toBeFocused();
+  await expect(
+    editor.getByRole("textbox", { name: "Notes in English" }),
+  ).toBeFocused();
   await page.keyboard.type(", or ask curator@example.org for it.");
   await expect(
     editor.getByRole("link", { name: "curator@example.org" }),
@@ -343,7 +347,7 @@ test("notes come in with a CSV as plain text, are formatted in the import docume
   const { response } = await downloadCsv(page);
   const exported = await response.text();
 
-  expect(exported.split("\n")[0]).toMatch(/,notes$/);
+  expect(exported.split("\n")[0]).toMatch(/,notes_pt,notes_en$/);
   expect(exported).toContain(quoted(IRACEMA_NOTES));
   expect(exported).toContain(quoted(BARREN_LIVES_NOTES));
   expect(exported).toContain(quoted(DOM_CASMURRO_EXPORT));

@@ -50,6 +50,7 @@ import {
 } from "./store";
 
 import type { Store } from "modules/store";
+import { source } from "test/publication-fixtures";
 import { paragraph } from "test/rich-text-fixtures";
 
 // A store per test: publication state belongs to a workspace, so a spec makes
@@ -224,6 +225,22 @@ describe("checked rows", () => {
     setErrors(store, [{ id: a, publication: before, errors: null }]);
 
     expect(store.get(uncheckedCountAtom)).toBe(1);
+  });
+
+  // The API writes each source's languages in its own key order, and the
+  // document reads them back in another. The result still checks the row, so
+  // the row is not validated again and keeps the result's errors.
+  test("a result for sources whose languages are listed in another order checks the row", () => {
+    const a = createId();
+    const sources = [{ en: "Catalog record.", pt: "Ficha catalográfica." }];
+    const errors = fieldErrors({ sources: "misaligned" });
+
+    setAll(store, [
+      { id: a, publication: { ...empty(), title: "Iracema", sources }, errors },
+    ]);
+
+    expect(store.get(uncheckedCountAtom)).toBe(0);
+    expect(store.get(errorFamily(a))).toEqual(errors);
   });
 });
 
@@ -468,8 +485,8 @@ describe("family lifecycle", () => {
   });
 
   test("notes with the same content, their keys in another order, are not an edit", () => {
-    hydrate(store, [{ ...saved(1), notes: [paragraph("First edition.")] }]);
-    setNotes(store, 1, [
+    hydrate(store, [{ ...saved(1), notesEn: [paragraph("First edition.")] }]);
+    setNotes(store, 1, "en", [
       { children: [{ text: "First edition." }], type: "paragraph" },
     ]);
 
@@ -482,8 +499,8 @@ describe("family lifecycle", () => {
 
   test("no notes and null notes are not an edit, and other notes are", () => {
     hydrate(store, [saved(1), saved(2)]);
-    setNotes(store, 1, null);
-    setNotes(store, 2, [paragraph("New notes.")]);
+    setNotes(store, 1, "pt", null);
+    setNotes(store, 2, "pt", [paragraph("Notas novas.")]);
 
     hydrate(store, [
       saved(1, "As someone else saved it"),
@@ -622,7 +639,7 @@ describe("look-alikes", () => {
 
   test("stands when a field the check does not read is edited", () => {
     measured();
-    setSources(store, 1, ["A source"]);
+    setSources(store, 1, [source("Uma fonte")]);
 
     expect(store.get(resemblanceFamily(1))).toEqual(RESEMBLES);
   });

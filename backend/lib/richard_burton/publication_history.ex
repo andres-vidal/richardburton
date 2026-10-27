@@ -64,7 +64,13 @@ defmodule RichardBurton.Publication.History do
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.History
+  alias RichardBurton.Publication.History.Snapshot
   alias RichardBurton.Repo
+
+  # The fields of a flat publication that a snapshot leaves out: the texts of
+  # the sources in each language, which the index reads and the sources
+  # already hold.
+  @unsnapshotted [:sources_pt, :sources_en]
 
   # The actions of the duplicate reviewer's decisions. See the module doc.
   @decisions ["distinguished", "reconsidered"]
@@ -100,7 +106,7 @@ defmodule RichardBurton.Publication.History do
     field(:publication_id, :integer)
     field(:version, :integer)
     field(:action, :string)
-    field(:snapshot, :map)
+    field(:snapshot, Snapshot)
     field(:actor, :string)
 
     # The other publications this entry is about, as a map from each one's id
@@ -108,7 +114,7 @@ defmodule RichardBurton.Publication.History do
     # back, or a decision is about. Nil on every other entry when it is
     # stored. `of/1` and `all/0` fill it on a rename's entry with the other
     # publications of its rename.
-    field(:others, :map)
+    field(:others, {:map, Snapshot})
 
     # The id that the entries of one rename share. Nil on the entries of every
     # other action.
@@ -380,9 +386,11 @@ defmodule RichardBurton.Publication.History do
   An update, a rename, a merge and an un-merge get a diff, which compares the
   entry's snapshot with the snapshot of the next older entry in its own
   stream. It holds `fields`, each changed field with its value `from` before
-  and `to` after, and `sources`, the sources added and removed, or nil when
-  the sources did not change. Every other entry, and the oldest entry of a
-  stream, gets a nil diff.
+  and `to` after, and `sources`, the sources added and removed, each a flat
+  source (see `RichardBurton.Source`), or nil when the sources did not
+  change. A source whose text changed in one language is one source removed
+  and one added. Every other entry, and the oldest entry of a stream, gets a
+  nil diff.
 
   An entry is undoable when `undoable?/3` says so, and never while its
   publication is absorbed, because only undoing the merge gives that
@@ -627,8 +635,9 @@ defmodule RichardBurton.Publication.History do
   @doc """
   Returns the snapshot a history entry stores for `publication`: the flat
   fields `RichardBurton.Publication.Codec.flatten/1` returns for it, with
-  atom keys and each set of names sorted. The publication's associations must
-  be loaded.
+  atom keys and each set of names sorted, without `sources_pt` and
+  `sources_en`. The publication's associations must be loaded. A snapshot read
+  back from the log is in the shape `History.Snapshot` describes.
 
   Two snapshots are equal when the publication holds the same values, which a
   changeset cannot tell, because it replaces the sources on every save.
@@ -658,7 +667,7 @@ defmodule RichardBurton.Publication.History do
     publication
     |> Codec.flatten()
     |> Map.from_struct()
-    |> Map.delete(:__meta__)
+    |> Map.drop([:__meta__ | @unsnapshotted])
     |> Map.new(fn {field, value} ->
       {field, if(to_string(field) in @sets, do: sorted(value), else: value)}
     end)
