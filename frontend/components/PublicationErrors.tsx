@@ -9,7 +9,7 @@ import {
   useVisiblePublication,
 } from "modules/publication/hooks";
 import { ATTRIBUTES } from "modules/publication/model";
-import type { PublicationId, PublicationKey } from "modules/publication/model";
+import type { ErrorScope, PublicationId } from "modules/publication/model";
 import { setFocusedRowId } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import { useTranslations } from "next-intl";
@@ -22,17 +22,33 @@ type Props = {
   onClose: () => void;
 };
 
-/** One field that was refused, and why. */
-const FieldError: FC<{ id: PublicationId; field: PublicationKey }> = ({
+/**
+ * The fields an error can name, in the order the table shows them: the
+ * attributes, then the sources, then the notes in each language.
+ */
+const FIELDS: ErrorScope[] = [...ATTRIBUTES, "sources", "notesPt", "notesEn"];
+
+/**
+ * One field that was refused, and why. The field is named by its attribute's
+ * name, or, for the notes, by the name of the notes in its language.
+ */
+const FieldError: FC<{ id: PublicationId; field: ErrorScope }> = ({
   id,
   field,
 }) => {
   const attribute = useTranslations("attributes");
+  const notes = useTranslations("notes");
   const message = usePublicationFieldError(id, field);
 
   return (
     <>
-      <dt className="text-gray-600">{attribute(field)}</dt>
+      <dt className="text-gray-600">
+        {field === "notesPt"
+          ? notes("field", { language: "pt" })
+          : field === "notesEn"
+            ? notes("field", { language: "en" })
+            : attribute(field)}
+      </dt>
       <dd className="text-red-800">{message}</dd>
     </>
   );
@@ -59,7 +75,7 @@ const RowErrors: FC<{
   // the server happened to answer in.
   const fields =
     error !== null && typeof error === "object"
-      ? ATTRIBUTES.filter((attribute) => error[attribute])
+      ? FIELDS.filter((field) => error[field])
       : [];
 
   return (

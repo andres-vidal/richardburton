@@ -11,16 +11,20 @@ import {
   ATTRIBUTES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   ErrorScope,
+  type Language,
   Matched,
+  NOTES_KEYS,
   Publication,
   PublicationEntry,
   PublicationError,
   PublicationId,
   PublicationKey,
   Resemblance,
+  type Source,
   errorCode,
   empty,
   idFromText,
+  sourceOf,
 } from "./model";
 
 /**
@@ -597,17 +601,23 @@ const hiddenAttributesAtom = atom((get) =>
  * A row's sources, including unsaved edits, or an empty list when it has none.
  */
 const publicationSourcesFamily = atomFamily((id: PublicationId) =>
-  atom<string[]>((get) => get(publicationFamily(id))?.sources ?? []),
+  atom<Source[]>((get) => get(publicationFamily(id))?.sources ?? []),
 );
 
 /**
- * A row's notes as a rich-text value, including unsaved edits, or null when it
- * has none or its record was read from a page of the index.
+ * A row's notes in each language as a rich-text value, including unsaved
+ * edits, or null in a language it has none in or when its record was read
+ * from a page of the index.
  */
 const publicationNotesFamily = atomFamily((id: PublicationId) =>
-  atom<RichTextValue | null>(
-    (get) => get(publicationFamily(id))?.notes ?? null,
-  ),
+  atom<Record<Language, RichTextValue | null>>((get) => {
+    const publication = get(publicationFamily(id));
+
+    return {
+      pt: publication?.notesPt ?? null,
+      en: publication?.notesEn ?? null,
+    };
+  }),
 );
 
 /**
@@ -626,7 +636,7 @@ const publicationExcerptsFamily = atomFamily((id: PublicationId) =>
  * it has none.
  */
 const storedSourcesFamily = atomFamily((id: PublicationId) =>
-  atom<string[]>((get) => get(savedFamily(id))?.sources ?? []),
+  atom<Source[]>((get) => get(savedFamily(id))?.sources ?? []),
 );
 
 /**
@@ -677,7 +687,7 @@ const errorCodeFamily = atomFamily((id: PublicationId) =>
 
 /**
  * Which cell an atom belongs to: the publication, and the field of it, an
- * attribute or the notes.
+ * attribute, the notes in one language or the sources.
  */
 type FieldKey = { id: PublicationId; key: ErrorScope };
 
@@ -731,8 +741,8 @@ const fieldValueFamily = cellFamily(({ id, key }) =>
 );
 
 /**
- * The code of what is wrong with a single cell's field, an attribute or the
- * notes (see `errorCode`).
+ * The code of what is wrong with a single cell's field, an attribute, the
+ * notes in one language or the sources (see `errorCode`).
  */
 const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
   atom((get) => errorCode(get(rowErrorFamily(id)), key)),
@@ -834,17 +844,22 @@ function step<T>(store: Store, change: (doc: Y.Doc) => T): T {
 }
 
 /** The fields a person can edit. `isEdited` compares only these. */
-const EDITED_FIELDS = [...ATTRIBUTES, "sources", "notes"] as const;
+const EDITED_FIELDS = [...ATTRIBUTES, "sources", "notesPt", "notesEn"] as const;
 
 /**
  * Returns the values of a publication's editable fields, in the order of
  * `EDITED_FIELDS`. A field the publication does not hold, such as the notes of
- * a record read from a page of the index, is null.
+ * a record read from a page of the index, is null. Each source is read with
+ * `sourceOf`, which lists its languages in one order, so a source whose keys
+ * the API wrote in another order has the same values.
  */
 function editedValues(publication: Publication): unknown[] {
   const complete = { ...empty(), ...publication };
+  const sources = complete.sources.map(sourceOf);
 
-  return EDITED_FIELDS.map((field) => complete[field] ?? null);
+  return EDITED_FIELDS.map((field) =>
+    field === "sources" ? sources : (complete[field] ?? null),
+  );
 }
 
 /**
@@ -1101,17 +1116,21 @@ function setField<K extends PublicationKey>(
  * Edits a row's sources, which are edited as one list rather than one cell at
  * a time.
  */
-function setSources(store: Store, id: PublicationId, sources: string[]): void {
+function setSources(store: Store, id: PublicationId, sources: Source[]): void {
   writeRow(store, id, { sources });
 }
 
-/** Edits a row's notes: a rich-text value, or null for none. */
+/**
+ * Edits a row's notes in `language`: a rich-text value, or null for none. The
+ * notes in the other language stay as they are.
+ */
 function setNotes(
   store: Store,
   id: PublicationId,
+  language: Language,
   notes: RichTextValue | null,
 ): void {
-  writeRow(store, id, { notes });
+  writeRow(store, id, { [NOTES_KEYS[language]]: notes });
 }
 
 /**

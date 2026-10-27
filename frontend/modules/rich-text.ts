@@ -230,6 +230,32 @@ function isBlank(value: RichTextValue | null | undefined): boolean {
   return !hasText(readValue(value));
 }
 
+/**
+ * Returns the text of each block of `value`, in order, with its line breaks.
+ * The text of a link is the text it shows. Returns an empty list for null.
+ */
+function blockTexts(value: RichTextValue | null | undefined): string[] {
+  return readValue(value).map(textIn);
+}
+
+/**
+ * Returns `value` with the text of each block replaced by the text at the same
+ * position in `texts`, for a translation of the value made block by block.
+ * Each block keeps its type, and a list item its kind and depth. The new text
+ * is plain: it carries no bold or italic, and its only links are its bare
+ * URLs, which `linkBareUrls` makes links that show the URL. A block with no
+ * text at its position in `texts` is left empty.
+ */
+function withBlockTexts(
+  value: RichTextValue | null | undefined,
+  texts: string[],
+): RichTextValue {
+  return readValue(value).map((block, index) => ({
+    ...block,
+    children: withARun(linkBareUrls([{ text: texts[index] ?? "" }])),
+  }));
+}
+
 /** Splits text into graphemes, the characters a reader sees. */
 const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
@@ -451,6 +477,7 @@ function markedParagraph(text: string): RichTextValue {
 export {
   MAX_DEPTH,
   bareUrl,
+  blockTexts,
   emptyValue,
   isBlank,
   isLink,
@@ -463,6 +490,7 @@ export {
   readValue,
   safeUrl,
   textLength,
+  withBlockTexts,
 };
 export type {
   LinkElement,

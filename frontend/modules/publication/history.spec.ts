@@ -1,3 +1,4 @@
+import { source } from "test/publication-fixtures";
 import { paragraph } from "test/rich-text-fixtures";
 import type { FullHistoryEntry, SnapshotDiff } from "./model";
 import {
@@ -73,26 +74,33 @@ describe("presentChanges", () => {
   test("sources come last, as the one change that is a list", () => {
     const kinds = presentChanges({
       fields: { title: { from: "A", to: "B" } },
-      sources: { added: ["x"], removed: [], reordered: false },
+      sources: { added: [source("x")], removed: [], reordered: false },
     }).map((change) => change.kind);
 
     expect(kinds).toEqual(["field", "sources"]);
   });
 
-  test("gives the notes before and after, after the sources", () => {
+  test("gives the notes in each language before and after, after the sources, Portuguese first", () => {
     const note = [paragraph({ text: "New", bold: true }, " note")];
+    const nota = [paragraph("Nota")];
 
     expect(
       presentChanges({
         fields: {
-          notes: { from: null, to: note },
+          notesEn: { from: null, to: note },
           title: { from: "A", to: "B" },
+          notesPt: { from: nota, to: null },
         },
-        sources: { added: ["x"], removed: [], reordered: false },
+        sources: { added: [source("x")], removed: [], reordered: false },
       }).map(({ kind, ...change }) =>
         kind === "notes" ? { kind, ...change } : kind,
       ),
-    ).toEqual(["field", "sources", { kind: "notes", from: null, to: note }]);
+    ).toEqual([
+      "field",
+      "sources",
+      { kind: "notes", language: "pt", from: nota, to: null },
+      { kind: "notes", language: "en", from: null, to: note },
+    ]);
   });
 
   test("nothing to diff renders nothing", () => {
@@ -184,8 +192,11 @@ describe("presentAbsorbed", () => {
       absorbing("merged", [
         {
           id: 9,
-          ...snapshot({ sources: ["Sousa, J. Bibliografia, 1955."] }),
-          notes: [paragraph("A ", { text: "rare", italic: true }, " copy.")],
+          ...snapshot({ sources: [source("Sousa, J. Bibliografia, 1955.")] }),
+          notesPt: [
+            paragraph("Um exemplar ", { text: "raro", italic: true }, "."),
+          ],
+          notesEn: [paragraph("A ", { text: "rare", italic: true }, " copy.")],
         },
         { id: 10, ...snapshot() },
       ]),
@@ -194,11 +205,22 @@ describe("presentAbsorbed", () => {
     if (change.kind !== "absorbed")
       throw new Error("expected an absorbed change");
     expect(change.records[0].sources).toEqual([
-      "Sousa, J. Bibliografia, 1955.",
+      source("Sousa, J. Bibliografia, 1955."),
     ]);
     expect(change.records.map((record) => record.notes)).toEqual([
-      [paragraph("A ", { text: "rare", italic: true }, " copy.")],
-      null,
+      [
+        {
+          language: "pt",
+          value: [
+            paragraph("Um exemplar ", { text: "raro", italic: true }, "."),
+          ],
+        },
+        {
+          language: "en",
+          value: [paragraph("A ", { text: "rare", italic: true }, " copy.")],
+        },
+      ],
+      [],
     ]);
   });
 });

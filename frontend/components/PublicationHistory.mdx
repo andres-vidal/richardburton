@@ -109,8 +109,11 @@ field and has no undo here: it is taken back in the duplicate review.
 
 A change to the notes lists them before and after, each rendered with
 [`RichText`](?path=/docs/components-rich-text--docs), and "(none)" for a side
-that had none. A merge lists the notes of each record it took in with the rest
-of that record.
+that had none. The notes in Portuguese and in English are listed apart, each
+under a label that names its language. A merge lists the notes of each record
+it took in, in each language it had notes in, with the rest of that record.
+A source is listed with its text in each language it has one in, joined by a
+slash.
 
 <Description of={PublicationHistoryStories.Notes} />
 

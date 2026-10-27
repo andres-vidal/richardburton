@@ -61,8 +61,12 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "records whose notes differ are put together all the same" do
-      publication_fixture(%{notes: paragraphs("Bought in 1953.")})
-      publication_fixture(%{title: "Dom Casmuro", notes: paragraphs("A note of another kind.")})
+      publication_fixture(%{notes_pt: paragraphs("Bought in 1953.")})
+
+      publication_fixture(%{
+        title: "Dom Casmuro",
+        notes_pt: paragraphs("A note of another kind.")
+      })
 
       assert [["Dom Casmuro", "Dom Casmurro"]] = titles(Duplicates.clusters())
     end
@@ -405,12 +409,12 @@ defmodule RichardBurton.Publication.DuplicatesTest do
     end
 
     test "notes play no part in a resemblance or a repeat" do
-      stored = publication_fixture(%{notes: paragraphs("Bought in 1953.")})
+      stored = publication_fixture(%{notes_pt: paragraphs("Bought in 1953.")})
 
       assert [%{position: 0, stored: [found]}, %{position: 1, repeats: 0}] =
                Duplicates.resemblances([
-                 row(%{"title" => "Dom Casmuro", "notes" => paragraphs("Another note.")}),
-                 row(%{"title" => "Dom Casmuro", "notes" => paragraphs("A third note.")})
+                 row(%{"title" => "Dom Casmuro", "notes_en" => paragraphs("Another note.")}),
+                 row(%{"title" => "Dom Casmuro", "notes_en" => paragraphs("A third note.")})
                ])
 
       assert found.id == stored.id

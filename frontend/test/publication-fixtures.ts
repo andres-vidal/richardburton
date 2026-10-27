@@ -12,6 +12,7 @@ import {
   empty,
   type FollowedPublication,
   type PublicationEntry,
+  type Source,
 } from "modules/publication/model";
 import type { PresenceList } from "modules/publication/document-live";
 import type { At } from "modules/publication/presence";
@@ -27,6 +28,14 @@ import {
 } from "modules/publication/store";
 
 type SeedEntry = Partial<Publication> & { errors?: PublicationError };
+
+/**
+ * Returns a source with `pt` as its Portuguese text and `en` as its English
+ * one. `en` defaults to none.
+ */
+function source(pt: string | null, en: string | null = null): Source {
+  return { pt, en };
+}
 
 /**
  * Returns `errors` as a row's field errors, which name only the invalid
@@ -304,6 +313,7 @@ export {
   sampleManyPublications,
   seed,
   seedIndex,
+  source,
   FIRST_DOM_CASMURRO,
   LONDON_DOM_CASMURRO,
   LOOK_ALIKE_IDS,

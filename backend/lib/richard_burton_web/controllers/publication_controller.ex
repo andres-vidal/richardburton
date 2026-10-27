@@ -11,9 +11,11 @@ defmodule RichardBurtonWeb.PublicationController do
 
   A publication read from the index, such as a row of a listing, a publication
   in a duplicate cluster, or a stored publication that a row resembles, has no
-  `notes` key (see `RichardBurton.FlatPublication`). A publication that
-  `show/2`, `index_deleted/2` or a write responds with holds its notes, or
-  `null` when it has none.
+  `notes_pt` or `notes_en` key (see `RichardBurton.FlatPublication`). A
+  publication that `show/2`, `index_deleted/2` or a write responds with holds
+  its notes in each language, or `null` for a language it has none in. Every
+  publication's `sources` are flat sources, `{"pt": text, "en": text}` (see
+  `RichardBurton.Source`).
 
   A path id that is not a whole number is a 404, as `RichardBurtonWeb.Params.id/1`
   says. A write that would give a publication the composite key of another is a
@@ -280,19 +282,21 @@ defmodule RichardBurtonWeb.PublicationController do
   and responds with the merged publication, flattened. See
   `Publication.merge/4`.
 
-  When the body holds `notes`, they become the merged publication's notes.
-  They are validated as the notes of an update are, and `null` or blank notes
-  leave the merged publication without notes. Without `notes`, the merged
-  notes are the winner's followed by the losers', as `Publication.merge/4`
-  describes.
+  When the body holds `notes_pt`, they become the merged publication's
+  Portuguese notes. They are validated as the notes of an update are, and
+  `null` or blank notes leave the merged publication without Portuguese notes.
+  Without `notes_pt`, the merged Portuguese notes are the winner's followed by
+  the losers', as `Publication.merge/4` describes. `notes_en` works the same
+  way for the English notes.
 
   Merging a publication into itself, or naming no losers, is a 400, rather
   than the 409 that `self` is elsewhere. A merged publication with the
   composite key of another publication is a 409 with `error: "conflict"`. A
   merged publication that is invalid is a 400 with its `errors`. They are
-  `{notes: "malformed"}` for notes that are not rich text, and
-  `{notes: "too_long"}` for notes whose text is longer than 10,000
-  characters, whether the body gave them or the merge joined them.
+  `{notes_pt: "malformed"}` for Portuguese notes that are not rich text, and
+  `{notes_pt: "too_long"}` for Portuguese notes whose text is longer than
+  10,000 characters, whether the body gave them or the merge joined them, and
+  the same under `notes_en` for the English notes.
   """
   def merge(conn, params = %{"id" => id, "losers" => losers}) when is_list(losers) do
     with {:ok, id} <- Params.id(id),
@@ -307,10 +311,13 @@ defmodule RichardBurtonWeb.PublicationController do
   def merge(_conn, _params), do: {:error, :losers_required}
 
   # Returns the options of `Publication.merge/4` that the merge `params` give:
-  # `[notes: value]` when they hold a `notes` key, even one whose value is nil,
-  # and `[]` when they do not.
-  defp merge_opts(%{"notes" => notes}), do: [notes: notes]
-  defp merge_opts(_params), do: []
+  # `notes_pt:` when they hold a `notes_pt` key, even one whose value is nil,
+  # and `notes_en:` when they hold a `notes_en` key.
+  defp merge_opts(params) do
+    for field <- [:notes_pt, :notes_en],
+        {:ok, notes} <- [Map.fetch(params, to_string(field))],
+        do: {field, notes}
+  end
 
   @doc "Deletes the publication `id`. See `Publication.delete/2`."
   def delete(conn, %{"id" => id}) do
@@ -326,10 +333,12 @@ defmodule RichardBurtonWeb.PublicationController do
   rename is one entry (see `Publication.History.all/0`).
 
   Each entry's `snapshot` holds the publication's fields after the change,
-  except its notes. A change to the notes is in the entry's `diff`. The
-  snapshots in `others` are whole. `name_change` holds the name change of a
-  rename's entry (see `Publication.History`), and is null on the entries of
-  every other action.
+  except its notes. A change to the notes in a language is in the entry's
+  `diff`, under `notes_pt` or `notes_en`. The snapshots in `others` are whole.
+  `name_change` holds the name change of a rename's entry (see
+  `Publication.History`), and is null on the entries of every other action.
+  Every snapshot is in the current flat shape, however old the entry (see
+  `Publication.History.Snapshot`).
   """
   def history(conn, %{"id" => id}) do
     with {:ok, id} <- Params.id(id) do
@@ -404,17 +413,17 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   # Returns a history entry as a map for a response: the entry's own fields,
-  # with its snapshot without the `"notes"` key, its name change, and `others`,
-  # the other publications the entry is about: the ones a merge took in, an
-  # undone merge gave back, a duplicate decision is about, or the same rename
-  # changed. See `Publication.History.other_records/1`.
+  # with its snapshot without the `"notes_pt"` and `"notes_en"` keys, its name
+  # change, and `others`, the other publications the entry is about: the ones a
+  # merge took in, an undone merge gave back, a duplicate decision is about, or
+  # the same rename changed. See `Publication.History.other_records/1`.
   defp serialize_history(entry) do
     %{
       publication_id: entry.publication_id,
       version: entry.version,
       action: entry.action,
       actor: entry.actor,
-      snapshot: Map.delete(entry.snapshot, "notes"),
+      snapshot: Map.drop(entry.snapshot, ["notes_pt", "notes_en"]),
       diff: entry.diff,
       undoable: entry.undoable,
       name_change: entry.name_change,
@@ -459,7 +468,16 @@ defmodule RichardBurtonWeb.PublicationController do
     |> Enum.zip_with(publications, &reported/2)
   end
 
-  # Returns a validation result as a map with the publication it is for.
-  defp reported(:ok, publication), do: %{publication: publication, errors: nil}
-  defp reported({:error, errors}, publication), do: %{publication: publication, errors: errors}
+  # Returns a validation result as a map with the publication it is for,
+  # without the key that marks misaligned sources, which the errors report.
+  defp reported(result, publication) do
+    %{
+      publication: Map.delete(publication, Publication.Codec.misaligned_sources()),
+      errors: errors_of(result)
+    }
+  end
+
+  # Returns the errors of a validation result, or nil when it is valid.
+  defp errors_of(:ok), do: nil
+  defp errors_of({:error, errors}), do: errors
 end

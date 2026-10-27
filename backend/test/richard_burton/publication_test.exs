@@ -121,7 +121,7 @@ defmodule RichardBurton.PublicationTest do
     end
   end
 
-  describe "notes" do
+  describe "notes_pt" do
     @notes [
       paragraph([
         run("A note in "),
@@ -135,27 +135,27 @@ defmodule RichardBurton.PublicationTest do
     ]
 
     test "are stored as written, and the flat view does not hold them" do
-      publication = publication_fixture(%{notes: @notes})
+      publication = publication_fixture(%{notes_pt: @notes})
 
-      assert Publication.find(publication.id).notes == @notes
-      assert [%FlatPublication{notes: nil}] = Repo.all(FlatPublication)
+      assert Publication.find(publication.id).notes_pt == @notes
+      assert [%FlatPublication{notes_pt: nil}] = Repo.all(FlatPublication)
     end
 
     test "a blank value is stored as nil" do
-      publication = publication_fixture(%{notes: @notes})
+      publication = publication_fixture(%{notes_pt: @notes})
       blank = paragraphs(["  \n ", ""])
 
       assert {:ok, updated} =
-               Publication.update(publication.id, publication_attrs(%{notes: blank}))
+               Publication.update(publication.id, publication_attrs(%{notes_pt: blank}))
 
-      assert updated.notes == nil
-      assert Publication.find(publication.id).notes == nil
+      assert updated.notes_pt == nil
+      assert Publication.find(publication.id).notes_pt == nil
     end
 
     test "an empty list is stored as nil" do
-      publication = publication_fixture(%{notes: []})
+      publication = publication_fixture(%{notes_pt: []})
 
-      assert Publication.find(publication.id).notes == nil
+      assert Publication.find(publication.id).notes_pt == nil
     end
 
     test "a value of another shape is malformed" do
@@ -175,12 +175,13 @@ defmodule RichardBurton.PublicationTest do
               }
             ]
           ] do
-        assert %{notes: :malformed} == Validation.get_errors(change_valid(%{"notes" => notes}))
+        assert %{notes_pt: :malformed} ==
+                 Validation.get_errors(change_valid(%{"notes_pt" => notes}))
       end
     end
 
     test "an update without notes keeps the stored ones" do
-      publication = publication_fixture(%{notes: @notes})
+      publication = publication_fixture(%{notes_pt: @notes})
 
       assert {:ok, updated} =
                Publication.update(
@@ -188,7 +189,7 @@ defmodule RichardBurton.PublicationTest do
                  publication_attrs(%{title: "Dom Casmurro: A Novel"})
                )
 
-      assert updated.notes == @notes
+      assert updated.notes_pt == @notes
     end
 
     test "notes whose text is longer than 10,000 characters are too long" do
@@ -196,8 +197,10 @@ defmodule RichardBurton.PublicationTest do
       at_most = paragraphs([half <> "\n", half <> "a"])
       too_long = paragraphs([half <> "\n", half <> "aa"])
 
-      assert change_valid(%{"notes" => at_most}).valid?
-      assert %{notes: :too_long} == Validation.get_errors(change_valid(%{"notes" => too_long}))
+      assert change_valid(%{"notes_pt" => at_most}).valid?
+
+      assert %{notes_pt: :too_long} ==
+               Validation.get_errors(change_valid(%{"notes_pt" => too_long}))
     end
 
     test "the length counts the graphemes of the text, not its code points or the stored JSON" do
@@ -205,25 +208,25 @@ defmodule RichardBurton.PublicationTest do
 
       notes = [paragraph([run(text, %{"bold" => true, "italic" => true})])]
 
-      assert change_valid(%{"notes" => notes}).valid?
+      assert change_valid(%{"notes_pt" => notes}).valid?
     end
 
     test "are not part of the composite key" do
-      publication_fixture(%{notes: @notes})
+      publication_fixture(%{notes_pt: @notes})
 
       assert {:error, :conflict} ==
-               Publication.insert(publication_attrs(%{notes: paragraphs("Another note.")}))
+               Publication.insert(publication_attrs(%{notes_pt: paragraphs("Another note.")}))
     end
 
     test "a batch may hold rows with notes and rows without" do
       assert {:ok, [with_notes, without_notes]} =
                Publication.insert_all([
-                 publication_attrs(%{notes: @notes}),
+                 publication_attrs(%{notes_pt: @notes}),
                  publication_attrs(%{year: 1954})
                ])
 
-      assert with_notes.notes == @notes
-      assert without_notes.notes == nil
+      assert with_notes.notes_pt == @notes
+      assert without_notes.notes_pt == nil
     end
 
     test "a restore with changes can set them" do
@@ -234,10 +237,87 @@ defmodule RichardBurton.PublicationTest do
                Publication.restore(
                  publication.id,
                  History.system_actor(),
-                 publication_attrs(%{notes: @notes})
+                 publication_attrs(%{notes_pt: @notes})
                )
 
-      assert Publication.find(publication.id).notes == @notes
+      assert Publication.find(publication.id).notes_pt == @notes
+    end
+  end
+
+  describe "notes_en" do
+    @notes_en paragraphs(["First edition, in English."])
+    @notes_pt paragraphs(["Primeira edição, em inglês."])
+
+    test "are stored beside the Portuguese ones, and either may be missing" do
+      both = publication_fixture(%{notes_pt: @notes_pt, notes_en: @notes_en})
+      english = publication_fixture(%{year: 1954, notes_en: @notes_en})
+
+      assert %Publication{notes_pt: @notes_pt, notes_en: @notes_en} = Publication.find(both.id)
+      assert %Publication{notes_pt: nil, notes_en: @notes_en} = Publication.find(english.id)
+    end
+
+    test "an update of one language keeps the other" do
+      publication = publication_fixture(%{notes_pt: @notes_pt, notes_en: @notes_en})
+      rewritten = paragraphs(["Rewritten in English."])
+
+      assert {:ok, updated} =
+               Publication.update(publication.id, publication_attrs(%{notes_en: rewritten}))
+
+      assert %Publication{notes_pt: @notes_pt, notes_en: ^rewritten} = updated
+    end
+
+    test "each language has its own length limit and its own error" do
+      half = String.duplicate("a", 4_999)
+      at_most = paragraphs([half <> "\n", half <> "a"])
+      too_long = paragraphs([half <> "\n", half <> "aa"])
+
+      assert change_valid(%{"notes_pt" => at_most, "notes_en" => at_most}).valid?
+
+      assert %{notes_en: :too_long} ==
+               Validation.get_errors(change_valid(%{"notes_en" => too_long}))
+
+      assert %{notes_en: :malformed} ==
+               Validation.get_errors(change_valid(%{"notes_en" => "**Markdown**"}))
+    end
+  end
+
+  describe "sources in two languages" do
+    test "are stored with a text in each language, either of which may be missing" do
+      sources = [
+        %{"pt" => "Primeira fonte", "en" => "First source"},
+        %{"pt" => nil, "en" => "Second source"},
+        %{"pt" => "Terceira fonte", "en" => nil}
+      ]
+
+      publication = publication_fixture(%{sources: sources})
+
+      assert sources ==
+               publication.id
+               |> Publication.find()
+               |> Publication.Codec.flatten()
+               |> Map.get(:sources)
+
+      assert [{"Primeira fonte", "First source"}, {nil, "Second source"}, {"Terceira fonte", nil}] ==
+               Repo.all(
+                 from(s in Source, order_by: s.position, select: {s.content_pt, s.content_en})
+               )
+    end
+
+    test "the database refuses a source with text in neither language" do
+      publication = publication_fixture()
+
+      assert_raise Postgrex.Error, ~r/publication_sources_have_text/, fn ->
+        Repo.insert_all(Source, [
+          %{
+            publication_id: publication.id,
+            content_pt: " ",
+            content_en: nil,
+            position: 0,
+            inserted_at: NaiveDateTime.utc_now(:second),
+            updated_at: NaiveDateTime.utc_now(:second)
+          }
+        ])
+      end
     end
   end
 
@@ -416,15 +496,15 @@ defmodule RichardBurton.PublicationTest do
         Publication.update(
           publication.id,
           Map.put(publication_attrs(), "sources", [
-            %{"content" => "Second source", "position" => 1},
-            %{"content" => "First source", "position" => 0}
+            %{"content_pt" => "Second source", "position" => 1},
+            %{"content_pt" => "First source", "position" => 0}
           ])
         )
 
       # Read again, so the preload queries the sources and applies the
       # association's `preload_order`.
       reloaded = Repo.get(Publication, publication.id) |> Publication.preload()
-      assert ["First source", "Second source"] == Enum.map(reloaded.sources, & &1.content)
+      assert ["First source", "Second source"] == Enum.map(reloaded.sources, & &1.content_pt)
     end
 
     test "loads many sources in position order" do
@@ -434,7 +514,7 @@ defmodule RichardBurton.PublicationTest do
       # preload returns is not the order they were given in.
       sources =
         0..5
-        |> Enum.map(&%{"content" => "Source #{&1}", "position" => &1})
+        |> Enum.map(&%{"content_pt" => "Source #{&1}", "position" => &1})
         |> Enum.reverse()
 
       {:ok, _} =
@@ -442,7 +522,7 @@ defmodule RichardBurton.PublicationTest do
 
       reloaded = Repo.get(Publication, publication.id) |> Publication.preload()
 
-      assert Enum.map(0..5, &"Source #{&1}") == Enum.map(reloaded.sources, & &1.content)
+      assert Enum.map(0..5, &"Source #{&1}") == Enum.map(reloaded.sources, & &1.content_pt)
       assert 6 == length(reloaded.sources)
     end
 
@@ -458,7 +538,7 @@ defmodule RichardBurton.PublicationTest do
       # Unlike countries, publishers and authors, which are shared rows stored
       # once, a publication owns its sources, so the same content is stored as
       # two rows.
-      assert ["Same source", "Same source"] == Enum.map(updated.sources, & &1.content)
+      assert ["Same source", "Same source"] == Enum.map(updated.sources, & &1.content_pt)
       assert 2 == length(Repo.all(Source))
     end
 
@@ -470,8 +550,8 @@ defmodule RichardBurton.PublicationTest do
         Publication.update(publication.id, publication_attrs(%{sources: ["New source"]}))
 
       # Every previous row is deleted, leaving only the new one.
-      assert ["New source"] == Enum.map(updated.sources, & &1.content)
-      assert ["New source"] == Repo.all(Source) |> Enum.map(& &1.content)
+      assert ["New source"] == Enum.map(updated.sources, & &1.content_pt)
+      assert ["New source"] == Repo.all(Source) |> Enum.map(& &1.content_pt)
     end
 
     test "clears sources when given an empty list" do
@@ -488,7 +568,7 @@ defmodule RichardBurton.PublicationTest do
 
       {:ok, updated} = Publication.update(publication.id, publication_attrs())
 
-      assert ["A source"] == Enum.map(updated.sources, & &1.content)
+      assert ["A source"] == Enum.map(updated.sources, & &1.content_pt)
     end
   end
 
@@ -590,7 +670,7 @@ defmodule RichardBurton.PublicationTest do
       # Nothing is deleted with it: the shared rows and its own sources stay.
       assert countries == Repo.all(Country)
       assert translated_books == Repo.all(TranslatedBook)
-      assert ["A source"] == Repo.all(Source) |> Enum.map(& &1.content)
+      assert ["A source"] == Repo.all(Source) |> Enum.map(& &1.content_pt)
     end
 
     test "frees the composite key: the same record can be imported again" do
@@ -769,36 +849,41 @@ defmodule RichardBurton.PublicationTest do
                merged.publishers |> Enum.map(& &1.name) |> Enum.sort()
 
       assert ["A source", "Another source"] ==
-               merged.sources |> Enum.map(& &1.content) |> Enum.sort()
+               merged.sources |> Enum.map(& &1.content_pt) |> Enum.sort()
     end
 
     test "the losers' notes follow the winner's, in the order of the losers, each once" do
-      winner = publication_fixture(%{notes: paragraphs(["The winner's note.", "Its second."])})
-      first = publication_fixture(%{title: "Dom Casmurro: First", notes: paragraphs("First.")})
-      second = publication_fixture(%{title: "Dom Casmurro: Second", notes: paragraphs("Second.")})
+      winner = publication_fixture(%{notes_pt: paragraphs(["The winner's note.", "Its second."])})
+      first = publication_fixture(%{title: "Dom Casmurro: First", notes_pt: paragraphs("First.")})
+
+      second =
+        publication_fixture(%{title: "Dom Casmurro: Second", notes_pt: paragraphs("Second.")})
+
       none = publication_fixture(%{title: "Dom Casmurro: Without Notes"})
 
       same_as_winner =
-        publication_fixture(%{title: "Dom Casmurro: Same", notes: winner.notes})
+        publication_fixture(%{title: "Dom Casmurro: Same", notes_pt: winner.notes_pt})
 
       same_as_first =
-        publication_fixture(%{title: "Dom Casmurro: Again", notes: paragraphs("First.")})
+        publication_fixture(%{title: "Dom Casmurro: Again", notes_pt: paragraphs("First.")})
 
       losers = [second, none, same_as_winner, first, same_as_first]
 
       assert {:ok, merged} = Publication.merge(winner.id, Enum.map(losers, & &1.id))
 
-      assert merged.notes ==
+      assert merged.notes_pt ==
                paragraphs(["The winner's note.", "Its second.", "Second.", "First."])
     end
 
     test "when the winner has no notes, the merged notes are the losers'" do
       winner = publication_fixture()
-      first = publication_fixture(%{title: "Dom Casmurro: First", notes: paragraphs("First.")})
-      second = publication_fixture(%{title: "Dom Casmurro: Second", notes: paragraphs("Second.")})
+      first = publication_fixture(%{title: "Dom Casmurro: First", notes_pt: paragraphs("First.")})
+
+      second =
+        publication_fixture(%{title: "Dom Casmurro: Second", notes_pt: paragraphs("Second.")})
 
       assert {:ok, merged} = Publication.merge(winner.id, [first.id, second.id])
-      assert merged.notes == paragraphs(["First.", "Second."])
+      assert merged.notes_pt == paragraphs(["First.", "Second."])
     end
 
     test "when none of them has notes, the merged publication has none" do
@@ -806,140 +891,140 @@ defmodule RichardBurton.PublicationTest do
       loser = publication_fixture(%{title: "Dom Casmurro: Another Printing"})
 
       assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
-      assert merged.notes == nil
+      assert merged.notes_pt == nil
     end
 
     test "a merge whose joined notes are too long is refused, and changes nothing" do
-      winner = publication_fixture(%{notes: paragraphs(String.duplicate("a", 6_000))})
+      winner = publication_fixture(%{notes_pt: paragraphs(String.duplicate("a", 6_000))})
 
       loser =
         publication_fixture(%{
           title: "Dom Casmurro: Another Printing",
-          notes: paragraphs(String.duplicate("b", 5_000))
+          notes_pt: paragraphs(String.duplicate("b", 5_000))
         })
 
-      assert {:error, %{notes: :too_long}} == Publication.merge(winner.id, [loser.id])
-      assert Publication.find(winner.id).notes == winner.notes
-      assert Publication.find(loser.id).notes == loser.notes
+      assert {:error, %{notes_pt: :too_long}} == Publication.merge(winner.id, [loser.id])
+      assert Publication.find(winner.id).notes_pt == winner.notes_pt
+      assert Publication.find(loser.id).notes_pt == loser.notes_pt
     end
 
     test "undoing the merge gives the winner back its own notes" do
-      winner = publication_fixture(%{notes: paragraphs("The winner's note.")})
+      winner = publication_fixture(%{notes_pt: paragraphs("The winner's note.")})
 
       loser =
         publication_fixture(%{
           title: "Dom Casmurro: Another Printing",
-          notes: paragraphs("The loser's note.")
+          notes_pt: paragraphs("The loser's note.")
         })
 
       {:ok, _} = Publication.merge(winner.id, [loser.id])
       [merge | _] = History.of(winner.id)
 
       assert {:ok, reverted} = Publication.undo(winner.id, merge.version)
-      assert reverted.notes == paragraphs("The winner's note.")
-      assert Publication.find(loser.id).notes == paragraphs("The loser's note.")
+      assert reverted.notes_pt == paragraphs("The winner's note.")
+      assert Publication.find(loser.id).notes_pt == paragraphs("The loser's note.")
     end
 
-    test "the :notes option sets the merged notes, instead of joining theirs" do
-      winner = publication_fixture(%{notes: paragraphs("The winner's note.")})
+    test "the :notes_pt option sets the merged notes, instead of joining theirs" do
+      winner = publication_fixture(%{notes_pt: paragraphs("The winner's note.")})
 
       loser =
         publication_fixture(%{
           title: "Dom Casmurro: Another Printing",
-          notes: paragraphs("The loser's note.")
+          notes_pt: paragraphs("The loser's note.")
         })
 
       notes = paragraphs(["Rewritten.", "After the merge."])
 
       assert {:ok, merged} =
-               Publication.merge(winner.id, [loser.id], History.system_actor(), notes: notes)
+               Publication.merge(winner.id, [loser.id], History.system_actor(), notes_pt: notes)
 
-      assert merged.notes == notes
-      assert Publication.find(winner.id).notes == notes
+      assert merged.notes_pt == notes
+      assert Publication.find(winner.id).notes_pt == notes
     end
 
-    test "the :notes option set to nil or to blank notes leaves the winner without notes" do
+    test "the :notes_pt option set to nil or to blank notes leaves the winner without notes" do
       for {notes, n} <- Enum.with_index([nil, paragraphs(" "), []]) do
         winner =
           publication_fixture(%{
             title: "Dom Casmurro #{n}",
-            notes: paragraphs("The winner's note.")
+            notes_pt: paragraphs("The winner's note.")
           })
 
         loser =
           publication_fixture(%{
             title: "Dom Casmurro #{n}: Another Printing",
-            notes: paragraphs("The loser's note.")
+            notes_pt: paragraphs("The loser's note.")
           })
 
         assert {:ok, merged} =
-                 Publication.merge(winner.id, [loser.id], History.system_actor(), notes: notes)
+                 Publication.merge(winner.id, [loser.id], History.system_actor(), notes_pt: notes)
 
-        assert merged.notes == nil
+        assert merged.notes_pt == nil
       end
     end
 
-    test "the :notes option is refused when too long or not rich text, and changes nothing" do
-      winner = publication_fixture(%{notes: paragraphs("The winner's note.")})
+    test "the :notes_pt option is refused when too long or not rich text, and changes nothing" do
+      winner = publication_fixture(%{notes_pt: paragraphs("The winner's note.")})
 
       loser =
         publication_fixture(%{
           title: "Dom Casmurro: Another Printing",
-          notes: paragraphs("The loser's note.")
+          notes_pt: paragraphs("The loser's note.")
         })
 
       entries = History.of(winner.id)
-      merge = &Publication.merge(winner.id, [loser.id], History.system_actor(), notes: &1)
+      merge = &Publication.merge(winner.id, [loser.id], History.system_actor(), notes_pt: &1)
 
-      assert {:error, %{notes: :too_long}} == merge.(paragraphs(String.duplicate("a", 10_001)))
-      assert {:error, %{notes: :malformed}} == merge.("A note written as **Markdown**")
-      assert {:error, %{notes: :malformed}} == merge.([%{"type" => "heading"}])
+      assert {:error, %{notes_pt: :too_long}} == merge.(paragraphs(String.duplicate("a", 10_001)))
+      assert {:error, %{notes_pt: :malformed}} == merge.("A note written as **Markdown**")
+      assert {:error, %{notes_pt: :malformed}} == merge.([%{"type" => "heading"}])
 
-      assert Publication.find(winner.id).notes == winner.notes
-      assert Publication.find(loser.id).notes == loser.notes
+      assert Publication.find(winner.id).notes_pt == winner.notes_pt
+      assert Publication.find(loser.id).notes_pt == loser.notes_pt
       assert History.of(winner.id) == entries
     end
 
     test "undoing a merge given notes gives the winner back its own notes" do
-      winner = publication_fixture(%{notes: paragraphs("The winner's note.")})
+      winner = publication_fixture(%{notes_pt: paragraphs("The winner's note.")})
 
       loser =
         publication_fixture(%{
           title: "Dom Casmurro: Another Printing",
-          notes: paragraphs("The loser's note.")
+          notes_pt: paragraphs("The loser's note.")
         })
 
       {:ok, _} =
         Publication.merge(winner.id, [loser.id], History.system_actor(),
-          notes: paragraphs("Rewritten.")
+          notes_pt: paragraphs("Rewritten.")
         )
 
       [merge | _] = History.of(winner.id)
 
       assert {:ok, reverted} = Publication.undo(winner.id, merge.version)
-      assert reverted.notes == paragraphs("The winner's note.")
-      assert Publication.find(winner.id).notes == paragraphs("The winner's note.")
-      assert Publication.find(loser.id).notes == paragraphs("The loser's note.")
+      assert reverted.notes_pt == paragraphs("The winner's note.")
+      assert Publication.find(winner.id).notes_pt == paragraphs("The winner's note.")
+      assert Publication.find(loser.id).notes_pt == paragraphs("The loser's note.")
     end
 
     test "undoing the un-merge of a merge given notes gives the winner those notes again" do
-      winner = publication_fixture(%{notes: paragraphs("The winner's note.")})
+      winner = publication_fixture(%{notes_pt: paragraphs("The winner's note.")})
 
       loser =
         publication_fixture(%{
           title: "Dom Casmurro: Another Printing",
-          notes: paragraphs("The loser's note.")
+          notes_pt: paragraphs("The loser's note.")
         })
 
       notes = paragraphs("Rewritten.")
-      {:ok, _} = Publication.merge(winner.id, [loser.id], History.system_actor(), notes: notes)
+      {:ok, _} = Publication.merge(winner.id, [loser.id], History.system_actor(), notes_pt: notes)
       [merge | _] = History.of(winner.id)
       {:ok, _} = Publication.undo(winner.id, merge.version)
       [unmerge | _] = History.of(winner.id)
 
       assert {:ok, merged} = Publication.undo(winner.id, unmerge.version)
-      assert merged.notes == notes
-      assert Publication.find(winner.id).notes == notes
+      assert merged.notes_pt == notes
+      assert Publication.find(winner.id).notes_pt == notes
       assert %Publication{deleted_at: %DateTime{}} = Repo.get(Publication, loser.id)
     end
 
@@ -947,7 +1032,7 @@ defmodule RichardBurton.PublicationTest do
       {winner, loser} = merge_pair()
 
       assert_raise FunctionClauseError, fn ->
-        Publication.merge(winner.id, [loser.id], notes: paragraphs("Rewritten."))
+        Publication.merge(winner.id, [loser.id], notes_pt: paragraphs("Rewritten."))
       end
 
       assert Publication.find(loser.id)
@@ -961,7 +1046,65 @@ defmodule RichardBurton.PublicationTest do
 
       assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
 
-      assert ["A source"] == Enum.map(merged.sources, & &1.content)
+      assert ["A source"] == Enum.map(merged.sources, & &1.content_pt)
+    end
+
+    test "a loser's source that agrees with a kept one in their common languages fills in the languages it lacks" do
+      winner =
+        publication_fixture(%{
+          sources: [%{"pt" => "Uma fonte", "en" => nil}, %{"pt" => nil, "en" => "Another"}]
+        })
+
+      loser =
+        publication_fixture(%{
+          title: "Dom Casmurro: Another Printing",
+          sources: [
+            %{"pt" => "Uma fonte", "en" => "A source"},
+            %{"pt" => "Outra", "en" => "Another"},
+            %{"pt" => "Uma fonte", "en" => "A different source"}
+          ]
+        })
+
+      assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
+
+      # The third source shares the Portuguese text of the first, now combined,
+      # but their English texts differ, so it is kept on its own.
+      assert [
+               %{"pt" => "Uma fonte", "en" => "A source"},
+               %{"pt" => "Outra", "en" => "Another"},
+               %{"pt" => "Uma fonte", "en" => "A different source"}
+             ] == merged |> Publication.Codec.flatten() |> Map.get(:sources)
+    end
+
+    test "the notes are joined in each language on its own, and an option sets only its language" do
+      winner =
+        publication_fixture(%{
+          notes_pt: paragraphs("Nota do vencedor."),
+          notes_en: paragraphs("The winner's note.")
+        })
+
+      loser =
+        publication_fixture(%{
+          title: "Dom Casmurro: Another Printing",
+          notes_pt: paragraphs("Nota do perdedor."),
+          notes_en: paragraphs("The loser's note.")
+        })
+
+      assert {:ok, merged} =
+               Publication.merge(winner.id, [loser.id], History.system_actor(),
+                 notes_en: paragraphs("Rewritten.")
+               )
+
+      assert merged.notes_pt == paragraphs(["Nota do vencedor.", "Nota do perdedor."])
+      assert merged.notes_en == paragraphs("Rewritten.")
+
+      [merge | _] = History.of(winner.id)
+      {:ok, _} = Publication.undo(winner.id, merge.version)
+      [unmerge | _] = History.of(winner.id)
+
+      assert {:ok, again} = Publication.undo(winner.id, unmerge.version)
+      assert again.notes_pt == paragraphs(["Nota do vencedor.", "Nota do perdedor."])
+      assert again.notes_en == paragraphs("Rewritten.")
     end
 
     test "the losers leave the database, and the winner stays in it" do

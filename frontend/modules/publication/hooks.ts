@@ -115,14 +115,17 @@ function usePublicationExcerpts(id: PublicationId) {
   return useAtomValue(publicationExcerptsFamily(id));
 }
 
-/** A row's sources, including unsaved edits. */
+/**
+ * A row's sources, including unsaved edits, each with its text in each
+ * language.
+ */
 function usePublicationSources(id: PublicationId) {
   return useAtomValue(publicationSourcesFamily(id));
 }
 
 /**
- * A row's notes as a rich-text value, including unsaved edits, or null for
- * none.
+ * A row's notes in each language as a rich-text value, including unsaved
+ * edits, or null in a language it has none in.
  */
 function usePublicationNotes(id: PublicationId) {
   return useAtomValue(publicationNotesFamily(id));
@@ -158,8 +161,8 @@ function usePublicationErrorDescription(id: PublicationId) {
 }
 
 /**
- * Returns what is wrong with one field of a row, an attribute or the notes, in
- * words.
+ * Returns what is wrong with one field of a row, an attribute, the notes in
+ * one language or the sources, in words.
  */
 function usePublicationFieldError(id: PublicationId, key: ErrorScope) {
   return useErrorSentence(useAtomValue(fieldErrorCodeFamily({ id, key })));

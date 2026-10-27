@@ -61,11 +61,30 @@ defmodule RichardBurton.FlatPublicationTest do
       refute change_valid(%{"title" => ""}).valid?
     end
 
-    test "when notes are blank, casts them as nil" do
-      changeset = change_valid(%{"notes" => paragraphs([" \n ", ""])})
+    test "when the notes in a language are blank, casts them as nil" do
+      blank = paragraphs([" \n ", ""])
+      changeset = change_valid(%{"notes_pt" => blank, "notes_en" => blank})
 
       assert changeset.valid?
-      assert Ecto.Changeset.get_field(changeset, :notes) == nil
+      assert Ecto.Changeset.get_field(changeset, :notes_pt) == nil
+      assert Ecto.Changeset.get_field(changeset, :notes_en) == nil
+    end
+
+    test "when the sources are flat sources, casts them, dropping the ones with no text" do
+      changeset =
+        change_valid(%{
+          "sources" => [%{"pt" => "Uma fonte", "en" => "A source"}, %{"pt" => "", "en" => nil}]
+        })
+
+      assert changeset.valid?
+
+      assert Ecto.Changeset.get_field(changeset, :sources) == [
+               %{"pt" => "Uma fonte", "en" => "A source"}
+             ]
+    end
+
+    test "when the attrs mark the sources as misaligned, reports it" do
+      refute change_valid(%{Publication.Codec.misaligned_sources() => true}).valid?
     end
 
     test "when title is nil, is invalid" do
@@ -169,24 +188,43 @@ defmodule RichardBurton.FlatPublicationTest do
       assert {:error, %{year: :integer}} = validate(Map.put(@valid_attrs, "year", "A"))
     end
 
-    test "when the text of the notes is longer than 10,000 characters, reports it as too long" do
+    test "when the text of the notes in a language is longer than 10,000 characters, reports it as too long" do
       at_most = paragraphs([String.duplicate("a", 5_000), String.duplicate("a", 5_000)])
       too_long = paragraphs([String.duplicate("a", 5_000), String.duplicate("a", 5_001)])
 
-      assert :ok == validate(Map.put(@valid_attrs, "notes", at_most))
-      assert {:error, %{notes: :too_long}} == validate(Map.put(@valid_attrs, "notes", too_long))
+      assert :ok ==
+               validate(Map.merge(@valid_attrs, %{"notes_pt" => at_most, "notes_en" => at_most}))
+
+      assert {:error, %{notes_pt: :too_long}} ==
+               validate(Map.put(@valid_attrs, "notes_pt", too_long))
+
+      assert {:error, %{notes_en: :too_long}} ==
+               validate(Map.put(@valid_attrs, "notes_en", too_long))
     end
 
-    test "when the notes are not rich text, reports them as malformed" do
-      assert {:error, %{notes: :malformed}} ==
-               validate(Map.put(@valid_attrs, "notes", "A note written as **Markdown**"))
+    test "when the notes in a language are not rich text, reports them as malformed" do
+      assert {:error, %{notes_pt: :malformed}} ==
+               validate(Map.put(@valid_attrs, "notes_pt", "A note written as **Markdown**"))
 
-      assert {:error, %{notes: :malformed}} ==
+      assert {:error, %{notes_en: :malformed}} ==
                validate(
-                 Map.put(@valid_attrs, "notes", [
+                 Map.put(@valid_attrs, "notes_en", [
                    %{"type" => "paragraph", "children" => [%{"text" => "A", "color" => "red"}]}
                  ])
                )
+    end
+
+    test "when the sources are not flat sources, reports them as malformed" do
+      assert {:error, %{sources: :malformed}} ==
+               validate(Map.put(@valid_attrs, "sources", [%{"pt" => 42}]))
+
+      assert {:error, %{sources: :malformed}} ==
+               validate(Map.put(@valid_attrs, "sources", "A source"))
+    end
+
+    test "when the attrs mark the sources as misaligned, reports them as misaligned" do
+      assert {:error, %{sources: :misaligned}} ==
+               validate(Map.put(@valid_attrs, Publication.Codec.misaligned_sources(), true))
     end
 
     test "generates results analog to those of Publication.insert/2 on valid attrs" do

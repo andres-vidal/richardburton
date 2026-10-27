@@ -54,7 +54,7 @@ async function writeNotes(page: Page, publisher: string, text: string) {
 
   await row.getByRole("button", { name: "Add notes" }).click();
   const editor = page.getByRole("dialog", { name: "Edit notes" });
-  await editor.getByRole("textbox", { name: "Notes" }).click();
+  await editor.getByRole("textbox", { name: "Notes in English" }).click();
   await page.keyboard.type(text);
   await page.keyboard.press("Escape");
   await expect(
@@ -143,7 +143,7 @@ test("an admin merges duplicate records into one; it keeps its place and gains w
   // The survivor has no notes of its own, so the dialog proposes the notes of
   // the two records it takes in, one paragraph each, in the order they were
   // picked.
-  const proposed = merge.getByRole("textbox", { name: "Notes" });
+  const proposed = merge.getByRole("textbox", { name: "Notes in English" });
   await expect(proposed.locator("p")).toHaveText([
     BRITISH_NOTES,
     BRAZILIAN_NOTES,

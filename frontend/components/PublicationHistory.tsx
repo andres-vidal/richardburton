@@ -3,7 +3,10 @@
 import { Link } from "i18n/navigation";
 import { useFormatDate } from "modules/dates";
 import type { RenameChange, WithChanges } from "modules/publication/history";
-import type { PublicationHistoryEntry } from "modules/publication/model";
+import {
+  sourceLine,
+  type PublicationHistoryEntry,
+} from "modules/publication/model";
 import { isBlank, type RichTextValue } from "modules/rich-text";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
@@ -123,10 +126,11 @@ const NotesOrNone: FC<{ notes: RichTextValue | null }> = ({ notes }) => {
  * and the `plain` variant does neither.
  *
  * What it changed is listed from `entry.changes`: a field's old and new value,
- * the sources added and removed, the notes before and after, rendered with
+ * the sources added and removed, each with its text in each language it has
+ * one in, the notes in each language before and after, rendered with
  * `RichText`, the records a merge took in or gave back, and the records a
- * duplicate decision was about. An update with no earlier
- * version to compare with says so. Blank notes are shown as none.
+ * duplicate decision was about. An update with no earlier version to compare
+ * with says so. Blank notes are shown as none.
  *
  * A rename's entry with a `RenameChange` reads as a change of the name, not
  * of the publication. The `card` variant heads it with the name before and
@@ -147,6 +151,7 @@ const Entry: FC<{
   variant?: Variant;
 }> = ({ entry, onUndo, variant = "card" }) => {
   const attribute = useTranslations("attributes");
+  const notes = useTranslations("notes");
   const t = useTranslations("admin");
   const formatDate = useFormatDate();
   const [undoing, setUndoing] = useState(false);
@@ -262,20 +267,29 @@ const Entry: FC<{
                 {change.reordered ? ` ${t("reordered")}` : null}
                 <ul className="space-y-0.5">
                   {change.removed.map((source) => (
-                    <li key={`− ${source}`} className="text-red-700">
-                      − <s>{source}</s>
+                    <li
+                      key={`− ${sourceLine(source)}`}
+                      className="text-red-700"
+                    >
+                      − <s>{sourceLine(source)}</s>
                     </li>
                   ))}
                   {change.added.map((source) => (
-                    <li key={`+ ${source}`} className="text-emerald-700">
-                      + {source}
+                    <li
+                      key={`+ ${sourceLine(source)}`}
+                      className="text-emerald-700"
+                    >
+                      + {sourceLine(source)}
                     </li>
                   ))}
                 </ul>
               </li>
             ) : change.kind === "notes" ? (
-              <li key="notes" className="text-xs text-gray-600">
-                {attribute("notes")}:
+              <li
+                key={`notes ${change.language}`}
+                className="text-xs text-gray-600"
+              >
+                {notes("field", { language: change.language })}:
                 <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 mt-0.5">
                   <span aria-hidden className="text-red-700">
                     −
@@ -354,16 +368,21 @@ const Entry: FC<{
                           </li>
                         ))}
                         {record.sources.map((source) => (
-                          <li key={source} className="text-gray-500">
-                            {t("sourceLabel", { source })}
+                          <li
+                            key={sourceLine(source)}
+                            className="text-gray-500"
+                          >
+                            {t("sourceLabel", { source: sourceLine(source) })}
                           </li>
                         ))}
-                        {!isBlank(record.notes) && (
-                          <li className="text-gray-500">
-                            {attribute("notes")}:
-                            <RichText value={record.notes} size="small" />
+                        {record.notes.map(({ language, value }) => (
+                          <li key={language} className="text-gray-500">
+                            {notes("field", { language })}:
+                            <div lang={language}>
+                              <RichText value={value} size="small" />
+                            </div>
                           </li>
-                        )}
+                        ))}
                       </ul>
                     </li>
                   ))}
