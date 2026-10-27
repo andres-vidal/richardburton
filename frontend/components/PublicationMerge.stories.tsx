@@ -14,6 +14,7 @@ import {
   within,
 } from "storybook/test";
 import { expectToFit, LONG_URL } from "test/layout";
+import { source } from "test/publication-fixtures";
 import { paragraph } from "test/rich-text-fixtures";
 import { editorOf, focusEditor } from "test/slate";
 
@@ -29,7 +30,7 @@ const DOM_CASMURRO: Publication = {
   year: "1953",
   countries: ["US"],
   publishers: ["Noonday Press"],
-  sources: ["Caldwell, Helen. Introduction, 1953."],
+  sources: [source(null, "Caldwell, Helen. Introduction, 1953.")],
 };
 
 // Two records of the same book, entered separately, as a search finds them,
@@ -41,12 +42,12 @@ const DUPLICATES: Publication[] = [
     id: 8,
     countries: ["GB"],
     publishers: ["W. H. Allen"],
-    sources: ["Gledson, John. Deceptive Realism, 1984."],
+    sources: [source(null, "Gledson, John. Deceptive Realism, 1984.")],
   },
   {
     ...DOM_CASMURRO,
     id: 9,
-    sources: ["Caldwell, Helen. Introduction, 1953."],
+    sources: [source(null, "Caldwell, Helen. Introduction, 1953.")],
   },
 ];
 
@@ -62,14 +63,15 @@ const BRITISH_NOTES: RichTextValue = [
 const SECOND_NOTES: RichTextValue = [paragraph("Stamped by the bookseller.")];
 
 /**
- * Returns a read of the duplicates in full that gives each the notes `notes`
- * holds under its id, and null notes when `notes` holds none.
+ * Returns a read of the duplicates in full that gives each the notes in
+ * English that `notes` holds under its id, and null notes when `notes` holds
+ * none.
  */
 const readWith =
   (notes: Partial<Record<number, RichTextValue>>) =>
   async (id: number): Promise<Publication> => ({
     ...DUPLICATES.find((duplicate) => duplicate.id === id)!,
-    notes: notes[id] ?? null,
+    notesEn: notes[id] ?? null,
   });
 
 /**
@@ -131,7 +133,8 @@ const addFirst = () =>
   userEvent.click(screen.getAllByRole("button", { name: "Add" })[0]);
 
 /** Returns the Notes field of the Result, once it is shown. */
-const notesField = () => screen.findByRole("textbox", { name: "Notes" });
+const notesField = () =>
+  screen.findByRole("textbox", { name: "Notes in English" });
 
 /** Nothing picked yet: the dialog names what survives and refuses to merge. */
 export const Default: Story = {
@@ -279,7 +282,8 @@ export const EditingNotes: Story = {
     await waitFor(() => expect(args.onMerged).toHaveBeenCalled());
     await expect(http.post).toHaveBeenCalledWith("publications/7/merge", {
       losers: [8, 9],
-      notes: edited,
+      notesPt: null,
+      notesEn: edited,
     });
   },
 };
@@ -294,7 +298,7 @@ export const NotesTooLong: Story = {
   args: {
     publication: {
       ...DOM_CASMURRO,
-      notes: [paragraph("A long note. ".repeat(769))],
+      notesEn: [paragraph("A long note. ".repeat(769))],
     },
     read: readWith({ 8: SECOND_NOTES }),
   },
@@ -335,7 +339,9 @@ export const WithoutNotes: Story = {
 
     const confirm = screen.getByRole("button", { name: "Merge publication" });
     await waitFor(() => expect(confirm).toBeEnabled());
-    await expect(screen.queryByRole("textbox", { name: "Notes" })).toBeNull();
+    await expect(
+      screen.queryByRole("textbox", { name: "Notes in English" }),
+    ).toBeNull();
     await userEvent.click(confirm);
 
     await waitFor(() => expect(args.onMerged).toHaveBeenCalled());
@@ -351,7 +357,7 @@ export const WithoutNotes: Story = {
  */
 export const Reading: Story = {
   args: {
-    publication: { ...DOM_CASMURRO, notes: SECOND_NOTES },
+    publication: { ...DOM_CASMURRO, notesEn: SECOND_NOTES },
     read: () => new Promise<Publication>(() => {}),
   },
   play: async () => {
@@ -361,7 +367,9 @@ export const Reading: Story = {
     await expect(
       await screen.findByRole("region", { name: "Result" }),
     ).toBeVisible();
-    await expect(screen.queryByRole("textbox", { name: "Notes" })).toBeNull();
+    await expect(
+      screen.queryByRole("textbox", { name: "Notes in English" }),
+    ).toBeNull();
     await expect(
       screen.getByRole("button", { name: "Merge publication" }),
     ).toBeDisabled();
@@ -396,8 +404,8 @@ export const ReadFailed: Story = {
  * checks that the error goes and Merge is enabled again.
  */
 export const NotesRefused: Story = {
-  args: { publication: { ...DOM_CASMURRO, notes: SECOND_NOTES } },
-  beforeEach: stubPost(new ApiError(400, { errors: { notes: "malformed" } })),
+  args: { publication: { ...DOM_CASMURRO, notesEn: SECOND_NOTES } },
+  beforeEach: stubPost(new ApiError(400, { errors: { notesEn: "malformed" } })),
   play: async ({ args }) => {
     await searchDuplicates();
     await addFirst();
@@ -442,7 +450,9 @@ export const Cancelled: Story = {
  * details' edge.
  */
 export const LongSource: Story = {
-  args: { find: async () => [{ ...DUPLICATES[0], sources: [LONG_URL] }] },
+  args: {
+    find: async () => [{ ...DUPLICATES[0], sources: [source(LONG_URL)] }],
+  },
   play: async () => {
     await screen.findByRole("dialog", { name: "Merge publications" });
     await userEvent.type(

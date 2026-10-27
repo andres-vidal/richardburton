@@ -3,6 +3,7 @@ import type { Distinction, DuplicateCluster } from "app/publications/read";
 import { empty, type Publication } from "modules/publication/model";
 import { useState } from "react";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import { source } from "test/publication-fixtures";
 
 import { DuplicateReviewView } from "./DuplicateReview";
 
@@ -37,7 +38,10 @@ const CLUSTERS: DuplicateCluster[] = [
   {
     score: 0.79,
     publications: [
-      publication({ id: 1, sources: ["Caldwell, Helen. Introduction."] }),
+      publication({
+        id: 1,
+        sources: [source(null, "Caldwell, Helen. Introduction.")],
+      }),
       publication({
         id: 2,
         title: "Dom Casmuro",

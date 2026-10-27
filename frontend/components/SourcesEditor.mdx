@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as SourcesEditorStories from "./SourcesEditor.stories";
 
@@ -10,22 +10,57 @@ The editor for a publication's **sources** — free-text provenance entries
 that record how the record's data was collected, so a reader can verify it. It
 lives in the publication
 [edit form](?path=/docs/publications-publication-detail--docs), below the other
-fields.
+fields, and in the dialogs of the import document's sources cell and of the
+sources backfill.
 
 ## Data flow
 
 Unlike the array cell editors (authors, publishers), a source is not a
 comma-joined string but a genuine ordered list: provenance is free text that may
-itself contain commas. The `value` is therefore a `string[]`, and every action —
-add, edit, remove, reorder — produces a **new array** through `onChange`. The
-component keeps no internal state; the parent owns the list (in the app, the
-publication's row in the store).
+itself contain commas. Each source has a text in Portuguese and a text in
+English, either of which may be missing. The `value` is therefore a list of
+`{ pt, en }` sources, and every action — add, edit, remove, reorder — produces a
+**new list** through `onChange`. The component keeps no sources of its own;
+the parent owns the list (in the app, the publication's row in the store).
 
-Reordering is a plain array swap driven by the ↑/↓ controls (bounded at the ends,
-no drag). Blank rows are allowed while editing and dropped server-side on save,
-so an empty row never blocks a submit.
+Reordering is a plain swap driven by the ↑/↓ controls (bounded at the ends,
+no drag). Sources with no text in either language are allowed while editing and
+dropped server-side on save, so an empty row never blocks a submit.
 
+<Description of={SourcesEditorStories.Default} />
 <Canvas of={SourcesEditorStories.Default} />
+
+## Props
+
+- `value` — the sources, in order, each with its text in each language.
+- `onChange` — receives the new list after each action.
+- `error` — an error with the sources, shown under the list.
+
+## Two languages
+
+The list is shown in a tab for each language (see
+[language tabs](?path=/docs/components-language-tabs--docs)), and the tab of
+the reader's language is selected at first. Both tabs list the same sources in
+the same order: adding, removing or moving a source does so in both
+languages, and typing in a tab sets the source's text in that tab's language.
+A source with no text in the tab's language shows its text in the other
+language as its placeholder.
+
+<Description of={SourcesEditorStories.InBothLanguages} />
+<Canvas of={SourcesEditorStories.InBothLanguages} />
+
+## Drafting the other language
+
+Beside the tabs, a [draft button](?path=/docs/components-draft-button--docs)
+drafts, in a browser that can translate, the text of each source that has none
+in the selected tab's language from its text in the other language. Sources
+that already have text in that language are left alone. A source cites works
+by their titles, which must stay as written, and the browser's translation
+model cannot be told to keep them, so the tab asks to check the titles after a
+draft.
+
+<Description of={SourcesEditorStories.DraftedFromPortuguese} />
+<Canvas of={SourcesEditorStories.DraftedFromPortuguese} />
 
 ## States
 
@@ -37,3 +72,12 @@ A populated list renders one input per entry, each with reorder and remove
 controls:
 
 <Canvas of={SourcesEditorStories.WithSources} />
+
+<Description of={SourcesEditorStories.Reorder} />
+<Canvas of={SourcesEditorStories.Reorder} />
+
+<Description of={SourcesEditorStories.Remove} />
+<Canvas of={SourcesEditorStories.Remove} />
+
+<Description of={SourcesEditorStories.WithError} />
+<Canvas of={SourcesEditorStories.WithError} />

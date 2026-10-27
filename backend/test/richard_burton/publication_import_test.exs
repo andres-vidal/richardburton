@@ -37,7 +37,9 @@ defmodule RichardBurton.Publication.ImportTest do
       authors: ["James L. Taylor", "Harriet de Onís"],
       original_title: "Grande Sertão: Veredas",
       original_authors: ["João Guimarães Rosa"],
-      sources: ["Taylor, James. Preface, 1963."]
+      sources: [
+        %{"pt" => "Taylor, James. Prefácio, 1963.", "en" => "Taylor, James. Preface, 1963."}
+      ]
     },
     %{
       title: "The Devil to Pay in the Backlands",
@@ -65,7 +67,10 @@ defmodule RichardBurton.Publication.ImportTest do
       authors: ["Clifford E. Landers"],
       original_title: "Iracema",
       original_authors: ["José de Alencar"],
-      sources: ["Landers, Clifford. Introduction.", "Publisher's catalogue."]
+      sources: [
+        %{"pt" => nil, "en" => "Landers, Clifford. Introduction."},
+        %{"pt" => "Catálogo da editora.", "en" => nil}
+      ]
     },
     %{
       title: "Dom Casmurro",
@@ -167,7 +172,7 @@ defmodule RichardBurton.Publication.ImportTest do
   describe "the error" do
     test "is the later of two rows with the same key" do
       [first, second | _] = Codec.nest(@batch)
-      repeated = Map.put(first, "sources", [%{"content" => "A second copy", "position" => 0}])
+      repeated = Map.put(first, "sources", [%{"content_pt" => "A second copy", "position" => 0}])
 
       assert {:error, {^repeated, :conflict}} =
                Publication.insert_all([first, second, repeated])
@@ -235,7 +240,7 @@ defmodule RichardBurton.Publication.ImportTest do
           authors: ["Translator #{i}"],
           original_title: "Obra #{i}",
           original_authors: ["Author #{i}"],
-          sources: ["Source #{i}"]
+          sources: [%{"pt" => "Fonte #{i}", "en" => "Source #{i}"}]
         }
       end
     )

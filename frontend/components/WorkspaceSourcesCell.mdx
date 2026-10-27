@@ -39,6 +39,15 @@ the row.
 The stories wrap the cell in a `role="row"` inside a `role="table"`, since a
 cell is only valid ARIA inside a row.
 
+## An error
+
+When validation finds something wrong with the sources, such as a file whose
+sources in Portuguese and in English could not be paired, the button's tooltip
+gives the error, and the editor shows it under the list.
+
+<Description of={WorkspaceSourcesCellStories.Misaligned} />
+<Canvas of={WorkspaceSourcesCellStories.Misaligned} />
+
 ## The look-alike button
 
 When the row resembles something, a second button follows the sources button.

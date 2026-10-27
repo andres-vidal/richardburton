@@ -2,6 +2,7 @@
 
 import WarningIcon from "assets/warning.svg";
 import {
+  usePublicationFieldError,
   usePublicationResemblance,
   usePublicationSources,
 } from "modules/publication/hooks";
@@ -77,6 +78,10 @@ const RowResemblance: FC<{ rowId: RowId }> = ({ rowId }) => {
  * insert saves them with the rest of the row. A click on either button does
  * not reach the row, so it does not select the row.
  *
+ * When the sources have an error, such as sources a file could not pair
+ * across the two languages, the button's tooltip says so, and the editor shows
+ * it under the list.
+ *
  * `invalid`, `selected` and `focused` give the cell the background the
  * row's other cells have in those states. They default to false.
  */
@@ -89,6 +94,7 @@ const WorkspaceSourcesCell: FC<{
   const t = useTranslations("admin");
   const store = usePublicationStore();
   const sources = usePublicationSources(rowId);
+  const error = usePublicationFieldError(rowId, "sources");
   const editor = useModal();
   const count = sources.length;
 
@@ -105,14 +111,18 @@ const WorkspaceSourcesCell: FC<{
       data-focused={focused}
       className="flex gap-2 items-center py-1 px-2 transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
     >
-      <Button
-        variant="outline"
-        width="fit"
-        size="small"
-        onClick={openEditor}
-        aria-label={count === 0 ? t("addSources") : t("editSources", { count })}
-        label={t("sourcesCount", { count })}
-      />
+      <Tooltip variant="error" message={error} placement="left">
+        <Button
+          variant="outline"
+          width="fit"
+          size="small"
+          onClick={openEditor}
+          aria-label={
+            count === 0 ? t("addSources") : t("editSources", { count })
+          }
+          label={t("sourcesCount", { count })}
+        />
+      </Tooltip>
 
       <RowResemblance rowId={rowId} />
 
@@ -123,6 +133,7 @@ const WorkspaceSourcesCell: FC<{
       >
         <SourcesEditor
           value={sources}
+          error={error}
           onChange={(next) => setSources(store, rowId, next)}
         />
       </Modal>

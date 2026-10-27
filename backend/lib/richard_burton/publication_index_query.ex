@@ -27,7 +27,9 @@ defmodule RichardBurton.Publication.Index.Query do
   # The columns holding several values, which are matched as one joined string.
   # `countries` holds several values too, but its value is resolved to country
   # codes rather than matched as text. See `text_predicate/2`.
-  @list_fields [:sources, :publishers, :authors, :original_authors]
+  # The sources are matched as the texts of both languages, in
+  # `text_predicate/2`'s own clause.
+  @list_fields [:publishers, :authors, :original_authors]
 
   @doc """
   Returns the standing of every word of a term that is matched against the
@@ -231,7 +233,21 @@ defmodule RichardBurton.Publication.Index.Query do
 
   # A list column is matched as its joined text, the same form
   # `search_documents` indexes it in. The join goes through `rb_joined`, which is
-  # declared immutable so that this expression can be indexed.
+  # declared immutable so that this expression can be indexed. The sources are
+  # matched as the Portuguese texts followed by the English ones, the
+  # expression the view's sources index is built on.
+  defp text_predicate(:sources, query) do
+    dynamic(
+      [p],
+      fragment(
+        "to_tsvector('rb_search', rb_joined(? || ?)) @@ ?",
+        p.sources_pt,
+        p.sources_en,
+        ^query
+      )
+    )
+  end
+
   defp text_predicate(field, query) when field in @list_fields do
     dynamic(
       [p],

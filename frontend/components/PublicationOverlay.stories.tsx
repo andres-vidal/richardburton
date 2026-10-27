@@ -10,6 +10,7 @@ import {
   FIRST_DOM_CASMURRO,
   LOOK_ALIKE_RECORD,
   REISSUED_DOM_CASMURRO,
+  source,
 } from "test/publication-fixtures";
 import { asAdmin } from "test/session";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
@@ -20,7 +21,10 @@ const PUBLICATION = {
   ...LOOK_ALIKE_RECORD,
   id: 1,
   sources: [
-    "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
+    source(
+      null,
+      "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
+    ),
   ],
 };
 

@@ -18,8 +18,9 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   Terms used here:
 
     * **excerpt** — the matching text of one field. Short fields come back in
-      full. `sources` is an array, which the search treats as one long
-      string, so it comes back as a short window around the match instead.
+      full. `sources` is an array of texts in two languages, which the search
+      treats as one long string, so it comes back as a short window around
+      the match instead.
     * **widening** — one word that the search matched with something other than
       what was typed, either because the word is a prefix of several indexed
       words or because it matched none and fell back to ones resembling it. A
@@ -43,8 +44,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   @type widening :: %{field: String.t() | nil, typed: String.t(), words: [String.t()]}
 
   # Highlighting options for `ts_headline`. Short fields are returned in full.
-  # `sources` holds a whole bibliography joined into one string, so only a
-  # short window around the match is returned.
+  # The sources hold a whole bibliography, in two languages, joined into one
+  # string, so only a short window around the match is returned.
   @whole "StartSel=[[,StopSel=]],HighlightAll=true"
   @window "StartSel=[[,StopSel=]],MaxFragments=1,MaxWords=16,MinWords=6"
 
@@ -65,6 +66,42 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # One list column as the single string the search reads it as.
   defmacrop joined(column) do
     quote do: fragment("rb_joined(?)", unquote(column))
+  end
+
+  # The texts of the sources in both languages as the single string the search
+  # reads them as.
+  defmacrop joined_sources(pt, en) do
+    quote do: fragment("rb_joined(? || ?)", unquote(pt), unquote(en))
+  end
+
+  # Each source as a JSON object holding, under `pt` and `en`, its text in that
+  # language with the matched words wrapped, or null where that text did not
+  # match or is missing. Lined up with the sources.
+  defmacrop marked_sources(pt, en, query) do
+    quote do
+      fragment(
+        """
+        ARRAY(
+          SELECT jsonb_build_object(
+            'pt', CASE WHEN to_tsvector('rb_search', t.pt) @@ to_tsquery('rb_search', ?)
+              THEN ts_headline('rb_search', t.pt, to_tsquery('rb_search', ?), ?) END,
+            'en', CASE WHEN to_tsvector('rb_search', t.en) @@ to_tsquery('rb_search', ?)
+              THEN ts_headline('rb_search', t.en, to_tsquery('rb_search', ?), ?) END
+          )
+          FROM unnest(?, ?) WITH ORDINALITY AS t(pt, en, n)
+          ORDER BY t.n
+        )
+        """,
+        unquote(query),
+        unquote(query),
+        @whole,
+        unquote(query),
+        unquote(query),
+        @whole,
+        unquote(pt),
+        unquote(en)
+      )
+    end
   end
 
   # Each value of a list column with its matched words wrapped, or nil where that
@@ -214,7 +251,10 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   `excerpts` holds a value for each field: the matching text of the whole
   field, or nil where the search did not match it. `marked` holds a list for
   each list field, lined up with the field's values, holding each value's
-  matching text, or nil where that value did not match.
+  matching text, or nil where that value did not match. For the sources, each
+  entry is a map with the keys `"pt"` and `"en"`, holding the matching text of
+  the source in that language, or nil where that text did not match or is
+  missing.
 
   Both come from the term alone, read the way the search reads it. A field no
   part of the term searched gets no tsquery, and so neither an excerpt nor
@@ -235,14 +275,14 @@ defmodule RichardBurton.Publication.Index.Excerpt do
         authors: excerpt(joined(p.authors), ^queries.authors, @whole),
         original_authors: excerpt(joined(p.original_authors), ^queries.original_authors, @whole),
         publishers: excerpt(joined(p.publishers), ^queries.publishers, @whole),
-        sources: excerpt(joined(p.sources), ^queries.sources, @window)
+        sources: excerpt(joined_sources(p.sources_pt, p.sources_en), ^queries.sources, @window)
       },
       marked: %{
         authors: marked_values(p.authors, ^queries.authors),
         original_authors: marked_values(p.original_authors, ^queries.original_authors),
         publishers: marked_values(p.publishers, ^queries.publishers),
         countries: marked_countries(p.countries, ^queries.countries),
-        sources: marked_values(p.sources, ^queries.sources)
+        sources: marked_sources(p.sources_pt, p.sources_en, ^queries.sources)
       }
     })
   end

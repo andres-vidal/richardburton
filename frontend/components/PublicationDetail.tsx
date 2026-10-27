@@ -11,6 +11,7 @@ import {
 } from "modules/publication/hooks";
 import {
   type FollowedPublication,
+  type Language,
   Publication,
   type PublicationHistoryEntry,
   type PublicationId,
@@ -18,6 +19,8 @@ import {
   type PublicationKind as Kind,
   type PublicationListKey,
   searchHref,
+  type ShownText,
+  shownNotes,
 } from "modules/publication/model";
 import { watchEdit } from "modules/publication/checks";
 import { deletePublication, update } from "modules/publication/remote";
@@ -27,14 +30,10 @@ import {
   usePublicationStore,
 } from "modules/publication/workspace";
 import { useCountryNaming } from "modules/country-names";
-import {
-  isBlank,
-  markedParagraph,
-  type RichTextValue,
-} from "modules/rich-text";
+import { markedParagraph } from "modules/rich-text";
 import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "i18n/navigation";
 import {
   FC,
@@ -174,16 +173,18 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
 };
 
 /**
- * Where the record says it comes from. Each source renders as rich text, as
- * `markedParagraph` builds it from the source, so a URL in a source is a link
- * and the words a search matched are highlighted. Each source's bullet is
- * centred on its first line.
+ * Where the record says it comes from. Each source is shown in the reader's
+ * language, or in the other language when it has no text in the reader's
+ * (see `Publication.markedSources`), and carries the `lang` of the text shown.
+ * Each source renders as rich text, as `markedParagraph` builds it from the
+ * text, so a URL in a source is a link and the words a search matched are
+ * highlighted. Each source's bullet is centred on its first line.
  *
  * A record with no sources says so rather than leaving the section out: for a
  * database whose worth is its provenance, an absent source is worth stating.
  * The history section states its absence the same way.
  */
-const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
+const PublicationSources: FC<{ sources: ShownText[] }> = ({ sources }) => {
   const t = useTranslations("publication");
 
   return (
@@ -194,12 +195,16 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
       ) : (
         <ul className="space-y-1.5 text-sm text-gray-700">
           {sources.map((source, index) => (
-            <li key={index} className="flex gap-2.5 items-start">
+            <li
+              key={index}
+              lang={source.language}
+              className="flex gap-2.5 items-start"
+            >
               <span aria-hidden className="flex shrink-0 items-center h-[1lh]">
                 <span className="size-1.5 rounded-full bg-indigo-400 ring-2 ring-indigo-100" />
               </span>
               <div className="min-w-0">
-                <RichText value={markedParagraph(source)} />
+                <RichText value={markedParagraph(source.text)} />
               </div>
             </li>
           ))}
@@ -211,18 +216,31 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
 
 /**
  * The publication's notes under their heading, rendered with `RichText`, as a
- * region named for them. It renders nothing for a publication whose notes are
- * missing, null or blank.
+ * region named for them. It shows the notes in the reader's language, or the
+ * notes in the other language, with a line that names that language, when
+ * there are none in the reader's (see `shownNotes`). The notes carry the
+ * `lang` of the language they are written in. It renders nothing for a
+ * publication whose notes are missing, null or blank in both languages.
  */
-const PublicationNotes: FC<{ notes: RichTextValue | null | undefined }> = ({
-  notes,
+const PublicationNotes: FC<{ publication: Publication }> = ({
+  publication,
 }) => {
   const t = useTranslations("attributes");
+  const detail = useTranslations("publication");
+  const locale = useLocale() as Language;
+  const notes = shownNotes(publication, locale);
 
-  return isBlank(notes) ? null : (
+  return notes === null ? null : (
     <section aria-label={t("notes")} className="space-y-2">
       <SectionHeading>{t("notes")}</SectionHeading>
-      <RichText value={notes} />
+      {notes.language !== locale && (
+        <p className="text-xs text-gray-500">
+          {detail("writtenIn", { language: notes.language })}
+        </p>
+      )}
+      <div lang={notes.language}>
+        <RichText value={notes.value} />
+      </div>
     </section>
   );
 };
@@ -299,6 +317,7 @@ const PublicationEditForm: FC<{
   const error = usePublicationErrorDescription(id);
   const isValid = useIsPublicationValid(id);
   const sources = usePublicationSources(id);
+  const sourcesError = usePublicationFieldError(id, "sources");
 
   useEffect(() => watchEdit(store, id), [store, id]);
 
@@ -321,6 +340,7 @@ const PublicationEditForm: FC<{
       </div>
       <SourcesEditor
         value={sources}
+        error={sourcesError}
         onChange={(next) => setSources(store, id, next)}
       />
       <NotesField id={id} />
@@ -395,6 +415,7 @@ const Detail: FC<PublicationDetailProps> = ({
   onDeleted,
 }) => {
   const t = useTranslations("publication");
+  const locale = useLocale() as Language;
   const id = publication.id!;
   const store = usePublicationStore();
   const canEdit = useCanEditPublications();
@@ -447,9 +468,9 @@ const Detail: FC<PublicationDetailProps> = ({
         <>
           <PublicationKind kind={kind} follows={follows} />
           <PublicationDescription publication={publication} />
-          <PublicationNotes notes={publication.notes} />
+          <PublicationNotes publication={publication} />
           <PublicationSources
-            sources={Publication.markedSources(publication)}
+            sources={Publication.markedSources(publication, locale)}
           />
           {history && <PublicationHistorySection entries={history} />}
           {canEdit && (

@@ -1,15 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store, type Store } from "modules/store";
-import { Publication, type Resemblance } from "modules/publication/model";
+import {
+  Publication,
+  type PublicationError,
+  type Resemblance,
+  type Source,
+} from "modules/publication/model";
 import {
   resetAll,
   reviewingAtom,
   setAll,
   setResemblances,
 } from "modules/publication/store";
-import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
+import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
-import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
+import { LOOK_ALIKE_RECORD, source } from "test/publication-fixtures";
 
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
@@ -19,11 +24,14 @@ const selectRow = fn();
 // A stored record for the row to resemble.
 const STORED = LOOK_ALIKE_RECORD;
 
+// Fills the store with one row, `rowId`, holding `sources` and `errors`, and
+// records `resemblance` as what the look-alike check found for it.
 const seed = (
   store: Store,
   rowId: number,
-  sources: string[],
+  sources: Source[],
   resemblance?: Resemblance,
+  errors: PublicationError = null,
 ) => {
   resetAll(store);
   selectRow.mockClear();
@@ -35,7 +43,7 @@ const seed = (
         title: "Dom Casmurro",
         sources,
       },
-      errors: null,
+      errors,
     },
   ]);
   setResemblances(
@@ -70,7 +78,8 @@ type Story = StoryObj<typeof meta>;
 
 /** With sources: the button summarizes the count and opens the list editor. */
 export const WithSources: Story = {
-  beforeEach: () => seed(store, 1, ["A source", "Another source"]),
+  beforeEach: () =>
+    seed(store, 1, [source(null, "A source"), source(null, "Another source")]),
   parameters: {
     // The open modal aria-hides the background trigger, which is still focusable.
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
@@ -108,7 +117,7 @@ export const Empty: Story = {
  */
 export const LooksLikeAStoredRecord: Story = {
   beforeEach: () =>
-    seed(store, 1, ["A source"], {
+    seed(store, 1, [source(null, "A source")], {
       stored: [STORED],
       others: [],
       repeats: null,
@@ -154,5 +163,27 @@ export const OpeningTheReview: Story = {
       expect(store.get(reviewingAtom)).toEqual({ startAt: 1 }),
     );
     await expect(selectRow).not.toHaveBeenCalled();
+  },
+};
+
+/**
+ * Sources a file could not pair across the two languages: the button's tooltip
+ * says so, and so does the editor, under the list.
+ */
+export const Misaligned: Story = {
+  beforeEach: () =>
+    seed(store, 1, [source("Uma fonte")], undefined, {
+      sources: "misaligned",
+    } as PublicationError),
+  play: async () => {
+    await userEvent.click(
+      screen.getByRole("button", { name: "Edit sources (1)" }),
+    );
+
+    const dialog = await screen.findByRole("dialog", { name: "Edit sources" });
+
+    await expect(
+      within(dialog).getByText(/different numbers of lines/),
+    ).toBeVisible();
   },
 };

@@ -9,26 +9,34 @@ defmodule RichardBurton.Validation do
 
   alias RichardBurton.RichText
 
-  # The most characters the text of a publication's notes may hold.
+  # The most characters the text of each language of a publication's notes may
+  # hold.
   @notes_max_length 10_000
 
   @doc """
-  Adds a `:notes` error to `changeset` when the text of its notes is longer
-  than 10,000 characters, as `RichardBurton.RichText.text_length/1` counts
-  them. `get_errors/1` reports it as `:too_long`.
+  Adds a `:notes_pt` error to `changeset` when the text of its Portuguese notes
+  is longer than 10,000 characters, as `RichardBurton.RichText.text_length/1`
+  counts them, and a `:notes_en` error when the text of its English notes is.
+  `get_errors/1` reports each as `:too_long`.
   """
   def validate_notes(changeset) do
-    Ecto.Changeset.validate_change(changeset, :notes, fn :notes, notes ->
-      if RichText.text_length(notes) > @notes_max_length do
-        [
-          notes:
-            {"should be at most %{count} character(s)",
-             validation: :length, kind: :max, count: @notes_max_length, type: :string}
-        ]
-      else
-        []
-      end
+    Enum.reduce([:notes_pt, :notes_en], changeset, fn field, changeset ->
+      Ecto.Changeset.validate_change(changeset, field, &notes_length_errors/2)
     end)
+  end
+
+  # Returns the error of the notes `field` when their text is too long, as
+  # `validate_notes/1` describes, or no errors.
+  defp notes_length_errors(field, notes) do
+    if RichText.text_length(notes) > @notes_max_length do
+      [
+        {field,
+         {"should be at most %{count} character(s)",
+          validation: :length, kind: :max, count: @notes_max_length, type: :string}}
+      ]
+    else
+      []
+    end
   end
 
   @doc """
@@ -79,7 +87,10 @@ defmodule RichardBurton.Validation do
   `:integer`, `:alpha2`, `:duplicate`, `:conflict`, `:too_long` for a value
   longer than its field's maximum length, `:malformed` for a value whose
   shape its type refuses, such as rich text with an unknown node (see
-  `RichardBurton.RichText`), and `:invalid` for any other failed validation.
+  `RichardBurton.RichText`) or sources that are not flat sources (see
+  `RichardBurton.Source`), `:misaligned` for sources read from two CSV cells
+  that list a different number of sources, and `:invalid` for any other failed
+  validation.
   """
   def get_errors(changeset) do
     changeset
@@ -101,6 +112,7 @@ defmodule RichardBurton.Validation do
   defp get_description(%{validation: :alpha2}), do: :alpha2
   defp get_description(%{validation: :duplicate}), do: :duplicate
   defp get_description(%{validation: :malformed}), do: :malformed
+  defp get_description(%{validation: :misaligned}), do: :misaligned
   defp get_description(%{constraint: :unique}), do: :conflict
   defp get_description(_opts), do: :invalid
 

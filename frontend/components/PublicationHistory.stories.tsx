@@ -3,6 +3,7 @@ import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { expect, screen, within } from "storybook/test";
 import { expectToFit, LONG_EMAIL } from "test/layout";
+import { source } from "test/publication-fixtures";
 import { link, paragraph } from "test/rich-text-fixtures";
 
 import PublicationHistory from "./PublicationHistory";
@@ -17,6 +18,10 @@ const SNAPSHOT: PublicationHistoryEntry["snapshot"] = {
   publishers: ["Noonday Press"],
   sources: [],
 };
+
+// The sources the lifecycle adds, each with its text in English only.
+const CALDWELL = source(null, "Caldwell, Helen. Introduction, 1953.");
+const GLEDSON = source(null, "Gledson, John. Deceptive Realism, 1984.");
 
 // The notes a curator first wrote on the record, and the notes of the
 // duplicate merged into it, which the merge appends.
@@ -39,7 +44,7 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      sources: ["Gledson, John. Deceptive Realism, 1984."],
+      sources: [GLEDSON],
     },
     diff: null,
   },
@@ -52,7 +57,7 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      sources: ["Gledson, John. Deceptive Realism, 1984."],
+      sources: [GLEDSON],
     },
     diff: null,
   },
@@ -65,14 +70,14 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      sources: ["Gledson, John. Deceptive Realism, 1984."],
+      sources: [GLEDSON],
     },
     // One source swapped for another: nothing else moved.
     diff: {
       fields: {},
       sources: {
-        added: ["Gledson, John. Deceptive Realism, 1984."],
-        removed: ["Caldwell, Helen. Introduction, 1953."],
+        added: [GLEDSON],
+        removed: [CALDWELL],
         reordered: false,
       },
     },
@@ -86,7 +91,7 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      sources: ["Caldwell, Helen. Introduction, 1953."],
+      sources: [CALDWELL],
     },
     // Retitled, with the first source added in the same save.
     diff: {
@@ -94,7 +99,7 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
         title: { from: "Dom Casmurro", to: "Dom Casmurro (revised)" },
       },
       sources: {
-        added: ["Caldwell, Helen. Introduction, 1953."],
+        added: [CALDWELL],
         removed: [],
         reordered: false,
       },
@@ -201,7 +206,7 @@ export const WithoutABaseline: Story = {
         timestamp: "2026-07-15T11:00:00",
         snapshot: {
           ...SNAPSHOT,
-          sources: ["Caldwell, Helen. Introduction, 1953."],
+          sources: [CALDWELL],
         },
         diff: null,
       },
@@ -466,10 +471,10 @@ export const Decisions: Story = {
 };
 
 /**
- * Updates to the notes: the notes before and after each change, formatted,
- * with "(none)" where there were none. A merge lists the
- * notes of the record it took in. The play test checks the formatting
- * survives into the log.
+ * Updates to the notes: the notes in each language before and after each
+ * change, formatted, with "(none)" where there were none, under a label that
+ * names the language. A merge lists the notes of the record it took in. The
+ * play test checks the labels and that the formatting survives into the log.
  */
 export const Notes: Story = {
   args: {
@@ -483,7 +488,7 @@ export const Notes: Story = {
         snapshot: SNAPSHOT,
         diff: {
           fields: {
-            notes: { from: FIRST, to: [...FIRST, ...DUPLICATE] },
+            notesEn: { from: FIRST, to: [...FIRST, ...DUPLICATE] },
           },
           sources: null,
         },
@@ -492,7 +497,7 @@ export const Notes: Story = {
             id: 7,
             ...SNAPSHOT,
             title: "Dom Casmuro",
-            notes: DUPLICATE,
+            notesEn: DUPLICATE,
           },
         ],
       },
@@ -504,7 +509,7 @@ export const Notes: Story = {
         timestamp: "2026-10-13T12:00:00",
         snapshot: SNAPSHOT,
         diff: {
-          fields: { notes: { from: null, to: FIRST } },
+          fields: { notesEn: { from: null, to: FIRST } },
           sources: null,
         },
       },
@@ -517,7 +522,7 @@ export const Notes: Story = {
         snapshot: SNAPSHOT,
         diff: {
           fields: {
-            notes: {
+            notesPt: {
               from: [
                 paragraph(
                   "See ",
@@ -538,13 +543,18 @@ export const Notes: Story = {
       ...canvasElement.querySelectorAll("li[data-action]"),
     ] as HTMLElement[];
 
-    await expect(added).toHaveTextContent("Notes:−(none)+A first translation.");
+    await expect(added).toHaveTextContent(
+      "Notes in English:−(none)+A first translation.",
+    );
     await expect(added.querySelector("ins strong")).toHaveTextContent("first");
     await expect(removed.querySelector("del a")).toHaveAttribute(
       "href",
       "https://archive.org/details/x",
     );
-    await expect(merged).toHaveTextContent("Notes:From the duplicate.");
+    await expect(merged).toHaveTextContent(
+      "Notes in English:From the duplicate.",
+    );
+    await expect(removed).toHaveTextContent(/^.*Notes in Portuguese:/);
   },
 };
 

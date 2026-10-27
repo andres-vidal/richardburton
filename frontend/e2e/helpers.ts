@@ -131,6 +131,8 @@ export async function submitWorkspace(page: Page, count: number) {
 /**
  * Adds `sources` to the open document's row named `rowName` in its sources
  * dialog, closes the dialog, and checks that the row's button counts them.
+ * The dialog opens on the tab of the page's language, so on an English page
+ * the sources are written in English.
  */
 export async function addRowSources(
   page: Page,
@@ -376,19 +378,27 @@ export async function chooseOption(page: Page, label: string, option: string) {
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
-/** The header of every CSV the suite uploads. */
+/**
+ * The header of every CSV the suite uploads. The suite's sources are written
+ * in English, so they go in the English sources column.
+ */
 const CSV_HEADER =
-  "title,year,countries,publishers,authors,original_title,original_authors,sources";
+  "title,year,countries,publishers,authors,original_title,original_authors,sources_en";
 
 /**
  * Returns a CSV of `rows` under the suite's header, one line each. A cell that
- * holds a comma is quoted. With `notes`, the header ends with a
- * `notes` column, which each row fills last with its notes as plain text.
+ * holds a comma is quoted. With `notes`, the header ends with a `notes_en`
+ * column, which each row fills last with its notes in English as plain text.
+ * With `header`, the CSV has that header instead, for a file whose columns
+ * differ from the suite's.
  */
-export function csv(rows: string[], { notes = false } = {}): string {
-  const header = notes ? `${CSV_HEADER},notes` : CSV_HEADER;
+export function csv(
+  rows: string[],
+  { notes = false, header }: { notes?: boolean; header?: string } = {},
+): string {
+  const first = header ?? (notes ? `${CSV_HEADER},notes_en` : CSV_HEADER);
 
-  return [header, ...rows].join("\n") + "\n";
+  return [first, ...rows].join("\n") + "\n";
 }
 
 /**

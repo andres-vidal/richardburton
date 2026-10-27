@@ -394,7 +394,9 @@
     "notDuplicateOf": "Não é duplicata de",
     "reviewAgainWith": "De volta à revisão de duplicatas com",
     "noBaseline": "Nada anterior com que comparar — o histórico do registro começa aqui.",
-    "reordered": "reordenadas"
+    "reordered": "reordenadas",
+    "sourcesLanguages": "Idioma das fontes",
+    "draftSourcesFrom": "Rascunhar as fontes a partir do {language, select, pt {português} other {inglês}}"
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",
@@ -534,11 +536,18 @@
       "reissueOfSeveral": "Esta tradução foi publicada pela primeira vez em {year}: <editions></editions>.",
       "retranslatedEdition": "por {translators} como <link>{title} ({publishers}, {countries})</link>",
       "reissuedEdition": "como <link>{title} ({publishers}, {countries})</link>"
-    }
+    },
+    "writtenIn": "Escrito em {language, select, pt {português} other {inglês}}"
   },
   "notes": {
     "hint": "Visível para todos na página da publicação.",
-    "placeholder": "Notas sobre esta publicação"
+    "placeholder": "Notas sobre esta publicação",
+    "field": "Notas em {language, select, pt {português} other {inglês}}",
+    "languages": "Idioma das notas",
+    "replaceTitle": "Substituir as notas em {language, select, pt {português} other {inglês}}?",
+    "replaceMessage": "O rascunho toma o lugar das notas que esta aba tem agora. Você ainda pode editá-lo antes de salvar.",
+    "replace": "Substituir",
+    "draftFrom": "Rascunhar as notas a partir do {language, select, pt {português} other {inglês}}"
   },
   "richText": {
     "toolbar": "Formatação",
@@ -573,7 +582,8 @@
     "repeated": "Outra linha desta importação é a mesma publicação",
     "invalid": "Uma publicação não é válida, então nada foi inserido",
     "too_long": "Este texto é longo demais",
-    "malformed": "Este texto não pôde ser lido"
+    "malformed": "Este texto não pôde ser lido",
+    "misaligned": "As fontes em português e em inglês têm números de linhas diferentes, então não podem ser pareadas"
   },
   "moving": {
     "moved": "{count, plural, one {# linha movida} other {# linhas movidas}}",
@@ -777,5 +787,11 @@
     "disconnectedDetail": "As alterações das outras pessoas não estão chegando. As suas continuam sendo salvas.",
     "unsaved": "Não salvo",
     "unsavedDetail": "O que você digitou está neste computador e não chegou ao servidor. Tentando novamente."
+  },
+  "draft": {
+    "downloading": "Baixando o modelo de tradução… {loaded, number, percent}",
+    "drafting": "Traduzindo…",
+    "failed": "Não foi possível fazer o rascunho. Tente de novo.",
+    "checkTitles": "Confira os títulos nas fontes rascunhadas. Uma tradução automática pode tê-los traduzido, e um título deve ficar como foi escrito."
   }
 }

@@ -8,8 +8,11 @@ import * as PublicationMergeStories from "./PublicationMerge.stories";
 
 Merges duplicates of a publication into it. The record the dialog is opened
 from is the one that survives: it keeps its identity, its address and its own
-fields, and gains the countries, publishers and sources the others hold. The
-merged record keeps the notes shown in the dialog's Notes field. The records
+fields, and gains the countries, publishers and sources the others hold. A
+source that repeats one the survivor already has, with the same text in one
+language and no text that differs in the other, is not added again, and the
+kept source takes the text of the language it lacked. The merged record keeps
+the notes shown in the dialog's notes field, in both languages. The records
 merged in leave the database, recorded as merged rather than deleted.
 
 <Description of={PublicationMergeStories.Previewing} />
@@ -76,37 +79,42 @@ everything it gains is marked, and a merge that takes nothing new says so.
 
 ## Notes
 
-When the survivor or a picked record has notes, the Result has a Notes field.
-It is prefilled with the proposed notes: the survivor's notes, then each picked
-record's notes in the order they were picked, without notes that are blank or
-that equal earlier ones. The field is shown once every picked record is read.
-The merge sends the notes in the field, and the merged record keeps them. Blank
-notes are sent as none.
+When the survivor or a picked record has notes in either language, the Result
+has a [notes editor](?path=/docs/publications-notes-editor--docs), with a tab
+for each language. Each language is prefilled with the proposed notes in that
+language: the survivor's notes, then each picked record's notes in the order
+they were picked, without notes that are blank or that equal earlier ones. The
+field is shown once every picked record is read. The merge sends the notes in
+the field, in both languages, and the merged record keeps them. Blank notes are
+sent as none.
 
 <Description of={PublicationMergeStories.NotesProposed} />
 <Canvas of={PublicationMergeStories.NotesProposed} />
 
-The notes can be edited in the field. Until they are edited, picking or
-removing a record proposes them again. Once they are edited, the field keeps
-the edited notes, whatever is picked or removed, until the dialog closes.
+The notes can be edited in the field, and drafted from the other language in a
+browser that can translate. Until the notes of a language are edited, picking
+or removing a record proposes them again. Once they are edited, the field keeps
+the edited notes of that language, whatever is picked or removed, until the
+dialog closes.
 
 <Description of={PublicationMergeStories.EditingNotes} />
 <Canvas of={PublicationMergeStories.EditingNotes} />
 
-Notes longer than 10,000 characters, counted as graphemes, have an error under
-the field, and Merge is disabled until they are shorter.
+Notes longer than 10,000 characters in either language, counted as graphemes,
+have an error under the field of that language, and Merge is disabled until
+they are shorter.
 
 <Description of={PublicationMergeStories.NotesTooLong} />
 <Canvas of={PublicationMergeStories.NotesTooLong} />
 
-When the server refuses the notes, its error is under the field, and Merge is
-disabled until the notes are edited.
+When the server refuses the notes of a language, its error is under the field
+of that language, and Merge is disabled until those notes are edited.
 
 <Description of={PublicationMergeStories.NotesRefused} />
 <Canvas of={PublicationMergeStories.NotesRefused} />
 
-When no record has notes, the Result has no Notes field, and the merge sends no
-notes.
+When no record has notes in either language, the Result has no notes field,
+and the merge sends no notes.
 
 <Description of={PublicationMergeStories.WithoutNotes} />
 <Canvas of={PublicationMergeStories.WithoutNotes} />

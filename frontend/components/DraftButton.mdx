@@ -1,0 +1,60 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as DraftButtonStories from "./DraftButton.stories";
+
+<Meta of={DraftButtonStories} />
+
+# Draft button
+
+A button that drafts text in one language from text in the other, with the
+browser's built-in Translator API (see `modules/translator`). The translation
+model runs on the contributor's computer, so a draft costs nothing, needs no
+key, and sends no text to a server. The
+[notes editor](?path=/docs/publications-notes-editor--docs) and the
+[sources editor](?path=/docs/publications-sources-editor--docs) put it beside
+their tabs.
+
+The stories run with a fake of the API (see `test/translator`), which prefixes
+each text with the target language in brackets.
+
+<Description of={DraftButtonStories.Default} />
+<Canvas of={DraftButtonStories.Default} />
+
+## Props
+
+- `label` — the button's label, which names what it drafts and the language it
+  drafts from, such as "Draft the notes from Portuguese". A form with both the
+  notes and the sources has two draft buttons, so each names its own.
+- `from` and `to` — the language the texts are in, and the language to draft
+  in.
+- `texts` — the texts to translate. The button is disabled when all of them
+  are blank.
+- `replacing` — the title, message and confirm label of a question asked
+  before drafting, for a draft that takes the place of text already written.
+  Without it, a press drafts at once.
+- `onDrafted` — receives the translations, in the order of `texts`.
+
+## Availability
+
+The API exists in Chrome and Edge on desktop. In any other browser, and until
+the browser says whether it can translate the pair, the button renders
+nothing.
+
+<Description of={DraftButtonStories.WithoutTheTranslatorApi} />
+<Canvas of={DraftButtonStories.WithoutTheTranslatorApi} />
+
+## States
+
+The first draft of a language pair downloads the model, and the button shows
+how much of it has arrived. A page may start that download only right after
+the person acts, so the draft starts from the press, or from the confirm
+button of the question.
+
+<Description of={DraftButtonStories.NothingToDraft} />
+<Canvas of={DraftButtonStories.NothingToDraft} />
+
+<Description of={DraftButtonStories.Replacing} />
+<Canvas of={DraftButtonStories.Replacing} />
+
+<Description of={DraftButtonStories.Failed} />
+<Canvas of={DraftButtonStories.Failed} />
