@@ -1,13 +1,17 @@
 "use client";
 
 import {
+  useLanguage,
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationIds,
   useVisibleAttributes,
 } from "modules/publication/hooks";
 import {
+  preferredLanguage,
   Publication,
+  SOURCES_KEYS,
+  type Language,
   type PublicationId,
   type PublicationKey,
 } from "modules/publication/model";
@@ -91,14 +95,22 @@ const ColumnHeader: FC<{ colId: ColId }> = ({ colId }) => {
 /**
  * A search can match a publication on its sources, which the table does not
  * show, which makes the row look unrelated to the search. This renders the
- * excerpt of the matching source so the reader can see why it is here.
+ * excerpt of the matching sources so the reader can see why it is here: the
+ * excerpt of the sources in the reader's language when the search matched
+ * them, and of the sources in the other language otherwise. The excerpt
+ * carries the `lang` of the language it is written in.
  */
 const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
-  const excerpt = usePublicationExcerpts(rowId)?.sources;
+  const excerpts = usePublicationExcerpts(rowId);
+  const excerpt = (language: Language) => excerpts?.[SOURCES_KEYS[language]];
+  const language = preferredLanguage(useLanguage(), (candidate) =>
+    Boolean(excerpt(candidate)),
+  );
+  const text = language && excerpt(language);
 
-  return excerpt ? (
-    <span className="block text-xs text-gray-500 truncate">
-      <Highlight className="text-gray-700 bg-amber-100">{excerpt}</Highlight>
+  return language && text ? (
+    <span lang={language} className="block text-xs text-gray-500 truncate">
+      <Highlight className="text-gray-700 bg-amber-100">{text}</Highlight>
     </span>
   ) : null;
 };

@@ -1,10 +1,18 @@
 import type { SetStateAction } from "jotai";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useLocale, useTranslations } from "next-intl";
+import { mapValues } from "lodash";
 import { useMemo } from "react";
 import { useCountryNaming } from "modules/country-names";
-import { Publication, PublicationId, PublicationKey, marking } from "./model";
-import type { ErrorScope, Marking } from "./model";
+import {
+  Publication,
+  PublicationId,
+  PublicationKey,
+  byLanguage,
+  errorCode,
+  marking,
+} from "./model";
+import type { ErrorScope, Language, Marking } from "./model";
 import {
   areRowIdsVisibleAtom,
   attributeVisibleFamily,
@@ -23,7 +31,7 @@ import {
   publicationFamily,
   publicationIdsAtom,
   savedFamily,
-  storedSourcesFamily,
+  hasStoredSourcesFamily,
   matchingCountAtom,
   totalIndexCountAtom,
   unsourcedCountAtom,
@@ -38,8 +46,9 @@ import {
 } from "./store";
 
 // The hooks that read the publication store of the nearest
-// `PublicationStoreProvider`. Each one reads one atom of `./store`. Writes are
-// the actions in `./store`, which take the store as their first argument.
+// `PublicationStoreProvider`. Each one reads one atom of `./store`, except
+// `useLanguage`, which reads the page's locale. Writes are the actions in
+// `./store`, which take the store as their first argument.
 
 /** An atom that always reads undefined, read when there is no row to read. */
 const NO_PUBLICATION = atom<Publication | undefined>(undefined);
@@ -88,6 +97,14 @@ function usePublicationField<K extends PublicationKey>(
 }
 
 /**
+ * Returns the language of the page, the language a reader is shown a
+ * publication's notes and sources in first (see `preferredLanguage`).
+ */
+function useLanguage(): Language {
+  return useLocale() as Language;
+}
+
+/**
  * Returns how a publication reads on this page: in the page's language, with
  * countries named from the `countryNames` catalogue. See `marking`.
  */
@@ -115,22 +132,25 @@ function usePublicationExcerpts(id: PublicationId) {
   return useAtomValue(publicationExcerptsFamily(id));
 }
 
-/** A row's sources, including unsaved edits. */
+/**
+ * A row's sources in each language, including unsaved edits, or an empty list
+ * in a language it has none in.
+ */
 function usePublicationSources(id: PublicationId) {
   return useAtomValue(publicationSourcesFamily(id));
 }
 
 /**
- * A row's notes as a rich-text value, including unsaved edits, or null for
- * none.
+ * A row's notes in each language as a rich-text value, including unsaved
+ * edits, or null in a language it has none in.
  */
 function usePublicationNotes(id: PublicationId) {
   return useAtomValue(publicationNotesFamily(id));
 }
 
-/** The saved sources only, without unsaved edits. */
-function useStoredPublicationSources(id: PublicationId) {
-  return useAtomValue(storedSourcesFamily(id));
+/** Whether a publication has saved sources in either language. */
+function useHasStoredSources(id: PublicationId) {
+  return useAtomValue(hasStoredSourcesFamily(id));
 }
 
 /** The rows something is wrong with, in the order they are shown. */
@@ -143,10 +163,22 @@ function usePublicationError(id: PublicationId) {
   return useAtomValue(rowErrorFamily(id));
 }
 
+/**
+ * Returns each of `codes` as its sentence, or as the code itself when it has
+ * none, under the same keys.
+ */
+function useErrorSentences<K extends string>(
+  codes: Record<K, string>,
+): Record<K, string> {
+  const t = useTranslations("publicationError");
+  return mapValues(codes, (code: string) =>
+    code && t.has(code) ? t(code) : code,
+  );
+}
+
 /** Returns an error code's sentence, or the code itself when it has none. */
 function useErrorSentence(code: string): string {
-  const t = useTranslations("publicationError");
-  return code && t.has(code) ? t(code) : code;
+  return useErrorSentences({ code }).code;
 }
 
 /**
@@ -158,11 +190,27 @@ function usePublicationErrorDescription(id: PublicationId) {
 }
 
 /**
- * Returns what is wrong with one field of a row, an attribute or the notes, in
- * words.
+ * Returns what is wrong with one field of a row, an attribute, or the notes or
+ * the sources in one language, in words.
  */
 function usePublicationFieldError(id: PublicationId, key: ErrorScope) {
   return useErrorSentence(useAtomValue(fieldErrorCodeFamily({ id, key })));
+}
+
+/**
+ * Returns what is wrong with a row's field in each language, in words, given
+ * the field `keys` names in each language, such as `NOTES_KEYS`. A language
+ * whose field has no error has an empty string.
+ */
+function usePublicationFieldErrors(
+  id: PublicationId,
+  keys: Record<Language, ErrorScope>,
+): Record<Language, string> {
+  const error = useAtomValue(rowErrorFamily(id));
+
+  return useErrorSentences(
+    byLanguage((language) => errorCode(error, keys[language])),
+  );
 }
 
 /** Whether nothing is wrong with a row. */
@@ -266,7 +314,8 @@ export {
   usePublicationIds,
   useAreRowIdsVisible,
   useBatchNames,
-  useErrorSentence,
+  useErrorSentences,
+  useHasStoredSources,
   useHiddenAttributes,
   useIsAttributeVisible,
   useInvalidPublicationIds,
@@ -277,6 +326,8 @@ export {
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
+  usePublicationFieldErrors,
+  useLanguage,
   useMatchingCount,
   usePublicationIndexCount,
   usePublicationSources,
@@ -284,7 +335,6 @@ export {
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationMarking,
-  useStoredPublicationSources,
   useUnsourcedPublicationCount,
   usePublicationResemblance,
   useResemblingPublicationCount,

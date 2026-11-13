@@ -11,9 +11,11 @@ defmodule RichardBurtonWeb.PublicationController do
 
   A publication read from the index, such as a row of a listing, a publication
   in a duplicate cluster, or a stored publication that a row resembles, has no
-  `notes` key (see `RichardBurton.FlatPublication`). A publication that
-  `show/2`, `index_deleted/2` or a write responds with holds its notes, or
-  `null` when it has none.
+  `notes_pt` or `notes_en` key (see `RichardBurton.FlatPublication`). A
+  publication that `show/2`, `index_deleted/2` or a write responds with holds
+  its notes in each language, or `null` for a language it has none in. Every
+  publication holds its sources in each language, as the lists `sources_pt`
+  and `sources_en` (see `RichardBurton.Source`).
 
   A path id that is not a whole number is a 404, as `RichardBurtonWeb.Params.id/1`
   says. A write that would give a publication the composite key of another is a
@@ -24,7 +26,11 @@ defmodule RichardBurtonWeb.PublicationController do
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.FlatPublication
+  alias RichardBurton.Language
   alias RichardBurton.Publication
+
+  # The keys of the notes in each language in a history snapshot.
+  @notes_keys Enum.map(Language.fields(:notes), &Atom.to_string/1)
 
   @doc """
   Lists the publications in the index.
@@ -42,13 +48,13 @@ defmodule RichardBurtonWeb.PublicationController do
   requests.
 
   With `unsourced`, the response holds `entries`, every publication without
-  sources, ordered by id.
+  sources in either language, ordered by id.
 
   Every response but the one for `ids` puts the number of publications in the
   index in the count header (see `Publication.Index.count_header/0`).
 
-  Each entry is a listed row, which holds every flat field but `notes` (see
-  `Publication.Index`).
+  Each entry is a listed row, which holds every flat field but `notes_pt` and
+  `notes_en` (see `Publication.Index`).
   """
   def index(conn, params = %{"ids" => ids}) do
     entries = Publication.Index.details(Params.integers(ids), params["search"])
@@ -280,23 +286,26 @@ defmodule RichardBurtonWeb.PublicationController do
   and responds with the merged publication, flattened. See
   `Publication.merge/4`.
 
-  When the body holds `notes`, they become the merged publication's notes.
-  They are validated as the notes of an update are, and `null` or blank notes
-  leave the merged publication without notes. Without `notes`, the merged
-  notes are the winner's followed by the losers', as `Publication.merge/4`
-  describes.
+  When the body holds `notes_pt`, they become the merged publication's
+  Portuguese notes. They are validated as the notes of an update are, and
+  `null` or blank notes leave the merged publication without Portuguese notes.
+  Without `notes_pt`, the merged Portuguese notes are the winner's followed by
+  the losers', as `Publication.merge/4` describes. `notes_en` works the same
+  way for the English notes.
 
   Merging a publication into itself, or naming no losers, is a 400, rather
   than the 409 that `self` is elsewhere. A merged publication with the
   composite key of another publication is a 409 with `error: "conflict"`. A
   merged publication that is invalid is a 400 with its `errors`. They are
-  `{notes: "malformed"}` for notes that are not rich text, and
-  `{notes: "too_long"}` for notes whose text is longer than 10,000
-  characters, whether the body gave them or the merge joined them.
+  `{notes_pt: "malformed"}` for Portuguese notes that are not rich text, and
+  `{notes_pt: "too_long"}` for Portuguese notes whose text is longer than
+  10,000 characters, whether the body gave them or the merge joined them, and
+  the same under `notes_en` for the English notes.
   """
   def merge(conn, params = %{"id" => id, "losers" => losers}) when is_list(losers) do
     with {:ok, id} <- Params.id(id),
-         {:ok, publication} <- Publication.merge(id, losers, actor(conn), merge_opts(params)) do
+         {:ok, publication} <-
+           Publication.merge(id, losers, actor(conn), Publication.notes_opts(params)) do
       json(conn, Publication.Codec.flatten(publication))
     else
       {:error, reason} when reason in [:self, :no_losers] -> {:error, :bad_request, reason}
@@ -305,12 +314,6 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   def merge(_conn, _params), do: {:error, :losers_required}
-
-  # Returns the options of `Publication.merge/4` that the merge `params` give:
-  # `[notes: value]` when they hold a `notes` key, even one whose value is nil,
-  # and `[]` when they do not.
-  defp merge_opts(%{"notes" => notes}), do: [notes: notes]
-  defp merge_opts(_params), do: []
 
   @doc "Deletes the publication `id`. See `Publication.delete/2`."
   def delete(conn, %{"id" => id}) do
@@ -326,10 +329,10 @@ defmodule RichardBurtonWeb.PublicationController do
   rename is one entry (see `Publication.History.all/0`).
 
   Each entry's `snapshot` holds the publication's fields after the change,
-  except its notes. A change to the notes is in the entry's `diff`. The
-  snapshots in `others` are whole. `name_change` holds the name change of a
-  rename's entry (see `Publication.History`), and is null on the entries of
-  every other action.
+  except its notes. A change to the notes in a language is in the entry's
+  `diff`, under `notes_pt` or `notes_en`. The snapshots in `others` are whole.
+  `name_change` holds the name change of a rename's entry (see
+  `Publication.History`), and is null on the entries of every other action.
   """
   def history(conn, %{"id" => id}) do
     with {:ok, id} <- Params.id(id) do
@@ -404,17 +407,17 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   # Returns a history entry as a map for a response: the entry's own fields,
-  # with its snapshot without the `"notes"` key, its name change, and `others`,
-  # the other publications the entry is about: the ones a merge took in, an
-  # undone merge gave back, a duplicate decision is about, or the same rename
-  # changed. See `Publication.History.other_records/1`.
+  # with its snapshot without the `"notes_pt"` and `"notes_en"` keys, its name
+  # change, and `others`, the other publications the entry is about: the ones a
+  # merge took in, an undone merge gave back, a duplicate decision is about, or
+  # the same rename changed. See `Publication.History.other_records/1`.
   defp serialize_history(entry) do
     %{
       publication_id: entry.publication_id,
       version: entry.version,
       action: entry.action,
       actor: entry.actor,
-      snapshot: Map.delete(entry.snapshot, "notes"),
+      snapshot: Map.drop(entry.snapshot, @notes_keys),
       diff: entry.diff,
       undoable: entry.undoable,
       name_change: entry.name_change,

@@ -10,7 +10,9 @@ The cell of a row in the import workspace that holds the row's notes. It
 sits before the sources cell, at the end of the row. Notes are rich text, so
 they are edited outside the attribute grid: a button shows them as one line of
 plain text, cut short to fit, and opens the row's
-[notes field](?path=/docs/publications-notes-field--docs) in a dialog.
+[notes field](?path=/docs/publications-notes-field--docs) in a dialog, with a
+tab for each language. The button shows the notes in the reader's language, or
+in the other language when the row has none in the reader's.
 
 <Description of={WorkspaceNotesCellStories.WithNotes} />
 <Canvas of={WorkspaceNotesCellStories.WithNotes} />
@@ -42,9 +44,14 @@ edit that is still waiting, and leaves the edits in the row.
 
 ## An error
 
-When validation finds something wrong with the notes, such as their being
-too long, the row is invalid, the button's tooltip gives the error, and the
-editor shows it under the text.
+When validation finds something wrong with the notes in either language, such
+as their being too long, the row is invalid, the button's tooltip gives the
+error, and the editor shows it under the text of that language.
 
 <Description of={WorkspaceNotesCellStories.TooLong} />
 <Canvas of={WorkspaceNotesCellStories.TooLong} />
+
+## Notes in the other language
+
+<Description of={WorkspaceNotesCellStories.NotesInTheOtherLanguage} />
+<Canvas of={WorkspaceNotesCellStories.NotesInTheOtherLanguage} />

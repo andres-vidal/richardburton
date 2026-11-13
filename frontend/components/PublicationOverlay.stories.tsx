@@ -19,7 +19,7 @@ import PublicationOverlay from "./PublicationOverlay";
 const PUBLICATION = {
   ...LOOK_ALIKE_RECORD,
   id: 1,
-  sources: [
+  sourcesEn: [
     "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
   ],
 };
@@ -36,7 +36,8 @@ const LOG: PublicationHistoryEntry[] = [
     snapshot: { ...PUBLICATION, year: 1953 },
     diff: {
       fields: { title: { from: "Dom Casmurro (draft)", to: "Dom Casmurro" } },
-      sources: null,
+      sourcesPt: null,
+      sourcesEn: null,
     },
   },
   {

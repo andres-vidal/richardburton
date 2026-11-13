@@ -26,6 +26,7 @@ import {
   isValidFamily,
   publicationFamily,
   publicationIdsAtom,
+  publicationNotesFamily,
   resemblanceFamily,
   resetAll,
   resetAttributes,
@@ -349,6 +350,21 @@ describe("edits", () => {
       "Dom Casmurro (rev.)",
     );
   });
+
+  test("a row's notes keep the same record while another of its fields changes", () => {
+    hydrate(store, [saved(1, "Dom Casmurro")]);
+    setNotes(store, 1, "pt", [paragraph("Primeira edição.")]);
+    const before = store.get(publicationNotesFamily(1));
+
+    setField(store, 1, "title", "Dom Casmurro (rev.)");
+    expect(store.get(publicationNotesFamily(1))).toBe(before);
+
+    setNotes(store, 1, "en", [paragraph("First edition.")]);
+    expect(store.get(publicationNotesFamily(1))).not.toBe(before);
+    expect(store.get(publicationNotesFamily(1)).en).toEqual([
+      paragraph("First edition."),
+    ]);
+  });
 });
 
 describe("addNew", () => {
@@ -468,8 +484,8 @@ describe("family lifecycle", () => {
   });
 
   test("notes with the same content, their keys in another order, are not an edit", () => {
-    hydrate(store, [{ ...saved(1), notes: [paragraph("First edition.")] }]);
-    setNotes(store, 1, [
+    hydrate(store, [{ ...saved(1), notesEn: [paragraph("First edition.")] }]);
+    setNotes(store, 1, "en", [
       { children: [{ text: "First edition." }], type: "paragraph" },
     ]);
 
@@ -482,8 +498,8 @@ describe("family lifecycle", () => {
 
   test("no notes and null notes are not an edit, and other notes are", () => {
     hydrate(store, [saved(1), saved(2)]);
-    setNotes(store, 1, null);
-    setNotes(store, 2, [paragraph("New notes.")]);
+    setNotes(store, 1, "pt", null);
+    setNotes(store, 2, "pt", [paragraph("Notas novas.")]);
 
     hydrate(store, [
       saved(1, "As someone else saved it"),
@@ -494,6 +510,22 @@ describe("family lifecycle", () => {
       "As someone else saved it",
     );
     expect(store.get(publicationFamily(2)).title).toBe("Title 2");
+  });
+
+  test("editing the sources in one language keeps the other language's, and is an edit", () => {
+    hydrate(store, [
+      { ...saved(1), sourcesPt: ["Ficha."], sourcesEn: ["Record."] },
+    ]);
+    setSources(store, 1, "en", ["Record.", "Review."]);
+
+    expect(store.get(publicationFamily(1))).toMatchObject({
+      sourcesPt: ["Ficha."],
+      sourcesEn: ["Record.", "Review."],
+    });
+
+    hydrate(store, [saved(1, "As someone else saved it")]);
+
+    expect(store.get(publicationFamily(1)).title).toBe("Title 1");
   });
 
   test("a row without edits takes what a load returns", () => {
@@ -622,7 +654,7 @@ describe("look-alikes", () => {
 
   test("stands when a field the check does not read is edited", () => {
     measured();
-    setSources(store, 1, ["A source"]);
+    setSources(store, 1, "pt", ["Uma fonte"]);
 
     expect(store.get(resemblanceFamily(1))).toEqual(RESEMBLES);
   });

@@ -1,15 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { store, type Store } from "modules/store";
-import { Publication, type Resemblance } from "modules/publication/model";
+import {
+  Publication,
+  type PublicationError,
+  type Resemblance,
+} from "modules/publication/model";
 import {
   resetAll,
   reviewingAtom,
   setAll,
   setResemblances,
 } from "modules/publication/store";
-import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
+import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
-import { LOOK_ALIKE_RECORD } from "test/publication-fixtures";
+import { fieldErrors, LOOK_ALIKE_RECORD } from "test/publication-fixtures";
 
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
@@ -19,11 +23,15 @@ const selectRow = fn();
 // A stored record for the row to resemble.
 const STORED = LOOK_ALIKE_RECORD;
 
+// Fills the store with one row, `rowId`, holding `sources` in English and
+// `row`'s other fields and errors, and records `resemblance` as what the
+// look-alike check found for it.
 const seed = (
   store: Store,
   rowId: number,
   sources: string[],
   resemblance?: Resemblance,
+  row: { sourcesPt?: string[]; errors?: PublicationError } = {},
 ) => {
   resetAll(store);
   selectRow.mockClear();
@@ -33,9 +41,10 @@ const seed = (
       publication: {
         ...Publication.empty(),
         title: "Dom Casmurro",
-        sources,
+        sourcesEn: sources,
+        sourcesPt: row.sourcesPt ?? [],
       },
-      errors: null,
+      errors: row.errors ?? null,
     },
   ]);
   setResemblances(
@@ -154,5 +163,42 @@ export const OpeningTheReview: Story = {
       expect(store.get(reviewingAtom)).toEqual({ startAt: 1 }),
     );
     await expect(selectRow).not.toHaveBeenCalled();
+  },
+};
+
+/**
+ * A row whose sources are only in Portuguese, one of them too long. The button
+ * counts the Portuguese sources, since the row has none in the reader's
+ * English, and its tooltip gives the error. The play test opens the editor and
+ * checks that the Portuguese tab is shown in red and gives the error under its
+ * list.
+ */
+export const WithAnError: Story = {
+  beforeEach: () =>
+    seed(store, 1, [], undefined, {
+      sourcesPt: ["Uma fonte longa demais"],
+      errors: fieldErrors({ sourcesPt: "too_long" }),
+    }),
+  parameters: {
+    // The open modal aria-hides the background trigger, which is still focusable.
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
+  play: async () => {
+    await userEvent.click(
+      screen.getByRole("button", { name: "Edit sources (1)" }),
+    );
+
+    const dialog = await screen.findByRole("dialog", { name: "Edit sources" });
+    const portuguese = within(
+      within(dialog).getByRole("tablist", { name: "Language of the sources" }),
+    ).getByRole("tab", { name: "Português" });
+
+    await expect(portuguese).toHaveAttribute("data-invalid", "true");
+    await userEvent.click(portuguese);
+    await expect(
+      within(
+        within(dialog).getByRole("tabpanel", { name: "Português" }),
+      ).getByText("This text is too long"),
+    ).toBeVisible();
   },
 };

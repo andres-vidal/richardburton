@@ -3,24 +3,34 @@ defmodule RichardBurton.FlatPublication do
   A publication in its flat shape: the title, year, countries, publishers,
   translators (`authors`), original title, original authors, sources and
   notes side by side. Each list of countries, publishers, authors or sources
-  holds names, country codes or source texts. The notes are rich text, as
-  `RichardBurton.RichText` describes it, or nil.
+  holds names, country codes or source texts. The sources are two lists,
+  `sources_pt` in Portuguese and `sources_en` in English (see
+  `RichardBurton.Source`). The notes are two fields, `notes_pt` in Portuguese
+  and `notes_en` in English, each rich text, as `RichardBurton.RichText`
+  describes it, or nil.
 
   The schema reads the `flat_publications` materialized view, which holds one
   row for each publication that is not deleted, and which
   `RichardBurton.Publication.Index.Refresher` rebuilds after each write. It
   also validates a publication in this shape, without writing it.
 
-  The view does not hold the notes, so `notes` is a virtual field. A
-  publication read from the view has nil notes, whatever notes it has, unless
-  the query that read it selected them from the `publications` table.
+  The view does not hold the notes, so `notes_pt` and `notes_en` are virtual
+  fields. A publication read from the view has nil notes, whatever notes it
+  has, unless the query that read it selected them from the `publications`
+  table.
+
+  The view also holds `sources`, the Portuguese sources followed by the
+  English ones, which the search and the filter of publications without
+  sources read. A query does not load that field unless it selects it, and
+  it is not part of a flat publication's JSON.
 
   A flat publication is encoded as JSON with its id, its writable fields,
   `excerpts` and `marked`, as `json_fields/1` returns them. A publication
-  loaded from the database is encoded without `notes` when they are nil,
-  because a nil there may only mean that the query did not read them. Any
-  other publication, such as one that `RichardBurton.Publication.Codec.flatten/1`
-  returns, is encoded with its notes, nil included.
+  loaded from the database is encoded without `notes_pt` and `notes_en` when
+  both are nil, because two nils there may only mean that the query did not
+  read them. Any other publication, such as one that
+  `RichardBurton.Publication.Codec.flatten/1` returns, is encoded with both,
+  nil included.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -28,6 +38,7 @@ defmodule RichardBurton.FlatPublication do
   alias RichardBurton.Country
   alias RichardBurton.FlatPublication
   alias RichardBurton.Identity
+  alias RichardBurton.Language
   alias RichardBurton.RichText
   alias RichardBurton.Validation
 
@@ -41,9 +52,12 @@ defmodule RichardBurton.FlatPublication do
     :original_authors
   ]
 
+  # The notes, which a query reads from the `publications` table.
+  @notes Language.fields(:notes)
+
   # Writable but not required: a publication may legitimately have no provenance
-  # or notes, and a CSV file may leave either column out.
-  @writable_attributes [:sources, :notes | @required_attributes]
+  # or notes, and a CSV file may leave any of these columns out.
+  @writable_attributes Language.fields(:sources) ++ @notes ++ @required_attributes
 
   # The attributes that hold several values. An empty list is not "blank" to
   # `validate_required/2`, so saying a record has no countries at all takes a
@@ -62,8 +76,11 @@ defmodule RichardBurton.FlatPublication do
     field(:publishers, {:array, :string})
     field(:original_title, :string)
     field(:original_authors, {:array, :string})
-    field(:sources, {:array, :string})
-    field(:notes, RichText, virtual: true)
+    field(:sources_pt, {:array, :string}, default: [])
+    field(:sources_en, {:array, :string}, default: [])
+    field(:sources, {:array, :string}, load_in_query: false)
+    field(:notes_pt, RichText, virtual: true)
+    field(:notes_en, RichText, virtual: true)
 
     field(:excerpts, :map, virtual: true)
     field(:marked, :map, virtual: true)
@@ -123,8 +140,10 @@ defmodule RichardBurton.FlatPublication do
   Returns the fields of `publication` that its JSON holds, as a map, as the
   module doc describes.
   """
-  def json_fields(publication = %FlatPublication{__meta__: %{state: :loaded}, notes: nil}) do
-    Map.take(publication, @readable_attributes -- [:notes])
+  def json_fields(
+        publication = %FlatPublication{__meta__: %{state: :loaded}, notes_pt: nil, notes_en: nil}
+      ) do
+    Map.take(publication, @readable_attributes -- @notes)
   end
 
   def json_fields(publication = %FlatPublication{}),

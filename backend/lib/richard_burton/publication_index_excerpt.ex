@@ -18,8 +18,9 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   Terms used here:
 
     * **excerpt** — the matching text of one field. Short fields come back in
-      full. `sources` is an array, which the search treats as one long
-      string, so it comes back as a short window around the match instead.
+      full. `sources_pt` and `sources_en` are each an array, which the search
+      treats as one long string, so each comes back as a short window around
+      the match instead.
     * **widening** — one word that the search matched with something other than
       what was typed, either because the word is a prefix of several indexed
       words or because it matched none and fell back to ones resembling it. A
@@ -43,8 +44,8 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   @type widening :: %{field: String.t() | nil, typed: String.t(), words: [String.t()]}
 
   # Highlighting options for `ts_headline`. Short fields are returned in full.
-  # `sources` holds a whole bibliography joined into one string, so only a
-  # short window around the match is returned.
+  # The sources of a language hold a whole bibliography joined into one
+  # string, so only a short window around the match is returned.
   @whole "StartSel=[[,StopSel=]],HighlightAll=true"
   @window "StartSel=[[,StopSel=]],MaxFragments=1,MaxWords=16,MinWords=6"
 
@@ -52,7 +53,9 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   # built from, less two. `year` is a number and has no text to highlight.
   # `countries` holds a country code while the search document holds the
   # country's names, so an excerpt on that column would mark the code, which is
-  # not the text the search matched.
+  # not the text the search matched. `sources` is the search's one field for the
+  # sources of both languages, and its tsquery highlights `sources_pt` and
+  # `sources_en` alike.
   @fields [
     :title,
     :original_title,
@@ -214,7 +217,9 @@ defmodule RichardBurton.Publication.Index.Excerpt do
   `excerpts` holds a value for each field: the matching text of the whole
   field, or nil where the search did not match it. `marked` holds a list for
   each list field, lined up with the field's values, holding each value's
-  matching text, or nil where that value did not match.
+  matching text, or nil where that value did not match. The sources of each
+  language, `sources_pt` and `sources_en`, get an excerpt and marks of their
+  own, both from the sources field's tsquery.
 
   Both come from the term alone, read the way the search reads it. A field no
   part of the term searched gets no tsquery, and so neither an excerpt nor
@@ -235,14 +240,16 @@ defmodule RichardBurton.Publication.Index.Excerpt do
         authors: excerpt(joined(p.authors), ^queries.authors, @whole),
         original_authors: excerpt(joined(p.original_authors), ^queries.original_authors, @whole),
         publishers: excerpt(joined(p.publishers), ^queries.publishers, @whole),
-        sources: excerpt(joined(p.sources), ^queries.sources, @window)
+        sources_pt: excerpt(joined(p.sources_pt), ^queries.sources, @window),
+        sources_en: excerpt(joined(p.sources_en), ^queries.sources, @window)
       },
       marked: %{
         authors: marked_values(p.authors, ^queries.authors),
         original_authors: marked_values(p.original_authors, ^queries.original_authors),
         publishers: marked_values(p.publishers, ^queries.publishers),
         countries: marked_countries(p.countries, ^queries.countries),
-        sources: marked_values(p.sources, ^queries.sources)
+        sources_pt: marked_values(p.sources_pt, ^queries.sources),
+        sources_en: marked_values(p.sources_en, ^queries.sources)
       }
     })
   end

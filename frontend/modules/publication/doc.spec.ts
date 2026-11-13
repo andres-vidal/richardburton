@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import * as Y from "yjs";
 
+import { paragraph } from "test/rich-text-fixtures";
 import * as Doc from "./doc";
 import { empty, type Publication } from "./model";
 
@@ -35,13 +36,46 @@ describe("reading and writing", () => {
       title: "Dom Casmurro",
       authors: ["Helen Caldwell"],
       year: "1953",
-      sources: ["Caldwell, Helen. Introduction, 1953."],
+      sourcesPt: ["Caldwell, Helen. Introdução, 1953."],
+      sourcesEn: ["Caldwell, Helen. Introduction, 1953."],
     });
 
     Doc.addRow(doc, "a", row);
 
     expect(Doc.readRow(doc, "a")).toEqual(row);
     expect(Doc.keys(doc)).toEqual(["a"]);
+  });
+
+  test("a row written before notes and sources had two languages reads them as Portuguese", () => {
+    const doc = new Y.Doc();
+    const notes = [paragraph("Primeira edição.")];
+    const row = new Y.Map<unknown>();
+    const sources = new Y.Array<string>();
+
+    sources.push(["Caldwell, Helen. Introdução, 1953."]);
+    row.set("title", "Dom Casmurro");
+    row.set("notes", notes);
+    row.set("sources", sources);
+    doc.getMap("rows").set("a", row);
+    doc.getArray("order").push(["a"]);
+
+    const read = Doc.readRow(doc, "a")!;
+
+    expect(read.notesPt).toEqual(notes);
+    expect(read.sourcesPt).toEqual(["Caldwell, Helen. Introdução, 1953."]);
+    expect(read).not.toHaveProperty("notes");
+    expect(read).not.toHaveProperty("sources");
+
+    // Writing the notes and the sources in Portuguese takes the place of the
+    // old fields, and the sources are written as a list that merges.
+    Doc.setField(doc, "a", "notesPt", null);
+    Doc.setField(doc, "a", "sourcesPt", [...read.sourcesPt, "Ficha."]);
+
+    expect(Doc.readRow(doc, "a")).toMatchObject({
+      notesPt: null,
+      sourcesPt: ["Caldwell, Helen. Introdução, 1953.", "Ficha."],
+    });
+    expect(row.get("sourcesPt")).toBeInstanceOf(Y.Array);
   });
 
   test("a row the document does not hold reads as nothing", () => {
@@ -140,18 +174,22 @@ describe("two people at once", () => {
   test("a source added on each side keeps both", () => {
     const { here, there, sync } = pair();
 
-    Doc.addRow(here, "a", publication({ title: "Dom Casmurro", sources: [] }));
+    Doc.addRow(
+      here,
+      "a",
+      publication({ title: "Dom Casmurro", sourcesEn: [] }),
+    );
     sync();
 
-    Doc.setField(here, "a", "sources", [
+    Doc.setField(here, "a", "sourcesEn", [
       "Caldwell, Helen. Introduction, 1953.",
     ]);
-    Doc.setField(there, "a", "sources", [
+    Doc.setField(there, "a", "sourcesEn", [
       "Gledson, John. Deceptive Realism, 1984.",
     ]);
     sync();
 
-    const kept = Doc.readRow(here, "a")?.sources ?? [];
+    const kept = Doc.readRow(here, "a")?.sourcesEn ?? [];
 
     expect(kept).toHaveLength(2);
     expect(kept).toEqual(
@@ -160,22 +198,24 @@ describe("two people at once", () => {
         "Gledson, John. Deceptive Realism, 1984.",
       ]),
     );
-    expect(Doc.readRow(there, "a")?.sources).toEqual(kept);
+    expect(Doc.readRow(there, "a")?.sourcesEn).toEqual(kept);
   });
 
   // `setField` edits the existing `Y.Array` on each write, so after two writes
   // the field reads back as the second value.
   test("sources stay a list that merges however many times they are written", () => {
     const doc = new Y.Doc();
-    Doc.addRow(doc, "a", publication({ title: "Dom Casmurro", sources: [] }));
+    Doc.addRow(doc, "a", publication({ title: "Dom Casmurro", sourcesEn: [] }));
 
-    Doc.setField(doc, "a", "sources", ["Caldwell, Helen. Introduction, 1953."]);
-    Doc.setField(doc, "a", "sources", [
+    Doc.setField(doc, "a", "sourcesEn", [
+      "Caldwell, Helen. Introduction, 1953.",
+    ]);
+    Doc.setField(doc, "a", "sourcesEn", [
       "Caldwell, Helen. Introduction, 1953.",
       "Gledson, John. Deceptive Realism, 1984.",
     ]);
 
-    expect(Doc.readRow(doc, "a")?.sources).toEqual([
+    expect(Doc.readRow(doc, "a")?.sourcesEn).toEqual([
       "Caldwell, Helen. Introduction, 1953.",
       "Gledson, John. Deceptive Realism, 1984.",
     ]);

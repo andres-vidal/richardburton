@@ -10,6 +10,7 @@ import {
   PublicationError,
   PublicationKey,
   empty,
+  type ErrorScope,
   type FollowedPublication,
   type PublicationEntry,
 } from "modules/publication/model";
@@ -30,10 +31,11 @@ type SeedEntry = Partial<Publication> & { errors?: PublicationError };
 
 /**
  * Returns `errors` as a row's field errors, which name only the invalid
- * fields, as the backend's do.
+ * fields, as the backend's do. A field may be an attribute, or the notes or
+ * the sources in one language.
  */
 function fieldErrors(
-  errors: Partial<Record<PublicationKey, string>>,
+  errors: Partial<Record<ErrorScope, string>>,
 ): PublicationError {
   return errors as Record<PublicationKey, string>;
 }

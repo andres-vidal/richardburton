@@ -1,4 +1,4 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
 
 import * as WorkspaceSourcesCellStories from "./WorkspaceSourcesCell.stories";
 
@@ -12,10 +12,10 @@ shows the source count and opens the sources editor in a dialog.
 
 ## Props
 
-`rowId` — the workspace row the cell belongs to. It reads that row's sources
-from the store (`usePublicationSources`) and writes edits to the same row
-(`setSources`). The bulk insert saves the sources with the rest of the row, so
-the cell has no save of its own.
+`rowId` — the workspace row the cell belongs to. It reads that row's sources in
+each language from the store (`usePublicationSources`) and writes edits to the
+same row (`setSources`), one language's list at a time. The bulk insert saves
+the sources with the rest of the row, so the cell has no save of its own.
 
 `invalid` / `selected` / `focused` — optional row-state flags (default `false`)
 that drive the cell's background so it shares the row's hover / error / selected
@@ -23,9 +23,11 @@ highlight, just like the attribute cells. The workspace supplies them for
 committed rows and omits them for the plain draft row.
 
 The button label reflects the count: "Sources" when empty (an invitation to add),
-"N sources" once there are some. Clicking it opens a modal with the shared
-`SourcesEditor`; the click is stopped from bubbling so it doesn't also select
-the row.
+"N sources" once there are some. The count is that of the sources in the
+reader's language, or in the other language when the row has none in the
+reader's, as the publication page falls back. Clicking it opens a modal with the
+shared `SourcesEditor`, which has a tab for each language; the click is stopped
+from bubbling so it doesn't also select the row.
 
 <Canvas of={WorkspaceSourcesCellStories.WithSources} />
 
@@ -38,6 +40,16 @@ the row.
 
 The stories wrap the cell in a `role="row"` inside a `role="table"`, since a
 cell is only valid ARIA inside a row.
+
+## An error
+
+When validation finds something wrong with the sources in either language, such
+as a source that is too long, the button's tooltip gives the error, or the
+Portuguese one when both languages have one. The editor shows each error under
+its language's list, with that language's tab in red.
+
+<Description of={WorkspaceSourcesCellStories.WithAnError} />
+<Canvas of={WorkspaceSourcesCellStories.WithAnError} />
 
 ## The look-alike button
 

@@ -1,0 +1,65 @@
+import { Canvas, Description, Meta } from "@storybook/addon-docs/blocks";
+
+import * as NotesEditorStories from "./NotesEditor.stories";
+
+<Meta of={NotesEditorStories} />
+
+# Notes editor
+
+Edits a publication's notes in Portuguese and in English, each in a tab of
+its own (see [language tabs](?path=/docs/components-language-tabs--docs)).
+Each tab holds a
+[lazy rich text area](?path=/docs/components-lazy-rich-text-area--docs)
+named for the notes in its language. Neither version is the original: either
+can be written first, and either can exist without the other. The tab of the
+reader's language is selected at first.
+
+The editor keeps no notes of its own. The
+[notes field](?path=/docs/publications-notes-field--docs) connects it to a row
+of the publication store, and the
+[merge dialog](?path=/docs/publications-publication-merge--docs) to the notes
+it proposes.
+
+<Description of={NotesEditorStories.Default} />
+<Canvas of={NotesEditorStories.Default} />
+
+## Props
+
+- `value` — the notes in each language, or null in a language there are none
+  in.
+- `onChange` — receives the language and the edited notes on each edit.
+- `onDraft` — receives the language and a draft. Defaults to `onChange`. The
+  notes field writes a draft to the row at once, where it waits for a pause in
+  the typing before it writes an edit.
+- `errors` — the error of each language, shown under its text. A tab whose
+  notes have an error is shown in red, so an error in the hidden tab is not
+  missed.
+- `hint` — the hint under each tab's label. Defaults to the notes' hint.
+
+<Description of={NotesEditorStories.Empty} />
+<Canvas of={NotesEditorStories.Empty} />
+
+<Description of={NotesEditorStories.WithAnError} />
+<Canvas of={NotesEditorStories.WithAnError} />
+
+## Drafting the other language
+
+Beside the tabs, a [draft button](?path=/docs/components-draft-button--docs)
+drafts the notes of the selected tab from the notes in the other language, in a
+browser whose built-in Translator API can translate the pair. The browser's API
+takes plain text, so the draft keeps the blocks of the other language's notes,
+each paragraph or list item with its list and its depth, and translates the
+text of each one (see `withBlockTexts` in `modules/rich-text`). Bold and italic
+are not carried over, and neither are links that show other text than their
+address. A bare address passes through the translation and is a link again.
+
+<Description of={NotesEditorStories.Drafting} />
+<Canvas of={NotesEditorStories.Drafting} />
+
+A draft into a tab that already has notes asks before it replaces them.
+
+<Description of={NotesEditorStories.ReplacingNotes} />
+<Canvas of={NotesEditorStories.ReplacingNotes} />
+
+<Description of={NotesEditorStories.WithoutTheTranslatorApi} />
+<Canvas of={NotesEditorStories.WithoutTheTranslatorApi} />

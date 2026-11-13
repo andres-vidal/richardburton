@@ -5,9 +5,11 @@ defmodule RichardBurton.Publication.Codec do
 
   The **flat** shape is the one `RichardBurton.FlatPublication` has: `title`,
   `year`, `countries`, `publishers`, `authors`, `original_title`,
-  `original_authors`, `sources` and `notes`, side by side. Each list of
-  countries, publishers, authors or sources holds names, codes or source
-  texts, and the notes are rich text (see `RichardBurton.RichText`).
+  `original_authors`, `sources_pt`, `sources_en`, `notes_pt` and `notes_en`,
+  side by side. Each list of countries, publishers, authors or sources holds
+  names, codes or source texts, and the notes in each language are rich text
+  (see `RichardBurton.RichText`). The `_pt` fields are in Portuguese and the
+  `_en` fields in English (see `RichardBurton.Source`).
 
   The **nested** shape is the one `RichardBurton.Publication.changeset/2`
   casts. Its list fields hold child maps, such as `%{"name" => name}`, and the
@@ -17,10 +19,12 @@ defmodule RichardBurton.Publication.Codec do
       %{
         "title" => title,
         "year" => year,
-        "notes" => blocks,
+        "notes_pt" => blocks,
+        "notes_en" => blocks,
         "countries" => [%{"code" => code}],
         "publishers" => [%{"name" => name}],
-        "sources" => [%{"content" => text, "position" => 0}],
+        "sources_pt" => [%{"content" => text, "position" => 0}],
+        "sources_en" => [%{"content" => text, "position" => 0}],
         "translated_book" => %{
           "authors" => [%{"name" => name}],
           "original_book" => %{"title" => title, "authors" => [%{"name" => name}]}
@@ -30,6 +34,7 @@ defmodule RichardBurton.Publication.Codec do
 
   alias RichardBurton.Author
   alias RichardBurton.Country
+  alias RichardBurton.Language
   alias RichardBurton.Util
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
@@ -47,7 +52,8 @@ defmodule RichardBurton.Publication.Codec do
     "authors" => "",
     "original_title" => "",
     "original_authors" => "",
-    "notes" => nil
+    "notes_pt" => nil,
+    "notes_en" => nil
   }
 
   # The columns a file may carry, by the name its header gives them. Singular
@@ -63,9 +69,10 @@ defmodule RichardBurton.Publication.Codec do
     "translators" => "authors",
     "original_title" => "original_title",
     "original_authors" => "original_authors",
-    "sources" => "sources",
-    "note" => "notes",
-    "notes" => "notes"
+    "sources_pt" => "sources_pt",
+    "sources_en" => "sources_en",
+    "notes_pt" => "notes_pt",
+    "notes_en" => "notes_en"
   }
 
   # The order an exported file writes its columns in.
@@ -77,8 +84,10 @@ defmodule RichardBurton.Publication.Codec do
     "authors",
     "original_title",
     "original_authors",
-    "sources",
-    "notes"
+    "sources_pt",
+    "sources_en",
+    "notes_pt",
+    "notes_en"
   ]
 
   # The cells holding several values, and what separates them. A semicolon,
@@ -88,12 +97,17 @@ defmodule RichardBurton.Publication.Codec do
   # Sources keep the line break they are written with: a bibliographic entry
   # carries semicolons of its own, and cannot carry a line break.
   @csv_lists %{
-    "sources" => {"\n", "\n"},
+    "sources_pt" => {"\n", "\n"},
+    "sources_en" => {"\n", "\n"},
     "countries" => {";", "; "},
     "publishers" => {";", "; "},
     "authors" => {";", "; "},
     "original_authors" => {";", "; "}
   }
+
+  # The keys of the notes and of the sources in each language.
+  @notes Enum.map(Language.fields(:notes), &Atom.to_string/1)
+  @sources Enum.map(Language.fields(:sources), &Atom.to_string/1)
 
   @doc """
   Reads a CSV of publications: one row each, columns named by a header.
@@ -102,11 +116,15 @@ defmodule RichardBurton.Publication.Codec do
   and a column the file does not carry reads as empty. A name the table does not
   know is ignored, which is what lets a spreadsheet keep a column of its own.
 
-  A `notes` cell holds plain text, which may run over several lines inside
-  quotes, and reads as the rich text `RichardBurton.RichText.from_plain_text/1`
-  returns for it: a paragraph for each part of the text between blank lines,
-  with a link for each web address or email address in it. A blank or
-  missing `notes` cell reads as nil.
+  A `sources_pt` or `sources_en` cell holds the sources in its language, one
+  per line, and reads as a list of them without the blank lines. The two
+  cells are read apart.
+
+  A `notes_pt` or `notes_en` cell holds plain text, which may run over several
+  lines inside quotes, and reads as the rich text
+  `RichardBurton.RichText.from_plain_text/1` returns for it: a paragraph for
+  each part of the text between blank lines, with a link for each web address
+  or email address in it. A blank or missing notes cell reads as nil.
   """
   def from_csv(path) do
     try do
@@ -136,10 +154,11 @@ defmodule RichardBurton.Publication.Codec do
   Writes publications as a CSV with a header, in the shape `from_csv/1` reads.
 
   The columns come in this order: `title`, `year`, `countries`, `publishers`,
-  `authors`, `original_title`, `original_authors`, `sources` and `notes`.
-  The file has a column for each of them that the first publication holds, so
-  every publication must hold the same fields. The notes are written as the
-  plain text `RichardBurton.RichText.to_plain_text/1` returns for them.
+  `authors`, `original_title`, `original_authors`, `sources_pt`,
+  `sources_en`, `notes_pt` and `notes_en`. The file has a column for each of
+  them that the first publication holds, so every publication must hold the
+  same fields. The notes are written as the plain text
+  `RichardBurton.RichText.to_plain_text/1` returns for them.
   """
   def to_csv(flat_publications) do
     rows =
@@ -197,9 +216,15 @@ defmodule RichardBurton.Publication.Codec do
 
   defp split_cell(_absent, _separator), do: []
 
-  # Returns a row with its `notes` cell read as rich text, which is nil for a
+  # Returns a row with each notes cell read as rich text, which is nil for a
   # blank or missing cell.
-  defp parse_notes(row), do: Map.update!(row, "notes", &RichText.from_plain_text/1)
+  defp parse_notes(row) do
+    Enum.reduce(
+      @notes,
+      row,
+      &Map.update!(&2, &1, fn notes -> RichText.from_plain_text(notes) end)
+    )
+  end
 
   # Joins each list of the fields in `@csv_lists` into one cell. A field the
   # row does not hold is left out rather than written empty, because an
@@ -213,12 +238,16 @@ defmodule RichardBurton.Publication.Codec do
     end)
   end
 
-  # Returns a row with its notes written as plain text. A row without a
-  # `notes` field is returned unchanged.
-  defp write_notes(row = %{"notes" => notes}),
-    do: %{row | "notes" => RichText.to_plain_text(notes)}
-
-  defp write_notes(row), do: row
+  # Returns a row with its notes in each language written as plain text. A
+  # notes field the row does not hold is left out.
+  defp write_notes(row) do
+    Enum.reduce(@notes, row, fn field, row ->
+      case Map.fetch(row, field) do
+        {:ok, notes} -> Map.put(row, field, RichText.to_plain_text(notes))
+        :error -> row
+      end
+    end)
+  end
 
   @doc ~S"""
   Nests a flat publication into the nested shape. Takes a `FlatPublication`
@@ -302,8 +331,8 @@ defmodule RichardBurton.Publication.Codec do
   defp nest_entry({"publishers", value}),
     do: {"publishers", Publisher.nest(value)}
 
-  defp nest_entry({"sources", value}),
-    do: {"sources", Source.nest(value)}
+  defp nest_entry({key, value}) when key in @sources,
+    do: {key, Source.nest(value)}
 
   defp nest_entry({key, value}),
     do: {key, value}
@@ -438,6 +467,6 @@ defmodule RichardBurton.Publication.Codec do
   defp flatten_entry({"original_authors", value}), do: {"original_authors", Author.flatten(value)}
   defp flatten_entry({"countries", value}), do: {"countries", Country.flatten(value)}
   defp flatten_entry({"publishers", value}), do: {"publishers", Publisher.flatten(value)}
-  defp flatten_entry({"sources", value}), do: {"sources", Source.flatten(value)}
+  defp flatten_entry({key, value}) when key in @sources, do: {key, Source.flatten(value)}
   defp flatten_entry({key, value}), do: {key, value}
 end

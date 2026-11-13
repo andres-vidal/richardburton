@@ -32,7 +32,7 @@ defmodule RichardBurton.Publication.HistoryTest do
 
     test "differs once sources change", %{publication: publication} do
       {:ok, sourced} =
-        Publication.update(publication.id, publication_attrs(%{sources: ["A source"]}))
+        Publication.update(publication.id, publication_attrs(%{sources_en: ["A source"]}))
 
       # A changeset cannot tell this change: it replaces the sources on every
       # save, so only the resulting state shows whether they changed.
@@ -111,7 +111,8 @@ defmodule RichardBurton.Publication.HistoryTest do
 
       # Only what moved: untouched fields are absent, not present-and-equal.
       refute Map.has_key?(diff.fields, "publishers")
-      assert diff.sources == nil
+      assert diff.sources_pt == nil
+      assert diff.sources_en == nil
     end
 
     # A stored snapshot can list a set of names in any order. The diff compares
@@ -139,13 +140,19 @@ defmodule RichardBurton.Publication.HistoryTest do
       assert Map.keys(diff.fields) == ["title"]
     end
 
-    test "a change to the notes is diffed like any other field", %{publication: publication} do
+    test "a change to the notes in each language is diffed like any other field",
+         %{publication: publication} do
       notes = [paragraph([run("Bound in "), run("green", %{"bold" => true}), run(" cloth.")])]
+      notas = paragraphs("Encadernado em pano verde.")
 
-      edit(publication, %{notes: notes})
+      edit(publication, %{notes_en: notes, notes_pt: notas})
 
       assert [%History{diff: diff} | _] = History.of(publication.id)
-      assert diff.fields == %{"notes" => %{from: nil, to: notes}}
+
+      assert diff.fields == %{
+               "notes_en" => %{from: nil, to: notes},
+               "notes_pt" => %{from: nil, to: notas}
+             }
     end
 
     test "a change to the formatting of the notes alone is diffed", %{publication: publication} do
@@ -153,20 +160,20 @@ defmodule RichardBurton.Publication.HistoryTest do
 
       bold = [paragraph([run("Bound in green cloth.", %{"bold" => true})])]
 
-      edit(publication, %{notes: plain})
-      edit(publication, %{notes: bold})
+      edit(publication, %{notes_en: plain})
+      edit(publication, %{notes_en: bold})
 
       assert [%History{diff: diff} | _] = History.of(publication.id)
-      assert diff.fields == %{"notes" => %{from: plain, to: bold}}
+      assert diff.fields == %{"notes_en" => %{from: plain, to: bold}}
     end
 
-    test "a snapshot without a notes key holds the same notes as one whose notes are nil",
+    test "a snapshot without notes keys holds the same notes as one whose notes are nil",
          %{publication: publication} do
       [created] = History.of(publication.id)
 
       snapshot =
         created.snapshot
-        |> Map.delete("notes")
+        |> Map.drop(["notes_pt", "notes_en"])
         |> Map.put("title", "Dom Casmurro: A Novel")
 
       %History{}
@@ -183,27 +190,34 @@ defmodule RichardBurton.Publication.HistoryTest do
       assert Map.keys(diff.fields) == ["title"]
     end
 
-    test "sources diff as the exact entries added and removed", %{publication: publication} do
-      edit(publication, %{sources: ["Pontiero, Giovanni."]})
-      edit(publication, %{sources: ["Moser, Benjamin."]})
+    test "the sources of each language diff as the exact entries added and removed",
+         %{publication: publication} do
+      edit(publication, %{sources_pt: ["Pontiero, Giovanni."]})
 
-      expected_diff = %{
-        added: ["Moser, Benjamin."],
-        removed: ["Pontiero, Giovanni."],
-        reordered: false
-      }
+      assert [%History{diff: diff} | _] = History.of(publication.id)
+      assert diff.sources_pt == %{added: ["Pontiero, Giovanni."], removed: [], reordered: false}
+      assert diff.sources_en == nil
+
+      edit(publication, %{sources_pt: ["Moser, Benjamin."], sources_en: ["Moser, Benjamin."]})
 
       assert [%History{diff: diff} | _] = History.of(publication.id)
 
-      assert expected_diff == diff.sources
+      assert diff.sources_pt == %{
+               added: ["Moser, Benjamin."],
+               removed: ["Pontiero, Giovanni."],
+               reordered: false
+             }
+
+      assert diff.sources_en == %{added: ["Moser, Benjamin."], removed: [], reordered: false}
     end
 
     test "the same sources in a new order is a reorder", %{publication: publication} do
-      edit(publication, %{sources: ["Alpha", "Beta"]})
-      edit(publication, %{sources: ["Beta", "Alpha"]})
+      edit(publication, %{sources_en: ["Alpha", "Beta"]})
+      edit(publication, %{sources_en: ["Beta", "Alpha"]})
 
       assert [%History{diff: diff} | _] = History.of(publication.id)
-      assert diff.sources == %{added: [], removed: [], reordered: true}
+      assert diff.sources_en == %{added: [], removed: [], reordered: true}
+      assert diff.sources_pt == nil
     end
 
     test "only updates carry a diff", %{publication: publication} do
@@ -458,14 +472,18 @@ defmodule RichardBurton.Publication.HistoryTest do
       {:ok, _} =
         Publication.update(
           publication.id,
-          publication_attrs(%{notes: paragraphs("A note.")}),
+          publication_attrs(%{
+            notes_pt: paragraphs("Uma nota."),
+            notes_en: paragraphs("A note.")
+          }),
           "a@b.com"
         )
 
       version = version_of(publication, "updated")
 
       assert {:ok, reverted} = Publication.undo(publication.id, version, "a@b.com")
-      assert reverted.notes == nil
+      assert reverted.notes_pt == nil
+      assert reverted.notes_en == nil
     end
 
     test "an update is undone by putting its fields back", %{publication: publication} do

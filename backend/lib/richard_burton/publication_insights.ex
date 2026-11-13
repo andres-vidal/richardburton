@@ -45,7 +45,8 @@ defmodule RichardBurton.Publication.Insights do
       are no publications.
     * `totals` — the number of distinct works, original authors, translators,
       publishers and countries in the publications.
-    * `sourced` — the number of publications that cite at least one source.
+    * `sourced` — the number of publications that cite at least one source,
+      in either language.
     * `chart` — what `RichardBurton.Publication.Chart.draw/2` returns for
       `chart` over the publications.
 

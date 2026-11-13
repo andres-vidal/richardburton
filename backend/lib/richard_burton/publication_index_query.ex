@@ -26,7 +26,8 @@ defmodule RichardBurton.Publication.Index.Query do
 
   # The columns holding several values, which are matched as one joined string.
   # `countries` holds several values too, but its value is resolved to country
-  # codes rather than matched as text. See `text_predicate/2`.
+  # codes rather than matched as text. See `text_predicate/2`. `sources` holds
+  # the sources of both languages.
   @list_fields [:sources, :publishers, :authors, :original_authors]
 
   @doc """

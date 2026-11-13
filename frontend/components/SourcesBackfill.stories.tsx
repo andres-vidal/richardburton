@@ -27,7 +27,7 @@ const publication = (id: number, title: string, sources: string[] = []) => ({
   year: "1953",
   countries: ["US"],
   publishers: ["Noonday Press"],
-  sources,
+  sourcesEn: sources,
 });
 
 const seedQueue = () => {

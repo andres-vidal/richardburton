@@ -146,7 +146,7 @@ defmodule RichardBurton.Fixtures do
         authors: ["Helen Caldwell"],
         original_title: "Dom Casmurro",
         original_authors: ["Machado de Assis"],
-        sources: ["Caldwell, Helen. Introduction, 1953."]
+        sources_pt: ["Caldwell, Helen. Introduction, 1953."]
       },
       %{
         title: "Dom Casmurro",
@@ -201,7 +201,7 @@ defmodule RichardBurton.Fixtures do
         authors: ["Isabel Burton"],
         original_title: "Iracema",
         original_authors: ["José de Alencar"],
-        sources: ["Burton, Isabel. Preface, 1886."]
+        sources_pt: ["Burton, Isabel. Preface, 1886."]
       }
     ]
   end

@@ -28,8 +28,10 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => ["Bickers & Son"],
           "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
           "year" => "1886",
-          "sources" => [],
-          "notes" => nil
+          "sources_pt" => [],
+          "sources_en" => [],
+          "notes_pt" => nil,
+          "notes_en" => nil
         },
         %{
           "authors" => ["J. T. W. Sadler"],
@@ -39,8 +41,10 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => ["Ronald Massey"],
           "title" => "Ubirajara: A Legend of the Tupy Indians",
           "year" => "1922",
-          "sources" => [],
-          "notes" => nil
+          "sources_pt" => [],
+          "sources_en" => [],
+          "notes_pt" => nil,
+          "notes_en" => nil
         },
         %{
           "authors" => [],
@@ -50,8 +54,10 @@ defmodule RichardBurton.Publication.CodecTest do
           "publishers" => ["Bickers & Son"],
           "title" => "",
           "year" => "AAAA",
-          "sources" => [],
-          "notes" => nil
+          "sources_pt" => [],
+          "sources_en" => [],
+          "notes_pt" => nil,
+          "notes_en" => nil
         }
       ]
 
@@ -111,7 +117,8 @@ defmodule RichardBurton.Publication.CodecTest do
       authors: ["Isabel Burton"],
       original_authors: ["José de Alencar"],
       original_title: "Iracema",
-      sources: []
+      sources_pt: [],
+      sources_en: []
     }
 
     test "on a nested publication-like with string keys, returns the flattened representation with string keys" do
@@ -166,7 +173,8 @@ defmodule RichardBurton.Publication.CodecTest do
         year: "1886",
         countries: [%Country{code: "GB"}],
         publishers: [%Publisher{name: "Bickers & Son"}, %Publisher{name: "Noonday Press"}],
-        sources: [],
+        sources_pt: [],
+        sources_en: [],
         translated_book: %TranslatedBook{
           authors: [%Author{name: "Isabel Burton"}],
           original_book: %OriginalBook{
@@ -220,7 +228,8 @@ defmodule RichardBurton.Publication.CodecTest do
           year: "1886",
           countries: [%Country{code: "GB"}],
           publishers: [%Publisher{name: "Bickers & Son"}, %Publisher{name: "Noonday Press"}],
-          sources: [],
+          sources_pt: [],
+          sources_en: [],
           translated_book: %TranslatedBook{
             authors: [
               %Author{name: "Isabel Burton"}
@@ -343,7 +352,8 @@ defmodule RichardBurton.Publication.CodecTest do
     @output_struct %Publication{
       title: "Iraçéma the Honey-Lips: A Legend of Brazil",
       year: 1886,
-      sources: [],
+      sources_pt: [],
+      sources_en: [],
       countries: [%Country{code: "GB"}],
       publishers: [%Publisher{name: "Bickers & Son"}, %Publisher{name: "Noonday Press"}],
       translated_book: %TranslatedBook{
@@ -445,7 +455,8 @@ defmodule RichardBurton.Publication.CodecTest do
       "authors" => ["Isabel Burton"],
       "original_title" => "Iracema",
       "original_authors" => ["José de Alencar"],
-      "sources" => ["A source"]
+      "sources_pt" => ["Uma fonte"],
+      "sources_en" => ["A source"]
     }
 
     test "a row as the editor sends it keeps its id, excerpts and marks as they are" do
@@ -614,25 +625,27 @@ defmodule RichardBurton.Publication.CodecTest do
   end
 
   describe "sources round-trip" do
-    test "nest turns the flat string list into positioned child maps" do
-      input = %{"sources" => ["First source", "Second source"]}
+    test "nest turns the flat string list of each language into positioned child maps" do
+      input = %{"sources_pt" => ["Primeira fonte", "Segunda fonte"], "sources_en" => ["A source"]}
 
-      assert %{"sources" => nested} = Publication.Codec.nest(input)
+      assert %{"sources_pt" => pt, "sources_en" => en} = Publication.Codec.nest(input)
 
       assert [
-               %{"content" => "First source", "position" => 0},
-               %{"content" => "Second source", "position" => 1}
-             ] == nested
+               %{"content" => "Primeira fonte", "position" => 0},
+               %{"content" => "Segunda fonte", "position" => 1}
+             ] == pt
+
+      assert [%{"content" => "A source", "position" => 0}] == en
     end
 
     test "nest drops blank rows and repositions the rest" do
-      input = %{"sources" => ["Real source", "", "   "]}
+      input = %{"sources_en" => ["Real source", "", "   "]}
 
-      assert %{"sources" => [%{"content" => "Real source", "position" => 0}]} =
+      assert %{"sources_en" => [%{"content" => "Real source", "position" => 0}]} =
                Publication.Codec.nest(input)
     end
 
-    test "flatten turns the loaded child rows into an ordered string list" do
+    test "flatten turns the loaded child rows of each language into an ordered string list" do
       input = %Publication{
         title: "Dom Casmurro",
         year: 1953,
@@ -645,39 +658,68 @@ defmodule RichardBurton.Publication.CodecTest do
             title: "Dom Casmurro"
           }
         },
-        sources: [
-          %Source{content: "Second source", position: 1},
-          %Source{content: "First source", position: 0}
-        ]
+        sources_pt: [
+          %Source{content: "Segunda fonte", language: "pt", position: 1},
+          %Source{content: "Primeira fonte", language: "pt", position: 0}
+        ],
+        sources_en: [%Source{content: "A source", language: "en", position: 0}]
       }
 
-      assert %FlatPublication{sources: ["First source", "Second source"]} =
-               Publication.Codec.flatten(input)
+      assert %FlatPublication{
+               sources_pt: ["Primeira fonte", "Segunda fonte"],
+               sources_en: ["A source"]
+             } = Publication.Codec.flatten(input)
     end
 
     test "from_csv splits a newline-per-line sources cell into a list" do
       input = "test/fixtures/data_with_sources.csv"
 
       assert {:ok, [row]} = Publication.Codec.from_csv(input)
-      assert ["First source", "Second source"] == row["sources"]
+      assert ["First source", "Second source"] == row["sources_pt"]
+      assert [] == row["sources_en"]
     end
 
-    test "to_csv joins the sources list back into one quoted newline cell" do
-      flat = %{
-        "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-        "year" => "1886",
-        "countries" => ["GB"],
-        "publishers" => ["Bickers & Son"],
-        "authors" => ["Isabel Burton"],
-        "original_title" => "Iracema",
-        "original_authors" => ["José de Alencar"],
-        "sources" => ["First source", "Second source"]
-      }
+    test "from_csv reads the two sources cells apart, whatever the number of lines in each" do
+      assert {:ok, [row]} =
+               read_csv("""
+               title,sources_pt,sources_en
+               Iracema,"Primeira fonte
+               Segunda fonte
+
+               Terceira fonte","A source"
+               """)
+
+      assert row["sources_pt"] == ["Primeira fonte", "Segunda fonte", "Terceira fonte"]
+      assert row["sources_en"] == ["A source"]
+    end
+
+    test "from_csv does not read a sources column that names no language" do
+      assert {:ok, [row]} =
+               read_csv("""
+               title,sources
+               Iracema,Uma fonte
+               """)
+
+      assert row["sources_pt"] == []
+      assert row["sources_en"] == []
+      refute Map.has_key?(row, "sources")
+    end
+
+    test "to_csv joins the sources of each language back into one quoted newline cell" do
+      flat = iracema(nil, ["Primeira fonte", "Segunda fonte"], ["First source", "Second source"])
 
       csv = [flat] |> Publication.Codec.to_csv() |> Enum.join()
 
       # The newline lives inside a quoted field, so the row stays intact.
-      assert csv =~ "\"First source\nSecond source\""
+      assert csv =~ "\"Primeira fonte\nSegunda fonte\",\"First source\nSecond source\""
+    end
+
+    test "from_csv reads back the sources to_csv writes" do
+      pt = ["Primeira fonte", "Segunda fonte"]
+      en = ["A source"]
+
+      assert [%{"sources_pt" => ^pt, "sources_en" => ^en}] =
+               written_and_read([iracema(nil, pt, en)])
     end
   end
 
@@ -688,102 +730,110 @@ defmodule RichardBurton.Publication.CodecTest do
       item("bulleted", 0, "Signed \"I. Burton\" on the title page")
     ]
 
-    # Returns a flat publication of Iracema, with `notes`.
-    defp iracema(notes) do
-      %{
-        "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
-        "year" => "1886",
-        "countries" => ["GB"],
-        "publishers" => ["Bickers & Son"],
-        "authors" => ["Isabel Burton"],
-        "original_title" => "Iracema",
-        "original_authors" => ["José de Alencar"],
-        "sources" => [],
-        "notes" => notes
-      }
-    end
+    @notas paragraphs(["Primeira edição, em inglês."])
 
-    # Writes `flat_publications` to a CSV file with `to_csv/1`, and returns
-    # the rows `from_csv/1` reads from it.
-    defp written_and_read(flat_publications) do
-      path = Path.join(System.tmp_dir!(), "notes-#{System.unique_integer([:positive])}.csv")
-      File.write!(path, Publication.Codec.to_csv(flat_publications))
-      on_exit(fn -> File.rm(path) end)
-
-      {:ok, rows} = Publication.Codec.from_csv(path)
-      rows
-    end
-
-    test "nest and flatten keep the notes at the top of both shapes" do
-      flat = %{"title" => "Iracema", "notes" => @notes}
+    test "nest and flatten keep the notes in each language at the top of both shapes" do
+      flat = %{"title" => "Iracema", "notes_pt" => @notas, "notes_en" => @notes}
 
       nested = Publication.Codec.nest(flat)
 
-      assert nested["notes"] == @notes
+      assert nested["notes_pt"] == @notas
+      assert nested["notes_en"] == @notes
       assert Publication.Codec.flatten(nested) == flat
     end
 
     test "a publication flattens with its notes, and without any as nil" do
       publication =
-        Publication.Codec.nest(%FlatPublication{title: "Iracema", notes: @notes})
+        Publication.Codec.nest(%FlatPublication{
+          title: "Iracema",
+          notes_pt: @notas,
+          notes_en: @notes
+        })
 
-      assert %Publication{notes: @notes} = publication
-      assert %FlatPublication{notes: @notes} = Publication.Codec.flatten(publication)
+      assert %Publication{notes_pt: @notas, notes_en: @notes} = publication
 
-      assert %FlatPublication{notes: nil} =
+      assert %FlatPublication{notes_pt: @notas, notes_en: @notes} =
+               Publication.Codec.flatten(publication)
+
+      assert %FlatPublication{notes_pt: nil, notes_en: nil} =
                Publication.Codec.flatten(%Publication{title: "Iracema"})
     end
 
-    test "the error of the notes keeps its own key" do
-      assert %{"notes" => :too_long} ==
-               Publication.Codec.flatten_errors(%{notes: :too_long})
-
-      assert %{"notes" => :malformed} ==
-               Publication.Codec.flatten_errors(%{notes: :malformed})
+    test "the error of the notes in each language keeps its own key" do
+      assert %{"notes_pt" => :too_long, "notes_en" => :malformed} ==
+               Publication.Codec.flatten_errors(%{notes_pt: :too_long, notes_en: :malformed})
     end
 
-    test "from_csv reads a cell of several lines as plain text, with a paragraph between blank lines" do
+    test "from_csv reads a notes_pt column as the Portuguese notes" do
       assert {:ok, [iracema, ubirajara]} =
                Publication.Codec.from_csv("test/fixtures/data_with_notes.csv")
 
-      assert iracema["notes"] ==
+      assert iracema["notes_pt"] ==
                paragraphs([
                  "First edition, in English.",
                  "Bound in green cloth,\nsigned \"I. Burton\" on the title page."
                ])
 
-      assert ubirajara["notes"] == nil
+      assert iracema["notes_en"] == nil
+      assert ubirajara["notes_pt"] == nil
     end
 
-    test "from_csv reads a file without a notes column as having no notes" do
+    test "from_csv reads the notes columns of each language" do
+      assert {:ok, [row]} =
+               read_csv("""
+               title,notes_pt,notes_en
+               Iracema,Primeira edição.,First edition.
+               """)
+
+      assert row["notes_pt"] == paragraphs(["Primeira edição."])
+      assert row["notes_en"] == paragraphs(["First edition."])
+    end
+
+    test "from_csv reads a file without notes columns as having no notes" do
       assert {:ok, [row]} = Publication.Codec.from_csv("test/fixtures/data_with_sources.csv")
 
-      assert Map.fetch(row, "notes") == {:ok, nil}
+      assert Map.fetch(row, "notes_pt") == {:ok, nil}
+      assert Map.fetch(row, "notes_en") == {:ok, nil}
     end
 
-    test "to_csv writes the notes last, as plain text, quoted" do
+    test "from_csv does not read a notes column that names no language" do
+      assert {:ok, [row]} =
+               read_csv("""
+               title,notes
+               Iracema,Uma nota.
+               """)
+
+      assert row["notes_pt"] == nil
+      assert row["notes_en"] == nil
+      refute Map.has_key?(row, "notes")
+    end
+
+    test "to_csv writes the notes last, Portuguese then English, as plain text, quoted" do
       csv = [iracema(@notes)] |> Publication.Codec.to_csv() |> Enum.join()
 
       assert [header | _] = String.split(csv, "\n")
 
       assert header ==
-               "title,year,countries,publishers,authors,original_title,original_authors,sources,notes"
+               "title,year,countries,publishers,authors,original_title,original_authors," <>
+                 "sources_pt,sources_en,notes_pt,notes_en"
 
       assert String.ends_with?(
                csv,
-               ~s(,"First edition, in English.\n\n- Bound in green cloth\n- Signed ""I. Burton"" on the title page"\n)
+               ~s(,,"First edition, in English.\n\n- Bound in green cloth\n- Signed ""I. Burton"" on the title page"\n)
              )
     end
 
     test "to_csv writes nil notes as an empty cell" do
-      assert ["title,notes\n", "Iracema,\n"] ==
-               Publication.Codec.to_csv([%{"title" => "Iracema", "notes" => nil}])
+      assert ["title,notes_pt,notes_en\n", "Iracema,,\n"] ==
+               Publication.Codec.to_csv([
+                 %{"title" => "Iracema", "notes_pt" => nil, "notes_en" => nil}
+               ])
     end
 
     test "from_csv reads back the paragraphs and line breaks to_csv writes" do
       notes = paragraphs(["First edition, in English.", "Bound in green cloth,\nsigned."])
 
-      assert [%{"notes" => ^notes}] = written_and_read([iracema(notes)])
+      assert [%{"notes_en" => ^notes}] = written_and_read([iracema(notes)])
     end
 
     test "from_csv reads back as links the links to_csv writes as their URL" do
@@ -797,20 +847,16 @@ defmodule RichardBurton.Publication.CodecTest do
         ])
       ]
 
-      assert [%{"notes" => ^notes}] = written_and_read([iracema(notes)])
+      assert [%{"notes_en" => ^notes}] = written_and_read([iracema(notes)])
     end
 
     test "from_csv makes links of the web and email addresses in a cell" do
-      path = Path.join(System.tmp_dir!(), "notes-#{System.unique_integer([:positive])}.csv")
-      on_exit(fn -> File.rm(path) end)
-
-      File.write!(path, """
-      title,notes
-      Iracema,"Listed at www.example.com/iracema.
-      Ask isabel@example.com (or https://example.com/contact)."
-      """)
-
-      assert {:ok, [%{"notes" => notes}]} = Publication.Codec.from_csv(path)
+      assert {:ok, [%{"notes_pt" => notes}]} =
+               read_csv("""
+               title,notes_pt
+               Iracema,"Listed at www.example.com/iracema.
+               Ask isabel@example.com (or https://example.com/contact)."
+               """)
 
       assert notes == [
                paragraph([
@@ -826,7 +872,7 @@ defmodule RichardBurton.Publication.CodecTest do
     end
 
     test "from_csv reads the formatting to_csv drops as plain text" do
-      assert [%{"notes" => read}] = written_and_read([iracema(@notes)])
+      assert [%{"notes_en" => read}] = written_and_read([iracema(@notes)])
 
       assert read ==
                paragraphs([
@@ -834,5 +880,41 @@ defmodule RichardBurton.Publication.CodecTest do
                  "- Bound in green cloth\n- Signed \"I. Burton\" on the title page"
                ])
     end
+  end
+
+  # Returns a flat publication of Iracema, with `notes` as its English notes,
+  # no Portuguese notes, and the sources `sources_pt` and `sources_en`.
+  defp iracema(notes, sources_pt \\ [], sources_en \\ []) do
+    %{
+      "title" => "Iraçéma the Honey-Lips: A Legend of Brazil",
+      "year" => "1886",
+      "countries" => ["GB"],
+      "publishers" => ["Bickers & Son"],
+      "authors" => ["Isabel Burton"],
+      "original_title" => "Iracema",
+      "original_authors" => ["José de Alencar"],
+      "sources_pt" => sources_pt,
+      "sources_en" => sources_en,
+      "notes_pt" => nil,
+      "notes_en" => notes
+    }
+  end
+
+  # Writes `content` to a CSV file and returns what `from_csv/1` reads from it.
+  defp read_csv(content) do
+    path = Path.join(System.tmp_dir!(), "codec-#{System.unique_integer([:positive])}.csv")
+    File.write!(path, content)
+    on_exit(fn -> File.rm(path) end)
+
+    Publication.Codec.from_csv(path)
+  end
+
+  # Writes `flat_publications` to a CSV file with `to_csv/1`, and returns the
+  # rows `from_csv/1` reads from it.
+  defp written_and_read(flat_publications) do
+    {:ok, rows} =
+      flat_publications |> Publication.Codec.to_csv() |> Enum.join() |> read_csv()
+
+    rows
   end
 end

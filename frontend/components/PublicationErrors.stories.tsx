@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fieldErrors, seed } from "test/publication-fixtures";
+import { paragraph } from "test/rich-text-fixtures";
 import {
   focusedRowIdAtom,
   publicationIdsAtom,
@@ -140,6 +141,33 @@ export const RepeatingAnEarlierRow: Story = {
       "Another row of this import is the same publication",
     );
     await expect(entries[2]).not.toHaveTextContent("Title");
+  },
+};
+
+/**
+ * A row whose sources in Portuguese cannot be read, and whose notes in English
+ * are too long: each is named by its language, after the attributes. The play
+ * test checks the order and the names.
+ */
+export const SourcesAndNotes: Story = {
+  beforeEach: () =>
+    seed(store, [
+      {
+        ...ROWS[0],
+        sourcesPt: ["Uma fonte"],
+        notesEn: [paragraph("A very long note")],
+        errors: fieldErrors({ sourcesPt: "malformed", notesEn: "too_long" }),
+      },
+    ]),
+  play: async () => {
+    const dialog = await screen.findByRole("dialog", {
+      name: "What is wrong with these rows",
+    });
+    const [entry] = within(dialog).getAllByRole("listitem");
+
+    await expect(entry).toHaveTextContent(
+      /Sources in Portuguese.*This text could not be read.*Notes in English.*This text is too long/,
+    );
   },
 };
 
