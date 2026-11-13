@@ -17,9 +17,10 @@ defmodule RichardBurton.Repo.Migrations.WriteNotesAndSourcesInTwoLanguages do
   in the same transaction.
 
   `flat_publications` holds the sources of each language in `sources_pt` and
-  `sources_en`, in place of `sources`, so the stack of materialized views is
-  rebuilt. The search reads the sources of both languages, as
-  `sources_pt || sources_en`.
+  `sources_en`, and all of them in `sources`, the Portuguese sources followed
+  by the English ones, which the search reads. The view reads the renamed
+  notes column and the new `language` column, so the stack of materialized
+  views is rebuilt.
 
   Rolling back puts each publication's English sources after its Portuguese
   ones, and uses its English notes where it has no Portuguese notes, in the
@@ -140,8 +141,6 @@ defmodule RichardBurton.Repo.Migrations.WriteNotesAndSourcesInTwoLanguages do
   # migration's `languages` hold: `:two_languages` as the module doc describes,
   # or `:one_language`, the single `sources` array of the `content` column.
   defp create_views(languages) do
-    texts = source_texts(languages)
-
     execute(
       "CREATE MATERIALIZED VIEW flat_publications AS #{flat_publications_select(languages)}"
     )
@@ -161,17 +160,12 @@ defmodule RichardBurton.Repo.Migrations.WriteNotesAndSourcesInTwoLanguages do
       """)
     end
 
-    for field <- ~w(authors original_authors publishers countries) do
+    for field <- ~w(authors original_authors publishers countries sources) do
       execute("""
       CREATE INDEX flat_publications_#{field}_search_index ON flat_publications
       USING gin (to_tsvector('rb_search', rb_joined(#{field})))
       """)
     end
-
-    execute("""
-    CREATE INDEX flat_publications_sources_search_index ON flat_publications
-    USING gin (to_tsvector('rb_search', rb_joined(#{texts})))
-    """)
 
     execute("CREATE INDEX flat_publications_year_index ON flat_publications (year)")
 
@@ -187,7 +181,7 @@ defmodule RichardBurton.Repo.Migrations.WriteNotesAndSourcesInTwoLanguages do
       setweight(to_tsvector('rb_search'::regconfig, coalesce(cn.names, '')), 'C')             ||
       setweight(to_tsvector('rb_search'::regconfig, fp.year::text), 'C')                      ||
       setweight(to_tsvector('rb_search'::regconfig,
-        rb_joined(#{String.replace(texts, "sources", "fp.sources")})), 'D')  AS document
+        rb_joined(fp.sources)), 'D')                                          AS document
     FROM
       flat_publications fp
       LEFT JOIN LATERAL (
@@ -209,18 +203,16 @@ defmodule RichardBurton.Repo.Migrations.WriteNotesAndSourcesInTwoLanguages do
     execute("CREATE UNIQUE INDEX search_keywords_word_index ON search_keywords (word)")
   end
 
-  # The array of every source text the search reads, as an expression over the
-  # columns of `flat_publications`.
-  defp source_texts(:two_languages), do: "sources_pt || sources_en"
-  defp source_texts(:one_language), do: "sources"
-
   # The columns the view holds the sources in, and the aggregate of
-  # `publication_sources` that fills them, for `languages`.
+  # `publication_sources` that fills them, for `languages`. Both shapes have a
+  # `sources` column, the one the search reads.
   defp sources_columns(:two_languages) do
     {
       """
       COALESCE(CTE_sources_distinct.texts_pt, ARRAY[]::varchar[]) AS sources_pt,
-      COALESCE(CTE_sources_distinct.texts_en, ARRAY[]::varchar[]) AS sources_en
+      COALESCE(CTE_sources_distinct.texts_en, ARRAY[]::varchar[]) AS sources_en,
+      COALESCE(CTE_sources_distinct.texts_pt, ARRAY[]::varchar[]) ||
+        COALESCE(CTE_sources_distinct.texts_en, ARRAY[]::varchar[]) AS sources
       """,
       """
       SELECT

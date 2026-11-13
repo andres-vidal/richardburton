@@ -26,7 +26,11 @@ defmodule RichardBurtonWeb.PublicationController do
   use RichardBurtonWeb, :controller
 
   alias RichardBurton.FlatPublication
+  alias RichardBurton.Language
   alias RichardBurton.Publication
+
+  # The keys of the notes in each language in a history snapshot.
+  @notes_keys Enum.map(Language.fields(:notes), &Atom.to_string/1)
 
   @doc """
   Lists the publications in the index.
@@ -300,7 +304,8 @@ defmodule RichardBurtonWeb.PublicationController do
   """
   def merge(conn, params = %{"id" => id, "losers" => losers}) when is_list(losers) do
     with {:ok, id} <- Params.id(id),
-         {:ok, publication} <- Publication.merge(id, losers, actor(conn), merge_opts(params)) do
+         {:ok, publication} <-
+           Publication.merge(id, losers, actor(conn), Publication.notes_opts(params)) do
       json(conn, Publication.Codec.flatten(publication))
     else
       {:error, reason} when reason in [:self, :no_losers] -> {:error, :bad_request, reason}
@@ -309,15 +314,6 @@ defmodule RichardBurtonWeb.PublicationController do
   end
 
   def merge(_conn, _params), do: {:error, :losers_required}
-
-  # Returns the options of `Publication.merge/4` that the merge `params` give:
-  # `notes_pt:` when they hold a `notes_pt` key, even one whose value is nil,
-  # and `notes_en:` when they hold a `notes_en` key.
-  defp merge_opts(params) do
-    for field <- [:notes_pt, :notes_en],
-        {:ok, notes} <- [Map.fetch(params, to_string(field))],
-        do: {field, notes}
-  end
 
   @doc "Deletes the publication `id`. See `Publication.delete/2`."
   def delete(conn, %{"id" => id}) do
@@ -421,7 +417,7 @@ defmodule RichardBurtonWeb.PublicationController do
       version: entry.version,
       action: entry.action,
       actor: entry.actor,
-      snapshot: Map.drop(entry.snapshot, ["notes_pt", "notes_en"]),
+      snapshot: Map.drop(entry.snapshot, @notes_keys),
       diff: entry.diff,
       undoable: entry.undoable,
       name_change: entry.name_change,

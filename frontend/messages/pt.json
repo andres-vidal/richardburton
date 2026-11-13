@@ -398,8 +398,7 @@
     "draftSourcesFrom": "Rascunhar as fontes a partir do {language, select, pt {português} other {inglês}}",
     "sourcesIn": "Fontes em {language, select, pt {português} other {inglês}}",
     "replaceSourcesTitle": "Substituir as fontes em {language, select, pt {português} other {inglês}}?",
-    "replaceSourcesMessage": "O rascunho toma o lugar das fontes que esta aba tem agora. Você ainda pode editá-lo antes de salvar.",
-    "replaceSources": "Substituir"
+    "replaceSourcesMessage": "O rascunho toma o lugar das fontes que esta aba tem agora. Você ainda pode editá-lo antes de salvar."
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",
@@ -549,7 +548,6 @@
     "languages": "Idioma das notas",
     "replaceTitle": "Substituir as notas em {language, select, pt {português} other {inglês}}?",
     "replaceMessage": "O rascunho toma o lugar das notas que esta aba tem agora. Você ainda pode editá-lo antes de salvar.",
-    "replace": "Substituir",
     "draftFrom": "Rascunhar as notas a partir do {language, select, pt {português} other {inglês}}"
   },
   "richText": {
@@ -794,6 +792,7 @@
     "downloading": "Baixando o modelo de tradução… {loaded, number, percent}",
     "drafting": "Traduzindo…",
     "failed": "Não foi possível fazer o rascunho. Tente de novo.",
-    "checkTitles": "Confira os títulos nas fontes rascunhadas. Uma tradução automática pode tê-los traduzido, e um título deve ficar como foi escrito."
+    "checkTitles": "Confira os títulos nas fontes rascunhadas. Uma tradução automática pode tê-los traduzido, e um título deve ficar como foi escrito.",
+    "replace": "Substituir"
   }
 }

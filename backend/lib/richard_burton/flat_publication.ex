@@ -19,6 +19,11 @@ defmodule RichardBurton.FlatPublication do
   has, unless the query that read it selected them from the `publications`
   table.
 
+  The view also holds `sources`, the Portuguese sources followed by the
+  English ones, which the search and the filter of publications without
+  sources read. A query does not load that field unless it selects it, and
+  it is not part of a flat publication's JSON.
+
   A flat publication is encoded as JSON with its id, its writable fields,
   `excerpts` and `marked`, as `json_fields/1` returns them. A publication
   loaded from the database is encoded without `notes_pt` and `notes_en` when
@@ -33,6 +38,7 @@ defmodule RichardBurton.FlatPublication do
   alias RichardBurton.Country
   alias RichardBurton.FlatPublication
   alias RichardBurton.Identity
+  alias RichardBurton.Language
   alias RichardBurton.RichText
   alias RichardBurton.Validation
 
@@ -46,12 +52,12 @@ defmodule RichardBurton.FlatPublication do
     :original_authors
   ]
 
+  # The notes, which a query reads from the `publications` table.
+  @notes Language.fields(:notes)
+
   # Writable but not required: a publication may legitimately have no provenance
   # or notes, and a CSV file may leave any of these columns out.
-  @writable_attributes [:sources_pt, :sources_en, :notes_pt, :notes_en | @required_attributes]
-
-  # The notes, which a query reads from the `publications` table.
-  @notes [:notes_pt, :notes_en]
+  @writable_attributes Language.fields(:sources) ++ @notes ++ @required_attributes
 
   # The attributes that hold several values. An empty list is not "blank" to
   # `validate_required/2`, so saying a record has no countries at all takes a
@@ -72,6 +78,7 @@ defmodule RichardBurton.FlatPublication do
     field(:original_authors, {:array, :string})
     field(:sources_pt, {:array, :string}, default: [])
     field(:sources_en, {:array, :string}, default: [])
+    field(:sources, {:array, :string}, load_in_query: false)
     field(:notes_pt, RichText, virtual: true)
     field(:notes_en, RichText, virtual: true)
 

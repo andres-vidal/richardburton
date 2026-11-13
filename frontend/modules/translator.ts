@@ -117,4 +117,3 @@ async function translateAll(
 }
 
 export { canTranslate, translateAll };
-export type { TranslatorAvailability, TranslatorFactory };

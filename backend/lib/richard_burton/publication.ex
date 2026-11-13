@@ -57,6 +57,7 @@ defmodule RichardBurton.Publication do
 
   alias RichardBurton.Country
   alias RichardBurton.Identity
+  alias RichardBurton.Language
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.History
@@ -82,7 +83,10 @@ defmodule RichardBurton.Publication do
   ]
 
   # The notes in each language, and the `merge/4` option that sets each.
-  @notes [:notes_pt, :notes_en]
+  @notes Language.fields(:notes)
+
+  # The associations that hold the sources in each language.
+  @sources Language.fields(:sources)
 
   @type t :: %__MODULE__{}
 
@@ -194,7 +198,7 @@ defmodule RichardBurton.Publication do
         ]
       )
       |> Repo.all()
-      |> Repo.preload([:sources_pt, :sources_en])
+      |> Repo.preload(@sources)
       |> Map.new(&{&1.id, &1})
 
     Enum.map(ids, &Map.fetch!(by_id, &1))
@@ -206,13 +210,11 @@ defmodule RichardBurton.Publication do
   original book, and the original book's authors.
   """
   def preload(data) do
-    Repo.preload(data, [
-      :countries,
-      :publishers,
-      :sources_pt,
-      :sources_en,
-      translated_book: [:authors, original_book: [:authors]]
-    ])
+    Repo.preload(
+      data,
+      [:countries, :publishers | @sources] ++
+        [translated_book: [:authors, original_book: [:authors]]]
+    )
   end
 
   @doc """
@@ -377,22 +379,27 @@ defmodule RichardBurton.Publication do
   end
 
   defp compensate(entry = %{action: "unmerged", publication_id: id}, previous, _head, actor) do
-    merge(id, History.other_ids(entry), actor, merged_notes(previous))
+    # `previous` is the entry before the un-merge: the merge the un-merge
+    # undid, or a decision recorded after the merge. A decision changes no
+    # field, so either snapshot holds the winner as the merge left it, and
+    # its notes make the merge give the winner those notes again.
+    merge(id, History.other_ids(entry), actor, notes_opts(previous.snapshot))
   end
 
-  # Returns the options that make a merge again give the winner the notes in
-  # the snapshot of `previous`, the entry before an un-merge: `notes_pt:` and
-  # `notes_en:` with the notes in each language the snapshot has a key for. A
-  # language the snapshot has no key for is left out, so the merge joins the
-  # notes in that language.
-  #
-  # That entry is the merge the un-merge undid, or a decision recorded after
-  # the merge. A decision changes no field, so either snapshot holds the
-  # winner as the merge left it.
-  defp merged_notes(%History{snapshot: snapshot}) do
-    for field <- @notes, {:ok, notes} <- [Map.fetch(snapshot, to_string(field))] do
-      {field, notes}
-    end
+  @doc ~S"""
+  Returns the `merge/4` options that set the notes in each language `map`
+  has a key for, such as the `"notes_pt"` key for the `:notes_pt` option. The
+  keys are strings, and a key whose value is nil still gives its option. A
+  language `map` has no key for is left out, so a merge joins the notes in
+  that language.
+
+  ## Examples
+
+      iex> RichardBurton.Publication.notes_opts(%{"notes_en" => nil, "title" => "Iracema"})
+      [notes_en: nil]
+  """
+  def notes_opts(map) do
+    for field <- @notes, {:ok, notes} <- [Map.fetch(map, to_string(field))], do: {field, notes}
   end
 
   # Undoes the merge `entry`, in one transaction: clears the tombstones of the
@@ -587,14 +594,18 @@ defmodule RichardBurton.Publication do
         {field, Keyword.get_lazy(opts, field, fn -> joined_notes(flat, field) end)}
       end)
 
+    sources =
+      Map.new(@sources, fn field ->
+        {field, flat |> Enum.flat_map(&Map.fetch!(&1, field)) |> Enum.uniq()}
+      end)
+
     kept
     |> Map.delete(:id)
     |> Map.merge(%{
       countries: union_of(flat, :countries),
-      publishers: union_of(flat, :publishers),
-      sources_pt: flat |> Enum.flat_map(& &1.sources_pt) |> Enum.uniq(),
-      sources_en: flat |> Enum.flat_map(& &1.sources_en) |> Enum.uniq()
+      publishers: union_of(flat, :publishers)
     })
+    |> Map.merge(sources)
     |> Map.merge(notes)
     |> Codec.nest()
   end

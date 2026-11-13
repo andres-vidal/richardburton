@@ -13,9 +13,9 @@ import LanguageTabs from "./LanguageTabs";
 const Controlled: FC<{
   selected?: Language;
   onSelect?: (language: Language) => void;
-  invalid?: Partial<Record<Language, boolean>>;
+  errors?: Partial<Record<Language, string>>;
   withActions?: boolean;
-}> = ({ selected: initial = "en", onSelect, invalid, withActions }) => {
+}> = ({ selected: initial = "en", onSelect, errors, withActions }) => {
   const [selected, setSelected] = useState(initial);
 
   return (
@@ -26,7 +26,7 @@ const Controlled: FC<{
         setSelected(language);
         onSelect?.(language);
       }}
-      invalid={invalid}
+      errors={errors}
       actions={
         withActions ? (
           <Button
@@ -60,7 +60,7 @@ const meta = {
     <Controlled
       selected={args.selected}
       onSelect={args.onSelect}
-      invalid={args.invalid}
+      errors={args.errors}
     />
   ),
   decorators: [
@@ -134,7 +134,7 @@ export const Keyboard: Story = {
  * Português tab is shown in red.
  */
 export const WithAnError: Story = {
-  args: { invalid: { pt: true } },
+  args: { errors: { pt: "The notes are too long." } },
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).getByRole("tab", { name: "Português" }),

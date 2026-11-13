@@ -17,8 +17,8 @@ import { FC, KeyboardEvent, ReactNode, useId, useRef } from "react";
  *
  * `selected` is the language whose tab is selected, and `onSelect` receives a
  * language when its tab is pressed, or reached with the arrow keys, Home or
- * End. Only the selected tab is in the tab order. A language marked in
- * `invalid` has its tab shown in red, so an error in the hidden panel is not
+ * End. Only the selected tab is in the tab order. A language with an error in
+ * `errors` has its tab shown in red, so an error in the hidden panel is not
  * missed. `actions`, such as a button that acts on the selected panel, is
  * shown at the end of the row of tabs.
  */
@@ -26,10 +26,10 @@ const LanguageTabs: FC<{
   label: string;
   selected: Language;
   onSelect: (language: Language) => void;
-  invalid?: Partial<Record<Language, boolean>>;
+  errors?: Partial<Record<Language, string>>;
   actions?: ReactNode;
   children: (language: Language) => ReactNode;
-}> = ({ label, selected, onSelect, invalid = {}, actions, children }) => {
+}> = ({ label, selected, onSelect, errors = {}, actions, children }) => {
   const t = useTranslations("language");
   const id = useId();
   const tabs = useRef<Partial<Record<Language, HTMLButtonElement | null>>>({});
@@ -79,7 +79,7 @@ const LanguageTabs: FC<{
               aria-controls={panelId(language)}
               tabIndex={language === selected ? 0 : -1}
               data-selected={language === selected}
-              data-invalid={Boolean(invalid[language])}
+              data-invalid={Boolean(errors[language])}
               onClick={() => onSelect(language)}
               className="px-3 py-1.5 -mb-px text-sm border-b-2 transition-colors focus-ring data-[selected=false]:border-transparent data-[selected=false]:text-gray-600 data-[selected=false]:hover:text-gray-900 data-[selected=true]:border-indigo-500 data-[selected=true]:text-indigo-700 data-[invalid=true]:text-red-700"
             >

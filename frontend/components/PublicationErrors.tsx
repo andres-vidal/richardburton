@@ -8,7 +8,7 @@ import {
   usePublicationRowNumber,
   useVisiblePublication,
 } from "modules/publication/hooks";
-import { ATTRIBUTES } from "modules/publication/model";
+import { EDITED_FIELDS, localizedField } from "modules/publication/model";
 import type { ErrorScope, PublicationId } from "modules/publication/model";
 import { setFocusedRowId } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
@@ -23,19 +23,6 @@ type Props = {
 };
 
 /**
- * The fields an error can name, in the order the table shows them: the
- * attributes, then the sources in each language, then the notes in each
- * language.
- */
-const FIELDS: ErrorScope[] = [
-  ...ATTRIBUTES,
-  "sourcesPt",
-  "sourcesEn",
-  "notesPt",
-  "notesEn",
-];
-
-/**
  * One field that was refused, and why. The field is named by its attribute's
  * name, or, for the sources and the notes, by their name in their language.
  */
@@ -47,19 +34,16 @@ const FieldError: FC<{ id: PublicationId; field: ErrorScope }> = ({
   const admin = useTranslations("admin");
   const notes = useTranslations("notes");
   const message = usePublicationFieldError(id, field);
+  const localized = localizedField(field);
 
   return (
     <>
       <dt className="text-gray-600">
-        {field === "sourcesPt"
-          ? admin("sourcesIn", { language: "pt" })
-          : field === "sourcesEn"
-            ? admin("sourcesIn", { language: "en" })
-            : field === "notesPt"
-              ? notes("field", { language: "pt" })
-              : field === "notesEn"
-                ? notes("field", { language: "en" })
-                : attribute(field)}
+        {localized === null
+          ? attribute(field)
+          : localized.kind === "sources"
+            ? admin("sourcesIn", { language: localized.language })
+            : notes("field", { language: localized.language })}
       </dt>
       <dd className="text-red-800">{message}</dd>
     </>
@@ -87,7 +71,7 @@ const RowErrors: FC<{
   // the server happened to answer in.
   const fields =
     error !== null && typeof error === "object"
-      ? FIELDS.filter((field) => error[field])
+      ? EDITED_FIELDS.filter((field) => error[field])
       : [];
 
   return (

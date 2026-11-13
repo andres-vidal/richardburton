@@ -1,7 +1,8 @@
 "use client";
 
+import { useLanguage } from "modules/publication/hooks";
 import { otherLanguage, type Language } from "modules/publication/model";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
 import DraftButton from "./DraftButton";
@@ -138,8 +139,7 @@ const SourcesEditor: FC<{
   const t = useTranslations("admin");
   const draft = useTranslations("draft");
   const attribute = useTranslations("attributes");
-  const locale = useLocale() as Language;
-  const [selected, setSelected] = useState(locale);
+  const [selected, setSelected] = useState(useLanguage());
   // The language of the last draft, whose tab asks to check the titles.
   const [drafted, setDrafted] = useState<Language | null>(null);
   const from = otherLanguage(selected);
@@ -162,7 +162,7 @@ const SourcesEditor: FC<{
         label={t("sourcesLanguages")}
         selected={selected}
         onSelect={setSelected}
-        invalid={{ pt: Boolean(errors.pt), en: Boolean(errors.en) }}
+        errors={errors}
         actions={
           <DraftButton
             key={selected}
@@ -176,7 +176,6 @@ const SourcesEditor: FC<{
                 : {
                     title: t("replaceSourcesTitle", { language: selected }),
                     message: t("replaceSourcesMessage"),
-                    confirmLabel: t("replaceSources"),
                   }
             }
             onDrafted={fill}

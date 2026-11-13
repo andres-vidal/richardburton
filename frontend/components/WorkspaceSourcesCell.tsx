@@ -2,14 +2,15 @@
 
 import WarningIcon from "assets/warning.svg";
 import {
-  usePublicationFieldError,
+  useLanguage,
+  usePublicationFieldErrors,
   usePublicationResemblance,
   usePublicationSources,
 } from "modules/publication/hooks";
-import { shownSources, type Language } from "modules/publication/model";
+import { SOURCES_KEYS, shownSources } from "modules/publication/model";
 import { usePublicationStore } from "modules/publication/workspace";
 import { openReview, setSources } from "modules/publication/store";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { FC, MouseEvent } from "react";
 import Button from "./Button";
 import { Modal, useModal } from "./Modal";
@@ -95,18 +96,13 @@ const WorkspaceSourcesCell: FC<{
   focused?: boolean;
 }> = ({ rowId, invalid = false, selected = false, focused = false }) => {
   const t = useTranslations("admin");
-  const locale = useLocale() as Language;
+  const language = useLanguage();
   const store = usePublicationStore();
   const sources = usePublicationSources(rowId);
-  const errors = {
-    pt: usePublicationFieldError(rowId, "sourcesPt"),
-    en: usePublicationFieldError(rowId, "sourcesEn"),
-  };
+  const errors = usePublicationFieldErrors(rowId, SOURCES_KEYS);
   const error = errors.pt || errors.en;
   const editor = useModal();
-  const count =
-    shownSources({ sourcesPt: sources.pt, sourcesEn: sources.en }, locale)
-      ?.sources.length ?? 0;
+  const count = shownSources(sources, language)?.sources.length ?? 0;
 
   const openEditor = (event: MouseEvent) => {
     event.stopPropagation();

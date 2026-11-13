@@ -57,6 +57,7 @@ defmodule RichardBurton.Publication.Index do
   import Ecto.Query
 
   alias RichardBurton.FlatPublication
+  alias RichardBurton.Language
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Index.SearchDocument
   alias RichardBurton.Publication.Index.Excerpt
@@ -72,7 +73,7 @@ defmodule RichardBurton.Publication.Index do
   @per_page Application.compile_env(:richard_burton, :publications_per_page, 50)
 
   # The notes in each language, which the view does not hold.
-  @notes [:notes_pt, :notes_en]
+  @notes Language.fields(:notes)
 
   @doc "Name of the response header carrying the index's total count."
   @spec count_header() :: String.t()
@@ -117,7 +118,7 @@ defmodule RichardBurton.Publication.Index do
   def without_sources do
     results =
       from(fp in FlatPublication,
-        where: fragment("cardinality(?) + cardinality(?) = 0", fp.sources_pt, fp.sources_en),
+        where: fragment("cardinality(?) = 0", fp.sources),
         order_by: [asc: fp.id]
       )
       |> Repo.all()

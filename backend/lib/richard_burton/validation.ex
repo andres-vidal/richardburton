@@ -7,6 +7,7 @@ defmodule RichardBurton.Validation do
   `:required` or `:alpha2`, instead of a sentence.
   """
 
+  alias RichardBurton.Language
   alias RichardBurton.RichText
 
   # The most characters the text of each language of a publication's notes may
@@ -20,7 +21,7 @@ defmodule RichardBurton.Validation do
   `get_errors/1` reports each as `:too_long`.
   """
   def validate_notes(changeset) do
-    Enum.reduce([:notes_pt, :notes_en], changeset, fn field, changeset ->
+    Enum.reduce(Language.fields(:notes), changeset, fn field, changeset ->
       Ecto.Changeset.validate_change(changeset, field, &notes_length_errors/2)
     end)
   end

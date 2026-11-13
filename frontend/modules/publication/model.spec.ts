@@ -4,14 +4,16 @@ import {
   define,
   empty,
   errorCode,
+  localizedField,
   markedSources,
   marking,
   merged,
+  preferredLanguage,
   searchHref,
   shownNotes,
   shownSources,
 } from "./model";
-import type { Publication } from "./model";
+import type { Language, Publication } from "./model";
 import { routing } from "i18n/routing";
 import { messages } from "test/messages";
 import { item, link, paragraph } from "test/rich-text-fixtures";
@@ -306,19 +308,12 @@ describe("merged", () => {
 });
 
 describe("shownSources", () => {
-  const publication = (fields: Partial<Publication>): Publication => ({
-    ...empty(),
-    ...fields,
-  });
-
   test("shows the sources in the reader's language, or in the other one when there are none in the reader's", () => {
-    const both = publication({
-      sourcesPt: ["Caldwell, Helen. Introdução."],
-      sourcesEn: ["Caldwell, Helen. Introduction.", "Catalog record."],
-    });
-    const portuguese = publication({
-      sourcesPt: ["Gledson, John. Realismo enganoso."],
-    });
+    const both = {
+      pt: ["Caldwell, Helen. Introdução."],
+      en: ["Caldwell, Helen. Introduction.", "Catalog record."],
+    };
+    const portuguese = { pt: ["Gledson, John. Realismo enganoso."], en: [] };
 
     expect(shownSources(both, "en")).toEqual({
       language: "en",
@@ -332,19 +327,22 @@ describe("shownSources", () => {
       language: "pt",
       sources: ["Gledson, John. Realismo enganoso."],
     });
-    expect(shownSources(publication({}), "pt")).toBeNull();
+    expect(shownSources({ pt: [], en: [] }, "pt")).toBeNull();
   });
+});
 
-  test("shows the marked text of a source where the search matched it", () => {
-    const record = publication({
+describe("markedSources", () => {
+  test("gives the marked text of a source where the search matched it, and the stored text elsewhere", () => {
+    const record: Publication = {
+      ...empty(),
       sourcesPt: ["Caldwell, Helen. Introdução."],
       sourcesEn: ["Caldwell, Helen. Introduction.", "Gledson, John."],
       marked: {
         sourcesEn: ["[[Caldwell]], Helen. Introduction.", null],
       },
-    });
+    };
 
-    expect(shownSources(record, "en")?.sources).toEqual([
+    expect(markedSources(record, "sourcesEn")).toEqual([
       "[[Caldwell]], Helen. Introduction.",
       "Gledson, John.",
     ]);
@@ -359,13 +357,40 @@ describe("shownNotes", () => {
     const portuguese = [paragraph("Primeira edição.")];
     const english = [paragraph("First edition.")];
 
-    expect(shownNotes({ notesPt: portuguese, notesEn: english }, "en")).toEqual(
-      { language: "en", value: english },
-    );
-    expect(
-      shownNotes({ notesPt: portuguese, notesEn: [paragraph(" ")] }, "en"),
-    ).toEqual({ language: "pt", value: portuguese });
-    expect(shownNotes({ notesPt: null }, "pt")).toBeNull();
+    expect(shownNotes({ pt: portuguese, en: english }, "en")).toEqual({
+      language: "en",
+      value: english,
+    });
+    expect(shownNotes({ pt: portuguese, en: [paragraph(" ")] }, "en")).toEqual({
+      language: "pt",
+      value: portuguese,
+    });
+    expect(shownNotes({ pt: null }, "pt")).toBeNull();
+  });
+});
+
+describe("preferredLanguage", () => {
+  test("prefers the reader's language, falls back to the other one, and gives undefined when neither has it", () => {
+    const has = (languages: Language[]) => (language: Language) =>
+      languages.includes(language);
+
+    expect(preferredLanguage("en", has(["pt", "en"]))).toBe("en");
+    expect(preferredLanguage("en", has(["pt"]))).toBe("pt");
+    expect(preferredLanguage("pt", has([]))).toBeUndefined();
+  });
+});
+
+describe("localizedField", () => {
+  test("names the list and the language of a field in one language, and gives null for an attribute", () => {
+    expect(localizedField("sourcesEn")).toEqual({
+      kind: "sources",
+      language: "en",
+    });
+    expect(localizedField("notesPt")).toEqual({
+      kind: "notes",
+      language: "pt",
+    });
+    expect(localizedField("title")).toBeNull();
   });
 });
 

@@ -3,15 +3,20 @@
 import type { WithChanges } from "modules/publication/history";
 import {
   useIsPublicationValid,
+  useLanguage,
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
+  usePublicationFieldErrors,
   usePublicationMarking,
   usePublicationSources,
 } from "modules/publication/hooks";
 import {
+  byLanguage,
   type FollowedPublication,
   type Language,
+  markedSources,
+  NOTES_KEYS,
   Publication,
   type PublicationHistoryEntry,
   type PublicationId,
@@ -21,6 +26,7 @@ import {
   searchHref,
   shownNotes,
   shownSources,
+  SOURCES_KEYS,
 } from "modules/publication/model";
 import { watchEdit } from "modules/publication/checks";
 import { deletePublication, update } from "modules/publication/remote";
@@ -33,7 +39,7 @@ import { useCountryNaming } from "modules/country-names";
 import { markedParagraph } from "modules/rich-text";
 import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { Link, useRouter } from "i18n/navigation";
 import {
   FC,
@@ -173,11 +179,24 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
 };
 
 /**
+ * A line that names `language`, the language of what follows it, when that is
+ * not the reader's language. It renders nothing when it is.
+ */
+const WrittenIn: FC<{ language: Language }> = ({ language }) => {
+  const t = useTranslations("publication");
+  const reader = useLanguage();
+
+  return language === reader ? null : (
+    <p className="text-xs text-gray-500">{t("writtenIn", { language })}</p>
+  );
+};
+
+/**
  * Where the record says it comes from, as a region named for the sources. It
  * shows the sources in the reader's language, or the sources in the other
- * language, with a line that names that language, when there are none in the
- * reader's (see `shownSources`). The list
- * carries the `lang` of the language it is written in. Each source renders as
+ * language, with a line that names that language (see `WrittenIn`), when
+ * there are none in the reader's (see `shownSources`). The list carries the
+ * `lang` of the language it is written in. Each source renders as
  * rich text, as `markedParagraph` builds it from the source, so a URL in a
  * source is a link and the words a search matched are highlighted. Each
  * source's bullet is centred on its first line.
@@ -190,8 +209,12 @@ const PublicationSources: FC<{ publication: Publication }> = ({
   publication,
 }) => {
   const t = useTranslations("publication");
-  const locale = useLocale() as Language;
-  const shown = shownSources(publication, locale);
+  const shown = shownSources(
+    byLanguage((language) =>
+      markedSources(publication, SOURCES_KEYS[language]),
+    ),
+    useLanguage(),
+  );
 
   return (
     <section aria-label={t("sources")} className="space-y-2">
@@ -200,11 +223,7 @@ const PublicationSources: FC<{ publication: Publication }> = ({
         <p className="text-xs text-gray-500">{t("noSources")}</p>
       ) : (
         <>
-          {shown.language !== locale && (
-            <p className="text-xs text-gray-500">
-              {t("writtenIn", { language: shown.language })}
-            </p>
-          )}
+          <WrittenIn language={shown.language} />
           <ul
             lang={shown.language}
             className="space-y-1.5 text-sm text-gray-700"
@@ -232,8 +251,8 @@ const PublicationSources: FC<{ publication: Publication }> = ({
 /**
  * The publication's notes under their heading, rendered with `RichText`, as a
  * region named for them. It shows the notes in the reader's language, or the
- * notes in the other language, with a line that names that language, when
- * there are none in the reader's (see `shownNotes`). The notes carry the
+ * notes in the other language, with a line that names that language (see
+ * `WrittenIn`), when there are none in the reader's (see `shownNotes`). The notes carry the
  * `lang` of the language they are written in. It renders nothing for a
  * publication whose notes are missing, null or blank in both languages.
  */
@@ -241,18 +260,15 @@ const PublicationNotes: FC<{ publication: Publication }> = ({
   publication,
 }) => {
   const t = useTranslations("attributes");
-  const detail = useTranslations("publication");
-  const locale = useLocale() as Language;
-  const notes = shownNotes(publication, locale);
+  const notes = shownNotes(
+    byLanguage((language) => publication[NOTES_KEYS[language]]),
+    useLanguage(),
+  );
 
   return notes === null ? null : (
     <section aria-label={t("notes")} className="space-y-2">
       <SectionHeading>{t("notes")}</SectionHeading>
-      {notes.language !== locale && (
-        <p className="text-xs text-gray-500">
-          {detail("writtenIn", { language: notes.language })}
-        </p>
-      )}
+      <WrittenIn language={notes.language} />
       <div lang={notes.language}>
         <RichText value={notes.value} />
       </div>
@@ -332,10 +348,7 @@ const PublicationEditForm: FC<{
   const error = usePublicationErrorDescription(id);
   const isValid = useIsPublicationValid(id);
   const sources = usePublicationSources(id);
-  const sourcesErrors = {
-    pt: usePublicationFieldError(id, "sourcesPt"),
-    en: usePublicationFieldError(id, "sourcesEn"),
-  };
+  const sourcesErrors = usePublicationFieldErrors(id, SOURCES_KEYS);
 
   useEffect(() => watchEdit(store, id), [store, id]);
 

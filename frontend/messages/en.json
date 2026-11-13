@@ -398,8 +398,7 @@
     "draftSourcesFrom": "Draft the sources from {language, select, pt {Portuguese} other {English}}",
     "sourcesIn": "Sources in {language, select, pt {Portuguese} other {English}}",
     "replaceSourcesTitle": "Replace the sources in {language, select, pt {Portuguese} other {English}}?",
-    "replaceSourcesMessage": "The draft takes the place of the sources this tab holds now. You can still edit it before saving.",
-    "replaceSources": "Replace"
+    "replaceSourcesMessage": "The draft takes the place of the sources this tab holds now. You can still edit it before saving."
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
@@ -549,7 +548,6 @@
     "languages": "Language of the notes",
     "replaceTitle": "Replace the notes in {language, select, pt {Portuguese} other {English}}?",
     "replaceMessage": "The draft takes the place of the notes this tab holds now. You can still edit it before saving.",
-    "replace": "Replace",
     "draftFrom": "Draft the notes from {language, select, pt {Portuguese} other {English}}"
   },
   "richText": {
@@ -794,6 +792,7 @@
     "downloading": "Downloading the translation model… {loaded, number, percent}",
     "drafting": "Drafting…",
     "failed": "The draft could not be made. Try again.",
-    "checkTitles": "Check the titles in the drafted sources. A machine translation may have translated them, and a title must stay as written."
+    "checkTitles": "Check the titles in the drafted sources. A machine translation may have translated them, and a title must stay as written.",
+    "replace": "Replace"
   }
 }

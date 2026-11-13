@@ -61,14 +61,16 @@ defmodule RichardBurton.Publication.History do
   import Ecto.Changeset
   import Ecto.Query
 
+  alias RichardBurton.Language
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.History
   alias RichardBurton.Repo
 
   # The sources in each language, which a diff reports apart from the other
-  # fields.
-  @sources ["sources_pt", "sources_en"]
+  # fields: the keys of a diff, and the keys of a snapshot.
+  @source_fields Language.fields(:sources)
+  @sources Enum.map(@source_fields, &Atom.to_string/1)
 
   # The actions of the duplicate reviewer's decisions. See the module doc.
   @decisions ["distinguished", "reconsidered"]
@@ -611,11 +613,12 @@ defmodule RichardBurton.Publication.History do
       |> Enum.filter(&field_changed?(previous, current, &1))
       |> Map.new(&{&1, %{from: previous[&1], to: current[&1]}})
 
-    %{
-      fields: fields,
-      sources_pt: source_change(previous["sources_pt"], current["sources_pt"]),
-      sources_en: source_change(previous["sources_en"], current["sources_en"])
-    }
+    @source_fields
+    |> Map.new(fn field ->
+      key = Atom.to_string(field)
+      {field, source_change(previous[key], current[key])}
+    end)
+    |> Map.put(:fields, fields)
   end
 
   # Returns the sources `current` added and removed against `previous`, or

@@ -1,13 +1,14 @@
 "use client";
 
 import {
+  useLanguage,
   usePublicationExcerpts,
   usePublicationMarkedField,
   usePublicationIds,
   useVisibleAttributes,
 } from "modules/publication/hooks";
 import {
-  otherLanguage,
+  preferredLanguage,
   Publication,
   SOURCES_KEYS,
   type Language,
@@ -29,7 +30,7 @@ import {
   useRef,
 } from "react";
 import { mergeRefs } from "react-merge-refs";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import useVisible from "utils/useVisible";
 import Highlight from "./Highlight";
 import { EmptySearchResults } from "./EmptySearchResults";
@@ -100,17 +101,16 @@ const ColumnHeader: FC<{ colId: ColId }> = ({ colId }) => {
  * carries the `lang` of the language it is written in.
  */
 const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
-  const locale = useLocale() as Language;
   const excerpts = usePublicationExcerpts(rowId);
-  const language = [locale, otherLanguage(locale)].find(
-    (candidate) => excerpts?.[SOURCES_KEYS[candidate]],
+  const excerpt = (language: Language) => excerpts?.[SOURCES_KEYS[language]];
+  const language = preferredLanguage(useLanguage(), (candidate) =>
+    Boolean(excerpt(candidate)),
   );
+  const text = language && excerpt(language);
 
-  return language ? (
+  return language && text ? (
     <span lang={language} className="block text-xs text-gray-500 truncate">
-      <Highlight className="text-gray-700 bg-amber-100">
-        {excerpts![SOURCES_KEYS[language]]!}
-      </Highlight>
+      <Highlight className="text-gray-700 bg-amber-100">{text}</Highlight>
     </span>
   ) : null;
 };

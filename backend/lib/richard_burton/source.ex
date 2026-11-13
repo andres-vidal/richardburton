@@ -4,9 +4,10 @@ defmodule RichardBurton.Source do
   publication's data was collected, so a reader can check it.
 
   A source is written in one language, Portuguese (`"pt"`) or English
-  (`"en"`), which `language` holds. A publication has a list of sources in
-  each language, `sources_pt` and `sources_en`. The two lists are
-  independent: a source in one does not stand for any source in the other.
+  (`"en"`), which `language` holds (see `RichardBurton.Language`). A
+  publication has a list of sources in each language, `sources_pt` and
+  `sources_en`. The two lists are independent: a source in one does not stand
+  for any source in the other.
 
   A publication's sources in one language are ordered by `position`, which
   counts from 0 in each language. They belong to the publication alone, are
@@ -15,9 +16,8 @@ defmodule RichardBurton.Source do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias RichardBurton.Language
   alias RichardBurton.Source
-
-  @languages ["pt", "en"]
 
   @readable_attributes [:content, :language, :position]
 
@@ -34,14 +34,14 @@ defmodule RichardBurton.Source do
 
   @doc """
   Casts a source's `content`, which is required, and its `position`, and sets
-  its `language` to `language`, which must be `"pt"` or `"en"`.
+  its `language` to `language`, which must be one of `Language.codes/0`.
   """
   def changeset(source, attrs, language) do
     source
     |> cast(attrs, [:content, :position])
     |> put_change(:language, language)
     |> validate_required([:content])
-    |> validate_inclusion(:language, @languages)
+    |> validate_inclusion(:language, Language.codes())
   end
 
   @doc ~S"""

@@ -34,6 +34,7 @@ defmodule RichardBurton.Publication.Codec do
 
   alias RichardBurton.Author
   alias RichardBurton.Country
+  alias RichardBurton.Language
   alias RichardBurton.Util
   alias RichardBurton.Publication
   alias RichardBurton.Publisher
@@ -104,8 +105,9 @@ defmodule RichardBurton.Publication.Codec do
     "original_authors" => {";", "; "}
   }
 
-  # The notes in each language.
-  @notes ["notes_pt", "notes_en"]
+  # The keys of the notes and of the sources in each language.
+  @notes Enum.map(Language.fields(:notes), &Atom.to_string/1)
+  @sources Enum.map(Language.fields(:sources), &Atom.to_string/1)
 
   @doc """
   Reads a CSV of publications: one row each, columns named by a header.
@@ -329,11 +331,8 @@ defmodule RichardBurton.Publication.Codec do
   defp nest_entry({"publishers", value}),
     do: {"publishers", Publisher.nest(value)}
 
-  defp nest_entry({"sources_pt", value}),
-    do: {"sources_pt", Source.nest(value)}
-
-  defp nest_entry({"sources_en", value}),
-    do: {"sources_en", Source.nest(value)}
+  defp nest_entry({key, value}) when key in @sources,
+    do: {key, Source.nest(value)}
 
   defp nest_entry({key, value}),
     do: {key, value}
@@ -468,7 +467,6 @@ defmodule RichardBurton.Publication.Codec do
   defp flatten_entry({"original_authors", value}), do: {"original_authors", Author.flatten(value)}
   defp flatten_entry({"countries", value}), do: {"countries", Country.flatten(value)}
   defp flatten_entry({"publishers", value}), do: {"publishers", Publisher.flatten(value)}
-  defp flatten_entry({"sources_pt", value}), do: {"sources_pt", Source.flatten(value)}
-  defp flatten_entry({"sources_en", value}), do: {"sources_en", Source.flatten(value)}
+  defp flatten_entry({key, value}) when key in @sources, do: {key, Source.flatten(value)}
   defp flatten_entry({key, value}), do: {key, value}
 end

@@ -3,14 +3,18 @@
 import { Key } from "app";
 import { SETTLE } from "modules/publication/checks";
 import {
-  usePublicationFieldError,
+  usePublicationFieldErrors,
   usePublicationNotes,
 } from "modules/publication/hooks";
-import type { Language, PublicationId } from "modules/publication/model";
+import {
+  NOTES_KEYS,
+  type Language,
+  type PublicationId,
+} from "modules/publication/model";
 import { setNotes } from "modules/publication/store";
 import { usePublicationStore } from "modules/publication/workspace";
 import type { RichTextValue } from "modules/rich-text";
-import { FC, useLayoutEffect } from "react";
+import { FC, useCallback, useLayoutEffect } from "react";
 import useDebounce from "utils/useDebounce";
 import NotesEditor from "./NotesEditor";
 
@@ -37,34 +41,24 @@ import NotesEditor from "./NotesEditor";
 const NotesField: FC<{ id: PublicationId }> = ({ id }) => {
   const store = usePublicationStore();
   const notes = usePublicationNotes(id);
-  const errors = {
-    pt: usePublicationFieldError(id, "notesPt"),
-    en: usePublicationFieldError(id, "notesEn"),
-  };
-  const writePt = useDebounce(
-    (row: PublicationId, value: RichTextValue | null) =>
-      setNotes(store, row, "pt", value),
-    SETTLE,
-  );
-  const writeEn = useDebounce(
-    (row: PublicationId, value: RichTextValue | null) =>
-      setNotes(store, row, "en", value),
-    SETTLE,
-  );
+  const errors = usePublicationFieldErrors(id, NOTES_KEYS);
+
+  // Returns the write of the notes in `language` to a row.
+  const write =
+    (language: Language) => (row: PublicationId, value: RichTextValue | null) =>
+      setNotes(store, row, language, value);
+
+  const writePt = useDebounce(write("pt"), SETTLE);
+  const writeEn = useDebounce(write("en"), SETTLE);
   const writes = { pt: writePt, en: writeEn };
 
-  useLayoutEffect(
-    () => () => {
-      writePt.flush();
-      writeEn.flush();
-    },
-    [writePt, writeEn],
-  );
-
-  function flush() {
+  // Makes the pending writes of both languages at once.
+  const flush = useCallback(() => {
     writePt.flush();
     writeEn.flush();
-  }
+  }, [writePt, writeEn]);
+
+  useLayoutEffect(() => flush, [flush]);
 
   function draft(language: Language, value: RichTextValue) {
     writes[language].cancel();

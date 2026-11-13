@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "modules/publication/hooks";
 import { otherLanguage, type Language } from "modules/publication/model";
 import {
   blockTexts,
@@ -7,7 +8,7 @@ import {
   withBlockTexts,
   type RichTextValue,
 } from "modules/rich-text";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import DraftButton from "./DraftButton";
 import LanguageTabs from "./LanguageTabs";
@@ -39,8 +40,7 @@ const NotesEditor: FC<{
   hint?: string;
 }> = ({ value, onChange, onDraft = onChange, errors = {}, hint }) => {
   const t = useTranslations("notes");
-  const locale = useLocale() as Language;
-  const [selected, setSelected] = useState(locale);
+  const [selected, setSelected] = useState(useLanguage());
   const source = otherLanguage(selected);
 
   return (
@@ -48,7 +48,7 @@ const NotesEditor: FC<{
       label={t("languages")}
       selected={selected}
       onSelect={setSelected}
-      invalid={{ pt: Boolean(errors.pt), en: Boolean(errors.en) }}
+      errors={errors}
       actions={
         <DraftButton
           key={selected}
@@ -62,7 +62,6 @@ const NotesEditor: FC<{
               : {
                   title: t("replaceTitle", { language: selected }),
                   message: t("replaceMessage"),
-                  confirmLabel: t("replace"),
                 }
           }
           onDrafted={(texts) =>

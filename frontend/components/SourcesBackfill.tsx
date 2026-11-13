@@ -5,11 +5,11 @@ import SourcesEditor from "components/SourcesEditor";
 import {
   usePublication,
   usePublicationMarking,
+  useHasStoredSources,
   usePublicationSources,
-  useStoredPublicationSources,
   useUnsourcedPublicationCount,
 } from "modules/publication/hooks";
-import { type PublicationId } from "modules/publication/model";
+import { LANGUAGES, type PublicationId } from "modules/publication/model";
 import type { PublicationIndex } from "modules/publication/store";
 import {
   PublicationStoreProvider,
@@ -33,7 +33,7 @@ import QueueListbox from "./QueueListbox";
 const SourcedTitle: FC<{ id: PublicationId }> = ({ id }) => {
   const t = useTranslations("backfill");
   const publication = usePublication(id);
-  const sourced = useStoredPublicationSources(id).length > 0;
+  const sourced = useHasStoredSources(id);
 
   return (
     <>
@@ -143,7 +143,9 @@ export const BackfillStep: FC<{
           width="fit"
           size="medium"
           loading={saving}
-          disabled={sources.pt.length === 0 && sources.en.length === 0}
+          disabled={LANGUAGES.every(
+            (language) => sources[language].length === 0,
+          )}
           onClick={onSave}
         />
       </div>

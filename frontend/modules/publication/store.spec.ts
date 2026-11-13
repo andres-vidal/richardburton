@@ -26,6 +26,7 @@ import {
   isValidFamily,
   publicationFamily,
   publicationIdsAtom,
+  publicationNotesFamily,
   resemblanceFamily,
   resetAll,
   resetAttributes,
@@ -348,6 +349,21 @@ describe("edits", () => {
     expect(store.get(fieldValueFamily({ id: a, key: "title" }))).toBe(
       "Dom Casmurro (rev.)",
     );
+  });
+
+  test("a row's notes keep the same record while another of its fields changes", () => {
+    hydrate(store, [saved(1, "Dom Casmurro")]);
+    setNotes(store, 1, "pt", [paragraph("Primeira edição.")]);
+    const before = store.get(publicationNotesFamily(1));
+
+    setField(store, 1, "title", "Dom Casmurro (rev.)");
+    expect(store.get(publicationNotesFamily(1))).toBe(before);
+
+    setNotes(store, 1, "en", [paragraph("First edition.")]);
+    expect(store.get(publicationNotesFamily(1))).not.toBe(before);
+    expect(store.get(publicationNotesFamily(1)).en).toEqual([
+      paragraph("First edition."),
+    ]);
   });
 });
 

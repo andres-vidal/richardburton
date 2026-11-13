@@ -87,7 +87,6 @@ export const Replacing: Story = {
       title: "Replace the notes in English?",
       message:
         "The draft takes the place of the notes this tab holds now. You can still edit it before saving.",
-      confirmLabel: "Replace",
     },
   },
   play: async ({ args, canvasElement }) => {

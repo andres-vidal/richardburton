@@ -119,11 +119,7 @@ defmodule RichardBurton.Publication.Insights do
       publications: count(fp.id, :distinct),
       first: min(fp.year),
       last: max(fp.year),
-      sourced:
-        filter(
-          count(fp.id, :distinct),
-          fragment("cardinality(?) + cardinality(?) > 0", fp.sources_pt, fp.sources_en)
-        ),
+      sourced: filter(count(fp.id, :distinct), fragment("cardinality(?) > 0", fp.sources)),
       works: fragment("count(DISTINCT (?, ?))", fp.original_title, fp.original_authors),
       original_authors: count(n.original_author, :distinct),
       translators: count(n.translator, :distinct),

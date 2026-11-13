@@ -1,10 +1,11 @@
+import type { Locale } from "i18n/routing";
 import { isEqual, uniqWith } from "lodash";
 import type { CountryNaming } from "modules/country-names";
 import { isBlank, type RichTextValue } from "modules/rich-text";
 
 /**
  * A language a publication's notes and sources are written in: `pt`,
- * Brazilian Portuguese, or `en`, English. The codes are the interface's
+ * Brazilian Portuguese, or `en`, English. The languages are the interface's
  * locales.
  *
  * A publication holds its notes and its list of sources once in each
@@ -12,7 +13,7 @@ import { isBlank, type RichTextValue } from "modules/rich-text";
  * without the other. The two lists of sources are independent, so a source in
  * one list has no counterpart in the other.
  */
-type Language = "pt" | "en";
+type Language = Locale;
 
 /** Both languages, Portuguese first. */
 const LANGUAGES: Language[] = ["pt", "en"];
@@ -31,6 +32,24 @@ type NotesKey = "notesPt" | "notesEn";
 
 /** The field that holds the notes in each language. */
 const NOTES_KEYS: Record<Language, NotesKey> = { pt: "notesPt", en: "notesEn" };
+
+/** Returns a record that holds, for each language, what `value` returns for it. */
+function byLanguage<T>(value: (language: Language) => T): Record<Language, T> {
+  return { pt: value("pt"), en: value("en") };
+}
+
+/**
+ * Returns an object with the field that `keys` names in each language, each
+ * holding what `value` returns for that field.
+ */
+function byField<K extends string, T>(
+  keys: Record<Language, K>,
+  value: (key: K) => T,
+): Record<K, T> {
+  return Object.fromEntries(
+    LANGUAGES.map((language) => [keys[language], value(keys[language])]),
+  ) as Record<K, T>;
+}
 
 /** A publication as the API sends and takes it, one field per attribute. */
 type Publication = {
@@ -351,27 +370,70 @@ const DEFAULT_ATTRIBUTE_VISIBILITY: Record<PublicationKey, boolean> = {
  */
 const NOTES_MAX_LENGTH = 10_000;
 
+/**
+ * The fields a person can edit, in the order the table shows them: the
+ * attributes, then the sources in each language, then the notes in each
+ * language.
+ */
+const EDITED_FIELDS: ErrorScope[] = [
+  ...ATTRIBUTES,
+  ...LANGUAGES.map((language) => SOURCES_KEYS[language]),
+  ...LANGUAGES.map((language) => NOTES_KEYS[language]),
+];
+
+/**
+ * Returns which list a field holds, `sources` or `notes`, and in which
+ * language, or null for an attribute.
+ */
+function localizedField(
+  field: ErrorScope,
+): { kind: "sources" | "notes"; language: Language } | null {
+  const language = LANGUAGES.find(
+    (candidate) =>
+      SOURCES_KEYS[candidate] === field || NOTES_KEYS[candidate] === field,
+  );
+
+  return language
+    ? {
+        kind: SOURCES_KEYS[language] === field ? "sources" : "notes",
+        language,
+      }
+    : null;
+}
+
 /** Returns the language that is not `language`. */
 function otherLanguage(language: Language): Language {
   return language === "pt" ? "en" : "pt";
 }
 
 /**
- * The notes a reader of `language` is shown: the notes in that language when
- * they are not blank, the notes in the other language otherwise, or null when
- * both are blank or missing. Each comes with the language it is written in.
+ * Returns the language a reader of `language` is shown something in:
+ * `language` when `has` is true for it, the other language when `has` is true
+ * only for that one, or undefined when `has` is false for both.
+ */
+function preferredLanguage(
+  language: Language,
+  has: (language: Language) => boolean,
+): Language | undefined {
+  return [language, otherLanguage(language)].find(has);
+}
+
+/**
+ * The notes a reader of `language` is shown, given the notes in each
+ * language: the notes in that language when they are not blank, the notes in
+ * the other language otherwise, or null when both are blank or missing. Each
+ * comes with the language it is written in.
  */
 function shownNotes(
-  publication: Pick<Publication, NotesKey>,
+  notes: Partial<Record<Language, RichTextValue | null>>,
   language: Language,
 ): { language: Language; value: RichTextValue } | null {
-  const shown = [language, otherLanguage(language)].find(
-    (candidate) => !isBlank(publication[NOTES_KEYS[candidate]]),
+  const shown = preferredLanguage(
+    language,
+    (candidate) => !isBlank(notes[candidate]),
   );
 
-  return shown
-    ? { language: shown, value: publication[NOTES_KEYS[shown]]! }
-    : null;
+  return shown ? { language: shown, value: notes[shown]! } : null;
 }
 
 /**
@@ -447,10 +509,8 @@ function merged(winner: Publication, losers: Publication[]): Publication {
     ...winner,
     countries: union("countries"),
     publishers: union("publishers"),
-    sourcesPt: sources("sourcesPt"),
-    sourcesEn: sources("sourcesEn"),
-    notesPt: notes("notesPt"),
-    notesEn: notes("notesEn"),
+    ...byField(SOURCES_KEYS, sources),
+    ...byField(NOTES_KEYS, notes),
   };
 }
 
@@ -478,8 +538,7 @@ type Contrast = {
 const WHOLE_VALUES: ContrastedKey[] = [
   "year",
   "countries",
-  "sourcesPt",
-  "sourcesEn",
+  ...LANGUAGES.map((language) => SOURCES_KEYS[language]),
 ];
 
 /**
@@ -671,26 +730,21 @@ function marking(locale: string, country: CountryNaming): Marking {
 }
 
 /**
- * The sources a reader of `language` is shown: the list in that language when
- * it has any source, the list in the other language otherwise, or null when
- * both are empty. The list comes with the language it is written in. Each
- * source is the text the index marked where the search matched it, and the
- * stored text otherwise.
+ * The sources a reader of `language` is shown, given the list in each
+ * language: the list in that language when it has any source, the list in the
+ * other language otherwise, or null when both are empty. The list comes with
+ * the language it is written in.
  */
 function shownSources(
-  publication: Pick<Publication, SourcesKey | "marked">,
+  sources: Record<Language, string[]>,
   language: Language,
 ): { language: Language; sources: string[] } | null {
-  const shown = [language, otherLanguage(language)].find(
-    (candidate) => (publication[SOURCES_KEYS[candidate]] ?? []).length > 0,
+  const shown = preferredLanguage(
+    language,
+    (candidate) => sources[candidate].length > 0,
   );
 
-  return shown
-    ? {
-        language: shown,
-        sources: markedSources(publication, SOURCES_KEYS[shown]),
-      }
-    : null;
+  return shown ? { language: shown, sources: sources[shown] } : null;
 }
 
 /**
@@ -770,27 +824,30 @@ const Publication = {
   define,
   errorCode,
   marking,
-  markedSources,
   empty,
   merged,
 };
 
 export {
   ATTRIBUTES,
+  byLanguage,
   contrast,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
+  EDITED_FIELDS,
   errorCode,
   empty,
   HISTORY_ACTIONS,
   idFromText,
   LANGUAGES,
+  localizedField,
   marking,
   markedSources,
   merged,
   NOTES_KEYS,
   NOTES_MAX_LENGTH,
   otherLanguage,
+  preferredLanguage,
   Publication,
   searchHref,
   shownNotes,
@@ -808,7 +865,6 @@ export type {
   Language,
   NameChange,
   NameField,
-  NotesKey,
   PublicationEntry,
   PublicationError,
   PublicationHistoryAction,
@@ -822,7 +878,5 @@ export type {
   PublicationListKey,
   Resemblance,
   SnapshotDiff,
-  SourcesDiff,
-  SourcesKey,
   ValidationResult,
 };

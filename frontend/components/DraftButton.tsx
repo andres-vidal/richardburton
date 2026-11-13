@@ -20,8 +20,8 @@ import { useModal } from "./Modal";
  * in the same order, to `onDrafted`.
  *
  * With `replacing`, a press first asks, in a `ConfirmationModal` with that
- * title, message and confirm label, since the draft takes the place of text
- * already written. Cancelling the question drafts nothing.
+ * title and message and a Replace button, since the draft takes the place of
+ * text already written. Cancelling the question drafts nothing.
  *
  * While the browser downloads the translation model, the button shows how
  * much of it has arrived, and while it translates, that it is drafting. When
@@ -33,7 +33,7 @@ const DraftButton: FC<{
   from: Language;
   to: Language;
   texts: string[];
-  replacing?: { title: string; message: string; confirmLabel: string };
+  replacing?: { title: string; message: string };
   onDrafted: (translations: string[]) => void;
 }> = ({ label, from, to, texts, replacing, onDrafted }) => {
   const t = useTranslations("draft");
@@ -99,7 +99,7 @@ const DraftButton: FC<{
           isOpen={confirmation.isOpen}
           title={replacing.title}
           message={replacing.message}
-          confirmLabel={replacing.confirmLabel}
+          confirmLabel={t("replace")}
           onConfirm={draft}
           onCancel={confirmation.close}
         />

@@ -2,11 +2,12 @@
 
 import { plainText } from "modules/rich-text";
 import {
-  usePublicationFieldError,
+  useLanguage,
+  usePublicationFieldErrors,
   usePublicationNotes,
 } from "modules/publication/hooks";
-import { shownNotes, type Language } from "modules/publication/model";
-import { useLocale, useTranslations } from "next-intl";
+import { NOTES_KEYS, shownNotes } from "modules/publication/model";
+import { useTranslations } from "next-intl";
 import { FC, MouseEvent } from "react";
 import { BUTTON_CLASS_NAME } from "./Button";
 import { Modal, useModal } from "./Modal";
@@ -37,15 +38,12 @@ const WorkspaceNotesCell: FC<{
   focused?: boolean;
 }> = ({ rowId, invalid = false, selected = false, focused = false }) => {
   const t = useTranslations("admin");
-  const locale = useLocale() as Language;
+  const language = useLanguage();
   const notes = usePublicationNotes(rowId);
-  const errorPt = usePublicationFieldError(rowId, "notesPt");
-  const errorEn = usePublicationFieldError(rowId, "notesEn");
-  const error = errorPt || errorEn;
+  const errors = usePublicationFieldErrors(rowId, NOTES_KEYS);
+  const error = errors.pt || errors.en;
   const editor = useModal();
-  const preview = plainText(
-    shownNotes({ notesPt: notes.pt, notesEn: notes.en }, locale)?.value,
-  );
+  const preview = plainText(shownNotes(notes, language)?.value);
 
   const openEditor = (event: MouseEvent) => {
     event.stopPropagation();

@@ -2,10 +2,11 @@
 
 import { isEqual } from "lodash";
 import {
-  useErrorSentence,
+  useErrorSentences,
   usePublicationMarking,
 } from "modules/publication/hooks";
 import {
+  byLanguage,
   LANGUAGES,
   NOTES_KEYS,
   NOTES_MAX_LENGTH,
@@ -301,7 +302,7 @@ const PublicationMerge: FC<Props> = ({
 
     return edit !== undefined ? edit : isBlank(proposed) ? null : proposed;
   };
-  const notes = { pt: notesIn("pt"), en: notesIn("en") };
+  const notes = byLanguage(notesIn);
   const showsNotes =
     allRead &&
     LANGUAGES.some(
@@ -321,11 +322,8 @@ const PublicationMerge: FC<Props> = ({
     showsNotes && isLongerThan(notes[language], NOTES_MAX_LENGTH)
       ? "too_long"
       : (refusal[language] ?? "");
-  const notesCodes = { pt: codeIn("pt"), en: codeIn("en") };
-  const notesErrors = {
-    pt: useErrorSentence(notesCodes.pt),
-    en: useErrorSentence(notesCodes.en),
-  };
+  const notesCodes = byLanguage(codeIn);
+  const notesErrors = useErrorSentences(notesCodes);
 
   // Picks `candidate`, and reads it in full, so its notes are known.
   async function pick(candidate: Publication) {
@@ -504,8 +502,7 @@ const PublicationMerge: FC<Props> = ({
             disabled={
               picks.length === 0 ||
               !allRead ||
-              notesCodes.pt !== "" ||
-              notesCodes.en !== ""
+              LANGUAGES.some((language) => notesCodes[language] !== "")
             }
             onClick={handleMerge}
           />

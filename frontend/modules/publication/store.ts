@@ -10,7 +10,9 @@ import * as Doc from "./doc";
 import {
   ATTRIBUTES,
   DEFAULT_ATTRIBUTE_VISIBILITY,
+  EDITED_FIELDS,
   ErrorScope,
+  LANGUAGES,
   type Language,
   Matched,
   NOTES_KEYS,
@@ -21,6 +23,7 @@ import {
   PublicationKey,
   Resemblance,
   SOURCES_KEYS,
+  byLanguage,
   errorCode,
   empty,
   idFromText,
@@ -604,10 +607,9 @@ const publicationSourcesFamily = atomFamily((id: PublicationId) =>
   atom<Record<Language, string[]>>((get) => {
     const publication = get(publicationFamily(id));
 
-    return {
-      pt: publication?.sourcesPt ?? [],
-      en: publication?.sourcesEn ?? [],
-    };
+    return byLanguage(
+      (language) => publication?.[SOURCES_KEYS[language]] ?? [],
+    );
   }),
 );
 
@@ -615,16 +617,18 @@ const publicationSourcesFamily = atomFamily((id: PublicationId) =>
  * A row's notes in each language as a rich-text value, including unsaved
  * edits, or null in a language it has none in or when its record was read
  * from a page of the index.
+ *
+ * It reads the notes through each language's cell (`fieldValueFamily`), so it
+ * keeps the same record while other fields of the row change.
  */
 const publicationNotesFamily = atomFamily((id: PublicationId) =>
-  atom<Record<Language, RichTextValue | null>>((get) => {
-    const publication = get(publicationFamily(id));
-
-    return {
-      pt: publication?.notesPt ?? null,
-      en: publication?.notesEn ?? null,
-    };
-  }),
+  atom<Record<Language, RichTextValue | null>>((get) =>
+    byLanguage(
+      (language) =>
+        (get(fieldValueFamily({ id, key: NOTES_KEYS[language] })) as
+          RichTextValue | null | undefined) ?? null,
+    ),
+  ),
 );
 
 /**
@@ -639,14 +643,16 @@ const publicationExcerptsFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * A publication's saved sources in both languages, Portuguese first, ignoring
- * unsaved edits, or an empty list when it has none.
+ * Whether a publication has saved sources in either language, ignoring
+ * unsaved edits.
  */
-const storedSourcesFamily = atomFamily((id: PublicationId) =>
-  atom<string[]>((get) => {
+const hasStoredSourcesFamily = atomFamily((id: PublicationId) =>
+  atom((get) => {
     const saved = get(savedFamily(id));
 
-    return [...(saved?.sourcesPt ?? []), ...(saved?.sourcesEn ?? [])];
+    return LANGUAGES.some(
+      (language) => (saved?.[SOURCES_KEYS[language]] ?? []).length > 0,
+    );
   }),
 );
 
@@ -656,9 +662,8 @@ const storedSourcesFamily = atomFamily((id: PublicationId) =>
  */
 const unsourcedCountAtom = atom(
   (get) =>
-    get(publicationIdsAtom)?.filter(
-      (id) => get(storedSourcesFamily(id)).length === 0,
-    ).length || 0,
+    get(publicationIdsAtom)?.filter((id) => !get(hasStoredSourcesFamily(id)))
+      .length || 0,
 );
 
 /** Whether nothing is wrong with each row (see `rowErrorFamily`). */
@@ -778,7 +783,7 @@ const PUBLICATION_FAMILIES = [
   publicationSourcesFamily,
   publicationNotesFamily,
   publicationExcerptsFamily,
-  storedSourcesFamily,
+  hasStoredSourcesFamily,
   isValidFamily,
   errorCodeFamily,
   measuredResemblanceFamily,
@@ -853,15 +858,6 @@ function step<T>(store: Store, change: (doc: Y.Doc) => T): T {
 
   return result;
 }
-
-/** The fields a person can edit. `isEdited` compares only these. */
-const EDITED_FIELDS = [
-  ...ATTRIBUTES,
-  "sourcesPt",
-  "sourcesEn",
-  "notesPt",
-  "notesEn",
-] as const;
 
 /**
  * Returns the values of a publication's editable fields, in the order of
@@ -1446,7 +1442,7 @@ export {
   setFocusedRowId,
   setResemblances,
   setSources,
-  storedSourcesFamily,
+  hasStoredSourcesFamily,
   totalIndexCountAtom,
   unsourcedCountAtom,
   uncheckedCountAtom,

@@ -22,6 +22,7 @@ defmodule RichardBurton.Publication.Import do
 
   alias Ecto.Changeset
   alias RichardBurton.Identity
+  alias RichardBurton.Language
   alias RichardBurton.Publication
   alias RichardBurton.Publication.History
   alias RichardBurton.Publication.Links
@@ -100,7 +101,7 @@ defmodule RichardBurton.Publication.Import do
 
     sources =
       for {id, changeset, _links} <- published,
-          field <- [:sources_pt, :sources_en],
+          field <- Language.fields(:sources),
           source <- Changeset.get_change(changeset, field, []),
           do: Map.put(source.changes, :publication_id, id)
 

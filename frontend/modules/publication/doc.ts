@@ -5,6 +5,7 @@ import { isEqual } from "lodash";
 import {
   empty,
   idFromText,
+  NOTES_KEYS,
   SOURCES_KEYS,
   type Publication,
   type PublicationError,
@@ -160,17 +161,19 @@ function rowOf(publication: Publication): Y.Map<unknown> {
   const row = new Y.Map<unknown>();
 
   Object.entries(publication).forEach(([key, value]) => {
-    row.set(key, isList(key) ? asArray(value as string[]) : value);
+    row.set(key, stored(key, value));
   });
 
   return row;
 }
 
-// Returns whether a field is stored as a `Y.Array`: the sources of either
-// language, so sources that two people add at the same time are both kept.
-// Every other field is a plain value.
-function isList(key: string): boolean {
-  return (Object.values(SOURCES_KEYS) as string[]).includes(key);
+// Returns a field's value as a row holds it. The sources of either language
+// are held as a `Y.Array`, so sources that two people add at the same time
+// are both kept. Every other field is held as the plain value.
+function stored(key: string, value: unknown): unknown {
+  return (Object.values(SOURCES_KEYS) as string[]).includes(key)
+    ? asArray(value as string[])
+    : value;
 }
 
 function asArray(values: string[]): Y.Array<string> {
@@ -196,9 +199,11 @@ function publicationOf(row: Y.Map<unknown>): Publication {
   });
 
   const { notes, sources, ...current } = publication;
-  if (notes !== undefined && !row.has("notesPt")) current.notesPt = notes;
-  if (sources !== undefined && !row.has("sourcesPt")) {
-    current.sourcesPt = sources;
+  if (notes !== undefined && !row.has(NOTES_KEYS.pt)) {
+    current[NOTES_KEYS.pt] = notes;
+  }
+  if (sources !== undefined && !row.has(SOURCES_KEYS.pt)) {
+    current[SOURCES_KEYS.pt] = sources;
   }
 
   return current as Publication;
@@ -448,10 +453,7 @@ function setField(
   write(doc, () =>
     held instanceof Y.Array
       ? editList(held as Y.Array<string>, value as string[])
-      : row.set(
-          attribute,
-          isList(attribute) ? asArray(value as string[]) : value,
-        ),
+      : row.set(attribute, stored(attribute, value)),
   );
 }
 
