@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
-    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.5",
     "arctic": "^3.7.0",
     "axios": "^1.21.0",
     "axios-case-converter": "^2.0.3",
