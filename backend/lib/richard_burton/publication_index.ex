@@ -111,12 +111,13 @@ defmodule RichardBurton.Publication.Index do
 
   @doc """
   Returns `{:ok, rows}`, the listed rows of the publications in the index that
-  cite no source, ordered by id, so the order is the same on every call.
+  cite no source in either language, ordered by id, so the order is the same
+  on every call.
   """
   def without_sources do
     results =
       from(fp in FlatPublication,
-        where: fragment("cardinality(?) = 0", fp.sources_pt),
+        where: fragment("cardinality(?) + cardinality(?) = 0", fp.sources_pt, fp.sources_en),
         order_by: [asc: fp.id]
       )
       |> Repo.all()

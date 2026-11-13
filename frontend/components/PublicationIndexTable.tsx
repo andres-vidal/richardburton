@@ -7,7 +7,10 @@ import {
   useVisibleAttributes,
 } from "modules/publication/hooks";
 import {
+  otherLanguage,
   Publication,
+  SOURCES_KEYS,
+  type Language,
   type PublicationId,
   type PublicationKey,
 } from "modules/publication/model";
@@ -26,7 +29,7 @@ import {
   useRef,
 } from "react";
 import { mergeRefs } from "react-merge-refs";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import useVisible from "utils/useVisible";
 import Highlight from "./Highlight";
 import { EmptySearchResults } from "./EmptySearchResults";
@@ -91,14 +94,23 @@ const ColumnHeader: FC<{ colId: ColId }> = ({ colId }) => {
 /**
  * A search can match a publication on its sources, which the table does not
  * show, which makes the row look unrelated to the search. This renders the
- * excerpt of the matching source so the reader can see why it is here.
+ * excerpt of the matching sources so the reader can see why it is here: the
+ * excerpt of the sources in the reader's language when the search matched
+ * them, and of the sources in the other language otherwise. The excerpt
+ * carries the `lang` of the language it is written in.
  */
 const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
-  const excerpt = usePublicationExcerpts(rowId)?.sources;
+  const locale = useLocale() as Language;
+  const excerpts = usePublicationExcerpts(rowId);
+  const language = [locale, otherLanguage(locale)].find(
+    (candidate) => excerpts?.[SOURCES_KEYS[candidate]],
+  );
 
-  return excerpt ? (
-    <span className="block text-xs text-gray-500 truncate">
-      <Highlight className="text-gray-700 bg-amber-100">{excerpt}</Highlight>
+  return language ? (
+    <span lang={language} className="block text-xs text-gray-500 truncate">
+      <Highlight className="text-gray-700 bg-amber-100">
+        {excerpts![SOURCES_KEYS[language]]!}
+      </Highlight>
     </span>
   ) : null;
 };

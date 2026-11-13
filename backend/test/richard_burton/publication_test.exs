@@ -282,36 +282,44 @@ defmodule RichardBurton.PublicationTest do
   end
 
   describe "sources in two languages" do
-    test "are stored with a text in each language, either of which may be missing" do
-      sources = [
-        %{"pt" => "Primeira fonte", "en" => "First source"},
-        %{"pt" => nil, "en" => "Second source"},
-        %{"pt" => "Terceira fonte", "en" => nil}
-      ]
+    test "are stored as a list in each language, each in its own order" do
+      publication =
+        publication_fixture(%{
+          sources_pt: ["Primeira fonte", "Segunda fonte"],
+          sources_en: ["First source"]
+        })
 
-      publication = publication_fixture(%{sources: sources})
+      assert %{sources_pt: ["Primeira fonte", "Segunda fonte"], sources_en: ["First source"]} =
+               publication.id |> Publication.find() |> Publication.Codec.flatten()
 
-      assert sources ==
-               publication.id
-               |> Publication.find()
-               |> Publication.Codec.flatten()
-               |> Map.get(:sources)
-
-      assert [{"Primeira fonte", "First source"}, {nil, "Second source"}, {"Terceira fonte", nil}] ==
+      assert [{"pt", 0, "Primeira fonte"}, {"pt", 1, "Segunda fonte"}, {"en", 0, "First source"}] ==
                Repo.all(
-                 from(s in Source, order_by: s.position, select: {s.content_pt, s.content_en})
+                 from(s in Source,
+                   order_by: [desc: s.language, asc: s.position],
+                   select: {s.language, s.position, s.content}
+                 )
                )
     end
 
-    test "the database refuses a source with text in neither language" do
+    test "an update that gives the sources of one language leaves the other's as they are" do
+      publication = publication_fixture(%{sources_pt: ["Uma fonte"], sources_en: ["A source"]})
+
+      {:ok, updated} =
+        Publication.update(publication.id, publication_attrs(%{sources_en: ["Another source"]}))
+
+      assert %{sources_pt: ["Uma fonte"], sources_en: ["Another source"]} =
+               Publication.Codec.flatten(updated)
+    end
+
+    test "the database refuses a source in a language other than pt or en" do
       publication = publication_fixture()
 
-      assert_raise Postgrex.Error, ~r/publication_sources_have_text/, fn ->
+      assert_raise Postgrex.Error, ~r/publication_sources_language/, fn ->
         Repo.insert_all(Source, [
           %{
             publication_id: publication.id,
-            content_pt: " ",
-            content_en: nil,
+            content: "Una fuente",
+            language: "es",
             position: 0,
             inserted_at: NaiveDateTime.utc_now(:second),
             updated_at: NaiveDateTime.utc_now(:second)
@@ -495,16 +503,16 @@ defmodule RichardBurton.PublicationTest do
       {:ok, _} =
         Publication.update(
           publication.id,
-          Map.put(publication_attrs(), "sources", [
-            %{"content_pt" => "Second source", "position" => 1},
-            %{"content_pt" => "First source", "position" => 0}
+          Map.put(publication_attrs(), "sources_pt", [
+            %{"content" => "Second source", "position" => 1},
+            %{"content" => "First source", "position" => 0}
           ])
         )
 
       # Read again, so the preload queries the sources and applies the
       # association's `preload_order`.
       reloaded = Repo.get(Publication, publication.id) |> Publication.preload()
-      assert ["First source", "Second source"] == Enum.map(reloaded.sources, & &1.content_pt)
+      assert ["First source", "Second source"] == Enum.map(reloaded.sources_pt, & &1.content)
     end
 
     test "loads many sources in position order" do
@@ -514,16 +522,16 @@ defmodule RichardBurton.PublicationTest do
       # preload returns is not the order they were given in.
       sources =
         0..5
-        |> Enum.map(&%{"content_pt" => "Source #{&1}", "position" => &1})
+        |> Enum.map(&%{"content" => "Source #{&1}", "position" => &1})
         |> Enum.reverse()
 
       {:ok, _} =
-        Publication.update(publication.id, Map.put(publication_attrs(), "sources", sources))
+        Publication.update(publication.id, Map.put(publication_attrs(), "sources_pt", sources))
 
       reloaded = Repo.get(Publication, publication.id) |> Publication.preload()
 
-      assert Enum.map(0..5, &"Source #{&1}") == Enum.map(reloaded.sources, & &1.content_pt)
-      assert 6 == length(reloaded.sources)
+      assert Enum.map(0..5, &"Source #{&1}") == Enum.map(reloaded.sources_pt, & &1.content)
+      assert 6 == length(reloaded.sources_pt)
     end
 
     test "keeps duplicate source content as distinct rows" do
@@ -532,43 +540,43 @@ defmodule RichardBurton.PublicationTest do
       {:ok, updated} =
         Publication.update(
           publication.id,
-          publication_attrs(%{sources: ["Same source", "Same source"]})
+          publication_attrs(%{sources_pt: ["Same source", "Same source"]})
         )
 
       # Unlike countries, publishers and authors, which are shared rows stored
       # once, a publication owns its sources, so the same content is stored as
       # two rows.
-      assert ["Same source", "Same source"] == Enum.map(updated.sources, & &1.content_pt)
+      assert ["Same source", "Same source"] == Enum.map(updated.sources_pt, & &1.content)
       assert 2 == length(Repo.all(Source))
     end
 
     test "replaces sources wholesale, deleting the previous rows" do
       publication =
-        publication_fixture(%{sources: ["Old source 1", "Old source 2", "Old source 3"]})
+        publication_fixture(%{sources_pt: ["Old source 1", "Old source 2", "Old source 3"]})
 
       {:ok, updated} =
-        Publication.update(publication.id, publication_attrs(%{sources: ["New source"]}))
+        Publication.update(publication.id, publication_attrs(%{sources_pt: ["New source"]}))
 
       # Every previous row is deleted, leaving only the new one.
-      assert ["New source"] == Enum.map(updated.sources, & &1.content_pt)
-      assert ["New source"] == Repo.all(Source) |> Enum.map(& &1.content_pt)
+      assert ["New source"] == Enum.map(updated.sources_pt, & &1.content)
+      assert ["New source"] == Repo.all(Source) |> Enum.map(& &1.content)
     end
 
     test "clears sources when given an empty list" do
-      publication = publication_fixture(%{sources: ["A source"]})
+      publication = publication_fixture(%{sources_pt: ["A source"]})
 
-      {:ok, updated} = Publication.update(publication.id, publication_attrs(%{sources: []}))
+      {:ok, updated} = Publication.update(publication.id, publication_attrs(%{sources_pt: []}))
 
-      assert [] == updated.sources
+      assert [] == updated.sources_pt
       assert [] == Repo.all(Source)
     end
 
     test "leaves sources untouched when the payload omits them" do
-      publication = publication_fixture(%{sources: ["A source"]})
+      publication = publication_fixture(%{sources_pt: ["A source"]})
 
       {:ok, updated} = Publication.update(publication.id, publication_attrs())
 
-      assert ["A source"] == Enum.map(updated.sources, & &1.content_pt)
+      assert ["A source"] == Enum.map(updated.sources_pt, & &1.content)
     end
   end
 
@@ -642,7 +650,8 @@ defmodule RichardBurton.PublicationTest do
     test "a source-only edit is recorded, despite identical scalar fields" do
       publication = publication_fixture()
 
-      {:ok, _} = Publication.update(publication.id, publication_attrs(%{sources: ["A source"]}))
+      {:ok, _} =
+        Publication.update(publication.id, publication_attrs(%{sources_pt: ["A source"]}))
 
       assert ["updated", "created"] == Enum.map(History.of(publication.id), & &1.action)
     end
@@ -660,7 +669,7 @@ defmodule RichardBurton.PublicationTest do
     end
 
     test "keeps shared entities and owned sources" do
-      publication = publication_fixture(%{sources: ["A source"]})
+      publication = publication_fixture(%{sources_pt: ["A source"]})
 
       countries = Repo.all(Country)
       translated_books = Repo.all(TranslatedBook)
@@ -670,7 +679,7 @@ defmodule RichardBurton.PublicationTest do
       # Nothing is deleted with it: the shared rows and its own sources stay.
       assert countries == Repo.all(Country)
       assert translated_books == Repo.all(TranslatedBook)
-      assert ["A source"] == Repo.all(Source) |> Enum.map(& &1.content_pt)
+      assert ["A source"] == Repo.all(Source) |> Enum.map(& &1.content)
     end
 
     test "frees the composite key: the same record can be imported again" do
@@ -755,7 +764,7 @@ defmodule RichardBurton.PublicationTest do
 
     test "changes that still conflict write nothing" do
       {deleted, _twin} = deleted_with_twin()
-      changes = publication_attrs(%{sources: ["A source"]})
+      changes = publication_attrs(%{sources_pt: ["A source"]})
 
       assert {:error, {:conflict, _twin}} =
                Publication.restore(deleted.id, History.system_actor(), changes)
@@ -790,14 +799,14 @@ defmodule RichardBurton.PublicationTest do
   describe "merge/4" do
     # Two records of the same work, each holding something the other lacks.
     defp merge_pair do
-      winner = publication_fixture(%{sources: ["A source"]})
+      winner = publication_fixture(%{sources_pt: ["A source"]})
 
       loser =
         publication_fixture(%{
           title: "Dom Casmurro: Another Printing",
           countries: ["GB"],
           publishers: ["Knopf"],
-          sources: ["Another source"]
+          sources_pt: ["Another source"]
         })
 
       {winner, loser}
@@ -849,7 +858,7 @@ defmodule RichardBurton.PublicationTest do
                merged.publishers |> Enum.map(& &1.name) |> Enum.sort()
 
       assert ["A source", "Another source"] ==
-               merged.sources |> Enum.map(& &1.content_pt) |> Enum.sort()
+               merged.sources_pt |> Enum.map(& &1.content) |> Enum.sort()
     end
 
     test "the losers' notes follow the winner's, in the order of the losers, each once" do
@@ -1039,41 +1048,33 @@ defmodule RichardBurton.PublicationTest do
     end
 
     test "a source both of them recorded is recorded once" do
-      winner = publication_fixture(%{sources: ["A source"]})
+      winner = publication_fixture(%{sources_pt: ["A source"]})
 
       loser =
-        publication_fixture(%{title: "Dom Casmurro: Another Printing", sources: ["A source"]})
+        publication_fixture(%{title: "Dom Casmurro: Another Printing", sources_pt: ["A source"]})
 
       assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
 
-      assert ["A source"] == Enum.map(merged.sources, & &1.content_pt)
+      assert ["A source"] == Enum.map(merged.sources_pt, & &1.content)
     end
 
-    test "a loser's source that agrees with a kept one in their common languages fills in the languages it lacks" do
+    test "the sources are merged in each language on its own" do
       winner =
-        publication_fixture(%{
-          sources: [%{"pt" => "Uma fonte", "en" => nil}, %{"pt" => nil, "en" => "Another"}]
-        })
+        publication_fixture(%{sources_pt: ["Uma fonte"], sources_en: ["A source"]})
 
       loser =
         publication_fixture(%{
           title: "Dom Casmurro: Another Printing",
-          sources: [
-            %{"pt" => "Uma fonte", "en" => "A source"},
-            %{"pt" => "Outra", "en" => "Another"},
-            %{"pt" => "Uma fonte", "en" => "A different source"}
-          ]
+          sources_pt: ["Outra fonte", "Uma fonte"],
+          sources_en: ["Uma fonte"]
         })
 
       assert {:ok, merged} = Publication.merge(winner.id, [loser.id])
 
-      # The third source shares the Portuguese text of the first, now combined,
-      # but their English texts differ, so it is kept on its own.
-      assert [
-               %{"pt" => "Uma fonte", "en" => "A source"},
-               %{"pt" => "Outra", "en" => "Another"},
-               %{"pt" => "Uma fonte", "en" => "A different source"}
-             ] == merged |> Publication.Codec.flatten() |> Map.get(:sources)
+      # A text is left out only when the same language already holds it, so the
+      # English list takes the text the Portuguese list already holds.
+      assert %{sources_pt: ["Uma fonte", "Outra fonte"], sources_en: ["A source", "Uma fonte"]} =
+               Publication.Codec.flatten(merged)
     end
 
     test "the notes are joined in each language on its own, and an option sets only its language" do

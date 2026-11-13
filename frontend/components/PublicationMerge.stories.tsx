@@ -14,7 +14,6 @@ import {
   within,
 } from "storybook/test";
 import { expectToFit, LONG_URL } from "test/layout";
-import { source } from "test/publication-fixtures";
 import { paragraph } from "test/rich-text-fixtures";
 import { editorOf, focusEditor } from "test/slate";
 
@@ -30,7 +29,8 @@ const DOM_CASMURRO: Publication = {
   year: "1953",
   countries: ["US"],
   publishers: ["Noonday Press"],
-  sources: [source(null, "Caldwell, Helen. Introduction, 1953.")],
+  sourcesPt: [],
+  sourcesEn: ["Caldwell, Helen. Introduction, 1953."],
 };
 
 // Two records of the same book, entered separately, as a search finds them,
@@ -42,12 +42,14 @@ const DUPLICATES: Publication[] = [
     id: 8,
     countries: ["GB"],
     publishers: ["W. H. Allen"],
-    sources: [source(null, "Gledson, John. Deceptive Realism, 1984.")],
+    sourcesPt: ["Gledson, John. Realismo enganoso, 1984."],
+    sourcesEn: ["Gledson, John. Deceptive Realism, 1984."],
   },
   {
     ...DOM_CASMURRO,
     id: 9,
-    sources: [source(null, "Caldwell, Helen. Introduction, 1953.")],
+    sourcesPt: [],
+    sourcesEn: ["Caldwell, Helen. Introduction, 1953."],
   },
 ];
 
@@ -160,17 +162,18 @@ export const Searching: Story = {
 
 /**
  * A picked record shows what the survivor becomes: everything it gains is
- * marked. The play test checks the gains in the Result, and that Merge is
- * enabled once the record is read.
+ * marked, the sources in each language on a line of their own. The play test
+ * checks the gains in the Result, and that Merge is enabled once the record is
+ * read.
  */
 export const Previewing: Story = {
   play: async () => {
     await searchDuplicates();
     await addFirst();
 
-    // The country and publisher it brings are the gain; the survivor's own
-    // stay. Asked of the result itself, since the records on offer now show
-    // every field they hold and would answer to the same text.
+    // The country, the publisher and the sources it brings are the gain; the
+    // survivor's own stay. Asked of the result itself, since the records on
+    // offer now show every field they hold and would answer to the same text.
     const result = within(
       await screen.findByRole("region", { name: "Result" }),
     );
@@ -179,6 +182,11 @@ export const Previewing: Story = {
     await expect(
       result.getByText("Gledson, John. Deceptive Realism, 1984."),
     ).toBeVisible();
+    await expect(
+      result
+        .getByText("Gledson, John. Realismo enganoso, 1984.")
+        .closest("div"),
+    ).toHaveTextContent(/^Sources in Portuguese/);
 
     await waitFor(() =>
       expect(
@@ -451,7 +459,7 @@ export const Cancelled: Story = {
  */
 export const LongSource: Story = {
   args: {
-    find: async () => [{ ...DUPLICATES[0], sources: [source(LONG_URL)] }],
+    find: async () => [{ ...DUPLICATES[0], sourcesPt: [LONG_URL] }],
   },
   play: async () => {
     await screen.findByRole("dialog", { name: "Merge publications" });

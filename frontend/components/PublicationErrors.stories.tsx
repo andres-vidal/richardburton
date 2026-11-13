@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { PublicationError } from "modules/publication/model";
-import { fieldErrors, seed, source } from "test/publication-fixtures";
+import { fieldErrors, seed } from "test/publication-fixtures";
 import { paragraph } from "test/rich-text-fixtures";
 import {
   focusedRowIdAtom,
@@ -146,21 +145,18 @@ export const RepeatingAnEarlierRow: Story = {
 };
 
 /**
- * A row whose sources a file could not pair across the two languages, and
- * whose notes in English are too long: each is named, the notes by their
- * language, after the attributes.
+ * A row whose sources in Portuguese cannot be read, and whose notes in English
+ * are too long: each is named by its language, after the attributes. The play
+ * test checks the order and the names.
  */
 export const SourcesAndNotes: Story = {
   beforeEach: () =>
     seed(store, [
       {
         ...ROWS[0],
-        sources: [source("Uma fonte")],
+        sourcesPt: ["Uma fonte"],
         notesEn: [paragraph("A very long note")],
-        errors: {
-          sources: "misaligned",
-          notesEn: "too_long",
-        } as PublicationError,
+        errors: fieldErrors({ sourcesPt: "malformed", notesEn: "too_long" }),
       },
     ]),
   play: async () => {
@@ -170,7 +166,7 @@ export const SourcesAndNotes: Story = {
     const [entry] = within(dialog).getAllByRole("listitem");
 
     await expect(entry).toHaveTextContent(
-      /Sources.*different numbers of lines.*Notes in English.*This text is too long/,
+      /Sources in Portuguese.*This text could not be read.*Notes in English.*This text is too long/,
     );
   },
 };

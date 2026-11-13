@@ -116,8 +116,8 @@ function usePublicationExcerpts(id: PublicationId) {
 }
 
 /**
- * A row's sources, including unsaved edits, each with its text in each
- * language.
+ * A row's sources in each language, including unsaved edits, or an empty list
+ * in a language it has none in.
  */
 function usePublicationSources(id: PublicationId) {
   return useAtomValue(publicationSourcesFamily(id));
@@ -131,7 +131,10 @@ function usePublicationNotes(id: PublicationId) {
   return useAtomValue(publicationNotesFamily(id));
 }
 
-/** The saved sources only, without unsaved edits. */
+/**
+ * The saved sources in both languages, Portuguese first, without unsaved
+ * edits.
+ */
 function useStoredPublicationSources(id: PublicationId) {
   return useAtomValue(storedSourcesFamily(id));
 }
@@ -161,8 +164,8 @@ function usePublicationErrorDescription(id: PublicationId) {
 }
 
 /**
- * Returns what is wrong with one field of a row, an attribute, the notes in
- * one language or the sources, in words.
+ * Returns what is wrong with one field of a row, an attribute, or the notes or
+ * the sources in one language, in words.
  */
 function usePublicationFieldError(id: PublicationId, key: ErrorScope) {
   return useErrorSentence(useAtomValue(fieldErrorCodeFamily({ id, key })));

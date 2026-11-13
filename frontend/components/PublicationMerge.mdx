@@ -8,11 +8,10 @@ import * as PublicationMergeStories from "./PublicationMerge.stories";
 
 Merges duplicates of a publication into it. The record the dialog is opened
 from is the one that survives: it keeps its identity, its address and its own
-fields, and gains the countries, publishers and sources the others hold. A
-source that repeats one the survivor already has, with the same text in one
-language and no text that differs in the other, is not added again, and the
-kept source takes the text of the language it lacked. The merged record keeps
-the notes shown in the dialog's notes field, in both languages. The records
+fields, and gains the countries, publishers and sources the others hold. The
+sources are gained in each language separately, and a source that the survivor
+already has in that language is not added again. The merged record keeps the
+notes shown in the dialog's notes field, in both languages. The records
 merged in leave the database, recorded as merged rather than deleted.
 
 <Description of={PublicationMergeStories.Previewing} />

@@ -36,8 +36,8 @@ defmodule RichardBurton.Publication do
   no notes in that language. Blank notes are stored as nil. The notes are not
   part of the composite key, and the search does not read them.
 
-  A publication's sources each have a Portuguese and an English text, as
-  `RichardBurton.Source` describes them.
+  A publication has a list of sources in each language, `sources_pt` and
+  `sources_en`, as `RichardBurton.Source` describes them.
 
   A publication's countries, publishers, translators and original authors are
   sets. The link tables keep no order, and a preload reads each set sorted, by
@@ -111,10 +111,18 @@ defmodule RichardBurton.Publication do
       preload_order: [asc: :name]
     )
 
-    # The sources the publication cites, preloaded in position order. A source
-    # in the attrs carries no id, so `cast_assoc/3` replaces them all on every
-    # save.
-    has_many(:sources, Source,
+    # The sources the publication cites in each language, preloaded in
+    # position order. A source in the attrs carries no id, so `cast_assoc/3`
+    # replaces all the sources of a language on every save that gives them.
+    # `changeset/2` sets each new source's language, which `where` only reads.
+    has_many(:sources_pt, Source,
+      where: [language: "pt"],
+      on_replace: :delete,
+      preload_order: [asc: :position]
+    )
+
+    has_many(:sources_en, Source,
+      where: [language: "en"],
       on_replace: :delete,
       preload_order: [asc: :position]
     )
@@ -137,7 +145,8 @@ defmodule RichardBurton.Publication do
     |> cast_assoc(:translated_book, required: true)
     |> cast_assoc(:countries, required: true)
     |> cast_assoc(:publishers, required: true)
-    |> cast_assoc(:sources)
+    |> cast_assoc(:sources_pt, with: &Source.changeset(&1, &2, "pt"))
+    |> cast_assoc(:sources_en, with: &Source.changeset(&1, &2, "en"))
     |> validate_length(:countries, min: 1)
     |> validate_no_duplicates(:countries, :code)
     |> validate_no_duplicates(:publishers, :name)
@@ -163,8 +172,9 @@ defmodule RichardBurton.Publication do
 
   The countries, publishers, translated book, original book and both lists of
   authors are read in one query that joins them, sorted the way the
-  associations' `preload_order` sorts them. The sources are read in a second
-  query, so that many sources do not multiply the rows of the first.
+  associations' `preload_order` sorts them. The sources are read in two more
+  queries, one for each language, so that many sources do not multiply the
+  rows of the first.
   """
   def with_ids(ids) do
     by_id =
@@ -184,7 +194,7 @@ defmodule RichardBurton.Publication do
         ]
       )
       |> Repo.all()
-      |> Repo.preload(:sources)
+      |> Repo.preload([:sources_pt, :sources_en])
       |> Map.new(&{&1.id, &1})
 
     Enum.map(ids, &Map.fetch!(by_id, &1))
@@ -199,7 +209,8 @@ defmodule RichardBurton.Publication do
     Repo.preload(data, [
       :countries,
       :publishers,
-      :sources,
+      :sources_pt,
+      :sources_en,
       translated_book: [:authors, original_book: [:authors]]
     ])
   end
@@ -257,8 +268,8 @@ defmodule RichardBurton.Publication do
   # composite key, or `{:error, errors}` when `attrs` is invalid.
   #
   # The snapshots before and after decide whether anything changed, because
-  # `cast_assoc(:sources)` replaces every source, so the changeset always has
-  # changes.
+  # `cast_assoc/3` replaces every source it is given, so the changeset always
+  # has changes.
   defp update_and_record(publication, attrs, actor) do
     publication = preload(publication)
     before = History.snapshot(publication)
@@ -446,11 +457,9 @@ defmodule RichardBurton.Publication do
   list, so a call that passes options passes the actor before them.
 
   The winner keeps its title, year, translated book and original book. It
-  gains the countries and publishers of the losers, and their sources after
-  its own. A source is combined with an earlier one when the two have text in
-  at least one common language and their texts in every common language are
-  equal. The earlier source keeps its place, and takes the text of each
-  language it has no text in from the later one. The losers are then
+  gains the countries and publishers of the losers, and in each language their
+  sources after its own, leaving out a source it already holds in that
+  language. The losers are then
   tombstoned, and their distinctions from each other and from the winner are
   deleted (see `Publication.Duplicates.forget/1`). The entry names the losers, so `undo/3`
   can undo the whole merge.
@@ -566,8 +575,9 @@ defmodule RichardBurton.Publication do
   end
 
   # Returns the nested attrs of the merged publication: the winner's fields,
-  # the countries and publishers of all of them, each listed once, the sources
-  # `merged_sources/1` returns, and the notes `merge/4` describes for `opts`.
+  # the countries and publishers of all of them, the sources in each language
+  # of all of them, each listed once, and the notes `merge/4` describes for
+  # `opts`.
   defp reconciled(winner, losers, opts) do
     flat = Enum.map([winner | losers], &History.snapshot/1)
     [kept | _] = flat
@@ -582,7 +592,8 @@ defmodule RichardBurton.Publication do
     |> Map.merge(%{
       countries: union_of(flat, :countries),
       publishers: union_of(flat, :publishers),
-      sources: merged_sources(flat)
+      sources_pt: flat |> Enum.flat_map(& &1.sources_pt) |> Enum.uniq(),
+      sources_en: flat |> Enum.flat_map(& &1.sources_en) |> Enum.uniq()
     })
     |> Map.merge(notes)
     |> Codec.nest()
@@ -598,38 +609,6 @@ defmodule RichardBurton.Publication do
     |> Enum.reject(&RichText.blank?/1)
     |> Enum.uniq()
     |> Enum.concat()
-  end
-
-  # Returns the flat sources of the snapshots `flat`, in order, combining each
-  # source with the earliest one it matches, as `merge/4` describes. Two
-  # sources match when they have text in at least one common language and
-  # their texts in every common language are equal.
-  defp merged_sources(flat) do
-    flat
-    |> Enum.flat_map(&(Map.get(&1, :sources) || []))
-    |> Enum.reduce([], &combined/2)
-    |> Enum.reverse()
-  end
-
-  # Adds `source` to `kept`, the sources kept so far, latest first, or
-  # combines it with the earliest kept source it matches.
-  defp combined(source, kept) do
-    case kept |> Enum.reverse() |> Enum.find_index(&matches?(&1, source)) do
-      nil -> [source | kept]
-      index -> List.update_at(kept, length(kept) - 1 - index, &filled(&1, source))
-    end
-  end
-
-  # Returns `source` with the text of each language it has no text in taken
-  # from `other`.
-  defp filled(source, other) do
-    Map.merge(source, other, fn _language, text, other_text -> text || other_text end)
-  end
-
-  # Returns whether two flat sources match.
-  defp matches?(a, b) do
-    common = for language <- ["pt", "en"], a[language] && b[language], do: language
-    common != [] and Enum.all?(common, &(a[&1] == b[&1]))
   end
 
   # Returns the values of the list field `field` across the snapshots `flat`,

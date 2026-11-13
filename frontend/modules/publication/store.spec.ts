@@ -50,7 +50,6 @@ import {
 } from "./store";
 
 import type { Store } from "modules/store";
-import { source } from "test/publication-fixtures";
 import { paragraph } from "test/rich-text-fixtures";
 
 // A store per test: publication state belongs to a workspace, so a spec makes
@@ -225,22 +224,6 @@ describe("checked rows", () => {
     setErrors(store, [{ id: a, publication: before, errors: null }]);
 
     expect(store.get(uncheckedCountAtom)).toBe(1);
-  });
-
-  // The API writes each source's languages in its own key order, and the
-  // document reads them back in another. The result still checks the row, so
-  // the row is not validated again and keeps the result's errors.
-  test("a result for sources whose languages are listed in another order checks the row", () => {
-    const a = createId();
-    const sources = [{ en: "Catalog record.", pt: "Ficha catalográfica." }];
-    const errors = fieldErrors({ sources: "misaligned" });
-
-    setAll(store, [
-      { id: a, publication: { ...empty(), title: "Iracema", sources }, errors },
-    ]);
-
-    expect(store.get(uncheckedCountAtom)).toBe(0);
-    expect(store.get(errorFamily(a))).toEqual(errors);
   });
 });
 
@@ -513,6 +496,22 @@ describe("family lifecycle", () => {
     expect(store.get(publicationFamily(2)).title).toBe("Title 2");
   });
 
+  test("editing the sources in one language keeps the other language's, and is an edit", () => {
+    hydrate(store, [
+      { ...saved(1), sourcesPt: ["Ficha."], sourcesEn: ["Record."] },
+    ]);
+    setSources(store, 1, "en", ["Record.", "Review."]);
+
+    expect(store.get(publicationFamily(1))).toMatchObject({
+      sourcesPt: ["Ficha."],
+      sourcesEn: ["Record.", "Review."],
+    });
+
+    hydrate(store, [saved(1, "As someone else saved it")]);
+
+    expect(store.get(publicationFamily(1)).title).toBe("Title 1");
+  });
+
   test("a row without edits takes what a load returns", () => {
     hydrate(store, [saved(1, "Dom Casmurro")]);
 
@@ -639,7 +638,7 @@ describe("look-alikes", () => {
 
   test("stands when a field the check does not read is edited", () => {
     measured();
-    setSources(store, 1, [source("Uma fonte")]);
+    setSources(store, 1, "pt", ["Uma fonte"]);
 
     expect(store.get(resemblanceFamily(1))).toEqual(RESEMBLES);
   });

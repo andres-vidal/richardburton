@@ -176,15 +176,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "marks the source text a search matched, and only that one", meta do
       publication =
         publication_fixture(%{
-          sources: [
-            %{
-              "pt" => "Caldwell, Helen. Machado de Assis. Berkeley: California, 1970.",
-              "en" => "Caldwell's study, published in Berkeley."
-            },
-            %{
-              "pt" => nil,
-              "en" => "Gledson, John. The Deceptive Realism. Liverpool: Cairns, 1984."
-            }
+          sources_pt: ["Caldwell, Helen. Machado de Assis. Berkeley: California, 1970."],
+          sources_en: [
+            "Caldwell's study, published in Berkeley.",
+            "Gledson, John. The Deceptive Realism. Liverpool: Cairns, 1984."
           ]
         })
 
@@ -193,22 +188,21 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> get("#{publication_path(meta.conn, :show, publication.id)}?search=berkeley")
         |> json_response(200)
 
-      assert [%{"pt" => pt, "en" => en}, unmatched] = body["marked"]["sources"]
+      assert [pt] = body["marked"]["sources_pt"]
       assert pt =~ "[[Berkeley]]"
       # The whole text is marked, not an excerpt of it.
       assert pt =~ "Caldwell, Helen."
-      assert en == "Caldwell's study, published in [[Berkeley]]."
-      assert unmatched == %{"pt" => nil, "en" => nil}
 
-      assert body["sources"] == [
-               %{
-                 "pt" => "Caldwell, Helen. Machado de Assis. Berkeley: California, 1970.",
-                 "en" => "Caldwell's study, published in Berkeley."
-               },
-               %{
-                 "pt" => nil,
-                 "en" => "Gledson, John. The Deceptive Realism. Liverpool: Cairns, 1984."
-               }
+      assert ["Caldwell's study, published in [[Berkeley]].", nil] ==
+               body["marked"]["sources_en"]
+
+      assert body["sources_pt"] == [
+               "Caldwell, Helen. Machado de Assis. Berkeley: California, 1970."
+             ]
+
+      assert body["sources_en"] == [
+               "Caldwell's study, published in Berkeley.",
+               "Gledson, John. The Deceptive Realism. Liverpool: Cairns, 1984."
              ]
     end
 
@@ -336,7 +330,7 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       {:ok, _} =
         Publication.update(
           with_refs.id,
-          publication_attrs(Map.put(@iracema, :sources, ["A source"]))
+          publication_attrs(Map.put(@iracema, :sources_en, ["A source"]))
         )
 
       publication_fixture(%{@iracema | title: "Unsourced Title"})
@@ -988,7 +982,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                  result,
                  &Map.drop(&1, [
                    "id",
-                   "sources",
+                   "sources_pt",
+                   "sources_en",
                    "excerpts",
                    "marked",
                    "notes_pt",
@@ -998,20 +993,18 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     end
 
     test "bulk-inserts publications with their sources in both languages", meta do
-      sources = [
-        %{"pt" => "Primeira fonte", "en" => "First source"},
-        %{"pt" => nil, "en" => "Second source"}
-      ]
+      pt = ["Primeira fonte", "Segunda fonte"]
+      en = ["First source"]
 
-      input = %{"_json" => [Map.put(@iracema, :sources, sources)]}
+      input = %{"_json" => [Map.merge(@iracema, %{sources_pt: pt, sources_en: en})]}
 
       result =
         meta.conn
         |> post(publication_path(meta.conn, :create_all), input)
         |> json_response(201)
 
-      assert [%{"sources" => ^sources}] = result
-      assert [%{sources: ^sources}] = Repo.all(FlatPublication)
+      assert [%{"sources_pt" => ^pt, "sources_en" => ^en}] = result
+      assert [%{sources_pt: ^pt, sources_en: ^en}] = Repo.all(FlatPublication)
     end
 
     test "returns 201 and inserts publications with several countries", meta do
@@ -1091,7 +1084,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                  result,
                  &Map.drop(&1, [
                    "id",
-                   "sources",
+                   "sources_pt",
+                   "sources_en",
                    "excerpts",
                    "marked",
                    "notes_pt",
@@ -1178,7 +1172,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
                  result,
                  &Map.drop(&1, [
                    "id",
-                   "sources",
+                   "sources_pt",
+                   "sources_en",
                    "excerpts",
                    "marked",
                    "notes_pt",
@@ -1391,7 +1386,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => ["Isabel Burton", "Richard Burton"],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "sources" => [],
+          "sources_pt" => [],
+          "sources_en" => [],
           "notes_pt" => nil,
           "notes_en" => nil
         },
@@ -1406,7 +1402,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => ["J. T. W. Sadler"],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Ubirajara",
-          "sources" => [],
+          "sources_pt" => [],
+          "sources_en" => [],
           "notes_pt" => nil,
           "notes_en" => nil
         },
@@ -1421,7 +1418,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
           "authors" => [],
           "original_authors" => ["José de Alencar"],
           "original_title" => "Iracema",
-          "sources" => [],
+          "sources_pt" => [],
+          "sources_en" => [],
           "notes_pt" => nil,
           "notes_en" => nil
         },
@@ -1476,7 +1474,8 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       assert expected_data == response(conn, 200)
     end
 
-    test "writes a publication's sources as two cells, one line per source", meta do
+    test "writes a publication's sources as a cell for each language, one line per source",
+         meta do
       publication = publication_fixture(@iracema)
 
       # Adds sources to the publication, then exports it.
@@ -1484,21 +1483,20 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         Publication.update(
           publication.id,
           publication_attrs(
-            Map.put(@iracema, :sources, [
-              %{"pt" => "Primeira fonte", "en" => "First source"},
-              %{"pt" => nil, "en" => "Second source"}
-            ])
+            Map.merge(@iracema, %{
+              sources_pt: ["Primeira fonte"],
+              sources_en: ["First source", "Second source"]
+            })
           )
         )
 
       conn = get(meta.conn, publication_path(meta.conn, :export))
 
-      # One source per line inside each quoted cell (CSV quotes the newline),
-      # an empty line where a source has no text in that language.
-      assert response(conn, 200) =~ ~s("Primeira fonte\n","First source\nSecond source")
+      # One source per line inside each quoted cell (CSV quotes the newline).
+      assert response(conn, 200) =~ ~s(Primeira fonte,"First source\nSecond source")
     end
 
-    test "imports a file's single sources cell as the Portuguese texts", meta do
+    test "imports a file's sources_pt cell as the Portuguese sources", meta do
       input = uploaded_csv_fixture("test/fixtures/data_with_sources.csv")
 
       [first | _] =
@@ -1506,12 +1504,12 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> post(publication_path(meta.conn, :validate), input)
         |> json_response(200)
 
-      assert [%{"pt" => "First source", "en" => nil}, %{"pt" => "Second source", "en" => nil}] ==
-               first["publication"]["sources"]
+      assert ["First source", "Second source"] == first["publication"]["sources_pt"]
+      assert [] == first["publication"]["sources_en"]
     end
 
-    test "reports a row whose two sources cells are misaligned", meta do
-      path = Path.join(System.tmp_dir!(), "misaligned-#{System.unique_integer([:positive])}.csv")
+    test "imports the two sources cells apart, whatever the number of lines in each", meta do
+      path = Path.join(System.tmp_dir!(), "sources-#{System.unique_integer([:positive])}.csv")
       on_exit(fn -> File.rm(path) end)
 
       File.write!(path, """
@@ -1520,19 +1518,15 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
       Segunda fonte",First source
       """)
 
-      input = %{"csv" => %Plug.Upload{path: path, filename: "misaligned.csv"}}
+      input = %{"csv" => %Plug.Upload{path: path, filename: "sources.csv"}}
 
-      assert [%{"publication" => publication, "errors" => %{"sources" => "misaligned"}}] =
+      assert [%{"publication" => publication, "errors" => nil}] =
                meta.conn
                |> post(publication_path(meta.conn, :validate), input)
                |> json_response(200)
 
-      assert publication["sources"] == [
-               %{"pt" => "Primeira fonte", "en" => "First source"},
-               %{"pt" => "Segunda fonte", "en" => nil}
-             ]
-
-      refute Map.has_key?(publication, "sources_misaligned")
+      assert publication["sources_pt"] == ["Primeira fonte", "Segunda fonte"]
+      assert publication["sources_en"] == ["First source"]
     end
   end
 
@@ -1697,12 +1691,10 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
     test "sets the publication's sources from the flat payload", meta do
       publication = publication_fixture(@iracema)
 
-      sources = [
-        %{"pt" => nil, "en" => "First source"},
-        %{"pt" => "Segunda fonte", "en" => "Second source"}
-      ]
+      pt = ["Segunda fonte"]
+      en = ["First source", "Second source"]
 
-      attrs = Map.put(@iracema, :sources, sources)
+      attrs = Map.merge(@iracema, %{sources_pt: pt, sources_en: en})
 
       result =
         meta.conn
@@ -1710,10 +1702,11 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
         |> json_response(200)
 
       # The sources are stored as rows of their own, and come back as the same
-      # list, in order, in the response and in the flat publications.
-      assert result["sources"] == sources
+      # lists, in order, in the response and in the flat publications.
+      assert result["sources_pt"] == pt
+      assert result["sources_en"] == en
 
-      assert [%{sources: ^sources}] = Repo.all(FlatPublication)
+      assert [%{sources_pt: ^pt, sources_en: ^en}] = Repo.all(FlatPublication)
     end
   end
 

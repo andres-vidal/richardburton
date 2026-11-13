@@ -45,7 +45,7 @@ defmodule RichardBurton.Publication.IndexTest do
       publishers: ["Instituto Nacional do Livro"],
       title: "Posthumous Reminiscences of Brás Cubas",
       year: 1955,
-      sources: [
+      sources_pt: [
         "Caldwell, Helen. Machado de Assis: The Brazilian Master. Berkeley: University of California Press, 1970.",
         "Ellis, E. Percy, trans. Posthumous Reminiscences of Brás Cubas. Rio de Janeiro: Instituto Nacional do Livro, 1955."
       ]
@@ -58,7 +58,7 @@ defmodule RichardBurton.Publication.IndexTest do
       publishers: ["University of Texas Press"],
       title: "The Three Marias",
       year: 1963,
-      sources: ["Ellison, Fred P. The Three Marias. Austin: University of Texas Press, 1963."]
+      sources_pt: ["Ellison, Fred P. The Three Marias. Austin: University of Texas Press, 1963."]
     },
     %FlatPublication{
       authors: ["Gregory Rabassa"],
@@ -268,7 +268,7 @@ defmodule RichardBurton.Publication.IndexTest do
       # about the flattened representation, so normalise them. (Some seeds carry
       # sources; they're zeroed here since this test only checks the flattened
       # shape.)
-      strip = &%{&1 | __meta__: nil, id: nil, sources: []}
+      strip = &%{&1 | __meta__: nil, id: nil, sources_pt: [], sources_en: []}
 
       actual = output |> Enum.map(strip) |> Enum.sort()
       expected = @publications |> Enum.map(strip) |> Enum.sort()
@@ -300,12 +300,12 @@ defmodule RichardBurton.Publication.IndexTest do
       # The source-less seeds come back; the ones seeded with sources don't.
       expected_titles =
         @publications
-        |> Enum.filter(&(&1.sources in [nil, []]))
+        |> Enum.filter(&(&1.sources_pt in [nil, []]))
         |> Enum.map(& &1.title)
         |> Enum.sort()
 
       assert Enum.sort(Enum.map(results, & &1.title)) == expected_titles
-      assert Enum.all?(results, &(&1.sources == []))
+      assert Enum.all?(results, &(&1.sources_pt == [] and &1.sources_en == []))
 
       # Stable ascending-id order — the wizard steps through a fixed queue.
       ids = Enum.map(results, & &1.id)
@@ -537,7 +537,7 @@ defmodule RichardBurton.Publication.IndexTest do
       row = Enum.find(page, &(&1.title == "Posthumous Reminiscences of Brás Cubas"))
 
       # Only the sources carry the word, so only they are excerpted.
-      assert row.excerpts.sources =~ "[[Berkeley]]"
+      assert row.excerpts.sources_pt =~ "[[Berkeley]]"
       assert row.excerpts.title == nil
     end
 
@@ -604,7 +604,7 @@ defmodule RichardBurton.Publication.IndexTest do
     test "a spelled-out term marks what Postgres read it as" do
       rows = marked(~s("Berkeley"))
 
-      assert Enum.any?(rows, &(&1[:sources] =~ "[[Berkeley]]"))
+      assert Enum.any?(rows, &(&1[:sources_pt] =~ "[[Berkeley]]"))
     end
   end
 
@@ -1325,27 +1325,25 @@ defmodule RichardBurton.Publication.IndexTest do
             authors: ["João Ubaldo Ribeiro"],
             original_title: "Sargento Getúlio",
             original_authors: ["João Ubaldo Ribeiro"],
-            sources: [
-              %{"pt" => "Catálogo da Biblioteca Nacional, 1979.", "en" => nil},
-              %{"pt" => "Resenha xilográfica, 1980.", "en" => "A woodcut review, 1980."},
-              %{"pt" => nil, "en" => "Translator's foreword, 1978."}
-            ]
+            sources_pt: ["Catálogo da Biblioteca Nacional, 1979.", "Resenha xilográfica, 1980."],
+            sources_en: ["A woodcut review, 1980.", "Translator's foreword, 1978."]
           }
         ])
 
       [publication: publication]
     end
 
-    test "a listed row holds them as flat sources, in order", %{publication: publication} do
+    test "a listed row holds the sources of each language in order", %{publication: publication} do
       assert [row] = Publication.Index.details([publication.id])
 
-      assert row.sources == [
-               %{"pt" => "Catálogo da Biblioteca Nacional, 1979.", "en" => nil},
-               %{"pt" => "Resenha xilográfica, 1980.", "en" => "A woodcut review, 1980."},
-               %{"pt" => nil, "en" => "Translator's foreword, 1978."}
+      assert row.sources_pt == [
+               "Catálogo da Biblioteca Nacional, 1979.",
+               "Resenha xilográfica, 1980."
              ]
 
-      assert %{"sources" => [%{"pt" => _, "en" => nil} | _]} =
+      assert row.sources_en == ["A woodcut review, 1980.", "Translator's foreword, 1978."]
+
+      assert %{"sources_pt" => [_, _], "sources_en" => [_, _]} =
                row |> Jason.encode!() |> Jason.decode!()
     end
 
@@ -1357,30 +1355,42 @@ defmodule RichardBurton.Publication.IndexTest do
       end
     end
 
-    test "the marks of a search hold each source's matching text in each language",
+    test "the marks and excerpts of a search are given for each language's sources",
          %{publication: publication} do
       assert [row] = Publication.Index.details([publication.id], "foreword")
 
-      assert row.marked.sources == [
-               %{"pt" => nil, "en" => nil},
-               %{"pt" => nil, "en" => nil},
-               %{"pt" => nil, "en" => "Translator's [[foreword]], 1978."}
-             ]
-
-      assert row.excerpts.sources =~ "[[foreword]]"
+      assert row.marked.sources_pt == [nil, nil]
+      assert row.marked.sources_en == [nil, "Translator's [[foreword]], 1978."]
+      assert row.excerpts.sources_pt == nil
+      assert row.excerpts.sources_en =~ "[[foreword]]"
 
       assert [row] = Publication.Index.details([publication.id], "1980")
 
-      assert Enum.at(row.marked.sources, 1) == %{
-               "pt" => "Resenha xilográfica, [[1980]].",
-               "en" => "A woodcut review, [[1980]]."
-             }
+      assert row.marked.sources_pt == [nil, "Resenha xilográfica, [[1980]]."]
+      assert row.marked.sources_en == ["A woodcut review, [[1980]].", nil]
     end
 
     test "a publication with sources in either language is not unsourced",
          %{publication: publication} do
       {:ok, unsourced} = Publication.Index.without_sources()
       refute Enum.any?(unsourced, &(&1.id == publication.id))
+
+      [english_only] =
+        seed_index([
+          %{
+            title: "Sergeant Getúlio",
+            year: 1984,
+            countries: ["GB"],
+            publishers: ["Faber"],
+            authors: ["João Ubaldo Ribeiro"],
+            original_title: "Sargento Getúlio",
+            original_authors: ["João Ubaldo Ribeiro"],
+            sources_en: ["Faber catalogue, 1984."]
+          }
+        ])
+
+      {:ok, unsourced} = Publication.Index.without_sources()
+      refute Enum.any?(unsourced, &(&1.id == english_only.id))
     end
   end
 end

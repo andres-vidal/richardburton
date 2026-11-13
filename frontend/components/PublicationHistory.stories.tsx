@@ -3,7 +3,6 @@ import { withChanges } from "modules/publication/history";
 import type { PublicationHistoryEntry } from "modules/publication/model";
 import { expect, screen, within } from "storybook/test";
 import { expectToFit, LONG_EMAIL } from "test/layout";
-import { source } from "test/publication-fixtures";
 import { link, paragraph } from "test/rich-text-fixtures";
 
 import PublicationHistory from "./PublicationHistory";
@@ -16,12 +15,13 @@ const SNAPSHOT: PublicationHistoryEntry["snapshot"] = {
   year: 1953,
   countries: ["US"],
   publishers: ["Noonday Press"],
-  sources: [],
+  sourcesPt: [],
+  sourcesEn: [],
 };
 
-// The sources the lifecycle adds, each with its text in English only.
-const CALDWELL = source(null, "Caldwell, Helen. Introduction, 1953.");
-const GLEDSON = source(null, "Gledson, John. Deceptive Realism, 1984.");
+// The sources in English the lifecycle adds.
+const CALDWELL = "Caldwell, Helen. Introduction, 1953.";
+const GLEDSON = "Gledson, John. Deceptive Realism, 1984.";
 
 // The notes a curator first wrote on the record, and the notes of the
 // duplicate merged into it, which the merge appends.
@@ -44,7 +44,7 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      sources: [GLEDSON],
+      sourcesEn: [GLEDSON],
     },
     diff: null,
   },
@@ -57,7 +57,7 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      sources: [GLEDSON],
+      sourcesEn: [GLEDSON],
     },
     diff: null,
   },
@@ -70,12 +70,13 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      sources: [GLEDSON],
+      sourcesEn: [GLEDSON],
     },
     // One source swapped for another: nothing else moved.
     diff: {
       fields: {},
-      sources: {
+      sourcesPt: null,
+      sourcesEn: {
         added: [GLEDSON],
         removed: [CALDWELL],
         reordered: false,
@@ -91,14 +92,21 @@ const LIFECYCLE: PublicationHistoryEntry[] = [
     snapshot: {
       ...SNAPSHOT,
       title: "Dom Casmurro (revised)",
-      sources: [CALDWELL],
+      sourcesPt: ["Caldwell, Helen. Introdução, 1953."],
+      sourcesEn: [CALDWELL],
     },
-    // Retitled, with the first source added in the same save.
+    // Retitled, with the first source added in each language in the same
+    // save.
     diff: {
       fields: {
         title: { from: "Dom Casmurro", to: "Dom Casmurro (revised)" },
       },
-      sources: {
+      sourcesPt: {
+        added: ["Caldwell, Helen. Introdução, 1953."],
+        removed: [],
+        reordered: false,
+      },
+      sourcesEn: {
         added: [CALDWELL],
         removed: [],
         reordered: false,
@@ -157,10 +165,16 @@ export const Default: Story = {
     ).toBeGreaterThan(0);
 
     // Updates state exactly what changed: scalars as old → new, sources
-    // as the precise entries added and removed.
+    // as the precise entries added and removed in each language.
     await expect(screen.getByText(/Title:/)).toHaveTextContent(
       "Title: Dom Casmurro → Dom Casmurro (revised)",
     );
+    await expect(
+      screen.getByText("+ Caldwell, Helen. Introdução, 1953.").closest("ul"),
+    ).toHaveAttribute("lang", "pt");
+    await expect(
+      screen.getAllByText(/^Sources in (Portuguese|English):/).length,
+    ).toBe(3);
     await expect(
       screen.getByText("+ Caldwell, Helen. Introduction, 1953."),
     ).toBeInTheDocument();
@@ -206,7 +220,7 @@ export const WithoutABaseline: Story = {
         timestamp: "2026-07-15T11:00:00",
         snapshot: {
           ...SNAPSHOT,
-          sources: [CALDWELL],
+          sourcesEn: [CALDWELL],
         },
         diff: null,
       },
@@ -490,7 +504,8 @@ export const Notes: Story = {
           fields: {
             notesEn: { from: FIRST, to: [...FIRST, ...DUPLICATE] },
           },
-          sources: null,
+          sourcesPt: null,
+          sourcesEn: null,
         },
         others: [
           {
@@ -510,7 +525,8 @@ export const Notes: Story = {
         snapshot: SNAPSHOT,
         diff: {
           fields: { notesEn: { from: null, to: FIRST } },
-          sources: null,
+          sourcesPt: null,
+          sourcesEn: null,
         },
       },
       {
@@ -533,7 +549,8 @@ export const Notes: Story = {
               to: null,
             },
           },
-          sources: null,
+          sourcesPt: null,
+          sourcesEn: null,
         },
       },
     ]),

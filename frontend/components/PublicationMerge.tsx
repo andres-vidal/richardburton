@@ -10,7 +10,7 @@ import {
   NOTES_KEYS,
   NOTES_MAX_LENGTH,
   Publication,
-  sourceLine,
+  SOURCES_KEYS,
   type Language,
 } from "modules/publication/model";
 import { loadPublication, merge, search } from "modules/publication/remote";
@@ -63,12 +63,13 @@ const DETAILED = Publication.ATTRIBUTES.filter(
 
 /**
  * One publication in full: its title and year, every other attribute it
- * holds, and its sources, each with its text in each language it has one in.
- * Nothing is cut short, since records that look alike are told apart by the
- * details they differ in.
+ * holds, and its sources in each language it has any in. Nothing is cut
+ * short, since records that look alike are told apart by the details they
+ * differ in.
  */
 const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
   const t = useTranslations("attributes");
+  const admin = useTranslations("admin");
   const marked = usePublicationMarking();
 
   return (
@@ -89,18 +90,24 @@ const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
             </div>
           ) : null;
         })}
-        {p.sources?.length > 0 && (
-          <div className="flex gap-1">
-            <dt className="text-gray-600 shrink-0">{t("sources")}:</dt>
-            <dd className="min-w-0 wrap-break-word">
-              <ul>
-                {p.sources.map((source, index) => (
-                  <li key={index}>{sourceLine(source)}</li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        )}
+        {LANGUAGES.map((language) => {
+          const sources = p[SOURCES_KEYS[language]] ?? [];
+
+          return sources.length > 0 ? (
+            <div key={language} className="flex gap-1">
+              <dt className="text-gray-600 shrink-0">
+                {admin("sourcesIn", { language })}:
+              </dt>
+              <dd lang={language} className="min-w-0 wrap-break-word">
+                <ul>
+                  {sources.map((source) => (
+                    <li key={source}>{source}</li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+          ) : null;
+        })}
       </dl>
     </div>
   );
@@ -136,10 +143,9 @@ const Gained: FC<{ label: string; kept: string[]; gained: string[] }> = ({
 );
 
 /**
- * The Result section: the countries, publishers and sources of `result`, the
- * merged record, with everything that `winner`, the survivor, did not hold
- * marked as gained, followed by `children`. A source of the survivor that
- * gains a text in a language it had none in counts as gained. When
+ * The Result section: the countries, publishers and the sources in each
+ * language of `result`, the merged record, with everything that `winner`, the
+ * survivor, did not hold marked as gained, followed by `children`. When
  * `notesGained` is false and nothing else is gained, it says that the others
  * bring nothing new and that merging still removes them. `notesGained` is null
  * while it is not known yet, and the section then says nothing about it.
@@ -151,6 +157,7 @@ const Preview: FC<{
   children?: ReactNode;
 }> = ({ winner, result, notesGained, children }) => {
   const attribute = useTranslations("attributes");
+  const admin = useTranslations("admin");
   const t = useTranslations("merge");
 
   const rows = [
@@ -164,11 +171,11 @@ const Preview: FC<{
       kept: winner.publishers,
       all: result.publishers,
     },
-    {
-      label: attribute("sources"),
-      kept: winner.sources.map(sourceLine),
-      all: result.sources.map(sourceLine),
-    },
+    ...LANGUAGES.map((language) => ({
+      label: admin("sourcesIn", { language }),
+      kept: winner[SOURCES_KEYS[language]] ?? [],
+      all: result[SOURCES_KEYS[language]] ?? [],
+    })),
   ].map(({ label, kept, all }) => ({
     label,
     kept,

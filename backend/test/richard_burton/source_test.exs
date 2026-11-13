@@ -1,6 +1,6 @@
 defmodule RichardBurton.SourceTest do
   @moduledoc """
-  Tests for the Source schema and its flat shape.
+  Tests for the Source schema
   """
 
   use ExUnit.Case, async: true
@@ -8,64 +8,41 @@ defmodule RichardBurton.SourceTest do
 
   alias RichardBurton.Source
 
-  defp changeset(attrs) do
-    Source.changeset(%Source{}, attrs)
+  defp changeset(attrs, language \\ "pt") do
+    Source.changeset(%Source{}, attrs, language)
   end
 
-  describe "changeset/2" do
-    test "when both texts and the position are provided, is valid" do
-      assert changeset(%{
-               "content_pt" => "Uma fonte",
-               "content_en" => "A source",
-               "position" => 0
-             }).valid?
+  describe "changeset/3" do
+    test "when content and position are provided, is valid" do
+      assert changeset(%{"content" => "A source", "position" => 0}).valid?
     end
 
-    test "when only one text is provided, is valid" do
-      assert changeset(%{"content_pt" => "Uma fonte", "position" => 0}).valid?
-      assert changeset(%{"content_en" => "A source", "position" => 0}).valid?
+    test "sets the language it is given" do
+      assert changeset(%{"content" => "A source", "position" => 0}, "en").changes.language == "en"
     end
 
-    test "when both texts are missing, is invalid" do
+    test "when the language is neither pt nor en, is invalid" do
+      cs = changeset(%{"content" => "A source", "position" => 0}, "es")
+
+      refute cs.valid?
+      assert Keyword.has_key?(cs.errors, :language)
+    end
+
+    test "when content is missing, is invalid" do
       cs = changeset(%{"position" => 0})
 
       refute cs.valid?
-      assert Keyword.has_key?(cs.errors, :content_pt)
+      assert Keyword.has_key?(cs.errors, :content)
     end
 
-    test "when both texts are blank or whitespace only, is invalid" do
-      refute changeset(%{"content_pt" => "", "content_en" => "   ", "position" => 0}).valid?
-    end
-  end
-
-  describe "flat?/1" do
-    test "holds for a flat source with text in at least one language" do
-      assert Source.flat?(%{"pt" => "Uma fonte", "en" => nil})
-      assert Source.flat?(%{"pt" => nil, "en" => "A source"})
+    test "when content is blank, is invalid" do
+      refute changeset(%{"content" => "", "position" => 0}).valid?
     end
 
-    test "fails for a source with no text, or with a text that is not a string" do
-      refute Source.flat?(%{"pt" => nil, "en" => nil})
-      refute Source.flat?(%{"pt" => 1, "en" => nil})
-      refute Source.flat?("A source")
-    end
-  end
-
-  describe "Flat" do
-    test "casts strings and maps to flat sources, dropping the ones with no text" do
-      assert {:ok, [%{"pt" => "Uma fonte", "en" => nil}, %{"pt" => nil, "en" => "A source"}]} ==
-               Source.Flat.cast(["Uma fonte", %{en: "A source"}, %{"pt" => " ", "en" => nil}])
-    end
-
-    test "refuses a value that is not a list, and an entry that is not a source" do
-      assert {:error, validation: :malformed} == Source.Flat.cast("A source")
-      assert {:error, validation: :malformed} == Source.Flat.cast([42])
-      assert {:error, validation: :malformed} == Source.Flat.cast([%{"pt" => 42}])
-    end
-
-    test "loads the JSON array a jsonb column holds" do
-      assert {:ok, [%{"pt" => "Uma fonte", "en" => "A source"}]} ==
-               Source.Flat.load([%{"en" => "A source", "pt" => "Uma fonte"}])
+    test "when content is whitespace only, is invalid" do
+      # `validate_required` trims, so the changeset refuses a whitespace-only
+      # entry as well as `nest/1` dropping it.
+      refute changeset(%{"content" => "   ", "position" => 0}).valid?
     end
   end
 end

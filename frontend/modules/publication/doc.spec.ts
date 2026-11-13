@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 import * as Y from "yjs";
 
-import { source } from "test/publication-fixtures";
 import { paragraph } from "test/rich-text-fixtures";
 import * as Doc from "./doc";
 import { empty, type Publication } from "./model";
@@ -9,10 +8,6 @@ import { empty, type Publication } from "./model";
 function publication(fields: Partial<Publication> = {}): Publication {
   return { ...empty(), ...fields };
 }
-
-// Two sources that two people add to the same row.
-const CALDWELL = source(null, "Caldwell, Helen. Introduction, 1953.");
-const GLEDSON = source(null, "Gledson, John. Deceptive Realism, 1984.");
 
 /** Two copies of one document, one for each of two people editing it. */
 function pair() {
@@ -41,13 +36,8 @@ describe("reading and writing", () => {
       title: "Dom Casmurro",
       authors: ["Helen Caldwell"],
       year: "1953",
-      sources: [
-        source(
-          "Caldwell, Helen. Introdução, 1953.",
-          "Caldwell, Helen. Introduction, 1953.",
-        ),
-      ],
-      notesEn: [paragraph("First edition.")],
+      sourcesPt: ["Caldwell, Helen. Introdução, 1953."],
+      sourcesEn: ["Caldwell, Helen. Introduction, 1953."],
     });
 
     Doc.addRow(doc, "a", row);
@@ -72,27 +62,20 @@ describe("reading and writing", () => {
     const read = Doc.readRow(doc, "a")!;
 
     expect(read.notesPt).toEqual(notes);
+    expect(read.sourcesPt).toEqual(["Caldwell, Helen. Introdução, 1953."]);
     expect(read).not.toHaveProperty("notes");
-    expect(read.sources).toEqual([
-      source("Caldwell, Helen. Introdução, 1953."),
-    ]);
+    expect(read).not.toHaveProperty("sources");
 
-    // Writing the notes in Portuguese takes the place of the old notes, and
-    // adding a source keeps the source held as a string.
+    // Writing the notes and the sources in Portuguese takes the place of the
+    // old fields, and the sources are written as a list that merges.
     Doc.setField(doc, "a", "notesPt", null);
-    Doc.setField(doc, "a", "sources", [
-      ...read.sources,
-      source(null, "Catalog record."),
-    ]);
+    Doc.setField(doc, "a", "sourcesPt", [...read.sourcesPt, "Ficha."]);
 
     expect(Doc.readRow(doc, "a")).toMatchObject({
       notesPt: null,
-      sources: [
-        source("Caldwell, Helen. Introdução, 1953."),
-        source(null, "Catalog record."),
-      ],
+      sourcesPt: ["Caldwell, Helen. Introdução, 1953.", "Ficha."],
     });
-    expect(sources.get(0)).toBe("Caldwell, Helen. Introdução, 1953.");
+    expect(row.get("sourcesPt")).toBeInstanceOf(Y.Array);
   });
 
   test("a row the document does not hold reads as nothing", () => {
@@ -191,30 +174,51 @@ describe("two people at once", () => {
   test("a source added on each side keeps both", () => {
     const { here, there, sync } = pair();
 
-    Doc.addRow(here, "a", publication({ title: "Dom Casmurro", sources: [] }));
+    Doc.addRow(
+      here,
+      "a",
+      publication({ title: "Dom Casmurro", sourcesEn: [] }),
+    );
     sync();
 
-    Doc.setField(here, "a", "sources", [CALDWELL]);
-    Doc.setField(there, "a", "sources", [GLEDSON]);
+    Doc.setField(here, "a", "sourcesEn", [
+      "Caldwell, Helen. Introduction, 1953.",
+    ]);
+    Doc.setField(there, "a", "sourcesEn", [
+      "Gledson, John. Deceptive Realism, 1984.",
+    ]);
     sync();
 
-    const kept = Doc.readRow(here, "a")?.sources ?? [];
+    const kept = Doc.readRow(here, "a")?.sourcesEn ?? [];
 
     expect(kept).toHaveLength(2);
-    expect(kept).toEqual(expect.arrayContaining([CALDWELL, GLEDSON]));
-    expect(Doc.readRow(there, "a")?.sources).toEqual(kept);
+    expect(kept).toEqual(
+      expect.arrayContaining([
+        "Caldwell, Helen. Introduction, 1953.",
+        "Gledson, John. Deceptive Realism, 1984.",
+      ]),
+    );
+    expect(Doc.readRow(there, "a")?.sourcesEn).toEqual(kept);
   });
 
   // `setField` edits the existing `Y.Array` on each write, so after two writes
   // the field reads back as the second value.
   test("sources stay a list that merges however many times they are written", () => {
     const doc = new Y.Doc();
-    Doc.addRow(doc, "a", publication({ title: "Dom Casmurro", sources: [] }));
+    Doc.addRow(doc, "a", publication({ title: "Dom Casmurro", sourcesEn: [] }));
 
-    Doc.setField(doc, "a", "sources", [CALDWELL]);
-    Doc.setField(doc, "a", "sources", [CALDWELL, GLEDSON]);
+    Doc.setField(doc, "a", "sourcesEn", [
+      "Caldwell, Helen. Introduction, 1953.",
+    ]);
+    Doc.setField(doc, "a", "sourcesEn", [
+      "Caldwell, Helen. Introduction, 1953.",
+      "Gledson, John. Deceptive Realism, 1984.",
+    ]);
 
-    expect(Doc.readRow(doc, "a")?.sources).toEqual([CALDWELL, GLEDSON]);
+    expect(Doc.readRow(doc, "a")?.sourcesEn).toEqual([
+      "Caldwell, Helen. Introduction, 1953.",
+      "Gledson, John. Deceptive Realism, 1984.",
+    ]);
   });
 
   test("a row added on each side keeps both", () => {

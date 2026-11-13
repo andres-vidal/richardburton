@@ -20,11 +20,10 @@ import {
   PublicationId,
   PublicationKey,
   Resemblance,
-  type Source,
+  SOURCES_KEYS,
   errorCode,
   empty,
   idFromText,
-  sourceOf,
 } from "./model";
 
 /**
@@ -598,10 +597,18 @@ const hiddenAttributesAtom = atom((get) =>
 // --- Derived families -------------------------------------------------------
 
 /**
- * A row's sources, including unsaved edits, or an empty list when it has none.
+ * A row's sources in each language, including unsaved edits, or an empty list
+ * in a language it has none in.
  */
 const publicationSourcesFamily = atomFamily((id: PublicationId) =>
-  atom<Source[]>((get) => get(publicationFamily(id))?.sources ?? []),
+  atom<Record<Language, string[]>>((get) => {
+    const publication = get(publicationFamily(id));
+
+    return {
+      pt: publication?.sourcesPt ?? [],
+      en: publication?.sourcesEn ?? [],
+    };
+  }),
 );
 
 /**
@@ -632,16 +639,20 @@ const publicationExcerptsFamily = atomFamily((id: PublicationId) =>
 );
 
 /**
- * A publication's saved sources, ignoring unsaved edits, or an empty list when
- * it has none.
+ * A publication's saved sources in both languages, Portuguese first, ignoring
+ * unsaved edits, or an empty list when it has none.
  */
 const storedSourcesFamily = atomFamily((id: PublicationId) =>
-  atom<Source[]>((get) => get(savedFamily(id))?.sources ?? []),
+  atom<string[]>((get) => {
+    const saved = get(savedFamily(id));
+
+    return [...(saved?.sourcesPt ?? []), ...(saved?.sourcesEn ?? [])];
+  }),
 );
 
 /**
- * How many rows in the list have no saved sources. A row whose sources are
- * typed but not saved still counts.
+ * How many rows in the list have no saved sources in either language. A row
+ * whose sources are typed but not saved still counts.
  */
 const unsourcedCountAtom = atom(
   (get) =>
@@ -687,7 +698,7 @@ const errorCodeFamily = atomFamily((id: PublicationId) =>
 
 /**
  * Which cell an atom belongs to: the publication, and the field of it, an
- * attribute, the notes in one language or the sources.
+ * attribute, or the notes or the sources in one language.
  */
 type FieldKey = { id: PublicationId; key: ErrorScope };
 
@@ -741,8 +752,8 @@ const fieldValueFamily = cellFamily(({ id, key }) =>
 );
 
 /**
- * The code of what is wrong with a single cell's field, an attribute, the
- * notes in one language or the sources (see `errorCode`).
+ * The code of what is wrong with a single cell's field, an attribute, or the
+ * notes or the sources in one language (see `errorCode`).
  */
 const fieldErrorCodeFamily = cellFamily(({ id, key }) =>
   atom((get) => errorCode(get(rowErrorFamily(id)), key)),
@@ -844,22 +855,23 @@ function step<T>(store: Store, change: (doc: Y.Doc) => T): T {
 }
 
 /** The fields a person can edit. `isEdited` compares only these. */
-const EDITED_FIELDS = [...ATTRIBUTES, "sources", "notesPt", "notesEn"] as const;
+const EDITED_FIELDS = [
+  ...ATTRIBUTES,
+  "sourcesPt",
+  "sourcesEn",
+  "notesPt",
+  "notesEn",
+] as const;
 
 /**
  * Returns the values of a publication's editable fields, in the order of
  * `EDITED_FIELDS`. A field the publication does not hold, such as the notes of
- * a record read from a page of the index, is null. Each source is read with
- * `sourceOf`, which lists its languages in one order, so a source whose keys
- * the API wrote in another order has the same values.
+ * a record read from a page of the index, is null.
  */
 function editedValues(publication: Publication): unknown[] {
   const complete = { ...empty(), ...publication };
-  const sources = complete.sources.map(sourceOf);
 
-  return EDITED_FIELDS.map((field) =>
-    field === "sources" ? sources : (complete[field] ?? null),
-  );
+  return EDITED_FIELDS.map((field) => complete[field] ?? null);
 }
 
 /**
@@ -1113,11 +1125,16 @@ function setField<K extends PublicationKey>(
 }
 
 /**
- * Edits a row's sources, which are edited as one list rather than one cell at
- * a time.
+ * Edits a row's sources in `language`, which are edited as one list rather
+ * than one cell at a time. The sources in the other language stay as they are.
  */
-function setSources(store: Store, id: PublicationId, sources: Source[]): void {
-  writeRow(store, id, { sources });
+function setSources(
+  store: Store,
+  id: PublicationId,
+  language: Language,
+  sources: string[],
+): void {
+  writeRow(store, id, { [SOURCES_KEYS[language]]: sources });
 }
 
 /**

@@ -14,8 +14,8 @@ defmodule RichardBurtonWeb.PublicationController do
   `notes_pt` or `notes_en` key (see `RichardBurton.FlatPublication`). A
   publication that `show/2`, `index_deleted/2` or a write responds with holds
   its notes in each language, or `null` for a language it has none in. Every
-  publication's `sources` are flat sources, `{"pt": text, "en": text}` (see
-  `RichardBurton.Source`).
+  publication holds its sources in each language, as the lists `sources_pt`
+  and `sources_en` (see `RichardBurton.Source`).
 
   A path id that is not a whole number is a 404, as `RichardBurtonWeb.Params.id/1`
   says. A write that would give a publication the composite key of another is a
@@ -44,13 +44,13 @@ defmodule RichardBurtonWeb.PublicationController do
   requests.
 
   With `unsourced`, the response holds `entries`, every publication without
-  sources, ordered by id.
+  sources in either language, ordered by id.
 
   Every response but the one for `ids` puts the number of publications in the
   index in the count header (see `Publication.Index.count_header/0`).
 
-  Each entry is a listed row, which holds every flat field but `notes` (see
-  `Publication.Index`).
+  Each entry is a listed row, which holds every flat field but `notes_pt` and
+  `notes_en` (see `Publication.Index`).
   """
   def index(conn, params = %{"ids" => ids}) do
     entries = Publication.Index.details(Params.integers(ids), params["search"])
@@ -337,8 +337,6 @@ defmodule RichardBurtonWeb.PublicationController do
   `diff`, under `notes_pt` or `notes_en`. The snapshots in `others` are whole.
   `name_change` holds the name change of a rename's entry (see
   `Publication.History`), and is null on the entries of every other action.
-  Every snapshot is in the current flat shape, however old the entry (see
-  `Publication.History.Snapshot`).
   """
   def history(conn, %{"id" => id}) do
     with {:ok, id} <- Params.id(id) do
@@ -468,16 +466,7 @@ defmodule RichardBurtonWeb.PublicationController do
     |> Enum.zip_with(publications, &reported/2)
   end
 
-  # Returns a validation result as a map with the publication it is for,
-  # without the key that marks misaligned sources, which the errors report.
-  defp reported(result, publication) do
-    %{
-      publication: Map.delete(publication, Publication.Codec.misaligned_sources()),
-      errors: errors_of(result)
-    }
-  end
-
-  # Returns the errors of a validation result, or nil when it is valid.
-  defp errors_of(:ok), do: nil
-  defp errors_of({:error, errors}), do: errors
+  # Returns a validation result as a map with the publication it is for.
+  defp reported(:ok, publication), do: %{publication: publication, errors: nil}
+  defp reported({:error, errors}, publication), do: %{publication: publication, errors: errors}
 end

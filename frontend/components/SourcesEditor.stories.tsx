@@ -1,29 +1,30 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { Source } from "modules/publication/model";
+import type { Language } from "modules/publication/model";
 import { FC, useState } from "react";
-import { expect, fn, userEvent, waitFor, within } from "storybook/test";
-import { source } from "test/publication-fixtures";
+import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 import { installFakeTranslator } from "test/translator";
 
 import SourcesEditor from "./SourcesEditor";
+
+type Sources = Record<Language, string[]>;
 
 // SourcesEditor is controlled — every add/remove/reorder/edit emits a new
 // list — so hold `value` in state, otherwise the canvas would never reflect an
 // interaction. onChange is still forwarded so `fn()` assertions keep working.
 const Controlled: FC<{
-  value?: Source[];
-  onChange?: (sources: Source[]) => void;
-  error?: string;
-}> = ({ value: initial = [], onChange, error }) => {
+  value: Sources;
+  onChange: (language: Language, sources: string[]) => void;
+  errors?: Partial<Record<Language, string>>;
+}> = ({ value: initial, onChange, errors }) => {
   const [value, setValue] = useState(initial);
 
   return (
     <SourcesEditor
       value={value}
-      error={error}
-      onChange={(next) => {
-        setValue(next);
-        onChange?.(next);
+      errors={errors}
+      onChange={(language, next) => {
+        setValue((before) => ({ ...before, [language]: next }));
+        onChange(language, next);
       }}
     />
   );
@@ -32,12 +33,12 @@ const Controlled: FC<{
 const meta = {
   title: "Publications/Sources editor",
   component: SourcesEditor,
-  args: { value: [], onChange: fn() },
+  args: { value: { pt: [], en: [] }, onChange: fn() },
   render: (args) => (
     <Controlled
       value={args.value}
       onChange={args.onChange}
-      error={args.error}
+      errors={args.errors}
     />
   ),
   decorators: [
@@ -56,6 +57,12 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** Returns queries within the panel of the tab named `name`. */
+const panel = (
+  canvas: ReturnType<typeof within>,
+  name: "English" | "Português",
+) => within(canvas.getByRole("tabpanel", { name }));
+
 /** Returns the tab named `name` in the editor's tab list. */
 const tab = (canvas: ReturnType<typeof within>, name: string) =>
   within(
@@ -64,186 +71,193 @@ const tab = (canvas: ReturnType<typeof within>, name: string) =>
 
 /**
  * Fully interactive: add a row, type into it, reorder it, then remove it — the
- * list updates live, mirroring the edit form. Start with one source so the
- * populated shape is visible before touching anything. The English tab is
- * selected, the reader's language.
+ * list updates live, mirroring the edit form. It starts with one source in
+ * English so the populated shape is visible before touching anything. The
+ * English tab is selected, the reader's language.
  */
 export const Default: Story = {
   args: {
-    value: [
-      source(
-        null,
+    value: {
+      pt: [],
+      en: [
         "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
-      ),
-    ],
+      ],
+    },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const english = panel(canvas, "English");
 
     // Add a second source and type into it — the new row reflects the input.
-    await userEvent.click(canvas.getByRole("button", { name: "Add source" }));
-    const second = canvas.getByLabelText("Source 2");
+    await userEvent.click(english.getByRole("button", { name: "Add source" }));
+    const second = english.getByLabelText("Source 2");
     await userEvent.type(second, "https://archive.org/details/domcasmurro");
     await expect(second).toHaveValue("https://archive.org/details/domcasmurro");
 
     // Reorder: move the new row up; it becomes Source 1.
     await userEvent.click(
-      canvas.getByRole("button", { name: "Move source 2 up" }),
+      english.getByRole("button", { name: "Move source 2 up" }),
     );
-    await expect(canvas.getByLabelText("Source 1")).toHaveValue(
+    await expect(english.getByLabelText("Source 1")).toHaveValue(
       "https://archive.org/details/domcasmurro",
     );
 
     // Remove it; the original returns as the sole row.
     await userEvent.click(
-      canvas.getByRole("button", { name: "Remove source 1" }),
+      english.getByRole("button", { name: "Remove source 1" }),
     );
-    await expect(canvas.getByLabelText("Source 1")).toHaveValue(
+    await expect(english.getByLabelText("Source 1")).toHaveValue(
       "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
     );
-    await expect(canvas.queryByLabelText("Source 2")).not.toBeInTheDocument();
+    await expect(english.queryByLabelText("Source 2")).not.toBeInTheDocument();
   },
 };
 
-/** No sources yet — an empty state and the add control. */
+/**
+ * No sources yet — an empty state and the add control. The play test adds a
+ * source and checks that it is added to the English list.
+ */
 export const Empty: Story = {
   play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByText("No sources yet.")).toBeInTheDocument();
+    const english = panel(within(canvasElement), "English");
+    await expect(english.getByText("No sources yet.")).toBeInTheDocument();
 
-    await userEvent.click(canvas.getByRole("button", { name: "Add source" }));
-    await expect(args.onChange).toHaveBeenCalledWith([source(null, null)]);
+    await userEvent.click(english.getByRole("button", { name: "Add source" }));
+    await expect(args.onChange).toHaveBeenCalledWith("en", [""]);
   },
 };
 
-/** A populated list: one input per entry, with reorder + remove controls. */
+/**
+ * A populated list: one input per entry, with reorder and remove controls. The
+ * play test checks that the first row cannot move up and the last cannot move
+ * down.
+ */
 export const WithSources: Story = {
   args: {
-    value: [
-      source(
-        null,
+    value: {
+      pt: [],
+      en: [
         "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
-      ),
-      source(null, "https://archive.org/details/domcasmurro0000mach"),
-    ],
+        "https://archive.org/details/domcasmurro0000mach",
+      ],
+    },
   },
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByLabelText("Source 1")).toHaveValue(
+    const english = panel(within(canvasElement), "English");
+    await expect(english.getByLabelText("Source 1")).toHaveValue(
       "Caldwell, Helen. Introduction to Dom Casmurro. Noonday Press, 1953.",
     );
-    // The first row cannot move up; the last cannot move down.
     await expect(
-      canvas.getByRole("button", { name: "Move source 1 up" }),
+      english.getByRole("button", { name: "Move source 1 up" }),
     ).toBeDisabled();
     await expect(
-      canvas.getByRole("button", { name: "Move source 2 down" }),
+      english.getByRole("button", { name: "Move source 2 down" }),
     ).toBeDisabled();
   },
 };
 
 /**
- * The same sources in both languages: each tab lists every source, with its
- * text in that tab's language, and a source with no text in that language
- * shows its text in the other one as the placeholder. The play test types the
- * missing English text of the second source, then checks the Portuguese tab.
+ * Sources in both languages: each tab lists its own sources, which need not
+ * match the other tab's. The play test adds an English source, then checks
+ * that the Portuguese tab still lists only its own.
  */
 export const InBothLanguages: Story = {
   args: {
-    value: [
-      source(
+    value: {
+      pt: [
         "Caldwell, Helen. Introdução a Dom Casmurro, 1953.",
-        "Caldwell, Helen. Introduction to Dom Casmurro, 1953.",
-      ),
-      source("Sousa, J. Galante de. Bibliografia de Machado de Assis, 1955."),
-    ],
+        "Sousa, J. Galante de. Bibliografia de Machado de Assis, 1955.",
+      ],
+      en: ["Caldwell, Helen. Introduction to Dom Casmurro, 1953."],
+    },
   },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const second = canvas.getByLabelText("Source 2");
+    const english = panel(canvas, "English");
 
-    await expect(second).toHaveValue("");
-    await expect(second).toHaveAttribute(
-      "placeholder",
-      "Sousa, J. Galante de. Bibliografia de Machado de Assis, 1955.",
+    await userEvent.click(english.getByRole("button", { name: "Add source" }));
+    await userEvent.type(
+      english.getByLabelText("Source 2"),
+      "Sousa. A bibliography of Machado de Assis.",
     );
-    await userEvent.type(second, "Sousa. A bibliography of Machado de Assis.");
-    await expect(args.onChange).toHaveBeenLastCalledWith([
-      source(
-        "Caldwell, Helen. Introdução a Dom Casmurro, 1953.",
-        "Caldwell, Helen. Introduction to Dom Casmurro, 1953.",
-      ),
-      source(
-        "Sousa, J. Galante de. Bibliografia de Machado de Assis, 1955.",
-        "Sousa. A bibliography of Machado de Assis.",
-      ),
+    await expect(args.onChange).toHaveBeenLastCalledWith("en", [
+      "Caldwell, Helen. Introduction to Dom Casmurro, 1953.",
+      "Sousa. A bibliography of Machado de Assis.",
     ]);
 
     await userEvent.click(tab(canvas, "Português"));
-    await expect(canvas.getByLabelText("Source 1")).toHaveValue(
+    const portuguese = panel(canvas, "Português");
+    await expect(portuguese.getAllByRole("textbox")).toHaveLength(2);
+    await expect(portuguese.getByLabelText("Source 1")).toHaveValue(
       "Caldwell, Helen. Introdução a Dom Casmurro, 1953.",
     );
   },
 };
 
-/** Reordering swaps adjacent entries on screen — moving row 2 up swaps the two. */
+/**
+ * Reordering swaps adjacent entries on screen — moving row 2 up swaps the two.
+ * The play test checks that the other language's list keeps its order.
+ */
 export const Reorder: Story = {
   args: {
-    value: [source("Primeira fonte", "First source"), source(null, "Second")],
+    value: {
+      pt: ["Primeira fonte", "Segunda fonte"],
+      en: ["First source", "Second"],
+    },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-
-    await expect(canvas.getByLabelText("Source 1")).toHaveValue("First source");
-    await expect(canvas.getByLabelText("Source 2")).toHaveValue("Second");
+    const english = panel(canvas, "English");
 
     await userEvent.click(
-      canvas.getByRole("button", { name: "Move source 2 up" }),
+      english.getByRole("button", { name: "Move source 2 up" }),
     );
 
-    // The rows have actually swapped, in both languages.
-    await expect(canvas.getByLabelText("Source 1")).toHaveValue("Second");
-    await expect(canvas.getByLabelText("Source 2")).toHaveValue("First source");
-    await userEvent.click(tab(canvas, "Português"));
-    await expect(canvas.getByLabelText("Source 2")).toHaveValue(
-      "Primeira fonte",
+    await expect(english.getByLabelText("Source 1")).toHaveValue("Second");
+    await expect(english.getByLabelText("Source 2")).toHaveValue(
+      "First source",
     );
+    await userEvent.click(tab(canvas, "Português"));
+    await expect(
+      panel(canvas, "Português").getByLabelText("Source 1"),
+    ).toHaveValue("Primeira fonte");
   },
 };
 
 /** Removing an entry drops its row, leaving the rest. */
 export const Remove: Story = {
-  args: {
-    value: [source(null, "First source"), source(null, "Second source")],
-  },
+  args: { value: { pt: [], en: ["First source", "Second source"] } },
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getAllByRole("textbox")).toHaveLength(2);
+    const english = panel(within(canvasElement), "English");
+    await expect(english.getAllByRole("textbox")).toHaveLength(2);
 
     await userEvent.click(
-      canvas.getByRole("button", { name: "Remove source 1" }),
+      english.getByRole("button", { name: "Remove source 1" }),
     );
 
-    // The first row is gone; the second is now the sole row.
-    await expect(canvas.getByLabelText("Source 1")).toHaveValue(
+    await expect(english.getByLabelText("Source 1")).toHaveValue(
       "Second source",
     );
-    await expect(canvas.queryByLabelText("Source 2")).not.toBeInTheDocument();
+    await expect(english.queryByLabelText("Source 2")).not.toBeInTheDocument();
   },
 };
 
 /**
  * In a browser that can translate, here with the fake Translator API, the
- * English tab drafts the English text of each source that has none from its
- * Portuguese text, and leaves the source that has one alone. The tab then
- * asks to check the titles. The play test drafts and checks the list.
+ * English tab drafts its list from the Portuguese one, one source at a time,
+ * leaving out a blank source. The tab then asks to check the titles. The play
+ * test drafts and checks the list.
  */
 export const DraftedFromPortuguese: Story = {
   args: {
-    value: [
-      source("Caldwell, Helen. Introdução, 1953.", "Caldwell. Introduction."),
-      source("Sousa, J. Galante de. Bibliografia, 1955."),
-    ],
+    value: {
+      pt: [
+        "Caldwell, Helen. Introdução, 1953.",
+        " ",
+        "Sousa, J. Galante de. Bibliografia, 1955.",
+      ],
+      en: [],
+    },
   },
   beforeEach: installFakeTranslator,
   play: async ({ args, canvasElement }) => {
@@ -256,12 +270,9 @@ export const DraftedFromPortuguese: Story = {
     );
 
     await waitFor(() =>
-      expect(args.onChange).toHaveBeenLastCalledWith([
-        source("Caldwell, Helen. Introdução, 1953.", "Caldwell. Introduction."),
-        source(
-          "Sousa, J. Galante de. Bibliografia, 1955.",
-          "[en] Sousa, J. Galante de. Bibliografia, 1955.",
-        ),
+      expect(args.onChange).toHaveBeenLastCalledWith("en", [
+        "[en] Caldwell, Helen. Introdução, 1953.",
+        "[en] Sousa, J. Galante de. Bibliografia, 1955.",
       ]),
     );
     await expect(canvas.getByRole("status")).toHaveTextContent(
@@ -270,16 +281,65 @@ export const DraftedFromPortuguese: Story = {
   },
 };
 
-/** An error with the sources, such as a file that could not pair them. */
+/**
+ * A draft into a tab that already lists sources asks before it replaces them.
+ * The play test cancels and checks that nothing changed, then confirms and
+ * checks the draft.
+ */
+export const ReplacingSources: Story = {
+  args: {
+    value: {
+      pt: ["Caldwell, Helen. Introdução, 1953."],
+      en: ["Caldwell. Introduction, as a curator wrote it."],
+    },
+  },
+  beforeEach: installFakeTranslator,
+  play: async ({ args, canvasElement }) => {
+    const draft = await within(canvasElement).findByRole("button", {
+      name: "Draft the sources from Portuguese",
+    });
+    const question = { name: "Replace the sources in English?" };
+
+    await userEvent.click(draft);
+    await userEvent.click(
+      within(await screen.findByRole("dialog", question)).getByRole("button", {
+        name: "Cancel",
+      }),
+    );
+    await expect(args.onChange).not.toHaveBeenCalled();
+
+    await userEvent.click(draft);
+    await userEvent.click(
+      within(await screen.findByRole("dialog", question)).getByRole("button", {
+        name: "Replace",
+      }),
+    );
+    await waitFor(() =>
+      expect(args.onChange).toHaveBeenCalledWith("en", [
+        "[en] Caldwell, Helen. Introdução, 1953.",
+      ]),
+    );
+  },
+};
+
+/**
+ * An error with the sources in one language, here a source too long in
+ * Portuguese: its tab is shown in red, and its panel shows the error under the
+ * list. The play test checks both.
+ */
 export const WithError: Story = {
   args: {
-    value: [source("Uma fonte")],
-    error:
-      "The sources in Portuguese and in English have different numbers of lines, so they cannot be paired",
+    value: { pt: ["Uma fonte"], en: ["A source"] },
+    errors: { pt: "This text is too long" },
   },
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const portuguese = tab(canvas, "Português");
+
+    await expect(portuguese).toHaveAttribute("data-invalid", "true");
+    await userEvent.click(portuguese);
     await expect(
-      within(canvasElement).getByText(/different numbers of lines/),
+      panel(canvas, "Português").getByText("This text is too long"),
     ).toBeVisible();
   },
 };

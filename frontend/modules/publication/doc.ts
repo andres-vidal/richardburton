@@ -5,12 +5,11 @@ import { isEqual } from "lodash";
 import {
   empty,
   idFromText,
-  sourceOf,
+  SOURCES_KEYS,
   type Publication,
   type PublicationError,
   type PublicationId,
   type Resemblance,
-  type Source,
 } from "./model";
 
 /**
@@ -29,13 +28,15 @@ import {
  * Each field is stored as a plain value, so when two people write the same
  * field, Yjs keeps one of the two values. This is the right result for a title,
  * since merging two titles character by character would give a title neither
- * person typed. `sources` is the exception. It is stored as a `Y.Array` of
- * sources, each with its text in each language, so when two people each add a
- * source, both sources are kept.
+ * person typed. The sources of each language, `sourcesPt` and `sourcesEn`, are
+ * the exception. Each list is stored as a `Y.Array`, so when two people each
+ * add a source, both sources are kept.
  *
  * A row written before notes and sources had two languages holds its notes
- * under `notes` and each source as a string. `publicationOf` reads those as
- * the notes and the sources in Portuguese.
+ * under `notes` and its sources under `sources`. The server stores a document
+ * as Yjs updates it does not parse, so such rows cannot be rewritten in the
+ * database. `publicationOf` reads them as the notes and the sources in
+ * Portuguese instead.
  *
  * The document also holds the results of the last checks, so that a row is
  * checked once and everyone reads the result. `validations` maps a row key to
@@ -159,16 +160,21 @@ function rowOf(publication: Publication): Y.Map<unknown> {
   const row = new Y.Map<unknown>();
 
   Object.entries(publication).forEach(([key, value]) => {
-    // `sources` is stored as a `Y.Array`, so sources that two people add at
-    // the same time are both kept. Every other field is a plain value.
-    row.set(key, key === "sources" ? asArray(value as Source[]) : value);
+    row.set(key, isList(key) ? asArray(value as string[]) : value);
   });
 
   return row;
 }
 
-function asArray(values: Source[]): Y.Array<Source> {
-  const array = new Y.Array<Source>();
+// Returns whether a field is stored as a `Y.Array`: the sources of either
+// language, so sources that two people add at the same time are both kept.
+// Every other field is a plain value.
+function isList(key: string): boolean {
+  return (Object.values(SOURCES_KEYS) as string[]).includes(key);
+}
+
+function asArray(values: string[]): Y.Array<string> {
+  const array = new Y.Array<string>();
   array.push(values);
 
   return array;
@@ -179,9 +185,8 @@ function asArray(values: Source[]): Y.Array<Source> {
  * a plain array. A field the row does not hold keeps its value from `empty()`.
  *
  * A row written before notes and sources had two languages is read as the
- * current shape: its `notes` become the notes in Portuguese, unless the row
- * also holds `notesPt`, and each source held as a string becomes a source in
- * Portuguese (see `sourceOf`).
+ * current shape: its `notes` become `notesPt` and its `sources` become
+ * `sourcesPt`, each unless the row also holds the new field.
  */
 function publicationOf(row: Y.Map<unknown>): Publication {
   const publication = { ...empty() } as Record<string, unknown>;
@@ -190,9 +195,11 @@ function publicationOf(row: Y.Map<unknown>): Publication {
     publication[key] = value instanceof Y.Array ? value.toArray() : value;
   });
 
-  const { notes, ...current } = publication;
+  const { notes, sources, ...current } = publication;
   if (notes !== undefined && !row.has("notesPt")) current.notesPt = notes;
-  current.sources = (current.sources as unknown[]).map(sourceOf);
+  if (sources !== undefined && !row.has("sourcesPt")) {
+    current.sourcesPt = sources;
+  }
 
   return current as Publication;
 }
@@ -423,8 +430,9 @@ function measuredKeys(doc: Y.Doc): PublicationId[] {
  * A field stored as a `Y.Array` is edited in place with `editList`, so an entry
  * another person added at the same time is kept. `rowOf` decides which fields
  * are stored this way. Replacing the `Y.Array` with a plain array would also
- * make every later edit to the field replace it instead of merging. Any other
- * field is replaced.
+ * make every later edit to the field replace it instead of merging. A list
+ * field the row does not hold yet, as on a row written before sources had two
+ * languages, is set as a new `Y.Array`. Any other field is replaced.
  */
 function setField(
   doc: Y.Doc,
@@ -439,23 +447,23 @@ function setField(
 
   write(doc, () =>
     held instanceof Y.Array
-      ? editList(held as Y.Array<unknown>, value as Source[])
-      : row.set(attribute, value),
+      ? editList(held as Y.Array<string>, value as string[])
+      : row.set(
+          attribute,
+          isList(attribute) ? asArray(value as string[]) : value,
+        ),
   );
 }
 
 /**
- * Edits a `Y.Array` of sources so that it holds `next`.
+ * Edits a `Y.Array` so that it holds `next`.
  *
  * It keeps the entries at the start that the array and `next` share, deletes
  * the entries after them, and appends the rest of `next`. Replacing the whole
- * array would drop a source another person added at the same time. An entry
- * held as a string, as a source was held before it had two languages, is
- * compared as the source `sourceOf` reads it, so it is kept when `next` holds
- * the same source.
+ * array would drop a source another person added at the same time.
  */
-function editList(held: Y.Array<unknown>, next: Source[]): void {
-  const current = held.toArray().map(sourceOf);
+function editList(held: Y.Array<string>, next: string[]): void {
+  const current = held.toArray();
 
   // The editor mostly adds or removes entries at the end. Keeping the shared
   // prefix leaves the earlier entries untouched for anyone editing the list at
@@ -467,11 +475,11 @@ function editList(held: Y.Array<unknown>, next: Source[]): void {
 }
 
 // Returns how many entries at the start of `before` and `after` are equal.
-function sharedPrefix(before: Source[], after: Source[]): number {
+function sharedPrefix(before: string[], after: string[]): number {
   const limit = Math.min(before.length, after.length);
 
   let at = 0;
-  while (at < limit && isEqual(before[at], after[at])) at += 1;
+  while (at < limit && before[at] === after[at]) at += 1;
 
   return at;
 }

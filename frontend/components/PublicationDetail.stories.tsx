@@ -7,7 +7,6 @@ import {
   FIRST_DOM_CASMURRO,
   LOOK_ALIKE_RECORD,
   RETRANSLATED_DOM_CASMURRO,
-  source,
 } from "test/publication-fixtures";
 import { item, link, paragraph } from "test/rich-text-fixtures";
 import { asAdmin } from "test/session";
@@ -18,12 +17,10 @@ import PublicationDetail from "./PublicationDetail";
 
 const DOM_CASMURRO = {
   ...LOOK_ALIKE_RECORD,
-  sources: [
-    source(
-      "Caldwell, Helen. Introdução, 1953.",
-      "Caldwell, Helen. Introduction, 1953.",
-    ),
-    source(null, "Gledson, John. Deceptive Realism, 1984."),
+  sourcesPt: ["Caldwell, Helen. Introdução, 1953."],
+  sourcesEn: [
+    "Caldwell, Helen. Introduction, 1953.",
+    "Gledson, John. Deceptive Realism, 1984.",
   ],
 };
 
@@ -38,7 +35,8 @@ const LOG: PublicationHistoryEntry[] = [
     snapshot: { ...DOM_CASMURRO, year: 1953 },
     diff: {
       fields: { year: { from: "1952", to: "1953" } },
-      sources: null,
+      sourcesPt: null,
+      sourcesEn: null,
     },
   },
   {
@@ -211,41 +209,60 @@ export const WithoutNotes: Story = {
 };
 
 /**
- * Each source is shown in the reader's language, English here, or in
- * Portuguese when it has no English text, and carries the `lang` of the text
- * shown. The play test checks both sources and their languages.
+ * A record with sources in both languages shows the sources in the reader's
+ * language, English here, with no line naming their language, and the list
+ * carries `lang="en"`. The play test checks the list and that the Portuguese
+ * sources are not shown.
  */
 export const SourcesInBothLanguages: Story = {
   args: {
     publication: {
       ...DOM_CASMURRO,
-      sources: [
-        source(
-          "Caldwell, Helen. Introdução, 1953.",
-          "Caldwell, Helen. Introduction, 1953.",
-        ),
-        source("Sousa, J. Galante de. Bibliografia de Machado de Assis."),
+      sourcesPt: [
+        "Caldwell, Helen. Introdução, 1953.",
+        "Sousa, J. Galante de. Bibliografia de Machado de Assis.",
       ],
+      sourcesEn: ["Caldwell, Helen. Introduction, 1953."],
     },
   },
   play: async () => {
     const english = screen.getByText("Caldwell, Helen. Introduction, 1953.");
-    const portuguese = screen.getByText(/Bibliografia de Machado de Assis/);
 
-    await expect(english.closest("li")).toHaveAttribute("lang", "en");
-    await expect(portuguese.closest("li")).toHaveAttribute("lang", "pt");
+    await expect(english.closest("ul")).toHaveAttribute("lang", "en");
+    await expect(screen.queryByText(/Written in/)).toBeNull();
     await expect(
-      screen.queryByText("Caldwell, Helen. Introdução, 1953."),
+      screen.queryByText(/Bibliografia de Machado de Assis/),
     ).toBeNull();
   },
 };
 
 /**
- * A record nobody has sourced yet says so: for a database whose worth is its
- * provenance, an absent source is worth stating.
+ * A record with sources only in Portuguese shows them to a reader of English,
+ * with a line saying they are written in Portuguese, and the list carries
+ * `lang="pt"`. The play test checks the line and the list's language.
+ */
+export const SourcesInTheOtherLanguage: Story = {
+  args: {
+    publication: {
+      ...DOM_CASMURRO,
+      sourcesPt: ["Sousa, J. Galante de. Bibliografia de Machado de Assis."],
+      sourcesEn: [],
+    },
+  },
+  play: async () => {
+    const source = screen.getByText(/Bibliografia de Machado de Assis/);
+
+    await expect(screen.getByText("Written in Portuguese")).toBeVisible();
+    await expect(source.closest("ul")).toHaveAttribute("lang", "pt");
+  },
+};
+
+/**
+ * A record nobody has sourced yet, in either language, says so: for a
+ * database whose worth is its provenance, an absent source is worth stating.
  */
 export const WithoutSources: Story = {
-  args: { publication: { ...DOM_CASMURRO, sources: [] } },
+  args: { publication: { ...DOM_CASMURRO, sourcesPt: [], sourcesEn: [] } },
   play: async () => {
     await expect(screen.getByText("Sources")).toBeVisible();
     await expect(screen.getByText(/No sources recorded yet/)).toBeVisible();
@@ -394,7 +411,7 @@ export const Merging: Story = {
  * edge.
  */
 export const LongSource: Story = {
-  args: { publication: { ...DOM_CASMURRO, sources: [source(LONG_URL)] } },
+  args: { publication: { ...DOM_CASMURRO, sourcesEn: [LONG_URL] } },
   play: async () => {
     const source = screen.getByText(LONG_URL);
 
@@ -411,12 +428,12 @@ export const SourceWithALink: Story = {
   args: {
     publication: {
       ...DOM_CASMURRO,
-      sources: [
-        source(null, "Caldwell, Helen. Introduction, 1953."),
-        source(
-          "Registro de catálogo, https://catalog.hathitrust.org/Record/001270334.",
-          "Catalog record, https://catalog.hathitrust.org/Record/001270334.",
-        ),
+      sourcesPt: [
+        "Registro de catálogo, https://catalog.hathitrust.org/Record/001270334.",
+      ],
+      sourcesEn: [
+        "Caldwell, Helen. Introduction, 1953.",
+        "Catalog record, https://catalog.hathitrust.org/Record/001270334.",
       ],
     },
   },

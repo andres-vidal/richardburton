@@ -4,7 +4,6 @@ import {
   Publication,
   type PublicationError,
   type Resemblance,
-  type Source,
 } from "modules/publication/model";
 import {
   resetAll,
@@ -14,7 +13,7 @@ import {
 } from "modules/publication/store";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 
-import { LOOK_ALIKE_RECORD, source } from "test/publication-fixtures";
+import { fieldErrors, LOOK_ALIKE_RECORD } from "test/publication-fixtures";
 
 import WorkspaceSourcesCell from "./WorkspaceSourcesCell";
 
@@ -24,14 +23,15 @@ const selectRow = fn();
 // A stored record for the row to resemble.
 const STORED = LOOK_ALIKE_RECORD;
 
-// Fills the store with one row, `rowId`, holding `sources` and `errors`, and
-// records `resemblance` as what the look-alike check found for it.
+// Fills the store with one row, `rowId`, holding `sources` in English and
+// `row`'s other fields and errors, and records `resemblance` as what the
+// look-alike check found for it.
 const seed = (
   store: Store,
   rowId: number,
-  sources: Source[],
+  sources: string[],
   resemblance?: Resemblance,
-  errors: PublicationError = null,
+  row: { sourcesPt?: string[]; errors?: PublicationError } = {},
 ) => {
   resetAll(store);
   selectRow.mockClear();
@@ -41,9 +41,10 @@ const seed = (
       publication: {
         ...Publication.empty(),
         title: "Dom Casmurro",
-        sources,
+        sourcesEn: sources,
+        sourcesPt: row.sourcesPt ?? [],
       },
-      errors,
+      errors: row.errors ?? null,
     },
   ]);
   setResemblances(
@@ -78,8 +79,7 @@ type Story = StoryObj<typeof meta>;
 
 /** With sources: the button summarizes the count and opens the list editor. */
 export const WithSources: Story = {
-  beforeEach: () =>
-    seed(store, 1, [source(null, "A source"), source(null, "Another source")]),
+  beforeEach: () => seed(store, 1, ["A source", "Another source"]),
   parameters: {
     // The open modal aria-hides the background trigger, which is still focusable.
     a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
@@ -117,7 +117,7 @@ export const Empty: Story = {
  */
 export const LooksLikeAStoredRecord: Story = {
   beforeEach: () =>
-    seed(store, 1, [source(null, "A source")], {
+    seed(store, 1, ["A source"], {
       stored: [STORED],
       others: [],
       repeats: null,
@@ -167,23 +167,38 @@ export const OpeningTheReview: Story = {
 };
 
 /**
- * Sources a file could not pair across the two languages: the button's tooltip
- * says so, and so does the editor, under the list.
+ * A row whose sources are only in Portuguese, one of them too long. The button
+ * counts the Portuguese sources, since the row has none in the reader's
+ * English, and its tooltip gives the error. The play test opens the editor and
+ * checks that the Portuguese tab is shown in red and gives the error under its
+ * list.
  */
-export const Misaligned: Story = {
+export const WithAnError: Story = {
   beforeEach: () =>
-    seed(store, 1, [source("Uma fonte")], undefined, {
-      sources: "misaligned",
-    } as PublicationError),
+    seed(store, 1, [], undefined, {
+      sourcesPt: ["Uma fonte longa demais"],
+      errors: fieldErrors({ sourcesPt: "too_long" }),
+    }),
+  parameters: {
+    // The open modal aria-hides the background trigger, which is still focusable.
+    a11y: { config: { rules: [{ id: "aria-hidden-focus", enabled: false }] } },
+  },
   play: async () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Edit sources (1)" }),
     );
 
     const dialog = await screen.findByRole("dialog", { name: "Edit sources" });
+    const portuguese = within(
+      within(dialog).getByRole("tablist", { name: "Language of the sources" }),
+    ).getByRole("tab", { name: "Português" });
 
+    await expect(portuguese).toHaveAttribute("data-invalid", "true");
+    await userEvent.click(portuguese);
     await expect(
-      within(dialog).getByText(/different numbers of lines/),
+      within(
+        within(dialog).getByRole("tabpanel", { name: "Português" }),
+      ).getByText("This text is too long"),
     ).toBeVisible();
   },
 };

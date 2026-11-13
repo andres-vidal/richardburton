@@ -6,11 +6,11 @@ import type {
   NameField,
   PublicationHistoryEntry,
   SnapshotDiff,
-  Source,
 } from "./model";
 import {
   LANGUAGES,
   NOTES_KEYS,
+  SOURCES_KEYS,
   type PublicationKey,
   Publication,
 } from "./model";
@@ -23,11 +23,15 @@ type FieldChange = {
   to: string;
 };
 
-/** The sources added and removed, and whether the rest were reordered. */
+/**
+ * The sources in `language` added and removed, and whether the rest were
+ * reordered.
+ */
 type SourcesChange = {
   kind: "sources";
-  added: Source[];
-  removed: Source[];
+  language: Language;
+  added: string[];
+  removed: string[];
   reordered: boolean;
 };
 
@@ -48,7 +52,8 @@ type AbsorbedRecord = {
   id: number;
   title: string;
   fields: { attribute: PublicationKey; value: string }[];
-  sources: Source[];
+  /** The record's sources in each language that it had sources in. */
+  sources: { language: Language; sources: string[] }[];
   /** The record's notes in each language that it had notes in. */
   notes: { language: Language; value: RichTextValue }[];
 };
@@ -125,9 +130,9 @@ function keyOf(entry: FullHistoryEntry): string {
 /**
  * Returns the changes in the server's `diff`: one `FieldChange` for each field
  * that changed, in the order of `ATTRIBUTES`, with its values as text, then a
- * `SourcesChange` when the sources changed, and a `NotesChange` for each
- * language whose notes changed, Portuguese first. Returns an empty list for a
- * null diff.
+ * `SourcesChange` for each language whose sources changed, and a
+ * `NotesChange` for each language whose notes changed, Portuguese first each
+ * time. Returns an empty list for a null diff.
  */
 function presentChanges(diff: SnapshotDiff | null): Change[] {
   if (diff === null) return [];
@@ -140,6 +145,11 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
     from: String(diff.fields[key]!.from),
     to: String(diff.fields[key]!.to),
   }));
+  const sources: Change[] = LANGUAGES.flatMap((language) => {
+    const change = diff[SOURCES_KEYS[language]];
+
+    return change ? [{ kind: "sources" as const, language, ...change }] : [];
+  });
   const notes: Change[] = LANGUAGES.flatMap((language) => {
     const change = diff.fields[NOTES_KEYS[language]];
 
@@ -155,19 +165,13 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
         ];
   });
 
-  return [
-    ...fields,
-    ...(diff.sources === null
-      ? []
-      : [{ kind: "sources" as const, ...diff.sources }]),
-    ...notes,
-  ];
+  return [...fields, ...sources, ...notes];
 }
 
 /**
  * Returns the records a merge took in, or an un-merge gave back, as one
  * `AbsorbedChange`, each record with its title, every other field that has a
- * value, its sources and its notes in each language it had notes in. The
+ * value, and its sources and its notes in each language it had any in. The
  * records are the entry's `others`.
  * Returns an empty list for an entry of any other action, or one that names no
  * records.
@@ -188,7 +192,11 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
         value: String(publication[key] ?? ""),
       }))
       .filter(({ value }) => value !== ""),
-    sources: publication.sources ?? [],
+    sources: LANGUAGES.flatMap((language) => {
+      const sources = publication[SOURCES_KEYS[language]] ?? [];
+
+      return sources.length === 0 ? [] : [{ language, sources }];
+    }),
     notes: LANGUAGES.flatMap((language) => {
       const value = publication[NOTES_KEYS[language]];
 

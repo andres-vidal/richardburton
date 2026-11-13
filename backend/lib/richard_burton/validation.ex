@@ -87,10 +87,7 @@ defmodule RichardBurton.Validation do
   `:integer`, `:alpha2`, `:duplicate`, `:conflict`, `:too_long` for a value
   longer than its field's maximum length, `:malformed` for a value whose
   shape its type refuses, such as rich text with an unknown node (see
-  `RichardBurton.RichText`) or sources that are not flat sources (see
-  `RichardBurton.Source`), `:misaligned` for sources read from two CSV cells
-  that list a different number of sources, and `:invalid` for any other failed
-  validation.
+  `RichardBurton.RichText`), and `:invalid` for any other failed validation.
   """
   def get_errors(changeset) do
     changeset
@@ -112,7 +109,6 @@ defmodule RichardBurton.Validation do
   defp get_description(%{validation: :alpha2}), do: :alpha2
   defp get_description(%{validation: :duplicate}), do: :duplicate
   defp get_description(%{validation: :malformed}), do: :malformed
-  defp get_description(%{validation: :misaligned}), do: :misaligned
   defp get_description(%{constraint: :unique}), do: :conflict
   defp get_description(_opts), do: :invalid
 

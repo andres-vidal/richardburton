@@ -346,7 +346,6 @@
     "tookIn": "Recebeu",
     "gaveBack": "Devolveu",
     "untitledRecord": "um registro sem título",
-    "sourceLabel": "Fonte: {source}",
     "notesEditor": "Editar notas",
     "addNotes": "Acrescentar notas",
     "editNotes": "Editar notas: {preview}",
@@ -396,7 +395,11 @@
     "noBaseline": "Nada anterior com que comparar — o histórico do registro começa aqui.",
     "reordered": "reordenadas",
     "sourcesLanguages": "Idioma das fontes",
-    "draftSourcesFrom": "Rascunhar as fontes a partir do {language, select, pt {português} other {inglês}}"
+    "draftSourcesFrom": "Rascunhar as fontes a partir do {language, select, pt {português} other {inglês}}",
+    "sourcesIn": "Fontes em {language, select, pt {português} other {inglês}}",
+    "replaceSourcesTitle": "Substituir as fontes em {language, select, pt {português} other {inglês}}?",
+    "replaceSourcesMessage": "O rascunho toma o lugar das fontes que esta aba tem agora. Você ainda pode editá-lo antes de salvar.",
+    "replaceSources": "Substituir"
   },
   "link": {
     "action": "{copied, select, true {Copiado} other {Copiar link}}",
@@ -582,8 +585,7 @@
     "repeated": "Outra linha desta importação é a mesma publicação",
     "invalid": "Uma publicação não é válida, então nada foi inserido",
     "too_long": "Este texto é longo demais",
-    "malformed": "Este texto não pôde ser lido",
-    "misaligned": "As fontes em português e em inglês têm números de linhas diferentes, então não podem ser pareadas"
+    "malformed": "Este texto não pôde ser lido"
   },
   "moving": {
     "moved": "{count, plural, one {# linha movida} other {# linhas movidas}}",

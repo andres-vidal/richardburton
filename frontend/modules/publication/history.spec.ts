@@ -1,4 +1,3 @@
-import { source } from "test/publication-fixtures";
 import { paragraph } from "test/rich-text-fixtures";
 import type { FullHistoryEntry, SnapshotDiff } from "./model";
 import {
@@ -21,7 +20,8 @@ function snapshot(
     year: 1953,
     countries: ["US"],
     publishers: ["Noonday Press"],
-    sources: [],
+    sourcesPt: [],
+    sourcesEn: [],
     ...fields,
   };
 }
@@ -50,7 +50,8 @@ describe("presentChanges", () => {
     expect(
       presentChanges({
         fields: { year: { from: 1953, to: 1954 } },
-        sources: null,
+        sourcesPt: null,
+        sourcesEn: null,
       }),
     ).toEqual([{ kind: "field", attribute: "year", from: "1953", to: "1954" }]);
   });
@@ -63,7 +64,8 @@ describe("presentChanges", () => {
         publishers: { from: "A", to: "B" },
         title: { from: "A", to: "B" },
       },
-      sources: null,
+      sourcesPt: null,
+      sourcesEn: null,
     }).map((change) =>
       change.kind === "field" ? change.attribute : "sources",
     );
@@ -71,13 +73,28 @@ describe("presentChanges", () => {
     expect(labels).toEqual(["title", "publishers"]);
   });
 
-  test("sources come last, as the one change that is a list", () => {
-    const kinds = presentChanges({
+  test("sources come after the fields, a change for each language whose sources changed, Portuguese first", () => {
+    const changes = presentChanges({
       fields: { title: { from: "A", to: "B" } },
-      sources: { added: [source("x")], removed: [], reordered: false },
-    }).map((change) => change.kind);
+      sourcesPt: null,
+      sourcesEn: { added: ["x"], removed: ["y"], reordered: true },
+    });
 
-    expect(kinds).toEqual(["field", "sources"]);
+    expect(changes.map((change) => change.kind)).toEqual(["field", "sources"]);
+    expect(changes[1]).toEqual({
+      kind: "sources",
+      language: "en",
+      added: ["x"],
+      removed: ["y"],
+      reordered: true,
+    });
+    expect(
+      presentChanges({
+        fields: {},
+        sourcesPt: { added: ["x"], removed: [], reordered: false },
+        sourcesEn: { added: ["x"], removed: [], reordered: false },
+      }).map((change) => (change.kind === "sources" ? change.language : "")),
+    ).toEqual(["pt", "en"]);
   });
 
   test("gives the notes in each language before and after, after the sources, Portuguese first", () => {
@@ -91,7 +108,8 @@ describe("presentChanges", () => {
           title: { from: "A", to: "B" },
           notesPt: { from: nota, to: null },
         },
-        sources: { added: [source("x")], removed: [], reordered: false },
+        sourcesPt: { added: ["x"], removed: [], reordered: false },
+        sourcesEn: null,
       }).map(({ kind, ...change }) =>
         kind === "notes" ? { kind, ...change } : kind,
       ),
@@ -105,14 +123,22 @@ describe("presentChanges", () => {
 
   test("nothing to diff renders nothing", () => {
     expect(presentChanges(null)).toEqual([]);
-    expect(presentChanges({ fields: {}, sources: null })).toEqual([]);
+    expect(
+      presentChanges({ fields: {}, sourcesPt: null, sourcesEn: null }),
+    ).toEqual([]);
   });
 });
 
 describe("withChanges", () => {
   test("resolves every entry's changes once, up front", () => {
     const [update, created] = withChanges([
-      entry(1, 2, "updated", {}, { fields: {}, sources: null }),
+      entry(
+        1,
+        2,
+        "updated",
+        {},
+        { fields: {}, sourcesPt: null, sourcesEn: null },
+      ),
       entry(1, 1, "created"),
     ]);
 
@@ -126,7 +152,11 @@ describe("withChanges", () => {
       2,
       "updated",
       {},
-      { fields: { title: { from: "A", to: "B" } }, sources: null },
+      {
+        fields: { title: { from: "A", to: "B" } },
+        sourcesPt: null,
+        sourcesEn: null,
+      },
     );
     const [decorated] = withChanges([original]);
 
@@ -192,7 +222,10 @@ describe("presentAbsorbed", () => {
       absorbing("merged", [
         {
           id: 9,
-          ...snapshot({ sources: [source("Sousa, J. Bibliografia, 1955.")] }),
+          ...snapshot({
+            sourcesPt: ["Sousa, J. Bibliografia, 1955."],
+            sourcesEn: ["Sousa, J. Bibliography, 1955."],
+          }),
           notesPt: [
             paragraph("Um exemplar ", { text: "raro", italic: true }, "."),
           ],
@@ -204,8 +237,12 @@ describe("presentAbsorbed", () => {
 
     if (change.kind !== "absorbed")
       throw new Error("expected an absorbed change");
-    expect(change.records[0].sources).toEqual([
-      source("Sousa, J. Bibliografia, 1955."),
+    expect(change.records.map((record) => record.sources)).toEqual([
+      [
+        { language: "pt", sources: ["Sousa, J. Bibliografia, 1955."] },
+        { language: "en", sources: ["Sousa, J. Bibliography, 1955."] },
+      ],
+      [],
     ]);
     expect(change.records.map((record) => record.notes)).toEqual([
       [
@@ -366,7 +403,8 @@ describe("presentRename", () => {
   test("withChanges gives a rename its name change instead of its diff", () => {
     const diff = {
       fields: { publishers: { from: ["Noonday Press"], to: ["Noonday"] } },
-      sources: null,
+      sourcesPt: null,
+      sourcesEn: null,
     };
     const [withName, withoutName] = withChanges([
       {

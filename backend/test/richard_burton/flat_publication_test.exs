@@ -70,21 +70,23 @@ defmodule RichardBurton.FlatPublicationTest do
       assert Ecto.Changeset.get_field(changeset, :notes_en) == nil
     end
 
-    test "when the sources are flat sources, casts them, dropping the ones with no text" do
+    test "casts the sources of each language as a list of their own" do
       changeset =
         change_valid(%{
-          "sources" => [%{"pt" => "Uma fonte", "en" => "A source"}, %{"pt" => "", "en" => nil}]
+          "sources_pt" => ["Uma fonte", "Outra fonte"],
+          "sources_en" => ["A source"]
         })
 
       assert changeset.valid?
-
-      assert Ecto.Changeset.get_field(changeset, :sources) == [
-               %{"pt" => "Uma fonte", "en" => "A source"}
-             ]
+      assert Ecto.Changeset.get_field(changeset, :sources_pt) == ["Uma fonte", "Outra fonte"]
+      assert Ecto.Changeset.get_field(changeset, :sources_en) == ["A source"]
     end
 
-    test "when the attrs mark the sources as misaligned, reports it" do
-      refute change_valid(%{Publication.Codec.misaligned_sources() => true}).valid?
+    test "when no sources are given, has none in either language" do
+      changeset = change_valid(%{})
+
+      assert Ecto.Changeset.get_field(changeset, :sources_pt) == []
+      assert Ecto.Changeset.get_field(changeset, :sources_en) == []
     end
 
     test "when title is nil, is invalid" do
@@ -214,17 +216,12 @@ defmodule RichardBurton.FlatPublicationTest do
                )
     end
 
-    test "when the sources are not flat sources, reports them as malformed" do
-      assert {:error, %{sources: :malformed}} ==
-               validate(Map.put(@valid_attrs, "sources", [%{"pt" => 42}]))
+    test "when the sources of a language are not a list, reports them under that language" do
+      assert {:error, %{sources_pt: :array}} ==
+               validate(Map.put(@valid_attrs, "sources_pt", "Uma fonte"))
 
-      assert {:error, %{sources: :malformed}} ==
-               validate(Map.put(@valid_attrs, "sources", "A source"))
-    end
-
-    test "when the attrs mark the sources as misaligned, reports them as misaligned" do
-      assert {:error, %{sources: :misaligned}} ==
-               validate(Map.put(@valid_attrs, Publication.Codec.misaligned_sources(), true))
+      assert {:error, %{sources_en: :array}} ==
+               validate(Map.put(@valid_attrs, "sources_en", "A source"))
     end
 
     test "generates results analog to those of Publication.insert/2 on valid attrs" do

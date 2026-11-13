@@ -7,21 +7,24 @@ import { isBlank, type RichTextValue } from "modules/rich-text";
  * Brazilian Portuguese, or `en`, English. The codes are the interface's
  * locales.
  *
- * A publication holds its notes in each language as a version of its own, and
- * each of its sources has a text in each language. Neither language is the
- * original: either version can exist without the other.
+ * A publication holds its notes and its list of sources once in each
+ * language. Neither language is the original: either version can exist
+ * without the other. The two lists of sources are independent, so a source in
+ * one list has no counterpart in the other.
  */
 type Language = "pt" | "en";
 
 /** Both languages, Portuguese first. */
 const LANGUAGES: Language[] = ["pt", "en"];
 
-/**
- * A source of a publication: its text in each language, or null in a language
- * it has no text in. A source the API returns has text in at least one of
- * them.
- */
-type Source = Record<Language, string | null>;
+/** The field of a publication that holds its sources in one language. */
+type SourcesKey = "sourcesPt" | "sourcesEn";
+
+/** The field that holds the sources in each language. */
+const SOURCES_KEYS: Record<Language, SourcesKey> = {
+  pt: "sourcesPt",
+  en: "sourcesEn",
+};
 
 /** The field of a publication that holds its notes in one language. */
 type NotesKey = "notesPt" | "notesEn";
@@ -38,7 +41,10 @@ type Publication = {
   authors: string[];
   originalTitle: string;
   originalAuthors: string[];
-  sources: Source[];
+  /** The publication's sources in Portuguese, in order. */
+  sourcesPt: string[];
+  /** The publication's sources in English, in order. */
+  sourcesEn: string[];
   /**
    * The publication's notes in Portuguese as a rich-text value (see
    * `modules/rich-text`), or null when it has none. A page of the index leaves
@@ -57,24 +63,20 @@ type Publication = {
   /**
    * The matching text of each field, with the matched words wrapped in
    * `[[ ]]`, or null for a field the search did not match. Only search results
-   * carry it, and never for `countries` or `year`. The excerpt of `sources`
-   * draws on the texts of both languages.
+   * carry it, and never for `countries` or `year`.
    */
-  excerpts?: Partial<Record<PublicationKey | "sources", string | null>>;
+  excerpts?: Partial<Record<PublicationKey | SourcesKey, string | null>>;
   /**
    * What a search matched, value by value: for each list field, a list lined up
    * with the field's values that holds each value's matching text, or null
    * where that value did not match. Only a record read with a search carries
-   * it, and `sources` only where the whole list of sources is shown.
+   * it, and the sources of each language only where the whole list of sources
+   * is shown.
    *
    * `countries` holds the matched country's code rather than marked text,
-   * since naming a country needs a locale the index does not have. `sources`
-   * holds a source for each source, with the marked text of each language, or
-   * null in a language the search did not match or the source has no text in.
+   * since naming a country needs a locale the index does not have.
    */
-  marked?: Partial<Record<PublicationListKey, (string | null)[]>> & {
-    sources?: (Partial<Source> | null)[];
-  };
+  marked?: Partial<Record<PublicationListKey | SourcesKey, (string | null)[]>>;
 };
 
 /**
@@ -83,7 +85,7 @@ type Publication = {
  */
 type PublicationKey = keyof Omit<
   Publication,
-  "id" | "sources" | NotesKey | "excerpts" | "marked"
+  "id" | SourcesKey | NotesKey | "excerpts" | "marked"
 >;
 
 /**
@@ -116,19 +118,19 @@ type PublicationListKey = {
 /**
  * What is wrong with a row: null when nothing is, the code of an error with the
  * whole row, or the code of an error with each field that has one, the notes
- * in each language and the sources included.
+ * and the sources in each language included.
  */
 type PublicationError =
   | null
   | string
   | (Record<PublicationKey, string> &
-      Partial<Record<NotesKey | "sources", string>>);
+      Partial<Record<NotesKey | SourcesKey, string>>);
 
 /**
- * A field that can have an error of its own: an attribute, the notes in one
- * language, or the sources.
+ * A field that can have an error of its own: an attribute, or the notes or the
+ * sources in one language.
  */
-type ErrorScope = PublicationKey | NotesKey | "sources";
+type ErrorScope = PublicationKey | NotesKey | SourcesKey;
 
 /**
  * What the look-alike check found for a row: the stored records it resembles,
@@ -211,18 +213,23 @@ const HISTORY_ACTIONS = [
 type PublicationHistoryAction = (typeof HISTORY_ACTIONS)[number];
 
 /**
+ * How an entry of the log changed one language's list of sources: the sources
+ * added, the sources removed, and whether the ones kept changed order. A
+ * source whose text changed is one source removed and one added.
+ */
+type SourcesDiff = { added: string[]; removed: string[]; reordered: boolean };
+
+/**
  * What an entry of the log changed: the old and new value of each field that
- * changed, the notes in each language included, and the sources added,
- * removed or reordered, or null when the sources did not change. A source
- * whose text changed in one language is one source removed and one added.
+ * changed, the notes in each language included, and how the sources of each
+ * language changed, or null for a language whose sources did not change.
  */
 type SnapshotDiff = {
   fields: Partial<
     Record<PublicationKey, { from: unknown; to: unknown }> &
       Record<NotesKey, { from: RichTextValue | null; to: RichTextValue | null }>
   >;
-  sources: { added: Source[]; removed: Source[]; reordered: boolean } | null;
-};
+} & Record<SourcesKey, SourcesDiff | null>;
 
 /** The fields of a publication that hold the names a rename changes. */
 type NameField = "authors" | "originalAuthors" | "publishers";
@@ -349,69 +356,6 @@ function otherLanguage(language: Language): Language {
   return language === "pt" ? "en" : "pt";
 }
 
-/** Returns whether a text is missing or holds nothing but white space. */
-function isBlankText(text: string | null | undefined): boolean {
-  return (text ?? "").trim() === "";
-}
-
-/** Returns a source with no text in either language. */
-function emptySource(): Source {
-  return { pt: null, en: null };
-}
-
-/**
- * Reads a source as the current shape: a source with its text in each
- * language. A string, the shape a source had before it had two languages, is
- * a source in Portuguese.
- */
-function sourceOf(value: unknown): Source {
-  if (typeof value === "string") return { pt: value, en: null };
-
-  const held = (value ?? {}) as Partial<Record<Language, unknown>>;
-  const text = (language: Language) =>
-    typeof held[language] === "string" ? (held[language] as string) : null;
-
-  return { pt: text("pt"), en: text("en") };
-}
-
-/** Returns whether a source has no text in either language. */
-function isBlankSource(source: Source): boolean {
-  return LANGUAGES.every((language) => isBlankText(source[language]));
-}
-
-/**
- * Returns the language a source is shown in to a reader of `language`: that
- * language when the source has text in it, and the other one otherwise.
- */
-function shownLanguage(source: Source, language: Language): Language {
-  return isBlankText(source[language]) ? otherLanguage(language) : language;
-}
-
-/** A text as it is shown, and the language it is written in. */
-type ShownText = { language: Language; text: string };
-
-/**
- * Returns each text a source has, with its language, Portuguese first. A
- * language the source has no text in is left out.
- */
-function sourceTexts(source: Source): ShownText[] {
-  return LANGUAGES.flatMap((language) =>
-    isBlankText(source[language])
-      ? []
-      : [{ language, text: source[language]! }],
-  );
-}
-
-/**
- * Returns a source as one line: each text it has, Portuguese first, joined by
- * a slash.
- */
-function sourceLine(source: Source): string {
-  return sourceTexts(source)
-    .map(({ text }) => text)
-    .join(" / ");
-}
-
 /**
  * The notes a reader of `language` is shown: the notes in that language when
  * they are not blank, the notes in the other language otherwise, or null when
@@ -445,7 +389,8 @@ function empty(): Publication {
     publishers: [],
     title: "",
     year: "",
-    sources: [],
+    sourcesPt: [],
+    sourcesEn: [],
   };
 }
 
@@ -461,52 +406,12 @@ function idFromText(text: string): PublicationId {
 }
 
 /**
- * Returns whether `source` repeats `kept`: they have the same text in at least
- * one language, and no language in which both have text that differs.
- */
-function repeats(source: Source, kept: Source): boolean {
-  const shared = LANGUAGES.filter(
-    (language) =>
-      !isBlankText(source[language]) && !isBlankText(kept[language]),
-  );
-
-  return (
-    shared.length > 0 &&
-    shared.every((language) => source[language] === kept[language])
-  );
-}
-
-/**
- * Returns `sources` in order, without a source that repeats one before it
- * (see `repeats`). The source kept takes the text of each language it lacks
- * from the sources left out.
- */
-function joinedSources(sources: Source[]): Source[] {
-  return sources.reduce<Source[]>((kept, source) => {
-    const at = kept.findIndex((earlier) => repeats(source, earlier));
-
-    return at < 0
-      ? [...kept, source]
-      : kept.map((earlier, index) =>
-          index === at
-            ? {
-                pt: isBlankText(earlier.pt) ? source.pt : earlier.pt,
-                en: isBlankText(earlier.en) ? source.en : earlier.en,
-              }
-            : earlier,
-        );
-  }, []);
-}
-
-/**
  * What one record would look like with others folded into it: the survivor's
- * own fields, the countries and publishers of all of them, their sources
- * joined, and their notes joined in each language.
+ * own fields, the countries and publishers of all of them, and their sources
+ * and their notes joined in each language.
  *
- * The sources are the survivor's, then each other record's, in order. A source
- * is left out when it repeats one already kept, meaning that they have the
- * same text in one language and no text that differs in the other. The source
- * kept takes the text of each language it lacked from the one left out.
+ * The sources in each language are the survivor's, then each other record's,
+ * in order, without a source that one before it already gave.
  *
  * The notes in each language are the survivor's followed by each other
  * record's, as further blocks. Notes that are null or blank, or that equal
@@ -524,6 +429,9 @@ function merged(winner: Publication, losers: Publication[]): Publication {
   const union = (attribute: "countries" | "publishers") =>
     Array.from(new Set(all.flatMap((p) => p[attribute]))).sort();
 
+  const sources = (key: SourcesKey) =>
+    Array.from(new Set(all.flatMap((p) => p[key] ?? [])));
+
   const notes = (key: NotesKey) => {
     const joined = uniqWith(
       all
@@ -539,14 +447,15 @@ function merged(winner: Publication, losers: Publication[]): Publication {
     ...winner,
     countries: union("countries"),
     publishers: union("publishers"),
-    sources: joinedSources(all.flatMap((p) => p.sources ?? [])),
+    sourcesPt: sources("sourcesPt"),
+    sourcesEn: sources("sourcesEn"),
     notesPt: notes("notesPt"),
     notesEn: notes("notesEn"),
   };
 }
 
-/** A field `contrast` compares: any attribute, or the sources. */
-type ContrastedKey = PublicationKey | "sources";
+/** A field `contrast` compares: any attribute, or the sources in one language. */
+type ContrastedKey = PublicationKey | SourcesKey;
 
 /** A run of a value's text, and whether it differs from the other records. */
 type Stretch = { text: string; differs: boolean };
@@ -566,7 +475,12 @@ type Contrast = {
  * A year or a country code has no words to tell apart, and a source is a
  * citation that is either given or not.
  */
-const WHOLE_VALUES: ContrastedKey[] = ["year", "countries", "sources"];
+const WHOLE_VALUES: ContrastedKey[] = [
+  "year",
+  "countries",
+  "sourcesPt",
+  "sourcesEn",
+];
 
 /**
  * Compares one field of `publication` with the same field of `others`, and
@@ -606,18 +520,12 @@ function contrast(
 }
 
 // Returns a field's values as trimmed text, leaving out empty ones. A year can
-// arrive as a number, so every value is converted to text. The values of the
-// sources are the texts of each source, its Portuguese text first.
+// arrive as a number, so every value is converted to text.
 function valuesOf(
   publication: Publication,
   attribute: ContrastedKey,
 ): string[] {
-  const value =
-    attribute === "sources"
-      ? (publication.sources ?? []).flatMap((source) =>
-          LANGUAGES.map((language) => source[language]),
-        )
-      : publication[attribute];
+  const value = publication[attribute];
 
   return (Array.isArray(value) ? value : [value])
     .map((item) => String(item ?? "").trim())
@@ -763,26 +671,41 @@ function marking(locale: string, country: CountryNaming): Marking {
 }
 
 /**
- * Each of a publication's sources as a reader of `language` is shown it: its
- * text in that language, or in the other language when it has none in that
- * one (see `shownLanguage`), with the language it is written in. The text is
- * the one the index marked where the search matched it, and the stored text
- * otherwise. A source with no text in either language is left out.
+ * The sources a reader of `language` is shown: the list in that language when
+ * it has any source, the list in the other language otherwise, or null when
+ * both are empty. The list comes with the language it is written in. Each
+ * source is the text the index marked where the search matched it, and the
+ * stored text otherwise.
+ */
+function shownSources(
+  publication: Pick<Publication, SourcesKey | "marked">,
+  language: Language,
+): { language: Language; sources: string[] } | null {
+  const shown = [language, otherLanguage(language)].find(
+    (candidate) => (publication[SOURCES_KEYS[candidate]] ?? []).length > 0,
+  );
+
+  return shown
+    ? {
+        language: shown,
+        sources: markedSources(publication, SOURCES_KEYS[shown]),
+      }
+    : null;
+}
+
+/**
+ * Each of a publication's sources in one language as the index marked it, or
+ * as it is stored where the search did not match that one.
  */
 function markedSources(
-  publication: Publication,
-  language: Language,
-): ShownText[] {
-  const marked = publication.marked?.sources;
+  publication: Pick<Publication, SourcesKey | "marked">,
+  key: SourcesKey,
+): string[] {
+  const marked = publication.marked?.[key];
 
-  return (publication.sources ?? []).flatMap((source, index) => {
-    const shown = shownLanguage(source, language);
-    const text = source[shown];
-
-    return isBlankText(text)
-      ? []
-      : [{ language: shown, text: marked?.[index]?.[shown] ?? text! }];
-  });
+  return (publication[key] ?? []).map(
+    (source, index) => marked?.[index] ?? source,
+  );
 }
 
 /**
@@ -857,13 +780,10 @@ export {
   contrast,
   DEFAULT_ATTRIBUTE_VISIBILITY,
   define,
-  emptySource,
   errorCode,
   empty,
   HISTORY_ACTIONS,
   idFromText,
-  isBlankSource,
-  isBlankText,
   LANGUAGES,
   marking,
   markedSources,
@@ -873,11 +793,9 @@ export {
   otherLanguage,
   Publication,
   searchHref,
-  shownLanguage,
   shownNotes,
-  sourceLine,
-  sourceOf,
-  sourceTexts,
+  shownSources,
+  SOURCES_KEYS,
 };
 export type {
   Contrast,
@@ -903,8 +821,8 @@ export type {
   PublicationKind,
   PublicationListKey,
   Resemblance,
-  ShownText,
   SnapshotDiff,
-  Source,
+  SourcesDiff,
+  SourcesKey,
   ValidationResult,
 };

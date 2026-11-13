@@ -346,7 +346,6 @@
     "tookIn": "Took in",
     "gaveBack": "Gave back",
     "untitledRecord": "an untitled record",
-    "sourceLabel": "Source: {source}",
     "notesEditor": "Edit notes",
     "addNotes": "Add notes",
     "editNotes": "Edit notes: {preview}",
@@ -396,7 +395,11 @@
     "noBaseline": "Nothing earlier to compare with — this is where the record's log starts.",
     "reordered": "reordered",
     "sourcesLanguages": "Language of the sources",
-    "draftSourcesFrom": "Draft the sources from {language, select, pt {Portuguese} other {English}}"
+    "draftSourcesFrom": "Draft the sources from {language, select, pt {Portuguese} other {English}}",
+    "sourcesIn": "Sources in {language, select, pt {Portuguese} other {English}}",
+    "replaceSourcesTitle": "Replace the sources in {language, select, pt {Portuguese} other {English}}?",
+    "replaceSourcesMessage": "The draft takes the place of the sources this tab holds now. You can still edit it before saving.",
+    "replaceSources": "Replace"
   },
   "link": {
     "action": "{copied, select, true {Copied} other {Copy link}}",
@@ -582,8 +585,7 @@
     "repeated": "Another row of this import is the same publication",
     "invalid": "A publication is not valid, so nothing was inserted",
     "too_long": "This text is too long",
-    "malformed": "This text could not be read",
-    "misaligned": "The sources in Portuguese and in English have different numbers of lines, so they cannot be paired"
+    "malformed": "This text could not be read"
   },
   "moving": {
     "moved": "{count, plural, one {Moved # row} other {Moved # rows}}",

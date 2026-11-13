@@ -32,8 +32,29 @@ const tab = (scope: Locator, list: string, language: string) =>
     name: language,
   });
 
-/** The sources a reader is shown, in order, each with its `lang`. */
-const shownSources = (scope: Page | Locator) => scope.locator("li[lang]");
+/**
+ * The sources a reader is shown, in order, in the region of the sources,
+ * which is named `name` in the page's language.
+ */
+const shownSources = (scope: Page | Locator, name = "Sources") =>
+  scope.getByRole("region", { name }).locator("li");
+
+/** The list of sources a reader is shown, which carries its `lang`. */
+const sourceList = (scope: Page | Locator, name = "Sources") =>
+  scope.getByRole("region", { name }).locator("ul[lang]");
+
+/**
+ * Checks that the sources editor in `scope` lists `values`, in order, in the
+ * selected tab.
+ */
+async function expectSources(scope: Locator, values: string[]) {
+  const inputs = scope.getByRole("textbox", { name: /^Source \d+$/ });
+
+  await expect(inputs).toHaveCount(values.length);
+  for (const [index, value] of values.entries()) {
+    await expect(inputs.nth(index)).toHaveValue(value);
+  }
+}
 
 /** Opens the edit form of the publication shown in `dialog`. */
 async function edit(dialog: Locator) {
@@ -154,7 +175,7 @@ test("an admin writes notes in Portuguese, drafts them in English, and each read
   ]);
 });
 
-test("an admin sources a publication in Portuguese, drafts the English texts, and each reader is shown the sources in their own language, in one order", async ({
+test("an admin sources a publication in Portuguese, drafts the English list, and each reader is shown the sources of their own language", async ({
   page,
 }) => {
   await seedCorpus(page);
@@ -167,7 +188,7 @@ test("an admin sources a publication in Portuguese, drafts the English texts, an
   const address = new URL(page.url()).pathname;
   await edit(dialog);
 
-  // Three sources, written in Portuguese.
+  // Three sources, written in Portuguese, in the Portuguese tab.
   await tab(dialog, "Language of the sources", "Português").click();
   const portuguese = [
     "Amado, Jorge. Gabriela, Cravo e Canela. Martins, 1958.",
@@ -181,18 +202,16 @@ test("an admin sources a publication in Portuguese, drafts the English texts, an
       .fill(text);
   }
 
-  // The English tab lists the same three, empty, each showing its Portuguese
-  // text as the placeholder, and drafts their English texts.
+  // The English list is a list of its own, still empty. Its sources are
+  // drafted from the Portuguese ones, one each.
   await tab(dialog, "Language of the sources", "English").click();
-  await expect(dialog.getByRole("textbox", { name: "Source 3" })).toHaveValue(
-    "",
-  );
-  await expect(
-    dialog.getByRole("textbox", { name: "Source 3" }),
-  ).toHaveAttribute("placeholder", "Resenha em The New York Times, 1962.");
+  await expect(dialog.getByText("No sources yet.")).toBeVisible();
   await dialog
     .getByRole("button", { name: "Draft the sources from Portuguese" })
     .click();
+  await expect(
+    dialog.getByRole("textbox", { name: /^Source \d$/ }),
+  ).toHaveCount(3);
   await expect(dialog.getByRole("textbox", { name: "Source 1" })).toHaveValue(
     "[en] Amado, Jorge. Gabriela, Cravo e Canela. Martins, 1958.",
   );
@@ -212,46 +231,51 @@ test("an admin sources a publication in Portuguese, drafts the English texts, an
     .getByRole("textbox", { name: "Source 3" })
     .fill("Review in The New York Times, 1962.");
 
-  // Removing and moving a source does so in both languages: the translator's
-  // note goes, and the review moves first.
+  // Removing and moving a source in English leaves the Portuguese list as it
+  // is: the translator's note goes from the English list only, and the review
+  // moves first there.
   await dialog.getByRole("button", { name: "Remove source 2" }).click();
   await dialog.getByRole("button", { name: "Move source 2 up" }).click();
-  await expect(dialog.getByRole("textbox", { name: "Source 1" })).toHaveValue(
+  await expectSources(dialog, [
     "Review in The New York Times, 1962.",
-  );
+    "Amado, Jorge. Gabriela, Cravo e Canela. Martins, 1958.",
+  ]);
   await tab(dialog, "Language of the sources", "Português").click();
-  await expect(dialog.getByRole("textbox", { name: "Source 1" })).toHaveValue(
-    "Resenha em The New York Times, 1962.",
-  );
-  await expect(dialog.getByRole("textbox", { name: "Source 3" })).toHaveCount(
-    0,
-  );
+  await expectSources(dialog, portuguese);
   await save(page, dialog);
 
-  // A reader of English is shown the English texts, in the order saved.
+  // A reader of English is shown the English list, in the order saved, with
+  // no line about its language.
   await expect(shownSources(dialog)).toHaveText([
     "Review in The New York Times, 1962.",
     "Amado, Jorge. Gabriela, Cravo e Canela. Martins, 1958.",
   ]);
-  await expect(shownSources(dialog).first()).toHaveAttribute("lang", "en");
+  await expect(sourceList(dialog)).toHaveAttribute("lang", "en");
+  await expect(
+    dialog.getByRole("region", { name: "Sources" }),
+  ).not.toContainText("Written in");
 
-  // The history lists each source added with its texts in both languages.
+  // The history lists the sources added in each language as a change of its
+  // own.
   await dialog.getByText("History", { exact: true }).click();
-  await expect(historyEntries(dialog, "updated").first()).toContainText(
-    "+ Resenha em The New York Times, 1962. / Review in The New York Times, 1962.",
+  const update = historyEntries(dialog, "updated").first();
+  await expect(update).toContainText("Sources in Portuguese:");
+  await expect(update).toContainText(
+    "+ Taylor, James L. Nota do tradutor, 1962.",
   );
+  await expect(update).toContainText("Sources in English:");
+  await expect(update).toContainText("+ Review in The New York Times, 1962.");
+  await expect(update).not.toContainText("Translator's note");
   await page.keyboard.press("Escape");
 
-  // A reader of Portuguese is shown the Portuguese texts, in the same order.
+  // A reader of Portuguese is shown the Portuguese list, all three sources in
+  // the order they were written.
   await page.goto(inPortuguese(address));
-  await expect(shownSources(page)).toHaveText([
-    "Resenha em The New York Times, 1962.",
-    "Amado, Jorge. Gabriela, Cravo e Canela. Martins, 1958.",
-  ]);
-  await expect(shownSources(page).first()).toHaveAttribute("lang", "pt");
+  await expect(shownSources(page, "Fontes")).toHaveText(portuguese);
+  await expect(sourceList(page, "Fontes")).toHaveAttribute("lang", "pt");
 
-  // A word only the English text holds finds the publication, and the
-  // English page marks it in the source it came from.
+  // A word only the English list holds finds the publication, and the English
+  // page marks it in the source it came from.
   await page.goto("/en?search=Review");
   const row = indexTable(page)
     .getByRole("row")
@@ -262,30 +286,24 @@ test("an admin sources a publication in Portuguese, drafts the English texts, an
     page,
     "Gabriela, Clove and Cinnamon",
   );
-  await expect(found.locator('li[lang="en"] mark')).toHaveText("Review");
+  await expect(
+    found.getByRole("region", { name: "Sources" }).locator("mark"),
+  ).toHaveText("Review");
 });
 
-// A file in the current shape: sources and notes in both languages. Line N
-// of each sources cell is the same source.
+// A file with sources and notes in both languages. The two sources cells are
+// independent lists, so they need not have as many lines as each other.
 const BILINGUAL_HEADER =
   "title,year,countries,publishers,authors,original_title,original_authors,sources_pt,sources_en,notes_pt,notes_en";
 const MACUNAIMA_SOURCES_PT =
   "Andrade, Mário de. Prefácio, 1928.\nProença, M. Cavalcanti. Roteiro de Macunaíma, 1955.";
 const MACUNAIMA_SOURCES_EN =
   "Andrade, Mário de. Preface, 1928.\nProença, M. Cavalcanti. A guide to Macunaíma, 1955.";
-
-// A file that cannot pair its sources: the Portuguese cell has a second line
-// that the English cell does not reach.
 const DEVIL_SOURCES_PT =
   "Rosa, João Guimarães. Entrevista, 1965.\nTaylor, James L. Nota, 1963.";
 const DEVIL_SOURCES_EN = "Rosa, João Guimarães. Interview, 1965.";
 
-// A file exported before notes and sources had two languages, whose `sources`
-// and `notes` columns are read as Portuguese.
-const LEGACY_HEADER =
-  "title,year,countries,publishers,authors,original_title,original_authors,sources,notes";
-
-test("notes and sources come in with a CSV in both languages, an older file's are read as Portuguese, sources that cannot be paired are reported, and the export writes both languages", async ({
+test("notes and sources come in with a CSV in both languages, are edited in the import document, each reader is shown their own language's, and the export writes both languages", async ({
   page,
 }) => {
   await signInAsAdmin(page);
@@ -297,79 +315,50 @@ test("notes and sources come in with a CSV in both languages, an older file's ar
     csv(
       [
         `Macunaíma,1984,US,Random House,E. A. Goodland,Macunaíma,Mário de Andrade,${quoted(MACUNAIMA_SOURCES_PT)},${quoted(MACUNAIMA_SOURCES_EN)},A rapsódia modernista.,The modernist rhapsody.`,
+        `The Passion According to G.H.,1988,US,University of Minnesota Press,Ronald W. Sousa,A Paixão Segundo G.H.,Clarice Lispector,"Sousa, Ronald W. Introdução, 1988.",,Primeira tradução inglesa.,`,
+        `The Devil to Pay in the Backlands,1963,US,Knopf,James L. Taylor;Harriet de Onís,Grande Sertão: Veredas,João Guimarães Rosa,${quoted(DEVIL_SOURCES_PT)},${quoted(DEVIL_SOURCES_EN)},,`,
       ],
       { header: BILINGUAL_HEADER },
     ),
     "bilingual.csv",
   );
+
+  // Sources cells with different numbers of lines are no error: every row is
+  // valid.
   await expect(table.getByRole("row", { name: /Macunaíma/ })).toBeVisible();
-
-  await uploadCsv(
-    page,
-    csv(
-      [
-        `The Passion According to G.H.,1988,US,University of Minnesota Press,Ronald W. Sousa,A Paixão Segundo G.H.,Clarice Lispector,"Sousa, Ronald W. Introdução, 1988.",Primeira tradução inglesa.`,
-      ],
-      { header: LEGACY_HEADER },
-    ),
-    "legacy.csv",
-  );
-  await expect(
-    table.getByRole("row", { name: /The Passion According/ }),
-  ).toBeVisible();
-
-  await uploadCsv(
-    page,
-    csv(
-      [
-        `The Devil to Pay in the Backlands,1963,US,Knopf,James L. Taylor;Harriet de Onís,Grande Sertão: Veredas,João Guimarães Rosa,${quoted(DEVIL_SOURCES_PT)},${quoted(DEVIL_SOURCES_EN)},,`,
-      ],
-      { header: BILINGUAL_HEADER },
-    ),
-    "unpaired.csv",
-  );
-
-  // The rows of the older file are in Portuguese: the notes cell shows the
-  // Portuguese notes to a reader of English, who has none in English.
-  await expect(
-    table
-      .getByRole("row", { name: /The Passion According/ })
-      .getByRole("button", { name: "Edit notes: Primeira tradução inglesa." }),
-  ).toBeVisible();
-
-  // The file that cannot pair its sources is reported, and holds the row
-  // back.
-  const counter = page.getByLabel("1 invalid publication");
-  await expect(counter).toBeVisible({ timeout: 30_000 });
-  await counter.click();
-  const errors = page.getByRole("dialog", {
-    name: "What is wrong with these rows",
+  await expect(page.getByLabel("All publications are valid")).toBeVisible({
+    timeout: 30_000,
   });
-  await expect(errors.getByRole("listitem")).toHaveCount(1);
-  await expect(errors).toContainText("The Devil to Pay in the Backlands");
-  await expect(errors).toContainText("Sources");
-  await expect(errors).toContainText("different numbers of lines");
-  await page.keyboard.press("Escape");
 
-  // The row came in with its sources paired as far as the lines go. Giving
-  // the second source its English text pairs them, and the row is valid.
-  const devil = table.getByRole("row", { name: /The Devil to Pay/ });
-  await devil.getByRole("button", { name: "Edit sources (2)" }).click();
-  const sources = page.getByRole("dialog", { name: "Edit sources" });
-  await expect(sources).toContainText("different numbers of lines");
-  await expect(sources.getByRole("textbox", { name: "Source 1" })).toHaveValue(
-    DEVIL_SOURCES_EN,
-  );
+  // A row with notes and sources only in Portuguese shows its Portuguese notes
+  // and counts its Portuguese sources to a reader of English.
+  const passion = table.getByRole("row", { name: /The Passion According/ });
   await expect(
-    sources.getByRole("textbox", { name: "Source 2" }),
-  ).toHaveAttribute("placeholder", "Taylor, James L. Nota, 1963.");
+    passion.getByRole("button", {
+      name: "Edit notes: Primeira tradução inglesa.",
+    }),
+  ).toBeVisible();
+  await expect(
+    passion.getByRole("button", { name: "Edit sources (1)" }),
+  ).toBeVisible();
+
+  // The Devil to Pay has two sources in Portuguese and one in English. The
+  // English tab lists the one, and a second English source is added there.
+  const devil = table.getByRole("row", { name: /The Devil to Pay/ });
+  await devil.getByRole("button", { name: "Edit sources (1)" }).click();
+  const sources = page.getByRole("dialog", { name: "Edit sources" });
+  await expectSources(sources, [DEVIL_SOURCES_EN]);
+  await tab(sources, "Language of the sources", "Português").click();
+  await expectSources(sources, DEVIL_SOURCES_PT.split("\n"));
+  await tab(sources, "Language of the sources", "English").click();
+  await sources.getByRole("button", { name: "Add source" }).click();
   await sources
     .getByRole("textbox", { name: "Source 2" })
     .fill("Taylor, James L. A note, 1963.");
   await page.keyboard.press("Escape");
-  await expect(page.getByLabel("All publications are valid")).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(
+    devil.getByRole("button", { name: "Edit sources (2)" }),
+  ).toBeVisible();
 
   await submitWorkspace(page, 3);
 
@@ -387,15 +376,29 @@ test("notes and sources come in with a CSV in both languages, an older file's ar
   await page.keyboard.press("Escape");
 
   dialog = await openPublicationModal(page, "The Passion According to G.H.");
-  const passion = dialog.getByRole("region", { name: "Notes" });
-  await expect(passion).toContainText("Written in Portuguese");
-  await expect(passion.locator("div[lang] p")).toHaveText([
+  const notes = dialog.getByRole("region", { name: "Notes" });
+  await expect(notes).toContainText("Written in Portuguese");
+  await expect(notes.locator("div[lang] p")).toHaveText([
     "Primeira tradução inglesa.",
   ]);
+  await expect(dialog.getByRole("region", { name: "Sources" })).toContainText(
+    "Written in Portuguese",
+  );
   await expect(shownSources(dialog)).toHaveText([
     "Sousa, Ronald W. Introdução, 1988.",
   ]);
-  await expect(shownSources(dialog)).toHaveAttribute("lang", "pt");
+  await expect(sourceList(dialog)).toHaveAttribute("lang", "pt");
+  await page.keyboard.press("Escape");
+
+  dialog = await openPublicationModal(
+    page,
+    "The Devil to Pay in the Backlands",
+  );
+  const devilAddress = new URL(page.url()).pathname;
+  await expect(shownSources(dialog)).toHaveText([
+    DEVIL_SOURCES_EN,
+    "Taylor, James L. A note, 1963.",
+  ]);
   await page.keyboard.press("Escape");
 
   // A reader of Portuguese is shown the Portuguese ones.
@@ -403,7 +406,13 @@ test("notes and sources come in with a CSV in both languages, an older file's ar
   await expect(
     page.getByRole("region", { name: "Notas" }).locator("div[lang] p"),
   ).toHaveText(["A rapsódia modernista."]);
-  await expect(shownSources(page)).toHaveText(MACUNAIMA_SOURCES_PT.split("\n"));
+  await expect(shownSources(page, "Fontes")).toHaveText(
+    MACUNAIMA_SOURCES_PT.split("\n"),
+  );
+  await page.goto(inPortuguese(devilAddress));
+  await expect(shownSources(page, "Fontes")).toHaveText(
+    DEVIL_SOURCES_PT.split("\n"),
+  );
 
   // The export writes the sources and the notes of each language in columns
   // of their own, the sources one per line. The saved file is read as UTF-8,
@@ -432,8 +441,8 @@ test("merging records whose notes and sources are in different languages joins e
   await seedCorpus(page);
 
   // Two more records of the corpus's Dom Casmurro, each with notes in
-  // Portuguese only. Both cite Caldwell's introduction, one in Portuguese
-  // only, the other in both languages.
+  // Portuguese only. Both cite Caldwell's introduction in Portuguese, and the
+  // second also in English.
   await openDocument(page, "Duplicates");
   await uploadCsv(
     page,
@@ -473,15 +482,15 @@ test("merging records whose notes and sources are in different languages joins e
       .click();
   }
 
-  // The two records cite the same introduction, so the result gains it once,
-  // with its text in both languages.
+  // The two records cite the same introduction in Portuguese, so the result
+  // gains it once in Portuguese, and once in English.
   const result = merge.getByRole("region", { name: "Result" });
   await expect(
-    result.getByText(
-      "Caldwell, Helen. Introdução, 1953. / Caldwell, Helen. Introduction, 1953.",
-      { exact: true },
-    ),
-  ).toBeVisible();
+    result.getByText("Caldwell, Helen. Introdução, 1953.", { exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    result.getByText("Caldwell, Helen. Introduction, 1953.", { exact: true }),
+  ).toHaveCount(1);
 
   // The Portuguese notes of the two are joined, and there are none in
   // English, so the reviewer drafts them.
@@ -500,7 +509,7 @@ test("merging records whose notes and sources are in different languages joins e
   await merge.getByRole("button", { name: "Merge 2 publications" }).click();
   await expect(notifications(page)).toContainText(/Merged 2 publications/);
 
-  // The merged record has the notes in both languages, and the one source.
+  // The merged record has the notes and the one source in both languages.
   await page.goto(address);
   await expect(
     page.getByRole("region", { name: "Notes" }).locator("div[lang] p"),
@@ -513,7 +522,7 @@ test("merging records whose notes and sources are in different languages joins e
   await expect(
     page.getByRole("region", { name: "Notas" }).locator("div[lang] p"),
   ).toHaveText(["Exemplar da editora.", "Carimbado pelo livreiro."]);
-  await expect(shownSources(page)).toHaveText([
+  await expect(shownSources(page, "Fontes")).toHaveText([
     "Caldwell, Helen. Introdução, 1953.",
   ]);
 });
@@ -583,15 +592,14 @@ test.describe("in a browser without the Translator API", () => {
       dialog.getByRole("button", { name: /^Draft the/ }),
     ).toHaveCount(0);
 
-    // The corpus's source is in English. Its Portuguese text is typed in the
-    // Portuguese tab, where the English text is the placeholder.
+    // The corpus's source is in English. The Portuguese list is empty, and a
+    // Portuguese source is typed there by hand.
     await tab(dialog, "Language of the sources", "Português").click();
-    const source = dialog.getByRole("textbox", { name: "Source 1" });
-    await expect(source).toHaveAttribute(
-      "placeholder",
-      "Pontiero, Giovanni. Afterword.",
-    );
-    await source.fill("Pontiero, Giovanni. Posfácio.");
+    await expect(dialog.getByText("No sources yet.")).toBeVisible();
+    await dialog.getByRole("button", { name: "Add source" }).click();
+    await dialog
+      .getByRole("textbox", { name: "Source 1" })
+      .fill("Pontiero, Giovanni. Posfácio.");
 
     // The notes in each language, each in its tab.
     await dialog.getByRole("textbox", { name: "Notes in English" }).click();
@@ -616,7 +624,7 @@ test.describe("in a browser without the Translator API", () => {
     await expect(
       page.getByRole("region", { name: "Notas" }).locator("div[lang] p"),
     ).toHaveText(["Traduzido por Giovanni Pontiero."]);
-    await expect(shownSources(page)).toHaveText([
+    await expect(shownSources(page, "Fontes")).toHaveText([
       "Pontiero, Giovanni. Posfácio.",
     ]);
   });

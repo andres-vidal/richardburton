@@ -3,10 +3,7 @@
 import { Link } from "i18n/navigation";
 import { useFormatDate } from "modules/dates";
 import type { RenameChange, WithChanges } from "modules/publication/history";
-import {
-  sourceLine,
-  type PublicationHistoryEntry,
-} from "modules/publication/model";
+import type { PublicationHistoryEntry } from "modules/publication/model";
 import { isBlank, type RichTextValue } from "modules/rich-text";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
@@ -126,11 +123,10 @@ const NotesOrNone: FC<{ notes: RichTextValue | null }> = ({ notes }) => {
  * and the `plain` variant does neither.
  *
  * What it changed is listed from `entry.changes`: a field's old and new value,
- * the sources added and removed, each with its text in each language it has
- * one in, the notes in each language before and after, rendered with
- * `RichText`, the records a merge took in or gave back, and the records a
- * duplicate decision was about. An update with no earlier version to compare
- * with says so. Blank notes are shown as none.
+ * the sources added and removed in each language, the notes in each language
+ * before and after, rendered with `RichText`, the records a merge took in or
+ * gave back, and the records a duplicate decision was about. An update with no
+ * earlier version to compare with says so. Blank notes are shown as none.
  *
  * A rename's entry with a `RenameChange` reads as a change of the name, not
  * of the publication. The `card` variant heads it with the name before and
@@ -262,24 +258,21 @@ const Entry: FC<{
                 <span className="text-gray-700">{change.to}</span>
               </li>
             ) : change.kind === "sources" ? (
-              <li key="sources" className="text-xs text-gray-600">
-                {attribute("sources")}:
+              <li
+                key={`sources ${change.language}`}
+                className="text-xs text-gray-600"
+              >
+                {t("sourcesIn", { language: change.language })}:
                 {change.reordered ? ` ${t("reordered")}` : null}
-                <ul className="space-y-0.5">
+                <ul lang={change.language} className="space-y-0.5">
                   {change.removed.map((source) => (
-                    <li
-                      key={`− ${sourceLine(source)}`}
-                      className="text-red-700"
-                    >
-                      − <s>{sourceLine(source)}</s>
+                    <li key={`− ${source}`} className="text-red-700">
+                      − <s>{source}</s>
                     </li>
                   ))}
                   {change.added.map((source) => (
-                    <li
-                      key={`+ ${sourceLine(source)}`}
-                      className="text-emerald-700"
-                    >
-                      + {sourceLine(source)}
+                    <li key={`+ ${source}`} className="text-emerald-700">
+                      + {source}
                     </li>
                   ))}
                 </ul>
@@ -367,12 +360,17 @@ const Entry: FC<{
                             {attribute(field.attribute)}: {field.value}
                           </li>
                         ))}
-                        {record.sources.map((source) => (
+                        {record.sources.map(({ language, sources }) => (
                           <li
-                            key={sourceLine(source)}
+                            key={`sources ${language}`}
                             className="text-gray-500"
                           >
-                            {t("sourceLabel", { source: sourceLine(source) })}
+                            {t("sourcesIn", { language })}:
+                            <ul lang={language}>
+                              {sources.map((source) => (
+                                <li key={source}>{source}</li>
+                              ))}
+                            </ul>
                           </li>
                         ))}
                         {record.notes.map(({ language, value }) => (

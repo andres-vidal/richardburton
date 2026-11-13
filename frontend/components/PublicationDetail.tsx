@@ -19,8 +19,8 @@ import {
   type PublicationKind as Kind,
   type PublicationListKey,
   searchHref,
-  type ShownText,
   shownNotes,
+  shownSources,
 } from "modules/publication/model";
 import { watchEdit } from "modules/publication/checks";
 import { deletePublication, update } from "modules/publication/remote";
@@ -173,42 +173,57 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
 };
 
 /**
- * Where the record says it comes from. Each source is shown in the reader's
- * language, or in the other language when it has no text in the reader's
- * (see `Publication.markedSources`), and carries the `lang` of the text shown.
- * Each source renders as rich text, as `markedParagraph` builds it from the
- * text, so a URL in a source is a link and the words a search matched are
- * highlighted. Each source's bullet is centred on its first line.
+ * Where the record says it comes from, as a region named for the sources. It
+ * shows the sources in the reader's language, or the sources in the other
+ * language, with a line that names that language, when there are none in the
+ * reader's (see `shownSources`). The list
+ * carries the `lang` of the language it is written in. Each source renders as
+ * rich text, as `markedParagraph` builds it from the source, so a URL in a
+ * source is a link and the words a search matched are highlighted. Each
+ * source's bullet is centred on its first line.
  *
- * A record with no sources says so rather than leaving the section out: for a
- * database whose worth is its provenance, an absent source is worth stating.
- * The history section states its absence the same way.
+ * A record with no sources in either language says so rather than leaving the
+ * section out: for a database whose worth is its provenance, an absent source
+ * is worth stating. The history section states its absence the same way.
  */
-const PublicationSources: FC<{ sources: ShownText[] }> = ({ sources }) => {
+const PublicationSources: FC<{ publication: Publication }> = ({
+  publication,
+}) => {
   const t = useTranslations("publication");
+  const locale = useLocale() as Language;
+  const shown = shownSources(publication, locale);
 
   return (
-    <section className="space-y-2">
+    <section aria-label={t("sources")} className="space-y-2">
       <SectionHeading>{t("sources")}</SectionHeading>
-      {sources.length === 0 ? (
+      {shown === null ? (
         <p className="text-xs text-gray-500">{t("noSources")}</p>
       ) : (
-        <ul className="space-y-1.5 text-sm text-gray-700">
-          {sources.map((source, index) => (
-            <li
-              key={index}
-              lang={source.language}
-              className="flex gap-2.5 items-start"
-            >
-              <span aria-hidden className="flex shrink-0 items-center h-[1lh]">
-                <span className="size-1.5 rounded-full bg-indigo-400 ring-2 ring-indigo-100" />
-              </span>
-              <div className="min-w-0">
-                <RichText value={markedParagraph(source.text)} />
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          {shown.language !== locale && (
+            <p className="text-xs text-gray-500">
+              {t("writtenIn", { language: shown.language })}
+            </p>
+          )}
+          <ul
+            lang={shown.language}
+            className="space-y-1.5 text-sm text-gray-700"
+          >
+            {shown.sources.map((source, index) => (
+              <li key={index} className="flex gap-2.5 items-start">
+                <span
+                  aria-hidden
+                  className="flex shrink-0 items-center h-[1lh]"
+                >
+                  <span className="size-1.5 rounded-full bg-indigo-400 ring-2 ring-indigo-100" />
+                </span>
+                <div className="min-w-0">
+                  <RichText value={markedParagraph(source)} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </section>
   );
@@ -317,7 +332,10 @@ const PublicationEditForm: FC<{
   const error = usePublicationErrorDescription(id);
   const isValid = useIsPublicationValid(id);
   const sources = usePublicationSources(id);
-  const sourcesError = usePublicationFieldError(id, "sources");
+  const sourcesErrors = {
+    pt: usePublicationFieldError(id, "sourcesPt"),
+    en: usePublicationFieldError(id, "sourcesEn"),
+  };
 
   useEffect(() => watchEdit(store, id), [store, id]);
 
@@ -340,8 +358,8 @@ const PublicationEditForm: FC<{
       </div>
       <SourcesEditor
         value={sources}
-        error={sourcesError}
-        onChange={(next) => setSources(store, id, next)}
+        errors={sourcesErrors}
+        onChange={(language, next) => setSources(store, id, language, next)}
       />
       <NotesField id={id} />
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -415,7 +433,6 @@ const Detail: FC<PublicationDetailProps> = ({
   onDeleted,
 }) => {
   const t = useTranslations("publication");
-  const locale = useLocale() as Language;
   const id = publication.id!;
   const store = usePublicationStore();
   const canEdit = useCanEditPublications();
@@ -469,9 +486,7 @@ const Detail: FC<PublicationDetailProps> = ({
           <PublicationKind kind={kind} follows={follows} />
           <PublicationDescription publication={publication} />
           <PublicationNotes publication={publication} />
-          <PublicationSources
-            sources={Publication.markedSources(publication, locale)}
-          />
+          <PublicationSources publication={publication} />
           {history && <PublicationHistorySection entries={history} />}
           {canEdit && (
             <div className="flex gap-3">

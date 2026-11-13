@@ -79,8 +79,9 @@ export const SourcesQueue: FC<{
  * The pane for the publication `id`: its title, translators and the rest of
  * its record, its place in the queue, and the sources editor. The save button
  * reads Save on the last publication, which has no next one, and Save & next
- * otherwise. It is disabled while the publication has no sources or a save
- * runs, since Skip is the way past a publication without sources.
+ * otherwise. It is disabled while the publication has no sources in either
+ * language or a save runs, since Skip is the way past a publication without
+ * sources.
  */
 export const BackfillStep: FC<{
   id: PublicationId;
@@ -126,7 +127,7 @@ export const BackfillStep: FC<{
 
       <SourcesEditor
         value={sources}
-        onChange={(next) => setSources(store, id, next)}
+        onChange={(language, next) => setSources(store, id, language, next)}
       />
 
       <div className="flex gap-3 justify-end mt-auto">
@@ -142,7 +143,7 @@ export const BackfillStep: FC<{
           width="fit"
           size="medium"
           loading={saving}
-          disabled={sources.length === 0}
+          disabled={sources.pt.length === 0 && sources.en.length === 0}
           onClick={onSave}
         />
       </div>

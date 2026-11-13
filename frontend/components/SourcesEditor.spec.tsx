@@ -1,130 +1,126 @@
-import { source } from "test/publication-fixtures";
 import { fireEvent, render, screen, within } from "test/render";
 
 import SourcesEditor from "./SourcesEditor";
 
-// The editor works on the whole list: adding, removing, moving and editing
-// each pass a new list to `onChange`. Its rows are plain inputs, so these
-// specs drive every path directly. The reader reads English, so the English
-// tab is selected at first.
+/** Returns a value with `en` as the English list and `pt` as the Portuguese. */
+function lists(en: string[], pt: string[] = []) {
+  return { pt, en };
+}
+
+/** Returns queries within the panel of the tab named `name`. */
+function panel(name: "English" | "Português") {
+  return within(screen.getByRole("tabpanel", { name }));
+}
+
+/** Selects the tab of the sources in Portuguese. */
+function selectPortuguese() {
+  fireEvent.click(
+    within(
+      screen.getByRole("tablist", { name: "Language of the sources" }),
+    ).getByRole("tab", { name: "Português" }),
+  );
+}
+
+// The editor works on each language's whole list: adding, removing, moving and
+// editing each pass the language and a new list to `onChange`. Its rows are
+// plain inputs, so these specs drive every path directly. The reader reads
+// English, so the English tab is selected at first.
 describe("SourcesEditor", () => {
-  test("renders one input per source, with its text in the selected language", () => {
+  test("renders one input per source of the selected language", () => {
     render(
       <SourcesEditor
-        value={[
-          source("Primeira fonte", "First source"),
-          source(null, "Second source"),
-        ]}
+        value={lists(["First source", "Second source"], ["Primeira fonte"])}
         onChange={vi.fn()}
       />,
     );
 
-    expect(screen.getByDisplayValue("First source")).toBeTruthy();
-    expect(screen.getByDisplayValue("Second source")).toBeTruthy();
-    expect(screen.queryByDisplayValue("Primeira fonte")).toBeNull();
+    expect(panel("English").getByDisplayValue("First source")).toBeTruthy();
+    expect(panel("English").getByDisplayValue("Second source")).toBeTruthy();
+    expect(
+      panel("English").getByLabelText("Source 1").getAttribute("lang"),
+    ).toBe("en");
   });
 
-  test("shows a source's text in the other language as the placeholder of an empty one", () => {
+  test("lists the other language's own sources in its tab", () => {
     render(
       <SourcesEditor
-        value={[source("Primeira fonte"), source(null, null)]}
+        value={lists(["First source", "Second source"], ["Primeira fonte"])}
         onChange={vi.fn()}
       />,
     );
 
-    expect(screen.getByLabelText("Source 1")).toHaveProperty(
-      "placeholder",
-      "Primeira fonte",
-    );
-    expect(screen.getByLabelText("Source 2")).toHaveProperty(
-      "placeholder",
-      "A citation, URL, or note",
-    );
-  });
+    selectPortuguese();
 
-  test("lists the same sources in the other tab, with their texts in its language", () => {
-    render(
-      <SourcesEditor
-        value={[source("Primeira fonte", "First source")]}
-        onChange={vi.fn()}
-      />,
-    );
-
-    fireEvent.click(
-      within(
-        screen.getByRole("tablist", { name: "Language of the sources" }),
-      ).getByRole("tab", { name: "Português" }),
-    );
-
-    expect(screen.getByLabelText("Source 1")).toHaveProperty(
+    expect(panel("Português").getAllByRole("textbox")).toHaveLength(1);
+    expect(panel("Português").getByLabelText("Source 1")).toHaveProperty(
       "value",
       "Primeira fonte",
     );
-    expect(screen.getByLabelText("Source 1").getAttribute("lang")).toBe("pt");
+    expect(
+      panel("Português").getByLabelText("Source 1").getAttribute("lang"),
+    ).toBe("pt");
   });
 
   test("shows an empty state and no rows for an empty list", () => {
-    render(<SourcesEditor value={[]} onChange={vi.fn()} />);
+    render(<SourcesEditor value={lists([])} onChange={vi.fn()} />);
 
-    expect(screen.getByText("No sources yet.")).toBeTruthy();
+    expect(panel("English").getByText("No sources yet.")).toBeTruthy();
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 
-  test("adding appends a source with no text in either language", () => {
-    const onChange = vi.fn();
-    render(<SourcesEditor value={[source("Uma fonte")]} onChange={onChange} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Add source" }));
-
-    expect(onChange).toHaveBeenCalledWith([
-      source("Uma fonte"),
-      source(null, null),
-    ]);
-  });
-
-  test("editing a row sets its text in the selected language, and emptying it leaves none", () => {
+  test("adding appends an empty source to the selected language's list only", () => {
     const onChange = vi.fn();
     render(
       <SourcesEditor
-        value={[source("Uma fonte", "A source")]}
+        value={lists(["A source"], ["Uma fonte"])}
         onChange={onChange}
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Source 1"), {
-      target: { value: "An edited source" },
-    });
-    fireEvent.change(screen.getByLabelText("Source 1"), {
-      target: { value: "" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Add source" }));
+    selectPortuguese();
+    fireEvent.click(
+      panel("Português").getByRole("button", { name: "Add source" }),
+    );
 
-    expect(onChange).toHaveBeenNthCalledWith(1, [
-      source("Uma fonte", "An edited source"),
-    ]);
-    expect(onChange).toHaveBeenNthCalledWith(2, [source("Uma fonte", null)]);
+    expect(onChange).toHaveBeenNthCalledWith(1, "en", ["A source", ""]);
+    expect(onChange).toHaveBeenNthCalledWith(2, "pt", ["Uma fonte", ""]);
   });
 
-  test("removing drops that source in both languages", () => {
+  test("editing a row passes its language's list with the edited text", () => {
     const onChange = vi.fn();
     render(
       <SourcesEditor
-        value={[source("Primeira", "First"), source("Segunda", "Second")]}
+        value={lists(["A source"], ["Uma fonte"])}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.change(panel("English").getByLabelText("Source 1"), {
+      target: { value: "An edited source" },
+    });
+
+    expect(onChange).toHaveBeenCalledWith("en", ["An edited source"]);
+  });
+
+  test("removing drops that source from its language's list", () => {
+    const onChange = vi.fn();
+    render(
+      <SourcesEditor
+        value={lists(["First", "Second"], ["Primeira"])}
         onChange={onChange}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Remove source 1" }));
 
-    expect(onChange).toHaveBeenCalledWith([source("Segunda", "Second")]);
+    expect(onChange).toHaveBeenCalledWith("en", ["Second"]);
   });
 
   test("reorders with the move controls, which are bounded at the ends", () => {
     const onChange = vi.fn();
     render(
-      <SourcesEditor
-        value={[source("Primeira", "First"), source(null, "Second")]}
-        onChange={onChange}
-      />,
+      <SourcesEditor value={lists(["First", "Second"])} onChange={onChange} />,
     );
 
     // The first row can't move up, the last can't move down.
@@ -135,21 +131,25 @@ describe("SourcesEditor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Move source 2 up" }));
 
-    expect(onChange).toHaveBeenCalledWith([
-      source(null, "Second"),
-      source("Primeira", "First"),
-    ]);
+    expect(onChange).toHaveBeenCalledWith("en", ["Second", "First"]);
   });
 
-  test("shows an error under the list", () => {
+  test("shows each language's error under its list, and marks its tab", () => {
     render(
       <SourcesEditor
-        value={[source("Uma fonte")]}
+        value={lists(["A source"], ["Uma fonte"])}
         onChange={vi.fn()}
-        error="These sources could not be paired"
+        errors={{ pt: "This text is too long" }}
       />,
     );
 
-    expect(screen.getByText("These sources could not be paired")).toBeTruthy();
+    const tab = within(
+      screen.getByRole("tablist", { name: "Language of the sources" }),
+    ).getByRole("tab", { name: "Português" });
+    expect(tab.getAttribute("data-invalid")).toBe("true");
+
+    selectPortuguese();
+
+    expect(panel("Português").getByText("This text is too long")).toBeTruthy();
   });
 });

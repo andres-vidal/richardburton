@@ -1,25 +1,29 @@
 defmodule RichardBurton.Repo.Migrations.WriteNotesAndSourcesInTwoLanguages do
   @moduledoc """
-  Gives a publication's notes and each of its sources a Portuguese and an
-  English text.
+  Gives a publication notes and sources in Portuguese and in English.
 
   `publications.notes` becomes `notes_pt`, and `notes_en` is added beside it.
-  `publication_sources.content` becomes `content_pt`, and `content_en` is
-  added beside it. Either text of a source may be NULL, but a check constraint
-  requires each source to have text in at least one of the two. The existing
-  notes and sources keep their text, now as the Portuguese one.
+  Each row of `publication_sources` gains a `language`, `pt` or `en`, and the
+  existing sources become Portuguese. A publication's sources in one language
+  are ordered by `position`, which counts from 0 in each language.
 
-  `flat_publications` reads the renamed column, so the stack of materialized
-  views is rebuilt. The view now holds a publication's sources three ways:
-  `sources`, a JSON array of `{"pt": text, "en": text}` objects in position
-  order, and `sources_pt` and `sources_en`, the texts of each language in the
-  same order, with NULL where a source has no text in that language. The
-  search reads the texts of both languages, so `search_documents` and the
-  index behind the `source:` operator are built from `sources_pt || sources_en`.
+  The history is rewritten into the same shape. In each snapshot, the one in
+  `snapshot` and each one in `others`, the `notes` key becomes `notes_pt` and
+  `notes_en` is added as null, and the `sources` key becomes `sources_pt` and
+  `sources_en` is added as an empty list. A snapshot without one of those keys
+  keeps its other keys as they are. The trigger
+  `publication_history_append_only` rejects every UPDATE on the table, so it
+  is disabled for the statement that rewrites the snapshots, and enabled again
+  in the same transaction.
 
-  Rolling back keeps a source or a publication whose text is only in English
-  by moving that text to the Portuguese column before the English one is
-  dropped.
+  `flat_publications` holds the sources of each language in `sources_pt` and
+  `sources_en`, in place of `sources`, so the stack of materialized views is
+  rebuilt. The search reads the sources of both languages, as
+  `sources_pt || sources_en`.
+
+  Rolling back puts each publication's English sources after its Portuguese
+  ones, and uses its English notes where it has no Portuguese notes, in the
+  tables and in the history, before the English columns and keys are dropped.
   """
   use Ecto.Migration
 
@@ -29,13 +33,27 @@ defmodule RichardBurton.Repo.Migrations.WriteNotesAndSourcesInTwoLanguages do
     execute("ALTER TABLE publications RENAME COLUMN notes TO notes_pt")
     execute("ALTER TABLE publications ADD COLUMN notes_en jsonb")
 
-    execute("ALTER TABLE publication_sources RENAME COLUMN content TO content_pt")
-    execute("ALTER TABLE publication_sources ALTER COLUMN content_pt DROP NOT NULL")
-    execute("ALTER TABLE publication_sources ADD COLUMN content_en text")
+    execute("ALTER TABLE publication_sources ADD COLUMN language text NOT NULL DEFAULT 'pt'")
+    execute("ALTER TABLE publication_sources ALTER COLUMN language DROP DEFAULT")
 
     execute("""
-    ALTER TABLE publication_sources ADD CONSTRAINT publication_sources_have_text
-    CHECK (coalesce(content_pt, '') ~ '\\S' OR coalesce(content_en, '') ~ '\\S')
+    ALTER TABLE publication_sources ADD CONSTRAINT publication_sources_language
+    CHECK (language IN ('pt', 'en'))
+    """)
+
+    rewrite_history("""
+    SELECT CASE
+      WHEN s ? 'sources'
+      THEN (s - 'sources') || jsonb_build_object('sources_pt', s -> 'sources', 'sources_en', '[]'::jsonb)
+      ELSE s
+    END
+    FROM (
+      SELECT CASE
+        WHEN snapshot ? 'notes'
+        THEN (snapshot - 'notes') || jsonb_build_object('notes_pt', snapshot -> 'notes', 'notes_en', NULL)
+        ELSE snapshot
+      END AS s
+    ) AS with_notes
     """)
 
     create_views(:two_languages)
@@ -44,21 +62,69 @@ defmodule RichardBurton.Repo.Migrations.WriteNotesAndSourcesInTwoLanguages do
   def down do
     drop_views()
 
-    execute("""
-    UPDATE publication_sources SET content_pt = content_en
-    WHERE coalesce(content_pt, '') !~ '\\S'
+    rewrite_history("""
+    SELECT CASE
+      WHEN s ? 'sources_pt' OR s ? 'sources_en'
+      THEN (s - 'sources_pt' - 'sources_en') || jsonb_build_object(
+        'sources',
+        coalesce(s -> 'sources_pt', '[]'::jsonb) || coalesce(s -> 'sources_en', '[]'::jsonb)
+      )
+      ELSE s
+    END
+    FROM (
+      SELECT CASE
+        WHEN snapshot ? 'notes_pt' OR snapshot ? 'notes_en'
+        THEN (snapshot - 'notes_pt' - 'notes_en') || jsonb_build_object(
+          'notes',
+          coalesce(nullif(snapshot -> 'notes_pt', 'null'::jsonb), snapshot -> 'notes_en')
+        )
+        ELSE snapshot
+      END AS s
+    ) AS with_notes
     """)
 
-    execute("ALTER TABLE publication_sources DROP CONSTRAINT publication_sources_have_text")
-    execute("ALTER TABLE publication_sources DROP COLUMN content_en")
-    execute("ALTER TABLE publication_sources ALTER COLUMN content_pt SET NOT NULL")
-    execute("ALTER TABLE publication_sources RENAME COLUMN content_pt TO content")
+    execute("""
+    UPDATE publication_sources AS en
+    SET language = 'pt', position = en.position + (
+      SELECT count(*) FROM publication_sources AS pt
+      WHERE pt.publication_id = en.publication_id AND pt.language = 'pt'
+    )
+    WHERE en.language = 'en'
+    """)
+
+    execute("ALTER TABLE publication_sources DROP CONSTRAINT publication_sources_language")
+    execute("ALTER TABLE publication_sources DROP COLUMN language")
 
     execute("UPDATE publications SET notes_pt = notes_en WHERE notes_pt IS NULL")
     execute("ALTER TABLE publications DROP COLUMN notes_en")
     execute("ALTER TABLE publications RENAME COLUMN notes_pt TO notes")
 
     create_views(:one_language)
+  end
+
+  # Rewrites every snapshot in the history, the one in `snapshot` and each one
+  # in `others`, with `body`, a SQL query of one jsonb value that reads the
+  # snapshot as `snapshot`. The query is run through a function that exists
+  # only during the rewrite.
+  defp rewrite_history(body) do
+    execute("""
+    CREATE FUNCTION rb_rewritten_snapshot(snapshot jsonb) RETURNS jsonb
+    LANGUAGE sql IMMUTABLE AS $$ #{body} $$
+    """)
+
+    execute("ALTER TABLE publication_history DISABLE TRIGGER publication_history_append_only")
+
+    execute("""
+    UPDATE publication_history SET
+      snapshot = rb_rewritten_snapshot(snapshot),
+      others = CASE WHEN others IS NOT NULL THEN (
+        SELECT coalesce(jsonb_object_agg(id, rb_rewritten_snapshot(other)), '{}'::jsonb)
+        FROM jsonb_each(others) AS each(id, other)
+      ) END
+    """)
+
+    execute("ALTER TABLE publication_history ENABLE TRIGGER publication_history_append_only")
+    execute("DROP FUNCTION rb_rewritten_snapshot(jsonb)")
   end
 
   # search_keywords reads search_documents, which reads flat_publications, so
@@ -153,19 +219,17 @@ defmodule RichardBurton.Repo.Migrations.WriteNotesAndSourcesInTwoLanguages do
   defp sources_columns(:two_languages) do
     {
       """
-      COALESCE(CTE_sources_distinct.pairs, '[]'::jsonb) AS sources,
       COALESCE(CTE_sources_distinct.texts_pt, ARRAY[]::varchar[]) AS sources_pt,
       COALESCE(CTE_sources_distinct.texts_en, ARRAY[]::varchar[]) AS sources_en
       """,
       """
       SELECT
         publication_id AS id,
-        jsonb_agg(jsonb_build_object('pt', content_pt, 'en', content_en) ORDER BY "position") AS pairs,
-        array_agg(content_pt ORDER BY "position")::varchar[] AS texts_pt,
-        array_agg(content_en ORDER BY "position")::varchar[] AS texts_en
+        (array_agg(content ORDER BY "position") FILTER (WHERE language = 'pt'))::varchar[] AS texts_pt,
+        (array_agg(content ORDER BY "position") FILTER (WHERE language = 'en'))::varchar[] AS texts_en
       FROM publication_sources GROUP BY publication_id
       """,
-      "CTE_sources_distinct.pairs, CTE_sources_distinct.texts_pt, CTE_sources_distinct.texts_en"
+      "CTE_sources_distinct.texts_pt, CTE_sources_distinct.texts_en"
     }
   end
 

@@ -66,8 +66,9 @@ a publication with changes.
 - **Notes in the other language** — notes only in Portuguese, shown to a
   reader of English with a line that names their language.
 - **Without notes** — no notes section at all.
-- **Sources in both languages** — each source in the reader's language, or in
-  the other one when it has no text in the reader's.
+- **Sources in both languages** — the sources in the reader's language.
+- **Sources in the other language** — sources only in Portuguese, shown to a
+  reader of English with a line that names their language.
 - **Without sources** — the section states the absence rather than hiding.
 - **As admin** — the history section and the edit/merge/delete controls.
 - **Editing** — the form the Edit control opens, in place.
@@ -89,14 +90,15 @@ A record nobody has sourced yet says so:
 
 ## Two languages
 
-A publication holds its notes in Portuguese and in English, and each of its
-sources has a text in each language. The view shows the notes in the reader's
+A publication holds its notes in Portuguese and in English, and a list of
+sources in each language. The two lists are independent, so a source in one
+has no counterpart in the other. The view shows the notes in the reader's
 language when they are not blank there, and the notes in the other language
-otherwise, with a line that names that language. Each source is shown in the
-reader's language, or in the other one when it has no text in the reader's.
-The notes and each source carry the `lang` of the text shown, so a screen
-reader reads them in that language and the browser can offer to translate
-them.
+otherwise, with a line that names that language. It shows the sources the same
+way: the reader's language's list when it has any source, and the other list,
+with the line, otherwise. The notes and the list of sources carry the `lang`
+of the language shown, so a screen reader reads them in that language and the
+browser can offer to translate them.
 
 <Description of={PublicationDetailStories.NotesInTheOtherLanguage} />
 
@@ -105,6 +107,10 @@ them.
 <Description of={PublicationDetailStories.SourcesInBothLanguages} />
 
 <Canvas of={PublicationDetailStories.SourcesInBothLanguages} />
+
+<Description of={PublicationDetailStories.SourcesInTheOtherLanguage} />
+
+<Canvas of={PublicationDetailStories.SourcesInTheOtherLanguage} />
 
 ## Long sources
 

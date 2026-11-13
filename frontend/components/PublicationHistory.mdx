@@ -9,9 +9,10 @@ import * as PublicationHistoryStories from "./PublicationHistory.stories";
 A publication's mutation log, newest first: each entry names the action
 (created / updated / deleted / restored / merged / unmerged / renamed /
 distinct / reopened), the acting user, and the date, and
-**updates state exactly what changed**: scalar fields as `old → new`, and
-sources as the precise entries added (+) and removed (−) — or a reorder, when
-the same entries merely moved.
+**updates state exactly what changed**: scalar fields as `old → new`, and the
+sources of each language as the precise entries added (+) and removed (−) — or
+a reorder, when the same entries merely moved — under a label that names the
+language.
 
 The data comes from the append-only `publication_history` log
 (`GET /publications/:id/history`, admin-only). The server computes each diff

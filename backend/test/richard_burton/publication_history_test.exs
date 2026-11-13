@@ -10,26 +10,9 @@ defmodule RichardBurton.Publication.HistoryTest do
   alias RichardBurton.Publication.History
   alias RichardBurton.Publisher
   alias RichardBurton.Repo
-  alias RichardBurton.Source
   alias RichardBurton.Vocabulary
 
   doctest RichardBurton.Publication.History
-  doctest RichardBurton.Publication.History.Snapshot
-
-  # Appends an `updated` entry with the version `version` and the snapshot
-  # `snapshot` to the history of `publication`, as written, so a test can store
-  # a snapshot in an older shape.
-  defp insert_entry(publication, version, snapshot) do
-    %History{}
-    |> History.changeset(%{
-      publication_id: publication.id,
-      version: version,
-      action: "updated",
-      snapshot: snapshot,
-      actor: "a@b.com"
-    })
-    |> Repo.insert!()
-  end
 
   describe "snapshot/1" do
     # The equality `Publication.update/3` relies on to decide whether a save
@@ -49,7 +32,7 @@ defmodule RichardBurton.Publication.HistoryTest do
 
     test "differs once sources change", %{publication: publication} do
       {:ok, sourced} =
-        Publication.update(publication.id, publication_attrs(%{sources: ["A source"]}))
+        Publication.update(publication.id, publication_attrs(%{sources_en: ["A source"]}))
 
       # A changeset cannot tell this change: it replaces the sources on every
       # save, so only the resulting state shows whether they changed.
@@ -128,7 +111,8 @@ defmodule RichardBurton.Publication.HistoryTest do
 
       # Only what moved: untouched fields are absent, not present-and-equal.
       refute Map.has_key?(diff.fields, "publishers")
-      assert diff.sources == nil
+      assert diff.sources_pt == nil
+      assert diff.sources_en == nil
     end
 
     # A stored snapshot can list a set of names in any order. The diff compares
@@ -206,97 +190,34 @@ defmodule RichardBurton.Publication.HistoryTest do
       assert Map.keys(diff.fields) == ["title"]
     end
 
-    test "sources diff as the exact flat sources added and removed", %{publication: publication} do
-      edit(publication, %{sources: [%{"pt" => "Pontiero, Giovanni.", "en" => nil}]})
-      edit(publication, %{sources: [%{"pt" => nil, "en" => "Moser, Benjamin."}]})
-
-      expected_diff = %{
-        added: [%{"pt" => nil, "en" => "Moser, Benjamin."}],
-        removed: [%{"pt" => "Pontiero, Giovanni.", "en" => nil}],
-        reordered: false
-      }
-
-      assert [%History{diff: diff} | _] = History.of(publication.id)
-
-      assert expected_diff == diff.sources
-    end
-
-    test "a source whose text changes in one language is one removed and one added",
+    test "the sources of each language diff as the exact entries added and removed",
          %{publication: publication} do
-      edit(publication, %{sources: [%{"pt" => "Uma fonte", "en" => nil}]})
-      edit(publication, %{sources: [%{"pt" => "Uma fonte", "en" => "A source"}]})
+      edit(publication, %{sources_pt: ["Pontiero, Giovanni."]})
+
+      assert [%History{diff: diff} | _] = History.of(publication.id)
+      assert diff.sources_pt == %{added: ["Pontiero, Giovanni."], removed: [], reordered: false}
+      assert diff.sources_en == nil
+
+      edit(publication, %{sources_pt: ["Moser, Benjamin."], sources_en: ["Moser, Benjamin."]})
 
       assert [%History{diff: diff} | _] = History.of(publication.id)
 
-      assert diff.sources == %{
-               added: [%{"pt" => "Uma fonte", "en" => "A source"}],
-               removed: [%{"pt" => "Uma fonte", "en" => nil}],
+      assert diff.sources_pt == %{
+               added: ["Moser, Benjamin."],
+               removed: ["Pontiero, Giovanni."],
                reordered: false
              }
+
+      assert diff.sources_en == %{added: ["Moser, Benjamin."], removed: [], reordered: false}
     end
 
     test "the same sources in a new order is a reorder", %{publication: publication} do
-      edit(publication, %{sources: ["Alpha", "Beta"]})
-      edit(publication, %{sources: ["Beta", "Alpha"]})
+      edit(publication, %{sources_en: ["Alpha", "Beta"]})
+      edit(publication, %{sources_en: ["Beta", "Alpha"]})
 
       assert [%History{diff: diff} | _] = History.of(publication.id)
-      assert diff.sources == %{added: [], removed: [], reordered: true}
-    end
-
-    test "a snapshot stored with notes in one language and sources as strings reads in the current shape",
-         %{publication: publication} do
-      notes = paragraphs("Uma nota.")
-      [created] = History.of(publication.id)
-
-      old =
-        created.snapshot
-        |> Map.drop(["notes_pt", "notes_en"])
-        |> Map.merge(%{"notes" => notes, "sources" => ["Pontiero, Giovanni."]})
-
-      insert_entry(publication, 2, old)
-
-      assert [%History{snapshot: snapshot, diff: diff} | _] = History.of(publication.id)
-
-      assert snapshot["notes_pt"] == notes
-      refute Map.has_key?(snapshot, "notes")
-      assert snapshot["sources"] == [%{"pt" => "Pontiero, Giovanni.", "en" => nil}]
-
-      assert diff.fields == %{"notes_pt" => %{from: nil, to: notes}}
-      assert diff.sources.added == [%{"pt" => "Pontiero, Giovanni.", "en" => nil}]
-
-      # The next update, recorded in the current shape, reports only what it
-      # changed, not the change of shape.
-      edit(publication, %{
-        title: "Dom Casmurro: A Novel",
-        notes_pt: notes,
-        sources: [%{"pt" => "Pontiero, Giovanni.", "en" => nil}]
-      })
-
-      assert [%History{diff: diff} | _] = History.of(publication.id)
-      assert Map.keys(diff.fields) == ["title"]
-      assert diff.sources == nil
-    end
-
-    test "the snapshots of the other publications read in the current shape",
-         %{publication: publication} do
-      [created] = History.of(publication.id)
-      old = created.snapshot |> Map.drop(["notes_pt", "notes_en"]) |> Map.put("notes", nil)
-
-      %History{}
-      |> History.changeset(%{
-        publication_id: publication.id,
-        version: 2,
-        action: "distinguished",
-        snapshot: created.snapshot,
-        actor: "a@b.com",
-        others: %{"999" => Map.merge(old, %{"id" => 999, "sources" => ["Uma fonte"]})}
-      })
-      |> Repo.insert!()
-
-      assert [entry | _] = History.of(publication.id)
-      assert [other] = History.other_records(entry)
-      assert %{"notes_pt" => nil, "sources" => [%{"pt" => "Uma fonte", "en" => nil}]} = other
-      refute Map.has_key?(other, "notes")
+      assert diff.sources_en == %{added: [], removed: [], reordered: true}
+      assert diff.sources_pt == nil
     end
 
     test "only updates carry a diff", %{publication: publication} do
@@ -563,45 +484,6 @@ defmodule RichardBurton.Publication.HistoryTest do
       assert {:ok, reverted} = Publication.undo(publication.id, version, "a@b.com")
       assert reverted.notes_pt == nil
       assert reverted.notes_en == nil
-    end
-
-    test "undoing an update over an entry stored in the old shape puts the old values back",
-         %{publication: publication} do
-      notes = paragraphs("Uma nota.")
-      [created] = History.of(publication.id)
-
-      # The publication gets the notes and the source that an entry stored in
-      # the old shape records, without an entry of its own.
-      Repo.update_all(from(p in Publication, where: p.id == ^publication.id),
-        set: [notes_pt: notes]
-      )
-
-      Repo.insert!(%Source{
-        publication_id: publication.id,
-        content_pt: "Pontiero, Giovanni.",
-        position: 0
-      })
-
-      old =
-        created.snapshot
-        |> Map.drop(["notes_pt", "notes_en"])
-        |> Map.merge(%{"notes" => notes, "sources" => ["Pontiero, Giovanni."]})
-
-      insert_entry(publication, 2, old)
-
-      {:ok, _} =
-        Publication.update(
-          publication.id,
-          publication_attrs(%{notes_pt: paragraphs("Outra nota."), sources: []}),
-          "a@b.com"
-        )
-
-      assert {:ok, reverted} = Publication.undo(publication.id, 3, "a@b.com")
-      assert reverted.notes_pt == notes
-      assert reverted.notes_en == nil
-
-      assert [%{"pt" => "Pontiero, Giovanni.", "en" => nil}] ==
-               reverted |> Publication.Codec.flatten() |> Map.get(:sources)
     end
 
     test "an update is undone by putting its fields back", %{publication: publication} do

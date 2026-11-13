@@ -10,9 +10,9 @@ import {
   PublicationError,
   PublicationKey,
   empty,
+  type ErrorScope,
   type FollowedPublication,
   type PublicationEntry,
-  type Source,
 } from "modules/publication/model";
 import type { PresenceList } from "modules/publication/document-live";
 import type { At } from "modules/publication/presence";
@@ -30,19 +30,12 @@ import {
 type SeedEntry = Partial<Publication> & { errors?: PublicationError };
 
 /**
- * Returns a source with `pt` as its Portuguese text and `en` as its English
- * one. `en` defaults to none.
- */
-function source(pt: string | null, en: string | null = null): Source {
-  return { pt, en };
-}
-
-/**
  * Returns `errors` as a row's field errors, which name only the invalid
- * fields, as the backend's do.
+ * fields, as the backend's do. A field may be an attribute, or the notes or
+ * the sources in one language.
  */
 function fieldErrors(
-  errors: Partial<Record<PublicationKey, string>>,
+  errors: Partial<Record<ErrorScope, string>>,
 ): PublicationError {
   return errors as Record<PublicationKey, string>;
 }
@@ -313,7 +306,6 @@ export {
   sampleManyPublications,
   seed,
   seedIndex,
-  source,
   FIRST_DOM_CASMURRO,
   LONDON_DOM_CASMURRO,
   LOOK_ALIKE_IDS,

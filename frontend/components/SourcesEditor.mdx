@@ -17,34 +17,33 @@ sources backfill.
 
 Unlike the array cell editors (authors, publishers), a source is not a
 comma-joined string but a genuine ordered list: provenance is free text that may
-itself contain commas. Each source has a text in Portuguese and a text in
-English, either of which may be missing. The `value` is therefore a list of
-`{ pt, en }` sources, and every action — add, edit, remove, reorder — produces a
-**new list** through `onChange`. The component keeps no sources of its own;
-the parent owns the list (in the app, the publication's row in the store).
+itself contain commas. A publication has one such list in Portuguese and
+another in English. The `value` holds both lists, and every action — add, edit,
+remove, reorder — passes its language and that language's **new list** to
+`onChange`. The component keeps no sources of its own; the parent owns the
+lists (in the app, the publication's row in the store).
 
 Reordering is a plain swap driven by the ↑/↓ controls (bounded at the ends,
-no drag). Sources with no text in either language are allowed while editing and
-dropped server-side on save, so an empty row never blocks a submit.
+no drag). Blank sources are allowed while editing and dropped server-side on
+save, so an empty row never blocks a submit.
 
 <Description of={SourcesEditorStories.Default} />
 <Canvas of={SourcesEditorStories.Default} />
 
 ## Props
 
-- `value` — the sources, in order, each with its text in each language.
-- `onChange` — receives the new list after each action.
-- `error` — an error with the sources, shown under the list.
+- `value` — the sources of each language, `{ pt, en }`, each a list in order.
+- `onChange` — receives the language and its new list after each action.
+- `errors` — what is wrong with the list of each language, shown under that
+  list, with its tab shown in red.
 
 ## Two languages
 
-The list is shown in a tab for each language (see
+Each language's list is shown in a tab of its own (see
 [language tabs](?path=/docs/components-language-tabs--docs)), and the tab of
-the reader's language is selected at first. Both tabs list the same sources in
-the same order: adding, removing or moving a source does so in both
-languages, and typing in a tab sets the source's text in that tab's language.
-A source with no text in the tab's language shows its text in the other
-language as its placeholder.
+the reader's language is selected at first. The two lists are independent: a
+source in one list has no counterpart in the other, and adding, removing,
+moving or editing a source in one tab leaves the other tab's list as it is.
 
 <Description of={SourcesEditorStories.InBothLanguages} />
 <Canvas of={SourcesEditorStories.InBothLanguages} />
@@ -52,15 +51,17 @@ language as its placeholder.
 ## Drafting the other language
 
 Beside the tabs, a [draft button](?path=/docs/components-draft-button--docs)
-drafts, in a browser that can translate, the text of each source that has none
-in the selected tab's language from its text in the other language. Sources
-that already have text in that language are left alone. A source cites works
-by their titles, which must stay as written, and the browser's translation
-model cannot be told to keep them, so the tab asks to check the titles after a
-draft.
+drafts, in a browser that can translate, the selected tab's list from the other
+language's list, translating each source that is not blank. A source cites
+works by their titles, which must stay as written, and the browser's
+translation model cannot be told to keep them, so the tab asks to check the
+titles after a draft.
 
 <Description of={SourcesEditorStories.DraftedFromPortuguese} />
 <Canvas of={SourcesEditorStories.DraftedFromPortuguese} />
+
+<Description of={SourcesEditorStories.ReplacingSources} />
+<Canvas of={SourcesEditorStories.ReplacingSources} />
 
 ## States
 

@@ -100,7 +100,8 @@ defmodule RichardBurton.Publication.Import do
 
     sources =
       for {id, changeset, _links} <- published,
-          source <- Changeset.get_change(changeset, :sources, []),
+          field <- [:sources_pt, :sources_en],
+          source <- Changeset.get_change(changeset, field, []),
           do: Map.put(source.changes, :publication_id, id)
 
     Repo.insert_in_chunks("publication_countries", country_links)

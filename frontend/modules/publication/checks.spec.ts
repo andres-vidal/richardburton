@@ -4,7 +4,6 @@ import { createStore } from "jotai";
 import * as Y from "yjs";
 
 import type { Store } from "modules/store";
-import { source } from "test/publication-fixtures";
 import { FALLBACK, SETTLE, watchChecks, watchEdit } from "./checks";
 import { empty, type Publication, type PublicationId } from "./model";
 import {
@@ -144,7 +143,7 @@ describe("this client's edits", () => {
     setAll(store, [entry("a", { title: "Dom Casmurro" })]);
     await settled();
 
-    setSources(store, "a", [source("Caldwell, Helen. Introduction.")]);
+    setSources(store, "a", "en", ["Caldwell, Helen. Introduction."]);
     await vi.advanceTimersByTimeAsync(SETTLE);
 
     expect(validated()).toHaveLength(1);

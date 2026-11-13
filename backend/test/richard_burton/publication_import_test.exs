@@ -37,9 +37,8 @@ defmodule RichardBurton.Publication.ImportTest do
       authors: ["James L. Taylor", "Harriet de Onís"],
       original_title: "Grande Sertão: Veredas",
       original_authors: ["João Guimarães Rosa"],
-      sources: [
-        %{"pt" => "Taylor, James. Prefácio, 1963.", "en" => "Taylor, James. Preface, 1963."}
-      ]
+      sources_pt: ["Taylor, James. Prefácio, 1963."],
+      sources_en: ["Taylor, James. Preface, 1963."]
     },
     %{
       title: "The Devil to Pay in the Backlands",
@@ -67,10 +66,8 @@ defmodule RichardBurton.Publication.ImportTest do
       authors: ["Clifford E. Landers"],
       original_title: "Iracema",
       original_authors: ["José de Alencar"],
-      sources: [
-        %{"pt" => nil, "en" => "Landers, Clifford. Introduction."},
-        %{"pt" => "Catálogo da editora.", "en" => nil}
-      ]
+      sources_pt: ["Catálogo da editora."],
+      sources_en: ["Landers, Clifford. Introduction."]
     },
     %{
       title: "Dom Casmurro",
@@ -153,7 +150,8 @@ defmodule RichardBurton.Publication.ImportTest do
       expected =
         Enum.map(@batch, fn row ->
           row
-          |> Map.put_new(:sources, [])
+          |> Map.put_new(:sources_pt, [])
+          |> Map.put_new(:sources_en, [])
           |> Map.take(fields)
           |> Map.new(fn {field, value} ->
             {field, if(field in sorted, do: Enum.sort(value), else: value)}
@@ -172,7 +170,7 @@ defmodule RichardBurton.Publication.ImportTest do
   describe "the error" do
     test "is the later of two rows with the same key" do
       [first, second | _] = Codec.nest(@batch)
-      repeated = Map.put(first, "sources", [%{"content_pt" => "A second copy", "position" => 0}])
+      repeated = Map.put(first, "sources_pt", [%{"content" => "A second copy", "position" => 0}])
 
       assert {:error, {^repeated, :conflict}} =
                Publication.insert_all([first, second, repeated])
@@ -240,7 +238,8 @@ defmodule RichardBurton.Publication.ImportTest do
           authors: ["Translator #{i}"],
           original_title: "Obra #{i}",
           original_authors: ["Author #{i}"],
-          sources: [%{"pt" => "Fonte #{i}", "en" => "Source #{i}"}]
+          sources_pt: ["Fonte #{i}"],
+          sources_en: ["Source #{i}"]
         }
       end
     )

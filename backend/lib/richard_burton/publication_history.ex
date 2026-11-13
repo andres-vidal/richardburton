@@ -64,13 +64,11 @@ defmodule RichardBurton.Publication.History do
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.History
-  alias RichardBurton.Publication.History.Snapshot
   alias RichardBurton.Repo
 
-  # The fields of a flat publication that a snapshot leaves out: the texts of
-  # the sources in each language, which the index reads and the sources
-  # already hold.
-  @unsnapshotted [:sources_pt, :sources_en]
+  # The sources in each language, which a diff reports apart from the other
+  # fields.
+  @sources ["sources_pt", "sources_en"]
 
   # The actions of the duplicate reviewer's decisions. See the module doc.
   @decisions ["distinguished", "reconsidered"]
@@ -90,9 +88,9 @@ defmodule RichardBurton.Publication.History do
   # and they are dropped before a snapshot is written back to a publication.
   @derived ~w[id countries_fingerprint translated_book_fingerprint publishers_fingerprint]
 
-  # The keys the diff leaves out of `fields`. Sources are diffed as a list of
-  # their own, in `sources`.
-  @undiffed ["sources" | @derived]
+  # The keys the diff leaves out of `fields`. The sources of each language are
+  # diffed as a list of their own, under `sources_pt` and `sources_en`.
+  @undiffed @sources ++ @derived
 
   # The fields that hold a set of names. A snapshot lists each one sorted, and
   # two snapshots are compared on the members of each set.
@@ -106,7 +104,7 @@ defmodule RichardBurton.Publication.History do
     field(:publication_id, :integer)
     field(:version, :integer)
     field(:action, :string)
-    field(:snapshot, Snapshot)
+    field(:snapshot, :map)
     field(:actor, :string)
 
     # The other publications this entry is about, as a map from each one's id
@@ -114,7 +112,7 @@ defmodule RichardBurton.Publication.History do
     # back, or a decision is about. Nil on every other entry when it is
     # stored. `of/1` and `all/0` fill it on a rename's entry with the other
     # publications of its rename.
-    field(:others, {:map, Snapshot})
+    field(:others, :map)
 
     # The id that the entries of one rename share. Nil on the entries of every
     # other action.
@@ -386,11 +384,10 @@ defmodule RichardBurton.Publication.History do
   An update, a rename, a merge and an un-merge get a diff, which compares the
   entry's snapshot with the snapshot of the next older entry in its own
   stream. It holds `fields`, each changed field with its value `from` before
-  and `to` after, and `sources`, the sources added and removed, each a flat
-  source (see `RichardBurton.Source`), or nil when the sources did not
-  change. A source whose text changed in one language is one source removed
-  and one added. Every other entry, and the oldest entry of a stream, gets a
-  nil diff.
+  and `to` after, and `sources_pt` and `sources_en`, the sources added and
+  removed in each language, or nil when the sources in that language did not
+  change. Every other entry, and the oldest entry of a stream, gets a nil
+  diff.
 
   An entry is undoable when `undoable?/3` says so, and never while its
   publication is absorbed, because only undoing the merge gives that
@@ -580,11 +577,13 @@ defmodule RichardBurton.Publication.History do
     |> Enum.filter(&field_changed?(previous, current, &1))
   end
 
-  # Returns whether `field` differs between two snapshots. Sources are compared
-  # as lists, with a missing list equal to an empty one. The sets of names are
-  # compared by their members, so a snapshot that lists them in another order
-  # holds the same set.
-  defp field_changed?(a, b, "sources"), do: (a["sources"] || []) != (b["sources"] || [])
+  # Returns whether `field` differs between two snapshots. The sources of each
+  # language are compared as lists, with a missing list equal to an empty one.
+  # The sets of names are compared by their members, so a snapshot that lists
+  # them in another order holds the same set.
+  defp field_changed?(a, b, field) when field in @sources,
+    do: (a[field] || []) != (b[field] || [])
+
   defp field_changed?(a, b, field) when field in @sets, do: sorted(a[field]) != sorted(b[field])
   defp field_changed?(a, b, field), do: a[field] != b[field]
 
@@ -602,7 +601,8 @@ defmodule RichardBurton.Publication.History do
 
   # Returns the difference between two entries' snapshots as raw values: under
   # `fields`, each changed field with its value `from` before and `to` after,
-  # and under `sources`, what `source_change/2` returns.
+  # and under `sources_pt` and `sources_en`, what `source_change/2` returns for
+  # the sources in that language.
   defp compare(%History{snapshot: previous}, %History{snapshot: current}) do
     fields =
       (Map.keys(previous) ++ Map.keys(current))
@@ -611,7 +611,11 @@ defmodule RichardBurton.Publication.History do
       |> Enum.filter(&field_changed?(previous, current, &1))
       |> Map.new(&{&1, %{from: previous[&1], to: current[&1]}})
 
-    %{fields: fields, sources: source_change(previous["sources"], current["sources"])}
+    %{
+      fields: fields,
+      sources_pt: source_change(previous["sources_pt"], current["sources_pt"]),
+      sources_en: source_change(previous["sources_en"], current["sources_en"])
+    }
   end
 
   # Returns the sources `current` added and removed against `previous`, or
@@ -635,9 +639,8 @@ defmodule RichardBurton.Publication.History do
   @doc """
   Returns the snapshot a history entry stores for `publication`: the flat
   fields `RichardBurton.Publication.Codec.flatten/1` returns for it, with
-  atom keys and each set of names sorted, without `sources_pt` and
-  `sources_en`. The publication's associations must be loaded. A snapshot read
-  back from the log is in the shape `History.Snapshot` describes.
+  atom keys and each set of names sorted. The publication's associations must
+  be loaded.
 
   Two snapshots are equal when the publication holds the same values, which a
   changeset cannot tell, because it replaces the sources on every save.
@@ -650,7 +653,8 @@ defmodule RichardBurton.Publication.History do
       ...>   year: 1953,
       ...>   countries: [%Country{code: "US"}],
       ...>   publishers: [%Publisher{name: "Noonday Press"}],
-      ...>   sources: [],
+      ...>   sources_pt: [],
+      ...>   sources_en: [],
       ...>   translated_book: %TranslatedBook{
       ...>     authors: [%Author{name: "Helen Caldwell"}],
       ...>     original_book: %OriginalBook{
@@ -667,7 +671,7 @@ defmodule RichardBurton.Publication.History do
     publication
     |> Codec.flatten()
     |> Map.from_struct()
-    |> Map.drop([:__meta__ | @unsnapshotted])
+    |> Map.delete(:__meta__)
     |> Map.new(fn {field, value} ->
       {field, if(to_string(field) in @sets, do: sorted(value), else: value)}
     end)

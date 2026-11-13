@@ -6,9 +6,10 @@ import {
   usePublicationResemblance,
   usePublicationSources,
 } from "modules/publication/hooks";
+import { shownSources, type Language } from "modules/publication/model";
 import { usePublicationStore } from "modules/publication/workspace";
 import { openReview, setSources } from "modules/publication/store";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { FC, MouseEvent } from "react";
 import Button from "./Button";
 import { Modal, useModal } from "./Modal";
@@ -71,16 +72,18 @@ const RowResemblance: FC<{ rowId: RowId }> = ({ rowId }) => {
 };
 
 /**
- * The cell at the end of a workspace row: a button with the row's source count,
- * which opens the sources editor in a dialog, and the row's look-alike button.
- * Sources are a list rather than one value, so they are edited outside the
+ * The cell at the end of a workspace row: a button with the row's source
+ * count, which opens the sources editor in a dialog, and the row's look-alike
+ * button. The count is that of the sources in the reader's language, or in the
+ * other language when there are none in the reader's (see `shownSources`).
+ * Sources are lists rather than one value, so they are edited outside the
  * attribute grid. Edits are written to the row with `setSources`, and the bulk
  * insert saves them with the rest of the row. A click on either button does
  * not reach the row, so it does not select the row.
  *
- * When the sources have an error, such as sources a file could not pair
- * across the two languages, the button's tooltip says so, and the editor shows
- * it under the list.
+ * When the sources in either language have an error, the button's tooltip
+ * gives it, or the Portuguese one when both languages have one, and the editor
+ * shows each error under its language's list.
  *
  * `invalid`, `selected` and `focused` give the cell the background the
  * row's other cells have in those states. They default to false.
@@ -92,11 +95,18 @@ const WorkspaceSourcesCell: FC<{
   focused?: boolean;
 }> = ({ rowId, invalid = false, selected = false, focused = false }) => {
   const t = useTranslations("admin");
+  const locale = useLocale() as Language;
   const store = usePublicationStore();
   const sources = usePublicationSources(rowId);
-  const error = usePublicationFieldError(rowId, "sources");
+  const errors = {
+    pt: usePublicationFieldError(rowId, "sourcesPt"),
+    en: usePublicationFieldError(rowId, "sourcesEn"),
+  };
+  const error = errors.pt || errors.en;
   const editor = useModal();
-  const count = sources.length;
+  const count =
+    shownSources({ sourcesPt: sources.pt, sourcesEn: sources.en }, locale)
+      ?.sources.length ?? 0;
 
   const openEditor = (event: MouseEvent) => {
     event.stopPropagation();
@@ -133,8 +143,10 @@ const WorkspaceSourcesCell: FC<{
       >
         <SourcesEditor
           value={sources}
-          error={error}
-          onChange={(next) => setSources(store, rowId, next)}
+          errors={errors}
+          onChange={(language, next) =>
+            setSources(store, rowId, language, next)
+          }
         />
       </Modal>
     </div>
