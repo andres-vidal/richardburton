@@ -43,6 +43,12 @@ type TranslatorFactory = {
   ): Promise<BuiltInTranslator>;
 };
 
+/**
+ * The milliseconds `canTranslate` waits for the browser to say whether it can
+ * translate a pair.
+ */
+const ANSWER_TIMEOUT = 3000;
+
 /** Returns the browser's `Translator`, or null when the browser has none. */
 function translatorFactory(): TranslatorFactory | null {
   return typeof self !== "undefined" && "Translator" in self
@@ -54,17 +60,21 @@ function translatorFactory(): TranslatorFactory | null {
  * Returns whether this browser can translate from `from` to `to`: true when
  * the model for the pair is on the computer, is downloading, or can be
  * downloaded, and false when the browser has no Translator API or cannot
- * translate the pair. A failure of the API counts as false.
+ * translate the pair. A failure of the API counts as false, and so does an
+ * API that has not answered after `ANSWER_TIMEOUT`, which is what a browser
+ * that has the API but not its translation service does.
  */
 async function canTranslate(from: Language, to: Language): Promise<boolean> {
   const factory = translatorFactory();
   if (!factory) return false;
 
   try {
-    const availability = await factory.availability({
-      sourceLanguage: from,
-      targetLanguage: to,
-    });
+    const availability = await Promise.race([
+      factory.availability({ sourceLanguage: from, targetLanguage: to }),
+      new Promise<"unavailable">((resolve) =>
+        setTimeout(() => resolve("unavailable"), ANSWER_TIMEOUT),
+      ),
+    ]);
     return availability !== "unavailable";
   } catch {
     return false;

@@ -7,14 +7,20 @@ import {
 import { installFakeTranslator } from "../test/translator";
 import { backendPort, frontendPort } from "./stack";
 
+/** Removes the browser's Translator API from the page it runs in. */
+function removeTranslator() {
+  delete (self as { Translator?: unknown }).Translator;
+}
+
 /**
  * Playwright's `test`, run against the stack of the test's worker, with that
  * worker's database reset before every test.
  *
- * Playwright's Chromium has no built-in Translator API, so every page gets the
- * fake one that `installFakeTranslator` describes before its scripts run. A
- * test about a browser without the API turns it off with
- * `test.use({ translator: false })`.
+ * Playwright's Chromium has the built-in Translator API, but no translation
+ * service behind it, so the API never answers. Every page gets the fake one
+ * that `installFakeTranslator` describes before its scripts run. A test about
+ * a browser without the API uses `test.use({ translator: false })`, which
+ * removes the API from the page instead.
  */
 export const test = base.extend<{
   reset: void;
@@ -30,7 +36,9 @@ export const test = base.extend<{
   },
 
   page: async ({ page, translator }, use) => {
-    if (translator) await page.addInitScript(installFakeTranslator);
+    await page.addInitScript(
+      translator ? installFakeTranslator : removeTranslator,
+    );
     await use(page);
   },
 
@@ -61,7 +69,9 @@ export const test = base.extend<{
 
   colleague: async ({ colleagueContext, translator }, use) => {
     const page = await colleagueContext.newPage();
-    if (translator) await page.addInitScript(installFakeTranslator);
+    await page.addInitScript(
+      translator ? installFakeTranslator : removeTranslator,
+    );
     await use(page);
   },
 });

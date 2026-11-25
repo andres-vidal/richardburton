@@ -39,6 +39,26 @@ describe("canTranslate", () => {
   });
 });
 
+describe("canTranslate, with an API that does not answer", () => {
+  test("is false once the wait is over", async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(self, "Translator", {
+      configurable: true,
+      value: { availability: () => new Promise(() => {}) },
+    });
+
+    try {
+      const answer = canTranslate("pt", "en");
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(await answer).toBe(false);
+    } finally {
+      delete (self as { Translator?: unknown }).Translator;
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("translateAll", () => {
   test("translates each text in order, passes blank ones through, and reports the download", async () => {
     const uninstall = installFakeTranslator();
