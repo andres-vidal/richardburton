@@ -188,7 +188,11 @@ test("an admin sources a publication in Portuguese, drafts the English list, and
   const address = new URL(page.url()).pathname;
   await edit(dialog);
 
-  // Three sources, written in Portuguese, in the Portuguese tab.
+  // Three sources, written in Portuguese, in the Portuguese tab, which says
+  // it is empty until the first one is added.
+  await expect(
+    tab(dialog, "Language of the sources", "Português"),
+  ).toHaveAccessibleDescription("empty");
   await tab(dialog, "Language of the sources", "Português").click();
   const portuguese = [
     "Amado, Jorge. Gabriela, Cravo e Canela. Martins, 1958.",
@@ -576,7 +580,7 @@ test("drafting over notes that a tab already holds asks first, and cancelling ke
 test.describe("in a browser without the Translator API", () => {
   test.use({ translator: false });
 
-  test("the editors offer no draft, and notes and sources are still written in both languages", async ({
+  test("the draft buttons are disabled and say which browsers can draft, and notes and sources are still written in both languages", async ({
     page,
   }) => {
     await seedCorpus(page);
@@ -588,9 +592,21 @@ test.describe("in a browser without the Translator API", () => {
     await expect(
       dialog.getByRole("textbox", { name: "Notes in English" }),
     ).toBeVisible();
+    // The Portuguese notes are empty, so there is nothing to draft from, and
+    // this browser could not draft from them anyway.
     await expect(
-      dialog.getByRole("button", { name: /^Draft the/ }),
-    ).toHaveCount(0);
+      dialog.getByRole("button", { name: "Draft the notes from Portuguese" }),
+    ).toBeDisabled();
+    await dialog
+      .getByRole("tabpanel", { name: "English" })
+      .getByRole("button", { name: "About drafting in this browser" })
+      .last()
+      .hover();
+    await expect(
+      page.getByText(
+        "This browser cannot draft a translation. Chrome and Edge on a computer can, at no cost.",
+      ),
+    ).toBeVisible();
 
     // The corpus's source is in English. The Portuguese list is empty, and a
     // Portuguese source is typed there by hand.
@@ -607,9 +623,10 @@ test.describe("in a browser without the Translator API", () => {
     await tab(dialog, "Language of the notes", "Português").click();
     await dialog.getByRole("textbox", { name: "Notes in Portuguese" }).click();
     await page.keyboard.type("Traduzido por Giovanni Pontiero.");
+    // With notes in English to draft from, the button is still disabled.
     await expect(
-      dialog.getByRole("button", { name: /^Draft the/ }),
-    ).toHaveCount(0);
+      dialog.getByRole("button", { name: "Draft the notes from English" }),
+    ).toBeDisabled();
     await save(page, dialog);
 
     await expect(

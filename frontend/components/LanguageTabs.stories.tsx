@@ -14,8 +14,9 @@ const Controlled: FC<{
   selected?: Language;
   onSelect?: (language: Language) => void;
   errors?: Partial<Record<Language, string>>;
+  empty?: Partial<Record<Language, boolean>>;
   withActions?: boolean;
-}> = ({ selected: initial = "en", onSelect, errors, withActions }) => {
+}> = ({ selected: initial = "en", onSelect, errors, empty, withActions }) => {
   const [selected, setSelected] = useState(initial);
 
   return (
@@ -27,15 +28,18 @@ const Controlled: FC<{
         onSelect?.(language);
       }}
       errors={errors}
+      empty={empty}
       actions={
-        withActions ? (
-          <Button
-            label="An action"
-            variant="outline"
-            width="fit"
-            size="small"
-          />
-        ) : undefined
+        withActions
+          ? (language) => (
+              <Button
+                label={language === "pt" ? "Uma ação" : "An action"}
+                variant="outline"
+                width="fit"
+                size="small"
+              />
+            )
+          : undefined
       }
     >
       {(language) => (
@@ -75,6 +79,7 @@ const meta = {
       selected={args.selected}
       onSelect={args.onSelect}
       errors={args.errors}
+      empty={args.empty}
     />
   ),
   decorators: [
@@ -166,14 +171,82 @@ export const WithAnError: Story = {
   },
 };
 
-/** A button beside the tabs, at the end of their row. */
+/**
+ * Nothing is written in Portuguese, so the Português tab says it is empty.
+ * The play test checks that the mark describes that tab and no other.
+ */
+export const WithAnEmptyLanguage: Story = {
+  args: { empty: { pt: true, en: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(
+      canvas.getByRole("tab", { name: "Português" }),
+    ).toHaveAccessibleDescription("empty");
+    await expect(
+      canvas.getByRole("tab", { name: "English" }),
+    ).toHaveAccessibleDescription("");
+  },
+};
+
+/**
+ * What acts on a panel is at the top of it. The play test checks that the
+ * selected panel's button shows and the other panel's does not.
+ */
 export const WithActions: Story = {
   render: (args) => (
     <Controlled selected={args.selected} onSelect={args.onSelect} withActions />
   ),
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
     await expect(
-      within(canvasElement).getByRole("button", { name: "An action" }),
+      canvas.getByRole("button", { name: "An action" }),
+    ).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Uma ação" })).toBeNull();
+  },
+};
+
+/**
+ * In a container of 48rem or wider, the two panels show side by side, each
+ * under the name of its language and with its own action, and the tabs are
+ * hidden. The Portuguese panel holds an error, so its name is red. The play
+ * test checks that both panels and both actions show, and no tab does.
+ */
+export const SideBySide: Story = {
+  args: { errors: { pt: "The notes are too long." } },
+  render: (args) => (
+    <Controlled
+      selected={args.selected}
+      onSelect={args.onSelect}
+      errors={args.errors}
+      withActions
+    />
+  ),
+  decorators: [
+    (Story) => (
+      <div className="p-6 w-4xl bg-white rounded-lg border border-gray-200">
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.queryByRole("tab")).toBeNull();
+    await expect(canvas.getByText("Notas em português.")).toBeVisible();
+    await expect(canvas.getByText("Notes in English.")).toBeVisible();
+    await expect(
+      within(canvas.getByRole("tabpanel", { name: "Português" })).getByRole(
+        "button",
+        { name: "Uma ação" },
+      ),
+    ).toBeVisible();
+    await expect(
+      within(canvas.getByRole("tabpanel", { name: "English" })).getByRole(
+        "button",
+        { name: "An action" },
+      ),
     ).toBeVisible();
   },
 };

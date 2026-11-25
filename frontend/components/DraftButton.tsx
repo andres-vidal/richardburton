@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { FC, useEffect, useRef, useState } from "react";
 import Button from "./Button";
 import ConfirmationModal from "./ConfirmationModal";
+import InfoHint from "./InfoHint";
 import { useModal } from "./Modal";
 
 /**
@@ -14,9 +15,10 @@ import { useModal } from "./Modal";
  * `modules/translator`). The draft is made on the reader's computer, costs
  * nothing, and sends no text to a server.
  *
- * It renders nothing in a browser that cannot translate from `from` to `to`,
- * and nothing until that is known. It is disabled while every one of `texts`
- * is blank. A press translates each of `texts` and passes the translations,
+ * It renders nothing until the browser has said whether it can translate
+ * from `from` to `to`. In a browser that cannot, the button is disabled, and
+ * an `InfoHint` beside it says which browsers can. It is also disabled while
+ * every one of `texts` is blank. A press translates each of `texts` and passes the translations,
  * in the same order, to `onDrafted`.
  *
  * With `replacing`, a press first asks, in a `ConfirmationModal` with that
@@ -43,7 +45,8 @@ const DraftButton: FC<{
 }> = ({ label, from, to, texts, replacing, onDrafted }) => {
   const t = useTranslations("draft");
   const confirmation = useModal();
-  const [available, setAvailable] = useState(false);
+  // Whether the browser can translate the pair, or null until it has said.
+  const [available, setAvailable] = useState<boolean | null>(null);
   const [running, setRunning] = useState(false);
   // The share of the model downloaded, from 0 to 1, or null while nothing has
   // been downloaded in this draft.
@@ -117,17 +120,22 @@ const DraftButton: FC<{
       ? t("downloading", { loaded })
       : t("drafting");
 
-  return available ? (
+  return available === null ? null : (
     <div className="flex flex-col gap-1 items-end">
-      <Button
-        label={shown}
-        variant="outline"
-        width="fit"
-        size="small"
-        loading={running}
-        disabled={texts.every((text) => text.trim() === "")}
-        onClick={() => (replacing ? confirmation.open() : draft(false))}
-      />
+      <div className="flex gap-1.5 items-center">
+        <Button
+          label={shown}
+          variant="outline"
+          width="fit"
+          size="small"
+          loading={running}
+          disabled={!available || texts.every((text) => text.trim() === "")}
+          onClick={() => (replacing ? confirmation.open() : draft(false))}
+        />
+        {!available && (
+          <InfoHint label={t("unavailableLabel")} message={t("unavailable")} />
+        )}
+      </div>
       {failed && (
         <p role="alert" className="text-xs text-red-700">
           {t("failed")}
@@ -144,7 +152,7 @@ const DraftButton: FC<{
         />
       )}
     </div>
-  ) : null;
+  );
 };
 
 export default DraftButton;

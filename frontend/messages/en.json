@@ -7,6 +7,7 @@
   },
   "language": {
     "en": "English",
+    "empty": "empty",
     "pt": "Português",
     "switchTo": "Switch to {language}"
   },
@@ -790,6 +791,8 @@
     "unsavedDetail": "What you typed is on this computer and has not reached the server. Trying again."
   },
   "draft": {
+    "unavailableLabel": "About drafting in this browser",
+    "unavailable": "This browser cannot draft a translation. Chrome and Edge on a computer can, at no cost.",
     "downloading": "Downloading the translation model… {loaded, number, percent}",
     "drafting": "Drafting…",
     "failed": "The draft could not be made. Try again.",

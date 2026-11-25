@@ -258,20 +258,26 @@ export const Failed: Story = {
 
 /**
  * A browser without the Translator API, such as Firefox or Safari: the button
- * renders nothing.
+ * is disabled, and a hint beside it says which browsers can draft. The play
+ * test checks the button and reads the hint.
  */
 export const WithoutTheTranslatorApi: Story = {
-  render: (args) => (
-    <div>
-      <p className="text-sm text-gray-600">Nothing to draft with here.</p>
-      <DraftButton {...args} />
-    </div>
-  ),
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
     await expect(
-      await within(canvasElement).findByText("Nothing to draft with here."),
+      await canvas.findByRole("button", {
+        name: "Draft the notes from Portuguese",
+      }),
+    ).toBeDisabled();
+
+    await userEvent.hover(
+      canvas.getByRole("button", { name: "About drafting in this browser" }),
+    );
+    await expect(
+      await screen.findByText(
+        "This browser cannot draft a translation. Chrome and Edge on a computer can, at no cost.",
+      ),
     ).toBeVisible();
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    await expect(within(canvasElement).queryByRole("button")).toBeNull();
   },
 };

@@ -6,9 +6,11 @@ import * as NotesEditorStories from "./NotesEditor.stories";
 
 # Notes editor
 
-Edits a publication's notes in Portuguese and in English, each in a tab of
-its own (see [language tabs](?path=/docs/components-language-tabs--docs)).
-Each tab holds a
+Edits a publication's notes in Portuguese and in English, each in a panel of
+its own (see [language tabs](?path=/docs/components-language-tabs--docs)):
+one tab for each language where there is little room, and the two side by
+side where the editor is 48rem wide or wider. A tab with no notes says it is
+empty. Each panel holds a
 [lazy rich text area](?path=/docs/components-lazy-rich-text-area--docs)
 named for the notes in its language. Neither version is the original: either
 can be written first, and either can exist without the other. The tab of the
@@ -42,11 +44,16 @@ it proposes.
 <Description of={NotesEditorStories.WithAnError} />
 <Canvas of={NotesEditorStories.WithAnError} />
 
+<Description of={NotesEditorStories.SideBySide} />
+<Canvas of={NotesEditorStories.SideBySide} />
+
 ## Drafting the other language
 
-Beside the tabs, a [draft button](?path=/docs/components-draft-button--docs)
-drafts the notes of the selected tab from the notes in the other language, in a
-browser whose built-in Translator API can translate the pair. The browser's API
+At the top of each panel, a
+[draft button](?path=/docs/components-draft-button--docs) drafts the notes of
+that panel from the notes in the other language, in a browser whose built-in
+Translator API can translate the pair. In any other browser the button is
+disabled and says which browsers can. The browser's API
 takes plain text, so the draft keeps the blocks of the other language's notes,
 each paragraph or list item with its list and its depth, and translates the
 text of each one (see `withBlockTexts` in `modules/rich-text`). Bold and italic

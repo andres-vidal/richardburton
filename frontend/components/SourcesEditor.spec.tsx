@@ -77,7 +77,9 @@ describe("SourcesEditor", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Add source" }));
+    fireEvent.click(
+      panel("English").getByRole("button", { name: "Add source" }),
+    );
     selectPortuguese();
     fireEvent.click(
       panel("Português").getByRole("button", { name: "Add source" }),
@@ -112,7 +114,9 @@ describe("SourcesEditor", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove source 1" }));
+    fireEvent.click(
+      panel("English").getByRole("button", { name: "Remove source 1" }),
+    );
 
     expect(onChange).toHaveBeenCalledWith("en", ["Second"]);
   });

@@ -133,8 +133,11 @@ test("an admin writes formatted notes that every reader sees, and a later save o
     .getByRole("listbox", { name: "Publications missing sources" })
     .getByRole("option", { name: "Barren Lives" })
     .click();
-  await page.getByRole("button", { name: "Add source" }).click();
-  await page
+  // The page is wide enough to show the lists of both languages side by
+  // side, so the source is added in the English one.
+  const english = page.getByRole("tabpanel", { name: "English" });
+  await english.getByRole("button", { name: "Add source" }).click();
+  await english
     .getByRole("textbox", { name: "Source 1" })
     .fill("Dimmick, Ralph. Translator's note, 1965.");
   await page.getByRole("button", { name: "Save", exact: true }).click();

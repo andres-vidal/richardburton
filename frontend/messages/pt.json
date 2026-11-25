@@ -7,6 +7,7 @@
   },
   "language": {
     "en": "English",
+    "empty": "vazio",
     "pt": "Português",
     "switchTo": "Mudar para {language}"
   },
@@ -790,6 +791,8 @@
     "unsavedDetail": "O que você digitou está neste computador e não chegou ao servidor. Tentando novamente."
   },
   "draft": {
+    "unavailableLabel": "Sobre o rascunho neste navegador",
+    "unavailable": "Este navegador não consegue fazer o rascunho de uma tradução. O Chrome e o Edge em um computador conseguem, sem custo.",
     "downloading": "Baixando o modelo de tradução… {loaded, number, percent}",
     "drafting": "Traduzindo…",
     "failed": "Não foi possível fazer o rascunho. Tente de novo.",

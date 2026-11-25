@@ -91,6 +91,31 @@ export const Default: Story = {
   },
 };
 
+/**
+ * In a container of 48rem or wider, the notes in the two languages show side
+ * by side, each under the name of its language. The play test checks that
+ * both show at once and that there are no tabs.
+ */
+export const SideBySide: Story = {
+  args: Default.args,
+  decorators: [
+    (Story) => (
+      <div className="p-6 w-4xl bg-white rounded-lg border border-gray-200">
+        <Story />
+      </div>
+    ),
+  ],
+  play: async () => {
+    await expect(
+      await screen.findByRole("textbox", { name: "Notes in English" }),
+    ).toBeVisible();
+    await expect(
+      await screen.findByRole("textbox", { name: "Notes in Portuguese" }),
+    ).toBeVisible();
+    await expect(screen.queryByRole("tab")).toBeNull();
+  },
+};
+
 /** No notes in either language: each tab shows the placeholder. */
 export const Empty: Story = {
   play: async () => {
@@ -210,17 +235,21 @@ export const ReplacingNotes: Story = {
 };
 
 /**
- * A browser without the Translator API: the tabs have no draft button, and
- * both languages can still be edited.
+ * A browser without the Translator API: the draft button is disabled, with a
+ * hint beside it, and both languages can still be edited.
  */
 export const WithoutTheTranslatorApi: Story = {
   args: { value: { pt: [paragraph("Um clássico.")], en: null } },
   play: async () => {
     await screen.findByRole("textbox", { name: "Notes in English" });
-    await new Promise((resolve) => setTimeout(resolve, 100));
 
     await expect(
-      screen.queryByRole("button", { name: "Draft the notes from Portuguese" }),
-    ).toBeNull();
+      await screen.findByRole("button", {
+        name: "Draft the notes from Portuguese",
+      }),
+    ).toBeDisabled();
+    await expect(
+      screen.getByRole("button", { name: "About drafting in this browser" }),
+    ).toBeVisible();
   },
 };

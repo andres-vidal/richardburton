@@ -196,6 +196,52 @@ export const InBothLanguages: Story = {
 };
 
 /**
+ * In a container of 48rem or wider, the two lists show side by side, each
+ * under the name of its language and with its own draft button. The play
+ * test adds a source to the Portuguese list while the English list shows
+ * beside it, and checks that only the Portuguese list is passed on.
+ */
+export const SideBySide: Story = {
+  args: InBothLanguages.args,
+  beforeEach: installFakeTranslator,
+  decorators: [
+    (Story) => (
+      <div className="p-6 w-4xl bg-white rounded-lg border border-gray-200">
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const portuguese = panel(canvas, "Português");
+    const english = panel(canvas, "English");
+
+    await expect(canvas.queryByRole("tab")).toBeNull();
+    await expect(portuguese.getAllByRole("textbox")).toHaveLength(2);
+    await expect(english.getByLabelText("Source 1")).toBeVisible();
+    await expect(
+      await english.findByRole("button", {
+        name: "Draft the sources from Portuguese",
+      }),
+    ).toBeVisible();
+    await expect(
+      await portuguese.findByRole("button", {
+        name: "Draft the sources from English",
+      }),
+    ).toBeVisible();
+
+    await userEvent.click(
+      portuguese.getByRole("button", { name: "Add source" }),
+    );
+    await expect(args.onChange).toHaveBeenLastCalledWith("pt", [
+      "Caldwell, Helen. Introdução a Dom Casmurro, 1953.",
+      "Sousa, J. Galante de. Bibliografia de Machado de Assis, 1955.",
+      "",
+    ]);
+  },
+};
+
+/**
  * Reordering swaps adjacent entries on screen: moving row 2 up swaps the two.
  * The play test checks that the other language's list keeps its order.
  */

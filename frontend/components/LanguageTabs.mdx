@@ -7,8 +7,10 @@ import * as LanguageTabsStories from "./LanguageTabs.stories";
 # Language tabs
 
 A tab for each language a publication's notes and sources are written in,
-Português and English, and a panel for each. Only the selected panel shows.
-The [notes editor](?path=/docs/publications-notes-editor--docs) and the
+Português and English, and a panel for each. Where there is little room, only
+the selected panel shows. In a container of 48rem or wider, the tabs are
+hidden and the two panels show side by side, so the text in one language can
+be read while the other is written. The [notes editor](?path=/docs/publications-notes-editor--docs) and the
 [sources editor](?path=/docs/publications-sources-editor--docs) put the text of
 each language in its panel.
 
@@ -23,10 +25,13 @@ each language in its panel.
   receives a language when its tab is chosen. The caller keeps the selection.
 - `errors` — the error of each language whose panel holds one. Their tab is
   shown in red, whether or not it is selected.
-- `actions` — content shown at the end of the row of tabs, such as a button
-  that acts on the selected panel.
+- `empty` — the languages nothing is written in. Their tab says so, in a mark
+  after its name that is also the tab's description.
+- `actions` — a function that renders what acts on a language's panel, such
+  as a button that fills it. It is shown at the top of that panel.
 - `children` — a function that renders the content of a language's panel.
-  Both panels stay mounted, so a field in the hidden panel keeps its state.
+  Both panels stay mounted, so a field in a panel that does not show keeps
+  its state.
 
 ## Keyboard
 
@@ -42,5 +47,13 @@ and move the focus to it.
 <Description of={LanguageTabsStories.WithAnError} />
 <Canvas of={LanguageTabsStories.WithAnError} />
 
+<Description of={LanguageTabsStories.WithAnEmptyLanguage} />
+<Canvas of={LanguageTabsStories.WithAnEmptyLanguage} />
+
 <Description of={LanguageTabsStories.WithActions} />
 <Canvas of={LanguageTabsStories.WithActions} />
+
+## Side by side
+
+<Description of={LanguageTabsStories.SideBySide} />
+<Canvas of={LanguageTabsStories.SideBySide} />

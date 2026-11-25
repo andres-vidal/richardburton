@@ -1,7 +1,11 @@
 "use client";
 
 import { useLanguage } from "modules/publication/hooks";
-import { otherLanguage, type Language } from "modules/publication/model";
+import {
+  byLanguage,
+  otherLanguage,
+  type Language,
+} from "modules/publication/model";
 import { useTranslations } from "next-intl";
 import { FC, useState } from "react";
 import Button from "./Button";
@@ -112,20 +116,22 @@ const SourceList: FC<{
 
 /**
  * Edits a publication's sources in each language. Each language's sources are
- * an ordered list of free text of their own, in a tab of their own (see
- * `LanguageTabs`). The two lists are independent: adding, editing, removing or
- * moving a source in one tab leaves the other tab's list as it is. The tab of
- * the reader's language is selected at first, and only the selected tab's
- * list is rendered, so the inputs of the two lists never share a name.
+ * an ordered list of free text of their own, in a panel of their own (see
+ * `LanguageTabs`): one tab for each language where there is little room, and
+ * the two lists side by side where there is enough. The two lists are
+ * independent: adding, editing, removing or moving a source in one leaves the
+ * other as it is. The tab of the reader's language is selected at first, and
+ * a tab whose list has no sources says it is empty. The inputs of the two
+ * lists have the same names, so each is told apart by its panel.
  *
  * `value` holds the list of each language. An edit passes the language and its
  * whole new list to `onChange`. The component keeps no sources of its own.
  *
- * Beside the tabs, a `DraftButton` drafts, in a browser that can translate,
- * the selected tab's list from the other language's list: each source of that
- * list that is not blank, translated, in the same order. It asks before it
- * replaces sources the tab already has. After a draft, the tab says to check
- * the titles in the drafted sources.
+ * At the top of each panel, a `DraftButton` drafts that panel's list from the
+ * other language's list: each source of that list that is not blank,
+ * translated, in the same order. It asks before it replaces sources the panel
+ * already has. After a draft, the panel says to check the titles in the
+ * drafted sources.
  *
  * `errors` holds what is wrong with the list of each language. Each error is
  * shown under its tab's list, and a tab whose list has an error is shown in
@@ -140,16 +146,8 @@ const SourcesEditor: FC<{
   const draft = useTranslations("draft");
   const attribute = useTranslations("attributes");
   const [selected, setSelected] = useState(useLanguage());
-  // The language of the last draft, whose tab asks to check the titles.
-  const [drafted, setDrafted] = useState<Language | null>(null);
-  const from = otherLanguage(selected);
-  // The sources a draft translates: the other language's, without blank ones.
-  const drafting = value[from].filter((source) => source.trim() !== "");
-
-  function fill(sources: string[]) {
-    onChange(selected, sources);
-    setDrafted(selected);
-  }
+  // The languages a draft filled, whose panels ask to check the titles.
+  const [drafted, setDrafted] = useState<Language[]>([]);
 
   return (
     <section className="flex flex-col gap-2">
@@ -163,44 +161,49 @@ const SourcesEditor: FC<{
         selected={selected}
         onSelect={setSelected}
         errors={errors}
-        actions={
-          <DraftButton
-            key={selected}
-            label={t("draftSourcesFrom", { language: from })}
-            from={from}
-            to={selected}
-            texts={drafting}
-            replacing={
-              value[selected].length === 0
-                ? undefined
-                : {
-                    title: t("replaceSourcesTitle", { language: selected }),
-                    message: t("replaceSourcesMessage"),
-                  }
-            }
-            onDrafted={fill}
-          />
-        }
+        empty={byLanguage((language) => value[language].length === 0)}
+        actions={(language) => {
+          const from = otherLanguage(language);
+
+          return (
+            <DraftButton
+              label={t("draftSourcesFrom", { language: from })}
+              from={from}
+              to={language}
+              texts={value[from].filter((source) => source.trim() !== "")}
+              replacing={
+                value[language].length === 0
+                  ? undefined
+                  : {
+                      title: t("replaceSourcesTitle", { language }),
+                      message: t("replaceSourcesMessage"),
+                    }
+              }
+              onDrafted={(sources) => {
+                onChange(language, sources);
+                setDrafted((languages) => [...languages, language]);
+              }}
+            />
+          );
+        }}
       >
-        {(language) =>
-          language === selected ? (
-            <div className="flex flex-col gap-2">
-              <SourceList
-                language={language}
-                value={value[language]}
-                onChange={(next) => onChange(language, next)}
-              />
-              {drafted === language && (
-                <p role="status" className="text-xs text-amber-700">
-                  {draft("checkTitles")}
-                </p>
-              )}
-              {errors[language] && (
-                <p className="text-xs text-red-600">{errors[language]}</p>
-              )}
-            </div>
-          ) : null
-        }
+        {(language) => (
+          <div className="flex flex-col gap-2">
+            <SourceList
+              language={language}
+              value={value[language]}
+              onChange={(next) => onChange(language, next)}
+            />
+            {drafted.includes(language) && (
+              <p role="status" className="text-xs text-amber-700">
+                {draft("checkTitles")}
+              </p>
+            )}
+            {errors[language] && (
+              <p className="text-xs text-red-600">{errors[language]}</p>
+            )}
+          </div>
+        )}
       </LanguageTabs>
     </section>
   );
