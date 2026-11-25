@@ -377,8 +377,8 @@ const NOTES_MAX_LENGTH = 10_000;
  */
 const EDITED_FIELDS: ErrorScope[] = [
   ...ATTRIBUTES,
-  ...LANGUAGES.map((language) => SOURCES_KEYS[language]),
-  ...LANGUAGES.map((language) => NOTES_KEYS[language]),
+  ...Object.values(SOURCES_KEYS),
+  ...Object.values(NOTES_KEYS),
 ];
 
 /**
@@ -561,7 +561,7 @@ type Contrast = {
 const WHOLE_VALUES: ContrastedKey[] = [
   "year",
   "countries",
-  ...LANGUAGES.map((language) => SOURCES_KEYS[language]),
+  ...Object.values(SOURCES_KEYS),
 ];
 
 /**

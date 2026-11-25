@@ -4,14 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { mapValues } from "lodash";
 import { useMemo } from "react";
 import { useCountryNaming } from "modules/country-names";
-import {
-  Publication,
-  PublicationId,
-  PublicationKey,
-  byLanguage,
-  errorCode,
-  marking,
-} from "./model";
+import { Publication, PublicationId, PublicationKey, marking } from "./model";
 import type { ErrorScope, Language, Marking } from "./model";
 import {
   areRowIdsVisibleAtom,
@@ -206,11 +199,10 @@ function usePublicationFieldErrors(
   id: PublicationId,
   keys: Record<Language, ErrorScope>,
 ): Record<Language, string> {
-  const error = useAtomValue(rowErrorFamily(id));
-
-  return useErrorSentences(
-    byLanguage((language) => errorCode(error, keys[language])),
-  );
+  return useErrorSentences({
+    pt: useAtomValue(fieldErrorCodeFamily({ id, key: keys.pt })),
+    en: useAtomValue(fieldErrorCodeFamily({ id, key: keys.en })),
+  });
 }
 
 /** Whether nothing is wrong with a row. */

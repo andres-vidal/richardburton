@@ -146,8 +146,11 @@ const SourcesEditor: FC<{
   const draft = useTranslations("draft");
   const attribute = useTranslations("attributes");
   const [selected, setSelected] = useState(useLanguage());
-  // The languages a draft filled, whose panels ask to check the titles.
-  const [drafted, setDrafted] = useState<Language[]>([]);
+  // Whether a draft filled the list in each language, whose panel then asks
+  // to check the titles.
+  const [drafted, setDrafted] = useState<Partial<Record<Language, boolean>>>(
+    {},
+  );
 
   return (
     <section className="flex flex-col gap-2">
@@ -181,7 +184,7 @@ const SourcesEditor: FC<{
               }
               onDrafted={(sources) => {
                 onChange(language, sources);
-                setDrafted((languages) => [...languages, language]);
+                setDrafted((before) => ({ ...before, [language]: true }));
               }}
             />
           );
@@ -194,7 +197,7 @@ const SourcesEditor: FC<{
               value={value[language]}
               onChange={(next) => onChange(language, next)}
             />
-            {drafted.includes(language) && (
+            {drafted[language] && (
               <p role="status" className="text-xs text-amber-700">
                 {draft("checkTitles")}
               </p>

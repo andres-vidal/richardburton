@@ -1,5 +1,10 @@
 import { test, expect } from "./fixtures";
-import { seedCorpus, openPublicationModal, CORPUS_UNSOURCED } from "./helpers";
+import {
+  seedCorpus,
+  openPublicationModal,
+  inPortuguese,
+  CORPUS_UNSOURCED,
+} from "./helpers";
 
 test("the wizard queues only unsourced publications and sources one in both languages, side by side", async ({
   page,
@@ -72,7 +77,7 @@ test("the wizard queues only unsourced publications and sources one in both lang
     dialog.getByRole("region", { name: "Sources" }).locator("li"),
   ).toHaveText(["Dimmick, Ralph. Translator's note, 1965."]);
 
-  await page.goto(new URL(page.url()).pathname.replace(/^\/(en\/)?/, "/pt/"));
+  await page.goto(inPortuguese(new URL(page.url()).pathname));
   await expect(
     page.getByRole("region", { name: "Fontes" }).locator("li"),
   ).toHaveText([

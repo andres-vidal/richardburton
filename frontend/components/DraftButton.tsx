@@ -52,9 +52,9 @@ const DraftButton: FC<{
   // been downloaded in this draft.
   const [loaded, setLoaded] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
-  // Passes on translations that are ready but wait for the question to be
-  // answered, or null when none wait.
-  const [held, setHeld] = useState<(() => void) | null>(null);
+  // The translations that are ready but wait for the question to be answered,
+  // or null when none wait.
+  const [held, setHeld] = useState<string[] | null>(null);
   // Whether the last render had `replacing`, for a draft that finishes after
   // the render it started in.
   const replaces = useRef(Boolean(replacing));
@@ -89,7 +89,7 @@ const DraftButton: FC<{
       const translations = await translateAll(texts, from, to, setLoaded);
 
       if (replaces.current && !asked) {
-        setHeld(() => () => onDrafted(translations));
+        setHeld(translations);
         confirmation.open();
       } else {
         onDrafted(translations);
@@ -104,7 +104,7 @@ const DraftButton: FC<{
   // Passes on the held translations, which the person agreed to.
   function replace() {
     confirmation.close();
-    held?.();
+    if (held) onDrafted(held);
     setHeld(null);
   }
 

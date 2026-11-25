@@ -30,7 +30,7 @@ defmodule RichardBurtonWeb.PublicationController do
   alias RichardBurton.Publication
 
   # The keys of the notes in each language in a history snapshot.
-  @notes_keys Enum.map(Language.fields(:notes), &Atom.to_string/1)
+  @notes_keys Language.keys(:notes)
 
   @doc """
   Lists the publications in the index.

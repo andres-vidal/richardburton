@@ -70,7 +70,7 @@ defmodule RichardBurton.Publication.History do
   # The sources in each language, which a diff reports apart from the other
   # fields: the keys of a diff, and the keys of a snapshot.
   @source_fields Language.fields(:sources)
-  @sources Enum.map(@source_fields, &Atom.to_string/1)
+  @sources Language.keys(:sources)
 
   # The actions of the duplicate reviewer's decisions. See the module doc.
   @decisions ["distinguished", "reconsidered"]

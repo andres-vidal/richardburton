@@ -518,3 +518,8 @@ export const IMPORT_ROWS = [
 
 /** `IMPORT_ROWS` as a CSV. */
 export const IMPORT_CSV = csv(IMPORT_ROWS);
+
+/** Returns the address of the page at `pathname`, in Portuguese. */
+export function inPortuguese(pathname: string): string {
+  return pathname.replace(/^\/(en\/)?/, "/pt/");
+}

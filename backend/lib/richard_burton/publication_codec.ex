@@ -110,8 +110,8 @@ defmodule RichardBurton.Publication.Codec do
   }
 
   # The keys of the notes and of the sources in each language.
-  @notes Enum.map(Language.fields(:notes), &Atom.to_string/1)
-  @sources Enum.map(Language.fields(:sources), &Atom.to_string/1)
+  @notes Language.keys(:notes)
+  @sources Language.keys(:sources)
 
   @doc """
   Reads a CSV of publications: one row each, columns named by a header.
@@ -139,7 +139,7 @@ defmodule RichardBurton.Publication.Codec do
     try do
       rows = path |> File.stream!() |> CSV.decode!(headers: true) |> Enum.to_list()
 
-      if Enum.any?(rows, &without_language?/1) do
+      if without_language?(List.first(rows, %{})) do
         {:error, :columns_without_language}
       else
         {:ok, Enum.map(rows, &read_row/1)}

@@ -7,6 +7,7 @@ import {
   downloadCsv,
   historyEntries,
   indexTable,
+  inPortuguese,
   notifications,
   openDocument,
   openPublicationModal,
@@ -21,10 +22,6 @@ import {
 // translates a text by prefixing it with the target language in brackets:
 // "Um clássico." in English is "[en] Um clássico." A journey that corrects a
 // draft types over that prefix, as a curator corrects a machine translation.
-
-/** Returns the address of the page at `pathname`, in Portuguese. */
-const inPortuguese = (pathname: string) =>
-  pathname.replace(/^\/(en\/)?/, "/pt/");
 
 /** Returns the tab of `language` in the tab list named `list` in `scope`. */
 const tab = (scope: Locator, list: string, language: string) =>
