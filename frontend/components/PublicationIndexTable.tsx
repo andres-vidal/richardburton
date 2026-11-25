@@ -109,7 +109,7 @@ const SourceMatch: FC<{ rowId: RowId }> = ({ rowId }) => {
   const text = language && excerpt(language);
 
   return language && text ? (
-    <span lang={language} className="block text-xs text-gray-500 truncate">
+    <span lang={language} className="block text-xs text-gray-600 truncate">
       <Highlight className="text-gray-700 bg-amber-100">{text}</Highlight>
     </span>
   ) : null;
