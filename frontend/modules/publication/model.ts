@@ -457,6 +457,29 @@ function empty(): Publication {
 }
 
 /**
+ * Returns the publication that `fields` holds, with the value from `empty()`
+ * in each field that `fields` lacks. `fields` is a row as it was stored, in a
+ * document or in `localStorage`.
+ *
+ * A row stored before notes and sources had two languages holds its notes
+ * under `notes` and its sources under `sources`. Such a row is read as the
+ * current shape: its `notes` become `notesPt` and its `sources` become
+ * `sourcesPt`, each unless the row also holds the new field.
+ */
+function fromStored(fields: Record<string, unknown>): Publication {
+  const { notes, sources, ...current } = fields;
+
+  if (notes !== undefined && !(NOTES_KEYS.pt in current)) {
+    current[NOTES_KEYS.pt] = notes;
+  }
+  if (sources !== undefined && !(SOURCES_KEYS.pt in current)) {
+    current[SOURCES_KEYS.pt] = sources;
+  }
+
+  return { ...empty(), ...current } as Publication;
+}
+
+/**
  * Converts a row key written as text back into a `PublicationId`.
  *
  * Text made only of digits is a server id and becomes a number. Any other text
@@ -837,6 +860,7 @@ export {
   EDITED_FIELDS,
   errorCode,
   empty,
+  fromStored,
   HISTORY_ACTIONS,
   idFromText,
   LANGUAGES,

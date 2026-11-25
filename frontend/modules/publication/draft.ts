@@ -1,6 +1,6 @@
 import type { Store } from "modules/store";
 
-import { empty, type Publication } from "./model";
+import { fromStored, type Publication } from "./model";
 import { DRAFT_ID, publicationFamily } from "./store";
 
 /**
@@ -52,16 +52,17 @@ function keepDraft(store: Store, name: string): () => void {
 }
 
 // Writes the draft saved under `name` into the draft row, when one is saved
-// and can be read.
+// and can be read. A draft saved before notes and sources had two languages
+// is read as the current shape (see `fromStored`).
 function restore(store: Store, name: string): void {
   try {
     const held = localStorage.getItem(key(name));
     if (!held) return;
 
-    store.set(publicationFamily(DRAFT_ID), {
-      ...empty(),
-      ...(JSON.parse(held) as Partial<Publication>),
-    });
+    store.set(
+      publicationFamily(DRAFT_ID),
+      fromStored(JSON.parse(held) as Record<string, unknown>),
+    );
   } catch {
     // The saved value could not be read or parsed, so the draft starts empty.
   }

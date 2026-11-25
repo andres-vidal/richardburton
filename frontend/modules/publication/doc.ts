@@ -3,9 +3,8 @@ import * as Y from "yjs";
 import { isEqual } from "lodash";
 
 import {
-  empty,
+  fromStored,
   idFromText,
-  NOTES_KEYS,
   SOURCES_KEYS,
   type Publication,
   type PublicationError,
@@ -185,28 +184,18 @@ function asArray(values: string[]): Y.Array<string> {
 
 /**
  * Reads a row's `Y.Map` back into a `Publication`, turning each `Y.Array` into
- * a plain array. A field the row does not hold keeps its value from `empty()`.
- *
- * A row written before notes and sources had two languages is read as the
- * current shape: its `notes` become `notesPt` and its `sources` become
- * `sourcesPt`, each unless the row also holds the new field.
+ * a plain array. A field the row does not hold keeps its value from `empty()`,
+ * and a row written before notes and sources had two languages is read as the
+ * current shape (see `fromStored`).
  */
 function publicationOf(row: Y.Map<unknown>): Publication {
-  const publication = { ...empty() } as Record<string, unknown>;
+  const fields: Record<string, unknown> = {};
 
   row.forEach((value, key) => {
-    publication[key] = value instanceof Y.Array ? value.toArray() : value;
+    fields[key] = value instanceof Y.Array ? value.toArray() : value;
   });
 
-  const { notes, sources, ...current } = publication;
-  if (notes !== undefined && !row.has(NOTES_KEYS.pt)) {
-    current[NOTES_KEYS.pt] = notes;
-  }
-  if (sources !== undefined && !row.has(SOURCES_KEYS.pt)) {
-    current[SOURCES_KEYS.pt] = sources;
-  }
-
-  return current as Publication;
+  return fromStored(fields);
 }
 
 /** Returns the row keys in reading order. */
