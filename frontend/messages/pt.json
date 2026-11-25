@@ -578,6 +578,7 @@
     "integer": "Este campo deve ser um número inteiro",
     "invalid_escape_sequence": "Não foi possível ler as publicações do arquivo enviado",
     "stray_escape_character": "Não foi possível ler as publicações do arquivo enviado",
+    "columns_without_language": "O arquivo tem uma coluna sources, notes ou note, que não indica o idioma. Renomeie-a para sources_pt ou notes_pt, ou para sources_en ou notes_en, e envie o arquivo novamente",
     "alpha2": "Este campo deve ser um código de país ISO 3166-1 alfa 2 válido",
     "duplicate": "Este campo não pode repetir a mesma entrada",
     "repeated": "Outra linha desta importação é a mesma publicação",

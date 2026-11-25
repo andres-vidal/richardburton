@@ -11,6 +11,7 @@ import {
   expectPublicationRow,
   PUBLICATIONS,
   csv,
+  quoted,
   type PublicationInput,
   openDocument,
   uploadCsv,
@@ -325,4 +326,52 @@ test("a malformed CSV is rejected with an error and imports nothing", async ({
   ).toBeVisible();
   // Nothing was imported — the grid still holds only its header and draft row.
   await expect(indexTable(page).getByRole("row")).toHaveCount(2);
+});
+
+test("a CSV whose sources and notes name no language is refused, and imports once its columns are renamed", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await openDocument(page);
+
+  const rows = [
+    `Dom Casmurro (antigo),1953,US,Noonday Press,Helen Caldwell,Dom Casmurro,Machado de Assis,${quoted("Caldwell, Helen. Introdução, 1953.\nFicha da editora.")},Primeira edição.`,
+    `Iracema (antigo),1886,GB,Bickers & Son,Isabel Burton,Iracema,José de Alencar,${quoted("Burton, Isabel. Prefácio, 1886.")},`,
+  ];
+  const columns =
+    "title,year,countries,publishers,authors,original_title,original_authors";
+
+  // The columns of a file exported before sources and notes had a language.
+  await uploadCsv(
+    page,
+    csv(rows, { header: `${columns},sources,notes` }),
+    "old-export.csv",
+  );
+
+  await expect(
+    page.getByText(
+      "The file has a sources, notes or note column, which names no language.",
+      { exact: false },
+    ),
+  ).toBeVisible();
+  // Nothing was imported: the grid still holds only its header and draft row.
+  await expect(indexTable(page).getByRole("row")).toHaveCount(2);
+
+  // The same rows under columns that name Portuguese are read whole.
+  await uploadCsv(
+    page,
+    csv(rows, { header: `${columns},sources_pt,notes_pt` }),
+    "renamed.csv",
+  );
+
+  await expect(
+    indexTable(page)
+      .getByRole("row", { name: /Dom Casmurro \(antigo\)/ })
+      .getByRole("button", { name: "Edit sources (2)" }),
+  ).toBeVisible();
+  await expect(
+    indexTable(page)
+      .getByRole("row", { name: /Iracema \(antigo\)/ })
+      .getByRole("button", { name: "Edit sources (1)" }),
+  ).toBeVisible();
 });

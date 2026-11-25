@@ -1453,6 +1453,19 @@ defmodule RichardBurtonWeb.PublicationControllerTest do
 
       assert %{"error" => "invalid_escape_sequence"} == response
     end
+
+    test "on a sources column that names no language, returns 400 naming the reason", meta do
+      path = Path.join(System.tmp_dir!(), "upload-#{System.unique_integer([:positive])}.csv")
+      File.write!(path, "title,sources\nIracema,Uma fonte\n")
+      on_exit(fn -> File.rm(path) end)
+
+      response =
+        meta.conn
+        |> post(publication_path(meta.conn, :validate), uploaded_csv_fixture(path))
+        |> json_response(400)
+
+      assert %{"error" => "columns_without_language"} == response
+    end
   end
 
   describe "GET /files/publications without search and select params" do

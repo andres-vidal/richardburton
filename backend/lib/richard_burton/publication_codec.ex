@@ -75,6 +75,10 @@ defmodule RichardBurton.Publication.Codec do
     "notes_en" => "notes_en"
   }
 
+  # The names a file gave the sources and the notes when a publication held
+  # them in one language. A file with one of these columns is not read.
+  @columns_without_language ["sources", "notes", "note"]
+
   # The order an exported file writes its columns in.
   @csv_headers [
     "title",
@@ -125,19 +129,21 @@ defmodule RichardBurton.Publication.Codec do
   `RichardBurton.RichText.from_plain_text/1` returns for it: a paragraph for
   each part of the text between blank lines, with a link for each web address
   or email address in it. A blank or missing notes cell reads as nil.
+
+  A file with a `sources`, `notes` or `note` column is not read, and the
+  result is `{:error, :columns_without_language}`. Those columns name no
+  language, so their cells would be left out like any unknown column, and the
+  publications would be read without the sources and notes the file holds.
   """
   def from_csv(path) do
     try do
-      publications =
-        path
-        |> File.stream!()
-        |> CSV.decode!(headers: true)
-        |> Enum.map(&rename_columns/1)
-        |> Enum.map(&Util.deep_merge_maps(@empty_flat_attrs, &1))
-        |> Enum.map(&parse_list_cells/1)
-        |> Enum.map(&parse_notes/1)
+      rows = path |> File.stream!() |> CSV.decode!(headers: true) |> Enum.to_list()
 
-      {:ok, publications}
+      if Enum.any?(rows, &without_language?/1) do
+        {:error, :columns_without_language}
+      else
+        {:ok, Enum.map(rows, &read_row/1)}
+      end
     rescue
       _ in CSV.EscapeSequenceError ->
         {:error, :invalid_escape_sequence}
@@ -177,6 +183,21 @@ defmodule RichardBurton.Publication.Codec do
   defp columns([]), do: []
   defp columns([row | _]), do: Enum.filter(@csv_headers, &Map.has_key?(row, &1))
 
+  # Returns whether a row of a file has a column named in
+  # `@columns_without_language`, matched as `column_name/1` matches.
+  defp without_language?(row) do
+    Enum.any?(Map.keys(row), &(normalized(&1) in @columns_without_language))
+  end
+
+  # Returns a row of a file as a flat publication.
+  defp read_row(row) do
+    row
+    |> rename_columns()
+    |> then(&Util.deep_merge_maps(@empty_flat_attrs, &1))
+    |> parse_list_cells()
+    |> parse_notes()
+  end
+
   # Returns a row with its columns renamed to the flat fields `@csv_columns`
   # maps them to, and its values trimmed, leaving out the columns it does not
   # know. A title written with a trailing space is the same title, so the
@@ -189,9 +210,10 @@ defmodule RichardBurton.Publication.Codec do
 
   # Returns the flat field a header names, matched trimmed and lowercased, or
   # nil when it names none.
-  defp column_name(column) do
-    Map.get(@csv_columns, column |> to_string() |> String.trim() |> String.downcase())
-  end
+  defp column_name(column), do: Map.get(@csv_columns, normalized(column))
+
+  # Returns a header trimmed and lowercased.
+  defp normalized(column), do: column |> to_string() |> String.trim() |> String.downcase()
 
   # Returns a string trimmed, and any other value as it is.
   defp trimmed(value) when is_binary(value), do: String.trim(value)

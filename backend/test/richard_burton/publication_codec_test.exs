@@ -693,16 +693,14 @@ defmodule RichardBurton.Publication.CodecTest do
       assert row["sources_en"] == ["A source"]
     end
 
-    test "from_csv does not read a sources column that names no language" do
-      assert {:ok, [row]} =
-               read_csv("""
-               title,sources
-               Iracema,Uma fonte
-               """)
-
-      assert row["sources_pt"] == []
-      assert row["sources_en"] == []
-      refute Map.has_key?(row, "sources")
+    test "from_csv does not read a file with a sources or notes column that names no language" do
+      for column <- ["sources", "notes", "note", " Sources "] do
+        assert {:error, :columns_without_language} ==
+                 read_csv("""
+                 title,#{column}
+                 Iracema,Uma fonte
+                 """)
+      end
     end
 
     test "to_csv joins the sources of each language back into one quoted newline cell" do
@@ -794,18 +792,6 @@ defmodule RichardBurton.Publication.CodecTest do
 
       assert Map.fetch(row, "notes_pt") == {:ok, nil}
       assert Map.fetch(row, "notes_en") == {:ok, nil}
-    end
-
-    test "from_csv does not read a notes column that names no language" do
-      assert {:ok, [row]} =
-               read_csv("""
-               title,notes
-               Iracema,Uma nota.
-               """)
-
-      assert row["notes_pt"] == nil
-      assert row["notes_en"] == nil
-      refute Map.has_key?(row, "notes")
     end
 
     test "to_csv writes the notes last, Portuguese then English, as plain text, quoted" do
