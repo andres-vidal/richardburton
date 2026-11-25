@@ -3,7 +3,7 @@
 import type { Language } from "modules/publication/model";
 import { canTranslate, translateAll } from "modules/translator";
 import { useTranslations } from "next-intl";
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import Button from "./Button";
 import ConfirmationModal from "./ConfirmationModal";
 import { useModal } from "./Modal";
@@ -22,6 +22,11 @@ import { useModal } from "./Modal";
  * With `replacing`, a press first asks, in a `ConfirmationModal` with that
  * title and message and a Replace button, since the draft takes the place of
  * text already written. Cancelling the question drafts nothing.
+ *
+ * A draft can take a while, and text can be written in the meantime. When a
+ * press did not ask, and `replacing` is set by the time the translations are
+ * ready, the same question is asked then. Replace passes the translations to
+ * `onDrafted`, and Cancel discards them.
  *
  * While the browser downloads the translation model, the button shows how
  * much of it has arrived, and while it translates, that it is drafting. When
@@ -44,6 +49,16 @@ const DraftButton: FC<{
   // been downloaded in this draft.
   const [loaded, setLoaded] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
+  // Passes on translations that are ready but wait for the question to be
+  // answered, or null when none wait.
+  const [held, setHeld] = useState<(() => void) | null>(null);
+  // Whether the last render had `replacing`, for a draft that finishes after
+  // the render it started in.
+  const replaces = useRef(Boolean(replacing));
+
+  useEffect(() => {
+    replaces.current = Boolean(replacing);
+  });
 
   useEffect(() => {
     let current = true;
@@ -57,19 +72,43 @@ const DraftButton: FC<{
     };
   }, [from, to]);
 
-  async function draft() {
+  // Translates `texts` and passes the translations on. `asked` says whether
+  // the person already agreed to replace the text written. Without it, the
+  // translations are held and the question is asked when text was written
+  // while the draft ran.
+  async function draft(asked: boolean) {
     confirmation.close();
     setFailed(false);
     setLoaded(null);
     setRunning(true);
 
     try {
-      onDrafted(await translateAll(texts, from, to, setLoaded));
+      const translations = await translateAll(texts, from, to, setLoaded);
+
+      if (replaces.current && !asked) {
+        setHeld(() => () => onDrafted(translations));
+        confirmation.open();
+      } else {
+        onDrafted(translations);
+      }
     } catch {
       setFailed(true);
     } finally {
       setRunning(false);
     }
+  }
+
+  // Passes on the held translations, which the person agreed to.
+  function replace() {
+    confirmation.close();
+    held?.();
+    setHeld(null);
+  }
+
+  // Closes the question, and discards the held translations if there are any.
+  function cancel() {
+    confirmation.close();
+    setHeld(null);
   }
 
   const shown = !running
@@ -87,7 +126,7 @@ const DraftButton: FC<{
         size="small"
         loading={running}
         disabled={texts.every((text) => text.trim() === "")}
-        onClick={() => (replacing ? confirmation.open() : draft())}
+        onClick={() => (replacing ? confirmation.open() : draft(false))}
       />
       {failed && (
         <p role="alert" className="text-xs text-red-700">
@@ -100,8 +139,8 @@ const DraftButton: FC<{
           title={replacing.title}
           message={replacing.message}
           confirmLabel={t("replace")}
-          onConfirm={draft}
-          onCancel={confirmation.close}
+          onConfirm={held ? replace : () => draft(true)}
+          onCancel={cancel}
         />
       )}
     </div>

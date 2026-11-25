@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { ComponentProps, FC, useState } from "react";
 import { expect, fn, screen, userEvent, waitFor, within } from "storybook/test";
 import { installFakeTranslator } from "test/translator";
 
@@ -113,6 +114,113 @@ export const Replacing: Story = {
       ).getByRole("button", { name: "Replace" }),
     );
     await waitFor(() => expect(args.onDrafted).toHaveBeenCalledTimes(1));
+  },
+};
+
+/**
+ * Keeps the text of the tab the draft goes to, in an input, and asks before
+ * replacing it only while the input holds text, as an editor does.
+ */
+const WithATarget: FC<ComponentProps<typeof DraftButton>> = (args) => {
+  const [written, setWritten] = useState("");
+
+  return (
+    <div className="flex flex-col gap-3 items-end">
+      <input
+        aria-label="Notes in English"
+        value={written}
+        onChange={(event) => setWritten(event.target.value)}
+        className="px-2 py-1 text-sm rounded border border-gray-300"
+      />
+      <DraftButton
+        {...args}
+        replacing={
+          written === ""
+            ? undefined
+            : {
+                title: "Replace the notes in English?",
+                message:
+                  "The draft takes the place of the notes this tab holds now. You can still edit it before saving.",
+              }
+        }
+        onDrafted={(translations) => {
+          setWritten(translations.join(" "));
+          args.onDrafted(translations);
+        }}
+      />
+    </div>
+  );
+};
+
+// Lets the fake translator of `WrittenMeanwhile` finish creating a translator.
+let finishDownload = () => {};
+
+/**
+ * Text written in the tab while the draft was being made is not replaced
+ * without asking. The play test presses the button while the tab is empty,
+ * types in the tab before the model has arrived, and checks that the draft
+ * then asks. It cancels and checks that the typed text is kept, then drafts
+ * again and replaces it.
+ */
+export const WrittenMeanwhile: Story = {
+  render: (args) => <WithATarget {...args} />,
+  beforeEach: () => {
+    const uninstall = installFakeTranslator();
+    const translator = (
+      self as unknown as {
+        Translator: { create: (options: unknown) => Promise<unknown> };
+      }
+    ).Translator;
+    const create = translator.create;
+    const downloaded = new Promise<void>((resolve) => {
+      finishDownload = resolve;
+    });
+
+    translator.create = async (options) => {
+      await downloaded;
+      return create(options);
+    };
+
+    return uninstall;
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const target = canvas.getByRole("textbox", { name: "Notes in English" });
+
+    await userEvent.click(
+      await canvas.findByRole("button", {
+        name: "Draft the notes from Portuguese",
+      }),
+    );
+    await userEvent.type(target, "Typed by hand.");
+    finishDownload();
+
+    await userEvent.click(
+      within(
+        await screen.findByRole("dialog", {
+          name: "Replace the notes in English?",
+        }),
+      ).getByRole("button", { name: "Cancel" }),
+    );
+    await expect(args.onDrafted).not.toHaveBeenCalled();
+    await expect(target).toHaveValue("Typed by hand.");
+
+    await userEvent.click(
+      await canvas.findByRole("button", {
+        name: "Draft the notes from Portuguese",
+      }),
+    );
+    await userEvent.click(
+      within(
+        await screen.findByRole("dialog", {
+          name: "Replace the notes in English?",
+        }),
+      ).getByRole("button", { name: "Replace" }),
+    );
+    await waitFor(() => expect(args.onDrafted).toHaveBeenCalledTimes(1));
+    await expect(target).toHaveValue(
+      "[en] Um clássico do regionalismo. [en] Reeditado em 1922.",
+    );
   },
 };
 

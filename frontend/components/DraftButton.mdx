@@ -31,7 +31,9 @@ each text with the target language in brackets.
   are blank.
 - `replacing` — the title and message of a question asked before drafting,
   for a draft that takes the place of text already written. The question's
-  confirm button says Replace. Without it, a press drafts at once.
+  confirm button says Replace. Without it, a press drafts at once. The caller
+  sets it whenever the text the draft would replace is not empty, so a draft
+  that finishes after text was written asks before it replaces it.
 - `onDrafted` — receives the translations, in the order of `texts`.
 
 ## Availability
@@ -55,6 +57,9 @@ button of the question.
 
 <Description of={DraftButtonStories.Replacing} />
 <Canvas of={DraftButtonStories.Replacing} />
+
+<Description of={DraftButtonStories.WrittenMeanwhile} />
+<Canvas of={DraftButtonStories.WrittenMeanwhile} />
 
 <Description of={DraftButtonStories.Failed} />
 <Canvas of={DraftButtonStories.Failed} />
