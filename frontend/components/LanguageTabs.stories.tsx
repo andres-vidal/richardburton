@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import type { Language } from "modules/publication/model";
 import { FC, useState } from "react";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import Button from "./Button";
 import LanguageTabs from "./LanguageTabs";
@@ -46,6 +46,20 @@ const Controlled: FC<{
     </LanguageTabs>
   );
 };
+
+/**
+ * Returns how much redder than blue the text of an element is, from its
+ * computed colour drawn on a canvas. Red text gives a large positive number,
+ * and gray or indigo text gives zero or less.
+ */
+function redness(element: HTMLElement): number {
+  const context = document.createElement("canvas").getContext("2d")!;
+  context.fillStyle = getComputedStyle(element).color;
+  context.fillRect(0, 0, 1, 1);
+  const [red, , blue] = context.getImageData(0, 0, 1, 1).data;
+
+  return red - blue;
+}
 
 const meta = {
   title: "Components/Language tabs",
@@ -131,14 +145,24 @@ export const Keyboard: Story = {
 
 /**
  * The Portuguese panel holds an error while the English one shows, so the
- * Português tab is shown in red.
+ * Português tab is shown in red. The play test checks that its text is red
+ * and the English tab's is not, then selects it and checks that it stays red.
  */
 export const WithAnError: Story = {
   args: { errors: { pt: "The notes are too long." } },
   play: async ({ canvasElement }) => {
-    await expect(
-      within(canvasElement).getByRole("tab", { name: "Português" }),
-    ).toHaveAttribute("data-invalid", "true");
+    const canvas = within(canvasElement);
+    const portuguese = canvas.getByRole("tab", { name: "Português" });
+    const english = canvas.getByRole("tab", { name: "English" });
+
+    await expect(portuguese).toHaveAttribute("data-state", "invalid");
+    await waitFor(() => expect(redness(portuguese)).toBeGreaterThan(50));
+    await expect(redness(english)).toBeLessThan(50);
+
+    await userEvent.click(portuguese);
+
+    await expect(portuguese).toHaveAttribute("data-state", "selected-invalid");
+    await waitFor(() => expect(redness(portuguese)).toBeGreaterThan(50));
   },
 };
 

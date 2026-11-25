@@ -146,7 +146,7 @@ describe("SourcesEditor", () => {
     const tab = within(
       screen.getByRole("tablist", { name: "Language of the sources" }),
     ).getByRole("tab", { name: "Português" });
-    expect(tab.getAttribute("data-invalid")).toBe("true");
+    expect(tab.getAttribute("data-state")).toBe("invalid");
 
     selectPortuguese();
 

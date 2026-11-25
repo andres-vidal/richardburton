@@ -112,7 +112,7 @@ export const WithAnError: Story = {
     errors: { pt: "This text is too long" },
   },
   play: async () => {
-    await expect(tab("Português")).toHaveAttribute("data-invalid", "true");
+    await expect(tab("Português")).toHaveAttribute("data-state", "invalid");
     await userEvent.click(tab("Português"));
     await expect(
       await screen.findByRole("textbox", { name: "Notes in Portuguese" }),

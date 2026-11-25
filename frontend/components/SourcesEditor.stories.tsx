@@ -8,9 +8,10 @@ import SourcesEditor from "./SourcesEditor";
 
 type Sources = Record<Language, string[]>;
 
-// SourcesEditor is controlled — every add/remove/reorder/edit emits a new
-// list — so hold `value` in state, otherwise the canvas would never reflect an
-// interaction. onChange is still forwarded so `fn()` assertions keep working.
+// Holds `value` in state. SourcesEditor is controlled, and every add, remove,
+// reorder or edit emits a new list, so without the state the canvas would
+// never reflect an interaction. `onChange` is still forwarded, so `fn()`
+// assertions keep working.
 const Controlled: FC<{
   value: Sources;
   onChange: (language: Language, sources: string[]) => void;
@@ -70,7 +71,7 @@ const tab = (canvas: ReturnType<typeof within>, name: string) =>
   ).getByRole("tab", { name });
 
 /**
- * Fully interactive: add a row, type into it, reorder it, then remove it — the
+ * Fully interactive: add a row, type into it, reorder it, then remove it. The
  * list updates live, mirroring the edit form. It starts with one source in
  * English so the populated shape is visible before touching anything. The
  * English tab is selected, the reader's language.
@@ -88,7 +89,7 @@ export const Default: Story = {
     const canvas = within(canvasElement);
     const english = panel(canvas, "English");
 
-    // Add a second source and type into it — the new row reflects the input.
+    // Add a second source and type into it. The new row reflects the input.
     await userEvent.click(english.getByRole("button", { name: "Add source" }));
     const second = english.getByLabelText("Source 2");
     await userEvent.type(second, "https://archive.org/details/domcasmurro");
@@ -114,7 +115,7 @@ export const Default: Story = {
 };
 
 /**
- * No sources yet — an empty state and the add control. The play test adds a
+ * No sources yet: an empty state and the add control. The play test adds a
  * source and checks that it is added to the English list.
  */
 export const Empty: Story = {
@@ -195,7 +196,7 @@ export const InBothLanguages: Story = {
 };
 
 /**
- * Reordering swaps adjacent entries on screen — moving row 2 up swaps the two.
+ * Reordering swaps adjacent entries on screen: moving row 2 up swaps the two.
  * The play test checks that the other language's list keeps its order.
  */
 export const Reorder: Story = {
@@ -336,7 +337,7 @@ export const WithError: Story = {
     const canvas = within(canvasElement);
     const portuguese = tab(canvas, "Português");
 
-    await expect(portuguese).toHaveAttribute("data-invalid", "true");
+    await expect(portuguese).toHaveAttribute("data-state", "invalid");
     await userEvent.click(portuguese);
     await expect(
       panel(canvas, "Português").getByText("This text is too long"),

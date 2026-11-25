@@ -193,7 +193,7 @@ export const WithAnError: Story = {
       within(dialog).getByRole("tablist", { name: "Language of the sources" }),
     ).getByRole("tab", { name: "Português" });
 
-    await expect(portuguese).toHaveAttribute("data-invalid", "true");
+    await expect(portuguese).toHaveAttribute("data-state", "invalid");
     await userEvent.click(portuguese);
     await expect(
       within(

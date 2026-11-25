@@ -191,8 +191,8 @@ export const WithError: Story = {
     notesPt: "too_long",
   } as PublicationError),
   play: async () => {
-    await expect(tab("Português")).toHaveAttribute("data-invalid", "true");
-    await expect(tab("English")).toHaveAttribute("data-invalid", "false");
+    await expect(tab("Português")).toHaveAttribute("data-state", "invalid");
+    await expect(tab("English")).toHaveAttribute("data-state", "selected");
 
     await userEvent.click(tab("Português"));
     const box = await notesBox("Portuguese");
