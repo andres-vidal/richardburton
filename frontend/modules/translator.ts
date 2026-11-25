@@ -57,28 +57,60 @@ function translatorFactory(): TranslatorFactory | null {
 }
 
 /**
+ * The answers `canTranslate` has asked each `Translator` for, by language
+ * pair, written as `pt>en`.
+ */
+const answers = new WeakMap<TranslatorFactory, Map<string, Promise<boolean>>>();
+
+/**
+ * Asks `factory` whether it can translate from `from` to `to`, and returns
+ * false when it fails or has not answered after `ANSWER_TIMEOUT`.
+ */
+async function ask(
+  factory: TranslatorFactory,
+  from: Language,
+  to: Language,
+): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    const availability = await Promise.race([
+      factory.availability({ sourceLanguage: from, targetLanguage: to }),
+      new Promise<"unavailable">((resolve) => {
+        timer = setTimeout(() => resolve("unavailable"), ANSWER_TIMEOUT);
+      }),
+    ]);
+    return availability !== "unavailable";
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Returns whether this browser can translate from `from` to `to`: true when
  * the model for the pair is on the computer, is downloading, or can be
  * downloaded, and false when the browser has no Translator API or cannot
  * translate the pair. A failure of the API counts as false, and so does an
  * API that has not answered after `ANSWER_TIMEOUT`, which is what a browser
  * that has the API but not its translation service does.
+ *
+ * The browser's `Translator` is asked once for each pair. Every later call
+ * for the pair returns the same answer.
  */
-async function canTranslate(from: Language, to: Language): Promise<boolean> {
+function canTranslate(from: Language, to: Language): Promise<boolean> {
   const factory = translatorFactory();
-  if (!factory) return false;
+  if (!factory) return Promise.resolve(false);
 
-  try {
-    const availability = await Promise.race([
-      factory.availability({ sourceLanguage: from, targetLanguage: to }),
-      new Promise<"unavailable">((resolve) =>
-        setTimeout(() => resolve("unavailable"), ANSWER_TIMEOUT),
-      ),
-    ]);
-    return availability !== "unavailable";
-  } catch {
-    return false;
-  }
+  const pairs = answers.get(factory) ?? new Map<string, Promise<boolean>>();
+  const pair = `${from}>${to}`;
+  const answer = pairs.get(pair) ?? ask(factory, from, to);
+
+  answers.set(factory, pairs);
+  pairs.set(pair, answer);
+
+  return answer;
 }
 
 /**

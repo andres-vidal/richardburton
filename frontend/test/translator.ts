@@ -1,4 +1,14 @@
 /**
+ * Removes the browser's Translator API from `self`.
+ *
+ * The function uses nothing outside its own body, so `page.addInitScript` can
+ * send it to the browser as it is written.
+ */
+export function removeTranslator() {
+  delete (self as { Translator?: unknown }).Translator;
+}
+
+/**
  * Installs a fake of the browser's built-in Translator API on `self`, for
  * stories and end-to-end journeys, and returns a function that removes it.
  *

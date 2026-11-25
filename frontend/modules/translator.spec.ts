@@ -1,4 +1,4 @@
-import { installFakeTranslator } from "test/translator";
+import { installFakeTranslator, removeTranslator } from "test/translator";
 import { canTranslate, translateAll } from "./translator";
 
 describe("canTranslate", () => {
@@ -32,9 +32,30 @@ describe("canTranslate", () => {
 
     try {
       expect(await canTranslate("pt", "en")).toBe(false);
-      expect(await canTranslate("pt", "en")).toBe(false);
+      expect(await canTranslate("en", "pt")).toBe(false);
     } finally {
-      delete (self as { Translator?: unknown }).Translator;
+      removeTranslator();
+    }
+  });
+});
+
+describe("canTranslate, called again for a pair", () => {
+  test("asks the browser once for each pair", async () => {
+    const availability = vi.fn(async () => "available");
+
+    Object.defineProperty(self, "Translator", {
+      configurable: true,
+      value: { availability },
+    });
+
+    try {
+      expect(await canTranslate("pt", "en")).toBe(true);
+      expect(await canTranslate("pt", "en")).toBe(true);
+      expect(await canTranslate("en", "pt")).toBe(true);
+
+      expect(availability).toHaveBeenCalledTimes(2);
+    } finally {
+      removeTranslator();
     }
   });
 });
@@ -53,7 +74,7 @@ describe("canTranslate, with an API that does not answer", () => {
 
       expect(await answer).toBe(false);
     } finally {
-      delete (self as { Translator?: unknown }).Translator;
+      removeTranslator();
       vi.useRealTimers();
     }
   });

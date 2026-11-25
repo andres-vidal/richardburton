@@ -4,13 +4,15 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
-import { installFakeTranslator } from "../test/translator";
+import { installFakeTranslator, removeTranslator } from "../test/translator";
 import { backendPort, frontendPort } from "./stack";
 
-/** Removes the browser's Translator API from the page it runs in. */
-function removeTranslator() {
-  delete (self as { Translator?: unknown }).Translator;
-}
+/**
+ * Gives every document `page` loads the fake Translator API when `translator`
+ * is true, and no Translator API otherwise.
+ */
+const withTranslator = (page: Page, translator: boolean) =>
+  page.addInitScript(translator ? installFakeTranslator : removeTranslator);
 
 /**
  * Playwright's `test`, run against the stack of the test's worker, with that
@@ -36,9 +38,7 @@ export const test = base.extend<{
   },
 
   page: async ({ page, translator }, use) => {
-    await page.addInitScript(
-      translator ? installFakeTranslator : removeTranslator,
-    );
+    await withTranslator(page, translator);
     await use(page);
   },
 
@@ -69,9 +69,7 @@ export const test = base.extend<{
 
   colleague: async ({ colleagueContext, translator }, use) => {
     const page = await colleagueContext.newPage();
-    await page.addInitScript(
-      translator ? installFakeTranslator : removeTranslator,
-    );
+    await withTranslator(page, translator);
     await use(page);
   },
 });
