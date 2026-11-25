@@ -22,6 +22,7 @@ defmodule RichardBurton.Publication.Import do
 
   alias Ecto.Changeset
   alias RichardBurton.Identity
+  alias RichardBurton.Language
   alias RichardBurton.Publication
   alias RichardBurton.Publication.History
   alias RichardBurton.Publication.Links
@@ -100,7 +101,8 @@ defmodule RichardBurton.Publication.Import do
 
     sources =
       for {id, changeset, _links} <- published,
-          source <- Changeset.get_change(changeset, :sources, []),
+          field <- Language.fields(:sources),
+          source <- Changeset.get_change(changeset, field, []),
           do: Map.put(source.changes, :publication_id, id)
 
     Repo.insert_in_chunks("publication_countries", country_links)

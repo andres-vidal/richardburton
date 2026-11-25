@@ -7,7 +7,9 @@ import {
   contrast,
   type Contrast,
   type ContrastedKey,
+  LANGUAGES,
   Publication,
+  SOURCES_KEYS,
 } from "modules/publication/model";
 import { distinguish, merge, reconsider } from "modules/publication/remote";
 import {
@@ -149,7 +151,8 @@ const Compared: FC<{
 
 /**
  * One record as a card: its title, year, translators, original work,
- * countries, publishers and sources, and a link to its page when it is stored.
+ * countries, publishers and its sources in each language, and a link to its
+ * page when it is stored.
  * With `onKeep`, the card is also a radio button that chooses the record to
  * keep, and `kept` marks the chosen one.
  *
@@ -165,6 +168,7 @@ export const Candidate: FC<{
 }> = ({ publication: p, others = [], kept = false, onKeep }) => {
   const t = useTranslations("duplicates");
   const attribute = useTranslations("attributes");
+  const admin = useTranslations("admin");
   const naming = useCountryNaming();
   const field = (key: ContrastedKey) => contrast(p, others, key);
 
@@ -223,10 +227,19 @@ export const Candidate: FC<{
         <dd className="text-gray-800">
           <Compared contrast={field("publishers")} />
         </dd>
-        <dt className="text-gray-600">{attribute("sources")}</dt>
-        <dd className="text-gray-800">
-          <Compared contrast={field("sources")} separator="; " />
-        </dd>
+        {LANGUAGES.map((language) => (
+          <Fragment key={language}>
+            <dt className="text-gray-600">
+              {admin("sourcesIn", { language })}
+            </dt>
+            <dd lang={language} className="text-gray-800">
+              <Compared
+                contrast={field(SOURCES_KEYS[language])}
+                separator="; "
+              />
+            </dd>
+          </Fragment>
+        ))}
       </dl>
     </label>
   );

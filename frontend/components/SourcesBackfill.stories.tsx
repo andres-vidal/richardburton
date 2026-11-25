@@ -27,7 +27,7 @@ const publication = (id: number, title: string, sources: string[] = []) => ({
   year: "1953",
   countries: ["US"],
   publishers: ["Noonday Press"],
-  sources,
+  sourcesEn: sources,
 });
 
 const seedQueue = () => {
@@ -41,6 +41,14 @@ const seedQueue = () => {
 
 // The sources backfill is a master-detail: a queue listbox of source-less
 // publications alongside the editor for the selected one.
+/**
+ * Returns the panel of the English sources in `canvas`. The editor is wide
+ * enough here to show the lists of both languages, and their inputs and
+ * buttons have the same names.
+ */
+const english = (canvas: ReturnType<typeof within>) =>
+  within(canvas.getByRole("tabpanel", { name: "English" }));
+
 const meta = {
   title: "Publications/Sources backfill",
   component: SourcesBackfillView,
@@ -132,8 +140,13 @@ export const Populated: Story = {
     ).toHaveAttribute("aria-selected", "true");
     // Drafting a source does NOT mark the publication sourced — the dot and
     // the count only react to saved sources.
-    await userEvent.click(canvas.getByRole("button", { name: "Add source" }));
-    await userEvent.type(canvas.getByLabelText("Source 1"), "A citation");
+    await userEvent.click(
+      english(canvas).getByRole("button", { name: "Add source" }),
+    );
+    await userEvent.type(
+      english(canvas).getByLabelText("Source 1"),
+      "A citation",
+    );
     await expect(within(header).getByText("2")).toBeInTheDocument();
     await expect(
       canvas.getByRole("option", { name: "Dom Casmurro" }),
@@ -247,9 +260,11 @@ export const Step: Story = {
     const save = canvas.getByRole("button", { name: "Save & next" });
     await expect(save).toBeDisabled();
 
-    await userEvent.click(canvas.getByRole("button", { name: "Add source" }));
+    await userEvent.click(
+      english(canvas).getByRole("button", { name: "Add source" }),
+    );
     await userEvent.type(
-      canvas.getByLabelText("Source 1"),
+      english(canvas).getByLabelText("Source 1"),
       "Caldwell, Helen. Introduction to Dom Casmurro.",
     );
     await expect(save).toBeEnabled();

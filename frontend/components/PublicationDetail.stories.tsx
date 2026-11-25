@@ -17,7 +17,8 @@ import PublicationDetail from "./PublicationDetail";
 
 const DOM_CASMURRO = {
   ...LOOK_ALIKE_RECORD,
-  sources: [
+  sourcesPt: ["Caldwell, Helen. Introdução, 1953."],
+  sourcesEn: [
     "Caldwell, Helen. Introduction, 1953.",
     "Gledson, John. Deceptive Realism, 1984.",
   ],
@@ -34,7 +35,8 @@ const LOG: PublicationHistoryEntry[] = [
     snapshot: { ...DOM_CASMURRO, year: 1953 },
     diff: {
       fields: { year: { from: "1952", to: "1953" } },
-      sources: null,
+      sourcesPt: null,
+      sourcesEn: null,
     },
   },
   {
@@ -125,13 +127,15 @@ export const Retranslation: Story = {
 
 /**
  * A record with notes shows them under the sentence, formatted, with each
- * link opening in a new tab.
+ * link opening in a new tab. The reader reads English, and the record has
+ * notes in English, so those are shown, with no line naming their language.
  */
 export const WithNotes: Story = {
   args: {
     publication: {
       ...DOM_CASMURRO,
-      notes: [
+      notesPt: [paragraph("A primeira tradução inglesa.")],
+      notesEn: [
         paragraph(
           "The first English translation. ",
           { text: "Out of print", bold: true },
@@ -155,28 +159,110 @@ export const WithNotes: Story = {
     },
   },
   play: async () => {
-    await expect(screen.getByText("Notes")).toBeVisible();
+    const notes = screen.getByRole("region", { name: "Notes" });
+
+    await expect(notes).toBeVisible();
     await expect(screen.getByText("Out of print").tagName).toBe("STRONG");
     await expect(
       screen.getByRole("link", { name: "the Internet Archive" }),
     ).toHaveAttribute("target", "_blank");
-  },
-};
-
-/** A record without notes has no notes section. */
-export const WithoutNotes: Story = {
-  args: { publication: { ...DOM_CASMURRO, notes: null } },
-  play: async () => {
-    await expect(screen.queryByText("Notes")).toBeNull();
+    await expect(within(notes).queryByText(/Written in/)).toBeNull();
+    await expect(
+      within(notes).queryByText("A primeira tradução inglesa."),
+    ).toBeNull();
   },
 };
 
 /**
- * A record nobody has sourced yet says so: for a database whose worth is its
- * provenance, an absent source is worth stating.
+ * A record with notes only in Portuguese shows them to a reader of English,
+ * with a line saying they are written in Portuguese. The play test checks the
+ * line and that the notes carry `lang="pt"`.
+ */
+export const NotesInTheOtherLanguage: Story = {
+  args: {
+    publication: {
+      ...DOM_CASMURRO,
+      notesPt: [paragraph("A primeira tradução inglesa, esgotada desde 1966.")],
+      notesEn: null,
+    },
+  },
+  play: async () => {
+    const notes = screen.getByRole("region", { name: "Notes" });
+
+    await expect(
+      within(notes).getByText("Written in Portuguese"),
+    ).toBeVisible();
+    await expect(
+      within(notes)
+        .getByText(/esgotada desde 1966/)
+        .closest("[lang]"),
+    ).toHaveAttribute("lang", "pt");
+  },
+};
+
+/** A record without notes in either language has no notes section. */
+export const WithoutNotes: Story = {
+  args: { publication: { ...DOM_CASMURRO, notesPt: null, notesEn: null } },
+  play: async () => {
+    await expect(screen.queryByRole("region", { name: "Notes" })).toBeNull();
+  },
+};
+
+/**
+ * A record with sources in both languages shows the sources in the reader's
+ * language, English here, with no line naming their language, and the list
+ * carries `lang="en"`. The play test checks the list and that the Portuguese
+ * sources are not shown.
+ */
+export const SourcesInBothLanguages: Story = {
+  args: {
+    publication: {
+      ...DOM_CASMURRO,
+      sourcesPt: [
+        "Caldwell, Helen. Introdução, 1953.",
+        "Sousa, J. Galante de. Bibliografia de Machado de Assis.",
+      ],
+      sourcesEn: ["Caldwell, Helen. Introduction, 1953."],
+    },
+  },
+  play: async () => {
+    const english = screen.getByText("Caldwell, Helen. Introduction, 1953.");
+
+    await expect(english.closest("ul")).toHaveAttribute("lang", "en");
+    await expect(screen.queryByText(/Written in/)).toBeNull();
+    await expect(
+      screen.queryByText(/Bibliografia de Machado de Assis/),
+    ).toBeNull();
+  },
+};
+
+/**
+ * A record with sources only in Portuguese shows them to a reader of English,
+ * with a line saying they are written in Portuguese, and the list carries
+ * `lang="pt"`. The play test checks the line and the list's language.
+ */
+export const SourcesInTheOtherLanguage: Story = {
+  args: {
+    publication: {
+      ...DOM_CASMURRO,
+      sourcesPt: ["Sousa, J. Galante de. Bibliografia de Machado de Assis."],
+      sourcesEn: [],
+    },
+  },
+  play: async () => {
+    const source = screen.getByText(/Bibliografia de Machado de Assis/);
+
+    await expect(screen.getByText("Written in Portuguese")).toBeVisible();
+    await expect(source.closest("ul")).toHaveAttribute("lang", "pt");
+  },
+};
+
+/**
+ * A record nobody has sourced yet, in either language, says so: for a
+ * database whose worth is its provenance, an absent source is worth stating.
  */
 export const WithoutSources: Story = {
-  args: { publication: { ...DOM_CASMURRO, sources: [] } },
+  args: { publication: { ...DOM_CASMURRO, sourcesPt: [], sourcesEn: [] } },
   play: async () => {
     await expect(screen.getByText("Sources")).toBeVisible();
     await expect(screen.getByText(/No sources recorded yet/)).toBeVisible();
@@ -208,14 +294,21 @@ export const AsAdmin: Story = {
 
 /**
  * Editing happens in place, over the record it is about to change — there is no
- * separate screen to navigate to and come back from. The notes open in a
- * rich text area, which loads with the form, formatted as they are stored.
+ * separate screen to navigate to and come back from. The notes open in a tab
+ * for each language, each a rich text area that loads with the form, formatted
+ * as they are stored. The play test checks the English notes, which open
+ * first for a reader of English, then the Portuguese ones in their tab.
  */
 export const Editing: Story = {
   args: {
     publication: {
       ...DOM_CASMURRO,
-      notes: [paragraph("A ", { text: "first", bold: true }, " translation.")],
+      notesEn: [
+        paragraph("A ", { text: "first", bold: true }, " translation."),
+      ],
+      notesPt: [
+        paragraph("Uma ", { text: "primeira", bold: true }, " tradução."),
+      ],
     },
   },
   decorators: [asAdmin],
@@ -229,9 +322,19 @@ export const Editing: Story = {
     );
     // The rich text area loads when the form first renders.
     await expect(
-      within(await screen.findByRole("textbox", { name: "Notes" })).getByText(
-        "first",
-      ),
+      within(
+        await screen.findByRole("textbox", { name: "Notes in English" }),
+      ).getByText("first"),
+    ).toBeVisible();
+    await userEvent.click(
+      within(
+        screen.getByRole("tablist", { name: "Language of the notes" }),
+      ).getByRole("tab", { name: "Português" }),
+    );
+    await expect(
+      within(
+        await screen.findByRole("textbox", { name: "Notes in Portuguese" }),
+      ).getByText("primeira"),
     ).toBeVisible();
     await expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 
@@ -308,7 +411,7 @@ export const Merging: Story = {
  * edge.
  */
 export const LongSource: Story = {
-  args: { publication: { ...DOM_CASMURRO, sources: [LONG_URL] } },
+  args: { publication: { ...DOM_CASMURRO, sourcesEn: [LONG_URL] } },
   play: async () => {
     const source = screen.getByText(LONG_URL);
 
@@ -325,7 +428,10 @@ export const SourceWithALink: Story = {
   args: {
     publication: {
       ...DOM_CASMURRO,
-      sources: [
+      sourcesPt: [
+        "Registro de catálogo, https://catalog.hathitrust.org/Record/001270334.",
+      ],
+      sourcesEn: [
         "Caldwell, Helen. Introduction, 1953.",
         "Catalog record, https://catalog.hathitrust.org/Record/001270334.",
       ],

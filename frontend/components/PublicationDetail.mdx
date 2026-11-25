@@ -45,10 +45,12 @@ so the same publication offers the same affordances wherever it is read.
 The Edit control opens `PublicationEditForm`, which the module also exports. It
 edits every field of a publication in the enclosing store. While it is open,
 `watchEdit` validates the publication shortly after each change, and each field
-writes its error under itself. The notes are edited in a
-[notes field](?path=/docs/publications-notes-field--docs), which writes their
-value to the row once the typing pauses, or null when the text is blank, and
-writes a waiting edit at once when it loses the focus. The save button is
+writes its error under itself. The sources are edited in a
+[sources editor](?path=/docs/publications-sources-editor--docs), and the notes
+in a [notes field](?path=/docs/publications-notes-field--docs), each with a tab
+for Portuguese and one for English. The notes field writes the notes of each
+language to the row once the typing pauses, or null when the text is blank,
+and writes a waiting edit at once when it loses the focus. The save button is
 disabled while the publication has errors. By default it saves with `update`.
 Its `save`, `heading` and `saveLabel` props replace the save action and the
 two labels, which is how the
@@ -59,8 +61,14 @@ a publication with changes.
 
 - **Default** — a fully sourced record, read by anyone.
 - **Retranslation** — the line about its kind, above the description.
-- **With notes** — the notes, formatted, under the sentence.
+- **With notes** — the notes in the reader's language, formatted, under the
+  sentence.
+- **Notes in the other language** — notes only in Portuguese, shown to a
+  reader of English with a line that names their language.
 - **Without notes** — no notes section at all.
+- **Sources in both languages** — the sources in the reader's language.
+- **Sources in the other language** — sources only in Portuguese, shown to a
+  reader of English with a line that names their language.
 - **Without sources** — the section states the absence rather than hiding.
 - **As admin** — the history section and the edit/merge/delete controls.
 - **Editing** — the form the Edit control opens, in place.
@@ -79,6 +87,30 @@ left out when there are none, or when they are blank.
 A record nobody has sourced yet says so:
 
 <Canvas of={PublicationDetailStories.WithoutSources} />
+
+## Two languages
+
+A publication holds its notes in Portuguese and in English, and a list of
+sources in each language. The two lists are independent, so a source in one
+has no counterpart in the other. The view shows the notes in the reader's
+language when they are not blank there, and the notes in the other language
+otherwise, with a line that names that language. It shows the sources the same
+way: the reader's language's list when it has any source, and the other list,
+with the line, otherwise. The notes and the list of sources carry the `lang`
+of the language shown, so a screen reader reads them in that language and the
+browser can offer to translate them.
+
+<Description of={PublicationDetailStories.NotesInTheOtherLanguage} />
+
+<Canvas of={PublicationDetailStories.NotesInTheOtherLanguage} />
+
+<Description of={PublicationDetailStories.SourcesInBothLanguages} />
+
+<Canvas of={PublicationDetailStories.SourcesInBothLanguages} />
+
+<Description of={PublicationDetailStories.SourcesInTheOtherLanguage} />
+
+<Canvas of={PublicationDetailStories.SourcesInTheOtherLanguage} />
 
 ## Long sources
 

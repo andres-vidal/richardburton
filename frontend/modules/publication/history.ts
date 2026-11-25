@@ -1,12 +1,19 @@
 import { sortBy, uniq } from "lodash";
-import type { RichTextValue } from "modules/rich-text";
+import { isBlank, type RichTextValue } from "modules/rich-text";
 import type {
   FullHistoryEntry,
+  Language,
   NameField,
   PublicationHistoryEntry,
   SnapshotDiff,
 } from "./model";
-import { type PublicationKey, Publication } from "./model";
+import {
+  LANGUAGES,
+  NOTES_KEYS,
+  SOURCES_KEYS,
+  type PublicationKey,
+  Publication,
+} from "./model";
 
 /** A field whose value changed, with the old and the new value as text. */
 type FieldChange = {
@@ -16,20 +23,25 @@ type FieldChange = {
   to: string;
 };
 
-/** The sources added and removed, and whether the rest were reordered. */
+/**
+ * The sources in `language` added and removed, and whether the rest were
+ * reordered.
+ */
 type SourcesChange = {
   kind: "sources";
+  language: Language;
   added: string[];
   removed: string[];
   reordered: boolean;
 };
 
 /**
- * The notes before and after the change, each a rich-text value, or null
- * where there were none.
+ * The notes in `language` before and after the change, each a rich-text
+ * value, or null where there were none.
  */
 type NotesChange = {
   kind: "notes";
+  language: Language;
   from: RichTextValue | null;
   to: RichTextValue | null;
 };
@@ -40,9 +52,10 @@ type AbsorbedRecord = {
   id: number;
   title: string;
   fields: { attribute: PublicationKey; value: string }[];
-  sources: string[];
-  /** The record's notes as a rich-text value, or null when it had none. */
-  notes: RichTextValue | null;
+  /** The record's sources in each language that it had sources in. */
+  sources: { language: Language; sources: string[] }[];
+  /** The record's notes in each language that it had notes in. */
+  notes: { language: Language; value: RichTextValue }[];
 };
 
 /**
@@ -117,8 +130,9 @@ function keyOf(entry: FullHistoryEntry): string {
 /**
  * Returns the changes in the server's `diff`: one `FieldChange` for each field
  * that changed, in the order of `ATTRIBUTES`, with its values as text, then a
- * `SourcesChange` when the sources changed, and a `NotesChange` when the
- * notes changed. Returns an empty list for a null diff.
+ * `SourcesChange` for each language whose sources changed, and a
+ * `NotesChange` for each language whose notes changed, Portuguese first each
+ * time. Returns an empty list for a null diff.
  */
 function presentChanges(diff: SnapshotDiff | null): Change[] {
   if (diff === null) return [];
@@ -131,29 +145,34 @@ function presentChanges(diff: SnapshotDiff | null): Change[] {
     from: String(diff.fields[key]!.from),
     to: String(diff.fields[key]!.to),
   }));
-  const notes = diff.fields.notes;
+  const sources: Change[] = LANGUAGES.flatMap((language) => {
+    const change = diff[SOURCES_KEYS[language]];
 
-  return [
-    ...fields,
-    ...(diff.sources === null
-      ? []
-      : [{ kind: "sources" as const, ...diff.sources }]),
-    ...(notes === undefined
+    return change ? [{ kind: "sources" as const, language, ...change }] : [];
+  });
+  const notes: Change[] = LANGUAGES.flatMap((language) => {
+    const change = diff.fields[NOTES_KEYS[language]];
+
+    return change === undefined
       ? []
       : [
           {
             kind: "notes" as const,
-            from: notes.from ?? null,
-            to: notes.to ?? null,
+            language,
+            from: change.from ?? null,
+            to: change.to ?? null,
           },
-        ]),
-  ];
+        ];
+  });
+
+  return [...fields, ...sources, ...notes];
 }
 
 /**
  * Returns the records a merge took in, or an un-merge gave back, as one
  * `AbsorbedChange`, each record with its title, every other field that has a
- * value, its sources and its notes. The records are the entry's `others`.
+ * value, and its sources and its notes in each language it had any in. The
+ * records are the entry's `others`.
  * Returns an empty list for an entry of any other action, or one that names no
  * records.
  */
@@ -173,8 +192,16 @@ function presentAbsorbed(entry: PublicationHistoryEntry): Change[] {
         value: String(publication[key] ?? ""),
       }))
       .filter(({ value }) => value !== ""),
-    sources: publication.sources ?? [],
-    notes: publication.notes ?? null,
+    sources: LANGUAGES.flatMap((language) => {
+      const sources = publication[SOURCES_KEYS[language]] ?? [];
+
+      return sources.length === 0 ? [] : [{ language, sources }];
+    }),
+    notes: LANGUAGES.flatMap((language) => {
+      const value = publication[NOTES_KEYS[language]];
+
+      return isBlank(value) ? [] : [{ language, value: value! }];
+    }),
   }));
 
   return [

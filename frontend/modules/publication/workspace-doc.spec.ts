@@ -130,13 +130,13 @@ describe("a store working in a document", () => {
   test("sources are written as a list that merges", () => {
     const { store, doc } = opened();
 
-    setAll(store, [entry("a", { title: "Dom Casmurro", sources: [] })]);
-    setSources(store, "a", ["Caldwell, Helen. Introduction, 1953."]);
+    setAll(store, [entry("a", { title: "Dom Casmurro", sourcesEn: [] })]);
+    setSources(store, "a", "en", ["Caldwell, Helen. Introduction, 1953."]);
 
     expect(
-      doc.getMap<Y.Map<unknown>>("rows").get("a")?.get("sources"),
+      doc.getMap<Y.Map<unknown>>("rows").get("a")?.get("sourcesEn"),
     ).toBeInstanceOf(Y.Array);
-    expect(store.get(publicationFamily("a")).sources).toEqual([
+    expect(store.get(publicationFamily("a")).sourcesEn).toEqual([
       "Caldwell, Helen. Introduction, 1953.",
     ]);
   });
@@ -208,17 +208,19 @@ describe("two people in one workspace", () => {
     const mine = opened();
     const yours = opened();
 
-    setAll(mine.store, [entry("a", { title: "Dom Casmurro", sources: [] })]);
+    setAll(mine.store, [entry("a", { title: "Dom Casmurro", sourcesEn: [] })]);
     sync(mine.doc, yours.doc);
 
-    setSources(mine.store, "a", ["Caldwell, Helen. Introduction, 1953."]);
-    setSources(yours.store, "a", ["Gledson, John. Deceptive Realism, 1984."]);
+    setSources(mine.store, "a", "en", ["Caldwell, Helen. Introduction, 1953."]);
+    setSources(yours.store, "a", "en", [
+      "Gledson, John. Deceptive Realism, 1984.",
+    ]);
     sync(mine.doc, yours.doc);
 
-    const kept = mine.store.get(publicationFamily("a")).sources;
+    const kept = mine.store.get(publicationFamily("a")).sourcesEn;
 
     expect(kept).toHaveLength(2);
-    expect(yours.store.get(publicationFamily("a")).sources).toEqual(kept);
+    expect(yours.store.get(publicationFamily("a")).sourcesEn).toEqual(kept);
   });
 });
 

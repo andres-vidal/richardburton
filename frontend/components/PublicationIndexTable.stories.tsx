@@ -13,7 +13,7 @@ import {
   expectColumnShapes,
   expectTableSkeleton,
 } from "test/skeleton";
-import { expect, within } from "storybook/test";
+import { expect, waitFor, within } from "storybook/test";
 
 import { PublicationIndexTable, SignalColumn } from "./PublicationIndexTable";
 import WorkspaceNotesCell from "./WorkspaceNotesCell";
@@ -47,6 +47,51 @@ export const Default: Story = {
     // 3 seeded publications → 3 body rows (+ the header row). Cell contents are
     // gated behind an IntersectionObserver, so we assert on the rows themselves.
     await expect(canvas.getAllByRole("row")).toHaveLength(4);
+  },
+};
+
+/**
+ * A search that matched two publications on their sources. Each row shows the
+ * excerpt of the matching sources under its title. The play test checks that
+ * the first row, matched in both languages, shows the excerpt in English, the
+ * reader's language, and that the second row, matched only in Portuguese,
+ * shows that excerpt, marked as Portuguese.
+ */
+export const MatchedOnSources: Story = {
+  beforeEach: () =>
+    seedIndex(store, [
+      {
+        title: "Dom Casmurro",
+        authors: ["Helen Caldwell"],
+        year: "1953",
+        excerpts: {
+          sourcesPt: "[[Caldwell]], Helen. Introdução, 1953.",
+          sourcesEn: "[[Caldwell]], Helen. Introduction, 1953.",
+        },
+      },
+      {
+        title: "Iracema",
+        authors: ["Isabel Burton"],
+        year: "1886",
+        excerpts: {
+          sourcesPt: "Citado por [[Caldwell]], 1960.",
+          sourcesEn: null,
+        },
+      },
+    ]),
+  play: async ({ canvasElement }) => {
+    const excerpts = () =>
+      [...canvasElement.querySelectorAll("span[lang]")].map((excerpt) => [
+        excerpt.getAttribute("lang"),
+        excerpt.textContent,
+      ]);
+
+    await waitFor(() =>
+      expect(excerpts()).toEqual([
+        ["en", "Caldwell, Helen. Introduction, 1953."],
+        ["pt", "Citado por Caldwell, 1960."],
+      ]),
+    );
   },
 };
 

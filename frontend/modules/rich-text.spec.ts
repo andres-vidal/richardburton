@@ -8,6 +8,7 @@ import {
 } from "test/rich-text-fixtures";
 import {
   bareUrl,
+  blockTexts,
   emptyValue,
   isBlank,
   isLongerThan,
@@ -18,6 +19,7 @@ import {
   readValue,
   safeUrl,
   textLength,
+  withBlockTexts,
 } from "./rich-text";
 
 describe("emptyValue", () => {
@@ -281,6 +283,57 @@ describe("markedParagraph", () => {
 
   it("makes a paragraph with one empty run of empty text", () => {
     expect(markedParagraph("")).toEqual([paragraph("")]);
+  });
+});
+
+describe("blockTexts", () => {
+  it("returns the text of each block, with the text links show and the line breaks", () => {
+    expect(
+      blockTexts([
+        paragraph("Um ", { text: "clássico", bold: true }, ".\nReeditado."),
+        item(
+          "numbered",
+          1,
+          "Ver ",
+          link("https://archive.org/details/x", "o exemplar"),
+          "",
+        ),
+      ]),
+    ).toEqual(["Um clássico.\nReeditado.", "Ver o exemplar"]);
+  });
+
+  it("returns no texts for null", () => {
+    expect(blockTexts(null)).toEqual([]);
+  });
+});
+
+describe("withBlockTexts", () => {
+  it("keeps each block's type, list and depth, and puts the new text in it as plain runs with its bare URLs linked", () => {
+    const value = [
+      paragraph("Um ", { text: "clássico", bold: true }, "."),
+      item("bulleted", 1, link("https://archive.org/details/x", "o exemplar")),
+    ];
+
+    expect(
+      withBlockTexts(value, [
+        "A classic.",
+        "See https://archive.org/details/x",
+      ]),
+    ).toEqual([
+      paragraph("A classic."),
+      item(
+        "bulleted",
+        1,
+        "See ",
+        link("https://archive.org/details/x", "https://archive.org/details/x"),
+      ),
+    ]);
+  });
+
+  it("leaves a block empty when no text is given for it", () => {
+    expect(withBlockTexts([paragraph("Um clássico.")], [])).toEqual([
+      paragraph(""),
+    ]);
   });
 });
 

@@ -348,36 +348,37 @@ describe("merge", () => {
     );
   });
 
-  test("sends the notes the merged record keeps, null included", async () => {
+  test("sends the notes the merged record keeps in each language given, null included", async () => {
     http.post.mockResolvedValue({});
     const notes = [paragraph("Kept.")];
 
-    await merge(store, { winner, losers, notes });
-    await merge(store, { winner, losers, notes: null });
+    await merge(store, { winner, losers, notes: { pt: notes, en: null } });
+    await merge(store, { winner, losers, notes: { en: notes } });
 
     expect(http.post).toHaveBeenNthCalledWith(1, "publications/1/merge", {
       losers: [2, 3],
-      notes,
+      notesPt: notes,
+      notesEn: null,
     });
     expect(http.post).toHaveBeenNthCalledWith(2, "publications/1/merge", {
       losers: [2, 3],
-      notes: null,
+      notesEn: notes,
     });
   });
 
-  test("a refusal of the notes answers with its code and notifies nothing", async () => {
+  test("a refusal of the notes answers with the code of each language refused and notifies nothing", async () => {
     hydrate(store, [winner, ...losers]);
     http.post.mockRejectedValue(
-      httpError(400, { errors: { notes: "too_long" } }),
+      httpError(400, { errors: { notesEn: "too_long" } }),
     );
 
     const merging = await merge(store, {
       winner,
       losers,
-      notes: [paragraph("Far too long…")],
+      notes: { pt: null, en: [paragraph("Far too long…")] },
     });
 
-    expect(merging).toEqual({ outcome: "refused", notes: "too_long" });
+    expect(merging).toEqual({ outcome: "refused", notes: { en: "too_long" } });
     expect(store.get(publicationIdsAtom)).toEqual([1, 2, 3]);
     expect(mockNotify).not.toHaveBeenCalled();
   });
@@ -399,7 +400,7 @@ describe("merge", () => {
 
 describe("loadPublication", () => {
   test("reads the stored publication by its id", async () => {
-    const stored = { ...pub({ title: "Iracema", notes: null }), id: 4 };
+    const stored = { ...pub({ title: "Iracema", notesPt: null }), id: 4 };
     http.get.mockResolvedValue({ data: stored });
 
     expect(await loadPublication(4)).toBe(stored);

@@ -19,8 +19,9 @@ defmodule RichardBurton.Publication do
     * **winner** and **losers** — in a merge, the publication that is kept and
       the publications merged into it. The winner keeps its own fields. The
       losers add their countries, publishers, sources and notes to it, and are
-      then tombstoned. A merge given notes of its own sets the winner's notes
-      to them instead of adding the losers' (see `merge/4`).
+      then tombstoned. A merge given notes of its own in a language sets the
+      winner's notes in that language to them instead of adding the losers'
+      (see `merge/4`).
     * **absorbed** — the state of a loser after the merge, as
       `Publication.History.absorbed/1` defines it. It is not in the trash, and
       `restore/3` refuses it with `{:error, :absorbed}`. Undoing the merge
@@ -29,9 +30,14 @@ defmodule RichardBurton.Publication do
       recorded entry. The compensating action is recorded as a new entry, which
       can be undone in turn.
 
-  A publication's `notes` are rich text about it, as `RichardBurton.RichText`
-  describes it, or nil when it has none. Blank notes are stored as nil. The
-  notes are not part of the composite key, and the search does not read them.
+  A publication's notes are rich text about it, as `RichardBurton.RichText`
+  describes it, in two languages: `notes_pt` in Portuguese and `notes_en` in
+  English. Neither is the original, and each is nil when the publication has
+  no notes in that language. Blank notes are stored as nil. The notes are not
+  part of the composite key, and the search does not read them.
+
+  A publication has a list of sources in each language, `sources_pt` and
+  `sources_en`, as `RichardBurton.Source` describes them.
 
   A publication's countries, publishers, translators and original authors are
   sets. The link tables keep no order, and a preload reads each set sorted, by
@@ -51,6 +57,7 @@ defmodule RichardBurton.Publication do
 
   alias RichardBurton.Country
   alias RichardBurton.Identity
+  alias RichardBurton.Language
   alias RichardBurton.Publication
   alias RichardBurton.Publication.Codec
   alias RichardBurton.Publication.History
@@ -65,7 +72,21 @@ defmodule RichardBurton.Publication do
   alias RichardBurton.TranslatedBook
   alias RichardBurton.Validation
 
-  @readable_attributes [:countries, :publishers, :title, :year, :notes, :translated_book]
+  @readable_attributes [
+    :countries,
+    :publishers,
+    :title,
+    :year,
+    :notes_pt,
+    :notes_en,
+    :translated_book
+  ]
+
+  # The notes in each language, and the `merge/4` option that sets each.
+  @notes Language.fields(:notes)
+
+  # The associations that hold the sources in each language.
+  @sources Language.fields(:sources)
 
   @type t :: %__MODULE__{}
 
@@ -73,7 +94,8 @@ defmodule RichardBurton.Publication do
   schema "publications" do
     field(:title, :string)
     field(:year, :integer)
-    field(:notes, RichText)
+    field(:notes_pt, RichText)
+    field(:notes_en, RichText)
     # Written by the database from the linked countries and publishers.
     field(:countries_fingerprint, :string, writable: :never)
     field(:publishers_fingerprint, :string, writable: :never)
@@ -93,10 +115,18 @@ defmodule RichardBurton.Publication do
       preload_order: [asc: :name]
     )
 
-    # The sources the publication cites, preloaded in position order. A source
-    # in the attrs carries no id, so `cast_assoc/3` replaces them all on every
-    # save.
-    has_many(:sources, Source,
+    # The sources the publication cites in each language, preloaded in
+    # position order. A source in the attrs carries no id, so `cast_assoc/3`
+    # replaces all the sources of a language on every save that gives them.
+    # `changeset/2` sets each new source's language, which `where` only reads.
+    has_many(:sources_pt, Source,
+      where: [language: "pt"],
+      on_replace: :delete,
+      preload_order: [asc: :position]
+    )
+
+    has_many(:sources_en, Source,
+      where: [language: "en"],
       on_replace: :delete,
       preload_order: [asc: :position]
     )
@@ -115,11 +145,12 @@ defmodule RichardBurton.Publication do
   @doc false
   def changeset(publication, attrs) do
     publication
-    |> cast(attrs, [:title, :year, :notes])
+    |> cast(attrs, [:title, :year | @notes])
     |> cast_assoc(:translated_book, required: true)
     |> cast_assoc(:countries, required: true)
     |> cast_assoc(:publishers, required: true)
-    |> cast_assoc(:sources)
+    |> cast_assoc(:sources_pt, with: &Source.changeset(&1, &2, "pt"))
+    |> cast_assoc(:sources_en, with: &Source.changeset(&1, &2, "en"))
     |> validate_length(:countries, min: 1)
     |> validate_no_duplicates(:countries, :code)
     |> validate_no_duplicates(:publishers, :name)
@@ -145,8 +176,9 @@ defmodule RichardBurton.Publication do
 
   The countries, publishers, translated book, original book and both lists of
   authors are read in one query that joins them, sorted the way the
-  associations' `preload_order` sorts them. The sources are read in a second
-  query, so that many sources do not multiply the rows of the first.
+  associations' `preload_order` sorts them. The sources are read in two more
+  queries, one for each language, so that many sources do not multiply the
+  rows of the first.
   """
   def with_ids(ids) do
     by_id =
@@ -166,7 +198,7 @@ defmodule RichardBurton.Publication do
         ]
       )
       |> Repo.all()
-      |> Repo.preload(:sources)
+      |> Repo.preload(@sources)
       |> Map.new(&{&1.id, &1})
 
     Enum.map(ids, &Map.fetch!(by_id, &1))
@@ -178,12 +210,11 @@ defmodule RichardBurton.Publication do
   original book, and the original book's authors.
   """
   def preload(data) do
-    Repo.preload(data, [
-      :countries,
-      :publishers,
-      :sources,
-      translated_book: [:authors, original_book: [:authors]]
-    ])
+    Repo.preload(
+      data,
+      [:countries, :publishers | @sources] ++
+        [translated_book: [:authors, original_book: [:authors]]]
+    )
   end
 
   @doc """
@@ -239,8 +270,8 @@ defmodule RichardBurton.Publication do
   # composite key, or `{:error, errors}` when `attrs` is invalid.
   #
   # The snapshots before and after decide whether anything changed, because
-  # `cast_assoc(:sources)` replaces every source, so the changeset always has
-  # changes.
+  # `cast_assoc/3` replaces every source it is given, so the changeset always
+  # has changes.
   defp update_and_record(publication, attrs, actor) do
     publication = preload(publication)
     before = History.snapshot(publication)
@@ -348,21 +379,27 @@ defmodule RichardBurton.Publication do
   end
 
   defp compensate(entry = %{action: "unmerged", publication_id: id}, previous, _head, actor) do
-    merge(id, History.other_ids(entry), actor, merged_notes(previous))
+    # `previous` is the entry before the un-merge: the merge the un-merge
+    # undid, or a decision recorded after the merge. A decision changes no
+    # field, so either snapshot holds the winner as the merge left it, and
+    # its notes make the merge give the winner those notes again.
+    merge(id, History.other_ids(entry), actor, notes_opts(previous.snapshot))
   end
 
-  # Returns the options that make a merge again give the winner the notes in
-  # the snapshot of `previous`, the entry before an un-merge: `[notes: notes]`,
-  # or `[]` when the snapshot has no notes key, so the merge joins the notes.
-  #
-  # That entry is the merge the un-merge undid, or a decision recorded after
-  # the merge. A decision changes no field, so either snapshot holds the
-  # winner as the merge left it.
-  defp merged_notes(%History{snapshot: snapshot}) do
-    case Map.fetch(snapshot, "notes") do
-      {:ok, notes} -> [notes: notes]
-      :error -> []
-    end
+  @doc ~S"""
+  Returns the `merge/4` options that set the notes in each language `map`
+  has a key for, such as the `"notes_pt"` key for the `:notes_pt` option. The
+  keys are strings, and a key whose value is nil still gives its option. A
+  language `map` has no key for is left out, so a merge joins the notes in
+  that language.
+
+  ## Examples
+
+      iex> RichardBurton.Publication.notes_opts(%{"notes_en" => nil, "title" => "Iracema"})
+      [notes_en: nil]
+  """
+  def notes_opts(map) do
+    for field <- @notes, {:ok, notes} <- [Map.fetch(map, to_string(field))], do: {field, notes}
   end
 
   # Undoes the merge `entry`, in one transaction: clears the tombstones of the
@@ -427,28 +464,30 @@ defmodule RichardBurton.Publication do
   list, so a call that passes options passes the actor before them.
 
   The winner keeps its title, year, translated book and original book. It
-  gains the countries and publishers of the losers, and their sources after
-  its own, leaving out a source it already holds. The losers are then
+  gains the countries and publishers of the losers, and in each language their
+  sources after its own, leaving out a source it already holds in that
+  language. The losers are then
   tombstoned, and their distinctions from each other and from the winner are
   deleted (see `Publication.Duplicates.forget/1`). The entry names the losers, so `undo/3`
   can undo the whole merge.
 
-  The merged notes are the value of the `:notes` option when `opts` holds it,
-  cast and validated as the notes of an update are, so nil or a blank value
-  leaves the winner without notes. Without that option, the merged notes are
-  the winner's notes followed by the blocks of each loser's notes, in the
-  order of `loser_ids`. A loser's notes are left out when they are nil,
-  blank, or equal to notes already included. When the winner has no notes,
-  the merged notes are the losers'.
+  The notes are merged in each language on its own. The merged Portuguese
+  notes are the value of the `:notes_pt` option when `opts` holds it, cast and
+  validated as the notes of an update are, so nil or a blank value leaves the
+  winner without Portuguese notes. Without that option, they are the winner's
+  Portuguese notes followed by the blocks of each loser's, in the order of
+  `loser_ids`. A loser's notes are left out when they are nil, blank, or equal
+  to notes already included. When the winner has none, the merged notes are
+  the losers'. The `:notes_en` option and the English notes work the same way.
 
   Returns `{:ok, winner}`, preloaded. Returns `{:error, :conflict}` when the
   merged publication would have the composite key of another publication,
   `{:error, :not_found}` when one of the publications is missing or deleted,
   `{:error, :self}` when `loser_ids` holds `winner_id`,
   `{:error, :no_losers}` when `loser_ids` is empty, and `{:error, errors}`
-  when the merged publication is invalid, such as when the merged notes are
-  too long, or the `:notes` value is not rich text. Nothing is written when
-  it returns an error.
+  when the merged publication is invalid, such as when the merged notes in a
+  language are too long, or a notes option is not rich text. Nothing is
+  written when it returns an error.
   """
   def merge(winner_id, loser_ids, actor \\ History.system_actor(), opts \\ [])
 
@@ -543,29 +582,41 @@ defmodule RichardBurton.Publication do
   end
 
   # Returns the nested attrs of the merged publication: the winner's fields,
-  # the countries and publishers of all of them, the sources of all of them,
-  # each listed once, and the notes `merge/4` describes for `opts`.
+  # the countries and publishers of all of them, the sources in each language
+  # of all of them, each listed once, and the notes `merge/4` describes for
+  # `opts`.
   defp reconciled(winner, losers, opts) do
     flat = Enum.map([winner | losers], &History.snapshot/1)
     [kept | _] = flat
+
+    notes =
+      Map.new(@notes, fn field ->
+        {field, Keyword.get_lazy(opts, field, fn -> joined_notes(flat, field) end)}
+      end)
+
+    sources =
+      Map.new(@sources, fn field ->
+        {field, flat |> Enum.flat_map(&Map.fetch!(&1, field)) |> Enum.uniq()}
+      end)
 
     kept
     |> Map.delete(:id)
     |> Map.merge(%{
       countries: union_of(flat, :countries),
-      publishers: union_of(flat, :publishers),
-      sources: flat |> Enum.flat_map(& &1.sources) |> Enum.uniq(),
-      notes: Keyword.get_lazy(opts, :notes, fn -> joined_notes(flat) end)
+      publishers: union_of(flat, :publishers)
     })
+    |> Map.merge(sources)
+    |> Map.merge(notes)
     |> Codec.nest()
   end
 
-  # Returns the blocks of the notes of the snapshots `flat`, in order, leaving
-  # out blank notes and notes equal to an earlier snapshot's. The list is
-  # empty when none are left, and `changeset/2` casts an empty list to nil.
-  defp joined_notes(flat) do
+  # Returns the blocks of the notes in the language `field` of the snapshots
+  # `flat`, in order, leaving out blank notes and notes equal to an earlier
+  # snapshot's. The list is empty when none are left, and `changeset/2` casts
+  # an empty list to nil.
+  defp joined_notes(flat, field) do
     flat
-    |> Enum.map(& &1.notes)
+    |> Enum.map(&Map.get(&1, field))
     |> Enum.reject(&RichText.blank?/1)
     |> Enum.uniq()
     |> Enum.concat()

@@ -2,9 +2,12 @@
 
 import WarningIcon from "assets/warning.svg";
 import {
+  useLanguage,
+  usePublicationFieldErrors,
   usePublicationResemblance,
   usePublicationSources,
 } from "modules/publication/hooks";
+import { SOURCES_KEYS, shownSources } from "modules/publication/model";
 import { usePublicationStore } from "modules/publication/workspace";
 import { openReview, setSources } from "modules/publication/store";
 import { useTranslations } from "next-intl";
@@ -70,12 +73,18 @@ const RowResemblance: FC<{ rowId: RowId }> = ({ rowId }) => {
 };
 
 /**
- * The cell at the end of a workspace row: a button with the row's source count,
- * which opens the sources editor in a dialog, and the row's look-alike button.
- * Sources are a list rather than one value, so they are edited outside the
+ * The cell at the end of a workspace row: a button with the row's source
+ * count, which opens the sources editor in a dialog, and the row's look-alike
+ * button. The count is that of the sources in the reader's language, or in the
+ * other language when there are none in the reader's (see `shownSources`).
+ * Sources are lists rather than one value, so they are edited outside the
  * attribute grid. Edits are written to the row with `setSources`, and the bulk
  * insert saves them with the rest of the row. A click on either button does
  * not reach the row, so it does not select the row.
+ *
+ * When the sources in either language have an error, the button's tooltip
+ * gives it, or the Portuguese one when both languages have one, and the editor
+ * shows each error under its language's list.
  *
  * `invalid`, `selected` and `focused` give the cell the background the
  * row's other cells have in those states. They default to false.
@@ -87,10 +96,13 @@ const WorkspaceSourcesCell: FC<{
   focused?: boolean;
 }> = ({ rowId, invalid = false, selected = false, focused = false }) => {
   const t = useTranslations("admin");
+  const language = useLanguage();
   const store = usePublicationStore();
   const sources = usePublicationSources(rowId);
+  const errors = usePublicationFieldErrors(rowId, SOURCES_KEYS);
+  const error = errors.pt || errors.en;
   const editor = useModal();
-  const count = sources.length;
+  const count = shownSources(sources, language)?.sources.length ?? 0;
 
   const openEditor = (event: MouseEvent) => {
     event.stopPropagation();
@@ -105,14 +117,18 @@ const WorkspaceSourcesCell: FC<{
       data-focused={focused}
       className="flex gap-2 items-center py-1 px-2 transition-colors group-hover:bg-indigo-100 error:group-hover:bg-red-100 error:focused:bg-red-100 selected:bg-amber-100 selected:focused:error:bg-amber-100"
     >
-      <Button
-        variant="outline"
-        width="fit"
-        size="small"
-        onClick={openEditor}
-        aria-label={count === 0 ? t("addSources") : t("editSources", { count })}
-        label={t("sourcesCount", { count })}
-      />
+      <Tooltip variant="error" message={error} placement="left">
+        <Button
+          variant="outline"
+          width="fit"
+          size="small"
+          onClick={openEditor}
+          aria-label={
+            count === 0 ? t("addSources") : t("editSources", { count })
+          }
+          label={t("sourcesCount", { count })}
+        />
+      </Tooltip>
 
       <RowResemblance rowId={rowId} />
 
@@ -123,7 +139,10 @@ const WorkspaceSourcesCell: FC<{
       >
         <SourcesEditor
           value={sources}
-          onChange={(next) => setSources(store, rowId, next)}
+          errors={errors}
+          onChange={(language, next) =>
+            setSources(store, rowId, language, next)
+          }
         />
       </Modal>
     </div>

@@ -1,8 +1,16 @@
 "use client";
 
+import { useLanguage } from "modules/publication/hooks";
+import {
+  byLanguage,
+  otherLanguage,
+  type Language,
+} from "modules/publication/model";
 import { useTranslations } from "next-intl";
-import { FC } from "react";
+import { FC, useState } from "react";
 import Button from "./Button";
+import DraftButton from "./DraftButton";
+import LanguageTabs from "./LanguageTabs";
 import TextInput from "./TextInput";
 
 /** A small button with a symbol, for moving or removing one source. */
@@ -24,17 +32,18 @@ const RowButton: FC<{
 );
 
 /**
- * Edits a publication's sources, an ordered list of free text. `value` is the
- * whole list, and adding, editing, removing or moving an entry passes a new
- * list to `onChange`. The component keeps no state of its own. Moving an entry
- * swaps it with its neighbour.
+ * Edits one language's sources, an ordered list of free text written in
+ * `language`. `value` is the whole list, and adding, editing, removing or
+ * moving an entry passes a new list to `onChange`. Moving an entry swaps it
+ * with its neighbour. An entry has no identity of its own, so each row is
+ * keyed by its position, and moving an entry swaps the contents of two rows.
  */
-const SourcesEditor: FC<{
+const SourceList: FC<{
+  language: Language;
   value: string[];
   onChange: (sources: string[]) => void;
-}> = ({ value, onChange }) => {
+}> = ({ language, value, onChange }) => {
   const t = useTranslations("admin");
-  const attribute = useTranslations("attributes");
   const setAt = (index: number, content: string) =>
     onChange(value.map((entry, i) => (i === index ? content : entry)));
 
@@ -51,23 +60,17 @@ const SourcesEditor: FC<{
   };
 
   return (
-    <section className="flex flex-col gap-2">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-sm text-gray-600">{attribute("sources")}</span>
-        <span className="text-xs text-gray-500">{t("sourcesHint")}</span>
-      </div>
-
+    <div className="flex flex-col gap-2">
       {value.length === 0 ? (
         <p className="text-sm italic text-gray-500">{t("noSources")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {value.map((content, index) => (
-            // An entry has no identity of its own, so it is keyed by its
-            // position, and moving an entry swaps the contents of two positions.
             <li key={index} className="flex gap-1 items-center">
               <TextInput
                 bordered
                 fill
+                lang={language}
                 value={content}
                 onChange={(next) => setAt(index, next)}
                 aria-label={t("sourceNumber", { number: index + 1 })}
@@ -107,6 +110,104 @@ const SourcesEditor: FC<{
           onClick={add}
         />
       </div>
+    </div>
+  );
+};
+
+/**
+ * Edits a publication's sources in each language. Each language's sources are
+ * an ordered list of free text of their own, in a panel of their own (see
+ * `LanguageTabs`): one tab for each language where there is little room, and
+ * the two lists side by side where there is enough. The two lists are
+ * independent: adding, editing, removing or moving a source in one leaves the
+ * other as it is. The tab of the reader's language is selected at first, and
+ * a tab whose list has no sources says it is empty. The inputs of the two
+ * lists have the same names, so each is told apart by its panel.
+ *
+ * `value` holds the list of each language. An edit passes the language and its
+ * whole new list to `onChange`. The component keeps no sources of its own.
+ *
+ * At the top of each panel, a `DraftButton` drafts that panel's list from the
+ * other language's list: each source of that list that is not blank,
+ * translated, in the same order. It asks before it replaces sources the panel
+ * already has. After a draft, the panel says to check the titles in the
+ * drafted sources.
+ *
+ * `errors` holds what is wrong with the list of each language. Each error is
+ * shown under its tab's list, and a tab whose list has an error is shown in
+ * red.
+ */
+const SourcesEditor: FC<{
+  value: Record<Language, string[]>;
+  onChange: (language: Language, sources: string[]) => void;
+  errors?: Partial<Record<Language, string>>;
+}> = ({ value, onChange, errors = {} }) => {
+  const t = useTranslations("admin");
+  const draft = useTranslations("draft");
+  const attribute = useTranslations("attributes");
+  const [selected, setSelected] = useState(useLanguage());
+  // Whether a draft filled the list in each language, whose panel then asks
+  // to check the titles.
+  const [drafted, setDrafted] = useState<Partial<Record<Language, boolean>>>(
+    {},
+  );
+
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm text-gray-600">{attribute("sources")}</span>
+        <span className="text-xs text-gray-500">{t("sourcesHint")}</span>
+      </div>
+
+      <LanguageTabs
+        label={t("sourcesLanguages")}
+        selected={selected}
+        onSelect={setSelected}
+        errors={errors}
+        empty={byLanguage((language) => value[language].length === 0)}
+        actions={(language) => {
+          const from = otherLanguage(language);
+
+          return (
+            <DraftButton
+              label={t("draftSourcesFrom", { language: from })}
+              from={from}
+              to={language}
+              texts={value[from].filter((source) => source.trim() !== "")}
+              replacing={
+                value[language].length === 0
+                  ? undefined
+                  : {
+                      title: t("replaceSourcesTitle", { language }),
+                      message: t("replaceSourcesMessage"),
+                    }
+              }
+              onDrafted={(sources) => {
+                onChange(language, sources);
+                setDrafted((before) => ({ ...before, [language]: true }));
+              }}
+            />
+          );
+        }}
+      >
+        {(language) => (
+          <div className="flex flex-col gap-2">
+            <SourceList
+              language={language}
+              value={value[language]}
+              onChange={(next) => onChange(language, next)}
+            />
+            {drafted[language] && (
+              <p role="status" className="text-xs text-amber-700">
+                {draft("checkTitles")}
+              </p>
+            )}
+            {errors[language] && (
+              <p className="text-xs text-red-600">{errors[language]}</p>
+            )}
+          </div>
+        )}
+      </LanguageTabs>
     </section>
   );
 };

@@ -48,6 +48,36 @@ describe("the draft row across reloads", () => {
     });
   });
 
+  test("a draft saved before notes and sources had two languages reads them as Portuguese", () => {
+    const notes = [
+      { type: "paragraph", children: [{ text: "Primeira edição." }] },
+    ];
+
+    localStorage.setItem(
+      "rb:draft:a-workspace",
+      JSON.stringify({
+        id: null,
+        title: "Dom Casmurro",
+        sources: ["Caldwell, Helen. Introdução, 1953."],
+        notes,
+      }),
+    );
+
+    const store = createStore();
+    stop = keepDraft(store, "a-workspace");
+
+    const draft = store.get(publicationFamily(DRAFT_ID));
+
+    expect(draft).toMatchObject({
+      title: "Dom Casmurro",
+      sourcesPt: ["Caldwell, Helen. Introdução, 1953."],
+      sourcesEn: [],
+      notesPt: notes,
+    });
+    expect(draft).not.toHaveProperty("sources");
+    expect(draft).not.toHaveProperty("notes");
+  });
+
   test("each workspace has its own", () => {
     const store = createStore();
 

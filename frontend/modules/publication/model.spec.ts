@@ -4,11 +4,16 @@ import {
   define,
   empty,
   errorCode,
+  localizedField,
+  markedSources,
   marking,
   merged,
+  preferredLanguage,
   searchHref,
+  shownNotes,
+  shownSources,
 } from "./model";
-import type { Publication } from "./model";
+import type { Language, Publication } from "./model";
 import { routing } from "i18n/routing";
 import { messages } from "test/messages";
 import { item, link, paragraph } from "test/rich-text-fixtures";
@@ -38,12 +43,14 @@ describe("empty", () => {
         [],
       );
     });
-    // Plus a null id (no server PK yet) and an empty provenance list. Sources
-    // are a list outside the scalar ATTRIBUTES, so they're checked separately.
+    // Plus a null id (no server PK yet) and an empty list of sources in each
+    // language. Sources are lists outside the scalar ATTRIBUTES, so they're
+    // checked separately.
     expect(publication.id).toBeNull();
-    expect(publication.sources).toEqual([]);
+    expect(publication.sourcesPt).toEqual([]);
+    expect(publication.sourcesEn).toEqual([]);
     expect(Object.keys(publication).sort()).toEqual(
-      ["id", "sources", ...ATTRIBUTES].sort(),
+      ["id", "sourcesPt", "sourcesEn", ...ATTRIBUTES].sort(),
     );
   });
 });
@@ -231,60 +238,159 @@ describe("merged", () => {
     expect(result.publishers).toEqual(["Bickers & Son", "Noonday Press"]);
   });
 
-  test("takes every source none of the others already gave", () => {
-    const winner = publication({ sources: ["Alves, 1990"] });
+  test("takes every source none of the others already gave, in each language", () => {
+    const winner = publication({
+      sourcesPt: ["Alves, 1990"],
+      sourcesEn: ["Alves, Introduction, 1990"],
+    });
     const losers = [
-      publication({ sources: ["Alves, 1990", "Costa, 2001"] }),
-      publication({ sources: ["Dias, 2011"] }),
+      publication({ sourcesPt: ["Alves, 1990", "Costa, 2001"] }),
+      publication({
+        sourcesEn: ["Alves, Introduction, 1990", "Dias, 2011"],
+      }),
     ];
 
-    expect(merged(winner, losers).sources).toEqual([
-      "Alves, 1990",
-      "Costa, 2001",
+    const result = merged(winner, losers);
+
+    expect(result.sourcesPt).toEqual(["Alves, 1990", "Costa, 2001"]);
+    expect(result.sourcesEn).toEqual([
+      "Alves, Introduction, 1990",
       "Dias, 2011",
     ]);
   });
 
-  test("appends the blocks of the others' distinct notes to the survivor's", () => {
-    const first = [paragraph("First edition.")];
+  test("appends the blocks of the others' distinct notes to the survivor's, in each language", () => {
+    const first = [paragraph("Primeira edição.")];
     const review = [
-      paragraph("Reviewed in ", { text: "The Athenaeum", italic: true }, "."),
-      item("bulleted", 0, "", link("https://example.com/r", "the review"), ""),
+      paragraph("Resenhado em ", { text: "The Athenaeum", italic: true }, "."),
+      item("bulleted", 0, "", link("https://example.com/r", "a resenha"), ""),
     ];
+    const english = [paragraph("First edition.")];
     const losers = [
-      publication({ notes: review }),
+      publication({ notesPt: review, notesEn: english }),
       // The survivor's notes again, with the keys of each object in another
       // order, as JSON from the API may list them.
       publication({
-        notes: [{ children: [{ text: "First edition." }], type: "paragraph" }],
+        notesPt: [
+          { children: [{ text: "Primeira edição." }], type: "paragraph" },
+        ],
       }),
-      publication({ notes: null }),
-      publication({ notes: [paragraph("  "), item("numbered", 0, "")] }),
+      publication({ notesPt: null }),
+      publication({ notesPt: [paragraph("  "), item("numbered", 0, "")] }),
       publication({}),
     ];
 
-    expect(merged(publication({ notes: first }), losers).notes).toEqual([
-      ...first,
-      ...review,
-    ]);
+    const result = merged(publication({ notesPt: first }), losers);
+
+    expect(result.notesPt).toEqual([...first, ...review]);
+    expect(result.notesEn).toEqual(english);
   });
 
   test("takes the others' notes when the survivor has none", () => {
-    const winner = publication({ notes: null });
+    const winner = publication({ notesPt: null, notesEn: null });
     const list = [item("bulleted", 0, "a list")];
 
-    expect(merged(winner, [publication({ notes: list })]).notes).toEqual(list);
-    expect(merged(winner, [publication({})]).notes).toBeNull();
+    expect(merged(winner, [publication({ notesEn: list })]).notesEn).toEqual(
+      list,
+    );
+    expect(merged(winner, [publication({})]).notesPt).toBeNull();
   });
 
   test("merging nothing in leaves the record as it stands", () => {
     const winner = publication({
       countries: ["GB", "US"],
       publishers: ["Bickers & Son"],
-      sources: ["Alves, 1990"],
+      sourcesPt: ["Alves, 1990"],
     });
 
     expect(merged(winner, [])).toEqual(winner);
+  });
+});
+
+describe("shownSources", () => {
+  test("shows the sources in the reader's language, or in the other one when there are none in the reader's", () => {
+    const both = {
+      pt: ["Caldwell, Helen. Introdução."],
+      en: ["Caldwell, Helen. Introduction.", "Catalog record."],
+    };
+    const portuguese = { pt: ["Gledson, John. Realismo enganoso."], en: [] };
+
+    expect(shownSources(both, "en")).toEqual({
+      language: "en",
+      sources: ["Caldwell, Helen. Introduction.", "Catalog record."],
+    });
+    expect(shownSources(both, "pt")).toEqual({
+      language: "pt",
+      sources: ["Caldwell, Helen. Introdução."],
+    });
+    expect(shownSources(portuguese, "en")).toEqual({
+      language: "pt",
+      sources: ["Gledson, John. Realismo enganoso."],
+    });
+    expect(shownSources({ pt: [], en: [] }, "pt")).toBeNull();
+  });
+});
+
+describe("markedSources", () => {
+  test("gives the marked text of a source where the search matched it, and the stored text elsewhere", () => {
+    const record: Publication = {
+      ...empty(),
+      sourcesPt: ["Caldwell, Helen. Introdução."],
+      sourcesEn: ["Caldwell, Helen. Introduction.", "Gledson, John."],
+      marked: {
+        sourcesEn: ["[[Caldwell]], Helen. Introduction.", null],
+      },
+    };
+
+    expect(markedSources(record, "sourcesEn")).toEqual([
+      "[[Caldwell]], Helen. Introduction.",
+      "Gledson, John.",
+    ]);
+    expect(markedSources(record, "sourcesPt")).toEqual([
+      "Caldwell, Helen. Introdução.",
+    ]);
+  });
+});
+
+describe("shownNotes", () => {
+  test("shows the notes in the reader's language, or in the other one when those are blank", () => {
+    const portuguese = [paragraph("Primeira edição.")];
+    const english = [paragraph("First edition.")];
+
+    expect(shownNotes({ pt: portuguese, en: english }, "en")).toEqual({
+      language: "en",
+      value: english,
+    });
+    expect(shownNotes({ pt: portuguese, en: [paragraph(" ")] }, "en")).toEqual({
+      language: "pt",
+      value: portuguese,
+    });
+    expect(shownNotes({ pt: null }, "pt")).toBeNull();
+  });
+});
+
+describe("preferredLanguage", () => {
+  test("prefers the reader's language, falls back to the other one, and gives undefined when neither has it", () => {
+    const has = (languages: Language[]) => (language: Language) =>
+      languages.includes(language);
+
+    expect(preferredLanguage("en", has(["pt", "en"]))).toBe("en");
+    expect(preferredLanguage("en", has(["pt"]))).toBe("pt");
+    expect(preferredLanguage("pt", has([]))).toBeUndefined();
+  });
+});
+
+describe("localizedField", () => {
+  test("names the list and the language of a field in one language, and gives null for an attribute", () => {
+    expect(localizedField("sourcesEn")).toEqual({
+      kind: "sources",
+      language: "en",
+    });
+    expect(localizedField("notesPt")).toEqual({
+      kind: "notes",
+      language: "pt",
+    });
+    expect(localizedField("title")).toBeNull();
   });
 });
 
@@ -376,7 +482,7 @@ describe("contrast", () => {
     const record = publication({
       year: "1953",
       countries: ["US", "GB"],
-      sources: [
+      sourcesEn: [
         "Caldwell, Helen. Introduction.",
         "Gledson, John. Deceptive Realism.",
       ],
@@ -384,7 +490,7 @@ describe("contrast", () => {
     const other = publication({
       year: "1953",
       countries: ["US"],
-      sources: ["Gledson, John. Deceptive Realism."],
+      sourcesEn: ["Gledson, John. Deceptive Realism."],
     });
 
     expect(contrast(record, [other], "year").values).toEqual([
@@ -394,7 +500,7 @@ describe("contrast", () => {
       [{ text: "US", differs: false }],
       [{ text: "GB", differs: true }],
     ]);
-    expect(contrast(record, [other], "sources").values).toEqual([
+    expect(contrast(record, [other], "sourcesEn").values).toEqual([
       [{ text: "Caldwell, Helen. Introduction.", differs: true }],
       [{ text: "Gledson, John. Deceptive Realism.", differs: false }],
     ]);

@@ -143,7 +143,7 @@ describe("this client's edits", () => {
     setAll(store, [entry("a", { title: "Dom Casmurro" })]);
     await settled();
 
-    setSources(store, "a", ["Caldwell, Helen. Introduction."]);
+    setSources(store, "a", "en", ["Caldwell, Helen. Introduction."]);
     await vi.advanceTimersByTimeAsync(SETTLE);
 
     expect(validated()).toHaveLength(1);

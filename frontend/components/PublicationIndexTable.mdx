@@ -46,6 +46,12 @@ seedIndex(store);
 - **Empty** — ids loaded and none to show, because the database is empty or
   the search matched nothing; renders `EmptySearchResults`
   ([Empty](?path=/story/publications-index-table--empty) story).
+- **Matched on sources** — a search can match a publication on its sources,
+  which the table has no column for. The row then shows the excerpt of the
+  matching sources under its title, in the reader's language when the search
+  matched the sources in it, and in the other language otherwise
+  ([Matched on sources](?path=/story/publications-index-table--matched-on-sources)
+  story).
 - **Loading** — ids not loaded; renders a
   [`PublicationIndexTableSkeleton`](?path=/docs/publications-index-table-skeleton--docs)
   in the table's own columns.

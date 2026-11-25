@@ -4,20 +4,42 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
+import { installFakeTranslator, removeTranslator } from "../test/translator";
 import { backendPort, frontendPort } from "./stack";
+
+/**
+ * Gives every document `page` loads the fake Translator API when `translator`
+ * is true, and no Translator API otherwise.
+ */
+const withTranslator = (page: Page, translator: boolean) =>
+  page.addInitScript(translator ? installFakeTranslator : removeTranslator);
 
 /**
  * Playwright's `test`, run against the stack of the test's worker, with that
  * worker's database reset before every test.
+ *
+ * Playwright's Chromium has the built-in Translator API, but no translation
+ * service behind it, so the API never answers. Every page gets the fake one
+ * that `installFakeTranslator` describes before its scripts run. A test about
+ * a browser without the API uses `test.use({ translator: false })`, which
+ * removes the API from the page instead.
  */
 export const test = base.extend<{
   reset: void;
+  translator: boolean;
   colleagueContext: BrowserContext;
   colleague: Page;
 }>({
+  translator: [true, { option: true }],
+
   // Navigation goes to this worker's frontend.
   baseURL: async ({}, use, testInfo) => {
     await use(`http://localhost:${frontendPort(testInfo.parallelIndex)}`);
+  },
+
+  page: async ({ page, translator }, use) => {
+    await withTranslator(page, translator);
+    await use(page);
   },
 
   // Runs before every test: resets this worker's database with
@@ -45,8 +67,10 @@ export const test = base.extend<{
     await context.close();
   },
 
-  colleague: async ({ colleagueContext }, use) => {
-    await use(await colleagueContext.newPage());
+  colleague: async ({ colleagueContext, translator }, use) => {
+    const page = await colleagueContext.newPage();
+    await withTranslator(page, translator);
+    await use(page);
   },
 });
 

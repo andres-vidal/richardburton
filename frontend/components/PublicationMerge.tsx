@@ -2,10 +2,18 @@
 
 import { isEqual } from "lodash";
 import {
-  useErrorSentence,
+  useErrorSentences,
   usePublicationMarking,
 } from "modules/publication/hooks";
-import { NOTES_MAX_LENGTH, Publication } from "modules/publication/model";
+import {
+  byLanguage,
+  LANGUAGES,
+  NOTES_KEYS,
+  NOTES_MAX_LENGTH,
+  Publication,
+  SOURCES_KEYS,
+  type Language,
+} from "modules/publication/model";
 import { loadPublication, merge, search } from "modules/publication/remote";
 import { usePublicationStore } from "modules/publication/workspace";
 import { isBlank, isLongerThan, type RichTextValue } from "modules/rich-text";
@@ -14,9 +22,9 @@ import { ChangeEventHandler, FC, ReactNode, useMemo, useState } from "react";
 import useLookup from "utils/useLookup";
 import Button from "./Button";
 import Highlight from "./Highlight";
-import LazyRichTextArea from "./LazyRichTextArea";
 import { Modal } from "./Modal";
 import ModalHeading from "./ModalHeading";
+import NotesEditor from "./NotesEditor";
 import { SEARCH_INPUT_CLASS_NAME } from "./PublicationSearch";
 import SectionHeading from "./SectionHeading";
 
@@ -56,11 +64,13 @@ const DETAILED = Publication.ATTRIBUTES.filter(
 
 /**
  * One publication in full: its title and year, every other attribute it
- * holds, and its sources. Nothing is cut short, since records that look alike
- * are told apart by the details they differ in.
+ * holds, and its sources in each language it has any in. Nothing is cut
+ * short, since records that look alike are told apart by the details they
+ * differ in.
  */
 const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
   const t = useTranslations("attributes");
+  const admin = useTranslations("admin");
   const marked = usePublicationMarking();
 
   return (
@@ -81,18 +91,24 @@ const Summary: FC<{ publication: Publication }> = ({ publication: p }) => {
             </div>
           ) : null;
         })}
-        {p.sources?.length > 0 && (
-          <div className="flex gap-1">
-            <dt className="text-gray-600 shrink-0">{t("sources")}:</dt>
-            <dd className="min-w-0 wrap-break-word">
-              <ul>
-                {p.sources.map((source) => (
-                  <li key={source}>{source}</li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        )}
+        {LANGUAGES.map((language) => {
+          const sources = p[SOURCES_KEYS[language]] ?? [];
+
+          return sources.length > 0 ? (
+            <div key={language} className="flex gap-1">
+              <dt className="text-gray-600 shrink-0">
+                {admin("sourcesIn", { language })}:
+              </dt>
+              <dd lang={language} className="min-w-0 wrap-break-word">
+                <ul>
+                  {sources.map((source) => (
+                    <li key={source}>{source}</li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+          ) : null;
+        })}
       </dl>
     </div>
   );
@@ -128,12 +144,12 @@ const Gained: FC<{ label: string; kept: string[]; gained: string[] }> = ({
 );
 
 /**
- * The Result section: the countries, publishers and sources of `result`, the
- * merged record, with everything that `winner`, the survivor, did not hold
- * marked as gained, followed by `children`. When `notesGained` is false and
- * nothing else is gained, it says that the others bring nothing new and that
- * merging still removes them. `notesGained` is null while it is not known yet,
- * and the section then says nothing about it.
+ * The Result section: the countries, publishers and the sources in each
+ * language of `result`, the merged record, with everything that `winner`, the
+ * survivor, did not hold marked as gained, followed by `children`. When
+ * `notesGained` is false and nothing else is gained, it says that the others
+ * bring nothing new and that merging still removes them. `notesGained` is null
+ * while it is not known yet, and the section then says nothing about it.
  */
 const Preview: FC<{
   winner: Publication;
@@ -142,6 +158,7 @@ const Preview: FC<{
   children?: ReactNode;
 }> = ({ winner, result, notesGained, children }) => {
   const attribute = useTranslations("attributes");
+  const admin = useTranslations("admin");
   const t = useTranslations("merge");
 
   const rows = [
@@ -155,7 +172,11 @@ const Preview: FC<{
       kept: winner.publishers,
       all: result.publishers,
     },
-    { label: attribute("sources"), kept: winner.sources, all: result.sources },
+    ...LANGUAGES.map((language) => ({
+      label: admin("sourcesIn", { language }),
+      kept: winner[SOURCES_KEYS[language]] ?? [],
+      all: result[SOURCES_KEYS[language]] ?? [],
+    })),
   ].map(({ label, kept, all }) => ({
     label,
     kept,
@@ -192,23 +213,26 @@ const Preview: FC<{
  * and a record that could not be read says so.
  *
  * The Result shows what the survivor gains before the merge is asked for.
- * When the survivor or a picked record has notes, the Result also has a Notes
- * field, prefilled with the proposed notes: the survivor's notes, then each
- * picked record's notes in the order they were picked, without notes that are
- * blank or that equal earlier ones (see `Publication.merged`). The field is
- * shown once every picked record is read. The notes in the field are the
- * notes the merge sends, and the merged record keeps them. When the field is
- * not shown, the merge sends no notes.
+ * When the survivor or a picked record has notes in either language, the
+ * Result also has a notes field, a `NotesEditor` with a tab for each language,
+ * prefilled with the proposed notes. In each language, they are the survivor's
+ * notes, then each picked record's notes in the order they were picked,
+ * without notes that are blank or that equal earlier ones (see
+ * `Publication.merged`). The field is shown once every picked record is read.
+ * The notes in the field, in both languages, are the notes the merge sends,
+ * and the merged record keeps them. When the field is not shown, the merge
+ * sends no notes.
  *
- * Until the notes are edited, picking or removing a record proposes the notes
- * again. Once they are edited, the field keeps the edited notes, whatever is
- * picked or removed, until the dialog closes. The field then stays shown even
- * when no record left has notes, since the edited notes are what the merge
- * sends.
+ * Until the notes in a language are edited, picking or removing a record
+ * proposes them again. Once they are edited, the field keeps the edited notes
+ * of that language, whatever is picked or removed, until the dialog closes.
+ * The field then stays shown even when no record left has notes, since the
+ * edited notes are what the merge sends.
  *
  * Notes longer than `NOTES_MAX_LENGTH` characters, and notes the server
- * refuses, have their error under the field, and Merge is disabled until they
- * are edited. Closing the dialog clears the search, the picks and the notes.
+ * refuses, have their error under the field of their language, and Merge is
+ * disabled until they are edited. Closing the dialog clears the search, the
+ * picks and the notes.
  */
 const PublicationMerge: FC<Props> = ({
   publication,
@@ -219,19 +243,20 @@ const PublicationMerge: FC<Props> = ({
   read: readPublication = loadPublication,
 }) => {
   const t = useTranslations("merge");
-  const attribute = useTranslations("attributes");
-  const note = useTranslations("notes");
   const store = usePublicationStore();
 
   const [term, setTerm] = useState("");
   const [candidates, setCandidates] = useState<Publication[]>([]);
   // The records picked to merge in, in the order they were picked.
   const [picks, setPicks] = useState<Picked[]>([]);
-  // The notes as they were edited, or undefined until they are edited.
-  const [edited, setEdited] = useState<RichTextValue | null | undefined>();
-  // The code of the server's refusal of the notes, or an empty string when it
-  // has not refused them since they were last edited.
-  const [refusal, setRefusal] = useState("");
+  // The notes as they were edited in each language, and no key for a language
+  // whose notes are not edited.
+  const [edited, setEdited] = useState<
+    Partial<Record<Language, RichTextValue | null>>
+  >({});
+  // The code of the server's refusal of the notes in each language it refused
+  // them in since they were last edited.
+  const [refusal, setRefusal] = useState<Partial<Record<Language, string>>>({});
   const [merging, setMerging] = useState(false);
   const {
     lookup,
@@ -270,16 +295,35 @@ const PublicationMerge: FC<Props> = ({
     [publication, picks],
   );
 
-  const proposal = result.notes ?? null;
-  const notes =
-    edited !== undefined ? edited : isBlank(proposal) ? null : proposal;
-  const showsNotes = allRead && (!isBlank(proposal) || edited !== undefined);
+  const proposal = (language: Language) => result[NOTES_KEYS[language]] ?? null;
+  const notesIn = (language: Language) => {
+    const edit = edited[language];
+    const proposed = proposal(language);
+
+    return edit !== undefined ? edit : isBlank(proposed) ? null : proposed;
+  };
+  const notes = byLanguage(notesIn);
+  const showsNotes =
+    allRead &&
+    LANGUAGES.some(
+      (language) =>
+        !isBlank(proposal(language)) || edited[language] !== undefined,
+    );
   const notesGained = allRead
-    ? !isEqual(proposal, publication.notes ?? null)
+    ? LANGUAGES.some(
+        (language) =>
+          !isEqual(
+            proposal(language),
+            publication[NOTES_KEYS[language]] ?? null,
+          ),
+      )
     : null;
-  const notesCode =
-    showsNotes && isLongerThan(notes, NOTES_MAX_LENGTH) ? "too_long" : refusal;
-  const notesError = useErrorSentence(notesCode);
+  const codeIn = (language: Language) =>
+    showsNotes && isLongerThan(notes[language], NOTES_MAX_LENGTH)
+      ? "too_long"
+      : (refusal[language] ?? "");
+  const notesCodes = byLanguage(codeIn);
+  const notesErrors = useErrorSentences(notesCodes);
 
   // Picks `candidate`, and reads it in full, so its notes are known.
   async function pick(candidate: Publication) {
@@ -304,9 +348,9 @@ const PublicationMerge: FC<Props> = ({
     );
   }
 
-  function handleNotes(value: RichTextValue | null) {
-    setEdited(value);
-    setRefusal("");
+  function handleNotes(language: Language, value: RichTextValue | null) {
+    setEdited((before) => ({ ...before, [language]: value }));
+    setRefusal((before) => ({ ...before, [language]: undefined }));
   }
 
   function reset() {
@@ -314,8 +358,8 @@ const PublicationMerge: FC<Props> = ({
     setTerm("");
     setCandidates([]);
     setPicks([]);
-    setEdited(undefined);
-    setRefusal("");
+    setEdited({});
+    setRefusal({});
   }
 
   function handleClose() {
@@ -429,12 +473,10 @@ const PublicationMerge: FC<Props> = ({
                 notesGained={notesGained}
               >
                 {showsNotes && (
-                  <LazyRichTextArea
-                    label={attribute("notes")}
+                  <NotesEditor
                     hint={t("notesHint")}
-                    placeholder={note("placeholder")}
                     value={notes}
-                    error={notesError}
+                    errors={notesErrors}
                     onChange={handleNotes}
                   />
                 )}
@@ -457,7 +499,11 @@ const PublicationMerge: FC<Props> = ({
             width="fit"
             size="medium"
             loading={merging}
-            disabled={picks.length === 0 || !allRead || notesCode !== ""}
+            disabled={
+              picks.length === 0 ||
+              !allRead ||
+              LANGUAGES.some((language) => notesCodes[language] !== "")
+            }
             onClick={handleMerge}
           />
         </div>

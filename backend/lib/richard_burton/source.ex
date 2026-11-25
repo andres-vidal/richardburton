@@ -1,20 +1,30 @@
 defmodule RichardBurton.Source do
   @moduledoc """
   A source of a publication: a free-text entry that records where the
-  publication's data was collected, so a reader can check it. A publication's
-  sources are ordered by `position`, belong to it alone and are deleted with
-  it, and they change with the publication's own update.
+  publication's data was collected, so a reader can check it.
+
+  A source is written in one language, Portuguese (`"pt"`) or English
+  (`"en"`), which `language` holds (see `RichardBurton.Language`). A
+  publication has a list of sources in each language, `sources_pt` and
+  `sources_en`. The two lists are independent: a source in one does not stand
+  for any source in the other.
+
+  A publication's sources in one language are ordered by `position`, which
+  counts from 0 in each language. They belong to the publication alone, are
+  deleted with it, and change with the publication's own update.
   """
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias RichardBurton.Language
   alias RichardBurton.Source
 
-  @readable_attributes [:content, :position]
+  @readable_attributes [:content, :language, :position]
 
   @derive {Jason.Encoder, only: @readable_attributes}
   schema "publication_sources" do
     field(:content, :string)
+    field(:language, :string)
     field(:position, :integer)
 
     belongs_to(:publication, RichardBurton.Publication)
@@ -22,18 +32,23 @@ defmodule RichardBurton.Source do
     timestamps()
   end
 
-  @doc "Casts a source's `content`, which is required, and its `position`."
-  def changeset(source, attrs \\ %{}) do
+  @doc """
+  Casts a source's `content`, which is required, and its `position`, and sets
+  its `language` to `language`, which must be one of `Language.codes/0`.
+  """
+  def changeset(source, attrs, language) do
     source
     |> cast(attrs, [:content, :position])
+    |> put_change(:language, language)
     |> validate_required([:content])
+    |> validate_inclusion(:language, Language.codes())
   end
 
   @doc ~S"""
-  Nests a flat publication's ordered list of sources into the maps
-  `cast_assoc(:sources)` casts, with each `position` taken from the order.
-  Blank entries are dropped instead of failing validation, and any value that
-  is not a list gives no sources.
+  Nests a flat publication's ordered list of sources in one language into the
+  maps `cast_assoc/3` casts, with each `position` taken from the order. Blank
+  entries are dropped instead of failing validation, and any value that is not
+  a list gives no sources.
 
   ## Examples
 
@@ -64,10 +79,10 @@ defmodule RichardBurton.Source do
   def nest(_), do: []
 
   @doc ~S"""
-  Flattens sources to their contents, the reverse of `nest/1`. Takes loaded
-  `Source` structs, which it orders by `position`, or a list that is already
-  flat. Any other value, such as nil or an association that is not loaded,
-  gives an empty list.
+  Flattens sources in one language to their contents, the reverse of
+  `nest/1`. Takes loaded `Source` structs, which it orders by `position`, or a
+  list that is already flat. Any other value, such as nil or an association
+  that is not loaded, gives an empty list.
 
   ## Examples
 

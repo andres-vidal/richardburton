@@ -1,0 +1,106 @@
+import { installFakeTranslator, removeTranslator } from "test/translator";
+import { canTranslate, translateAll } from "./translator";
+
+describe("canTranslate", () => {
+  test("is false in a browser without the Translator API", async () => {
+    expect(await canTranslate("pt", "en")).toBe(false);
+  });
+
+  test("is true for a pair the browser can download or has", async () => {
+    const uninstall = installFakeTranslator();
+
+    try {
+      expect(await canTranslate("pt", "en")).toBe(true);
+    } finally {
+      uninstall();
+    }
+  });
+
+  test("is false for a pair the browser cannot translate, and when the API fails", async () => {
+    const answers = ["unavailable", new Error("The API failed.")];
+
+    Object.defineProperty(self, "Translator", {
+      configurable: true,
+      value: {
+        availability: async () => {
+          const answer = answers.shift();
+          if (answer instanceof Error) throw answer;
+          return answer;
+        },
+      },
+    });
+
+    try {
+      expect(await canTranslate("pt", "en")).toBe(false);
+      expect(await canTranslate("en", "pt")).toBe(false);
+    } finally {
+      removeTranslator();
+    }
+  });
+});
+
+describe("canTranslate, called again for a pair", () => {
+  test("asks the browser once for each pair", async () => {
+    const availability = vi.fn(async () => "available");
+
+    Object.defineProperty(self, "Translator", {
+      configurable: true,
+      value: { availability },
+    });
+
+    try {
+      expect(await canTranslate("pt", "en")).toBe(true);
+      expect(await canTranslate("pt", "en")).toBe(true);
+      expect(await canTranslate("en", "pt")).toBe(true);
+
+      expect(availability).toHaveBeenCalledTimes(2);
+    } finally {
+      removeTranslator();
+    }
+  });
+});
+
+describe("canTranslate, with an API that does not answer", () => {
+  test("is false once the wait is over", async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(self, "Translator", {
+      configurable: true,
+      value: { availability: () => new Promise(() => {}) },
+    });
+
+    try {
+      const answer = canTranslate("pt", "en");
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(await answer).toBe(false);
+    } finally {
+      removeTranslator();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("translateAll", () => {
+  test("translates each text in order, passes blank ones through, and reports the download", async () => {
+    const uninstall = installFakeTranslator();
+    const progress = vi.fn();
+
+    try {
+      expect(
+        await translateAll(
+          ["Um clássico.", "  ", "Reeditado em 1922."],
+          "pt",
+          "en",
+          progress,
+        ),
+      ).toEqual(["[en] Um clássico.", "  ", "[en] Reeditado em 1922."]);
+      expect(progress.mock.calls).toEqual([[0.5], [1]]);
+    } finally {
+      uninstall();
+    }
+  });
+
+  test("rejects in a browser without the Translator API", async () => {
+    await expect(translateAll(["Um clássico."], "pt", "en")).rejects.toThrow();
+  });
+});

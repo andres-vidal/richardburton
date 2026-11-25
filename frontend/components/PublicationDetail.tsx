@@ -3,14 +3,20 @@
 import type { WithChanges } from "modules/publication/history";
 import {
   useIsPublicationValid,
+  useLanguage,
   usePublicationErrorDescription,
   usePublicationField,
   usePublicationFieldError,
+  usePublicationFieldErrors,
   usePublicationMarking,
   usePublicationSources,
 } from "modules/publication/hooks";
 import {
+  byLanguage,
   type FollowedPublication,
+  type Language,
+  markedSources,
+  NOTES_KEYS,
   Publication,
   type PublicationHistoryEntry,
   type PublicationId,
@@ -18,6 +24,9 @@ import {
   type PublicationKind as Kind,
   type PublicationListKey,
   searchHref,
+  shownNotes,
+  shownSources,
+  SOURCES_KEYS,
 } from "modules/publication/model";
 import { watchEdit } from "modules/publication/checks";
 import { deletePublication, update } from "modules/publication/remote";
@@ -27,11 +36,7 @@ import {
   usePublicationStore,
 } from "modules/publication/workspace";
 import { useCountryNaming } from "modules/country-names";
-import {
-  isBlank,
-  markedParagraph,
-  type RichTextValue,
-} from "modules/rich-text";
+import { markedParagraph } from "modules/rich-text";
 import type { Store } from "modules/store";
 import { useCanEditPublications } from "modules/session";
 import { useFormatter, useTranslations } from "next-intl";
@@ -174,36 +179,70 @@ const PublicationDescription: FC<{ publication: Publication }> = ({
 };
 
 /**
- * Where the record says it comes from. Each source renders as rich text, as
- * `markedParagraph` builds it from the source, so a URL in a source is a link
- * and the words a search matched are highlighted. Each source's bullet is
- * centred on its first line.
- *
- * A record with no sources says so rather than leaving the section out: for a
- * database whose worth is its provenance, an absent source is worth stating.
- * The history section states its absence the same way.
+ * A line that names `language`, the language of what follows it, when that is
+ * not the reader's language. It renders nothing when it is.
  */
-const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
+const WrittenIn: FC<{ language: Language }> = ({ language }) => {
   const t = useTranslations("publication");
+  const reader = useLanguage();
+
+  return language === reader ? null : (
+    <p className="text-xs text-gray-500">{t("writtenIn", { language })}</p>
+  );
+};
+
+/**
+ * Where the record says it comes from, as a region named for the sources. It
+ * shows the sources in the reader's language, or the sources in the other
+ * language, with a line that names that language (see `WrittenIn`), when
+ * there are none in the reader's (see `shownSources`). The list carries the
+ * `lang` of the language it is written in. Each source renders as
+ * rich text, as `markedParagraph` builds it from the source, so a URL in a
+ * source is a link and the words a search matched are highlighted. Each
+ * source's bullet is centred on its first line.
+ *
+ * A record with no sources in either language says so rather than leaving the
+ * section out: for a database whose worth is its provenance, an absent source
+ * is worth stating. The history section states its absence the same way.
+ */
+const PublicationSources: FC<{ publication: Publication }> = ({
+  publication,
+}) => {
+  const t = useTranslations("publication");
+  const shown = shownSources(
+    byLanguage((language) =>
+      markedSources(publication, SOURCES_KEYS[language]),
+    ),
+    useLanguage(),
+  );
 
   return (
-    <section className="space-y-2">
+    <section aria-label={t("sources")} className="space-y-2">
       <SectionHeading>{t("sources")}</SectionHeading>
-      {sources.length === 0 ? (
+      {shown === null ? (
         <p className="text-xs text-gray-500">{t("noSources")}</p>
       ) : (
-        <ul className="space-y-1.5 text-sm text-gray-700">
-          {sources.map((source, index) => (
-            <li key={index} className="flex gap-2.5 items-start">
-              <span aria-hidden className="flex shrink-0 items-center h-[1lh]">
-                <span className="size-1.5 rounded-full bg-indigo-400 ring-2 ring-indigo-100" />
-              </span>
-              <div className="min-w-0">
-                <RichText value={markedParagraph(source)} />
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          <WrittenIn language={shown.language} />
+          <ul
+            lang={shown.language}
+            className="space-y-1.5 text-sm text-gray-700"
+          >
+            {shown.sources.map((source, index) => (
+              <li key={index} className="flex gap-2.5 items-start">
+                <span
+                  aria-hidden
+                  className="flex shrink-0 items-center h-[1lh]"
+                >
+                  <span className="size-1.5 rounded-full bg-indigo-400 ring-2 ring-indigo-100" />
+                </span>
+                <div className="min-w-0">
+                  <RichText value={markedParagraph(source)} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </section>
   );
@@ -211,18 +250,28 @@ const PublicationSources: FC<{ sources: string[] }> = ({ sources }) => {
 
 /**
  * The publication's notes under their heading, rendered with `RichText`, as a
- * region named for them. It renders nothing for a publication whose notes are
- * missing, null or blank.
+ * region named for them. It shows the notes in the reader's language, or the
+ * notes in the other language, with a line that names that language (see
+ * `WrittenIn`), when there are none in the reader's (see `shownNotes`). The notes carry the
+ * `lang` of the language they are written in. It renders nothing for a
+ * publication whose notes are missing, null or blank in both languages.
  */
-const PublicationNotes: FC<{ notes: RichTextValue | null | undefined }> = ({
-  notes,
+const PublicationNotes: FC<{ publication: Publication }> = ({
+  publication,
 }) => {
   const t = useTranslations("attributes");
+  const notes = shownNotes(
+    byLanguage((language) => publication[NOTES_KEYS[language]]),
+    useLanguage(),
+  );
 
-  return isBlank(notes) ? null : (
+  return notes === null ? null : (
     <section aria-label={t("notes")} className="space-y-2">
       <SectionHeading>{t("notes")}</SectionHeading>
-      <RichText value={notes} />
+      <WrittenIn language={notes.language} />
+      <div lang={notes.language}>
+        <RichText value={notes.value} />
+      </div>
     </section>
   );
 };
@@ -299,6 +348,7 @@ const PublicationEditForm: FC<{
   const error = usePublicationErrorDescription(id);
   const isValid = useIsPublicationValid(id);
   const sources = usePublicationSources(id);
+  const sourcesErrors = usePublicationFieldErrors(id, SOURCES_KEYS);
 
   useEffect(() => watchEdit(store, id), [store, id]);
 
@@ -321,7 +371,8 @@ const PublicationEditForm: FC<{
       </div>
       <SourcesEditor
         value={sources}
-        onChange={(next) => setSources(store, id, next)}
+        errors={sourcesErrors}
+        onChange={(language, next) => setSources(store, id, language, next)}
       />
       <NotesField id={id} />
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -447,10 +498,8 @@ const Detail: FC<PublicationDetailProps> = ({
         <>
           <PublicationKind kind={kind} follows={follows} />
           <PublicationDescription publication={publication} />
-          <PublicationNotes notes={publication.notes} />
-          <PublicationSources
-            sources={Publication.markedSources(publication)}
-          />
+          <PublicationNotes publication={publication} />
+          <PublicationSources publication={publication} />
           {history && <PublicationHistorySection entries={history} />}
           {canEdit && (
             <div className="flex gap-3">

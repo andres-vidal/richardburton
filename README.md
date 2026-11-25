@@ -217,9 +217,13 @@ Each row of `data.csv` is one publication. The first line is a header that names
 | `authors` (or `translators`)  | Its translators, separated by `;`                                            |
 | `original_title`              | The title of the original book                                               |
 | `original_authors`            | The authors of the original book, separated by `;`                           |
-| `sources`                     | The sources it cites, one per line                                           |
-| `notes` (or `note`)           | Notes about the publication, as plain text in which addresses become links   |
+| `sources_pt`                  | The sources it cites, in Portuguese, one per line                            |
+| `sources_en`                  | The sources it cites, in English, one per line                               |
+| `notes_pt`                    | Notes about the publication in Portuguese, as plain text in which addresses become links |
+| `notes_en`                    | Notes about the publication in English, read and written as `notes_pt` is    |
 
 A cell that holds a comma, a quote or a line break is written inside double quotes. The CSV export writes the same columns, in the order of this table.
 
-In `notes`, a blank line starts a new paragraph. The import makes a link of each word that starts with `http://`, `https://` or `www.`, and of each email address, and leaves the punctuation at the end of the word, such as the full stop that ends a sentence, out of the link. The CSV does not carry the rest of the notes' formatting: the export writes bold and italic text as plain text, each list item on its own line after `-` or its number, and a link as its text followed by its URL in parentheses, or as its text alone when that text is its URL or email address, and the import reads the rest of each paragraph as plain text.
+The two lists of sources are independent, and so are the notes in each language: a publication can have either without the other. A file with a `sources`, `notes` or `note` column, which names no language, is refused rather than read without that column. Rename the column to `sources_pt` or `notes_pt`, or to the English one, and import the file again.
+
+In `notes_pt` and `notes_en`, a blank line starts a new paragraph. The import makes a link of each word that starts with `http://`, `https://` or `www.`, and of each email address, and leaves the punctuation at the end of the word, such as the full stop that ends a sentence, out of the link. The CSV does not carry the rest of the notes' formatting: the export writes bold and italic text as plain text, each list item on its own line after `-` or its number, and a link as its text followed by its URL in parentheses, or as its text alone when that text is its URL or email address, and the import reads the rest of each paragraph as plain text.
